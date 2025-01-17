@@ -1,9 +1,9 @@
-__all__ = ['Filter']
+__all__ = ["Filter"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, AccessibleIfRelatedRowsAreAccessible
+from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
 
 from .group import accessible_by_group_members
 
@@ -14,12 +14,9 @@ class Filter(Base):
     """
 
     # TODO: Track filter ownership and allow owners to update, delete filters
-    create = (
-        read
-    ) = (
-        update
-    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
-        stream="read"
+    create = read = update = delete = (
+        accessible_by_group_members
+        & AccessibleIfRelatedRowsAreAccessible(stream="read")
     )
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
@@ -48,9 +45,9 @@ class Filter(Base):
         doc="The Filter's Group.",
     )
     candidates = relationship(
-        'Candidate',
-        back_populates='filter',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Candidate",
+        back_populates="filter",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         order_by="Candidate.passed_at",
         doc="Candidates that have passed the filter.",

@@ -1,15 +1,16 @@
-from baselayer.app.access import auth_or_token
-from baselayer.app.env import load_env
-from ...base import BaseHandler
-from ..photometry import get_effective_wavelength
-from ....models import ClassicalAssignment, Obj, Telescope
-
-import numpy as np
-from astropy import time as ap_time
-import astropy.units as u
-import pandas as pd
 import datetime
 
+import astropy.units as u
+import numpy as np
+import pandas as pd
+from astropy import time as ap_time
+
+from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
+
+from ....models import ClassicalAssignment, Obj, Telescope
+from ...base import BaseHandler
+from ..photometry import get_effective_wavelength
 
 device_types = [
     "browser",
@@ -25,11 +26,11 @@ _, cfg = load_env()
 class AirmassHandler(BaseHandler):
     def calculate_airmass(self, obj, telescope, sunset, sunrise, sample_size=50):
         time = np.linspace(sunset.unix, sunrise.unix, sample_size)
-        time = ap_time.Time(time, format='unix')
+        time = ap_time.Time(time, format="unix")
 
         airmass = obj.airmass(telescope, time)
         time = time.unix * 1000
-        df = pd.DataFrame({'time': time, 'airmass': airmass})
+        df = pd.DataFrame({"time": time, "airmass": airmass})
         return df
 
 
@@ -53,13 +54,13 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
             sunset = telescope.next_sunset(time=time)
 
             if sunrise is None or sunset is None:
-                return self.error('sunrise or sunset not available')
+                return self.error("sunrise or sunset not available")
 
             if sunset > sunrise:
-                sunset = telescope.observer.sun_set_time(time, which='previous')
+                sunset = telescope.observer.sun_set_time(time, which="previous")
 
             json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
-                orient='records'
+                orient="records"
             )
             return self.success(data=json)
 
@@ -67,19 +68,19 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
 class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, obj_id, telescope_id):
-        time = self.get_query_argument('time', None)
+        time = self.get_query_argument("time", None)
         if time is not None:
             try:
-                time = ap_time.Time(time, format='iso')
+                time = ap_time.Time(time, format="iso")
             except ValueError as e:
-                return self.error(f'Invalid time format: {e.args[0]}')
+                return self.error(f"Invalid time format: {e.args[0]}")
         else:
             time = ap_time.Time.now()
 
         try:
             telescope_id = int(telescope_id)
         except TypeError:
-            return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
+            return self.error(f"Invalid telescope id: {telescope_id}, must be integer.")
 
         with self.Session() as session:
             obj = session.scalar(
@@ -100,13 +101,13 @@ class PlotObjTelAirmassHandler(AirmassHandler):
             sunset = telescope.next_sunset(time=time)
 
             if sunrise is None or sunset is None:
-                return self.error('sunrise or sunset not available')
+                return self.error("sunrise or sunset not available")
 
             if sunset > sunrise:
-                sunset = telescope.observer.sun_set_time(time, which='previous')
+                sunset = telescope.observer.sun_set_time(time, which="previous")
 
             json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
-                orient='records'
+                orient="records"
             )
             return self.success(data=json)
 
@@ -121,7 +122,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
         try:
             telescope_id = int(telescope_id)
         except TypeError:
-            return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
+            return self.error(f"Invalid telescope id: {telescope_id}, must be integer.")
 
         with self.Session() as session:
             obj = session.scalar(
@@ -146,7 +147,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
             deltat = 7
             for day in range(365 // deltat):
                 day = year_start + datetime.timedelta(days=day * deltat)
-                day = ap_time.Time(day.isoformat(), format='isot')
+                day = ap_time.Time(day.isoformat(), format="isot")
 
                 # Get sunrise/sunset times for that day
                 sunrise = telescope.next_sunrise(time=day)
@@ -156,7 +157,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
                     continue
 
                 # check if is in middle of night
-                if (sunrise - sunset).to_value('hr') < 0:
+                if (sunrise - sunset).to_value("hr") < 0:
                     sunrise = sunrise + ap_time.TimeDelta(1 * u.day)
 
                 # Compute airmasses for that day
@@ -167,7 +168,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
                 # Compute hours below airmass
                 num_times_below = df.loc[df["airmass"] < threshold].shape[0]
-                total_hours = (sunrise - sunset).to_value('hr')
+                total_hours = (sunrise - sunset).to_value("hr")
                 hours_below = num_times_below / sample_size * total_hours
                 json.append({"date": day.isot, "hours_below": hours_below})
 
@@ -177,14 +178,14 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 class FilterWavelengthHandler(BaseHandler):
     @auth_or_token
     async def get(self):
-        filters = self.get_query_argument('filters', None)
+        filters = self.get_query_argument("filters", None)
         if filters:
-            filters = filters.split(',')
+            filters = filters.split(",")
             wavelengths = []
             for filter in filters:
                 try:
                     wavelengths.append(get_effective_wavelength(filter))
                 except ValueError:
                     return self.error("Invalid filters")
-            return self.success(data={'wavelengths': wavelengths})
+            return self.success(data={"wavelengths": wavelengths})
         return self.error("Need to pass in a set of filters")

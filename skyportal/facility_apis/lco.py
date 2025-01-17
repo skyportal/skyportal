@@ -88,7 +88,7 @@ class SINISTRORequest:
                         {
                             'exposure_time': exp_time,
                             'exposure_count': exp_count,
-                            'optical_elements': {'filter': '%s' % filt},
+                            'optical_elements': {'filter': f'{filt}'},
                         }
                     ],
                 }
@@ -106,7 +106,7 @@ class SINISTRORequest:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
@@ -190,7 +190,7 @@ class SPECTRALRequest:
                         {
                             'exposure_time': exp_time,
                             'exposure_count': exp_count,
-                            'optical_elements': {'filter': '%s' % filt},
+                            'optical_elements': {'filter': f'{filt}'},
                         }
                     ],
                 }
@@ -208,7 +208,7 @@ class SPECTRALRequest:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
@@ -317,7 +317,7 @@ class MUSCATRequest:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
@@ -479,7 +479,7 @@ class FLOYDSRequest:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',

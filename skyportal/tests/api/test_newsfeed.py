@@ -24,9 +24,9 @@ def test_retrieve_newsfeed(view_only_token, public_group, upload_data_token):
 
     assert status == 200
     data = data['data']
-    assert any([d['type'] == 'source' for d in data])
-    assert any([d['message'] == 'New source saved' for d in data])
-    assert any([d['source_id'] == obj_id for d in data])
+    assert any(d['type'] == 'source' for d in data)
+    assert any(d['message'] == 'New source saved' for d in data)
+    assert any(d['source_id'] == obj_id for d in data)
 
 
 def test_fail_newsfeed_request_too_many(

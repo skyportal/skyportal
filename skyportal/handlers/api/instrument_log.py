@@ -322,7 +322,7 @@ class InstrumentStatusHandler(BaseHandler):
                 allocation = None
                 for alloc in allocations:
                     if alloc.altdata is not None:
-                        if set(list(alloc.altdata.keys())).issuperset(
+                        if set(alloc.altdata.keys()).issuperset(
                             ["ssh_host", "ssh_username", "ssh_password"]
                         ):
                             allocation = alloc

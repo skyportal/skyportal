@@ -1,69 +1,65 @@
-__all__ = ['AnalysisService', 'ObjAnalysis', 'DefaultAnalysis']
+__all__ = ["AnalysisService", "ObjAnalysis", "DefaultAnalysis"]
 
 import base64
-from datetime import datetime, timedelta
 import io
 import json
 import os
-from pathlib import Path
 import re
 import tempfile
 import uuid
+from datetime import datetime, timedelta
+from pathlib import Path
 
-import joblib
-import numpy as np
-import matplotlib.pyplot as plt
-import corner
 import arviz
+import corner
+import joblib
+import matplotlib.pyplot as plt
+import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy import event, inspect, or_, cast, func
+from sqlalchemy import cast, event, func, inspect, or_
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy_utils.types import JSONType
-from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
-
-from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy.orm import relationship
+from sqlalchemy_utils import EmailType, URLType
+from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import (
-    StringEncryptedType,
     AesEngine,
+    StringEncryptedType,
 )
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
-    Base,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    Base,
 )
-from baselayer.app.env import load_env
 from baselayer.log import make_log
-
 from skyportal.models import DBSession
 
 from ..enum_types import (
-    allowed_analysis_types,
-    allowed_analysis_input_types,
-    allowed_external_authentication_types,
     ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
+    allowed_analysis_input_types,
+    allowed_analysis_types,
+    allowed_external_authentication_types,
 )
-
-from .webhook import WebhookMixin
-from .group import accessible_by_groups_members
 from .classification import Classification
-from .group import Group
+from .group import Group, accessible_by_groups_members
+from .webhook import WebhookMixin
 
 _, cfg = load_env()
 
-log = make_log('models/analysis')
+log = make_log("models/analysis")
 
-RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
-RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
+RE_SLASHES = re.compile(r"^[\w_\-\+\/\\]*$")
+RE_NO_SLASHES = re.compile(r"^[\w_\-\+]*$")
 MAX_FILEPATH_LENGTH = 255
 
 
 class AnalysisService(Base):
-    __tablename__ = 'analysis_services'
+    __tablename__ = "analysis_services"
 
     read = create = update = delete = accessible_by_groups_members
 
@@ -72,42 +68,42 @@ class AnalysisService(Base):
         unique=True,
         index=True,
         nullable=False,
-        doc='Unique name/identifier of the analysis service.',
+        doc="Unique name/identifier of the analysis service.",
     )
 
     display_name = sa.Column(
-        sa.String, nullable=False, doc='Display name of the analysis service.'
+        sa.String, nullable=False, doc="Display name of the analysis service."
     )
 
     description = sa.Column(
         sa.String,
         nullable=True,
         doc=(
-            'Long-form description of what the analysis service does,'
-            ' what it returns, and what it requires. Could include'
-            ' links to documentation and code here.'
+            "Long-form description of what the analysis service does,"
+            " what it returns, and what it requires. Could include"
+            " links to documentation and code here."
         ),
     )
 
     version = sa.Column(
         sa.String,
         nullable=True,
-        doc='Semantic version (or githash) of the analysis service.',
+        doc="Semantic version (or githash) of the analysis service.",
     )
 
     contact_name = sa.Column(
         sa.String,
         nullable=True,
         doc=(
-            'Name of person responsible for the service (ie. the maintainer). '
-            ' This person does not need to be part of this SkyPortal instance.'
+            "Name of person responsible for the service (ie. the maintainer). "
+            " This person does not need to be part of this SkyPortal instance."
         ),
     )
 
     contact_email = sa.Column(
         EmailType(),
         nullable=True,
-        doc='Email address of the person responsible for the service.',
+        doc="Email address of the person responsible for the service.",
     )
 
     url = sa.Column(
@@ -124,8 +120,8 @@ class AnalysisService(Base):
         nullable=True,
         default=dict,
         doc=(
-            'Optional parameters to be passed to the analysis service, along with '
-            'possible values to be shown in the UI. '
+            "Optional parameters to be passed to the analysis service, along with "
+            "possible values to be shown in the UI. "
         ),
     )
 
@@ -133,15 +129,15 @@ class AnalysisService(Base):
         allowed_external_authentication_types,
         nullable=False,
         doc=(
-            f'''Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.'''
-            ' See https://docs.python-requests.org/en/master/user/authentication/'
+            f"""Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}."""
+            " See https://docs.python-requests.org/en/master/user/authentication/"
         ),
     )
 
     _authinfo = sa.Column(
-        StringEncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5'),
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
         nullable=True,
-        doc=('Contains authentication credentials for the service.'),
+        doc=("Contains authentication credentials for the service."),
     )
 
     enabled = sa.Column(sa.Boolean, nullable=False, default=True)
@@ -149,15 +145,15 @@ class AnalysisService(Base):
     analysis_type = sa.Column(
         allowed_analysis_types,
         nullable=False,
-        doc=f'''Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}''',
+        doc=f"""Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}""",
     )
 
     input_data_types = sa.Column(
         ARRAY(allowed_analysis_input_types),
         default=[],
         doc=(
-            'List of allowed_analysis_input_types required by the service.'
-            ' This data will be assembled and sent over to the analysis service.'
+            "List of allowed_analysis_input_types required by the service."
+            " This data will be assembled and sent over to the analysis service."
         ),
     )
 
@@ -208,9 +204,9 @@ class AnalysisService(Base):
     )
 
     obj_analyses = relationship(
-        'ObjAnalysis',
-        back_populates='analysis_service',
-        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
+        "ObjAnalysis",
+        back_populates="analysis_service",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
         passive_deletes=True,
         doc="Instances of analysis applied to specific objects",
     )
@@ -228,9 +224,9 @@ class AnalysisService(Base):
 
     # add the relationship to the DefaultAnalysis table
     default_analyses = relationship(
-        'DefaultAnalysis',
-        back_populates='analysis_service',
-        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
+        "DefaultAnalysis",
+        back_populates="analysis_service",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
         passive_deletes=True,
         doc="Instances of analysis applied to specific objects",
     )
@@ -249,22 +245,22 @@ class AnalysisMixin:
 
     @hybrid_property
     def has_inference_data(self):
-        return self.data.get('inference_data', None) is not None
+        return self.data.get("inference_data", None) is not None
 
     @hybrid_property
     def has_plot_data(self):
-        return self.data.get('plots', None) is not None
+        return self.data.get("plots", None) is not None
 
     @hybrid_property
     def number_of_analysis_plots(self):
         if not self.has_plot_data:
             return 0
         else:
-            return len(self.data.get('plots', []))
+            return len(self.data.get("plots", []))
 
     @hybrid_property
     def has_results_data(self):
-        return self.data.get('results', None) is not None
+        return self.data.get("results", None) is not None
 
     def serialize_results_data(self):
         """
@@ -273,16 +269,16 @@ class AnalysisMixin:
         """
         if not self.has_results_data:
             return {}
-        results = self.data.get('results', {"format": "json", "data": {}})
+        results = self.data.get("results", {"format": "json", "data": {}})
         if not isinstance(results, dict):
             return {}
 
-        if results.get('format', None) == "json":
-            return results.get('data', {})
-        elif results.get('format', None) == "joblib":
+        if results.get("format", None) == "json":
+            return results.get("data", {})
+        elif results.get("format", None) == "joblib":
             try:
                 buf = io.BytesIO()
-                buf.write(base64.b64decode(results.get('data', None)))
+                buf.write(base64.b64decode(results.get("data", None)))
                 buf.seek(0)
                 data = joblib.load(buf)
                 jsons = json.dumps(data, cls=DictNumpyEncoder)
@@ -300,7 +296,7 @@ class AnalysisMixin:
         if plot_number < 0 or plot_number >= self.number_of_analysis_plots:
             return None
 
-        plot = self.data.get('plots')[plot_number]
+        plot = self.data.get("plots")[plot_number]
         try:
             format = plot["format"]
         except Exception as e:
@@ -308,7 +304,7 @@ class AnalysisMixin:
             log(f"Warning: missing format in plot, assuming png {e}")
 
         buf = io.BytesIO()
-        buf.write(base64.b64decode(plot['data']))
+        buf.write(base64.b64decode(plot["data"]))
         buf.seek(0)
 
         return {"plot_data": buf, "plot_type": format}
@@ -321,15 +317,15 @@ class AnalysisMixin:
 
         # we could add different formats here in the future
         # but for now we only support netcdf4 formats
-        if self.data['inference_data']["format"] not in ["netcdf4"]:
-            raise ValueError('Inference data format not allowed.')
+        if self.data["inference_data"]["format"] not in ["netcdf4"]:
+            raise ValueError("Inference data format not allowed.")
 
         f = tempfile.NamedTemporaryFile(
             suffix=".nc", prefix="inferencedata_", delete=False
         )
         f.close()
-        f_handle = open(f.name, 'wb')
-        f_handle.write(base64.b64decode(self.data['inference_data']['data']))
+        f_handle = open(f.name, "wb")
+        f_handle.write(base64.b64decode(self.data["inference_data"]["data"]))
         f_handle.close()
         # N.B.: arviz/xarray memory maps the file, so we need to
         # remove the file only after using the data to make the plot
@@ -388,7 +384,7 @@ class AnalysisMixin:
         """
 
         # there's a default value but it is best to provide a full path in the config
-        root_folder = cfg.get('analysis_services.analysis_folder', 'analysis_data')
+        root_folder = cfg.get("analysis_services.analysis_folder", "analysis_data")
 
         # the filename can have alphanumeric, underscores, + or -
         self.check_path_string(self._unique_id)
@@ -396,7 +392,7 @@ class AnalysisMixin:
         # make sure to replace windows style slashes
         subfolder = self._unique_id.replace("\\", "/")
 
-        filename = f'analysis_{self.id}.joblib'
+        filename = f"analysis_{self.id}.joblib"
 
         path = os.path.join(root_folder, subfolder)
         if not os.path.exists(path):
@@ -406,7 +402,7 @@ class AnalysisMixin:
 
         if len(full_name) > MAX_FILEPATH_LENGTH:
             raise ValueError(
-                f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
+                f"Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters."
             )
 
         joblib.dump(self._data, full_name, compress=3)
@@ -457,20 +453,20 @@ class AnalysisMixin:
         nullable=False,
         unique=True,
         default=lambda: str(uuid.uuid4()),
-        doc='Unique identifier for this analysis result.',
+        doc="Unique identifier for this analysis result.",
     )
 
     hash = sa.Column(
         sa.String,
         nullable=True,
         unique=False,
-        doc='MD5sum hash of the data to be saved to file. Helps identify duplicate results.',
+        doc="MD5sum hash of the data to be saved to file. Helps identify duplicate results.",
     )
 
     _full_name = sa.Column(
         sa.String,
         nullable=True,
-        doc='full name of the file path where the data is saved.',
+        doc="full name of the file path where the data is saved.",
     )
 
     show_parameters = sa.Column(
@@ -497,26 +493,26 @@ class AnalysisMixin:
     analysis_parameters = sa.Column(
         JSONType,
         nullable=True,
-        doc=('Optional parameters that are passed to the analysis service'),
+        doc=("Optional parameters that are passed to the analysis service"),
     )
 
     input_filters = sa.Column(
         JSONType,
         nullable=True,
         doc=(
-            'Optional filters that are applied to the input data that is passed to the analysis service'
+            "Optional filters that are applied to the input data that is passed to the analysis service"
         ),
     )
 
     @classmethod
     def backref_name(cls):
-        if cls.__name__ == 'ObjAnalysis':
+        if cls.__name__ == "ObjAnalysis":
             return "obj_analyses"
 
     @declared_attr
     def author_id(cls):
         return sa.Column(
-            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the Annotation author's User instance.",
@@ -532,7 +528,7 @@ class AnalysisMixin:
     @declared_attr
     def analysis_service_id(cls):
         return sa.Column(
-            sa.ForeignKey('analysis_services.id', ondelete='CASCADE'),
+            sa.ForeignKey("analysis_services.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the associated analysis service.",
@@ -560,18 +556,18 @@ class AnalysisMixin:
 class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
     """Analysis on an Obj with a set of results as JSON"""
 
-    __tablename__ = 'obj_analyses'
+    __tablename__ = "obj_analyses"
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj="read")
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
+        obj="read"
     )
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     @declared_attr
     def obj_id(cls):
         return sa.Column(
-            sa.ForeignKey('objs.id', ondelete='CASCADE'),
+            sa.ForeignKey("objs.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the ObjAnalysis's Obj.",
@@ -580,7 +576,7 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
     @declared_attr
     def obj(cls):
         return relationship(
-            'Obj',
+            "Obj",
             back_populates=cls.backref_name(),
             doc="The ObjAnalysis's Obj.",
         )
@@ -591,12 +587,12 @@ class DefaultAnalysis(Base):
     # this default analysis will be triggered based on a set of criteria
     # the criteria will be defined here as well, in a JSONB column called source_filter
 
-    __tablename__ = 'default_analyses'
+    __tablename__ = "default_analyses"
 
     create = read = update = delete = accessible_by_groups_members
 
     analysis_service_id = sa.Column(
-        sa.ForeignKey('analysis_services.id', ondelete='CASCADE'),
+        sa.ForeignKey("analysis_services.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the associated analysis service.",
@@ -632,7 +628,7 @@ class DefaultAnalysis(Base):
     default_analysis_parameters = sa.Column(
         JSONType,
         nullable=True,
-        doc=('Optional parameters that are passed to the analysis service'),
+        doc=("Optional parameters that are passed to the analysis service"),
     )
 
     source_filter = sa.Column(
@@ -662,7 +658,7 @@ class DefaultAnalysis(Base):
     @declared_attr
     def author_id(cls):
         return sa.Column(
-            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the Annotation author's User instance.",
@@ -676,23 +672,23 @@ class DefaultAnalysis(Base):
         )
 
 
-@event.listens_for(ObjAnalysis, 'after_delete')
+@event.listens_for(ObjAnalysis, "after_delete")
 def delete_analysis_data_from_disk(mapper, connection, target):
-    log(f'Deleting analysis data for analysis id={target.id}')
+    log(f"Deleting analysis data for analysis id={target.id}")
     target.delete_data()
 
 
-@event.listens_for(AnalysisService, 'before_delete')
+@event.listens_for(AnalysisService, "before_delete")
 def delete_assoc_analysis_data_from_disk(mapper, connection, target):
-    log(f'Deleting associated analysis data for analysis_service={target.id}')
+    log(f"Deleting associated analysis data for analysis_service={target.id}")
     for analysis in target.obj_analyses:
-        log(f' ... deleting analysis data for analysis id={analysis.id}')
+        log(f" ... deleting analysis data for analysis id={analysis.id}")
         analysis.delete_data()
 
 
-@event.listens_for(Classification, 'after_insert')
+@event.listens_for(Classification, "after_insert")
 def create_default_analysis(mapper, connection, target):
-    log(f'Checking for default analyses for classification {target.id}')
+    log(f"Checking for default analyses for classification {target.id}")
 
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
@@ -702,17 +698,17 @@ def create_default_analysis(mapper, connection, target):
             target_data = target.to_dict()
 
             stmt = sa.select(DefaultAnalysis).where(
-                DefaultAnalysis.source_filter['classifications'].contains(
-                    [{"name": target_data['classification']}]
+                DefaultAnalysis.source_filter["classifications"].contains(
+                    [{"name": target_data["classification"]}]
                 ),
                 or_(
                     func.coalesce(
-                        DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0
+                        DefaultAnalysis.stats["daily_count"].astext.cast(sa.Integer), 0
                     )
                     < func.coalesce(
-                        DefaultAnalysis.stats['daily_limit'].astext.cast(sa.Integer), 10
+                        DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
                     ),
-                    DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime)
+                    DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
                     < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
                 ),
                 # make sure that the default analysis is associated with a group that the classification is associated with
@@ -730,13 +726,13 @@ def create_default_analysis(mapper, connection, target):
                         for classification in default_analysis.source_filter[
                             "classifications"
                         ]
-                        if classification["name"] == target_data['classification']
+                        if classification["name"] == target_data["classification"]
                     ),
                     None,
                 )
-                if classification_filter['probability'] <= target_data['probability']:
+                if classification_filter["probability"] <= target_data["probability"]:
                     log(
-                        f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
+                        f"Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}"
                     )
 
                     with DBSession() as db_session:
@@ -747,34 +743,34 @@ def create_default_analysis(mapper, connection, target):
                                 ).where(DefaultAnalysis.id == default_analysis.id)
                             ).first()
 
-                            if not {'daily_limit', 'daily_count', 'last_run'}.issubset(
+                            if not {"daily_limit", "daily_count", "last_run"}.issubset(
                                 default_analysis.stats.keys()
                             ):
                                 default_analysis.stats = {
-                                    'daily_limit': 10,
-                                    'daily_count': 1,
-                                    'last_run': datetime.utcnow().strftime(
+                                    "daily_limit": 10,
+                                    "daily_count": 1,
+                                    "last_run": datetime.utcnow().strftime(
                                         "%Y-%m-%dT%H:%M:%S.%f"
                                     ),
                                 }
                             if datetime.strptime(
-                                default_analysis.stats['last_run'],
+                                default_analysis.stats["last_run"],
                                 "%Y-%m-%dT%H:%M:%S.%f",
                             ) < datetime.utcnow() - timedelta(days=1):
                                 default_analysis.stats = {
-                                    'daily_limit': default_analysis.stats[
-                                        'daily_limit'
+                                    "daily_limit": default_analysis.stats[
+                                        "daily_limit"
                                     ],
-                                    'daily_count': 0,
-                                    'last_run': datetime.utcnow().strftime(
+                                    "daily_count": 0,
+                                    "last_run": datetime.utcnow().strftime(
                                         "%Y-%m-%dT%H:%M:%S.%f"
                                     ),
                                 }
                             default_analysis.stats = {
-                                'daily_limit': default_analysis.stats['daily_limit'],
-                                'daily_count': default_analysis.stats['daily_count']
+                                "daily_limit": default_analysis.stats["daily_limit"],
+                                "daily_count": default_analysis.stats["daily_count"]
                                 + 1,
-                                'last_run': datetime.utcnow().strftime(
+                                "last_run": datetime.utcnow().strftime(
                                     "%Y-%m-%dT%H:%M:%S.%f"
                                 ),
                             }
@@ -796,8 +792,8 @@ def create_default_analysis(mapper, connection, target):
                             )
                         except Exception as e:
                             log(
-                                f'Error creating default analysis with id {default_analysis.id}: {e}'
+                                f"Error creating default analysis with id {default_analysis.id}: {e}"
                             )
                             db_session.rollback()
         except Exception as e:
-            log(f'Error creating default analyses on classification {target.id}: {e}')
+            log(f"Error creating default analyses on classification {target.id}: {e}")

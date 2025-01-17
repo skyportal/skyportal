@@ -1,6 +1,6 @@
 import datetime
-
 import json
+
 import lxml
 import requests
 import sqlalchemy as sa
@@ -9,10 +9,10 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.app_utils import get_app_base_url
+from skyportal.email_utils import send_email
 from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-from skyportal.utils.calculations import deg2hms, deg2dms, radec2lb
-from skyportal.email_utils import send_email
+from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
 env, cfg = load_env()
 
@@ -27,8 +27,8 @@ ALLOWED_THUMBNAIL_TYPES = [
 
 SLACK_DIVIDER = {"type": "divider"}
 
-SLACK_BASE_URL = cfg['slack.expected_url_preamble']
-if SLACK_BASE_URL.endswith('/'):
+SLACK_BASE_URL = cfg["slack.expected_url_preamble"]
+if SLACK_BASE_URL.endswith("/"):
     SLACK_URL = SLACK_BASE_URL[:-1]
 
 SLACK_URL = f"{SLACK_URL}/services"
@@ -39,7 +39,7 @@ email_enabled = False
 if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
     email_enabled = True
 
-log = make_log('notifications')
+log = make_log("notifications")
 
 
 def gcn_notification_content(target, session):
@@ -68,7 +68,7 @@ def gcn_notification_content(target, session):
     if gcn_event.gcn_notices is None or len(gcn_event.gcn_notices) < 2:
         new_event = True
 
-    notice_type = 'No notice type'
+    notice_type = "No notice type"
     notice_content = None
     name = None
 
@@ -79,16 +79,16 @@ def gcn_notification_content(target, session):
             notice_type = last_gcn_notice.notice_type
         if last_gcn_notice.notice_format == "voevent":
             notice_content = lxml.etree.fromstring(last_gcn_notice.content)
-            name = notice_content.find('./Why/Inference/Name')
+            name = notice_content.find("./Why/Inference/Name")
         elif last_gcn_notice.notice_format == "json":
-            notice_content = json.loads(last_gcn_notice.content.decode('utf8'))
+            notice_content = json.loads(last_gcn_notice.content.decode("utf8"))
 
     if name is not None:
         source_name = (name.text).replace(" ", "")
-    elif 'GRB' in tags:
+    elif "GRB" in tags:
         # we want the name to be like GRB YYMMDD.HHMM
         source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-    elif 'GW' in tags:
+    elif "GW" in tags:
         source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
 
     if notice_content is not None:
@@ -97,10 +97,10 @@ def gcn_notification_content(target, session):
             dec = notice_content.get("dec")
             error = notice_content.get("ra_dec_error")
         else:
-            loc = notice_content.find('./WhereWhen/ObsDataLocation/ObservationLocation')
-            ra = loc.find('./AstroCoords/Position2D/Value2/C1')
-            dec = loc.find('./AstroCoords/Position2D/Value2/C2')
-            error = loc.find('./AstroCoords/Position2D/Error2Radius')
+            loc = notice_content.find("./WhereWhen/ObsDataLocation/ObservationLocation")
+            ra = loc.find("./AstroCoords/Position2D/Value2/C1")
+            dec = loc.find("./AstroCoords/Position2D/Value2/C2")
+            error = loc.find("./AstroCoords/Position2D/Error2Radius")
 
             if ra is not None:
                 ra = float(ra.text)
@@ -117,30 +117,30 @@ def gcn_notification_content(target, session):
     links = {}
     # look if there are aliases with LVC prefix, or Fermi prefix
     for alias in aliases:
-        if alias.startswith('LVC'):
-            name = alias.split('#')[1]
-            links['LVC'] = f"https://gracedb.ligo.org/superevents/{name}/view/"
-        if alias.startswith('Fermi'):
+        if alias.startswith("LVC"):
+            name = alias.split("#")[1]
+            links["LVC"] = f"https://gracedb.ligo.org/superevents/{name}/view/"
+        if alias.startswith("Fermi"):
             # get the current year
-            name = alias.split('#')[1]
+            name = alias.split("#")[1]
             year = datetime.datetime.now().year
-            links[
-                'Fermi'
-            ] = f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{year}/{name}/quicklook/"
+            links["Fermi"] = (
+                f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{year}/{name}/quicklook/"
+            )
 
     return {
-        'dateobs': dateobs_txt,
-        'source_name': source_name,
-        'notice_type': notice_type,
-        'new_event': new_event,
-        'time_since_dateobs': time_since_dateobs,
-        'ra': ra,
-        'dec': dec,
-        'error': error,
-        'tags': tags,
-        'links': links,
-        'app_url': app_url,
-        'localization_name': localization.localization_name if localization else None,
+        "dateobs": dateobs_txt,
+        "source_name": source_name,
+        "notice_type": notice_type,
+        "new_event": new_event,
+        "time_since_dateobs": time_since_dateobs,
+        "ra": ra,
+        "dec": dec,
+        "error": error,
+        "tags": tags,
+        "links": links,
+        "app_url": app_url,
+        "localization_name": localization.localization_name if localization else None,
     }
 
 
@@ -149,7 +149,7 @@ def gcn_slack_notification(target, data=None, new_tag=False):
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
     # https://api.slack.com/reference/block-kit/blocks
 
-    if data['new_event']:
+    if data["new_event"]:
         header_text = f"New Event: <{app_url}{target['url']}|*{data['dateobs']}*> ({data['notice_type']})"
     elif new_tag:
         header_text = f"New tag added to Event: <{app_url}{target['url']}|*{data['dateobs']}*> ({data['notice_type']})"
@@ -159,14 +159,14 @@ def gcn_slack_notification(target, data=None, new_tag=False):
     time_text = f"*Time*:\n *-* Trigger Time (T0): {data['dateobs']}\n *-* Time since T0: {data['time_since_dateobs']}"
     notice_type_text = f"*Notice Type*: {data['notice_type']}"
 
-    if data['ra'] is not None and data['dec'] is not None and data['error'] is not None:
+    if data["ra"] is not None and data["dec"] is not None and data["error"] is not None:
         # the event has an associated source
         # for the error, keep only the first 2 digits after the decimal point
         localization_text = f"*Localization*:\n *-* Localization Type: Point\n *-* Coordinates: ra={data['ra']}, dec={data['dec']}, error radius={data['error']} deg"
-        if data['error'] < SOURCE_RADIUS_THRESHOLD:
+        if data["error"] < SOURCE_RADIUS_THRESHOLD:
             localization_text += f"\n *-* Source Page Link: <{app_url}/source/{data['source_name']}|*{data['source_name']}*>"
 
-    elif data['localization_name'] is not None:
+    elif data["localization_name"] is not None:
         # the event has an associated skymap
         localization_text = f"*Localization*:\n *-* Localization Type: Skymap\n *-* Name: {data['localization_name']}"
     else:
@@ -175,13 +175,13 @@ def gcn_slack_notification(target, data=None, new_tag=False):
         )
 
     external_links_text = None
-    if len(data['links']):
+    if len(data["links"]):
         external_links_text = "*External Links*:"
-        for key, value in data['links'].items():
+        for key, value in data["links"].items():
             external_links_text += f"\n *-* <{value}|*{key}*>"
 
     tags_text = None
-    if len(data['tags']) > 0:
+    if len(data["tags"]) > 0:
         tags_text = f"*Event tags*: {','.join(data['tags'])}"
 
     blocks = [
@@ -211,7 +211,7 @@ def gcn_slack_notification(target, data=None, new_tag=False):
 def gcn_email_notification(target, data=None, new_tag=False):
     # Now, we will create an HTML email that describes the message we want to send by email
 
-    if data['new_event']:
+    if data["new_event"]:
         header_text = f"<h3>New GCN Event: <a href='{app_url}{target['url']}'>{data['dateobs']}</a> ({data['notice_type']})</h3>"
         subject = f"{cfg['app.title']} - New GCN Event: {data['dateobs']} ({data['notice_type']})"
     elif new_tag:
@@ -224,11 +224,11 @@ def gcn_email_notification(target, data=None, new_tag=False):
     time_text = f"<div><h4>Time:</h4><ul><li>Trigger Time (T0): {data['dateobs']}</li><li>Time since T0: {data['time_since_dateobs']}</li></ul></div>"
     notice_type_text = f"<div><h4>Notice Type:</h4> {data['notice_type']}</div>"
 
-    if data['ra'] is not None and data['dec'] is not None and data['error'] is not None:
+    if data["ra"] is not None and data["dec"] is not None and data["error"] is not None:
         localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Point</li><li>Coordinates: ra={data['ra']}, dec={data['dec']}, error radius={data['error']} deg</li>"
-        if data['error'] < SOURCE_RADIUS_THRESHOLD:
+        if data["error"] < SOURCE_RADIUS_THRESHOLD:
             localization_text += f"<li>Associated source Link: <a href='{app_url}/source/{data['source_name']}'>{data['source_name']}</a></li>"
-    elif data['localization_name'] is not None:
+    elif data["localization_name"] is not None:
         # the event has an associated skymap
         localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Skymap</li><li>Name: {data['localization_name']}</li>"
     else:
@@ -237,14 +237,14 @@ def gcn_email_notification(target, data=None, new_tag=False):
     localization_text = f"<div>{localization_text}</ul></div>"
 
     external_links_text = None
-    if len(data['links']):
+    if len(data["links"]):
         external_links_text = "<h4>External Links:</h4><ul>"
-        for key, value in data['links'].items():
+        for key, value in data["links"].items():
             external_links_text += f"<li><a href='{value}'>{key}</a></li>"
         external_links_text += "</ul>"
 
     tags_text = None
-    if len(data['tags']) > 0:
+    if len(data["tags"]) > 0:
         tags_text = f"<h4>Event tags: {','.join(data['tags'])}</h4><ul>"
 
     return subject, "".join(
@@ -316,7 +316,7 @@ def source_slack_notification(target, data=None):
     if data is None:
         raise ValueError("No data provided for source notification")
 
-    if 'classification_name' in data:
+    if "classification_name" in data:
         header_text = f"New *{data['classification_name']}*: <{app_url}{target['url']}|*{data['source_name']}*>"
 
         classification_stats = f"*Classification Stats:*\n - Score/Probability: {data['classification_probability']:.2f} \n - Date: {data['classification_date']}"
@@ -325,10 +325,10 @@ def source_slack_notification(target, data=None):
             f"*Source Coordinates:*\n - RA: {data['ra']} \n - Dec: {data['dec']}"
         )
         # add the redshift if it exists
-        if data['redshift'] is not None:
+        if data["redshift"] is not None:
             source_coordinates += f"\n - Redshift: {data['redshift']}"
 
-        if data['nb_detections'] > 0:
+        if data["nb_detections"] > 0:
             source_detection_stats = f"*Source Detection Stats:*\n - First Detection: {data['first_detected']} \n - Last Detection: {data['last_detected']} \n - Number of Detections: {data['nb_detections']}"
         else:
             source_detection_stats = f"*Source Detection Stats:*\n - Source created at: {data['created_at']} \n - Not yet detected (no photometry)"
@@ -377,7 +377,7 @@ def source_slack_notification(target, data=None):
             f"*Source Coordinates:*\n - RA: {data['ra']} \n - Dec: {data['dec']}"
         )
         # add the redshift if it exists
-        if data['redshift'] is not None:
+        if data["redshift"] is not None:
             source_coordinates += f"\n - Redshift: {data['redshift']}"
 
         return [
@@ -413,7 +413,7 @@ def source_email_notification(target, data=None):
     if data is None:
         raise ValueError("No data provided for source notification")
 
-    if 'classification_name' in data:
+    if "classification_name" in data:
         header_text = f"<h3>New {data['classification_name']}: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
         subject = f"{cfg['app.title']} - New {data['classification_name']}: {data['source_name']}"
 
@@ -421,10 +421,10 @@ def source_email_notification(target, data=None):
 
         source_coordinates = f"<div><h4>Source Coordinates:</h4><ul><li>RA: {data['ra']}</li><li>Dec: {data['dec']}</li>"
         # add the redshift if it exists
-        if data['redshift'] is not None:
+        if data["redshift"] is not None:
             source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
         source_coordinates += "</ul></div>"
-        if data['nb_detections'] > 0:
+        if data["nb_detections"] > 0:
             source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>First Detection: {data['first_detected']}</li><li>Last Detection: {data['last_detected']}</li><li>Number of Detections: {data['nb_detections']}</li></ul></div>"
         else:
             source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>Source created at: {data['created_at']}</li><li>Not yet detected (no photometry)</li></ul></div>"
@@ -446,7 +446,7 @@ def source_email_notification(target, data=None):
 
         source_coordinates = f"<div><h4>Source Coordinates:</h4><ul><li>RA: {data['ra']}</li><li>Dec: {data['dec']}</li>"
         # add the redshift if it exists
-        if data['redshift'] is not None:
+        if data["redshift"] is not None:
             source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
         source_coordinates += "</ul></div>"
 
@@ -663,9 +663,9 @@ def followup_request_slack_notification(data):
     }
 
     for key, value in data["request"]["payload"].items():
-        payload_section["text"][
-            "text"
-        ] += f'\t• *{str(key).lower().capitalize()}*: {value}\n'
+        payload_section["text"]["text"] += (
+            f"\t• *{str(key).lower().capitalize()}*: {value}\n"
+        )
 
     if len(data["obj"]["thumbnails"]) > 2:
         payload_section["accessory"] = {
@@ -723,7 +723,7 @@ def followup_request_slack_notification(data):
                 "text": {"type": "mrkdwn", "text": "*Comments:*\n"},
             }
             for comment in data["comments"]:
-                comments_section["text"]["text"] += f'\t• {comment}\n'
+                comments_section["text"]["text"] += f"\t• {comment}\n"
             blocks.append(comments_section)
         else:
             blocks.append(
@@ -748,10 +748,10 @@ def followup_request_email_notification(data):
         "</div>"
     )
 
-    if len(data['obj']['thumbnails']) > 0:
+    if len(data["obj"]["thumbnails"]) > 0:
         # make one row with all the thumbnails
         thumbnails_section = "<div style='display: flex; flex-wrap: wrap;'>"
-        for thumbnail in data['obj']['thumbnails']:
+        for thumbnail in data["obj"]["thumbnails"]:
             thumbnails_section += f"<img src='{thumbnail['url']}' style='max-width: 100%; max-height: 100%; margin: 5px;' title='{thumbnail['type']}' />"
         thumbnails_section += "</div>"
     else:
@@ -812,16 +812,16 @@ def request_notify_by_slack(request, session, is_update=None):
     altdata = request.allocation.altdata
 
     if not isinstance(altdata, dict):
-        raise ValueError('No altdata found in allocation.')
+        raise ValueError("No altdata found in allocation.")
 
     if not all(
-        key in altdata for key in ['slack_workspace', 'slack_channel', 'slack_token']
+        key in altdata for key in ["slack_workspace", "slack_channel", "slack_token"]
     ):
-        raise ValueError('Missing required keys in allocation altdata.')
+        raise ValueError("Missing required keys in allocation altdata.")
 
     content = followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
-        content['request']['new'] = not is_update
+        content["request"]["new"] = not is_update
     blocks = followup_request_slack_notification(content)
 
     data = json.dumps(
@@ -835,7 +835,7 @@ def request_notify_by_slack(request, session, is_update=None):
     r = requests.post(
         SLACK_MICROSERVICE_URL,
         data=data,
-        headers={'Content-Type': 'application/json'},
+        headers={"Content-Type": "application/json"},
     )
     r.raise_for_status()
 
@@ -847,18 +847,18 @@ def request_notify_by_email(request, session, is_update=None):
     altdata = request.allocation.altdata
 
     if not isinstance(altdata, dict):
-        raise ValueError('No altdata found in allocation.')
+        raise ValueError("No altdata found in allocation.")
 
-    if 'email' not in altdata:
-        raise ValueError('Missing required key in allocation altdata.')
+    if "email" not in altdata:
+        raise ValueError("Missing required key in allocation altdata.")
 
     content = followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
-        content['request']['new'] = not is_update
+        content["request"]["new"] = not is_update
     subject, body = followup_request_email_notification(content)
 
     send_email(
-        recipients=altdata['email'].split(","),
+        recipients=altdata["email"].split(","),
         subject=subject,
         body=body,
     )

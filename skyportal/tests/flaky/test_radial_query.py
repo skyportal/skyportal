@@ -1,13 +1,15 @@
+from uuid import uuid4
+
+import conesearch_alchemy as ca
 import numpy as np
 import pytest
-from uuid import uuid4
 from astropy import coordinates as ap_coord
 from astropy import units as u
+
 from skyportal import models as sp_models
-import conesearch_alchemy as ca
 
 
-@pytest.mark.parametrize('n', [100, 1000, 10000])
+@pytest.mark.parametrize("n", [100, 1000, 10000])
 @pytest.mark.flaky(reruns=3)
 def test_radial_query(n):
     # generate the points
@@ -24,7 +26,7 @@ def test_radial_query(n):
     sp_models.DBSession().commit()
 
     # generate the truth
-    coord = ap_coord.SkyCoord(ra=ras, dec=decs, unit='deg')
+    coord = ap_coord.SkyCoord(ra=ras, dec=decs, unit="deg")
 
     # take the test point to be the first point
     sep = coord.separation(coord[0])

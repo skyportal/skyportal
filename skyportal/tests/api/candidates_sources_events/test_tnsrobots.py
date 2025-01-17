@@ -87,7 +87,7 @@ def test_post_and_delete_tns_robot(
         if key == 'instrument_ids':
             for instrument_id in request_data[key]:
                 assert any(
-                    [i['id'] == instrument_id for i in data['data']['instruments']]
+                    i['id'] == instrument_id for i in data['data']['instruments']
                 )
             continue
         assert data['data'][key] == request_data[key]

@@ -1,53 +1,51 @@
 import datetime
-from copy import copy
-import re
 import json
-import uuid
-from astropy.time import Time
-import astropy.units as u
 import operator  # noqa: F401
+import re
 import string
-import arrow
-import numpy as np
 import time
+import uuid
+from copy import copy
 
-import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.sql.expression import case, func, cast
-from sqlalchemy.sql import column, Values, text, bindparam
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import Float, Boolean, String, Integer
-from sqlalchemy.exc import IntegrityError
-from marshmallow.exceptions import ValidationError
+import arrow
+import astropy.units as u
 import healpix_alchemy as ha
+import numpy as np
+import sqlalchemy as sa
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.sql import Values, bindparam, column, text
+from sqlalchemy.sql.expression import case, cast, func
+from sqlalchemy.types import Boolean, Float, Integer, String
 
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
-    AnnotationOnPhotometry,
-    Obj,
-    Candidate,
-    Photometry,
-    Spectrum,
-    Source,
-    Filter,
     Annotation,
-    Group,
+    AnnotationOnPhotometry,
+    Candidate,
     Classification,
-    Listing,
     Comment,
+    Filter,
+    Group,
+    Listing,
     Localization,
     LocalizationTile,
+    Obj,
+    Photometry,
     PhotStat,
+    Source,
+    Spectrum,
 )
-
 from ...utils.cache import Cache, array_to_bytes
-from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
+from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ..base import BaseHandler
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -57,7 +55,7 @@ cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
-log = make_log('api/candidate')
+log = make_log("api/candidate")
 
 Session = scoped_session(sessionmaker())
 
@@ -109,8 +107,8 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 def update_healpix_if_relevant(request_data, obj):
     # first check if the ra and dec is being updated
-    ra = request_data.get('ra', None)
-    dec = request_data.get('dec', None)
+    ra = request_data.get("ra", None)
+    dec = request_data.get("dec", None)
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
@@ -134,8 +132,8 @@ def create_photometry_annotations_query(
     photometry_annotations_query = AnnotationOnPhotometry.select(
         session.user_or_token,
         columns=[
-            AnnotationOnPhotometry.obj_id.label('obj_id'),
-            func.count(AnnotationOnPhotometry.obj_id).label('count'),
+            AnnotationOnPhotometry.obj_id.label("obj_id"),
+            func.count(AnnotationOnPhotometry.obj_id).label("count"),
         ],
     ).group_by(AnnotationOnPhotometry.obj_id)
     if photometry_annotations_filter_origin is not None:
@@ -181,12 +179,12 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         with self.Session() as session:
-            query_params = [bindparam('objID', value=obj_id, type_=sa.String)]
+            query_params = [bindparam("objID", value=obj_id, type_=sa.String)]
             stmt = "SELECT id FROM candidates WHERE obj_id = :objID"
             if not self.associated_user_object.is_admin:
                 query_params.append(
                     bindparam(
-                        'userID', value=self.associated_user_object.id, type_=sa.Integer
+                        "userID", value=self.associated_user_object.id, type_=sa.Integer
                     )
                 )
                 # inner join between filters and group_users (on group_id) to get filters accessible by user
@@ -639,7 +637,7 @@ class CandidateHandler(BaseHandler):
                     )
 
                 if include_photometry:
-                    candidate_info['photometry'] = (
+                    candidate_info["photometry"] = (
                         session.scalars(
                             Photometry.select(
                                 session.user_or_token,
@@ -652,17 +650,17 @@ class CandidateHandler(BaseHandler):
                         .unique()
                         .all()
                     )
-                    candidate_info['photometry'] = [
+                    candidate_info["photometry"] = [
                         {
                             **phot.to_dict(),
-                            'annotations': [
+                            "annotations": [
                                 annotation.to_dict() for annotation in phot.annotations
                             ],
                         }
-                        for phot in candidate_info['photometry']
+                        for phot in candidate_info["photometry"]
                     ]
                 if include_spectra:
-                    candidate_info['spectra'] = session.scalars(
+                    candidate_info["spectra"] = session.scalars(
                         Spectrum.select(
                             session.user_or_token,
                             options=[joinedload(Spectrum.instrument)],
@@ -710,7 +708,7 @@ class CandidateHandler(BaseHandler):
                 if len(c.photstats) > 0:
                     if c.photstats[-1].last_detected_mjd is not None:
                         candidate_info["last_detected_at"] = Time(
-                            c.photstats[-1].last_detected_mjd, format='mjd'
+                            c.photstats[-1].last_detected_mjd, format="mjd"
                         ).datetime
                     else:
                         candidate_info["last_detected_at"] = None
@@ -720,9 +718,9 @@ class CandidateHandler(BaseHandler):
                 candidate_info["gal_lat"] = c.gal_lat_deg
                 candidate_info["luminosity_distance"] = c.luminosity_distance
                 candidate_info["dm"] = c.dm
-                candidate_info[
-                    "angular_diameter_distance"
-                ] = c.angular_diameter_distance
+                candidate_info["angular_diameter_distance"] = (
+                    c.angular_diameter_distance
+                )
 
                 candidate_info = recursive_to_dict(candidate_info)
 
@@ -731,7 +729,7 @@ class CandidateHandler(BaseHandler):
                     end = time.time()
                     duration = end - start
                     log(
-                        f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds'
+                        f"User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds"
                     )
 
                 return self.success(data=candidate_info)
@@ -748,10 +746,10 @@ class CandidateHandler(BaseHandler):
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
         annotation_exclude_origin = self.get_query_argument(
-            'annotationExcludeOrigin', None
+            "annotationExcludeOrigin", None
         )
         annotation_exclude_date = self.get_query_argument(
-            'annotationExcludeOutdatedDate', None
+            "annotationExcludeOutdatedDate", None
         )
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
@@ -759,8 +757,8 @@ class CandidateHandler(BaseHandler):
         classifications_reject = self.get_query_argument("classificationsReject", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
-        list_name = self.get_query_argument('listName', None)
-        list_name_reject = self.get_query_argument('listNameReject', None)
+        list_name = self.get_query_argument("listName", None)
+        list_name_reject = self.get_query_argument("listNameReject", None)
         autosave = self.get_query_argument("autosave", False)
         autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
         photometry_annotations_filter = self.get_query_argument(
@@ -770,17 +768,17 @@ class CandidateHandler(BaseHandler):
             "photometryAnnotationsFilterOrigin", None
         )
         photometry_annotations_filter_after = self.get_query_argument(
-            'photometryAnnotationsFilterAfter', None
+            "photometryAnnotationsFilterAfter", None
         )
         photometry_annotations_filter_before = self.get_query_argument(
-            'photometryAnnotationsFilterBefore', None
+            "photometryAnnotationsFilterBefore", None
         )
         photometry_annotations_filter_min_count = self.get_query_argument(
-            'photometryAnnotationsFilterMinCount', 1
+            "photometryAnnotationsFilterMinCount", 1
         )
 
-        first_detected_date = self.get_query_argument('firstDetectionAfter', None)
-        last_detected_date = self.get_query_argument('lastDetectionBefore', None)
+        first_detected_date = self.get_query_argument("firstDetectionAfter", None)
+        last_detected_date = self.get_query_argument("lastDetectionBefore", None)
         number_of_detections = self.get_query_argument("numberDetections", None)
         require_detections = self.get_query_argument("requireDetections", True)
         exclude_forced_photometry = self.get_query_argument(
@@ -797,14 +795,14 @@ class CandidateHandler(BaseHandler):
         ):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
-                    'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
+                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
                 )
             try:
                 first_detected_date = arrow.get(first_detected_date).datetime
                 last_detected_date = arrow.get(last_detected_date).datetime
             except Exception:
                 return self.error(
-                    'firstDetectionAfter and lastDetectionBefore must be valid UTC dates'
+                    "firstDetectionAfter and lastDetectionBefore must be valid UTC dates"
                 )
             if first_detected_date > last_detected_date:
                 return self.error(
@@ -834,7 +832,7 @@ class CandidateHandler(BaseHandler):
                 if (
                     isinstance(group_ids, str)
                     and "," in group_ids
-                    and set(group_ids).issubset(string.digits + ',')
+                    and set(group_ids).issubset(string.digits + ",")
                 ):
                     group_ids = [int(g_id) for g_id in group_ids.split(",")]
                 elif isinstance(group_ids, str) and group_ids.isdigit():
@@ -850,7 +848,7 @@ class CandidateHandler(BaseHandler):
                 ).all()
                 filter_ids = [f.id for f in filters]
             elif filter_ids is not None:
-                if "," in filter_ids and set(filter_ids) in set(string.digits + ','):
+                if "," in filter_ids and set(filter_ids) in set(string.digits + ","):
                     filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
                 elif filter_ids.isdigit():
                     filter_ids = [int(filter_ids)]
@@ -1076,12 +1074,12 @@ class CandidateHandler(BaseHandler):
 
                     if "origin" not in new_filter:
                         self.error(
-                            f"Invalid annotation filter list item {item}: \"origin\" is required."
+                            f'Invalid annotation filter list item {item}: "origin" is required.'
                         )
 
                     if "key" not in new_filter:
                         self.error(
-                            f"Invalid annotation filter list item {item}: \"key\" is required."
+                            f'Invalid annotation filter list item {item}: "key" is required.'
                         )
 
                     if "value" in new_filter:
@@ -1129,7 +1127,7 @@ class CandidateHandler(BaseHandler):
                             )
                     else:
                         return self.error(
-                            f"Invalid annotation filter list item: {item}. Should have either \"value\" or \"min\" and \"max\""
+                            f'Invalid annotation filter list item: {item}. Should have either "value" or "min" and "max"'
                         )
 
             if sort_by_origin is not None:
@@ -1352,14 +1350,14 @@ class CandidateHandler(BaseHandler):
 
                 partition_key = arrow.get(localization.dateobs).datetime
                 localizationtile_partition_name = (
-                    f'{partition_key.year}_{partition_key.month:02d}'
+                    f"{partition_key.year}_{partition_key.month:02d}"
                 )
                 localizationtilescls = LocalizationTile.partitions.get(
                     localizationtile_partition_name, None
                 )
                 if localizationtilescls is None:
                     localizationtilescls = LocalizationTile.partitions.get(
-                        'def', LocalizationTile
+                        "def", LocalizationTile
                     )
                 else:
                     # check that there is actually a localizationTile with the given localization_id in the partition
@@ -1372,7 +1370,7 @@ class CandidateHandler(BaseHandler):
                         ).first()
                     ):
                         localizationtilescls = LocalizationTile.partitions.get(
-                            'def', LocalizationTile
+                            "def", LocalizationTile
                         )
 
                 cum_prob = (
@@ -1381,7 +1379,7 @@ class CandidateHandler(BaseHandler):
                         * localizationtilescls.healpix.area
                     )
                     .over(order_by=localizationtilescls.probdensity.desc())
-                    .label('cum_prob')
+                    .label("cum_prob")
                 )
 
                 localizationtile_subquery = (
@@ -1441,7 +1439,7 @@ class CandidateHandler(BaseHandler):
                 session.scalars(
                     Source.select(session.user_or_token, columns=[Source.obj_id]).where(
                         Source.obj_id.in_(
-                            [obj.id for obj, in query_results["candidates"]]
+                            [obj.id for (obj,) in query_results["candidates"]]
                         )
                     )
                 )
@@ -1486,8 +1484,8 @@ class CandidateHandler(BaseHandler):
                     ]
                     if autosave:
                         source = {
-                            'id': obj.id,
-                            'group_ids': autosave_group_ids,
+                            "id": obj.id,
+                            "group_ids": autosave_group_ids,
                         }
                         post_source(source, self.associated_user_object.id, session)
                     candidate_list.append(recursive_to_dict(obj))
@@ -1546,7 +1544,7 @@ class CandidateHandler(BaseHandler):
                     if len(obj.photstats) > 0:
                         if obj.photstats[-1].last_detected_mjd is not None:
                             candidate_list[-1]["last_detected_at"] = Time(
-                                obj.photstats[-1].last_detected_mjd, format='mjd'
+                                obj.photstats[-1].last_detected_mjd, format="mjd"
                             ).datetime
                         else:
                             candidate_list[-1]["last_detected_at"] = None
@@ -1556,9 +1554,9 @@ class CandidateHandler(BaseHandler):
                     candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                     candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
                     candidate_list[-1]["dm"] = obj.dm
-                    candidate_list[-1][
-                        "angular_diameter_distance"
-                    ] = obj.angular_diameter_distance
+                    candidate_list[-1]["angular_diameter_distance"] = (
+                        obj.angular_diameter_distance
+                    )
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
@@ -1569,7 +1567,7 @@ class CandidateHandler(BaseHandler):
                 end = time.time()
                 duration = end - start
                 log(
-                    f'User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds'
+                    f"User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds"
                 )
 
             return self.success(data=query_results)
@@ -1638,8 +1636,8 @@ class CandidateHandler(BaseHandler):
                 obj_already_exists = True
             schema = Obj.__schema__()
 
-            ra = data.get('ra', None)
-            dec = data.get('dec', None)
+            ra = data.get("ra", None)
+            dec = data.get("dec", None)
 
             if ra is None and not obj_already_exists:
                 return self.error("RA must not be null for a new Obj")
@@ -1948,7 +1946,7 @@ class CandidateFilterHandler(BaseHandler):
                 if (
                     isinstance(group_ids, str)
                     and "," in group_ids
-                    and set(group_ids).issubset(string.digits + ',')
+                    and set(group_ids).issubset(string.digits + ",")
                 ):
                     group_ids = [int(g_id) for g_id in group_ids.split(",")]
                 elif isinstance(group_ids, str) and group_ids.isdigit():
@@ -1974,7 +1972,7 @@ class CandidateFilterHandler(BaseHandler):
                 if (
                     isinstance(filter_ids, str)
                     and "," in filter_ids
-                    and set(filter_ids) in set(string.digits + ',')
+                    and set(filter_ids) in set(string.digits + ",")
                 ):
                     filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
                 elif isinstance(filter_ids, str) and filter_ids.isdigit():

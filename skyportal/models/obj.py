@@ -1,43 +1,42 @@
-__all__ = ['Obj']
+__all__ = ["Obj"]
 
-import uuid
-import requests
-import re
 import os
+import re
+import uuid
 
-import sqlalchemy as sa
-from sqlalchemy import event
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
-
-from astropy import coordinates as ap_coord
-from astropy import units as u
 import astroplan
 import conesearch_alchemy
+import dustmaps.sfd
 import healpix_alchemy
 import numpy as np
-import dustmaps.sfd
+import requests
+import sqlalchemy as sa
+from astropy import coordinates as ap_coord
+from astropy import units as u
 from dustmaps.config import config
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
+    CustomUserAccessControl,
     DBSession,
     public,
     restricted,
-    CustomUserAccessControl,
 )
 from baselayer.log import make_log
 
-from .photometry import Photometry
-from .photometric_series import PhotometricSeries
-from .spectrum import Spectrum
 from .candidate import Candidate
-from .thumbnail import Thumbnail
 from .cosmo import cosmo
+from .photometric_series import PhotometricSeries
+from .photometry import Photometry
+from .spectrum import Spectrum
+from .thumbnail import Thumbnail
 
 _, cfg = load_env()
-log = make_log('models.obj')
+log = make_log("models.obj")
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -45,13 +44,11 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 # download dustmap if required
-config['data_dir'] = cfg['misc.dustmap_folder']
-required_files = ['sfd/SFD_dust_4096_ngp.fits', 'sfd/SFD_dust_4096_sgp.fits']
+config["data_dir"] = cfg["misc.dustmap_folder"]
+required_files = ["sfd/SFD_dust_4096_ngp.fits", "sfd/SFD_dust_4096_sgp.fits"]
 if any(
-    [
-        not os.path.isfile(os.path.join(config['data_dir'], required_file))
+    not os.path.isfile(os.path.join(config["data_dir"], required_file))
         for required_file in required_files
-    ]
 ):
     try:
         dustmaps.sfd.fetch()
@@ -217,13 +214,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Record of who set which redshift values and when.",
     )
     host = relationship(
-        'Galaxy',
-        back_populates='objects',
+        "Galaxy",
+        back_populates="objects",
         doc="The Galaxy associated with this source.",
         foreign_keys="Obj.host_id",
     )
     host_id = sa.Column(
-        sa.ForeignKey('galaxys.id', ondelete='CASCADE'),
+        sa.ForeignKey("galaxys.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
         doc="The ID of the Galaxy to which this Obj is associated.",
@@ -302,81 +299,81 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     comments = relationship(
-        'Comment',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "Comment",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
 
     reminders = relationship(
-        'Reminder',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "Reminder",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="Reminder.created_at",
         doc="Reminders about the object.",
     )
 
     comments_on_spectra = relationship(
-        'CommentOnSpectrum',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "CommentOnSpectrum",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",
     )
 
     reminders_on_spectra = relationship(
-        'ReminderOnSpectrum',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "ReminderOnSpectrum",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="ReminderOnSpectrum.created_at",
         doc="Reminders about spectra belonging to the object.",
     )
 
     annotations = relationship(
-        'Annotation',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Annotation",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         order_by="Annotation.created_at",
         doc="Auto-annotations posted about the object.",
     )
 
     annotations_on_spectra = relationship(
-        'AnnotationOnSpectrum',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "AnnotationOnSpectrum",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="AnnotationOnSpectrum.created_at",
         doc="Auto-annotations posted about a spectrum belonging to the object.",
     )
 
     annotations_on_photometry = relationship(
-        'AnnotationOnPhotometry',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "AnnotationOnPhotometry",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="AnnotationOnPhotometry.created_at",
         doc="Auto-annotations posted about photometry belonging to the object.",
     )
 
     classifications = relationship(
-        'Classification',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
+        "Classification",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
         passive_deletes=True,
         order_by="Classification.created_at",
         doc="Classifications of the object.",
     )
 
     photometry = relationship(
-        'Photometry',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "Photometry",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         order_by="Photometry.mjd",
@@ -384,9 +381,9 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     photstats = relationship(
-        'PhotStat',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "PhotStat",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         doc="Photometry statistics associated with the object.",
@@ -399,9 +396,9 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     photometric_series = relationship(
-        'PhotometricSeries',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "PhotometricSeries",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         order_by="PhotometricSeries.mjd_first",
@@ -409,33 +406,33 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     spectra = relationship(
-        'Spectrum',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "Spectrum",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         order_by="Spectrum.observed_at",
         doc="Spectra of the object.",
     )
     thumbnails = relationship(
-        'Thumbnail',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Thumbnail",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Thumbnails of the object.",
     )
 
     followup_requests = relationship(
-        'FollowupRequest',
-        back_populates='obj',
-        cascade='delete',
+        "FollowupRequest",
+        back_populates="obj",
+        cascade="delete",
         passive_deletes=True,
         doc="Robotic follow-up requests of the object.",
     )
     assignments = relationship(
-        'ClassicalAssignment',
-        back_populates='obj',
-        cascade='delete',
+        "ClassicalAssignment",
+        back_populates="obj",
+        cascade="delete",
         passive_deletes=True,
         doc="Assignments of the object to classical observing runs.",
     )
@@ -443,15 +440,15 @@ class Obj(Base, conesearch_alchemy.Point):
     obj_notifications = relationship(
         "SourceNotification",
         back_populates="source",
-        cascade='delete',
+        cascade="delete",
         passive_deletes=True,
         doc="Notifications regarding the object sent out by users",
     )
 
     obj_analyses = relationship(
-        'ObjAnalysis',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "ObjAnalysis",
+        back_populates="obj",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Analyses assocated with this obj.",
     )
@@ -483,10 +480,10 @@ class Obj(Base, conesearch_alchemy.Point):
         # fails for some reason, and we provide the user with as many thumbnails as
         # possible, as quickly as possible
         if "sdss" in thumbnails:
-            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
+            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type="sdss"))
         if "ls" in thumbnails:
             session.add(
-                Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
+                Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type="ls")
             )
         session.commit()
 
@@ -540,7 +537,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 cutout_url = "/static/images/outside_survey.png"
             match = re.search('src="//ps1images.stsci.edu.*?"', content)
             if match:
-                cutout_url = match.group().replace('src="', 'https:').replace('"', '')
+                cutout_url = match.group().replace('src="', "https:").replace('"', "")
         except requests.exceptions.HTTPError as http_err:
             log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
@@ -560,7 +557,7 @@ class Obj(Base, conesearch_alchemy.Point):
     def target(self):
         """Representation of the RA and Dec of this Obj as an
         astroplan.FixedTarget."""
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
     @property
@@ -643,8 +640,8 @@ class Obj(Base, conesearch_alchemy.Point):
     def host_offset(self):
         host = self.host
         if host:
-            obj_coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-            host_coord = ap_coord.SkyCoord(host.ra, host.dec, unit='deg')
+            obj_coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+            host_coord = ap_coord.SkyCoord(host.ra, host.dec, unit="deg")
             sep = obj_coord.separation(host_coord)
 
             return sep
@@ -702,7 +699,7 @@ class Obj(Base, conesearch_alchemy.Point):
 
         output_shape = time.shape
         time = np.atleast_1d(time)
-        altitude = self.altitude(telescope, time).to('degree').value
+        altitude = self.altitude(telescope, time).to("degree").value
         above = altitude > 0
 
         # use Pickering (2002) interpolation to calculate the airmass
@@ -742,7 +739,7 @@ class Obj(Base, conesearch_alchemy.Point):
     def ebv(self):
         """E(B-V) extinction for the object"""
 
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         try:
             return float(dustmaps.sfd.SFDQuery()(coord))
         except Exception:
@@ -751,8 +748,8 @@ class Obj(Base, conesearch_alchemy.Point):
 
 Obj.candidates = relationship(
     Candidate,
-    back_populates='obj',
-    cascade='delete',
+    back_populates="obj",
+    cascade="delete",
     passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
 )
@@ -761,7 +758,7 @@ Obj.candidates = relationship(
 # It had to be defined there to prevent a circular import.
 
 
-@event.listens_for(Obj, 'before_delete')
+@event.listens_for(Obj, "before_delete")
 def delete_obj_thumbnails_from_disk(mapper, connection, target):
     for thumb in target.thumbnails:
         if thumb.file_uri is not None:

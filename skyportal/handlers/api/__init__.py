@@ -1,38 +1,40 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import (
     AllocationHandler,
-    AllocationReportHandler,
     AllocationObservationPlanHandler,
+    AllocationReportHandler,
 )
 from .analysis import (
-    AnalysisUploadOnlyHandler,
-    AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
+    AnalysisServiceHandler,
+    AnalysisUploadOnlyHandler,
     DefaultAnalysisHandler,
 )
-from .candidate import CandidateHandler, CandidateFilterHandler
+from .annotation import AnnotationHandler
+from .annotation_services import (
+    DatalabQueryHandler,
+    GaiaQueryHandler,
+    IRSAQueryWISEHandler,
+    PS1QueryHandler,
+    VizierQueryHandler,
+)
+from .candidate import CandidateFilterHandler, CandidateHandler
+from .catalog_services import (
+    CatalogQueryHandler,
+    GaiaPhotometricAlertsQueryHandler,
+    SwiftLSXPSQueryHandler,
+)
 from .classification import (
     ClassificationHandler,
     ClassificationVotesHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
 )
-from .comment import CommentHandler, CommentAttachmentHandler
+from .color_mag import ObjColorMagHandler
+from .comment import CommentAttachmentHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
-from .annotation import AnnotationHandler
-from .annotation_services import (
-    GaiaQueryHandler,
-    IRSAQueryWISEHandler,
-    VizierQueryHandler,
-    DatalabQueryHandler,
-    PS1QueryHandler,
-)
-from .catalog_services import (
-    CatalogQueryHandler,
-    SwiftLSXPSQueryHandler,
-    GaiaPhotometricAlertsQueryHandler,
-)
+from .config_handler import ConfigHandler
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
@@ -41,62 +43,61 @@ from .earthquake import (
     EarthquakeStatusHandler,
 )
 from .enum_types import EnumTypesHandler
+from .facility_listener import FacilityMessageHandler
 from .filter import FilterHandler
 from .followup_request import (
+    AssignmentHandler,
     DefaultFollowupRequestHandler,
-    FollowupRequestHandler,
     FollowupRequestCommentHandler,
-    FollowupRequestWatcherHandler,
+    FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
-    AssignmentHandler,
+    FollowupRequestWatcherHandler,
 )
-from .facility_listener import FacilityMessageHandler
 from .galaxy import (
-    GalaxyCatalogHandler,
     GalaxyASCIIFileHandler,
+    GalaxyCatalogHandler,
     GalaxyGladeHandler,
     ObjHostHandler,
 )
 from .gcn import (
     DefaultGcnTagHandler,
-    GcnEventHandler,
     GcnEventAliasesHandler,
+    GcnEventCatalogQueryHandler,
+    GcnEventHandler,
+    GcnEventInstrumentFieldHandler,
+    GcnEventNoticeDownloadHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
-    GcnEventUserHandler,
-    GcnEventCatalogQueryHandler,
-    GcnEventInstrumentFieldHandler,
     GcnEventTagsHandler,
+    GcnEventTriggerHandler,
+    GcnEventUserHandler,
     GcnReportHandler,
     GcnSummaryHandler,
-    GcnEventTriggerHandler,
+    LocalizationCrossmatchHandler,
+    LocalizationDownloadHandler,
     LocalizationHandler,
     LocalizationNoticeHandler,
-    LocalizationDownloadHandler,
-    LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
     LocalizationTagsHandler,
     ObjGcnEventHandler,
-    GcnEventNoticeDownloadHandler,
 )
-from .gcn_tach import GcnTachHandler
 from .gcn_gracedb import GcnGraceDBHandler
+from .gcn_tach import GcnTachHandler
 from .group import (
     GroupHandler,
-    GroupUserHandler,
     GroupStreamHandler,
+    GroupUserHandler,
     GroupUsersFromOtherGroupsHandler,
     ObjGroupsHandler,
 )
-from .healpix import HealpixUpdateHandler
-from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
-from .instrument import InstrumentHandler, InstrumentFieldHandler
+from .healpix import HealpixUpdateHandler
+from .instrument import InstrumentFieldHandler, InstrumentHandler
 from .instrument_log import (
-    InstrumentLogHandler,
     InstrumentLogExternalAPIHandler,
+    InstrumentLogHandler,
     InstrumentStatusHandler,
 )
 from .invalid import InvalidEndpointHandler
@@ -108,112 +109,111 @@ from .mmadetector import (
 )
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
+from .obj import ObjHandler, ObjPositionHandler
 from .observation import (
     ObservationASCIIFileHandler,
-    ObservationHandler,
-    ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
+    ObservationHandler,
     ObservationSimSurveyHandler,
     ObservationSimSurveyPlotHandler,
+    ObservationTreasureMapHandler,
 )
-from .obj import ObjHandler, ObjPositionHandler
-from .observingrun import ObservingRunHandler, ObservingRunBulkEditHandler
 from .observation_plan import (
     DefaultObservationPlanRequestHandler,
-    ObservationPlanRequestHandler,
-    ObservationPlanTreasureMapHandler,
-    ObservationPlanGCNHandler,
-    ObservationPlanSubmitHandler,
-    ObservationPlanMovieHandler,
-    ObservationPlanNameHandler,
-    ObservationPlanObservabilityPlotHandler,
-    ObservationPlanWorldmapPlotHandler,
-    ObservationPlanSimSurveyHandler,
-    ObservationPlanSimSurveyPlotHandler,
-    ObservationPlanSurveyEfficiencyHandler,
-    ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanGCNHandler,
+    ObservationPlanGeoJSONHandler,
     ObservationPlanManualRequestHandler,
+    ObservationPlanMovieHandler,
+    ObservationPlanNameHandler,
+    ObservationPlanObservabilityPlotHandler,
+    ObservationPlanRequestHandler,
+    ObservationPlanSimSurveyHandler,
+    ObservationPlanSimSurveyPlotHandler,
+    ObservationPlanSubmitHandler,
+    ObservationPlanSurveyEfficiencyHandler,
+    ObservationPlanTreasureMapHandler,
+    ObservationPlanWorldmapPlotHandler,
 )
-from .photometry import (
-    PhotometryHandler,
-    ObjPhotometryHandler,
-    BulkDeletePhotometryHandler,
-    PhotometryRangeHandler,
-    PhotometryOriginHandler,
-)
-from .photometry_validation import PhotometryValidationHandler
-from .photometric_series import PhotometricSeriesHandler
+from .observingrun import ObservingRunBulkEditHandler, ObservingRunHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
-from .color_mag import ObjColorMagHandler
+from .photometric_series import PhotometricSeriesHandler
+from .photometry import (
+    BulkDeletePhotometryHandler,
+    ObjPhotometryHandler,
+    PhotometryHandler,
+    PhotometryOriginHandler,
+    PhotometryRangeHandler,
+)
 from .photometry_request import PhotometryRequestHandler
+from .photometry_validation import PhotometryValidationHandler
 from .public_group import PublicGroupHandler
-from .summary_query import SummaryQueryHandler
-from .roles import RoleHandler, UserRoleHandler
+from .public_pages.public_release import PublicReleaseHandler
+
+# Public pages
+from .public_pages.public_source_page import PublicSourcePageHandler
 from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
+from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
-from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
+from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
-    SourceHandler,
     SourceCopyPhotometryHandler,
-    SourceOffsetsHandler,
     SourceFinderHandler,
+    SourceHandler,
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
+    SourceOffsetsHandler,
     SurveyThumbnailHandler,
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
-from .spatial_catalog import SpatialCatalogHandler, SpatialCatalogASCIIFileHandler
+from .source_labels import SourceLabelsHandler
+from .sources_confirmed_in_gcn import (
+    GCNsAssociatedWithSourceHandler,
+    SourcesConfirmedInGCNHandler,
+    SourcesConfirmedInGCNTNSHandler,
+)
+from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
-    SpectrumHandler,
     ObjSpectraHandler,
-    SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
+    SpectrumASCIIFileParser,
+    SpectrumHandler,
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
-from .source_labels import SourceLabelsHandler
+from .stream import StreamHandler, StreamUserHandler
+from .summary_query import SummaryQueryHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
 )
-from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
-from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
+from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns import (
-    ObjTNSHandler,
     BulkTNSHandler,
+    ObjTNSHandler,
     SpectrumTNSHandler,
-    TNSRobotHandler,
     TNSRobotCoauthorHandler,
-    TNSRobotGroupHandler,
     TNSRobotGroupAutoreporterHandler,
+    TNSRobotGroupHandler,
+    TNSRobotHandler,
     TNSRobotSubmissionHandler,
 )
-from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
+from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
     set_default_acls,
     set_default_group,
     set_default_role,
 )
-from .unsourced_finder import UnsourcedFinderHandler
+from .user_obj_list import UserObjListHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
-from .sources_confirmed_in_gcn import (
-    SourcesConfirmedInGCNHandler,
-    SourcesConfirmedInGCNTNSHandler,
-    GCNsAssociatedWithSourceHandler,
-)
-
-# Public pages
-from .public_pages.public_source_page import PublicSourcePageHandler
-from .public_pages.public_release import PublicReleaseHandler

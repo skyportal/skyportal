@@ -3,8 +3,8 @@ import os
 import time
 from io import StringIO
 
-import astropy.units as u
 import arrow
+import astropy.units as u
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
 import healpy as hp
@@ -13,14 +13,14 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.io import ascii
 from geojson import Feature, Point
-from scipy.stats import norm
 from scipy.integrate import quad
+from scipy.stats import norm
 from sqlalchemy import func, nulls_last
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
-from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ...models import (
@@ -31,10 +31,10 @@ from ...models import (
     LocalizationTile,
     Obj,
 )
-from ..base import BaseHandler
 from ...utils.asynchronous import run_async
+from ..base import BaseHandler
 
-log = make_log('api/galaxy')
+log = make_log("api/galaxy")
 env, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
@@ -78,8 +78,8 @@ def get_galaxies(
             total_matches = session.execute(count_stmt).scalar()
             query_result.append(
                 {
-                    'catalog_name': catalog.name,
-                    'catalog_count': int(total_matches),
+                    "catalog_name": catalog.name,
+                    "catalog_count": int(total_matches),
                 }
             )
 
@@ -175,14 +175,14 @@ def get_galaxies(
         # now get the dateobs in the format YYYY_MM
         partition_key = arrow.get(localization.dateobs).datetime
         localizationtile_partition_name = (
-            f'{partition_key.year}_{partition_key.month:02d}'
+            f"{partition_key.year}_{partition_key.month:02d}"
         )
         localizationtilescls = LocalizationTile.partitions.get(
             localizationtile_partition_name, None
         )
         if localizationtilescls is None:
             localizationtilescls = LocalizationTile.partitions.get(
-                'def', LocalizationTile
+                "def", LocalizationTile
             )
         else:
             # check that there is actually a localizationTile with the given localization_id in the partition
@@ -195,7 +195,7 @@ def get_galaxies(
                 ).first()
             ):
                 localizationtilescls = localizationtilescls.partitions.get(
-                    'def', localizationtilescls
+                    "def", localizationtilescls
                 )
 
         cum_prob = (
@@ -203,7 +203,7 @@ def get_galaxies(
                 localizationtilescls.probdensity * localizationtilescls.healpix.area
             )
             .over(order_by=localizationtilescls.probdensity.desc())
-            .label('cum_prob')
+            .label("cum_prob")
         )
         localizationtile_subquery = (
             sa.select(localizationtilescls.probdensity, cum_prob).filter(
@@ -225,9 +225,9 @@ def get_galaxies(
         ).all()
 
         col = [Galaxy.id]
-        if sort_by == 'prob':
+        if sort_by == "prob":
             col.append(localizationtilescls.probdensity)
-        elif sort_by == 'mstar_prob_weighted':
+        elif sort_by == "mstar_prob_weighted":
             if catalog is None:
                 raise ValueError(
                     "Cannot sort by mstar_prob_weighted without specifying a catalog_name"
@@ -255,7 +255,7 @@ def get_galaxies(
                 (
                     ((Galaxy.mstar - min_mstar) / (max_mstar - min_mstar))
                     * localizationtilescls.probdensity  # * localizationtilescls.healpix.area
-                ).label('mstar_prob_weighted')
+                ).label("mstar_prob_weighted")
             )
 
         tiles_subquery = (
@@ -411,7 +411,7 @@ def get_galaxies(
             probability = PROB[ipix]
 
         galaxies = [
-            {**galaxy.to_dict(), 'probability': prob}
+            {**galaxy.to_dict(), "probability": prob}
             for galaxy, prob in zip(galaxies, probability)
         ]
     else:
@@ -447,14 +447,14 @@ def get_galaxies(
             features.append(Feature(geometry=point, properties={"name": source_name}))
 
         query_results["geojson"] = {
-            'type': 'FeatureCollection',
-            'features': features,
+            "type": "FeatureCollection",
+            "features": features,
         }
     return query_results
 
 
 class GalaxyCatalogHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def post(self):
         """
         ---
@@ -478,17 +478,17 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         data = self.get_json()
-        catalog_name = data.get('catalog_name', None)
-        catalog_description = data.get('catalog_description', None)
-        catalog_url = data.get('catalog_url', None)
-        catalog_data = data.get('catalog_data', None)
+        catalog_name = data.get("catalog_name", None)
+        catalog_description = data.get("catalog_description", None)
+        catalog_url = data.get("catalog_url", None)
+        catalog_data = data.get("catalog_data", None)
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
-        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
+        if not all(k in catalog_data for k in ["ra", "dec", "name"]):
             return self.error("ra, dec, and name required in catalog_data.")
 
         # rename all columns to lowercase
@@ -501,54 +501,54 @@ class GalaxyCatalogHandler(BaseHandler):
 
         # fill in any missing optional parameters
         optional_parameters = [
-            'alt_name',
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
-            'sfr_fuv',
-            'sfr_w4',
-            'mstar',
-            'magk',
-            'magb',
-            'mag_fuv',
-            'mag_nuv',
-            'mag_w1',
-            'mag_w2',
-            'mag_w3',
-            'mag_w4',
-            'a',
-            'b2a',
-            'pa',
-            'btc',
+            "alt_name",
+            "distmpc",
+            "distmpc_unc",
+            "redshift",
+            "redshift_error",
+            "sfr_fuv",
+            "sfr_w4",
+            "mstar",
+            "magk",
+            "magb",
+            "mag_fuv",
+            "mag_nuv",
+            "mag_w1",
+            "mag_w2",
+            "mag_w3",
+            "mag_w4",
+            "a",
+            "b2a",
+            "pa",
+            "btc",
         ]
         for key in optional_parameters:
             if key not in catalog_data:
-                catalog_data[key] = [None] * len(catalog_data['ra'])
+                catalog_data[key] = [None] * len(catalog_data["ra"])
 
         # check for positive definite parameters
         positive_definite_parameters = [
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
+            "distmpc",
+            "distmpc_unc",
+            "redshift",
+            "redshift_error",
         ]
         for key in positive_definite_parameters:
-            if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
+            if any((x is not None) and (x < 0) for x in catalog_data[key]):
                 return self.error(f"{key} should be positive definite.")
 
         # check RA bounds
-        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
             return self.error("ra should span 0=<ra<360.")
 
         # check Declination bounds
-        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
             return self.error("declination should span -90<dec<90.")
 
         catalog_metadata = {
-            'name': catalog_name,
-            'description': catalog_description,
-            'url': catalog_url,
+            "name": catalog_name,
+            "description": catalog_description,
+            "url": catalog_url,
         }
 
         IOLoop.current().run_in_executor(
@@ -724,11 +724,11 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)
-        ra = self.get_query_argument('ra', None)
-        dec = self.get_query_argument('dec', None)
-        radius = self.get_query_argument('radius', None)
+        ra = self.get_query_argument("ra", None)
+        dec = self.get_query_argument("dec", None)
+        radius = self.get_query_argument("radius", None)
         galaxy_name = self.get_query_argument(
-            'galaxyName', None
+            "galaxyName", None
         )  # Partial name to match
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
@@ -749,13 +749,13 @@ class GalaxyCatalogHandler(BaseHandler):
         try:
             page_number = int(page_number)
         except ValueError as e:
-            return self.error(f'pageNumber fails: {e}')
+            return self.error(f"pageNumber fails: {e}")
 
         num_per_page = self.get_query_argument("numPerPage", 1000)
         try:
             num_per_page = int(num_per_page)
         except ValueError as e:
-            return self.error(f'numPerPage fails: {e}')
+            return self.error(f"numPerPage fails: {e}")
 
         if (
             localization_name is not None
@@ -796,9 +796,9 @@ class GalaxyCatalogHandler(BaseHandler):
                 )
                 return self.success(data)
             except Exception as e:
-                return self.error(f'get_galaxies fails: {e}')
+                return self.error(f"get_galaxies fails: {e}")
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def delete(self, catalog_name):
         """
         ---
@@ -907,29 +907,29 @@ def add_galaxies(catalog_metadata, catalog_data):
                 healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
             )
             for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, sfr_w4, mstar, magb, magk, mag_fuv, mag_nuv, mag_w1, mag_w2, mag_w3, mag_w4, a, b2a, pa, btc in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['alt_name'],
-                catalog_data['distmpc'],
-                catalog_data['distmpc_unc'],
-                catalog_data['redshift'],
-                catalog_data['redshift_error'],
-                catalog_data['sfr_fuv'],
-                catalog_data['sfr_w4'],
-                catalog_data['mstar'],
-                catalog_data['magb'],
-                catalog_data['magk'],
-                catalog_data['mag_fuv'],
-                catalog_data['mag_nuv'],
-                catalog_data['mag_w1'],
-                catalog_data['mag_w2'],
-                catalog_data['mag_w3'],
-                catalog_data['mag_w4'],
-                catalog_data['a'],
-                catalog_data['b2a'],
-                catalog_data['pa'],
-                catalog_data['btc'],
+                catalog_data["ra"],
+                catalog_data["dec"],
+                catalog_data["name"],
+                catalog_data["alt_name"],
+                catalog_data["distmpc"],
+                catalog_data["distmpc_unc"],
+                catalog_data["redshift"],
+                catalog_data["redshift_error"],
+                catalog_data["sfr_fuv"],
+                catalog_data["sfr_w4"],
+                catalog_data["mstar"],
+                catalog_data["magb"],
+                catalog_data["magk"],
+                catalog_data["mag_fuv"],
+                catalog_data["mag_nuv"],
+                catalog_data["mag_w1"],
+                catalog_data["mag_w2"],
+                catalog_data["mag_w3"],
+                catalog_data["mag_w4"],
+                catalog_data["a"],
+                catalog_data["b2a"],
+                catalog_data["pa"],
+                catalog_data["btc"],
             )
         ]
 
@@ -944,7 +944,7 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 
 class GalaxyASCIIFileHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -968,17 +968,17 @@ class GalaxyASCIIFileHandler(BaseHandler):
         """
 
         json = self.get_json()
-        catalog_data = json.pop('catalogData', None)
-        catalog_name = json.pop('catalogName', None)
-        catalog_description = json.pop('catalogDescription', None)
-        catalog_url = json.pop('catalogURL', None)
+        catalog_data = json.pop("catalogData", None)
+        catalog_name = json.pop("catalogName", None)
+        catalog_description = json.pop("catalogDescription", None)
+        catalog_url = json.pop("catalogURL", None)
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
 
         try:
             catalog_data = pd.read_table(StringIO(catalog_data), sep=",").to_dict(
-                orient='list'
+                orient="list"
             )
         except Exception as e:
             return self.error(f"Unable to read in galaxy file: {e}")
@@ -988,59 +988,59 @@ class GalaxyASCIIFileHandler(BaseHandler):
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
-        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
+        if not all(k in catalog_data for k in ["ra", "dec", "name"]):
             return self.error("ra, dec, and name required in catalog_data.")
 
         # fill in any missing optional parameters
         optional_parameters = [
-            'alt_name',
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
-            'sfr_fuv',
-            'sfr_w4',
-            'mstar',
-            'magk',
-            'magb',
-            'mag_fuv',
-            'mag_nuv',
-            'mag_w1',
-            'mag_w2',
-            'mag_w3',
-            'mag_w4',
-            'a',
-            'b2a',
-            'pa',
-            'btc',
+            "alt_name",
+            "distmpc",
+            "distmpc_unc",
+            "redshift",
+            "redshift_error",
+            "sfr_fuv",
+            "sfr_w4",
+            "mstar",
+            "magk",
+            "magb",
+            "mag_fuv",
+            "mag_nuv",
+            "mag_w1",
+            "mag_w2",
+            "mag_w3",
+            "mag_w4",
+            "a",
+            "b2a",
+            "pa",
+            "btc",
         ]
         for key in optional_parameters:
             if key not in catalog_data:
-                catalog_data[key] = [None] * len(catalog_data['ra'])
+                catalog_data[key] = [None] * len(catalog_data["ra"])
 
         # check for positive definite parameters
         positive_definite_parameters = [
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
+            "distmpc",
+            "distmpc_unc",
+            "redshift",
+            "redshift_error",
         ]
         for key in positive_definite_parameters:
-            if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
+            if any((x is not None) and (x < 0) for x in catalog_data[key]):
                 return self.error(f"{key} should be positive definite.")
 
         # check RA bounds
-        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
             return self.error("ra should span 0=<ra<360.")
 
         # check Declination bounds
-        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
             return self.error("declination should span -90<dec<90.")
 
         catalog_metadata = {
-            'name': catalog_name,
-            'description': catalog_description,
-            'url': catalog_url,
+            "name": catalog_name,
+            "description": catalog_description,
+            "url": catalog_url,
         }
 
         IOLoop.current().run_in_executor(
@@ -1052,46 +1052,46 @@ class GalaxyASCIIFileHandler(BaseHandler):
 
 def add_glade(file_path=None, file_url=None):
     column_names = [
-        'GLADE_no',
-        'PGC_no',
-        'GWGC_name',
-        'HyperLEDA_name',
-        '2MASS_name',
-        'WISExSCOS_name',
-        'SDSS-DR16Q_name',
-        'Object_type',
-        'RA',
-        'Dec',
-        'B',
-        'B_err',
-        'B_flag',
-        'B_Abs',
-        'J',
-        'J_err',
-        'H',
-        'H_err',
-        'K',
-        'K_err',
-        'W1',
-        'W1_err',
-        'W2',
-        'W2_err',
-        'W1_flag',
-        'B_J',
-        'B_J_err',
-        'z_helio',
-        'z_cmb',
-        'z_flag',
-        'v_err',
-        'z_err',
-        'd_L',
-        'd_L_err',
-        'dist',
-        'Mstar',
-        'Mstar_err',
-        'Mstar_flag',
-        'Merger_rate',
-        'Merger_rate_error',
+        "GLADE_no",
+        "PGC_no",
+        "GWGC_name",
+        "HyperLEDA_name",
+        "2MASS_name",
+        "WISExSCOS_name",
+        "SDSS-DR16Q_name",
+        "Object_type",
+        "RA",
+        "Dec",
+        "B",
+        "B_err",
+        "B_flag",
+        "B_Abs",
+        "J",
+        "J_err",
+        "H",
+        "H_err",
+        "K",
+        "K_err",
+        "W1",
+        "W1_err",
+        "W2",
+        "W2_err",
+        "W1_flag",
+        "B_J",
+        "B_J_err",
+        "z_helio",
+        "z_cmb",
+        "z_flag",
+        "v_err",
+        "z_err",
+        "d_L",
+        "d_L_err",
+        "dist",
+        "Mstar",
+        "Mstar_err",
+        "Mstar_flag",
+        "Merger_rate",
+        "Merger_rate_error",
     ]
 
     if file_path is not None:
@@ -1124,11 +1124,11 @@ def add_glade(file_path=None, file_url=None):
         datafile,
         names=column_names,
         guess=False,
-        delimiter=' ',
-        format='no_header',
-        fast_reader={'chunk_size': int(10 * 1e7), 'chunk_generator': True},  # 100 MB
+        delimiter=" ",
+        format="no_header",
+        fast_reader={"chunk_size": int(10 * 1e7), "chunk_generator": True},  # 100 MB
     )
-    if datafile.startswith('http'):
+    if datafile.startswith("http"):
         end_dl_timer = time.perf_counter()
         print(
             f"add_glade - Downloaded {datafile} in {end_dl_timer - start_dl_timer:0.4f} seconds"
@@ -1140,42 +1140,42 @@ def add_glade(file_path=None, file_url=None):
         try:
             start_timer = time.perf_counter()
             df = df.to_pandas()
-            df = df.replace({'null': np.nan})
+            df = df.replace({"null": np.nan})
             # df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
             # create a GLADE_name column, where names are: GLADE-<GLADE_no> with GLADE_no as a string using pandas
-            df['GLADE_name'] = 'GLADE-' + df['GLADE_no'].astype(str)
+            df["GLADE_name"] = "GLADE-" + df["GLADE_no"].astype(str)
             df.rename(
                 columns={
-                    'RA': 'ra',
-                    'Dec': 'dec',
-                    'GLADE_name': 'name',
-                    'Mstar': 'mstar',
-                    'K': 'magk',
-                    'B': 'magb',
-                    'W1': 'mag_w1',
-                    'W2': 'mag_w2',
-                    'z_helio': 'redshift',
-                    'z_err': 'redshift_error',
-                    'd_L': 'distmpc',
-                    'd_L_err': 'distmpc_unc',
+                    "RA": "ra",
+                    "Dec": "dec",
+                    "GLADE_name": "name",
+                    "Mstar": "mstar",
+                    "K": "magk",
+                    "B": "magb",
+                    "W1": "mag_w1",
+                    "W2": "mag_w2",
+                    "z_helio": "redshift",
+                    "z_err": "redshift_error",
+                    "d_L": "distmpc",
+                    "d_L_err": "distmpc_unc",
                 },
                 inplace=True,
             )
 
             float_columns = [
-                'ra',
-                'dec',
-                'mstar',
-                'magk',
-                'magb',
-                'mag_w1',
-                'mag_w2',
-                'mag_w3',
-                'mag_w4',
-                'redshift',
-                'redshift_error',
-                'distmpc',
-                'distmpc_unc',
+                "ra",
+                "dec",
+                "mstar",
+                "magk",
+                "magb",
+                "mag_w1",
+                "mag_w2",
+                "mag_w3",
+                "mag_w4",
+                "redshift",
+                "redshift_error",
+                "distmpc",
+                "distmpc_unc",
             ]
             for col in float_columns:
                 df[col] = df[col].astype(float)
@@ -1183,16 +1183,16 @@ def add_glade(file_path=None, file_url=None):
             drop_columns = list(
                 set(df.columns.values)
                 - {
-                    'ra',
-                    'dec',
-                    'name',
-                    'mstar',
-                    'magk',
-                    'magb',
-                    'redshift',
-                    'redshift_error',
-                    'distmpc',
-                    'distmpc_unc',
+                    "ra",
+                    "dec",
+                    "name",
+                    "mstar",
+                    "magk",
+                    "magb",
+                    "redshift",
+                    "redshift_error",
+                    "distmpc",
+                    "distmpc_unc",
                 }
             )
 
@@ -1202,38 +1202,38 @@ def add_glade(file_path=None, file_url=None):
             )
             df = df.replace({np.nan: None})
             positive_definite_parameters = [
-                'distmpc',
-                'distmpc_unc',
-                'redshift_error',
+                "distmpc",
+                "distmpc_unc",
+                "redshift_error",
             ]
             # remove rows where any of the positive definite parameters are negative using pandas
             for key in positive_definite_parameters:
                 df = df.drop(df.index[df[key] < 0])
             # if ra, dec or name are missing, remove the row
-            required_columns = ['ra', 'dec', 'name']
+            required_columns = ["ra", "dec", "name"]
             df = df[df[required_columns].notnull().all(axis=1)]
 
             # fill in any missing optional parameters
             optional_parameters = [
-                'alt_name',
-                'distmpc',
-                'distmpc_unc',
-                'redshift',
-                'redshift_error',
-                'sfr_fuv',
-                'mstar',
-                'magk',
-                'magb',
-                'mag_fuv',
-                'mag_nuv',
-                'mag_w1',
-                'mag_w2',
-                'mag_w3',
-                'mag_w4',
-                'a',
-                'b2a',
-                'pa',
-                'btc',
+                "alt_name",
+                "distmpc",
+                "distmpc_unc",
+                "redshift",
+                "redshift_error",
+                "sfr_fuv",
+                "mstar",
+                "magk",
+                "magb",
+                "mag_fuv",
+                "mag_nuv",
+                "mag_w1",
+                "mag_w2",
+                "mag_w3",
+                "mag_w4",
+                "a",
+                "b2a",
+                "pa",
+                "btc",
             ]
 
             # for the optional parameters, if a row is missing a value, fill it in with None
@@ -1241,25 +1241,25 @@ def add_glade(file_path=None, file_url=None):
                 if key not in df.columns.values:
                     df[key] = None
             # remove rows with incorrect ra or dec
-            df = df[(df['ra'] >= 0) & (df['ra'] < 360)]
-            df = df[(df['dec'] >= -90) & (df['dec'] <= 90)]
+            df = df[(df["ra"] >= 0) & (df["ra"] < 360)]
+            df = df[(df["dec"] >= -90) & (df["dec"] <= 90)]
 
             # the mstar in Glade is in 10^10 M_Sun units, so multiply by 1e10 where its not None
-            df['mstar'] = df['mstar'].apply(
+            df["mstar"] = df["mstar"].apply(
                 lambda x: x * 1e10 if x is not None else None
             )
 
             # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
-            df['healpix'] = [
+            df["healpix"] = [
                 ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
-                for ra, dec in zip(df['ra'], df['dec'])
+                for ra, dec in zip(df["ra"], df["dec"])
             ]
 
-            df['catalog_id'] = catalog_id
+            df["catalog_id"] = catalog_id
             utcnow = datetime.datetime.utcnow().isoformat()
-            df['created_at'] = utcnow
-            df['modified_at'] = utcnow
-            blueshift_length = len(df[(df['redshift'] < 0)])
+            df["created_at"] = utcnow
+            df["modified_at"] = utcnow
+            blueshift_length = len(df[(df["redshift"] < 0)])
             length = len(df)
             full_length += length
             full_blueshift_length += blueshift_length
@@ -1276,20 +1276,20 @@ def add_glade(file_path=None, file_url=None):
                 "name",
                 "alt_name",
                 "sfr_fuv",
-                'mag_fuv',
-                'mag_nuv',
-                'mag_w1',
-                'mag_w2',
-                'mag_w3',
-                'mag_w4',
+                "mag_fuv",
+                "mag_nuv",
+                "mag_w1",
+                "mag_w2",
+                "mag_w3",
+                "mag_w4",
                 "a",
                 "b2a",
                 "pa",
                 "btc",
                 "healpix",
                 "catalog_id",
-                'created_at',
-                'modified',
+                "created_at",
+                "modified",
             )
             output = StringIO()
             df.replace("NaN", "null", inplace=True)
@@ -1297,9 +1297,9 @@ def add_glade(file_path=None, file_url=None):
             df.to_csv(
                 output,
                 index=False,
-                sep='\t',
+                sep="\t",
                 header=False,
-                encoding='utf8',
+                encoding="utf8",
                 quotechar="'",
             )
             output.seek(0)
@@ -1308,8 +1308,8 @@ def add_glade(file_path=None, file_url=None):
             cursor.copy_from(
                 output,
                 "galaxys",
-                sep='\t',
-                null='',
+                sep="\t",
+                null="",
                 columns=columns,
             )
             cursor.close()
@@ -1360,7 +1360,7 @@ def get_galaxies_completeness(
     V = ((4 / 3) * np.pi * dist_max**3) - ((4 / 3) * np.pi * dist_min**3)
     hist_schechter = np.array(N) * V
 
-    mstar = [galaxy['mstar'] for galaxy in galaxies if galaxy['mstar'] is not None]
+    mstar = [galaxy["mstar"] for galaxy in galaxies if galaxy["mstar"] is not None]
     mstar = np.log10(mstar)
     hist_galaxies, _ = np.histogram(mstar, bins=logM)
 
@@ -1373,7 +1373,7 @@ def get_galaxies_completeness(
 
 
 class GalaxyGladeHandler(BaseHandler):
-    @permissions(['System Admin'])
+    @permissions(["System Admin"])
     async def post(self):
         """
         ---
@@ -1407,38 +1407,38 @@ class GalaxyGladeHandler(BaseHandler):
         def add_glade_and_notify(file_path=None, file_url=None):
             full_length, full_blueshift_length = add_glade(file_path, file_url)
             self.push(
-                f'Added {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database'
+                f"Added {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database"
             )
 
         try:
             file_name = None
             file_url = None
             data = self.get_json()
-            if 'file_name' in data:
-                file_name = data['file_name']
-                if not file_name.endswith('.txt'):
+            if "file_name" in data:
+                file_name = data["file_name"]
+                if not file_name.endswith(".txt"):
                     return self.error("Catalog's file type is incorrect. Must be .txt.")
                 file_path = os.path.join(
                     os.path.dirname(os.path.realpath(__file__)),
-                    '../../../data',
+                    "../../../data",
                     file_name,
                 )
                 if not os.path.isfile(file_path):
                     return self.error("File does not exist.")
                 file_url = file_path
-            elif 'file_url' in data:
-                file_url = data['file_url']
-                if not file_url.endswith('.txt'):
+            elif "file_url" in data:
+                file_url = data["file_url"]
+                if not file_url.endswith(".txt"):
                     return self.error(
                         "Catalog's url points to an incorrect file type. Must be .txt."
                     )
-                if not file_url.startswith('http'):
+                if not file_url.startswith("http"):
                     return self.error("Catalog's file URL is incorrect.")
             else:
                 file_path = os.path.join(
                     os.path.dirname(os.path.realpath(__file__)),
-                    '../../../data',
-                    'GLADE+.txt',
+                    "../../../data",
+                    "GLADE+.txt",
                 )
                 if not os.path.isfile(file_path):
                     file_path = None
@@ -1500,7 +1500,7 @@ class ObjHostHandler(BaseHandler):
 
         with self.Session() as session:
             obj = session.scalars(
-                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+                Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
             ).first()
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
@@ -1548,7 +1548,7 @@ class ObjHostHandler(BaseHandler):
 
         with self.Session() as session:
             obj = session.scalars(
-                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+                Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
             ).first()
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")

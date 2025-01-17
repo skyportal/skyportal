@@ -1,13 +1,15 @@
 import re
+
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import auth_or_token
-from ..base import BaseHandler
+from baselayer.app.custom_exceptions import AccessError
+
 from ...models import (
-    Obj,
     Listing,
+    Obj,
 )
+from ..base import BaseHandler
 
 
 def check_list_name(name):
@@ -24,7 +26,7 @@ def check_list_name(name):
         True if listing name conforms to requirements
 
     """
-    return re.search(r'^\w+', name) is not None
+    return re.search(r"^\w+", name) is not None
 
 
 class UserObjListHandler(BaseHandler):
@@ -140,8 +142,8 @@ class UserObjListHandler(BaseHandler):
 
         data = self.get_json()
 
-        schema = Listing.__schema__(exclude=['user_id'])
-        user_id = data.pop('user_id', None)
+        schema = Listing.__schema__(exclude=["user_id"])
+        user_id = data.pop("user_id", None)
 
         if user_id is None:
             user_id = self.associated_user_object.id
@@ -155,14 +157,14 @@ class UserObjListHandler(BaseHandler):
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
-        obj_id = data.get('obj_id')
+        obj_id = data.get("obj_id")
         obj_check = Obj.get(obj_id, self.current_user)
         if obj_check is None:
-            return self.error(f'Cannot find Obj with ID: {obj_id}')
+            return self.error(f"Cannot find Obj with ID: {obj_id}")
 
-        list_name = data.get('list_name')
+        list_name = data.get("list_name")
         if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"
@@ -171,7 +173,7 @@ class UserObjListHandler(BaseHandler):
         if list_name == "watchlist" and "params" not in data:
             return self.error("Input `params` must be provided for `watchlist`")
 
-        params = data.get('params', None)
+        params = data.get("params", None)
 
         if params is not None:
             if not isinstance(params, dict):
@@ -182,8 +184,8 @@ class UserObjListHandler(BaseHandler):
                     return self.error(
                         "Input `params` must contain `arcsec` and `cadence`"
                     )
-                if not isinstance(params["arcsec"], (int, float)) or not isinstance(
-                    params["cadence"], (int, float)
+                if not isinstance(params["arcsec"], int | float) or not isinstance(
+                    params["cadence"], int | float
                 ):
                     return self.error(
                         "Inputs `params.arcsec` and `params.cadence` must be numbers"
@@ -211,8 +213,8 @@ class UserObjListHandler(BaseHandler):
             # what to do if listing already exists...
             if session.scalars(stmt).first() is not None:
                 return self.error(
-                    f'Listing already exists with user_id={user_id}, '
-                    f'obj_id={obj_id} and list_name={list_name}'
+                    f"Listing already exists with user_id={user_id}, "
+                    f"obj_id={obj_id} and list_name={list_name}"
                 )
 
             listing = Listing(
@@ -227,12 +229,12 @@ class UserObjListHandler(BaseHandler):
                 return self.error(str(e))
 
             if list_name == "favorites":
-                self.push(action='skyportal/REFRESH_FAVORITES')
-                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+                self.push(action="skyportal/REFRESH_FAVORITES")
+                self.push(action="skyportal/REFRESH_FAVORITE_SOURCES")
             if list_name == "rejected_candidates":
-                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+                self.push(action="skyportal/REFRESH_REJECTED_CANDIDATES")
 
-            return self.success(data={'id': listing.id})
+            return self.success(data={"id": listing.id})
 
     @auth_or_token
     def patch(self, listing_id):
@@ -285,7 +287,7 @@ class UserObjListHandler(BaseHandler):
                 )
             ).first()
             if listing is None:
-                return self.error(f'Cannot find listing with ID: {listing_id}')
+                return self.error(f"Cannot find listing with ID: {listing_id}")
 
             # get the data from the request body
             data = self.get_json()
@@ -295,10 +297,10 @@ class UserObjListHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            user_id = data.get('user_id', listing.user_id)
+            user_id = data.get("user_id", listing.user_id)
             user_id = int(user_id)
             if (
                 user_id != self.associated_user_object.id
@@ -306,14 +308,14 @@ class UserObjListHandler(BaseHandler):
             ):
                 return self.error("Insufficient permissions.")
 
-            obj_id = data.get('obj_id', listing.obj_id)
+            obj_id = data.get("obj_id", listing.obj_id)
             obj_check = session.scalars(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()
             if obj_check is None:
-                return self.error(f'Cannot find Obj with ID: {obj_id}')
+                return self.error(f"Cannot find Obj with ID: {obj_id}")
 
-            list_name = data.get('list_name', listing.list_name)
+            list_name = data.get("list_name", listing.list_name)
 
             if not check_list_name(list_name):
                 return self.error(
@@ -327,10 +329,10 @@ class UserObjListHandler(BaseHandler):
             session.commit()
 
             if list_name == "favorites":
-                self.push(action='skyportal/REFRESH_FAVORITES')
-                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+                self.push(action="skyportal/REFRESH_FAVORITES")
+                self.push(action="skyportal/REFRESH_FAVORITE_SOURCES")
             if list_name == "rejected_candidates":
-                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+                self.push(action="skyportal/REFRESH_REJECTED_CANDIDATES")
 
             return self.success()
 
@@ -391,28 +393,28 @@ class UserObjListHandler(BaseHandler):
                     Listing.select(self.current_user).where(Listing.id == listing_id)
                 ).first()
                 if listing is None:
-                    return self.error(f'Cannot find listing with ID: {listing_id}')
+                    return self.error(f"Cannot find listing with ID: {listing_id}")
             else:
                 data = self.get_json()
 
-                schema = Listing.__schema__(exclude=['user_id'])
-                user_id = data.pop('user_id', self.associated_user_object.id)
+                schema = Listing.__schema__(exclude=["user_id"])
+                user_id = data.pop("user_id", self.associated_user_object.id)
 
                 try:
                     schema.load(data)
                 except ValidationError as e:
                     return self.error(
-                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
-                obj_id = data.get('obj_id')
+                obj_id = data.get("obj_id")
                 obj_test = session.scalars(
                     Obj.select(self.current_user).where(Obj.id == obj_id)
                 ).first()
                 if obj_test is None:
-                    return self.error(f'Cannot find Obj with ID: {obj_id}')
+                    return self.error(f"Cannot find Obj with ID: {obj_id}")
 
-                list_name = data.get('list_name')
+                list_name = data.get("list_name")
                 listing = session.scalars(
                     Listing.select(self.current_user, mode="delete").where(
                         Listing.user_id == user_id,
@@ -430,9 +432,9 @@ class UserObjListHandler(BaseHandler):
             session.commit()
 
             if list_name == "favorites":
-                self.push(action='skyportal/REFRESH_FAVORITES')
-                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+                self.push(action="skyportal/REFRESH_FAVORITES")
+                self.push(action="skyportal/REFRESH_FAVORITE_SOURCES")
             if list_name == "rejected_candidates":
-                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+                self.push(action="skyportal/REFRESH_REJECTED_CANDIDATES")
 
             return self.success()

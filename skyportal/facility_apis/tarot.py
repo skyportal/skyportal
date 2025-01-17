@@ -200,7 +200,7 @@ def validate_request_to_tarot(request):
             raise ValueError('Default sequence not available for this telescope')
 
         observations = []
-        for filt in seq.keys():
+        for filt in seq:
             exp_count, exposure_time = seq[filt]
             observations.extend([f'{exposure_time} {filts[filt]}'] * exp_count)
 

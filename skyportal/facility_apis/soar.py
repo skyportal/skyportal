@@ -100,7 +100,7 @@ class SOAR_GHTS_IMAGER_Request:
                                 "defocus": 0,
                                 "rotator_angle": 0,
                             },
-                            'optical_elements': {'filter': '%s' % filt},
+                            'optical_elements': {'filter': f'{filt}'},
                         }
                     ],
                 }
@@ -118,7 +118,7 @@ class SOAR_GHTS_IMAGER_Request:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
@@ -267,7 +267,7 @@ class SOAR_GHTS_Request:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
@@ -374,7 +374,7 @@ class SOAR_TripleSpec_Request:
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
+            'name': f'{request.obj.id}',  # The title
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',

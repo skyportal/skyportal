@@ -19,7 +19,7 @@ def test_standards(view_only_token):
     assert isinstance(data['data']['starlist_info'], list)
     assert len(data['data']['starlist_info']) > 0
     # make sure we've got an HD source in here
-    assert any([x["str"].find("HD") != -1 for x in data['data']['starlist_info']])
+    assert any(x["str"].find("HD") != -1 for x in data['data']['starlist_info'])
 
 
 def test_standards_bad_standard_list(view_only_token):

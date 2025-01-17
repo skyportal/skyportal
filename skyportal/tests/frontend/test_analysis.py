@@ -1,11 +1,11 @@
-import uuid
 import json
-import numpy as np
 import time
+import uuid
+
+import numpy as np
+import pytest
 
 from skyportal.tests import api
-
-import pytest
 
 analysis_port = 6802
 
@@ -23,29 +23,29 @@ def test_analysis_page(
     name = str(uuid.uuid4())
     optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
     post_data = {
-        'name': name,
-        'display_name': "test analysis service name",
-        'description': "A test analysis service description",
-        'version': "1.0",
-        'contact_name': "Vera Rubin",
-        'contact_email': "vr@ls.st",
+        "name": name,
+        "display_name": "test analysis service name",
+        "description": "A test analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
         # this is the URL/port of the SN analysis service that will be running during testing
-        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
-        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
-        'authentication_type': "none",
-        'analysis_type': 'lightcurve_fitting',
-        'input_data_types': ['photometry', 'redshift'],
-        'timeout': 60,
-        'group_ids': [public_group.id],
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
     }
 
     status, data = api(
-        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    analysis_service_id = data['data']['id']
+    analysis_service_id = data["data"]["id"]
 
     obj_id = str(uuid.uuid4())
     ra = 200.0 * np.random.random()
@@ -100,25 +100,25 @@ def test_analysis_page(
     assert status == 200
 
     status, data = api(
-        'POST',
-        f'obj/{obj_id}/analysis/{analysis_service_id}',
+        "POST",
+        f"obj/{obj_id}/analysis/{analysis_service_id}",
         token=analysis_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    analysis_id = data['data'].get('id')
+    analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
     max_attempts = 20
-    analysis_status = 'queued'
+    analysis_status = "queued"
 
     while max_attempts > 0:
         if analysis_status not in ["queued", "pending"]:
             break
         status, data = api(
-            'GET',
-            f'obj/analysis/{analysis_id}',
+            "GET",
+            f"obj/analysis/{analysis_id}",
             token=analysis_token,
         )
         assert status == 200

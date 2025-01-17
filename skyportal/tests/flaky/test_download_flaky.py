@@ -1,23 +1,21 @@
 import os
-import numpy as np
-from numpy import random
-
-from skyportal.tests import api
 import time
 import uuid
-import pandas as pd
-from regions import Regions
-from astropy.table import Table
-
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-
-from baselayer.app.config import load_config
 from os.path import join as pjoin
 
+import numpy as np
+import pandas as pd
 import pytest
+from astropy.table import Table
+from numpy import random
+from regions import Regions
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+
+from baselayer.app.config import load_config
+from skyportal.tests import api
 
 cfg = load_config()
 
@@ -57,12 +55,12 @@ def test_download_sources(
 
     for source_id in source_ids:
         status, data = api(
-            'POST',
-            f'sources/{source_id}/annotations',
+            "POST",
+            f"sources/{source_id}/annotations",
             data={
-                'origin': 'kowalski',
-                'data': {'offset_from_host_galaxy': 1.5},
-                'group_ids': [public_group.id],
+                "origin": "kowalski",
+                "data": {"offset_from_host_galaxy": 1.5},
+                "group_ids": [public_group.id],
             },
             token=annotation_token,
         )
@@ -70,15 +68,15 @@ def test_download_sources(
 
     for source_id in source_ids:
         status, data = api(
-            'POST',
-            f'sources/{source_id}/annotations',
+            "POST",
+            f"sources/{source_id}/annotations",
             data={
-                'origin': 'other_origin',
-                'data': {
-                    'offset_from_host_galaxy': 1.5,
-                    'some_boolean': True,
+                "origin": "other_origin",
+                "data": {
+                    "offset_from_host_galaxy": 1.5,
+                    "some_boolean": True,
                 },
-                'group_ids': [public_group.id],
+                "group_ids": [public_group.id],
             },
             token=annotation_token,
         )
@@ -106,7 +104,7 @@ def test_download_sources(
     driver.wait_for_xpath_to_disappear('//*[contains(., "Downloading 20 sources")]')
 
     # check that the download has the right number of lines
-    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'sources.csv')))
+    fpath = str(os.path.abspath(pjoin(cfg["paths.downloads_folder"], "sources.csv")))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 5:
         try_count += 1
@@ -116,9 +114,9 @@ def test_download_sources(
     try:
         with open(fpath) as f:
             lines = f.read()
-        assert len(lines.split('\n')) == 21
-        assert lines.split('\n')[1].find("kowalski;other_origin") != -1
-        assert lines.split('\n')[1].find("offset_from_host_galaxy;some_boolean") != -1
+        assert len(lines.split("\n")) == 21
+        assert lines.split("\n")[1].find("kowalski;other_origin") != -1
+        assert lines.split("\n")[1].find("offset_from_host_galaxy;some_boolean") != -1
     finally:
         os.remove(fpath)
 
@@ -139,7 +137,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     attachment_file.send_keys(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'data',
+            "data",
             filename,
         ),
     )
@@ -189,7 +187,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         # Preview dialog
         driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
-    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
+    fpath = str(os.path.abspath(pjoin(cfg["paths.downloads_folder"], "spec.csv")))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
@@ -198,7 +196,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     try:
         with open(fpath) as f:
             lines = f.read()
-        assert lines.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
+        assert lines.split("\n")[0] == "wavelengths,fluxes,instrument_id"
     finally:
         os.remove(fpath)
 
@@ -209,29 +207,29 @@ def test_gcn_summary_observations(
     super_admin_token,
     public_group,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
-        gcnevent_id = data['data']['gcnevent_id']
+        gcnevent_id = data["data"]["gcnevent_id"]
     else:
-        gcnevent_id = data['data']['id']
+        gcnevent_id = data["data"]["id"]
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        if data["status"] == "success":
             break
         time.sleep(2)
     assert n_times < 25
@@ -240,13 +238,13 @@ def test_gcn_summary_observations(
     params = {"include2DMap": True}
     for n_times_2 in range(26):
         status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            "GET",
+            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
             token=super_admin_token,
             params=params,
         )
 
-        if data['status'] == 'success':
+        if data["status"] == "success":
             data = data["data"]
             assert data["dateobs"] == "2019-08-14T21:10:39"
             assert data["localization_name"] == "LALInference.v1.fits.gz"
@@ -255,49 +253,49 @@ def test_gcn_summary_observations(
         else:
             time.sleep(2)
     assert n_times_2 < 25
-    localization_id = data['id']
+    localization_id = data["id"]
 
     name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': name,
-            'nickname': name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
+    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'Optical',
-            'filters': ['ztfr'],
-            'telescope_id': telescope_id,
-            'api_classname': 'ZTFAPI',
-            'api_classname_obsplan': 'ZTFMMAAPI',
-            'field_data': pd.read_csv(fielddatafile)[199:204].to_dict(orient='list'),
-            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            "name": instrument_name,
+            "type": "imager",
+            "band": "Optical",
+            "filters": ["ztfr"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
+            "api_classname_obsplan": "ZTFMMAAPI",
+            "field_data": pd.read_csv(fielddatafile)[199:204].to_dict(orient="list"),
+            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
     # wait for the fields to populate
     nretries = 0
@@ -305,78 +303,78 @@ def test_gcn_summary_observations(
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET',
-                f'instrument/{instrument_id}',
+                "GET",
+                f"instrument/{instrument_id}",
                 token=super_admin_token,
             )
             assert status == 200
-            assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
+            assert data["status"] == "success"
+            assert data["data"]["band"] == "NIR"
 
-            assert len(data['data']['fields']) == 5
+            assert len(data["data"]["fields"]) == 5
             fields_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
 
     request_data = {
-        'group_id': public_group.id,
-        'instrument_id': instrument_id,
-        'pi': 'Shri Kulkarni',
-        'hours_allocated': 200,
-        'start_date': '3021-02-27T00:00:00',
-        'end_date': '3021-07-20T00:00:00',
-        'proposal_id': 'COO-2020A-P01',
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "start_date": "3021-02-27T00:00:00",
+        "end_date": "3021-07-20T00:00:00",
+        "proposal_id": "COO-2020A-P01",
     }
 
-    status, data = api('POST', 'allocation', data=request_data, token=super_admin_token)
+    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
-    allocation_id = data['data']['id']
+    assert data["status"] == "success"
+    allocation_id = data["data"]["id"]
 
     queue_name = str(uuid.uuid4())
     request_data = {
-        'allocation_id': allocation_id,
-        'gcnevent_id': gcnevent_id,
-        'localization_id': localization_id,
-        'payload': {
-            'start_date': '2019-08-15 08:18:05',
-            'end_date': '2019-08-20 08:18:05',
-            'filter_strategy': 'block',
-            'schedule_strategy': 'tiling',
-            'schedule_type': 'greedy_slew',
-            'exposure_time': 300,
+        "allocation_id": allocation_id,
+        "gcnevent_id": gcnevent_id,
+        "localization_id": localization_id,
+        "payload": {
+            "start_date": "2019-08-15 08:18:05",
+            "end_date": "2019-08-20 08:18:05",
+            "filter_strategy": "block",
+            "schedule_strategy": "tiling",
+            "schedule_type": "greedy_slew",
+            "exposure_time": 300,
             "field_ids": [200, 201, 202],
-            'filters': 'ztfr',
-            'maximum_airmass': 2.0,
-            'integrated_probability': 100,
-            'minimum_time_difference': 30,
-            'queue_name': queue_name,
-            'program_id': 'Partnership',
-            'subprogram_name': 'GRB',
-            'galactic_latitude': 10,
+            "filters": "ztfr",
+            "maximum_airmass": 2.0,
+            "integrated_probability": 100,
+            "minimum_time_difference": 30,
+            "queue_name": queue_name,
+            "program_id": "Partnership",
+            "subprogram_name": "GRB",
+            "galactic_latitude": 10,
         },
     }
 
     status, data = api(
-        'POST', 'observation_plan', data=request_data, token=super_admin_token
+        "POST", "observation_plan", data=request_data, token=super_admin_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    id = data['data']['ids'][0]
+    id = data["data"]["ids"][0]
 
     # wait for the observation plan to finish loading
     time.sleep(15)
 
     status, data = api(
-        'GET',
-        f'observation_plan/{id}',
+        "GET",
+        f"observation_plan/{id}",
         params={"includePlannedObservations": "true"},
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     assert data["data"]["gcnevent_id"] == gcnevent_id
     assert data["data"]["allocation_id"] == allocation_id
@@ -384,36 +382,36 @@ def test_gcn_summary_observations(
 
     assert len(data["data"]["observation_plans"]) == 1
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv'
+    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv"
     data = {
-        'telescopeName': name,
-        'instrumentName': instrument_name,
-        'observationData': pd.read_csv(datafile).to_dict(orient='list'),
+        "telescopeName": name,
+        "instrumentName": instrument_name,
+        "observationData": pd.read_csv(datafile).to_dict(orient="list"),
     }
 
-    status, data = api('POST', 'observation', data=data, token=super_admin_token)
+    status, data = api("POST", "observation", data=data, token=super_admin_token)
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # wait for the executed observations to populate
 
     params = {
-        'telescopeName': name,
-        'instrumentName': instrument_name,
-        'startDate': '2019-08-13 08:18:05',
-        'endDate': '2019-08-19 08:18:05',
+        "telescopeName": name,
+        "instrumentName": instrument_name,
+        "startDate": "2019-08-13 08:18:05",
+        "endDate": "2019-08-19 08:18:05",
     }
     nretries = 0
     observations_loaded = False
     while not observations_loaded and nretries < 25:
         try:
             status, data = api(
-                'GET', 'observation', params=params, token=super_admin_token
+                "GET", "observation", params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
-            assert len(data['observations']) >= 9
+            assert len(data["observations"]) >= 9
             observations_loaded = True
         except AssertionError:
             nretries = nretries + 1
@@ -441,7 +439,7 @@ def test_gcn_summary_observations(
 
     fpath = str(
         os.path.abspath(
-            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
         )
     )
     try_count = 1
@@ -453,7 +451,7 @@ def test_gcn_summary_observations(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = list(filter(None, lines.split('\n')))
+        data = list(filter(None, lines.split("\n")))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -465,7 +463,7 @@ def test_gcn_summary_observations(
 
         assert any("Observations:" in line for line in data)
         assert any(
-            'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC'
+            "We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC"
             in line
             for line in data
         )
@@ -491,31 +489,31 @@ def test_gcn_summary_galaxies(
     view_only_token,
     public_group,
 ):
-    catalog_name = 'test_galaxy_catalog'
+    catalog_name = "test_galaxy_catalog"
     # in case the catalog already exists, delete it.
     status, data = api(
-        'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
+        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
     )
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        if data["status"] == "success":
             break
         time.sleep(2)
     assert n_times < 25
@@ -524,13 +522,13 @@ def test_gcn_summary_galaxies(
     params = {"include2DMap": True}
     for n_times_2 in range(26):
         status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            "GET",
+            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
             token=super_admin_token,
             params=params,
         )
 
-        if data['status'] == 'success':
+        if data["status"] == "success":
             data = data["data"]
             assert data["dateobs"] == "2019-08-14T21:10:39"
             assert data["localization_name"] == "LALInference.v1.fits.gz"
@@ -540,35 +538,33 @@ def test_gcn_summary_galaxies(
             time.sleep(2)
     assert n_times_2 < 25
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
+    datafile = f"{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5"
     data = {
-        'catalog_name': catalog_name,
-        'catalog_data': Table.read(datafile)
+        "catalog_name": catalog_name,
+        "catalog_data": Table.read(datafile)
         .to_pandas()
         .replace({np.nan: None})
-        .to_dict(orient='list'),
+        .to_dict(orient="list"),
     }
 
-    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    status, data = api("POST", "galaxy_catalog", data=data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    params = {'catalog_name': catalog_name}
+    params = {"catalog_name": catalog_name}
 
     nretries = 0
     galaxies_loaded = False
     while nretries < 40:
         status, data = api(
-            'GET', 'galaxy_catalog', token=view_only_token, params=params
+            "GET", "galaxy_catalog", token=view_only_token, params=params
         )
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            [
-                d['name'] == '6dFgs gJ0001313-055904'
-                and d['mstar'] == 336.60756522868667
+            d["name"] == "6dFgs gJ0001313-055904"
+                and d["mstar"] == 336.60756522868667
                 for d in data
-            ]
         ):
             galaxies_loaded = True
             break
@@ -597,7 +593,7 @@ def test_gcn_summary_galaxies(
 
     fpath = str(
         os.path.abspath(
-            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
         )
     )
     try_count = 1
@@ -609,7 +605,7 @@ def test_gcn_summary_galaxies(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = list(filter(None, lines.split('\n')))
+        data = list(filter(None, lines.split("\n")))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -639,7 +635,7 @@ def test_gcn_summary_galaxies(
         os.remove(fpath)
 
     status, data = api(
-        'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
+        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
     )
 
 
@@ -652,29 +648,29 @@ def test_gcn_summary_sources(
     ztf_camera,
     upload_data_token,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    data = {"xml": payload}
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        if data["status"] == "success":
             break
         time.sleep(2)
     assert n_times < 25
@@ -683,13 +679,13 @@ def test_gcn_summary_sources(
     params = {"include2DMap": True}
     for n_times_2 in range(26):
         status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            "GET",
+            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
             token=super_admin_token,
             params=params,
         )
 
-        if data['status'] == 'success':
+        if data["status"] == "success":
             data = data["data"]
             assert data["dateobs"] == "2019-08-14T21:10:39"
             assert data["localization_name"] == "LALInference.v1.fits.gz"
@@ -717,17 +713,17 @@ def test_gcn_summary_sources(
     assert status == 200
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58709 + 1,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
+            "obj_id": obj_id,
+            "mjd": 58709 + 1,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
             "ra": 24.6258,
             "dec": -32.9024,
             "ra_unc": 0.01,
@@ -736,20 +732,20 @@ def test_gcn_summary_sources(
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58709 + 1.5,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.131,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
+            "obj_id": obj_id,
+            "mjd": 58709 + 1.5,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.131,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
             "ra": 24.6258,
             "dec": -32.9024,
             "ra_unc": 0.01,
@@ -758,7 +754,7 @@ def test_gcn_summary_sources(
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # get the gcn event summary
     params = {
@@ -780,7 +776,7 @@ def test_gcn_summary_sources(
 
     fpath = str(
         os.path.abspath(
-            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
         )
     )
     try_count = 1
@@ -792,7 +788,7 @@ def test_gcn_summary_sources(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = list(filter(None, lines.split('\n')))
+        data = list(filter(None, lines.split("\n")))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -827,8 +823,8 @@ def test_gcn_summary_sources(
 
 
 def get_summary(driver, user, group, showSources, showGalaxies, showObservations):
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/gcn_events/2019-08-14T21:10:39')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/gcn_events/2019-08-14T21:10:39")
 
     summary_button = driver.wait_for_xpath_to_be_clickable(
         '//button[@name="gcn_summary"]'
@@ -874,38 +870,38 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
 
 
 def test_download_localization(super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        if data["status"] == "success":
             break
         time.sleep(2)
     assert n_times < 25
 
-    skymap = 'LALInference.v1.fits.gz'
+    skymap = "LALInference.v1.fits.gz"
     assert data["data"]["dateobs"] == dateobs
     assert any(
-        [loc['localization_name'] == skymap for loc in data["data"]["localizations"]]
+        loc["localization_name"] == skymap for loc in data["data"]["localizations"]
     )
 
     status, data = api(
-        'GET',
-        f'localization/{dateobs}/name/{skymap}/download',
+        "GET",
+        f"localization/{dateobs}/name/{skymap}/download",
         token=super_admin_token,
     )
     assert status == 200

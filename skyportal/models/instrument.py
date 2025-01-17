@@ -310,12 +310,6 @@ class Instrument(Base):
         doc="The Spectra produced by this instrument.",
     )
 
-    spectra = relationship(
-        'Spectrum',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="The Spectra produced by this instrument.",
-    )
 
     # can be [] if an instrument is spec only
     filters = sa.Column(

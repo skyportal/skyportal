@@ -1,11 +1,11 @@
-import time
 import datetime
+import time
 import uuid
+
 import numpy.testing as npt
+from tdtax import __version__, taxonomy
 
 from skyportal.tests import api, assert_api
-
-from tdtax import taxonomy, __version__
 
 
 def test_candidate_list(view_only_token, public_candidate):
@@ -217,8 +217,8 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
-    assert 'Failed to post candidate' in data['message']
+    assert data["status"] == "error"
+    assert "Failed to post candidate" in data["message"]
 
 
 def test_candidate_list_sorting_basic(
@@ -592,30 +592,30 @@ def test_candidate_list_classifications(
     )
     assert status == 200
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': obj_id1,
-            'classification': 'Algol',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": obj_id1,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token,
     )
@@ -715,7 +715,7 @@ def test_exclude_by_outdated_annotations(
     status, data = api(
         "POST",
         f"sources/{public_candidate.id}/annotations",
-        data={"obj_id": public_candidate.id, "origin": origin, "data": {'value1': 1}},
+        data={"obj_id": public_candidate.id, "origin": origin, "data": {"value1": 1}},
         token=annotation_token,
     )
     assert status == 200
@@ -943,7 +943,7 @@ def test_candidate_list_saved_to_any_selected_groups(
     assert (
         len(
             {obj_id1, obj_id2}.difference(
-                map(lambda x: x["id"], data["data"]["candidates"])
+                x["id"] for x in data["data"]["candidates"]
             )
         )
         == 0
@@ -1121,7 +1121,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
     assert (
         len(
             {obj_id1, obj_id2}.difference(
-                map(lambda x: x["id"], data["data"]["candidates"])
+                x["id"] for x in data["data"]["candidates"]
             )
         )
         == 0
@@ -1321,14 +1321,14 @@ def test_candidate_list_not_saved_to_all_selected_groups(
         token=view_only_token_two_groups,
     )
     if status != 200:
-        print(data['message'])
+        print(data["message"])
     assert status == 200
     # Should get obj_id2 and obj_id3 back
     assert len(data["data"]["candidates"]) == 2
     assert (
         len(
             {obj_id2, obj_id3}.difference(
-                map(lambda x: x["id"], data["data"]["candidates"])
+                x["id"] for x in data["data"]["candidates"]
             )
         )
         == 0
@@ -1341,23 +1341,23 @@ def test_correct_spectra_and_photometry_returned_by_candidate(
     view_only_token_two_groups,
 ):
     status, data = api(
-        'GET',
+        "GET",
         f"candidates/{public_candidate.id}?includePhotometry=t&includeSpectra=t",
         token=view_only_token_two_groups,
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert len(public_candidate.photometry) == len(data['data']['photometry'])
-    assert len(public_candidate.spectra) == len(data['data']['spectra'])
+    assert len(public_candidate.photometry) == len(data["data"]["photometry"])
+    assert len(public_candidate.spectra) == len(data["data"]["spectra"])
 
     phot_ids_db = sorted(p.id for p in public_candidate.photometry)
-    phot_ids_api = sorted(p['id'] for p in data['data']['photometry'])
+    phot_ids_api = sorted(p["id"] for p in data["data"]["photometry"])
     assert phot_ids_db == phot_ids_api
 
     spec_ids_db = sorted(p.id for p in public_candidate.spectra)
-    spec_ids_api = sorted(p['id'] for p in data['data']['spectra'])
+    spec_ids_api = sorted(p["id"] for p in data["data"]["spectra"])
     assert spec_ids_db == spec_ids_api
 
 
@@ -1372,25 +1372,25 @@ def test_candidates_hidden_photometry_not_leaked(
     obj_id = str(public_candidate.id)
     # Post photometry to the object belonging to a different group
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": obj_id,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    photometry_id = data['data']['ids'][0]
+    assert data["status"] == "success"
+    photometry_id = data["data"]["ids"][0]
 
     # Check the photometry sent back with the candidate
     status, data = api(
@@ -1405,9 +1405,7 @@ def test_candidates_hidden_photometry_not_leaked(
     assert len(public_candidate.photometry) - 1 == len(
         data["data"]["candidates"][0]["photometry"]
     )
-    assert photometry_id not in map(
-        lambda x: x["id"], data["data"]["candidates"][0]["photometry"]
-    )
+    assert photometry_id not in (x["id"] for x in data["data"]["candidates"][0]["photometry"])
 
     # Check for single GET call as well
     status, data = api(
@@ -1419,7 +1417,7 @@ def test_candidates_hidden_photometry_not_leaked(
     assert status == 200
     assert data["data"]["id"] == obj_id
     assert len(public_candidate.photometry) - 1 == len(data["data"]["photometry"])
-    assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])
+    assert photometry_id not in (x["id"] for x in data["data"]["photometry"])
 
 
 def test_candidate_list_pagination(
@@ -1529,33 +1527,33 @@ def test_candidates_annotation_filtering(
     obj_id = str(public_candidate.id)
     # Post photometry to the object belonging to a different group
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": obj_id,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    photometry_id = data['data']['ids'][0]
+    assert data["status"] == "success"
+    photometry_id = data["data"]["ids"][0]
 
     status, data = api(
-        'POST',
-        f'photometry/{photometry_id}/annotations',
+        "POST",
+        f"photometry/{photometry_id}/annotations",
         data={
-            'origin': 'kowalski',
-            'data': {'gaia_G': 15.7},
-            'group_ids': [public_group.id],
+            "origin": "kowalski",
+            "data": {"gaia_G": 15.7},
+            "group_ids": [public_group.id],
         },
         token=annotation_token,
     )

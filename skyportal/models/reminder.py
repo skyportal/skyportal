@@ -1,9 +1,9 @@
 __all__ = [
-    'Reminder',
-    'ReminderOnSpectrum',
-    'ReminderOnGCN',
-    'ReminderOnEarthquake',
-    'ReminderOnShift',
+    "Reminder",
+    "ReminderOnSpectrum",
+    "ReminderOnGCN",
+    "ReminderOnEarthquake",
+    "ReminderOnShift",
 ]
 
 import sqlalchemy as sa
@@ -11,13 +11,12 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
-    Base,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    Base,
 )
 
 from .group import accessible_by_groups_members
-
 
 """
 NOTE ON ADDING NEW REMINDER TYPES:
@@ -38,7 +37,7 @@ To add a new reminder on <something> you need to
 class ReminderMixin:
     text = sa.Column(sa.String, nullable=False, doc="Reminder body.")
 
-    origin = sa.Column(sa.String, nullable=True, doc='Reminder origin.')
+    origin = sa.Column(sa.String, nullable=True, doc="Reminder origin.")
 
     bot = sa.Column(
         sa.Boolean(),
@@ -61,16 +60,16 @@ class ReminderMixin:
 
     @classmethod
     def backref_name(cls):
-        if cls.__name__ == 'Reminder':
+        if cls.__name__ == "Reminder":
             return "reminders"
-        if cls.__name__ == 'ReminderOnSpectrum':
-            return 'reminders_on_spectra'
-        if cls.__name__ == 'ReminderOnGCN':
-            return 'reminders_on_gcns'
-        if cls.__name__ == 'ReminderOnShift':
-            return 'reminders_on_shifts'
-        if cls.__name__ == 'ReminderOnEarthquake':
-            return 'reminders_on_earthquakes'
+        if cls.__name__ == "ReminderOnSpectrum":
+            return "reminders_on_spectra"
+        if cls.__name__ == "ReminderOnGCN":
+            return "reminders_on_gcns"
+        if cls.__name__ == "ReminderOnShift":
+            return "reminders_on_shifts"
+        if cls.__name__ == "ReminderOnEarthquake":
+            return "reminders_on_earthquakes"
 
     @declared_attr
     def user(cls):
@@ -86,7 +85,7 @@ class ReminderMixin:
     @declared_attr
     def user_id(cls):
         return sa.Column(
-            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the Reminder User instance.",
@@ -106,133 +105,133 @@ class ReminderMixin:
 class Reminder(Base, ReminderMixin):
     """A reminder made by a User or a Robot (via the API) on a Source."""
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
+        obj="read"
     )
 
-    update = delete = AccessibleIfUserMatches('user')
+    update = delete = AccessibleIfUserMatches("user")
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's Obj.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='reminders',
+        "Obj",
+        back_populates="reminders",
         doc="The Reminder's Obj.",
     )
 
 
 class ReminderOnSpectrum(Base, ReminderMixin):
-    __tablename__ = 'reminders_on_spectra'
+    __tablename__ = "reminders_on_spectra"
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj="read", spectrum="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read',
-        spectrum='read',
+        obj="read",
+        spectrum="read",
     )
 
-    update = delete = AccessibleIfUserMatches('user')
+    update = delete = AccessibleIfUserMatches("user")
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's Obj.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='reminders_on_spectra',
+        "Obj",
+        back_populates="reminders_on_spectra",
         doc="The Reminder's Obj.",
     )
 
     spectrum_id = sa.Column(
-        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        sa.ForeignKey("spectra.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's Spectrum.",
     )
     spectrum = relationship(
-        'Spectrum',
-        back_populates='reminders',
+        "Spectrum",
+        back_populates="reminders",
         doc="The Spectrum referred to by this reminder.",
     )
 
 
 class ReminderOnGCN(Base, ReminderMixin):
-    __tablename__ = 'reminders_on_gcns'
+    __tablename__ = "reminders_on_gcns"
 
-    create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
+    create = AccessibleIfRelatedRowsAreAccessible(gcn="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        gcn='read',
+        gcn="read",
     )
 
-    update = delete = AccessibleIfUserMatches('user')
+    update = delete = AccessibleIfUserMatches("user")
 
     gcn_id = sa.Column(
-        sa.ForeignKey('gcnevents.id', ondelete='CASCADE'),
+        sa.ForeignKey("gcnevents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's GCN.",
     )
     gcn = relationship(
-        'GcnEvent',
-        back_populates='reminders',
+        "GcnEvent",
+        back_populates="reminders",
         doc="The GcnEvent referred to by this reminder.",
     )
 
 
 class ReminderOnEarthquake(Base, ReminderMixin):
-    __tablename__ = 'reminders_on_earthquakes'
+    __tablename__ = "reminders_on_earthquakes"
 
-    create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
+    create = AccessibleIfRelatedRowsAreAccessible(earthquake="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        earthquake='read',
+        earthquake="read",
     )
 
-    update = delete = AccessibleIfUserMatches('user')
+    update = delete = AccessibleIfUserMatches("user")
 
     earthquake_id = sa.Column(
-        sa.ForeignKey('earthquakeevents.id', ondelete='CASCADE'),
+        sa.ForeignKey("earthquakeevents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's Earthquake.",
     )
     earthquake = relationship(
-        'EarthquakeEvent',
-        back_populates='reminders',
+        "EarthquakeEvent",
+        back_populates="reminders",
         doc="The Earthquake referred to by this reminder.",
     )
 
 
 class ReminderOnShift(Base, ReminderMixin):
-    __tablename__ = 'reminders_on_shifts'
+    __tablename__ = "reminders_on_shifts"
 
-    create = AccessibleIfRelatedRowsAreAccessible(shift='read')
+    create = AccessibleIfRelatedRowsAreAccessible(shift="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        shift='read',
+        shift="read",
     )
 
-    update = delete = AccessibleIfUserMatches('user')
+    update = delete = AccessibleIfUserMatches("user")
 
     shift_id = sa.Column(
-        sa.ForeignKey('shifts.id', ondelete='CASCADE'),
+        sa.ForeignKey("shifts.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Reminder's Shift.",
     )
     shift = relationship(
-        'Shift',
-        back_populates='reminders',
+        "Shift",
+        back_populates="reminders",
         doc="The Shift referred to by this reminder.",
     )

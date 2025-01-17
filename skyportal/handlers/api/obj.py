@@ -159,7 +159,7 @@ class ObjPositionHandler(BaseHandler):
                 return self.error(
                     f'Invalid {param} parameter, must be a comma-separated list of {dtype}s'
                 )
-        elif isinstance(param, list) or isinstance(param, tuple):
+        elif isinstance(param, list | tuple):
             try:
                 return [operator(id) for id in param]
             except ValueError:

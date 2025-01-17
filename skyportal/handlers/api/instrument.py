@@ -36,7 +36,7 @@ from ...models import (
 from ...utils.cache import Cache, array_to_bytes
 from ..base import BaseHandler
 
-log = make_log('api/instrument')
+log = make_log("api/instrument")
 env, cfg = load_env()
 
 cache_dir = "cache/localization_instrument_queries"
@@ -51,46 +51,44 @@ Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['Manage instruments'])
+    @permissions(["Manage instruments"])
     def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
 
         data = self.get_json()
-        telescope_id = data.get('telescope_id')
+        telescope_id = data.get("telescope_id")
         with self.Session() as session:
             stmt = Telescope.select(session.user_or_token).filter(
                 Telescope.id == telescope_id
             )
             telescope = session.scalars(stmt).first()
             if not telescope:
-                return self.error(f'No telescope with id {telescope_id}')
+                return self.error(f"No telescope with id {telescope_id}")
 
             sensitivity_data = data.get("sensitivity_data", None)
             if isinstance(sensitivity_data, str):
-                sensitivity_data = ast.literal_eval(
-                    sensitivity_data.replace("\'", "\"")
-                )
-                data['sensitivity_data'] = sensitivity_data
+                sensitivity_data = ast.literal_eval(sensitivity_data.replace("'", '"'))
+                data["sensitivity_data"] = sensitivity_data
 
             if sensitivity_data:
                 filters = data.get("filters", [])
                 if not set(sensitivity_data.keys()).issubset(filters):
                     return self.error(
-                        'Sensitivity_data filters must be a subset of the instrument filters'
+                        "Sensitivity_data filters must be a subset of the instrument filters"
                     )
 
             configuration_data = data.get("configuration_data", None)
             if isinstance(configuration_data, str):
                 configuration_data = ast.literal_eval(
-                    configuration_data.replace("\'", "\"")
+                    configuration_data.replace("'", '"')
                 )
-                data['configuration_data'] = configuration_data
+                data["configuration_data"] = configuration_data
 
             references = data.pop("references", None)
             if isinstance(references, str):
                 try:
-                    references = ast.literal_eval(references.replace("\'", "\""))
+                    references = ast.literal_eval(references.replace("'", '"'))
                 except Exception:
                     pass
             if references is not None:
@@ -98,31 +96,31 @@ class InstrumentHandler(BaseHandler):
                     if isinstance(references, dict):
                         references = pd.DataFrame.from_dict(references)
                     elif isinstance(references, str):
-                        references = pd.read_table(StringIO(references), sep=',')
+                        references = pd.read_table(StringIO(references), sep=",")
                     else:
                         raise ValueError("references must be a dict or a string")
                 except Exception as e:
                     return self.error(f"Could not parse references: {e}")
                 # verify that the columns are field, filter (required) and limmag (optional)
-                if not {'field', 'filter'}.issubset(references.columns):
+                if not {"field", "filter"}.issubset(references.columns):
                     return self.error(
                         "references must contain at least field and filter columns"
                     )
-                if not set(list(references.columns)).issubset(
-                    {'field', 'filter', 'limmag'}
+                if not set(references.columns).issubset(
+                    {"field", "filter", "limmag"}
                 ):
                     return self.error(
                         "references can only contain field, filter, and limmag columns"
                     )
-                if not references['field'].dtype == int:
+                if references["field"].dtype != int:
                     return self.error("references field must be an integer")
-                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                if not set(references["filter"]).issubset(ALLOWED_BANDPASSES):
                     return self.error(
                         f"references filter must be one of {ALLOWED_BANDPASSES}"
                     )
                 if (
-                    'limmag' in list(references.columns)
-                    and not references['limmag'].dtype == float
+                    "limmag" in list(references.columns)
+                    and references["limmag"].dtype != float
                 ):
                     return self.error("references limmag must be a float")
 
@@ -134,62 +132,60 @@ class InstrumentHandler(BaseHandler):
 
             if (field_region is not None) and (field_fov_type is not None):
                 return self.error(
-                    'must supply only one of field_region or field_fov_type'
+                    "must supply only one of field_region or field_fov_type"
                 )
 
             if field_region is not None:
-                regions = Regions.parse(field_region, format='ds9')
-                data['region'] = regions.serialize(format='ds9')
+                regions = Regions.parse(field_region, format="ds9")
+                data["region"] = regions.serialize(format="ds9")
 
             if field_fov_type is not None:
                 if field_fov_attributes is None:
                     return self.error(
-                        'field_fov_attributes required if field_fov_type supplied'
+                        "field_fov_attributes required if field_fov_type supplied"
                     )
                 if not field_fov_type.lower() in ["circle", "rectangle"]:
-                    return self.error('field_fov_type must be circle or rectangle')
+                    return self.error("field_fov_type must be circle or rectangle")
                 if isinstance(field_fov_attributes, list):
                     field_fov_attributes = [float(x) for x in field_fov_attributes]
                 else:
                     field_fov_attributes = [float(field_fov_attributes)]
 
-                center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+                center = SkyCoord(0.0, 0.0, unit="deg", frame="icrs")
                 if field_fov_type.lower() == "circle":
-                    if not len(field_fov_attributes) == 1:
+                    if len(field_fov_attributes) != 1:
                         return self.error(
-                            'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                            "If field_fov_type is circle, then should supply only radius for field_fov_attributes"
                         )
                     radius = field_fov_attributes[0]
                     regions = CircleSkyRegion(center=center, radius=radius * u.deg)
                 elif field_fov_type.lower() == "rectangle":
-                    if not len(field_fov_attributes) == 2:
+                    if len(field_fov_attributes) != 2:
                         return self.error(
-                            'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                            "If field_fov_type is rectangle, then should supply width and height for field_fov_attributes"
                         )
                     width, height = field_fov_attributes
                     regions = RectangleSkyRegion(
                         center=center, width=width * u.deg, height=height * u.deg
                     )
-                data['region'] = regions.serialize(format='ds9')
+                data["region"] = regions.serialize(format="ds9")
 
             schema = Instrument.__schema__()
             try:
                 instrument = schema.load(data)
             except ValidationError as exc:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                    "Invalid/missing parameters: " f"{exc.normalized_messages()}"
                 )
 
             stmt = Instrument.select(session.user_or_token).where(
-                Instrument.name == data.get('name'),
+                Instrument.name == data.get("name"),
                 Instrument.telescope_id == telescope_id,
             )
             existing_instrument = session.scalars(stmt).first()
             if existing_instrument is not None:
                 return self.error(
-                    'Instrument with name {} already exists for telescope {}'.format(
-                        existing_instrument.name, telescope_id
-                    )
+                    f"Instrument with name {existing_instrument.name} already exists for telescope {telescope_id}"
                 )
 
             instrument.telescope = telescope
@@ -197,23 +193,23 @@ class InstrumentHandler(BaseHandler):
             session.commit()
 
             if references is not None:
-                if not set(references['filter']).issubset(instrument.filters):
+                if not set(references["filter"]).issubset(instrument.filters):
                     return self.error(
-                        'Filters in references must be a subset of the instrument filters'
+                        "Filters in references must be a subset of the instrument filters"
                     )
 
             if field_data is not None:
                 if (field_region is None) and (field_fov_type is None):
                     return self.error(
-                        'field_region or field_fov_type is required with field_data'
+                        "field_region or field_fov_type is required with field_data"
                     )
 
                 if type(field_data) is str:
                     field_data = load_field_data(field_data)
                     if field_data is None:
-                        return self.error('Could not parse the field data table')
+                        return self.error("Could not parse the field data table")
 
-                if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                if not {"ID", "RA", "Dec"}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
 
                 log(f"Started generating fields for instrument {instrument.id}")
@@ -398,15 +394,15 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         """
 
-        localization_dateobs = self.get_query_argument('localizationDateobs', None)
-        localization_name = self.get_query_argument('localizationName', None)
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
         includeRegion = self.get_query_argument("includeRegion", False)
 
-        airmass_time = self.get_query_argument('airmassTime', None)
+        airmass_time = self.get_query_argument("airmassTime", None)
         ignore_cache = self.get_query_argument("ignoreCache", False)
 
         if airmass_time is None:
@@ -433,13 +429,13 @@ class InstrumentHandler(BaseHandler):
                 )
                 instrument = session.scalars(stmt).first()
                 if instrument is None:
-                    return self.error(f'No instrument with ID: {instrument_id}')
+                    return self.error(f"No instrument with ID: {instrument_id}")
 
                 data = instrument.to_dict()
 
-                data['status'] = instrument.status
+                data["status"] = instrument.status
 
-                data['log_exists'] = (
+                data["log_exists"] = (
                     session.scalars(
                         InstrumentLog.select(self.current_user).where(
                             InstrumentLog.instrument_id == int(instrument_id)
@@ -475,14 +471,14 @@ class InstrumentHandler(BaseHandler):
                     # now get the dateobs in the format YYYY_MM
                     partition_key = arrow.get(localization.dateobs).datetime
                     localizationtile_partition_name = (
-                        f'{partition_key.year}_{partition_key.month:02d}'
+                        f"{partition_key.year}_{partition_key.month:02d}"
                     )
                     localizationtilescls = LocalizationTile.partitions.get(
                         localizationtile_partition_name, None
                     )
                     if localizationtilescls is None:
                         localizationtilescls = LocalizationTile.partitions.get(
-                            'def', LocalizationTile
+                            "def", LocalizationTile
                         )
                     else:
                         # check that there is actually a localizationTile with the given localization_id in the partition
@@ -496,7 +492,7 @@ class InstrumentHandler(BaseHandler):
                             ).first()
                         ):
                             localizationtilescls = LocalizationTile.partitions.get(
-                                'def', LocalizationTile
+                                "def", LocalizationTile
                             )
 
                     cum_prob = (
@@ -505,7 +501,7 @@ class InstrumentHandler(BaseHandler):
                             * localizationtilescls.healpix.area
                         )
                         .over(order_by=localizationtilescls.probdensity.desc())
-                        .label('cum_prob')
+                        .label("cum_prob")
                     )
                     localizationtile_subquery = (
                         sa.select(localizationtilescls.probdensity, cum_prob).filter(
@@ -625,8 +621,8 @@ class InstrumentHandler(BaseHandler):
                             observer=observer,
                         ).flatten()
 
-                    data['fields'] = [
-                        {**field, 'airmass': airmass}
+                    data["fields"] = [
+                        {**field, "airmass": airmass}
                         for field, airmass in zip(fields, airmass_bulk)
                     ]
 
@@ -646,10 +642,10 @@ class InstrumentHandler(BaseHandler):
             data = [
                 {
                     **instrument.to_dict(),
-                    'telescope': instrument.telescope.to_dict(),
-                    'number_of_fields': instrument.number_of_fields,
-                    'region_summary': instrument.region_summary,
-                    'log_exists': session.scalars(
+                    "telescope": instrument.telescope.to_dict(),
+                    "number_of_fields": instrument.number_of_fields,
+                    "region_summary": instrument.region_summary,
+                    "log_exists": session.scalars(
                         InstrumentLog.select(self.current_user).where(
                             InstrumentLog.instrument_id == instrument.id
                         )
@@ -660,7 +656,7 @@ class InstrumentHandler(BaseHandler):
             ]
             return self.success(data=data)
 
-    @permissions(['Manage instruments'])
+    @permissions(["Manage instruments"])
     def put(self, instrument_id):
         """
         ---
@@ -689,7 +685,7 @@ class InstrumentHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        data['id'] = int(instrument_id)
+        data["id"] = int(instrument_id)
         with self.Session() as session:
             # permission check
             stmt = Instrument.select(session.user_or_token, mode="update").where(
@@ -697,13 +693,13 @@ class InstrumentHandler(BaseHandler):
             )
             instrument = session.scalars(stmt).first()
             if instrument is None:
-                return self.error(f'Missing instrument with ID {instrument_id}')
+                return self.error(f"Missing instrument with ID {instrument_id}")
 
-            filters = data.get('filters', None)
+            filters = data.get("filters", None)
             if filters is not None:
-                if not set(list(instrument.filters)).issubset(set(filters)):
+                if not set(instrument.filters).issubset(set(filters)):
                     new_filters = list(
-                        set(list(instrument.filters)).difference(set(filters))
+                        set(instrument.filters).difference(set(filters))
                     )
                     for filt in new_filters:
                         stmt = Photometry.select(session.user_or_token).where(
@@ -716,27 +712,25 @@ class InstrumentHandler(BaseHandler):
                         total_photometry = session.execute(count_stmt).scalar()
                         if total_photometry > 0:
                             return self.error(
-                                f'Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted.'
+                                f"Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted."
                             )
 
-            sensitivity_data = data.get('sensitivity_data', None)
+            sensitivity_data = data.get("sensitivity_data", None)
             if isinstance(sensitivity_data, str):
-                sensitivity_data = ast.literal_eval(
-                    sensitivity_data.replace("\'", "\"")
-                )
-                data['sensitivity_data'] = sensitivity_data
+                sensitivity_data = ast.literal_eval(sensitivity_data.replace("'", '"'))
+                data["sensitivity_data"] = sensitivity_data
 
             configuration_data = data.get("configuration_data", None)
             if isinstance(configuration_data, str):
                 configuration_data = ast.literal_eval(
-                    configuration_data.replace("\'", "\"")
+                    configuration_data.replace("'", '"')
                 )
-                data['configuration_data'] = configuration_data
+                data["configuration_data"] = configuration_data
 
             references = data.pop("references", None)
             if isinstance(references, str):
                 try:
-                    references = ast.literal_eval(references.replace("\'", "\""))
+                    references = ast.literal_eval(references.replace("'", '"'))
                 except Exception:
                     pass
             if references is not None:
@@ -744,31 +738,31 @@ class InstrumentHandler(BaseHandler):
                     if isinstance(references, dict):
                         references = pd.DataFrame.from_dict(references)
                     elif isinstance(references, str):
-                        references = pd.read_table(StringIO(references), sep=',')
+                        references = pd.read_table(StringIO(references), sep=",")
                     else:
                         raise ValueError("references must be a dict or a string")
                 except Exception as e:
                     return self.error(f"Could not parse references: {e}")
                 # verify that the columns are field, filter (required) and limmag (optional)
-                if not {'field', 'filter'}.issubset(references.columns):
+                if not {"field", "filter"}.issubset(references.columns):
                     return self.error(
                         "references must contain at least field and filter columns"
                     )
-                if not set(list(references.columns)).issubset(
-                    {'field', 'filter', 'limmag'}
+                if not set(references.columns).issubset(
+                    {"field", "filter", "limmag"}
                 ):
                     return self.error(
                         "references can only contain field, filter, and limmag columns"
                     )
-                if not references['field'].dtype == int:
+                if references["field"].dtype != int:
                     return self.error("references field must be an integer")
-                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                if not set(references["filter"]).issubset(ALLOWED_BANDPASSES):
                     return self.error(
                         f"references filter must be one of {ALLOWED_BANDPASSES}"
                     )
                 if (
-                    'limmag' in list(references.columns)
-                    and not references['limmag'].dtype == float
+                    "limmag" in list(references.columns)
+                    and references["limmag"].dtype != float
                 ):
                     return self.error("references limmag must be a float")
 
@@ -780,70 +774,70 @@ class InstrumentHandler(BaseHandler):
 
             if (field_region is not None) and (field_fov_type is not None):
                 return self.error(
-                    'must supply only one of field_region or field_fov_type'
+                    "must supply only one of field_region or field_fov_type"
                 )
 
             if field_region is not None:
-                regions = Regions.parse(field_region, format='ds9')
-                data['region'] = regions.serialize(format='ds9')
+                regions = Regions.parse(field_region, format="ds9")
+                data["region"] = regions.serialize(format="ds9")
             elif instrument.has_region:
-                regions = Regions.parse(instrument.region, format='ds9')
+                regions = Regions.parse(instrument.region, format="ds9")
             else:
                 regions = None
 
             if field_fov_type is not None:
                 if field_fov_attributes is None:
                     return self.error(
-                        'field_fov_attributes required if field_fov_type supplied'
+                        "field_fov_attributes required if field_fov_type supplied"
                     )
                 if not field_fov_type.lower() in ["circle", "rectangle"]:
-                    return self.error('field_fov_type must be circle or rectangle')
+                    return self.error("field_fov_type must be circle or rectangle")
                 if isinstance(field_fov_attributes, list):
                     field_fov_attributes = [float(x) for x in field_fov_attributes]
                 else:
                     field_fov_attributes = [float(field_fov_attributes)]
 
-                center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+                center = SkyCoord(0.0, 0.0, unit="deg", frame="icrs")
                 if field_fov_type.lower() == "circle":
-                    if not len(field_fov_attributes) == 1:
+                    if len(field_fov_attributes) != 1:
                         return self.error(
-                            'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                            "If field_fov_type is circle, then should supply only radius for field_fov_attributes"
                         )
                     radius = field_fov_attributes[0]
                     regions = CircleSkyRegion(center=center, radius=radius * u.deg)
                 elif field_fov_type.lower() == "rectangle":
-                    if not len(field_fov_attributes) == 2:
+                    if len(field_fov_attributes) != 2:
                         return self.error(
-                            'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                            "If field_fov_type is rectangle, then should supply width and height for field_fov_attributes"
                         )
                     width, height = field_fov_attributes
                     regions = RectangleSkyRegion(
                         center=center, width=width * u.deg, height=height * u.deg
                     )
-                data['region'] = regions.serialize(format='ds9')
+                data["region"] = regions.serialize(format="ds9")
 
             schema = Instrument.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
                 )
 
             for k in data:
-                if k not in ['sensitivity_data', 'configuration_data']:
+                if k not in ["sensitivity_data", "configuration_data"]:
                     setattr(instrument, k, data[k])
 
             if references is not None:
-                if not set(references['filter']).issubset(instrument.filters):
+                if not set(references["filter"]).issubset(instrument.filters):
                     return self.error(
-                        'Filters in references must be a subset of the instrument filters'
+                        "Filters in references must be a subset of the instrument filters"
                     )
 
             if sensitivity_data:
                 if not set(sensitivity_data.keys()).issubset(instrument.filters):
                     return self.error(
-                        'Filter names must be present in both sensitivity_data property and filters property'
+                        "Filter names must be present in both sensitivity_data property and filters property"
                     )
                 instrument.sensitivity_data = sensitivity_data
 
@@ -868,15 +862,15 @@ class InstrumentHandler(BaseHandler):
                         and (regions is None)
                     ):
                         return self.error(
-                            'field_region or field_fov_type or existing region is required with field_data'
+                            "field_region or field_fov_type or existing region is required with field_data"
                         )
 
                     if type(field_data) is str:
                         field_data = load_field_data(field_data)
                         if field_data is None:
-                            return self.error('Could not parse the field data table')
+                            return self.error("Could not parse the field data table")
 
-                    if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                    if not {"ID", "RA", "Dec"}.issubset(field_data):
                         return self.error("ID, RA, and Dec required in field_data.")
 
                 log(f"Started generating fields for instrument {instrument.id}")
@@ -896,7 +890,7 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(['Delete instrument'])
+    @permissions(["Delete instrument"])
     def delete(self, instrument_id):
         """
         ---
@@ -935,7 +929,7 @@ class InstrumentHandler(BaseHandler):
             )
             instrument = session.scalars(stmt).first()
             if instrument is None:
-                return self.error(f'Missing instrument with ID {instrument_id}')
+                return self.error(f"Missing instrument with ID {instrument_id}")
 
             session.delete(instrument)
             session.commit()
@@ -1070,7 +1064,7 @@ def load_field_data(field_data):
     for delimiter in delimiters:
         try:
             field_data_table = pd.read_table(StringIO(field_data), sep=delimiter)
-            if {'ID', 'RA', 'Dec'}.issubset(field_data_table.columns.tolist()):
+            if {"ID", "RA", "Dec"}.issubset(field_data_table.columns.tolist()):
                 loaded = True
             else:
                 field_data_table = pd.read_table(
@@ -1087,7 +1081,7 @@ def load_field_data(field_data):
     if not loaded:
         return None
     else:
-        return field_data_table.to_dict(orient='list')
+        return field_data_table.to_dict(orient="list")
 
 
 def add_tiles(
@@ -1110,10 +1104,10 @@ def add_tiles(
         if references is not None:
             reference_filters = {}
             reference_filter_mags = {}
-            for name, group in references.groupby('field'):
-                reference_filters[name] = group['filter'].tolist()
-                if 'limmag' in list(references.columns):
-                    reference_filter_mags[name] = group['limmag'].tolist()
+            for name, group in references.groupby("field"):
+                reference_filters[name] = group["filter"].tolist()
+                if "limmag" in list(references.columns):
+                    reference_filter_mags[name] = group["limmag"].tolist()
 
         # if we are only adding/modifying references, no need to modify anything else
         if field_data is None and references is not None:
@@ -1129,12 +1123,12 @@ def add_tiles(
             for field in fields:
                 if field.field_id in reference_filters:
                     setattr(
-                        field, 'reference_filters', reference_filters[field.field_id]
+                        field, "reference_filters", reference_filters[field.field_id]
                     )
                     if field.field_id in reference_filter_mags:
                         setattr(
                             field,
-                            'reference_filter_mags',
+                            "reference_filter_mags",
                             reference_filter_mags[field.field_id],
                         )
                     session.add(field)
@@ -1143,7 +1137,7 @@ def add_tiles(
 
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
-            field_data['RA'], field_data['Dec'], unit=u.deg
+            field_data["RA"], field_data["Dec"], unit=u.deg
         ).skyoffset_frame()
 
         # code expects to loop over regions
@@ -1186,18 +1180,18 @@ def add_tiles(
         # Copy the tile coordinates such that there is one per field
         # in the grid
         coords_icrs = coordinates.SkyCoord(
-            *np.tile(coords[:, np.newaxis, ...], (len(field_data['RA']), 1, 1)),
+            *np.tile(coords[:, np.newaxis, ...], (len(field_data["RA"]), 1, 1)),
             unit=u.deg,
             frame=skyoffset_frames[:, np.newaxis, np.newaxis],
         ).transform_to(coordinates.ICRS)
 
-        if 'ID' in field_data:
-            ids = field_data['ID']
+        if "ID" in field_data:
+            ids = field_data["ID"]
         else:
-            ids = [-1] * len(field_data['RA'])
+            ids = [-1] * len(field_data["RA"])
 
         for ii, (field_id, ra, dec, coords) in enumerate(
-            zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
+            zip(ids, field_data["RA"], field_data["Dec"], coords_icrs)
         ):
             if field_id == -1:
                 field = InstrumentField.query.filter(
@@ -1221,25 +1215,25 @@ def add_tiles(
                 geometry.append(tab)
 
             contour = {
-                'properties': {
-                    'instrument': instrument_name,
-                    'field_id': int(field_id),
-                    'ra': ra,
-                    'dec': dec,
+                "properties": {
+                    "instrument": instrument_name,
+                    "field_id": int(field_id),
+                    "ra": ra,
+                    "dec": dec,
                 },
-                'type': 'FeatureCollection',
-                'features': [
+                "type": "FeatureCollection",
+                "features": [
                     {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'MultiLineString',
-                            'coordinates': geometry,
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "MultiLineString",
+                            "coordinates": geometry,
                         },
                     },
                 ],
             }
             if field_id == -1:
-                del contour['properties']['field_id']
+                del contour["properties"]["field_id"]
 
             if needs_summary:
                 # compute summary (bounding-box) contour
@@ -1260,25 +1254,25 @@ def add_tiles(
                 ]
 
                 contour_summary = {
-                    'properties': {
-                        'instrument': instrument_name,
-                        'field_id': int(field_id),
-                        'ra': ra,
-                        'dec': dec,
+                    "properties": {
+                        "instrument": instrument_name,
+                        "field_id": int(field_id),
+                        "ra": ra,
+                        "dec": dec,
                     },
-                    'type': 'FeatureCollection',
-                    'features': [
+                    "type": "FeatureCollection",
+                    "features": [
                         {
-                            'type': 'Feature',
-                            'geometry': {
-                                'type': 'LineString',
-                                'coordinates': geometry_summary,
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "LineString",
+                                "coordinates": geometry_summary,
                             },
                         },
                     ],
                 }
                 if field_id == -1:
-                    del contour_summary['properties']['field_id']
+                    del contour_summary["properties"]["field_id"]
             else:
                 contour_summary = contour
 
@@ -1336,17 +1330,17 @@ def add_tiles(
                     session.commit()
                 else:
                     # we update the contour and contour_summary
-                    setattr(field, 'contour', contour)
-                    setattr(field, 'contour_summary', contour_summary)
+                    setattr(field, "contour", contour)
+                    setattr(field, "contour_summary", contour_summary)
                     session.add(field)
                     session.commit()
 
                 if references is not None and field_id in reference_filters:
-                    setattr(field, 'reference_filters', reference_filters[field_id])
-                    if 'limmag' in list(references.columns):
+                    setattr(field, "reference_filters", reference_filters[field_id])
+                    if "limmag" in list(references.columns):
                         setattr(
                             field,
-                            'reference_filter_mags',
+                            "reference_filter_mags",
                             reference_filter_mags[field_id],
                         )
                     session.add(field)
@@ -1387,7 +1381,7 @@ def add_tiles(
 
 
 class InstrumentFieldHandler(BaseHandler):
-    @permissions(['Delete instrument'])
+    @permissions(["Delete instrument"])
     def delete(self, instrument_id):
         """
         ---
@@ -1418,7 +1412,7 @@ class InstrumentFieldHandler(BaseHandler):
             )
             instrument = session.scalars(stmt).first()
             if instrument is None:
-                return self.error(f'Missing instrument with ID {instrument_id}')
+                return self.error(f"Missing instrument with ID {instrument_id}")
 
             session.execute(
                 sa.delete(InstrumentField).where(

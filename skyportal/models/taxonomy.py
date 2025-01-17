@@ -1,15 +1,15 @@
-__all__ = ['Taxonomy']
+__all__ = ["Taxonomy"]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
     Base,
+    CustomUserAccessControl,
     DBSession,
     restricted,
-    AccessibleIfRelatedRowsAreAccessible,
-    CustomUserAccessControl,
 )
 
 from .group import Group, accessible_by_groups_members
@@ -20,7 +20,7 @@ def taxonomy_update_logic(cls, user_or_token):
     can update. If the querying user doesn't have System admin or Post taxonomy
     acl, then no taxonomies are accessible to that user under this policy .
     """
-    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+    if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
         return restricted.query_accessible_rows(cls, user_or_token)
 
@@ -37,7 +37,7 @@ def taxonomy_delete_logic(cls, user_or_token):
     """
     from .classification import Classification
 
-    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+    if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
         return restricted.query_accessible_rows(cls, user_or_token)
 
@@ -86,7 +86,7 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
 # underlying taxonomy, and be a member of at least one of the
 # classification's target groups
 ok_if_tax_and_obj_readable = AccessibleIfRelatedRowsAreAccessible(
-    taxonomy='read', obj='read'
+    taxonomy="read", obj="read"
 )
 
 
@@ -96,37 +96,37 @@ class Taxonomy(Base):
     # TODO: Add ownership logic to taxonomy
     read = accessible_by_groups_members
 
-    __tablename__ = 'taxonomies'
+    __tablename__ = "taxonomies"
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable to end users.',
+        doc="Short string to make this taxonomy memorable to end users.",
     )
     hierarchy = sa.Column(
         JSONB,
         nullable=False,
-        doc='Nested JSON describing the taxonomy '
-        'which should be validated against '
-        'a schema before entry.',
+        doc="Nested JSON describing the taxonomy "
+        "which should be validated against "
+        "a schema before entry.",
     )
     provenance = sa.Column(
         sa.String,
         nullable=True,
-        doc='Identifier (e.g., URL or git hash) that '
-        'uniquely ties this taxonomy back '
-        'to an origin or place of record.',
+        doc="Identifier (e.g., URL or git hash) that "
+        "uniquely ties this taxonomy back "
+        "to an origin or place of record.",
     )
     version = sa.Column(
-        sa.String, nullable=False, doc='Semantic version of this taxonomy'
+        sa.String, nullable=False, doc="Semantic version of this taxonomy"
     )
 
     isLatest = sa.Column(
         sa.Boolean,
         default=True,
         nullable=False,
-        doc='Consider this the latest version of '
-        'the taxonomy with this name? Defaults '
-        'to True.',
+        doc="Consider this the latest version of "
+        "the taxonomy with this name? Defaults "
+        "to True.",
     )
     groups = relationship(
         "Group",
@@ -137,9 +137,9 @@ class Taxonomy(Base):
     )
 
     classifications = relationship(
-        'Classification',
-        back_populates='taxonomy',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Classification",
+        back_populates="taxonomy",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         order_by="Classification.created_at",
         doc="Classifications made within this Taxonomy.",

@@ -1,13 +1,14 @@
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
-from ..base import BaseHandler
+
 from ...models import (
     Group,
-    User,
-    GroupUser,
     GroupAdmissionRequest,
+    GroupUser,
+    User,
     UserNotification,
 )
+from ..base import BaseHandler
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -70,7 +71,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 ).first()
                 if admission_request is None:
                     return self.error(
-                        f'Could not find an admission request with the ID: {admission_request_id}.'
+                        f"Could not find an admission request with the ID: {admission_request_id}."
                     )
                 group = session.scalars(
                     Group.select(session.user_or_token).where(
@@ -90,7 +91,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     self.current_user.created_by.id not in admin_ids
                 ):
                     return self.error(
-                        'User must be group admin or requester to see request'
+                        "User must be group admin or requester to see request"
                     )
 
                 response_data = {
@@ -176,7 +177,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             if requesting_user is None:
                 return self.error("Invalid user ID")
 
-            if hasattr(self.current_user, 'created_by'):
+            if hasattr(self.current_user, "created_by"):
                 if requesting_user.id != self.current_user.created_by.id:
                     return self.error(
                         "Group admission request cannot be made on behalf of others."
@@ -200,10 +201,8 @@ class GroupAdmissionRequestHandler(BaseHandler):
             # Ensure user has sufficient stream access for target group
             if group.streams:
                 if not all(
-                    [
-                        stream in requesting_user.accessible_streams
+                    stream in requesting_user.accessible_streams
                         for stream in group.streams
-                    ]
                 ):
                     return self.error(
                         f"User {user_id} does not have sufficient stream access "

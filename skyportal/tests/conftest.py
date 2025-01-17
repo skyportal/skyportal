@@ -1,9 +1,9 @@
 """Test fixture configuration."""
 
+import base64
 import os
 import shutil
 import uuid
-import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -17,54 +17,53 @@ from baselayer.app import models
 from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
-    DBSession,
-    User,
-    Source,
     Candidate,
-    GroupStream,
-    StreamUser,
-    GroupUser,
-    GroupTaxonomy,
-    GroupComment,
+    DBSession,
+    FollowupRequestTargetGroup,
     GroupAnnotation,
     GroupClassification,
+    GroupComment,
     GroupPhotometry,
     GroupSpectrum,
-    FollowupRequestTargetGroup,
-    Thumbnail,
+    GroupStream,
+    GroupTaxonomy,
+    GroupUser,
+    Obj,
     PhotometricSeries,
+    Source,
+    StreamUser,
+    Thumbnail,
+    User,
 )
 from skyportal.tests.fixtures import (
-    ObjFactory,
-    StreamFactory,
-    GroupFactory,
-    UserFactory,
-    FilterFactory,
-    InstrumentFactory,
-    ObservingRunFactory,
-    TelescopeFactory,
+    TMP_DIR,  # noqa: F401
+    AllocationFactory,
+    AnnotationFactory,
     ClassicalAssignmentFactory,
-    TaxonomyFactory,
+    ClassificationFactory,
     CommentFactory,
     CommentOnGCNFactory,
-    AnnotationFactory,
-    ClassificationFactory,
+    FilterFactory,
     FollowupRequestFactory,
-    AllocationFactory,
+    GcnEventFactory,
+    GroupFactory,
+    InstrumentFactory,
     InvitationFactory,
     NotificationFactory,
-    UserNotificationFactory,
+    ObjFactory,
+    ObservingRunFactory,
+    StreamFactory,
+    TaxonomyFactory,
+    TelescopeFactory,
     ThumbnailFactory,
-    GcnEventFactory,
+    UserFactory,
+    UserNotificationFactory,
 )
-from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
-from skyportal.models import Obj
 
-
-if shutil.which('geckodriver') is None:
+if shutil.which("geckodriver") is None:
     raise RuntimeError(
-        'Geckodriver needs to be installed for browser automation.\n'
-        'See https://github.com/mozilla/geckodriver/releases'
+        "Geckodriver needs to be installed for browser automation.\n"
+        "See https://github.com/mozilla/geckodriver/releases"
     )
 
 
@@ -97,7 +96,7 @@ if (
 
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
-    print(datetime.now().strftime('[%H:%M:%S] '), end='')
+    print(datetime.now().strftime("[%H:%M:%S] "), end="")
 
 
 # set up a hook to be able to check if a test has failed
@@ -123,45 +122,45 @@ def test_driver_user(request):
     completion.
     """
     yield  # Yield immediately since we only need to run teardown code
-    if 'driver' in request.node.funcargs:
+    if "driver" in request.node.funcargs:
         testuser = (
             DBSession()
             .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
             .scalars()
             .first()
         )
-        webdriver = request.node.funcargs['driver']
+        webdriver = request.node.funcargs["driver"]
         webdriver.get(f"/become_user/{testuser.id}")
 
 
 # check if a test has failed
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
-    gecko = Path('geckodriver.log')
+    gecko = Path("geckodriver.log")
     gecko.touch(exist_ok=True)
 
     # get the number of bytes in the file currently
     log_bytes = os.path.getsize(gecko)
 
     # add a separator to the geckodriver logs
-    with open(gecko, 'a') as f:
-        f.write(f'BEGIN {request.node.nodeid}\n')
+    with open(gecko, "a") as f:
+        f.write(f"BEGIN {request.node.nodeid}\n")
 
     yield
     # request.node is an "item" because we use the default
     # "function" scope
 
     # add a separator to the geckodriver logs
-    with open(gecko, 'a') as f:
-        f.write(f'END {request.node.nodeid}\n')
+    with open(gecko, "a") as f:
+        f.write(f"END {request.node.nodeid}\n")
 
-    if request.node.rep_call.failed and 'driver' in request.node.funcargs:
-        webdriver = request.node.funcargs['driver']
+    if request.node.rep_call.failed and "driver" in request.node.funcargs:
+        webdriver = request.node.funcargs["driver"]
         take_screenshot_and_page_source(webdriver, request.node.nodeid)
 
     # delete the interstitial data from the geckodriver log by
     # truncating the file back to its original number of bytes
-    with open(gecko, 'a') as f:
+    with open(gecko, "a") as f:
         f.truncate(log_bytes)
 
 
@@ -171,11 +170,11 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.png'.replace(
         "/", "_"
     ).replace(":", "_")
-    file_name = os.path.join(os.path.dirname(__file__), '../../test-results', file_name)
+    file_name = os.path.join(os.path.dirname(__file__), "../../test-results", file_name)
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     webdriver.save_screenshot(file_name)
-    with open(file_name.replace('png', 'html'), 'w') as f:
+    with open(file_name.replace("png", "html"), "w") as f:
         f.write(webdriver.page_source)
 
     file_name = (
@@ -184,16 +183,16 @@ def take_screenshot_and_page_source(webdriver, nodeid):
         ).replace(":", "_")
     )
     file_name = os.path.join(
-        os.path.dirname(__file__), '../../webdriver-console', file_name
+        os.path.dirname(__file__), "../../webdriver-console", file_name
     )
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    with open(file_name, 'w') as f, open('geckodriver.log') as gl:
+    with open(file_name, "w") as f, open("geckodriver.log") as gl:
         lines = gl.readlines()
         revlines = list(reversed(lines))
-        istart = revlines.index(f'BEGIN {nodeid}\n')
-        iend = revlines.index(f'END {nodeid}\n')
-        f.write('\n'.join(list(reversed(revlines[iend : (istart + 1)]))))  # noqa: E203
+        istart = revlines.index(f"BEGIN {nodeid}\n")
+        iend = revlines.index(f"END {nodeid}\n")
+        f.write("\n".join(list(reversed(revlines[iend : (istart + 1)]))))  # noqa: E203
 
 
 @pytest.fixture()
@@ -504,7 +503,7 @@ def public_obj(public_group):
 @pytest.fixture()
 def red_transients_group(group_admin_user, view_only_user):
     group = GroupFactory(
-        name=f'red transients-{uuid.uuid4().hex}',
+        name=f"red transients-{uuid.uuid4().hex}",
         users=[group_admin_user, view_only_user],
     )
     group_id = group.id
@@ -522,8 +521,8 @@ def ztf_camera():
 @pytest.fixture()
 def hst():
     telescope = TelescopeFactory(
-        name=f'Hubble Space Telescope_{uuid.uuid4()}',
-        nickname=f'HST_{uuid.uuid4()}',
+        name=f"Hubble Space Telescope_{uuid.uuid4()}",
+        nickname=f"HST_{uuid.uuid4()}",
         lat=0,
         lon=0,
         elevation=0,
@@ -537,13 +536,13 @@ def hst():
 
 @pytest.fixture()
 def keck1_telescope():
-    observer = astroplan.Observer.at_site('Keck')
+    observer = astroplan.Observer.at_site("Keck")
     telescope = TelescopeFactory(
-        name=f'Keck I Telescope_{uuid.uuid4()}',
-        nickname=f'Keck1_{uuid.uuid4()}',
-        lat=observer.location.lat.to('deg').value,
-        lon=observer.location.lon.to('deg').value,
-        elevation=observer.location.height.to('m').value,
+        name=f"Keck I Telescope_{uuid.uuid4()}",
+        nickname=f"Keck1_{uuid.uuid4()}",
+        lat=observer.location.lat.to("deg").value,
+        lon=observer.location.lon.to("deg").value,
+        elevation=observer.location.height.to("m").value,
         diameter=10.0,
     )
     telescope_id = telescope.id
@@ -554,8 +553,8 @@ def keck1_telescope():
 @pytest.fixture()
 def wise_18inch():
     telescope = TelescopeFactory(
-        name=f'Wise 18-inch Telescope_{uuid.uuid4()}',
-        nickname=f'Wise18_{uuid.uuid4()}',
+        name=f"Wise 18-inch Telescope_{uuid.uuid4()}",
+        nickname=f"Wise18_{uuid.uuid4()}",
         lat=34.763333,
         lon=30.595833,
         elevation=875,
@@ -569,8 +568,8 @@ def wise_18inch():
 @pytest.fixture()
 def xinglong_216cm():
     telescope = TelescopeFactory(
-        name=f'Xinglong 2.16m_{uuid.uuid4()}',
-        nickname='XL216_{uuid.uuid4()}',
+        name=f"Xinglong 2.16m_{uuid.uuid4()}",
+        nickname="XL216_{uuid.uuid4()}",
         lat=40.004463,
         lon=116.385556,
         elevation=950.0,
@@ -583,13 +582,13 @@ def xinglong_216cm():
 
 @pytest.fixture()
 def p60_telescope():
-    observer = astroplan.Observer.at_site('Palomar')
+    observer = astroplan.Observer.at_site("Palomar")
     telescope = TelescopeFactory(
-        name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
-        nickname=f'p60_{uuid.uuid4()}',
-        lat=observer.location.lat.to('deg').value,
-        lon=observer.location.lon.to('deg').value,
-        elevation=observer.location.height.to('m').value,
+        name=f"Palomar 60-inch telescope_{uuid.uuid4()}",
+        nickname=f"p60_{uuid.uuid4()}",
+        lat=observer.location.lat.to("deg").value,
+        lon=observer.location.lon.to("deg").value,
+        elevation=observer.location.height.to("m").value,
         diameter=1.6,
     )
     telescope_id = telescope.id
@@ -600,21 +599,21 @@ def p60_telescope():
 @pytest.fixture()
 def lris(keck1_telescope):
     instrument = InstrumentFactory(
-        name=f'LRIS_{uuid.uuid4()}',
-        type='imaging spectrograph',
+        name=f"LRIS_{uuid.uuid4()}",
+        type="imaging spectrograph",
         telescope=keck1_telescope,
-        band='Optical',
+        band="Optical",
         filters=[
-            'sdssu',
-            'sdssg',
-            'sdssr',
-            'sdssi',
-            'sdssz',
-            'bessellux',
-            'bessellv',
-            'bessellb',
-            'bessellr',
-            'besselli',
+            "sdssu",
+            "sdssg",
+            "sdssr",
+            "sdssi",
+            "sdssz",
+            "bessellux",
+            "bessellv",
+            "bessellb",
+            "bessellr",
+            "besselli",
         ],
     )
     yield instrument
@@ -624,13 +623,13 @@ def lris(keck1_telescope):
 @pytest.fixture()
 def sedm(p60_telescope):
     instrument = InstrumentFactory(
-        name=f'SEDM_{uuid.uuid4()}',
-        type='imaging spectrograph',
+        name=f"SEDM_{uuid.uuid4()}",
+        type="imaging spectrograph",
         telescope=p60_telescope,
-        band='Optical',
-        filters=['sdssu', 'sdssg', 'sdssr', 'sdssi'],
-        api_classname='SEDMAPI',
-        listener_classname='SEDMListener',
+        band="Optical",
+        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
+        api_classname="SEDMAPI",
+        listener_classname="SEDMListener",
     )
     yield instrument
     InstrumentFactory.teardown(instrument)
@@ -648,7 +647,7 @@ def lris_run_20201118(lris, public_group, super_admin_user):
     run = ObservingRunFactory(
         instrument=lris,
         group=public_group,
-        calendar_date='2020-11-18',
+        calendar_date="2020-11-18",
         owner=super_admin_user,
     )
     yield run
@@ -1285,10 +1284,10 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
         obj=public_source,
         allocation=public_group_sedm_allocation,
         payload={
-            'priority': "5",
-            'start_date': '3020-09-01',
-            'end_date': '3022-09-01',
-            'observation_type': 'IFU',
+            "priority": "5",
+            "start_date": "3020-09-01",
+            "end_date": "3022-09-01",
+            "observation_type": "IFU",
         },
         requester=user,
         last_modified_by_id=user,
@@ -1306,10 +1305,10 @@ def public_source_group2_followup_request(
         obj=public_source_group2,
         allocation=public_group2_sedm_allocation,
         payload={
-            'priority': "5",
-            'start_date': '3020-09-01',
-            'end_date': '3022-09-01',
-            'observation_type': 'IFU',
+            "priority": "5",
+            "start_date": "3020-09-01",
+            "end_date": "3022-09-01",
+            "observation_type": "IFU",
         },
         requester=user_two_groups,
         last_modified_by=user_two_groups,
@@ -1385,32 +1384,32 @@ def public_group_taxonomy(public_taxonomy):
 
 @pytest.fixture()
 def gcn_GRB180116A(user_no_groups):
-    dateobs = datetime.strptime('2018-01-16 00:36:53', '%Y-%m-%d %H:%M:%S')
+    dateobs = datetime.strptime("2018-01-16 00:36:53", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
-        "notice_type": 'Test',
-        "notice_format": 'Test',
-        "stream": 'Test',
+        "notice_type": "Test",
+        "notice_format": "Test",
+        "stream": "Test",
         "dateobs": dateobs,
-        "date": '2018-01-16 00:36:53',
+        "date": "2018-01-16 00:36:53",
         "content": bytes(1024),
         "has_localization": True,
         "localization_ingested": True,
     }
 
     localization_dict = {
-        "localization_name": 'Test',
-        "localization_data_path": 'data/localization_GRB180116A.parquet',
-        "localization_tiles_data_path": 'data/localizationtiles_GRB180116A.parquet',
-        "properties": {'test': 'test'},
-        "tags": ['Test'],
+        "localization_name": "Test",
+        "localization_data_path": "data/localization_GRB180116A.parquet",
+        "localization_tiles_data_path": "data/localizationtiles_GRB180116A.parquet",
+        "properties": {"test": "test"},
+        "tags": ["Test"],
     }
 
     gcnevent = GcnEventFactory(
         dateobs=dateobs,
-        trigger_id='537755817',
-        aliases=['FERMI#bn180116026'],
+        trigger_id="537755817",
+        aliases=["FERMI#bn180116026"],
         gcn_notices=[notice_dict],
-        properties={'test': 'test'},
+        properties={"test": "test"},
         localizations=[localization_dict],
     )
     yield gcnevent
@@ -1419,31 +1418,31 @@ def gcn_GRB180116A(user_no_groups):
 
 @pytest.fixture()
 def gcn_GW190814(user_no_groups):
-    dateobs = datetime.strptime('2019-08-14 21:10:39', '%Y-%m-%d %H:%M:%S')
+    dateobs = datetime.strptime("2019-08-14 21:10:39", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
-        "notice_type": 'Test',
-        "notice_format": 'Test',
-        "stream": 'Test',
+        "notice_type": "Test",
+        "notice_format": "Test",
+        "stream": "Test",
         "dateobs": dateobs,
-        "date": '2019-08-14 21:10:39',
+        "date": "2019-08-14 21:10:39",
         "content": bytes(1024),
         "has_localization": True,
         "localization_ingested": True,
     }
 
     localization_dict = {
-        "localization_name": 'LALInference.v1.fits.gz',
-        "localization_data_path": 'data/localization_GW190814.parquet',
-        "localization_tiles_data_path": 'data/localizationtiles_GW190814.parquet',
-        "properties": {'test': 'test'},
-        "tags": ['Test'],
+        "localization_name": "LALInference.v1.fits.gz",
+        "localization_data_path": "data/localization_GW190814.parquet",
+        "localization_tiles_data_path": "data/localizationtiles_GW190814.parquet",
+        "properties": {"test": "test"},
+        "tags": ["Test"],
     }
 
     gcnevent = GcnEventFactory(
         dateobs=dateobs,
-        aliases=['LVC#S190814bv'],
+        aliases=["LVC#S190814bv"],
         gcn_notices=[notice_dict],
-        properties={'test': 'test'},
+        properties={"test": "test"},
         localizations=[localization_dict],
     )
     yield gcnevent
@@ -1452,31 +1451,31 @@ def gcn_GW190814(user_no_groups):
 
 @pytest.fixture()
 def gcn_GW190425(user_no_groups):
-    dateobs = datetime.strptime('2019-04-25 08:18:05', '%Y-%m-%d %H:%M:%S')
+    dateobs = datetime.strptime("2019-04-25 08:18:05", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
-        "notice_type": 'Test',
-        "notice_format": 'Test',
-        "stream": 'Test',
+        "notice_type": "Test",
+        "notice_format": "Test",
+        "stream": "Test",
         "dateobs": dateobs,
-        "date": '2019-04-25 08:18:05',
+        "date": "2019-04-25 08:18:05",
         "content": bytes(1024),
         "has_localization": True,
         "localization_ingested": True,
     }
 
     localization_dict = {
-        "localization_name": 'bayestar.fits.gz',
-        "localization_data_path": 'data/localization_GW190425.parquet',
-        "localization_tiles_data_path": 'data/localizationtiles_GW190425.parquet',
-        "properties": {'test': 'test'},
-        "tags": ['Test'],
+        "localization_name": "bayestar.fits.gz",
+        "localization_data_path": "data/localization_GW190425.parquet",
+        "localization_tiles_data_path": "data/localizationtiles_GW190425.parquet",
+        "properties": {"test": "test"},
+        "tags": ["Test"],
     }
 
     gcnevent = GcnEventFactory(
         dateobs=dateobs,
-        aliases=['LVC#S190425z'],
+        aliases=["LVC#S190425z"],
         gcn_notices=[notice_dict],
-        properties={'test': 'test'},
+        properties={"test": "test"},
         localizations=[localization_dict],
     )
     yield gcnevent
@@ -1739,7 +1738,7 @@ def analysis_token(user):
 def phot_series_maker():
     def _phot_series_maker(
         number=20,
-        format='dict',
+        format="dict",
         use_mags=True,
         ra=None,
         dec=None,
@@ -1757,49 +1756,49 @@ def phot_series_maker():
             filter = np.random.choice(["ztfg", "ztfr", "ztfi"])
 
         if use_mags:
-            data = {'mag': flux}
+            data = {"mag": flux}
         else:
-            data = {'flux': flux}
+            data = {"flux": flux}
 
-        data['mjd'] = mjds
+        data["mjd"] = mjds
 
         if extra_columns is None:
             extra_columns = []
 
-        if 'ra' in extra_columns:
-            data['ra'] = np.mod(np.random.normal(ra, 0.001, number), 360)
-        if 'dec' in extra_columns:
-            data['dec'] = np.random.normal(dec, 0.001, number)
-            data['dec'] = np.maximum(data['dec'], -90)
-            data['dec'] = np.minimum(data['dec'], 90)
-        if 'exp_time' in extra_columns:
-            data['exp_time'] = np.array([exptime] * number)
-        if 'filter' in extra_columns:
-            data['filter'] = np.array([filter] * number)
+        if "ra" in extra_columns:
+            data["ra"] = np.mod(np.random.normal(ra, 0.001, number), 360)
+        if "dec" in extra_columns:
+            data["dec"] = np.random.normal(dec, 0.001, number)
+            data["dec"] = np.maximum(data["dec"], -90)
+            data["dec"] = np.minimum(data["dec"], 90)
+        if "exp_time" in extra_columns:
+            data["exp_time"] = np.array([exptime] * number)
+        if "filter" in extra_columns:
+            data["filter"] = np.array([filter] * number)
 
         for name in extra_columns:
-            if name not in ['ra', 'dec', 'exp_time', 'filter']:
+            if name not in ["ra", "dec", "exp_time", "filter"]:
                 data[name] = np.random.uniform(0, 1, number)
 
-        if format == 'dict':
+        if format == "dict":
             for k, v in data.items():
                 data[k] = v.tolist()
-        elif format == 'pandas':
+        elif format == "pandas":
             data = pd.DataFrame(data)
-        elif format == 'bytes':
+        elif format == "bytes":
             # this store should work without writing to disk
             # if you open a regular store you'd just need
             # to delete the file at the end
             with pd.HDFStore(
-                'test_file.h5',
-                mode='w',
+                "test_file.h5",
+                mode="w",
                 driver="H5FD_CORE",
                 driver_core_backing_store=0,
             ) as store:
                 store.put(
-                    'phot_series',
+                    "phot_series",
                     pd.DataFrame(data),
-                    format='table',
+                    format="table",
                     index=None,
                     track_times=False,
                 )
@@ -1807,7 +1806,7 @@ def phot_series_maker():
                 data = base64.b64encode(data)
 
             # should not be any file like this
-            assert not os.path.isfile('test_file.h5')
+            assert not os.path.isfile("test_file.h5")
 
         return data
 
@@ -1818,23 +1817,23 @@ def phot_series_maker():
 def photometric_series(
     user, public_source, public_group, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(format='pandas', number=20)
+    df = phot_series_maker(format="pandas", number=20)
     data = {
-        'obj_id': public_source.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series1',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 30.0,
-        'filter': 'ztfg',
-        'magref': 18.1,
-        'group_ids': [public_group.id, user.single_user_group.id],
-        'stream_ids': [],
-        'origin': uuid.uuid4().hex,
-        'channel': np.random.choice(['A', 'B']),
+        "obj_id": public_source.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series1",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 30.0,
+        "filter": "ztfg",
+        "magref": 18.1,
+        "group_ids": [public_group.id, user.single_user_group.id],
+        "stream_ids": [],
+        "origin": uuid.uuid4().hex,
+        "channel": np.random.choice(["A", "B"]),
     }
     ps = PhotometricSeries(**data)
 
@@ -1863,23 +1862,23 @@ def photometric_series(
 def photometric_series2(
     user, public_source_group2, public_group2, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(format='pandas', number=19)
+    df = phot_series_maker(format="pandas", number=19)
     data = {
-        'obj_id': public_source_group2.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series2',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 35.0,
-        'filter': 'ztfr',
-        'magref': 19.2,
-        'group_ids': [public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
-        'origin': uuid.uuid4().hex,
-        'channel': 'A',
+        "obj_id": public_source_group2.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series2",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 35.0,
+        "filter": "ztfr",
+        "magref": 19.2,
+        "group_ids": [public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
+        "origin": uuid.uuid4().hex,
+        "channel": "A",
     }
     ps = PhotometricSeries(**data)
 
@@ -1908,23 +1907,23 @@ def photometric_series2(
 def photometric_series3(
     user, public_source_two_groups, public_group, public_group2, sedm, phot_series_maker
 ):
-    df = phot_series_maker(format='pandas', number=18)
+    df = phot_series_maker(format="pandas", number=18)
     data = {
-        'obj_id': public_source_two_groups.id,
-        'data': df,
-        'instrument_id': sedm.id,
-        'owner_id': user.id,
-        'series_name': 'test_series3',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 25.0,
-        'filter': 'ztfi',
-        'magref': 20.3,
-        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
-        'origin': uuid.uuid4().hex,
-        'channel': 'B',
+        "obj_id": public_source_two_groups.id,
+        "data": df,
+        "instrument_id": sedm.id,
+        "owner_id": user.id,
+        "series_name": "test_series3",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 25.0,
+        "filter": "ztfi",
+        "magref": 20.3,
+        "group_ids": [public_group.id, public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
+        "origin": uuid.uuid4().hex,
+        "channel": "B",
     }
     ps = PhotometricSeries(**data)
 
@@ -1953,22 +1952,22 @@ def photometric_series3(
 def photometric_series_low_flux(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(number=100, use_mags=False, format='pandas')
-    df['flux'] = np.random.normal(100, 10, 100)
+    df = phot_series_maker(number=100, use_mags=False, format="pandas")
+    df["flux"] = np.random.normal(100, 10, 100)
 
     data = {
-        'obj_id': public_source.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 25.0,
-        'filter': 'ztfi',
-        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
+        "obj_id": public_source.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 25.0,
+        "filter": "ztfi",
+        "group_ids": [public_group.id, public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
     }
     ps = PhotometricSeries(**data)
 
@@ -1997,22 +1996,22 @@ def photometric_series_low_flux(
 def photometric_series_high_flux(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(number=100, use_mags=False, format='pandas')
-    df['flux'] = np.random.normal(10000, 100, 100)
+    df = phot_series_maker(number=100, use_mags=False, format="pandas")
+    df["flux"] = np.random.normal(10000, 100, 100)
 
     data = {
-        'obj_id': public_source.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 25.0,
-        'filter': 'ztfi',
-        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
+        "obj_id": public_source.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 25.0,
+        "filter": "ztfi",
+        "group_ids": [public_group.id, public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
     }
     ps = PhotometricSeries(**data)
 
@@ -2041,27 +2040,27 @@ def photometric_series_high_flux(
 def photometric_series_low_flux_with_outliers(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(number=100, use_mags=False, format='pandas')
-    df['flux'] = np.random.normal(100, 10, 100)
+    df = phot_series_maker(number=100, use_mags=False, format="pandas")
+    df["flux"] = np.random.normal(100, 10, 100)
 
     # add some outliers
-    df['flux'].iloc[5] = 5000
-    df['flux'].iloc[50] = 6000
-    df['flux'].iloc[95] = 0
+    df["flux"].iloc[5] = 5000
+    df["flux"].iloc[50] = 6000
+    df["flux"].iloc[95] = 0
 
     data = {
-        'obj_id': public_source.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series_outliers',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 25.0,
-        'filter': 'ztfi',
-        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
+        "obj_id": public_source.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series_outliers",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 25.0,
+        "filter": "ztfi",
+        "group_ids": [public_group.id, public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
     }
     ps = PhotometricSeries(**data)
 
@@ -2090,22 +2089,22 @@ def photometric_series_low_flux_with_outliers(
 def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
-    df = phot_series_maker(number=100, use_mags=False, format='pandas')
-    df['flux'] = np.random.normal(-50, 50, 100)
+    df = phot_series_maker(number=100, use_mags=False, format="pandas")
+    df["flux"] = np.random.normal(-50, 50, 100)
 
     data = {
-        'obj_id': public_source.id,
-        'data': df,
-        'instrument_id': ztf_camera.id,
-        'owner_id': user.id,
-        'series_name': 'test_series',
-        'series_obj_id': str(np.random.randint(0, 1e6)),
-        'ra': np.round(np.random.uniform(0, 360), 3),
-        'dec': np.round(np.random.uniform(-90, 90), 3),
-        'exp_time': 25.0,
-        'filter': 'ztfi',
-        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
-        'stream_ids': [],
+        "obj_id": public_source.id,
+        "data": df,
+        "instrument_id": ztf_camera.id,
+        "owner_id": user.id,
+        "series_name": "test_series",
+        "series_obj_id": str(np.random.randint(0, 1e6)),
+        "ra": np.round(np.random.uniform(0, 360), 3),
+        "dec": np.round(np.random.uniform(-90, 90), 3),
+        "exp_time": 25.0,
+        "filter": "ztfi",
+        "group_ids": [public_group.id, public_group2.id, user.single_user_group.id],
+        "stream_ids": [],
     }
     ps = PhotometricSeries(**data)
 

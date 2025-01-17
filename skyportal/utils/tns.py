@@ -196,7 +196,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
 
             if r.status_code == 200:
                 try:
-                    source_data = r.json().get("data", dict())
+                    source_data = r.json().get("data", {})
                 except Exception as e:
                     log(f'Failed to parse TNS response: {str(e)} ({str(r.json())})')
                     source_data = None
@@ -305,7 +305,7 @@ def get_IAUname(
         raise ValueError('TNS request failed: request rate exceeded.')
 
     try:
-        reply = r.json().get("data", dict())
+        reply = r.json().get("data", {})
     except Exception as e:
         log(f'Failed to parse TNS response: {str(e)} ({str(r.json())})')
         reply = []
@@ -349,7 +349,7 @@ def get_IAUname(
                     continue
 
                 try:
-                    source_data = r.json().get("data", dict())
+                    source_data = r.json().get("data", {})
                 except Exception:
                     source_data = None
                 if source_data:

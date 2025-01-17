@@ -1,11 +1,11 @@
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.env import load_env
 from baselayer.app.access import permissions
-from ..base import BaseHandler
+from baselayer.app.env import load_env
 
 from ...models import Photometry, PhotometryValidation
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -16,8 +16,8 @@ class Validator(Schema):
     method = fields.Str(required=True)
     photometry_id = fields.Integer()
     validated = fields.Boolean(
-        truthy=['true', 'True', 'validated', True],
-        falsy=['false', 'False', 'rejected', False],
+        truthy=["true", "True", "validated", True],
+        falsy=["false", "False", "rejected", False],
         required=False,
     )
     explanation = fields.String(required=False)
@@ -25,19 +25,19 @@ class Validator(Schema):
 
     @validates_schema
     def validate_requires(self, data, **kwargs):
-        if 'method' not in data:
-            raise ValidationError('method is required')
-        if data['method'] not in ['POST', 'PATCH', 'DELETE']:
-            raise ValidationError('method must be one of POST, PATCH or DELETE')
-        if data['method'] in ['PATCH', 'DELETE', 'POST']:
-            if 'photometry_id' not in data:
-                raise ValidationError('Missing required fields')
-            if data['photometry_id'] is None:
-                raise ValidationError('Missing required fields')
+        if "method" not in data:
+            raise ValidationError("method is required")
+        if data["method"] not in ["POST", "PATCH", "DELETE"]:
+            raise ValidationError("method must be one of POST, PATCH or DELETE")
+        if data["method"] in ["PATCH", "DELETE", "POST"]:
+            if "photometry_id" not in data:
+                raise ValidationError("Missing required fields")
+            if data["photometry_id"] is None:
+                raise ValidationError("Missing required fields")
 
 
 class PhotometryValidationHandler(BaseHandler):
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     async def post(self, photometry_id):
         """
         ---
@@ -85,18 +85,18 @@ class PhotometryValidationHandler(BaseHandler):
 
         """
         if not USE_PHOTOMETRY_VALIDATION:
-            return self.error('Photometry validation is not enabled.')
+            return self.error("Photometry validation is not enabled.")
 
         data = self.get_json()
 
-        validated = data.get('validated')
-        explanation = data.get('explanation')
-        notes = data.get('notes')
+        validated = data.get("validated")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'POST',
-            'photometry_id': photometry_id,
+            "method": "POST",
+            "photometry_id": photometry_id,
         }
         if validated is not None:
             params_to_be_validated["validated"] = validated
@@ -109,9 +109,9 @@ class PhotometryValidationHandler(BaseHandler):
         try:
             validator = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        validated = validator.get('validated', None)
+        validated = validator.get("validated", None)
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -121,7 +121,7 @@ class PhotometryValidationHandler(BaseHandler):
 
             if phot is None:
                 return self.error(
-                    f'Cannot find photometry point with ID: {photometry_id}.'
+                    f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
             stmt = PhotometryValidation.select(session.user_or_token).where(
@@ -136,7 +136,7 @@ class PhotometryValidationHandler(BaseHandler):
                     and photometry_validation.notes == notes
                 ):
                     # Everything already up-to-date!
-                    return self.success(data={'id': photometry_validation.id})
+                    return self.success(data={"id": photometry_validation.id})
                 # otherwise, update the status and explanation
                 else:
                     photometry_validation.validated = validated
@@ -160,12 +160,12 @@ class PhotometryValidationHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
-                payload={'obj_id': phot.obj.id},
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": phot.obj.id},
             )
-            return self.success(data={'id': photometry_validation.id})
+            return self.success(data={"id": photometry_validation.id})
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def patch(self, photometry_id):
         """
         ---
@@ -212,17 +212,17 @@ class PhotometryValidationHandler(BaseHandler):
                 schema: Error
         """
         if not USE_PHOTOMETRY_VALIDATION:
-            return self.error('Photometry validation is not enabled.')
+            return self.error("Photometry validation is not enabled.")
 
         data = self.get_json()
-        validated = data.get('validated')
-        explanation = data.get('explanation')
-        notes = data.get('notes')
+        validated = data.get("validated")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'PATCH',
-            'photometry_id': photometry_id,
+            "method": "PATCH",
+            "photometry_id": photometry_id,
         }
 
         if validated is not None:
@@ -235,7 +235,7 @@ class PhotometryValidationHandler(BaseHandler):
         try:
             validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
         with self.Session() as session:
             stmt = PhotometryValidation.select(
@@ -257,12 +257,12 @@ class PhotometryValidationHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
-                payload={'obj_id': photometry_validation.photometry.obj.id},
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": photometry_validation.photometry.obj.id},
             )
-            return self.success(data={'id': photometry_validation.id})
+            return self.success(data={"id": photometry_validation.id})
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, photometry_id):
         """
         ---
@@ -299,17 +299,17 @@ class PhotometryValidationHandler(BaseHandler):
                 schema: Error
         """
         if not USE_PHOTOMETRY_VALIDATION:
-            return self.error('Photometry validation is not enabled.')
+            return self.error("Photometry validation is not enabled.")
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'DELETE',
-            'photometry_id': photometry_id,
+            "method": "DELETE",
+            "photometry_id": photometry_id,
         }
         try:
             validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
         with self.Session() as session:
             stmt = PhotometryValidation.select(
@@ -329,7 +329,7 @@ class PhotometryValidationHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
-                payload={'obj_id': obj_id},
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
             )
-            return self.success(data={'id': photometry_validation_id})
+            return self.success(data={"id": photometry_validation_id})

@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 
-from ..base import BaseHandler
 from ...models import ACL, User, UserACL
+from ..base import BaseHandler
 
 
 class ACLHandler(BaseHandler):
@@ -73,15 +73,13 @@ class UserACLHandler(BaseHandler):
         if new_acl_ids is None:
             return self.error("Missing required parameter aclIds")
         with self.Session() as session:
-            if (not isinstance(new_acl_ids, (list, tuple))) or (
+            if (not isinstance(new_acl_ids, list | tuple)) or (
                 not all(
-                    [
-                        session.scalars(
+                    session.scalars(
                             ACL.select(session.user_or_token).where(ACL.id == acl_id)
                         ).first()
                         is not None
                         for acl_id in new_acl_ids
-                    ]
                 )
             ):
                 return self.error(

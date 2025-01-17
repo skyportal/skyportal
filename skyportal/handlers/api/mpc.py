@@ -1,33 +1,34 @@
-import arrow
-from astropy.time import Time
-from astropy.coordinates import Angle
-import astropy.units as u
 import asyncio
-import requests
 import re
-from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
 import urllib
 
-from baselayer.app.env import load_env
-from baselayer.app.access import auth_or_token
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
+import arrow
+import astropy.units as u
+import requests
+from astropy.coordinates import Angle
+from astropy.time import Time
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
 
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
 from ...models import (
     DBSession,
     Obj,
     User,
 )
+from ..base import BaseHandler
 
 env, cfg = load_env()
-log = make_log('api/mpc')
+log = make_log("api/mpc")
 
 Session = scoped_session(sessionmaker())
 
-MPC_ENDPOINT = cfg['app.mpc_endpoint']
-mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, 'cgi-bin/mpcheck.cgi')
+MPC_ENDPOINT = cfg["app.mpc_endpoint"]
+mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 
 class ObjMPCHandler(BaseHandler):
@@ -84,32 +85,32 @@ class ObjMPCHandler(BaseHandler):
         """
 
         data = self.get_json()
-        date = data.get('date')
+        date = data.get("date")
         if date is None:
             date = Time.now()
         else:
             try:
-                date = Time(arrow.get(date).datetime, format='datetime')
+                date = Time(arrow.get(date).datetime, format="datetime")
             except (TypeError, arrow.ParserError):
                 return self.error(f'Cannot parse time input value "{date}".')
 
-        limiting_magnitude = data.get('limiting_magnitude', 24.0)
+        limiting_magnitude = data.get("limiting_magnitude", 24.0)
         try:
             limiting_magnitude = float(limiting_magnitude)
         except Exception:
-            return self.error('Cannot read in limiting magnitude.')
+            return self.error("Cannot read in limiting magnitude.")
 
-        search_radius = data.get('search_radius', 1)
+        search_radius = data.get("search_radius", 1)
         try:
             search_radius = float(search_radius)
         except Exception:
-            return self.error('Cannot read in search radius.')
+            return self.error("Cannot read in search radius.")
 
-        obscode = data.get('obscode', '500')
+        obscode = data.get("obscode", "500")
 
         with self.Session() as session:
             obj = session.scalars(
-                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+                Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
             ).first()
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
@@ -121,33 +122,33 @@ class ObjMPCHandler(BaseHandler):
             second = float(date.strftime("%S.%f"))
             day = f"{int(date.strftime('%d'))+(hour+minute/60+second/3600)/24:.2f}"
 
-            ra = Angle(obj.ra, unit='degree')
+            ra = Angle(obj.ra, unit="degree")
             ra_hms = ra.to_string(
-                unit='hourangle', sep=' ', precision=2, pad=True
+                unit="hourangle", sep=" ", precision=2, pad=True
             ).split(" ")
-            dec = Angle(obj.dec, unit='degree')
-            dec_dms = dec.to_string(unit=u.deg, sep=' ', precision=2, pad=True).split(
+            dec = Angle(obj.dec, unit="degree")
+            dec_dms = dec.to_string(unit=u.deg, sep=" ", precision=2, pad=True).split(
                 " "
             )
 
             params = {
-                'year': year,
-                'month': month,
-                'day': day,
-                'which': 'pos',
-                'ra': f'{ra_hms[0]}+{ra_hms[1]}+{ra_hms[2]}',
-                'decl': f'{dec_dms[0]}+{dec_dms[1]}+{dec_dms[2]}',
-                'TextArea': '',
-                'radius': search_radius,
-                'limit': limiting_magnitude,
-                'oc': obscode,
-                'sort': 'd',
-                'mot': 'h',
-                'tmot': 's',
-                'pdes': 'u',
-                'needed': 'f',
-                'ps': 'n',
-                'type': 'p',
+                "year": year,
+                "month": month,
+                "day": day,
+                "which": "pos",
+                "ra": f"{ra_hms[0]}+{ra_hms[1]}+{ra_hms[2]}",
+                "decl": f"{dec_dms[0]}+{dec_dms[1]}+{dec_dms[2]}",
+                "TextArea": "",
+                "radius": search_radius,
+                "limit": limiting_magnitude,
+                "oc": obscode,
+                "sort": "d",
+                "mot": "h",
+                "tmot": "s",
+                "pdes": "u",
+                "needed": "f",
+                "ps": "n",
+                "type": "p",
             }
 
             url = f"{mpcheck_url}?{urllib.parse.urlencode(params)}"
@@ -181,7 +182,7 @@ def query_mpc(obj_id, user_id, url):
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
-    log(f'Querying MPC for {obj_id}: {url}')
+    log(f"Querying MPC for {obj_id}: {url}")
 
     try:
         user = session.query(User).get(user_id)
@@ -195,23 +196,23 @@ def query_mpc(obj_id, user_id, url):
             responseSplit = response.text.split("(1)")[-1].split(" ")
             mpc_name = list(filter(None, responseSplit))[0]
 
-            log(f'{obj_id}: identified MPC name {mpc_name}')
+            log(f"{obj_id}: identified MPC name {mpc_name}")
 
             obj.is_roid = True
             obj.mpc_name = mpc_name
             session.commit()
         elif re.findall("No known minor planets,.*", response.text):
-            log(f'{obj_id}: No known minor planets')
+            log(f"{obj_id}: No known minor planets")
             obj.is_roid = False
             session.commit()
         else:
-            log(f'Message from MPC for {obj_id} not parsable: {response.text}')
+            log(f"Message from MPC for {obj_id} not parsable: {response.text}")
 
         flow = Flow()
         flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
+            "*",
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
         )
 
     except Exception as e:

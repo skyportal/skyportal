@@ -1,9 +1,11 @@
 from sqlalchemy.orm import joinedload
-from baselayer.app.access import auth_or_token
-from ...base import BaseHandler
-from ....models import GcnEvent
 
-default_prefs = {'maxNumGcnEvents': 10}
+from baselayer.app.access import auth_or_token
+
+from ....models import GcnEvent
+from ...base import BaseHandler
+
+default_prefs = {"maxNumGcnEvents": 10}
 
 
 class RecentGcnEventsHandler(BaseHandler):
@@ -24,13 +26,13 @@ class RecentGcnEventsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
-        recent_events_prefs = user_prefs.get('recentGcnEvents', {})
+        user_prefs = getattr(self.current_user, "preferences", None) or {}
+        recent_events_prefs = user_prefs.get("recentGcnEvents", {})
         recent_events_prefs = {**default_prefs, **recent_events_prefs}
 
         max_num_events = (
-            int(recent_events_prefs['maxNumEvents'])
-            if 'maxNumEvents' in recent_events_prefs
+            int(recent_events_prefs["maxNumEvents"])
+            if "maxNumEvents" in recent_events_prefs
             else 5
         )
         with self.Session() as session:

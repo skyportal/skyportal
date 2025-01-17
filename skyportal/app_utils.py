@@ -1,6 +1,5 @@
 from baselayer.app.env import load_env
 
-
 _, cfg = load_env()
 
 

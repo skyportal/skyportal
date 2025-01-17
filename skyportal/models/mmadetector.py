@@ -1,27 +1,24 @@
-__all__ = ['MMADetector', 'MMADetectorSpectrum', 'MMADetectorTimeInterval']
+__all__ = ["MMADetector", "MMADetectorSpectrum", "MMADetectorTimeInterval"]
 
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import DateTimeRangeType
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     DBSession,
+    accessible_by_owner,
     join_model,
     public,
-    accessible_by_owner,
 )
 
 from ..enum_types import (
     mma_detector_types,
 )
-
 from .gcn import GcnEvent
-
-from baselayer.app.env import load_env
-
 from .spectrum import NumpyArray
 
 _, cfg = load_env()
@@ -30,7 +27,7 @@ _, cfg = load_env()
 def manage_mmadetector_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return DBSession().query(cls)
-    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
         return DBSession().query(cls)
     else:
         # return an empty query
@@ -59,14 +56,14 @@ class MMADetector(Base):
         doc="MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.",
     )
 
-    lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
-    lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
-    elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
+    lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")
+    lon = sa.Column(sa.Float, nullable=True, doc="Longitude in deg.")
+    elevation = sa.Column(sa.Float, nullable=True, doc="Elevation in meters.")
 
     fixed_location = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='true',
+        server_default="true",
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
 
@@ -80,9 +77,9 @@ class MMADetector(Base):
     )
 
     spectra = relationship(
-        'MMADetectorSpectrum',
-        back_populates='detector',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "MMADetectorSpectrum",
+        back_populates="detector",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         order_by="MMADetectorSpectrum.start_time",
@@ -90,9 +87,9 @@ class MMADetector(Base):
     )
 
     time_intervals = relationship(
-        'MMADetectorTimeInterval',
-        back_populates='detector',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "MMADetectorTimeInterval",
+        back_populates="detector",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         single_parent=True,
         passive_deletes=True,
         order_by="MMADetectorTimeInterval.time_interval",
@@ -112,7 +109,7 @@ class MMADetectorSpectrum(Base):
     read = public
     update = delete = accessible_by_owner
 
-    __tablename__ = 'detector_spectra'
+    __tablename__ = "detector_spectra"
     # TODO better numpy integration
     frequencies = sa.Column(
         NumpyArray, nullable=False, doc="Frequency of the spectrum [Hz]."
@@ -136,15 +133,15 @@ class MMADetectorSpectrum(Base):
     )
 
     detector_id = sa.Column(
-        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        sa.ForeignKey("mmadetectors.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the MMADetector that acquired the Spectrum.",
     )
 
     detector = relationship(
-        'MMADetector',
-        back_populates='spectra',
+        "MMADetector",
+        back_populates="spectra",
         doc="The MMADetector that acquired the Spectrum.",
     )
 
@@ -154,20 +151,20 @@ class MMADetectorSpectrum(Base):
         back_populates="mmadetector_spectra",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Groups that can view this detector spectrum.',
+        doc="Groups that can view this detector spectrum.",
     )
 
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User who uploaded the detector spectrum.",
     )
     owner = relationship(
-        'User',
-        back_populates='mmadetector_spectra',
+        "User",
+        back_populates="mmadetector_spectra",
         foreign_keys=[owner_id],
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade="save-update, merge, refresh-expire, expunge",
         doc="The User who uploaded the detector spectrum.",
     )
 
@@ -215,15 +212,15 @@ class MMADetectorSpectrum(Base):
         """
 
         try:
-            f = open(file, 'rb')  # read as ascii
+            f = open(file, "rb")  # read as ascii
         except TypeError:
             # it's already a stream
             f = file
 
         try:
-            table = ascii.read(f, comment='#', header_start=None)
+            table = ascii.read(f, comment="#", header_start=None)
         except Exception as e:
-            e.args = (f'Error parsing ASCII file: {e.args[0]}',)
+            e.args = (f"Error parsing ASCII file: {e.args[0]}",)
             raise
         finally:
             f.close()
@@ -237,33 +234,33 @@ class MMADetectorSpectrum(Base):
         ncol = len(colnames)
         if ncol < 2:
             raise ValueError(
-                'Input data must have at least 2 columns (frequency, amplitude), '
+                "Input data must have at least 2 columns (frequency, amplitude), "
             )
 
         spec_data = {}
         # validate the column indices
         for index, name, dbcol in zip(
             [freq_column, amplitude_column],
-            ['freq_column', 'amplitude_column'],
-            ['frequencies', 'amplitudes'],
+            ["freq_column", "amplitude_column"],
+            ["frequencies", "amplitudes"],
         ):
             # index format / type validation:
-            if dbcol in ['frequencies', 'amplitudes']:
+            if dbcol in ["frequencies", "amplitudes"]:
                 if not isinstance(index, int):
-                    raise ValueError(f'{name} must be an int')
+                    raise ValueError(f"{name} must be an int")
             else:
                 if index is not None and not isinstance(index, int):
                     # The only other allowed value is that fluxerr_column can be
                     # None. If the value of index is not None, raise.
-                    raise ValueError(f'invalid type for {name}')
+                    raise ValueError(f"invalid type for {name}")
 
             # after validating the indices, ensure that the columns they
             # point to exist
             if isinstance(index, int):
                 if index >= ncol:
                     raise ValueError(
-                        f'index {name} ({index}) is greater than the '
-                        f'maximum allowed value ({ncol - 1})'
+                        f"index {name} ({index}) is greater than the "
+                        f"maximum allowed value ({ncol - 1})"
                     )
                 spec_data[dbcol] = tabledata[colnames[index]].astype(float)
 
@@ -282,15 +279,15 @@ class MMADetectorTimeInterval(Base):
     update = delete = accessible_by_owner
 
     detector_id = sa.Column(
-        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        sa.ForeignKey("mmadetectors.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the MMADetector that acquired the Time Interval.",
     )
 
     detector = relationship(
-        'MMADetector',
-        back_populates='time_intervals',
+        "MMADetector",
+        back_populates="time_intervals",
         doc="The MMADetector that acquired the Time Interval.",
     )
 
@@ -300,20 +297,20 @@ class MMADetectorTimeInterval(Base):
         back_populates="mmadetector_time_intervals",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Groups that can view this detector spectrum.',
+        doc="Groups that can view this detector spectrum.",
     )
 
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User who uploaded the detector time interval.",
     )
     owner = relationship(
-        'User',
-        back_populates='mmadetector_time_intervals',
+        "User",
+        back_populates="mmadetector_time_intervals",
         foreign_keys=[owner_id],
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade="save-update, merge, refresh-expire, expunge",
         doc="The User who uploaded the detector time interval.",
     )
 

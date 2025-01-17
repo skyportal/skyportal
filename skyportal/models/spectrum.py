@@ -1,33 +1,32 @@
-__all__ = ['Spectrum', 'SpectrumReducer', 'SpectrumObserver', 'SpectrumPI']
+__all__ = ["Spectrum", "SpectrumReducer", "SpectrumObserver", "SpectrumPI"]
 
-import warnings
 import json
-
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+import warnings
 
 import astropy.units as u  # noqa: F401
 import numpy as np
+import sqlalchemy as sa
 import yaml
+from astropy.io import ascii, fits
 from astropy.utils.exceptions import AstropyWarning
-from astropy.io import fits, ascii
+from sqlalchemy.dialects import postgresql as psql
+from sqlalchemy.orm import relationship
 
+from baselayer.app.json_util import to_json
 from baselayer.app.models import (
-    join_model,
+    AccessibleIfUserMatches,
     Base,
     User,
-    AccessibleIfUserMatches,
     accessible_by_owner,
+    join_model,
 )
-from baselayer.app.json_util import to_json
 
-from .group import accessible_by_groups_members
 from ..enum_types import (
+    ALLOWED_SPECTRUM_TYPES,
     allowed_spectrum_types,
     default_spectrum_type,
-    ALLOWED_SPECTRUM_TYPES,
 )
+from .group import accessible_by_groups_members
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -46,7 +45,7 @@ class Spectrum(Base):
     read = accessible_by_groups_members
     update = delete = accessible_by_owner
 
-    __tablename__ = 'spectra'
+    __tablename__ = "spectra"
     # TODO better numpy integration
     wavelengths = sa.Column(
         NumpyArray, nullable=False, doc="Wavelengths of the spectrum [Angstrom]."
@@ -68,12 +67,12 @@ class Spectrum(Base):
     )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of this Spectrum's Obj.",
     )
-    obj = relationship('Obj', back_populates='spectra', doc="The Spectrum's Obj.")
+    obj = relationship("Obj", back_populates="spectra", doc="The Spectrum's Obj.")
     observed_at = sa.Column(
         sa.DateTime,
         nullable=False,
@@ -84,24 +83,24 @@ class Spectrum(Base):
         allowed_spectrum_types,
         nullable=False,
         default=default_spectrum_type,
-        doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
-                Defaults to 'f{default_spectrum_type}'.''',
+        doc=f"""Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                Defaults to 'f{default_spectrum_type}'.""",
     )
     label = sa.Column(
         sa.String,
         nullable=True,
-        doc='User defined label (can be used to replace default instrument/date labeling on plot legends).',
+        doc="User defined label (can be used to replace default instrument/date labeling on plot legends).",
     )
     # TODO program?
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Instrument that acquired the Spectrum.",
     )
     instrument = relationship(
-        'Instrument',
-        back_populates='spectra',
+        "Instrument",
+        back_populates="spectra",
         doc="The Instrument that acquired the Spectrum.",
     )
     groups = relationship(
@@ -110,36 +109,36 @@ class Spectrum(Base):
         back_populates="spectra",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Groups that can view this spectrum.',
+        doc="Groups that can view this spectrum.",
     )
     pis = relationship(
         "User",
         secondary="spectrum_pis",
         doc="Users that are PIs of the program, or users to serve as points of contact given an external program PI.",
-        overlaps='pis, owner',
+        overlaps="pis, owner",
     )
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
         doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
-        overlaps='reducers, owner',
+        overlaps="reducers, owner",
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
         doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
-        overlaps='observers, owner',
+        overlaps="observers, owner",
     )
 
     followup_request_id = sa.Column(
-        sa.ForeignKey('followuprequests.id', ondelete='SET NULL'), nullable=True
+        sa.ForeignKey("followuprequests.id", ondelete="SET NULL"), nullable=True
     )
-    followup_request = relationship('FollowupRequest', back_populates='spectra')
+    followup_request = relationship("FollowupRequest", back_populates="spectra")
 
     assignment_id = sa.Column(
-        sa.ForeignKey('classicalassignments.id', ondelete='SET NULL'), nullable=True
+        sa.ForeignKey("classicalassignments.id", ondelete="SET NULL"), nullable=True
     )
-    assignment = relationship('ClassicalAssignment', back_populates='spectra')
+    assignment = relationship("ClassicalAssignment", back_populates="spectra")
 
     altdata = sa.Column(
         psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
@@ -154,41 +153,41 @@ class Spectrum(Base):
     )
 
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User who uploaded the spectrum.",
     )
     owner = relationship(
-        'User',
-        back_populates='spectra',
+        "User",
+        back_populates="spectra",
         foreign_keys=[owner_id],
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade="save-update, merge, refresh-expire, expunge",
         doc="The User who uploaded the spectrum.",
     )
 
     comments = relationship(
-        'CommentOnSpectrum',
-        back_populates='spectrum',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "CommentOnSpectrum",
+        back_populates="spectrum",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about this spectrum.",
     )
 
     reminders = relationship(
-        'ReminderOnSpectrum',
-        back_populates='spectrum',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "ReminderOnSpectrum",
+        back_populates="spectrum",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="ReminderOnSpectrum.created_at",
         doc="Reminders about this spectrum.",
     )
 
     annotations = relationship(
-        'AnnotationOnSpectrum',
-        back_populates='spectrum',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "AnnotationOnSpectrum",
+        back_populates="spectrum",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="AnnotationOnSpectrum.created_at",
         doc="Annotations posted about this spectrum.",
@@ -257,15 +256,15 @@ class Spectrum(Base):
         """
 
         try:
-            f = open(file, 'rb')  # read as ascii
+            f = open(file, "rb")  # read as ascii
         except TypeError:
             # it's already a stream
             f = file
 
         try:
-            table = ascii.read(f, comment='#', header_start=None)
+            table = ascii.read(f, comment="#", header_start=None)
         except Exception as e:
-            e.args = (f'Error parsing ASCII file: {e.args[0]}',)
+            e.args = (f"Error parsing ASCII file: {e.args[0]}",)
             raise
         finally:
             f.close()
@@ -279,39 +278,39 @@ class Spectrum(Base):
         ncol = len(colnames)
         if ncol < 2:
             raise ValueError(
-                'Input data must have at least 2 columns (wavelength, '
-                'flux, and optionally flux error).'
+                "Input data must have at least 2 columns (wavelength, "
+                "flux, and optionally flux error)."
             )
 
         spec_data = {}
         # validate the column indices
         for index, name, dbcol in zip(
             [wave_column, flux_column, fluxerr_column],
-            ['wave_column', 'flux_column', 'fluxerr_column'],
-            ['wavelengths', 'fluxes', 'errors'],
+            ["wave_column", "flux_column", "fluxerr_column"],
+            ["wavelengths", "fluxes", "errors"],
         ):
             # index format / type validation:
-            if dbcol in ['wavelengths', 'fluxes']:
+            if dbcol in ["wavelengths", "fluxes"]:
                 if not isinstance(index, int):
-                    raise ValueError(f'{name} must be an int')
+                    raise ValueError(f"{name} must be an int")
             else:
                 if index is not None and not isinstance(index, int):
                     # The only other allowed value is that fluxerr_column can be
                     # None. If the value of index is not None, raise.
-                    raise ValueError(f'invalid type for {name}')
+                    raise ValueError(f"invalid type for {name}")
 
             # after validating the indices, ensure that the columns they
             # point to exist
             if isinstance(index, int):
                 if index >= ncol:
                     raise ValueError(
-                        f'index {name} ({index}) is greater than the '
-                        f'maximum allowed value ({ncol - 1})'
+                        f"index {name} ({index}) is greater than the "
+                        f"maximum allowed value ({ncol - 1})"
                     )
                 spec_data[dbcol] = tabledata[colnames[index]].astype(float)
 
         # parse the header
-        if 'comments' in table.meta:
+        if "comments" in table.meta:
             # this section matches lines like:
             # XTENSION: IMAGE
             # BITPIX: -32
@@ -320,7 +319,7 @@ class Spectrum(Base):
             # NAXIS2: 1
 
             header = {}
-            for line in table.meta['comments']:
+            for line in table.meta["comments"]:
                 try:
                     result = yaml.safe_load(line)
                 except yaml.YAMLError:
@@ -337,8 +336,8 @@ class Spectrum(Base):
 
             cards = []
             with warnings.catch_warnings():
-                warnings.simplefilter('error', AstropyWarning)
-                for line in table.meta['comments']:
+                warnings.simplefilter("error", AstropyWarning)
+                for line in table.meta["comments"]:
                     # this line does not raise a warning
                     card = fits.Card.fromstring(line)
                     try:
@@ -355,7 +354,7 @@ class Spectrum(Base):
             fits_header = fits.Header(cards=cards)
             serialized = dict(fits_header)
 
-            commentary_keywords = ['', 'COMMENT', 'HISTORY', 'END']
+            commentary_keywords = ["", "COMMENT", "HISTORY", "END"]
 
             for key in serialized:
                 # coerce things to serializable JSON
@@ -366,8 +365,8 @@ class Spectrum(Base):
 
                 if len(fits_header.comments[key]) > 0:
                     header[key] = {
-                        'value': serialized[key],
-                        'comment': fits_header.comments[key],
+                        "value": serialized[key],
+                        "comment": fits_header.comments[key],
                     }
                 else:
                     header[key] = serialized[key]
@@ -391,48 +390,48 @@ class Spectrum(Base):
 
     def to_dict_public(self):
         return {
-            'id': self.id,
-            'wavelengths': self.wavelengths.tolist(),
-            'fluxes': self.fluxes.tolist(),
-            'errors': self.errors.tolist() if self.errors is not None else None,
-            'units': self.units,
-            'origin': self.origin,
-            'type': self.type,
-            'label': self.label,
-            'instrument': self.instrument.name,
-            'telescope': self.instrument.telescope.name,
-            'observed_at': self.observed_at.isoformat(),
-            'pi': [pi.id for pi in self.pis],
-            'reducer': [reducer.id for reducer in self.reducers],
-            'observer': [observer.id for observer in self.observers],
-            'altdata': self.altdata,
-            'original_file_filename': self.original_file_filename,
-            'original_file_string': self.original_file_string,
+            "id": self.id,
+            "wavelengths": self.wavelengths.tolist(),
+            "fluxes": self.fluxes.tolist(),
+            "errors": self.errors.tolist() if self.errors is not None else None,
+            "units": self.units,
+            "origin": self.origin,
+            "type": self.type,
+            "label": self.label,
+            "instrument": self.instrument.name,
+            "telescope": self.instrument.telescope.name,
+            "observed_at": self.observed_at.isoformat(),
+            "pi": [pi.id for pi in self.pis],
+            "reducer": [reducer.id for reducer in self.reducers],
+            "observer": [observer.id for observer in self.observers],
+            "altdata": self.altdata,
+            "original_file_filename": self.original_file_filename,
+            "original_file_string": self.original_file_string,
         }
 
 
 SpectrumPI = join_model(
-    "spectrum_pis", Spectrum, User, new_name='SpectrumPI', overlaps='pis'
+    "spectrum_pis", Spectrum, User, new_name="SpectrumPI", overlaps="pis"
 )
 SpectrumReducer = join_model(
-    "spectrum_reducers", Spectrum, User, new_name='SpectrumReducer', overlaps='reducers'
+    "spectrum_reducers", Spectrum, User, new_name="SpectrumReducer", overlaps="reducers"
 )
 SpectrumObserver = join_model(
     "spectrum_observers",
     Spectrum,
     User,
-    new_name='SpectrumObserver',
-    overlaps='observers',
+    new_name="SpectrumObserver",
+    overlaps="observers",
 )
 SpectrumPI.create = SpectrumPI.delete = SpectrumPI.update = AccessibleIfUserMatches(
-    'spectrum.owner'
+    "spectrum.owner"
 )
-SpectrumReducer.create = (
-    SpectrumReducer.delete
-) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
-SpectrumObserver.create = (
-    SpectrumObserver.delete
-) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
+SpectrumReducer.create = SpectrumReducer.delete = SpectrumReducer.update = (
+    AccessibleIfUserMatches("spectrum.owner")
+)
+SpectrumObserver.create = SpectrumObserver.delete = SpectrumObserver.update = (
+    AccessibleIfUserMatches("spectrum.owner")
+)
 
 # should be accessible only by spectrumowner ^^
 SpectrumPI.external_pi = sa.Column(

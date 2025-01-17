@@ -359,13 +359,13 @@ class AllocationHandler(BaseHandler):
                     ]
                     request_data['set_time_utc'] = request.set_time().iso
                     if isinstance(
-                        request_data['set_time_utc'], (np.ma.MaskedArray, MaskedNDArray)
+                        request_data['set_time_utc'], np.ma.MaskedArray | MaskedNDArray
                     ):
                         request_data['set_time_utc'] = None
                     request_data['rise_time_utc'] = request.rise_time().iso
                     if isinstance(
                         request_data['rise_time_utc'],
-                        (np.ma.MaskedArray, MaskedNDArray),
+                        np.ma.MaskedArray | MaskedNDArray,
                     ):
                         request_data['rise_time_utc'] = None
                     requests.append(request_data)

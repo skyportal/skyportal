@@ -1,16 +1,19 @@
-__all__ = ['PublicSourcePage']
+__all__ = ["PublicSourcePage"]
 
-import json
-import jinja2
 import datetime
+import json
+
+import jinja2
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
+
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
-from baselayer.app.models import Base, UserAccessControl, CustomUserAccessControl
-from .. import Source, GroupUser
+from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
+
 from ...utils.cache import Cache, dict_to_bytes
+from .. import GroupUser, Source
 
 env, cfg = load_env()
 
@@ -56,15 +59,15 @@ class PublicSourcePage(Base):
     is_visible = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
-        doc='Whether the page is visible to the public',
+        server_default="false",
+        doc="Whether the page is visible to the public",
     )
 
     release_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('publicreleases.id'),
+        sa.ForeignKey("publicreleases.id"),
         nullable=True,
-        doc='ID of the public release associated with this source page',
+        doc="ID of the public release associated with this source page",
     )
 
     release = relationship(
@@ -77,13 +80,13 @@ class PublicSourcePage(Base):
         """Convert the page to a dictionary with
         the options to be displayed and the creation date in ISO format."""
         return {
-            'id': self.id,
-            'source_id': self.source_id,
-            'release_link_name': self.release.link_name if self.release else None,
-            'is_visible': self.is_visible,
-            'created_at': self.created_at,
-            'hash': self.hash,
-            'options': {
+            "id": self.id,
+            "source_id": self.source_id,
+            "release_link_name": self.release.link_name if self.release else None,
+            "is_visible": self.is_visible,
+            "created_at": self.created_at,
+            "hash": self.hash,
+            "options": {
                 "photometry": self.option_state("photometry"),
                 "classifications": self.option_state("classifications"),
                 "spectroscopy": self.option_state("spectroscopy"),
@@ -132,7 +135,7 @@ class PublicSourcePage(Base):
             autoescape=True,
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),
         )
-        environment.policies['json.dumps_function'] = to_json
+        environment.policies["json.dumps_function"] = to_json
         environment.filters["format_date"] = lambda x: (
             datetime.datetime.fromisoformat(x)
         ).strftime("%x")

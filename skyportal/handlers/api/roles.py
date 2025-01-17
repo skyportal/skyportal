@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 
-from ..base import BaseHandler
 from ...models import Role, User, UserRole
+from ..base import BaseHandler
 
 
 class RoleHandler(BaseHandler):
@@ -31,7 +31,7 @@ class RoleHandler(BaseHandler):
         roles = Role.query.all()
         for i, role in enumerate(roles):
             roles[i] = role.to_dict()
-            roles[i]['acls'] = [acl.id for acl in role.acls]
+            roles[i]["acls"] = [acl.id for acl in role.acls]
         self.verify_and_commit()
         return self.success(data=roles)
 
@@ -74,8 +74,8 @@ class UserRoleHandler(BaseHandler):
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
             return self.error("Missing required parameter roleIds")
-        if (not isinstance(new_role_ids, (list, tuple))) or (
-            not all([Role.query.get(role_id) is not None for role_id in new_role_ids])
+        if (not isinstance(new_role_ids, list | tuple)) or (
+            not all(Role.query.get(role_id) is not None for role_id in new_role_ids)
         ):
             return self.error(
                 "Improperly formatted parameter roleIds; must be an array of strings."

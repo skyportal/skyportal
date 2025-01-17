@@ -1,4 +1,4 @@
-__all__ = ['WebhookMixin']
+__all__ = ["WebhookMixin"]
 
 import uuid
 
@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 
 from ..enum_types import (
-    allowed_webbook_status_types,
     WEBHOOK_STATUS_TYPES,
+    allowed_webbook_status_types,
 )
 
 _, cfg = load_env()
@@ -18,8 +18,8 @@ class WebhookMixin:
     invalid_after = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=sa.func.now() + sa.text('INTERVAL \'1 DAY\''),
-        doc='Time after which the webhook is invalid. Default: 1 day from now.',
+        default=sa.func.now() + sa.text("INTERVAL '1 DAY'"),
+        doc="Time after which the webhook is invalid. Default: 1 day from now.",
     )
 
     token = sa.Column(
@@ -27,20 +27,20 @@ class WebhookMixin:
         nullable=False,
         unique=True,
         default=lambda: str(uuid.uuid4()),
-        doc='Unique identifier for this webhook.',
+        doc="Unique identifier for this webhook.",
     )
 
     handled_by_url = sa.Column(
         sa.String,
         nullable=False,
-        doc='url for internal API to handle the incoming callback.',
+        doc="url for internal API to handle the incoming callback.",
     )
 
     status = sa.Column(
         allowed_webbook_status_types,
         nullable=False,
         doc=(
-            f'''Status of the Webhook. One of: {', '.join(f"'{t}'" for t in WEBHOOK_STATUS_TYPES)}.'''
+            f"""Status of the Webhook. One of: {', '.join(f"'{t}'" for t in WEBHOOK_STATUS_TYPES)}."""
         ),
     )
 

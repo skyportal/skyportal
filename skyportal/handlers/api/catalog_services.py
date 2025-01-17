@@ -1,21 +1,22 @@
-import arrow
-from astropy.time import Time, TimeDelta
-from astropy.table import Table
 import functools
 import glob
-from marshmallow.exceptions import ValidationError
-import numpy as np
-import pandas as pd
-from sqlalchemy.orm import sessionmaker, scoped_session
-import sqlalchemy as sa
-import swifttools.ukssdc.query as uq
 import tempfile
 import time
+
+import arrow
+import numpy as np
+import pandas as pd
+import sqlalchemy as sa
+import swifttools.ukssdc.query as uq
+from astropy.table import Table
+from astropy.time import Time, TimeDelta
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
-from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 try:
@@ -25,11 +26,6 @@ try:
 except Exception:
     alert_available = False
 
-from .source import post_source
-from .photometry import add_external_photometry
-from .photometric_series import post_photometric_series, update_photometric_series
-
-from ..base import BaseHandler
 from ...models import (
     Allocation,
     CatalogQuery,
@@ -45,14 +41,18 @@ from ...models import (
     UserNotification,
 )
 from ...models.schema import CatalogQueryPost
-from ...utils.catalog import get_conesearch_centers, query_kowalski, query_fink
+from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
+from ..base import BaseHandler
+from .photometric_series import post_photometric_series, update_photometric_series
+from .photometry import add_external_photometry
+from .source import post_source
 
 _, cfg = load_env()
 
 
-TESS_URL = cfg['app.tess_endpoint']
+TESS_URL = cfg["app.tess_endpoint"]
 
-log = make_log('api/catalogs')
+log = make_log("api/catalogs")
 
 Session = scoped_session(sessionmaker())
 
@@ -89,41 +89,41 @@ class CatalogQueryHandler(BaseHandler):
             data = CatalogQueryPost.load(data)
         except ValidationError as e:
             return self.error(
-                f'Invalid / missing parameters: {e.normalized_messages()}'
+                f"Invalid / missing parameters: {e.normalized_messages()}"
             )
 
         data["requester_id"] = self.associated_user_object.id
-        data['allocation_id'] = int(data['allocation_id'])
+        data["allocation_id"] = int(data["allocation_id"])
 
-        if 'catalogName' not in data['payload']:
-            return self.error('catalogName required in query payload')
+        if "catalogName" not in data["payload"]:
+            return self.error("catalogName required in query payload")
 
         with self.Session() as session:
             allocation = session.scalar(
-                sa.select(Allocation).where(Allocation.id == data['allocation_id'])
+                sa.select(Allocation).where(Allocation.id == data["allocation_id"])
             )
 
             group_ids = []
-            if 'target_group_ids' in data and len(data['target_group_ids']) > 0:
-                group_ids = data['target_group_ids']
+            if "target_group_ids" in data and len(data["target_group_ids"]) > 0:
+                group_ids = data["target_group_ids"]
             group_ids.append(allocation.group_id)
             group_ids = list(set(group_ids))
 
             fetch_tr = functools.partial(
                 fetch_transients,
-                data['allocation_id'],
+                data["allocation_id"],
                 self.associated_user_object.id,
                 group_ids,
-                data['payload'],
+                data["payload"],
             )
 
             IOLoop.current().run_in_executor(None, fetch_tr)
 
             try:
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES',
+                    action="skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES",
                     payload={
-                        'gcnEvent_dateobs': data['payload']['localizationDateobs']
+                        "gcnEvent_dateobs": data["payload"]["localizationDateobs"]
                     },
                 )
             except Exception:
@@ -170,21 +170,21 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
         localization = session.scalars(
             sa.select(Localization).where(
-                Localization.dateobs == payload['localizationDateobs'],
-                Localization.localization_name == payload['localizationName'],
+                Localization.dateobs == payload["localizationDateobs"],
+                Localization.localization_name == payload["localizationName"],
             )
         ).first()
 
-        start_date = Time(arrow.get(payload['startDate'].strip()).datetime)
-        end_date = Time(arrow.get(payload['endDate'].strip()).datetime)
+        start_date = Time(arrow.get(payload["startDate"].strip()).datetime)
+        end_date = Time(arrow.get(payload["endDate"].strip()).datetime)
 
         jd_trigger = start_date.jd
         dt = end_date.jd - start_date.jd
 
-        if payload['catalogName'] == 'ZTF-Kowalski':
+        if payload["catalogName"] == "ZTF-Kowalski":
             altdata = allocation.altdata
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             # allow access to public data only by default
             program_id_selector = {1}
@@ -198,26 +198,26 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             log("Querying kowalski for sources")
             # Query kowalski
             sources = query_kowalski(
-                token=altdata['access_token'],
+                token=altdata["access_token"],
                 dateobs=localization.dateobs,
                 localization_name=localization.localization_name,
-                contour=payload['localizationCumprob'] * 100,
+                contour=payload["localizationCumprob"] * 100,
                 localization_file=localization.get_localization_path(),
                 max_days=dt,
                 within_days=dt,
             )
 
             if sources is None:
-                catalog_query.status = 'failed'
+                catalog_query.status = "failed"
                 session.commit()
                 return
 
             if len(sources) == 0:
-                catalog_query.status = 'no sources found'
+                catalog_query.status = "no sources found"
                 session.commit()
                 return
 
-            catalog_query.status = f'found {len(sources)} sources, posting...'
+            catalog_query.status = f"found {len(sources)} sources, posting..."
             session.commit()
 
             obj_ids = []
@@ -225,18 +225,18 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             for source in sources:
                 log(f"Retrieving {source['id']}")
                 s = session.scalars(
-                    Obj.select(user).where(Obj.id == source['id'])
+                    Obj.select(user).where(Obj.id == source["id"])
                 ).first()
                 if s is None:
                     log(f"Posting {source['id']} as source")
-                    source['group_ids'] = group_ids
+                    source["group_ids"] = group_ids
                     (obj_id,) = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if alert_available:
                     log(f"Posting photometry from {source['id']}")
                     post_alert(
-                        source['id'],
+                        source["id"],
                         group_ids,
                         user.id,
                         session,
@@ -244,16 +244,16 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     )
             log("Finished querying Kowalski for sources")
 
-        elif payload['catalogName'] == 'ZTF-Fink':
+        elif payload["catalogName"] == "ZTF-Fink":
             instrument = session.scalars(
-                Instrument.select(user).where(Instrument.name == 'ZTF')
+                Instrument.select(user).where(Instrument.name == "ZTF")
             ).first()
             if instrument is None:
-                raise ValueError('Expected an Instrument named ZTF')
+                raise ValueError("Expected an Instrument named ZTF")
 
             healpix = localization.flat_2d
             ra_center, dec_center = get_conesearch_centers(
-                healpix, level=payload['localizationCumprob']
+                healpix, level=payload["localizationCumprob"]
             )
 
             log("Querying Fink for sources")
@@ -264,21 +264,21 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             obj_ids = []
             log("Looping over sources")
             for source in sources:
-                df = source.pop('data')
+                df = source.pop("data")
                 log(f"Retrieving {source['id']}")
 
                 data_out = {
-                    'obj_id': source['id'],
-                    'instrument_id': instrument.id,
-                    'group_ids': [g.id for g in groups],
-                    **df.to_dict(orient='list'),
+                    "obj_id": source["id"],
+                    "instrument_id": instrument.id,
+                    "group_ids": [g.id for g in groups],
+                    **df.to_dict(orient="list"),
                 }
 
                 s = session.scalars(
-                    Obj.select(user).where(Obj.id == source['id'])
+                    Obj.select(user).where(Obj.id == source["id"])
                 ).first()
                 if s is None:
-                    source['group_ids'] = group_ids
+                    source["group_ids"] = group_ids
                     (obj_id,) = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
@@ -289,55 +289,55 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     log(f"No photometry to commit to database for {source['id']}")
             log("Finished querying Fink for sources")
 
-        elif payload['catalogName'] == 'LSXPS':
-            telescope_name = 'Swift'
+        elif payload["catalogName"] == "LSXPS":
+            telescope_name = "Swift"
             telescope = session.scalars(
-                Telescope.select(user).where(Telescope.nickname == 'Swift')
+                Telescope.select(user).where(Telescope.nickname == "Swift")
             ).first()
             if telescope is None:
-                raise AttributeError(f'Expected a Telescope named {telescope_name}')
+                raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
             log("Querying Swift for sources")
             obj_ids = fetch_swift_transients(instrument.id, user_id, group_ids)
             log("Finished querying Swift for sources")
 
-        elif payload['catalogName'] == 'Gaia':
-            telescope_name = 'Gaia'
+        elif payload["catalogName"] == "Gaia":
+            telescope_name = "Gaia"
             telescope = session.scalars(
-                Telescope.select(user).where(Telescope.nickname == 'Gaia')
+                Telescope.select(user).where(Telescope.nickname == "Gaia")
             ).first()
             if telescope is None:
-                raise AttributeError(f'Expected a Telescope named {telescope_name}')
+                raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
             log("Querying Gaia for sources")
             obj_ids = fetch_gaia_transients(
                 instrument.id,
                 user_id,
                 group_ids,
-                {'start_date': start_date, 'end_date': end_date},
+                {"start_date": start_date, "end_date": end_date},
             )
             log("Finished querying Gaia for sources")
-        elif payload['catalogName'] == 'TESS':
-            telescope_name = 'TESS'
+        elif payload["catalogName"] == "TESS":
+            telescope_name = "TESS"
             telescope = session.scalars(
-                Telescope.select(user).where(Telescope.nickname == 'TESS')
+                Telescope.select(user).where(Telescope.nickname == "TESS")
             ).first()
             if telescope is None:
-                raise AttributeError(f'Expected a Telescope named {telescope_name}')
+                raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
             log("Querying TESS for sources")
             obj_ids = fetch_tess_transients(
                 instrument.id,
                 user_id,
                 group_ids,
-                {'start_date': start_date, 'end_date': end_date},
+                {"start_date": start_date, "end_date": end_date},
             )
             log("Finished querying TESS for sources")
         else:
             return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 
         if len(obj_ids) == 0:
-            catalog_query.status = 'completed: No new objects'
+            catalog_query.status = "completed: No new objects"
         else:
             catalog_query.status = f'completed: Added {",".join(obj_ids)}'
         session.commit()
@@ -365,9 +365,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         # frontend refresh
         try:
             flow.push(
-                user_id='*',
-                action_type='skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES',
-                payload={'gcnEvent_dateobs': payload['localizationDateobs']},
+                user_id="*",
+                action_type="skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES",
+                payload={"gcnEvent_dateobs": payload["localizationDateobs"]},
             )
         except Exception:
             pass
@@ -422,8 +422,8 @@ class SwiftLSXPSQueryHandler(BaseHandler):
 
         data = self.get_json()
 
-        telescope_name = data.get('telescope_name', 'Swift')
-        group_ids = data.get('groupIDs', None)
+        telescope_name = data.get("telescope_name", "Swift")
+        group_ids = data.get("groupIDs", None)
         if group_ids is None:
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -434,7 +434,7 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                 )
             ).first()
             if telescope is None:
-                return self.error(f'Expected a Telescope named {telescope_name}')
+                return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
 
             fetch_tr = functools.partial(
@@ -474,25 +474,25 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
         ).all()
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            q = uq.SXPSQuery(silent=True, cat='LSXPS', table='transients')
-            q.addFilter(('Classification', '=', 1))
+            q = uq.SXPSQuery(silent=True, cat="LSXPS", table="transients")
+            q.addFilter(("Classification", "=", 1))
             q.submit()
             q.getDetails(byName=True)
-            q.getLightCurves(byName=True, timeFormat='MJD', binning='obs')
-            q.getSpectra(byName=True, specType='Discovery')
+            q.getLightCurves(byName=True, timeFormat="MJD", binning="obs")
+            q.getSpectra(byName=True, specType="Discovery")
             q.saveSpectra(destDir=tmpdirname)
 
             obj_ids = []
-            for transient in q.transientDetails.keys():
-                ra = q.transientDetails[transient].pop('RA')
-                dec = q.transientDetails[transient].pop('Decl')
+            for transient in q.transientDetails:
+                ra = q.transientDetails[transient].pop("RA")
+                dec = q.transientDetails[transient].pop("Decl")
                 obj_name = (
-                    q.transientDetails[transient].pop('IAUName').replace(" ", "-")
+                    q.transientDetails[transient].pop("IAUName").replace(" ", "-")
                 )
-                data = {'ra': ra, 'dec': dec, 'id': obj_name}
+                data = {"ra": ra, "dec": dec, "id": obj_name}
                 s = session.scalars(Obj.select(user).where(Obj.id == obj_name)).first()
                 if s is None:
-                    data['group_ids'] = group_ids
+                    data["group_ids"] = group_ids
                     (obj_id,) = post_source(data, user_id, session)
                     obj_ids.append(obj_id)
                 else:
@@ -500,26 +500,26 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
 
                 if transient in q.lightCurves:
                     dfs = []
-                    if 'PC_incbad' in q.lightCurves[transient]:
-                        df1 = q.lightCurves[transient]['PC_incbad']
+                    if "PC_incbad" in q.lightCurves[transient]:
+                        df1 = q.lightCurves[transient]["PC_incbad"]
                         df1.rename(
                             columns={
-                                'Time': 'mjd',
-                                'Rate': 'flux',
-                                'RatePos': 'fluxerr',
+                                "Time": "mjd",
+                                "Rate": "flux",
+                                "RatePos": "fluxerr",
                             },
                             inplace=True,
                         )
                         drop_columns = list(
                             set(df1.columns.values)
                             - {
-                                'mjd',
-                                'ra',
-                                'dec',
-                                'flux',
-                                'fluxerr',
-                                'limiting_mag',
-                                'filter',
+                                "mjd",
+                                "ra",
+                                "dec",
+                                "flux",
+                                "fluxerr",
+                                "limiting_mag",
+                                "filter",
                             }
                         )
                         df1.drop(
@@ -528,21 +528,21 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                         )
                         dfs.append(df1)
 
-                    if 'PCUL_incbad' in q.lightCurves[transient]:
-                        df2 = q.lightCurves[transient]['PCUL_incbad']
+                    if "PCUL_incbad" in q.lightCurves[transient]:
+                        df2 = q.lightCurves[transient]["PCUL_incbad"]
                         df2.rename(
-                            columns={'Time': 'mjd', 'Rate': 'fluxerr'}, inplace=True
+                            columns={"Time": "mjd", "Rate": "fluxerr"}, inplace=True
                         )
                         drop_columns = list(
                             set(df2.columns.values)
                             - {
-                                'mjd',
-                                'ra',
-                                'dec',
-                                'flux',
-                                'fluxerr',
-                                'limiting_mag',
-                                'filter',
+                                "mjd",
+                                "ra",
+                                "dec",
+                                "flux",
+                                "fluxerr",
+                                "limiting_mag",
+                                "filter",
                             }
                         )
                         df2.drop(
@@ -552,18 +552,18 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                         dfs.append(df2)
 
                     df = pd.concat(dfs)
-                    df['ra'] = ra
-                    df['dec'] = dec
-                    df['filter'] = 'swiftxrt'
-                    df['magsys'] = 'ab'
-                    df['zp'] = 0.0
+                    df["ra"] = ra
+                    df["dec"] = dec
+                    df["filter"] = "swiftxrt"
+                    df["magsys"] = "ab"
+                    df["zp"] = 0.0
                     df = df.replace({np.nan: None})
 
                     data_out = {
-                        'obj_id': obj_id,
-                        'instrument_id': instrument_id,
-                        'group_ids': [g.id for g in user.accessible_groups],
-                        **df.to_dict(orient='list'),
+                        "obj_id": obj_id,
+                        "instrument_id": instrument_id,
+                        "group_ids": [g.id for g in user.accessible_groups],
+                        **df.to_dict(orient="list"),
                     }
 
                     if len(df.index) > 0:
@@ -573,14 +573,14 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                         log(f"No photometry to commit to database for {obj_id}")
 
                 if transient in q.spectra:
-                    filenames = glob.glob(f'{tmpdirname}/{transient}/interval*')
+                    filenames = glob.glob(f"{tmpdirname}/{transient}/interval*")
                     for filename in filenames:
                         attachment_name = filename.split("/")[-1]
-                        with open(filename, 'rb') as f:
+                        with open(filename, "rb") as f:
                             data_to_disk = f.read()
 
                         comment = Comment(
-                            text='Swift Detection Spectrum',
+                            text="Swift Detection Spectrum",
                             obj_id=obj_id,
                             attachment_name=attachment_name,
                             author=user,
@@ -651,10 +651,10 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
 
         data = self.get_json()
 
-        telescope_name = data.get('telescope_name', 'Gaia')
-        start_date = data.get('startDate', None)
-        end_date = data.get('endDate', None)
-        group_ids = data.get('groupIDs', None)
+        telescope_name = data.get("telescope_name", "Gaia")
+        start_date = data.get("startDate", None)
+        end_date = data.get("endDate", None)
+        group_ids = data.get("groupIDs", None)
         if group_ids is None:
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -663,7 +663,7 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
         if end_date is not None:
             end_date = Time(arrow.get(end_date.strip()).datetime)
 
-        payload = {'start_date': start_date, 'end_date': end_date}
+        payload = {"start_date": start_date, "end_date": end_date}
 
         with self.Session() as session:
             telescope = session.scalars(
@@ -672,7 +672,7 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                 )
             ).first()
             if telescope is None:
-                return self.error(f'Expected a Telescope named {telescope_name}')
+                return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
 
             fetch_tr = functools.partial(
@@ -715,24 +715,24 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
 
         while not file_read and nretries < 10:
             try:
-                table = Table.read(alert_url, format='csv')
+                table = Table.read(alert_url, format="csv")
                 file_read = True
             except FileNotFoundError:
                 nretries = nretries + 1
                 time.sleep(10)
         if not file_read:
-            log('Failed to read Gaia alert catalog')
+            log("Failed to read Gaia alert catalog")
             return
 
-        start_date = payload.get('start_date', None)
-        end_date = payload.get('end_date', None)
+        start_date = payload.get("start_date", None)
+        end_date = payload.get("end_date", None)
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
 
         for row in table:
-            name = row['#Name']
-            ra, dec = row['RaDeg'], row['DecDeg']
-            date = Time(row['Date'], format='iso')
+            name = row["#Name"]
+            ra, dec = row["RaDeg"], row["DecDeg"]
+            date = Time(row["Date"], format="iso")
 
             if start_date is not None:
                 if date < start_date:
@@ -741,10 +741,10 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
                 if date > end_date:
                     continue
 
-            data = {'ra': ra, 'dec': dec, 'id': name}
+            data = {"ra": ra, "dec": dec, "id": name}
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
-                data['group_ids'] = group_ids
+                data["group_ids"] = group_ids
                 (obj_id,) = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
@@ -753,48 +753,48 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             try:
                 lc = Table.read(
                     f"{lightcurve_url}/{name}/lightcurve.csv/",
-                    format='csv',
+                    format="csv",
                     header_start=1,
                 )
             except FileNotFoundError:
                 log(f"Gaia alert {name} not found.")
                 continue
 
-            lc['mjd'] = Time(lc['JD(TCB)'], format='jd').mjd
-            lc['ra'] = ra
-            lc['dec'] = dec
-            lc['limiting_mag'] = 20.7
-            lc['filter'] = 'gaia::g'
-            lc['magsys'] = 'ab'
+            lc["mjd"] = Time(lc["JD(TCB)"], format="jd").mjd
+            lc["ra"] = ra
+            lc["dec"] = dec
+            lc["limiting_mag"] = 20.7
+            lc["filter"] = "gaia::g"
+            lc["magsys"] = "ab"
 
             df = lc.to_pandas()
             df.rename(
                 columns={
-                    'averagemag': 'mag',
+                    "averagemag": "mag",
                 },
                 inplace=True,
             )
-            df = df.replace({'null': np.nan})
-            df = df.replace({'untrusted': np.nan})
+            df = df.replace({"null": np.nan})
+            df = df.replace({"untrusted": np.nan})
             df = df.astype({"mag": float})
-            df['magerr'] = (
+            df["magerr"] = (
                 3.43779
-                - (df['mag'] / 1.13759)
-                + (df['mag'] / 3.44123) ** 2
-                - (df['mag'] / 6.51996) ** 3
-                + (df['mag'] / 11.45922) ** 4
+                - (df["mag"] / 1.13759)
+                + (df["mag"] / 3.44123) ** 2
+                - (df["mag"] / 6.51996) ** 3
+                + (df["mag"] / 11.45922) ** 4
             )
             drop_columns = list(
                 set(df.columns.values)
                 - {
-                    'mjd',
-                    'ra',
-                    'dec',
-                    'mag',
-                    'magerr',
-                    'limiting_mag',
-                    'filter',
-                    'magsys',
+                    "mjd",
+                    "ra",
+                    "dec",
+                    "mag",
+                    "magerr",
+                    "limiting_mag",
+                    "filter",
+                    "magsys",
                 }
             )
             df.drop(
@@ -803,10 +803,10 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             )
 
             data_out = {
-                'obj_id': obj_id,
-                'instrument_id': instrument_id,
-                'group_ids': group_ids,
-                **df.to_dict(orient='list'),
+                "obj_id": obj_id,
+                "instrument_id": instrument_id,
+                "group_ids": group_ids,
+                **df.to_dict(orient="list"),
             }
 
             if len(df.index) > 0:
@@ -874,10 +874,10 @@ class TessTransientsQueryHandler(BaseHandler):
 
         data = self.get_json()
 
-        telescope_name = data.get('telescope_name', 'TESS')
-        start_date = data.get('startDate', None)
-        end_date = data.get('endDate', None)
-        group_ids = data.get('groupIDs', None)
+        telescope_name = data.get("telescope_name", "TESS")
+        start_date = data.get("startDate", None)
+        end_date = data.get("endDate", None)
+        group_ids = data.get("groupIDs", None)
         if group_ids is None:
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -886,7 +886,7 @@ class TessTransientsQueryHandler(BaseHandler):
         if end_date is not None:
             end_date = Time(arrow.get(end_date.strip()).datetime)
 
-        payload = {'start_date': start_date, 'end_date': end_date}
+        payload = {"start_date": start_date, "end_date": end_date}
 
         with self.Session() as session:
             telescope = session.scalars(
@@ -895,7 +895,7 @@ class TessTransientsQueryHandler(BaseHandler):
                 )
             ).first()
             if telescope is None:
-                return self.error(f'Expected a Telescope named {telescope_name}')
+                return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
 
             fetch_tr = functools.partial(
@@ -939,24 +939,24 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
 
         while not file_read and nretries < 10:
             try:
-                table = Table.read(alert_url, format='ascii')
+                table = Table.read(alert_url, format="ascii")
                 file_read = True
             except FileNotFoundError:
                 nretries = nretries + 1
                 time.sleep(10)
         if not file_read:
-            log('Failed to read TESS alert catalog')
+            log("Failed to read TESS alert catalog")
             return
 
-        start_date = payload.get('start_date', None)
-        end_date = payload.get('end_date', None)
+        start_date = payload.get("start_date", None)
+        end_date = payload.get("end_date", None)
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
 
         for row in table:
-            name = row['name']
-            ra, dec = row['ra'], row['dec']
-            date = Time(2457000, format='jd') + TimeDelta(row['disc_tjd'], format='jd')
+            name = row["name"]
+            ra, dec = row["ra"], row["dec"]
+            date = Time(2457000, format="jd") + TimeDelta(row["disc_tjd"], format="jd")
 
             if start_date is not None:
                 if date < start_date:
@@ -965,10 +965,10 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                 if date > end_date:
                     continue
 
-            data = {'ra': ra, 'dec': dec, 'id': name}
+            data = {"ra": ra, "dec": dec, "id": name}
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
-                data['group_ids'] = group_ids
+                data["group_ids"] = group_ids
                 (obj_id,) = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
@@ -977,7 +977,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             try:
                 lc = Table.read(
                     f"{lightcurve_url}/lc_{name}_cleaned",
-                    format='ascii',
+                    format="ascii",
                     header_start=1,
                 )
             except FileNotFoundError:
@@ -989,57 +989,57 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                 )
                 continue
 
-            if 'BTJD' not in list(lc.columns):
+            if "BTJD" not in list(lc.columns):
                 log(
                     f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
                 )
                 continue
 
-            lc['mjd'] = (
-                Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
+            lc["mjd"] = (
+                Time(2457000, format="jd") + TimeDelta(lc["BTJD"], format="jd")
             ).mjd
-            lc['ra'] = ra
-            lc['dec'] = dec
-            lc['limiting_mag'] = 18.4
-            lc['zp'] = 20.5
-            lc['filter'] = 'tess'
-            lc['magsys'] = 'ab'
+            lc["ra"] = ra
+            lc["dec"] = dec
+            lc["limiting_mag"] = 18.4
+            lc["zp"] = 20.5
+            lc["filter"] = "tess"
+            lc["magsys"] = "ab"
 
             df = lc.to_pandas()
             df.rename(
                 columns={
-                    'e_mag': 'magerr',
-                    'cts_per_s': 'flux',
-                    'e_cts_per_s': 'fluxerr',
+                    "e_mag": "magerr",
+                    "cts_per_s": "flux",
+                    "e_cts_per_s": "fluxerr",
                 },
                 inplace=True,
             )
 
-            magerr_none = df['magerr'] == None  # noqa: E711
-            df.loc[magerr_none, 'mag'] = None
+            magerr_none = df["magerr"] == None  # noqa: E711
+            df.loc[magerr_none, "mag"] = None
 
-            isnan = np.isnan(df['magerr'])
-            df.loc[isnan, 'mag'] = None
-            df.loc[isnan, 'magerr'] = None
+            isnan = np.isnan(df["magerr"])
+            df.loc[isnan, "mag"] = None
+            df.loc[isnan, "magerr"] = None
 
-            is99 = np.isclose(df['magerr'], 99.9)
-            df.loc[is99, 'mag'] = None
-            df.loc[is99, 'magerr'] = None
+            is99 = np.isclose(df["magerr"], 99.9)
+            df.loc[is99, "mag"] = None
+            df.loc[is99, "magerr"] = None
 
             drop_columns = list(
                 set(df.columns.values)
                 - {
-                    'mjd',
-                    'ra',
-                    'dec',
-                    'mag',
-                    'magerr',
-                    'flux',
-                    'fluxerr',
-                    'zp',
-                    'limiting_mag',
-                    'filter',
-                    'magsys',
+                    "mjd",
+                    "ra",
+                    "dec",
+                    "mag",
+                    "magerr",
+                    "flux",
+                    "fluxerr",
+                    "zp",
+                    "limiting_mag",
+                    "filter",
+                    "magsys",
                 }
             )
             df.drop(
@@ -1048,12 +1048,12 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             )
 
             data_out = {
-                'obj_id': obj_id,
-                'series_name': 'tesstransients',
-                'series_obj_id': obj_id,
-                'exp_time': 2.0,
-                'instrument_id': instrument_id,
-                'group_ids': group_ids,
+                "obj_id": obj_id,
+                "series_name": "tesstransients",
+                "series_obj_id": obj_id,
+                "exp_time": 2.0,
+                "instrument_id": instrument_id,
+                "group_ids": group_ids,
             }
 
             if len(df.index) > 0:

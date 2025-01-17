@@ -1,6 +1,5 @@
-import uuid
-
 import asyncio
+import uuid
 
 from baselayer.app.models import session_context_id
 from baselayer.log import make_log

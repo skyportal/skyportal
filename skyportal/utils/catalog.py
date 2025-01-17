@@ -53,10 +53,10 @@ def get_conesearch_centers(skymap, radius=1.0, level=0.95):
     """
 
     ras, decs = tesselation_spiral(radius, scale=0.80)
-    coords_dict_list = list({"ra": r, "dec": d} for r, d in zip(ras, decs))
+    coords_dict_list = [{"ra": r, "dec": d} for r, d in zip(ras, decs)]
     coords_out = select_sources_in_level(coords_dict_list, skymap, level=level)
-    ra_out = np.array(list(c["ra"] for c in coords_out))
-    dec_out = np.array(list(c["dec"] for c in coords_out))
+    ra_out = np.array([c["ra"] for c in coords_out])
+    dec_out = np.array([c["dec"] for c in coords_out])
 
     return ra_out, dec_out
 
@@ -355,12 +355,12 @@ def query_kowalski(
     for n in set_objectId_all:
         source = {}
         source["id"] = n
-        source["ra"] = list(
+        source["ra"] = [
             r["candidate"]["ra"] for r in candidates if r["objectId"] == n
-        )[0]
-        source["dec"] = list(
+        ][0]
+        source["dec"] = [
             r["candidate"]["dec"] for r in candidates if r["objectId"] == n
-        )[0]
+        ][0]
         sources.append(source)
 
     return sources

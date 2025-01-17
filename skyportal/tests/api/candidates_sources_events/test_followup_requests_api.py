@@ -218,7 +218,7 @@ def test_filter_followup_request(
     assert status == 200
     assert data['status'] == 'success'
     assert any(
-        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+        s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]
     )
 
     time_after_post = datetime.utcnow().isoformat()
@@ -234,7 +234,7 @@ def test_filter_followup_request(
     assert status == 200
     assert data['status'] == 'success'
     assert not any(
-        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+        s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]
     )
 
     params = {'sourceID': public_source.id}
@@ -248,5 +248,5 @@ def test_filter_followup_request(
     assert status == 200
     assert data['status'] == 'success'
     assert any(
-        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+        s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]
     )

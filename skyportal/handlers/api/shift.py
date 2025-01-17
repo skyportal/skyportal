@@ -1,18 +1,20 @@
 import arrow
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
-from ..base import BaseHandler
-from .group import has_admin_access_for_group
+from sqlalchemy.orm import joinedload
+
+from baselayer.app.access import auth_or_token, permissions
+
 from ...models import (
+    GcnEvent,
     Group,
     Shift,
     ShiftUser,
-    User,
     Token,
+    User,
     UserNotification,
-    GcnEvent,
 )
+from ..base import BaseHandler
+from .group import has_admin_access_for_group
 
 
 class ShiftHandler(BaseHandler):
@@ -85,7 +87,7 @@ class ShiftHandler(BaseHandler):
             return self.error("Missing required parameter: `name`")
 
         try:
-            shift_admin_ids = [int(e) for e in data.pop('shift_admins', [])]
+            shift_admin_ids = [int(e) for e in data.pop("shift_admins", [])]
         except ValueError:
             return self.error(
                 "Invalid shift_admins field; unable to parse all items to int"
@@ -229,7 +231,7 @@ class ShiftHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Failed to get shift(s): {e}")
 
-    @permissions(['Manage shifts'])
+    @permissions(["Manage shifts"])
     def patch(self, shift_id):
         """
         ---
@@ -271,35 +273,35 @@ class ShiftHandler(BaseHandler):
                     )
 
                 data = self.get_json()
-                data['id'] = int(shift_id)
+                data["id"] = int(shift_id)
 
                 schema = Shift.__schema__()
                 try:
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
                     )
 
-                if 'name' in data:
-                    if data['name'] in [None, '']:
-                        return self.error('name must be a non-empty string')
-                    shift.name = data['name']
-                if 'description' in data:
-                    shift.description = data['description']
-                if 'required_users_number' in data:
-                    if data['required_users_number'] in [None, '']:
+                if "name" in data:
+                    if data["name"] in [None, ""]:
+                        return self.error("name must be a non-empty string")
+                    shift.name = data["name"]
+                if "description" in data:
+                    shift.description = data["description"]
+                if "required_users_number" in data:
+                    if data["required_users_number"] in [None, ""]:
                         shift.required_users_number = None
-                    elif int(data['required_users_number']) < 1:
+                    elif int(data["required_users_number"]) < 1:
                         return self.error(
-                            'required_users_number must be at least 1, or None'
+                            "required_users_number must be at least 1, or None"
                         )
-                    elif int(data['required_users_number']) < len(shift.shift_users):
+                    elif int(data["required_users_number"]) < len(shift.shift_users):
                         return self.error(
-                            'required_users_number must be at least the number of users already signed up for the shift, or None'
+                            "required_users_number must be at least the number of users already signed up for the shift, or None"
                         )
                     else:
-                        shift.required_users_number = int(data['required_users_number'])
+                        shift.required_users_number = int(data["required_users_number"])
 
                 session.commit()
 
@@ -310,7 +312,7 @@ class ShiftHandler(BaseHandler):
 
                 return self.success()
             except Exception as e:
-                return self.error(f'Could not update shift: {e}')
+                return self.error(f"Could not update shift: {e}")
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
@@ -490,11 +492,11 @@ class ShiftUserHandler(BaseHandler):
             self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
-                payload={'shift_id': shift_id},
+                action="skyportal/REFRESH_SHIFT",
+                payload={"shift_id": shift_id},
             )
             return self.success(
-                data={'shift_id': shift_id, 'user_id': user_id, 'admin': admin}
+                data={"shift_id": shift_id, "user_id": user_id, "admin": admin}
             )
 
     @auth_or_token
@@ -549,7 +551,7 @@ class ShiftUserHandler(BaseHandler):
 
         with self.Session() as session:
             shiftuser = session.scalars(
-                ShiftUser.select(session.user_or_token, mode='update')
+                ShiftUser.select(session.user_or_token, mode="update")
                 .where(ShiftUser.shift_id == shift_id)
                 .where(ShiftUser.user_id == user_id)
             ).first()
@@ -590,7 +592,7 @@ class ShiftUserHandler(BaseHandler):
                     ).where(Shift.id == shift_id)
                 ).first()
                 if shift is None:
-                    return self.error('Could not find shift.')
+                    return self.error("Could not find shift.")
                 for group_user in shift.group.group_users:
                     if group_user.user_id != user_id:
                         session.add(
@@ -610,8 +612,8 @@ class ShiftUserHandler(BaseHandler):
 
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
-                payload={'shift_id': shift_id},
+                action="skyportal/REFRESH_SHIFT",
+                payload={"shift_id": shift_id},
             )
             return self.success()
 
@@ -654,7 +656,7 @@ class ShiftUserHandler(BaseHandler):
 
         with self.Session() as session:
             su = session.scalars(
-                ShiftUser.select(session.user_or_token, mode='delete')
+                ShiftUser.select(session.user_or_token, mode="delete")
                 .where(ShiftUser.shift_id == shift_id)
                 .where(ShiftUser.user_id == user_id)
             ).first()
@@ -667,8 +669,8 @@ class ShiftUserHandler(BaseHandler):
             session.delete(su)
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
-                payload={'shift_id': shift_id},
+                action="skyportal/REFRESH_SHIFT",
+                payload={"shift_id": shift_id},
             )
             return self.success()
 
@@ -782,12 +784,12 @@ class ShiftSummary(BaseHandler):
                 shift["shift_users"] = susers
                 shifts.append(shift)
 
-            report['shifts'] = {}
-            report['shifts']['total'] = len(shifts)
-            report['shifts']['data'] = shifts
+            report["shifts"] = {}
+            report["shifts"]["total"] = len(shifts)
+            report["shifts"]["data"] = shifts
             if shift_id and not start_date and not end_date:
-                start_date = shifts[0]['start_date']
-                end_date = shifts[0]['end_date']
+                start_date = shifts[0]["start_date"]
+                end_date = shifts[0]["end_date"]
 
             gcns = (
                 session.scalars(
@@ -815,16 +817,16 @@ class ShiftSummary(BaseHandler):
                             if gcn["id"] not in [
                                 gcn["id"] for gcn in gcn_added_during_shifts
                             ]:
-                                gcn['shift_ids'] = [shift['id']]
+                                gcn["shift_ids"] = [shift["id"]]
                                 gcn_added_during_shifts.append(gcn)
 
                             else:
                                 for gcn_added in gcn_added_during_shifts:
-                                    if gcn_added['id'] == gcn['id']:
-                                        gcn_added['shift_ids'].append(shift['id'])
+                                    if gcn_added["id"] == gcn["id"]:
+                                        gcn_added["shift_ids"].append(shift["id"])
                                         break
-                report['gcns'] = {'total': len(gcn_added_during_shifts)}
-                report['gcns']['data'] = gcn_added_during_shifts
+                report["gcns"] = {"total": len(gcn_added_during_shifts)}
+                report["gcns"]["data"] = gcn_added_during_shifts
 
             self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY", payload=report)
             return self.success(data=report)

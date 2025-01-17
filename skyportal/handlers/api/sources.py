@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from astropy.time import Time
 from conesearch_alchemy.math import cosd, sind
 from geojson import Feature, Point
-from sqlalchemy.sql import and_, text, bindparam
+from sqlalchemy.sql import and_, bindparam, text
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -30,6 +30,7 @@ from skyportal.models import (
     User,
     cosmo,
 )
+
 from ...utils.cache import Cache, array_to_bytes
 from ...utils.calculations import radec2lb
 
@@ -39,28 +40,28 @@ cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_source_query_cache"] * 60,
 )
-log = make_log('api/sources')
-log_verbose = make_log('sources_verbose')
+log = make_log("api/sources")
+log_verbose = make_log("sources_verbose")
 
 DEFAULT_SOURCES_PER_PAGE = 1000
 
 SORT_BY = {
-    'saved_at': 'most_recent_saved_at',  # default
-    'id': 'objs.id',
-    'alias': 'objs.alias',
-    'origin': 'objs.origin',
-    'ra': 'objs.ra',
-    'dec': 'objs.dec',
-    'redshift': 'objs.redshift',
-    'gcn_status': None,
-    'favorites': None,
+    "saved_at": "most_recent_saved_at",  # default
+    "id": "objs.id",
+    "alias": "objs.alias",
+    "origin": "objs.origin",
+    "ra": "objs.ra",
+    "dec": "objs.dec",
+    "redshift": "objs.redshift",
+    "gcn_status": None,
+    "favorites": None,
     # TODO: sort by classification
     # TODO: sort by sourcesconfirmed in GCN status
 }
 
 SORT_ORDER = [
-    'asc',
-    'desc',
+    "asc",
+    "desc",
 ]
 
 NULL_FIELDS = [
@@ -73,22 +74,22 @@ DEGRA = np.pi / 180.0
 HOOG_REDSHIFT_A, HOOG_REDSHIFT_B = 2.99e5 * u.km / u.s, 350 * u.km / u.s
 
 OPERATORS = {
-    'eq': '=',
-    'ne': '!=',
-    'gt': '>',
-    'ge': '>=',
-    'lt': '<',
-    'le': '<=',
+    "eq": "=",
+    "ne": "!=",
+    "gt": ">",
+    "ge": ">=",
+    "lt": "<",
+    "le": "<=",
 }
 
 tns_name_with_designation_pattern = re.compile(
-    r'(at|sn)\d{1,4}[a-zA-Z]*', re.IGNORECASE
+    r"(at|sn)\d{1,4}[a-zA-Z]*", re.IGNORECASE
 )
-tns_name_no_designation_pattern = re.compile(r'^\d{1,4}[a-zA-Z]*', re.IGNORECASE)
+tns_name_no_designation_pattern = re.compile(r"^\d{1,4}[a-zA-Z]*", re.IGNORECASE)
 
 
-def array2sql(array: list, type=sa.String, prefix='array'):
-    binparam_names = [f'{prefix}_{i}' for i in range(len(array))]
+def array2sql(array: list, type=sa.String, prefix="array"):
+    binparam_names = [f"{prefix}_{i}" for i in range(len(array))]
     query_str = f"({','.join(f':{name}' for name in binparam_names)})"
     bindparams = [
         bindparam(name, value=value, type_=type)
@@ -163,7 +164,7 @@ def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
 
 def normalize_key(str):
     # convert the string to lowercase and remove underscores
-    return str.lower().replace('_', '')
+    return str.lower().replace("_", "")
 
 
 def get_color_mag(annotations, **kwargs):
@@ -172,14 +173,14 @@ def get_color_mag(annotations, **kwargs):
     # ignore None inputs from e.g., query arguments
     inputs = {k: v for k, v in kwargs.items() if v is not None}
 
-    catalog = inputs.get('catalog', 'gaia')
-    mag_key = inputs.get('apparentMagKey', 'Mag_G')
-    parallax_key = inputs.get('parallaxKey', 'Plx')
-    absorption_key = inputs.get('absorptionKey', 'A_G')
-    abs_mag_key = inputs.get('absoluteMagKey', None)
-    blue_mag_key = inputs.get('blueMagKey', 'Mag_Bp')
-    red_mag_key = inputs.get('redMagKey', 'Mag_Rp')
-    color_key = inputs.get('colorKey', None)
+    catalog = inputs.get("catalog", "gaia")
+    mag_key = inputs.get("apparentMagKey", "Mag_G")
+    parallax_key = inputs.get("parallaxKey", "Plx")
+    absorption_key = inputs.get("absorptionKey", "A_G")
+    abs_mag_key = inputs.get("absoluteMagKey", None)
+    blue_mag_key = inputs.get("blueMagKey", "Mag_Bp")
+    red_mag_key = inputs.get("redMagKey", "Mag_Rp")
+    color_key = inputs.get("colorKey", None)
 
     output = []
 
@@ -187,22 +188,22 @@ def get_color_mag(annotations, **kwargs):
         abs_mag = None
         color = None
         absorption = None
-        if normalize_key(catalog) in normalize_key(an['origin']):
+        if normalize_key(catalog) in normalize_key(an["origin"]):
             # found the right catalog, but does it have the right keys?
 
             # get the absolute magnitude
             if abs_mag_key is not None:  # get the absolute magnitude directly
-                for k in an['data'].keys():
+                for k in an["data"]:
                     if normalize_key(abs_mag_key) == normalize_key(k):
-                        abs_mag = an['data'][k]  # found it!
+                        abs_mag = an["data"][k]  # found it!
             else:  # we need to look for the apparent magnitude and parallax
                 mag = None
                 plx = None
-                for k in an['data'].keys():
+                for k in an["data"]:
                     if normalize_key(mag_key) == normalize_key(k):
-                        mag = an['data'][k]
+                        mag = an["data"][k]
                     if normalize_key(parallax_key) == normalize_key(k):
-                        plx = an['data'][k]
+                        plx = an["data"][k]
                     if mag is not None and plx is not None:
                         if plx > 0:
                             abs_mag = mag + 5 * np.log10(plx / 100)
@@ -211,46 +212,44 @@ def get_color_mag(annotations, **kwargs):
 
             # get the color data
             if color_key is not None:  # get the color value directly
-                for k in an['data'].keys():
+                for k in an["data"]:
                     if normalize_key(color_key) == normalize_key(k):
-                        color = float(an['data'][k])  # found it!
+                        color = float(an["data"][k])  # found it!
             else:
                 blue = None
                 red = None
-                for k in an['data'].keys():
+                for k in an["data"]:
                     if normalize_key(blue_mag_key) == normalize_key(k):
-                        blue = an['data'][k]
+                        blue = an["data"][k]
                     if normalize_key(red_mag_key) == normalize_key(k):
-                        red = an['data'][k]
+                        red = an["data"][k]
                     if blue is not None and red is not None:
                         # calculate the color between these two magnitudes
                         color = float(blue) - float(red)
 
             # only check this if given an absorption term
             if absorption_key is not None:
-                for k in an['data'].keys():
+                for k in an["data"]:
                     if normalize_key(absorption_key) == normalize_key(k):
-                        absorption = an['data'][k]
+                        absorption = an["data"][k]
 
         if abs_mag is not None and color is not None:
             if absorption is not None and not np.isnan(absorption):
                 abs_mag = abs_mag + absorption  # apply the absorption term
 
-            output.append({'origin': an['origin'], 'abs_mag': abs_mag, 'color': color})
+            output.append({"origin": an["origin"], "abs_mag": abs_mag, "color": color})
 
     return output
 
 
 def get_period_exists(annotations):
-    period_str_options = {'period', 'Period', 'PERIOD'}
+    period_str_options = {"period", "Period", "PERIOD"}
     return any(
-        [
-            isinstance(an['data'], dict)
+        isinstance(an["data"], dict)
             and period_str_options.intersection(
-                set(an['data'].keys())
+                set(an["data"].keys())
             )  # check if the period string is an annotation
             for an in annotations
-        ]
     )
 
 
@@ -268,7 +267,7 @@ def create_annotation_query(
         query_str, bindparams = array2sql(
             annotations_filter_origin,
             type=sa.String,
-            prefix=f'annotations_filter_origin_{param_index}',
+            prefix=f"annotations_filter_origin_{param_index}",
         )
         params.extend(bindparams)
         stmts.append(
@@ -280,9 +279,9 @@ def create_annotation_query(
         try:
             params.append(
                 bindparam(
-                    f'annotations_filter_before_{param_index}',
+                    f"annotations_filter_before_{param_index}",
                     value=arrow.get(annotations_filter_before).datetime.strftime(
-                        '%Y-%m-%d %H:%M:%S.%f'
+                        "%Y-%m-%d %H:%M:%S.%f"
                     ),
                     type_=sa.DateTime,
                 )
@@ -294,15 +293,15 @@ def create_annotation_query(
             )
         except Exception as e:
             raise ValueError(
-                f'Invalid annotations_filter_before: {annotations_filter_before} ({e})'
+                f"Invalid annotations_filter_before: {annotations_filter_before} ({e})"
             )
     if annotations_filter_after is not None:
         try:
             params.append(
                 bindparam(
-                    f'annotations_filter_after_{param_index}',
+                    f"annotations_filter_after_{param_index}",
                     value=arrow.get(annotations_filter_after).datetime.strftime(
-                        '%Y-%m-%d %H:%M:%S.%f'
+                        "%Y-%m-%d %H:%M:%S.%f"
                     ),
                     type_=sa.DateTime,
                 )
@@ -314,7 +313,7 @@ def create_annotation_query(
             )
         except Exception as e:
             raise ValueError(
-                f'Invalid annotations_filter_after: {annotations_filter_after} ({e})'
+                f"Invalid annotations_filter_after: {annotations_filter_after} ({e})"
             )
     if annotations_filter is not None:
         if len(annotations_filter) == 3:
@@ -324,21 +323,21 @@ def create_annotation_query(
             except ValueError as e:
                 raise ValueError(f"Invalid annotation filter value: {e}")
             op = annotations_filter[2].strip()
-            if op not in OPERATORS.keys():
+            if op not in OPERATORS:
                 raise ValueError(f"Invalid operator: {op}")
             # find the equivalent postgres operator
             comp_function = OPERATORS.get(op)
 
             params.append(
                 bindparam(
-                    f'annotations_filter_name_{param_index}',
+                    f"annotations_filter_name_{param_index}",
                     value=annotations_filter[0].strip(),
                     type_=sa.String,
                 )
             )
             params.append(
                 bindparam(
-                    f'annotations_filter_value_{param_index}',
+                    f"annotations_filter_value_{param_index}",
                     value=value,
                     type_=sa.Float,
                 )
@@ -352,7 +351,7 @@ def create_annotation_query(
             # else we just want to check if the annotation exists (IS NOT NULL)
             params.append(
                 bindparam(
-                    f'annotations_filter_name_{param_index}',
+                    f"annotations_filter_name_{param_index}",
                     value=annotations_filter[0].strip(),
                     type_=sa.String,
                 )
@@ -375,7 +374,7 @@ def create_annotation_query(
 
 def get_localization(localization_dateobs, localization_name, session):
     startTime = time.time()
-    localization_dateobs_str = localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')
+    localization_dateobs_str = localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")
     if localization_name is None:
         localization_id = session.scalars(
             sa.select(Localization.id)
@@ -400,12 +399,12 @@ def get_localization(localization_dateobs, localization_name, session):
             )
 
     partition_key = localization_dateobs
-    localizationtile_partition_name = f'{partition_key.year}_{partition_key.month:02d}'
+    localizationtile_partition_name = f"{partition_key.year}_{partition_key.month:02d}"
     localizationtilescls = LocalizationTile.partitions.get(
         localizationtile_partition_name, None
     )
     if localizationtilescls is None:
-        localizationtilescls = LocalizationTile.partitions.get('def', LocalizationTile)
+        localizationtilescls = LocalizationTile.partitions.get("def", LocalizationTile)
     else:
         if not (
             session.scalars(
@@ -415,7 +414,7 @@ def get_localization(localization_dateobs, localization_name, session):
             ).first()
         ):
             localizationtilescls = LocalizationTile.partitions.get(
-                'def', LocalizationTile
+                "def", LocalizationTile
             )
 
     endTime = time.time()
@@ -438,35 +437,35 @@ def get_luminosity_distance(obj):
 
     # there may be a non-redshift based measurement of distance
     # for nearby sources
-    if isinstance(obj['altdata'], dict):
-        if obj['altdata'].get("dm") is not None:
+    if isinstance(obj["altdata"], dict):
+        if obj["altdata"].get("dm") is not None:
             # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
             return (
-                (10 ** (float(obj['altdata'].get("dm")) / 5.0)) * 1e-5 * u.Mpc
+                (10 ** (float(obj["altdata"].get("dm")) / 5.0)) * 1e-5 * u.Mpc
             ).value
-        if obj['altdata'].get("parallax") is not None:
-            if float(obj['altdata'].get("parallax")) > 0:
+        if obj["altdata"].get("parallax") is not None:
+            if float(obj["altdata"].get("parallax")) > 0:
                 # assume parallax in arcsec
-                return (1e-6 * u.Mpc / float(obj['altdata'].get("parallax"))).value
+                return (1e-6 * u.Mpc / float(obj["altdata"].get("parallax"))).value
 
-        if obj['altdata'].get("dist_kpc") is not None:
-            return (float(obj['altdata'].get("dist_kpc")) * 1e-3 * u.Mpc).value
-        if obj['altdata'].get("dist_Mpc") is not None:
-            return (float(obj['altdata'].get("dist_Mpc")) * u.Mpc).value
-        if obj['altdata'].get("dist_pc") is not None:
-            return (float(obj['altdata'].get("dist_pc")) * 1e-6 * u.Mpc).value
-        if obj['altdata'].get("dist_cm") is not None:
-            return (float(obj['altdata'].get("dist_cm")) * u.Mpc / 3.085e18).value
+        if obj["altdata"].get("dist_kpc") is not None:
+            return (float(obj["altdata"].get("dist_kpc")) * 1e-3 * u.Mpc).value
+        if obj["altdata"].get("dist_Mpc") is not None:
+            return (float(obj["altdata"].get("dist_Mpc")) * u.Mpc).value
+        if obj["altdata"].get("dist_pc") is not None:
+            return (float(obj["altdata"].get("dist_pc")) * 1e-6 * u.Mpc).value
+        if obj["altdata"].get("dist_cm") is not None:
+            return (float(obj["altdata"].get("dist_cm")) * u.Mpc / 3.085e18).value
 
-    if obj['redshift']:
-        if obj['redshift'] * HOOG_REDSHIFT_A < HOOG_REDSHIFT_B:
+    if obj["redshift"]:
+        if obj["redshift"] * HOOG_REDSHIFT_A < HOOG_REDSHIFT_B:
             # stubbornly refuse to give a distance if the source
             # is not in the Hubble flow
             # cf. https://www.aanda.org/articles/aa/full/2003/05/aa3077/aa3077.html
             # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocty
             # can be between between ~0-500 km/s
             return None
-        return (cosmo.luminosity_distance(obj['redshift'])).to(u.Mpc).value
+        return (cosmo.luminosity_distance(obj["redshift"])).to(u.Mpc).value
     return None
 
 
@@ -558,22 +557,22 @@ async def get_sources(
         page_number = int(page_number)
         num_per_page = int(num_per_page)
     except Exception as e:
-        log(f'Invalid pagination arguments: {e}')
-        raise ValueError(f'Invalid pagination arguments: {e}')
+        log(f"Invalid pagination arguments: {e}")
+        raise ValueError(f"Invalid pagination arguments: {e}")
 
     if page_number < 1:
-        raise ValueError('Invalid page_number: must be >= 1')
+        raise ValueError("Invalid page_number: must be >= 1")
     if num_per_page < 1:
-        raise ValueError('Invalid num_per_page: must be >= 1')
+        raise ValueError("Invalid num_per_page: must be >= 1")
 
     if use_cache:
         if query_id is None and page_number > 1:
             raise ValueError(
-                'Cannot use cache and not specify a query_id when requesting a page number > 1'
+                "Cannot use cache and not specify a query_id when requesting a page number > 1"
             )
         elif query_id is not None and page_number == 1:
             raise ValueError(
-                'Cannot use cache and specify a query_id when requesting the first page'
+                "Cannot use cache and specify a query_id when requesting the first page"
             )
 
     try:
@@ -582,30 +581,30 @@ async def get_sources(
         startMethodTime = time.time()
 
         if user_id is None:
-            raise ValueError('No user_id provided.')
+            raise ValueError("No user_id provided.")
 
         if sort_order in [None, "", "none"]:
-            sort_order = 'desc'
+            sort_order = "desc"
         elif sort_order.lower() not in SORT_ORDER:
-            raise ValueError(f'Invalid sort_order: {sort_order}')
+            raise ValueError(f"Invalid sort_order: {sort_order}")
 
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
-                sort_by = 'gcn_status'
+                sort_by = "gcn_status"
             else:
-                sort_by = 'saved_at'
+                sort_by = "saved_at"
         elif sort_by not in SORT_BY:
-            raise ValueError(f'Invalid sort_by: {sort_by}')
+            raise ValueError(f"Invalid sort_by: {sort_by}")
 
-        if sort_by == 'gcn_status' and localization_dateobs is None:
-            raise ValueError('Cannot sort by gcn_status without localization_dateobs')
-        elif sort_by == 'favorites':
+        if sort_by == "gcn_status" and localization_dateobs is None:
+            raise ValueError("Cannot sort by gcn_status without localization_dateobs")
+        elif sort_by == "favorites":
             # we reverse the condition here, so we can use bool_and later on
             sort_order = "desc" if sort_order.lower() == "asc" else "asc"
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
-            raise ValueError(f'Invalid user_id: {user_id}')
+            raise ValueError(f"Invalid user_id: {user_id}")
         is_admin = user.is_admin
         if user_accessible_group_ids is None:
             user_accessible_group_ids = [g.id for g in user.accessible_groups]
@@ -617,7 +616,7 @@ async def get_sources(
         elif (
             not set(group_ids).issubset(set(user_accessible_group_ids)) and not is_admin
         ):
-            raise ValueError('Selected group(s) not all accessible to user.')
+            raise ValueError("Selected group(s) not all accessible to user.")
 
         allocation_ids = []
         if not is_admin and len(group_ids) > 0:
@@ -633,13 +632,13 @@ async def get_sources(
             allocation_ids = [a.id for a in allocation_ids]
 
         groups_query_str, groups_bindparams = array2sql(
-            group_ids, type=sa.Integer, prefix='group'
+            group_ids, type=sa.Integer, prefix="group"
         )
         accessible_groups_query_str, accessible_groups_bindparams = array2sql(
-            user_accessible_group_ids, type=sa.Integer, prefix='accessible_groups'
+            user_accessible_group_ids, type=sa.Integer, prefix="accessible_groups"
         )
         allocation_query_str, allocation_bindparams = array2sql(
-            allocation_ids, type=sa.Integer, prefix='allocation'
+            allocation_ids, type=sa.Integer, prefix="allocation"
         )
 
         statements = []
@@ -660,19 +659,19 @@ async def get_sources(
             try:
                 sourceID = str(sourceID).strip()
                 query_params.append(
-                    bindparam('sourceID', value=sourceID, type_=sa.String)
+                    bindparam("sourceID", value=sourceID, type_=sa.String)
                 )
 
                 # we try to detect a potential TNS name as the sourceID,
                 # and if so only keep the name without the designation
                 # e.g. SN2011fe -> 2011fe, AT 2019abc -> 2019abc
-                tns_name = sourceID.lower().replace(' ', '')
+                tns_name = sourceID.lower().replace(" ", "")
                 if tns_name_with_designation_pattern.match(tns_name) is not None:
                     # keep only what's after the designation
                     tns_name = tns_name[2:]
                     query_params.append(
                         bindparam(
-                            'tns_name',
+                            "tns_name",
                             value=tns_name,
                             type_=sa.String,
                         )
@@ -680,7 +679,7 @@ async def get_sources(
                 elif tns_name_no_designation_pattern.match(tns_name) is not None:
                     query_params.append(
                         bindparam(
-                            'tns_name',
+                            "tns_name",
                             value=tns_name,
                             type_=sa.String,
                         )
@@ -693,11 +692,11 @@ async def get_sources(
                         """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid sourceID: {sourceID} ({e})')
+                raise ValueError(f"Invalid sourceID: {sourceID} ({e})")
         if rejectedSourceIDs is not None:
             try:
                 query_str, bindparams = array2sql(
-                    rejectedSourceIDs, type=sa.String, prefix='rejectedSourceIDs'
+                    rejectedSourceIDs, type=sa.String, prefix="rejectedSourceIDs"
                 )
                 query_params.extend(bindparams)
                 statements.append(
@@ -707,13 +706,13 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid rejectedSourceIDs: {rejectedSourceIDs} ({e})'
+                    f"Invalid rejectedSourceIDs: {rejectedSourceIDs} ({e})"
                 )
         if alias is not None:
             if alias in ["", None]:
-                raise ValueError(f'Invalid alias: {alias}')
+                raise ValueError(f"Invalid alias: {alias}")
             query_params.append(
-                bindparam('alias', value=str(alias).strip().lower(), type_=sa.String)
+                bindparam("alias", value=str(alias).strip().lower(), type_=sa.String)
             )
             statements.append(
                 """
@@ -722,7 +721,7 @@ async def get_sources(
             )
         if origin not in [None, ""]:
             query_params.append(
-                bindparam('origin', value=str(origin).strip().lower(), type_=sa.String)
+                bindparam("origin", value=str(origin).strip().lower(), type_=sa.String)
             )
             # use a LIKE query to allow for partial matches
             statements.append(
@@ -733,7 +732,7 @@ async def get_sources(
         if simbad_class not in [None, ""]:
             query_params.append(
                 bindparam(
-                    'simbad_class',
+                    "simbad_class",
                     value=str(simbad_class).strip().lower(),
                     type_=sa.String,
                 )
@@ -759,7 +758,7 @@ async def get_sources(
         if min_redshift is not None:
             try:
                 query_params.append(
-                    bindparam('min_redshift', value=float(min_redshift), type_=sa.Float)
+                    bindparam("min_redshift", value=float(min_redshift), type_=sa.Float)
                 )
                 statements.append(
                     """
@@ -767,11 +766,11 @@ async def get_sources(
                     """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid min_redshift: {min_redshift} ({e})')
+                raise ValueError(f"Invalid min_redshift: {min_redshift} ({e})")
         if max_redshift is not None:
             try:
                 query_params.append(
-                    bindparam('max_redshift', value=float(max_redshift), type_=sa.Float)
+                    bindparam("max_redshift", value=float(max_redshift), type_=sa.Float)
                 )
                 statements.append(
                     """
@@ -779,14 +778,14 @@ async def get_sources(
                     """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid max_redshift: {max_redshift} ({e})')
+                raise ValueError(f"Invalid max_redshift: {max_redshift} ({e})")
         if created_or_modified_after is not None:
             try:
                 query_params.append(
                     bindparam(
-                        'created_or_modified_after',
+                        "created_or_modified_after",
                         value=arrow.get(created_or_modified_after).datetime.strftime(
-                            '%Y-%m-%d %H:%M:%S.%f'
+                            "%Y-%m-%d %H:%M:%S.%f"
                         ),
                         type_=sa.DateTime,
                     )
@@ -798,7 +797,7 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid created_or_modified_after: {created_or_modified_after} ({e})'
+                    f"Invalid created_or_modified_after: {created_or_modified_after} ({e})"
                 )
 
         if require_detections:
@@ -807,13 +806,13 @@ async def get_sources(
             if first_detected_date is not None:
                 try:
                     col = (
-                        'first_detected_mjd'
+                        "first_detected_mjd"
                         if not exclude_forced_photometry
-                        else 'first_detected_no_forced_phot_mjd'
+                        else "first_detected_no_forced_phot_mjd"
                     )
                     query_params.append(
                         bindparam(
-                            'first_detected_date',
+                            "first_detected_date",
                             value=Time(arrow.get(first_detected_date).datetime).mjd,
                             type_=sa.Float,
                         )
@@ -824,18 +823,18 @@ async def get_sources(
 
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid first_detected_date: {first_detected_date} ({e})'
+                        f"Invalid first_detected_date: {first_detected_date} ({e})"
                     )
             if last_detected_date is not None:
                 try:
                     col = (
-                        'last_detected_mjd'
+                        "last_detected_mjd"
                         if not exclude_forced_photometry
-                        else 'last_detected_no_forced_phot_mjd'
+                        else "last_detected_no_forced_phot_mjd"
                     )
                     query_params.append(
                         bindparam(
-                            'last_detected_date',
+                            "last_detected_date",
                             value=Time(arrow.get(last_detected_date).datetime).mjd,
                             type_=sa.Float,
                         )
@@ -843,18 +842,18 @@ async def get_sources(
                     photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid last_detected_date: {last_detected_date} ({e})'
+                        f"Invalid last_detected_date: {last_detected_date} ({e})"
                     )
             if number_of_detections is not None:
                 try:
                     col = (
-                        'num_det_global'
+                        "num_det_global"
                         if not exclude_forced_photometry
-                        else 'num_det_no_forced_phot_global'
+                        else "num_det_no_forced_phot_global"
                     )
                     query_params.append(
                         bindparam(
-                            'number_of_detections',
+                            "number_of_detections",
                             value=int(number_of_detections),
                             type_=sa.Integer,
                         )
@@ -864,13 +863,13 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid number_of_detections: {number_of_detections} ({e})'
+                        f"Invalid number_of_detections: {number_of_detections} ({e})"
                     )
             if min_peak_magnitude is not None:
                 try:
                     query_params.append(
                         bindparam(
-                            'min_peak_magnitude',
+                            "min_peak_magnitude",
                             value=float(min_peak_magnitude),
                             type_=sa.Float,
                         )
@@ -880,13 +879,13 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid min_peak_magnitude: {min_peak_magnitude} ({e})'
+                        f"Invalid min_peak_magnitude: {min_peak_magnitude} ({e})"
                     )
             if max_peak_magnitude is not None:
                 try:
                     query_params.append(
                         bindparam(
-                            'max_peak_magnitude',
+                            "max_peak_magnitude",
                             value=float(max_peak_magnitude),
                             type_=sa.Float,
                         )
@@ -896,13 +895,13 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid max_peak_magnitude: {max_peak_magnitude} ({e})'
+                        f"Invalid max_peak_magnitude: {max_peak_magnitude} ({e})"
                     )
             if min_latest_magnitude is not None:
                 try:
                     query_params.append(
                         bindparam(
-                            'min_latest_magnitude',
+                            "min_latest_magnitude",
                             value=float(min_latest_magnitude),
                             type_=sa.Float,
                         )
@@ -912,13 +911,13 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid min_latest_magnitude: {min_latest_magnitude} ({e})'
+                        f"Invalid min_latest_magnitude: {min_latest_magnitude} ({e})"
                     )
             if max_latest_magnitude is not None:
                 try:
                     query_params.append(
                         bindparam(
-                            'max_latest_magnitude',
+                            "max_latest_magnitude",
                             value=float(max_latest_magnitude),
                             type_=sa.Float,
                         )
@@ -928,7 +927,7 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid max_latest_magnitude: {max_latest_magnitude} ({e})'
+                        f"Invalid max_latest_magnitude: {max_latest_magnitude} ({e})"
                     )
             if len(photstat_query) > 0:
                 statements.append(
@@ -940,7 +939,7 @@ async def get_sources(
         # CONE SEARCH
         if any([ra, dec, radius]):
             if not all([ra, dec, radius]):
-                raise ValueError(f'Invalid ra, dec, radius: {ra}, {dec}, {radius}')
+                raise ValueError(f"Invalid ra, dec, radius: {ra}, {dec}, {radius}")
             try:
                 ra, dec, radius = (
                     float(ra),
@@ -952,10 +951,9 @@ async def get_sources(
                     {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
                     """
                 )
-                pass
             except Exception as e:
                 raise ValueError(
-                    f'Invalid ra, dec, radius: {ra}, {dec}, {radius} ({e})'
+                    f"Invalid ra, dec, radius: {ra}, {dec}, {radius} ({e})"
                 )
 
         # SOURCES
@@ -984,9 +982,9 @@ async def get_sources(
             try:
                 query_params.append(
                     bindparam(
-                        'saved_before',
+                        "saved_before",
                         value=arrow.get(saved_before).datetime.strftime(
-                            '%Y-%m-%d %H:%M:%S.%f'
+                            "%Y-%m-%d %H:%M:%S.%f"
                         ),
                         type_=sa.DateTime,
                     )
@@ -997,14 +995,14 @@ async def get_sources(
                     """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid saved_before: {saved_before} ({e})')
+                raise ValueError(f"Invalid saved_before: {saved_before} ({e})")
         if saved_after is not None:
             try:
                 query_params.append(
                     bindparam(
-                        'saved_after',
+                        "saved_after",
                         value=arrow.get(saved_after).datetime.strftime(
-                            '%Y-%m-%d %H:%M:%S.%f'
+                            "%Y-%m-%d %H:%M:%S.%f"
                         ),
                         type_=sa.DateTime,
                     )
@@ -1015,7 +1013,7 @@ async def get_sources(
                     """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid saved_after: {saved_after} ({e})')
+                raise ValueError(f"Invalid saved_after: {saved_after} ({e})")
 
         # CLASSIFICATIONS
         if classified:
@@ -1046,22 +1044,17 @@ async def get_sources(
                     raise ValueError(
                         "Invalid classifications value -- must provide at least one string value"
                     )
-                elif not all([":" in c for c in classifications]):
+                elif not all(":" in c for c in classifications):
                     raise ValueError(
                         "Invalid classifications value -- must provide a list of strings with each string in the format 'taxonomy_name:classification'"
                     )
 
                 classification_taxonomy_names, classifications_text = list(
                     zip(
-                        *list(
-                            map(
-                                lambda c: (
+                        *[(
                                     c.split(":")[0].strip(),
                                     c.split(":")[1].strip(),
-                                ),
-                                classifications,
-                            )
-                        )
+                                ) for c in classifications]
                     )
                 )
                 all_taxonomy_names.extend(classification_taxonomy_names)
@@ -1077,21 +1070,16 @@ async def get_sources(
                     raise ValueError(
                         "Invalid nonclassifications value -- must provide at least one string value"
                     )
-                elif not all([":" in c for c in nonclassifications]):
+                elif not all(":" in c for c in nonclassifications):
                     raise ValueError(
                         "Invalid nonclassifications value -- must provide a list of strings with each string in the format 'taxonomy_name:classification'"
                     )
                 nonclassification_taxonomy_names, nonclassifications_text = list(
                     zip(
-                        *list(
-                            map(
-                                lambda c: (
+                        *[(
                                     c.split(":")[0].strip(),
                                     c.split(":")[1].strip(),
-                                ),
-                                nonclassifications,
-                            )
-                        )
+                                ) for c in nonclassifications]
                     )
                 )
                 all_taxonomy_names.extend(nonclassification_taxonomy_names)
@@ -1100,7 +1088,7 @@ async def get_sources(
                 # fetch the taxonomy_ids for the taxonomy names
                 # so we can have a mapper from name to id
                 query_str, bindparams = array2sql(
-                    all_taxonomy_names, type=sa.String, prefix='all_taxonomy_names'
+                    all_taxonomy_names, type=sa.String, prefix="all_taxonomy_names"
                 )
                 stmt = f"""
                 SELECT id, name FROM taxonomies WHERE name IN {query_str}
@@ -1222,9 +1210,9 @@ async def get_sources(
                 try:
                     query_params.append(
                         bindparam(
-                            'has_spectrum_before',
+                            "has_spectrum_before",
                             value=arrow.get(has_spectrum_before).datetime.strftime(
-                                '%Y-%m-%d %H:%M:%S.%f'
+                                "%Y-%m-%d %H:%M:%S.%f"
                             ),
                             type_=sa.DateTime,
                         )
@@ -1236,15 +1224,15 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid has_spectrum_before: {has_spectrum_before} ({e})'
+                        f"Invalid has_spectrum_before: {has_spectrum_before} ({e})"
                     )
             if has_spectrum_after is not None:
                 try:
                     query_params.append(
                         bindparam(
-                            'has_spectrum_after',
+                            "has_spectrum_after",
                             value=arrow.get(has_spectrum_after).datetime.strftime(
-                                '%Y-%m-%d %H:%M:%S.%f'
+                                "%Y-%m-%d %H:%M:%S.%f"
                             ),
                             type_=sa.DateTime,
                         )
@@ -1256,7 +1244,7 @@ async def get_sources(
                     )
                 except Exception as e:
                     raise ValueError(
-                        f'Invalid has_spectrum_after: {has_spectrum_after} ({e})'
+                        f"Invalid has_spectrum_after: {has_spectrum_after} ({e})"
                     )
 
         # FOLLOWUP REQUESTS
@@ -1266,7 +1254,7 @@ async def get_sources(
                 if followup_request_status is not None:
                     query_params.append(
                         bindparam(
-                            'has_followup_request_status',
+                            "has_followup_request_status",
                             value=str(followup_request_status).strip(),
                             type_=sa.String,
                         )
@@ -1285,16 +1273,16 @@ async def get_sources(
                     )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid has_followup_request: {has_followup_request} ({e})'
+                    f"Invalid has_followup_request: {has_followup_request} ({e})"
                 )
 
         # LISTINGS
         if list_name is not None:
             query_params.append(
-                bindparam('list_name', value=str(list_name), type_=sa.String)
+                bindparam("list_name", value=str(list_name), type_=sa.String)
             )
             query_params.append(
-                bindparam('user_id', value=int(user_id), type_=sa.Integer)
+                bindparam("user_id", value=int(user_id), type_=sa.Integer)
             )
             statements.append(
                 """
@@ -1307,7 +1295,7 @@ async def get_sources(
             if current_user_labeller:
                 query_params.append(
                     bindparam(
-                        'current_user_labeller', value=int(user_id), type_=sa.Integer
+                        "current_user_labeller", value=int(user_id), type_=sa.Integer
                     )
                 )
                 statements.append(
@@ -1325,7 +1313,7 @@ async def get_sources(
             if current_user_labeller:
                 query_params.append(
                     bindparam(
-                        'current_user_labeller', value=int(user_id), type_=sa.Integer
+                        "current_user_labeller", value=int(user_id), type_=sa.Integer
                     )
                 )
                 statements.append(
@@ -1410,7 +1398,7 @@ async def get_sources(
                 comments_filter = [str(c) for c in comments_filter]
             for i, c in enumerate(comments_filter):
                 query_params.append(
-                    bindparam(f'comments_filter_{i}', value=f"%{c}%", type_=sa.String)
+                    bindparam(f"comments_filter_{i}", value=f"%{c}%", type_=sa.String)
                 )
             comments_query.append(
                 f"""comments.text ilike any(array[{', '.join([f':comments_filter_{i}' for i in range(len(comments_filter))])}])"""
@@ -1419,9 +1407,9 @@ async def get_sources(
             try:
                 query_params.append(
                     bindparam(
-                        'comments_filter_before',
+                        "comments_filter_before",
                         value=arrow.get(comments_filter_before).datetime.strftime(
-                            '%Y-%m-%d %H:%M:%S.%f'
+                            "%Y-%m-%d %H:%M:%S.%f"
                         ),
                         type_=sa.DateTime,
                     )
@@ -1431,15 +1419,15 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid comments_filter_before: {comments_filter_before} ({e})'
+                    f"Invalid comments_filter_before: {comments_filter_before} ({e})"
                 )
         if comments_filter_after is not None:
             try:
                 query_params.append(
                     bindparam(
-                        'comments_filter_after',
+                        "comments_filter_after",
                         value=arrow.get(comments_filter_after).datetime.strftime(
-                            '%Y-%m-%d %H:%M:%S.%f'
+                            "%Y-%m-%d %H:%M:%S.%f"
                         ),
                         type_=sa.DateTime,
                     )
@@ -1449,13 +1437,13 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid comments_filter_after: {comments_filter_after} ({e})'
+                    f"Invalid comments_filter_after: {comments_filter_after} ({e})"
                 )
         if comments_filter_author is not None:
             try:
                 query_params.append(
                     bindparam(
-                        'comments_filter_author',
+                        "comments_filter_author",
                         value=int(comments_filter_author),
                         type_=sa.Integer,
                     )
@@ -1465,7 +1453,7 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(
-                    f'Invalid comments_filter_author: {comments_filter_author} ({e})'
+                    f"Invalid comments_filter_author: {comments_filter_author} ({e})"
                 )
         if len(comments_query) > 0:
             statements.append(
@@ -1523,13 +1511,13 @@ async def get_sources(
                     """
                     )
             except Exception as e:
-                raise ValueError(f'Invalid localization query parameters ({e})')
+                raise ValueError(f"Invalid localization query parameters ({e})")
 
         # SPATIAL CATALOGS
         if spatial_catalog_name is not None:
             if spatial_catalog_entry_name is None:
                 raise ValueError(
-                    'must provide spatial_catalog_entry_name if using spatial_catalog_name'
+                    "must provide spatial_catalog_entry_name if using spatial_catalog_name"
                 )
             try:
                 # first try to find the catalog
@@ -1546,23 +1534,23 @@ async def get_sources(
                 entry_id = session.execute(
                     text(entry_stmt).bindparams(
                         bindparam(
-                            'spatial_catalog_entry_name',
+                            "spatial_catalog_entry_name",
                             value=str(spatial_catalog_entry_name).strip().lower(),
                             type_=sa.String,
                         ),
                         bindparam(
-                            'spatial_catalog_name',
+                            "spatial_catalog_name",
                             value=str(spatial_catalog_name).strip().lower(),
                             type_=sa.String,
                         ),
                     )
                 )
                 if entry_id is None:
-                    raise ValueError('spatial catalog entry not found')
+                    raise ValueError("spatial catalog entry not found")
 
                 query_params.append(
                     bindparam(
-                        'spatial_catalog_entry_name',
+                        "spatial_catalog_entry_name",
                         value=str(spatial_catalog_entry_name).strip().lower(),
                         type_=sa.String,
                     )
@@ -1580,22 +1568,23 @@ async def get_sources(
                     """
                 )
             except Exception as e:
-                raise ValueError(f'Invalid spatial catalog query parameters ({e})')
+                raise ValueError(f"Invalid spatial catalog query parameters ({e})")
 
-        start, end = (int(page_number) - 1) * int(num_per_page), int(page_number) * int(
-            num_per_page
+        start, end = (
+            (int(page_number) - 1) * int(num_per_page),
+            int(page_number) * int(num_per_page),
         )
 
         data = {
-            'totalMatches': 0,
-            'sources': [],
-            'pageNumber': page_number,
-            'numPerPage': num_per_page,
+            "totalMatches": 0,
+            "sources": [],
+            "pageNumber": page_number,
+            "numPerPage": num_per_page,
         }
 
         # when querying for group sources, return the group_id used
         if len(group_ids) == 1:
-            data['group_id'] = int(group_ids[0])
+            data["group_id"] = int(group_ids[0])
 
         if save_summary:
             all_source_ids = []
@@ -1604,7 +1593,7 @@ async def get_sources(
                 cache_filename = cache[query_id]
                 if cache_filename is not None:
                     all_source_ids = np.load(cache_filename)
-                    data['queryID'] = query_id
+                    data["queryID"] = query_id
                     if len(all_source_ids) == 0:
                         return data
 
@@ -1624,9 +1613,9 @@ async def get_sources(
                                 ":accessible_group_ids", accessible_groups_query_str
                             )
                             query_params.extend(accessible_groups_bindparams)
-                        if ':allocation_ids' in statement:
+                        if ":allocation_ids" in statement:
                             statement = statement.replace(
-                                ':allocation_ids', allocation_query_str
+                                ":allocation_ids", allocation_query_str
                             )
                             query_params.extend(allocation_bindparams)
 
@@ -1636,8 +1625,8 @@ async def get_sources(
                             .columns(id=sa.String)
                         )
                         if verbose:
-                            log_verbose(f'Params:\n{query_params}')
-                            log_verbose(f'Query:\n{statement}')
+                            log_verbose(f"Params:\n{query_params}")
+                            log_verbose(f"Query:\n{statement}")
 
                         startTime = time.time()
 
@@ -1648,13 +1637,13 @@ async def get_sources(
                         endTime = time.time()
                         if verbose:
                             log_verbose(
-                                f'1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                                f"1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                             )
 
                     all_source_ids = list(set(all_source_ids))
                     if verbose:
                         log_verbose(
-                            f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                            f"1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                         )
                 else:
                     statement = f"""
@@ -1669,9 +1658,9 @@ async def get_sources(
                             ":accessible_group_ids", accessible_groups_query_str
                         )
                         query_params.extend(accessible_groups_bindparams)
-                    if ':allocation_ids' in statement:
+                    if ":allocation_ids" in statement:
                         statement = statement.replace(
-                            ':allocation_ids', allocation_query_str
+                            ":allocation_ids", allocation_query_str
                         )
                         query_params.extend(allocation_bindparams)
 
@@ -1679,8 +1668,8 @@ async def get_sources(
                         text(statement).bindparams(*query_params).columns(id=sa.String)
                     )
                     if verbose:
-                        log_verbose(f'Params:\n{query_params}')
-                        log_verbose(f'Query:\n{statement}')
+                        log_verbose(f"Params:\n{query_params}")
+                        log_verbose(f"Query:\n{statement}")
 
                     startTime = time.time()
 
@@ -1691,7 +1680,7 @@ async def get_sources(
                     endTime = time.time()
                     if verbose:
                         log_verbose(
-                            f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                            f"1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                         )
 
                 if len(all_source_ids) == 0:
@@ -1710,11 +1699,11 @@ async def get_sources(
                     all_source_ids_bytes = array_to_bytes(all_source_ids)
                     query_id = hashlib.sha256(all_source_ids_bytes).hexdigest()
                     cache[query_id] = all_source_ids_bytes
-                    data['queryID'] = query_id
+                    data["queryID"] = query_id
 
             sources, total_matches = [], len(all_source_ids)
 
-            data['totalMatches'] = total_matches
+            data["totalMatches"] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -1734,9 +1723,9 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log_verbose(f'2. Sources Query took {endTime - startTime} seconds.')
+                log_verbose(f"2. Sources Query took {endTime - startTime} seconds.")
 
-            data['sources'] = sources
+            data["sources"] = sources
             return data
 
         else:
@@ -1746,7 +1735,7 @@ async def get_sources(
                 cache_filename = cache[query_id]
                 if cache_filename is not None:
                     all_obj_ids = np.load(cache_filename)
-                    data['queryID'] = query_id
+                    data["queryID"] = query_id
                     if len(all_obj_ids) == 0:
                         return data
 
@@ -1766,9 +1755,9 @@ async def get_sources(
                                 ":accessible_group_ids", accessible_groups_query_str
                             )
                             query_params.extend(accessible_groups_bindparams)
-                        if ':allocation_ids' in statement:
+                        if ":allocation_ids" in statement:
                             statement = statement.replace(
-                                ':allocation_ids', allocation_query_str
+                                ":allocation_ids", allocation_query_str
                             )
                             query_params.extend(allocation_bindparams)
 
@@ -1778,8 +1767,8 @@ async def get_sources(
                             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                         )
                         if verbose:
-                            log_verbose(f'Params:\n{query_params}')
-                            log_verbose(f'Query:\n{statement}')
+                            log_verbose(f"Params:\n{query_params}")
+                            log_verbose(f"Query:\n{statement}")
 
                         startTime = time.time()
 
@@ -1790,7 +1779,7 @@ async def get_sources(
                         endTime = time.time()
                         if verbose:
                             log_verbose(
-                                f'1. SUB MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                                f"1. SUB MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                             )
 
                     all_obj_ids = list(set(all_obj_ids))
@@ -1832,9 +1821,9 @@ async def get_sources(
                             ":accessible_group_ids", accessible_groups_query_str
                         )
                         query_params.extend(accessible_groups_bindparams)
-                    if ':allocation_ids' in statement:
+                    if ":allocation_ids" in statement:
                         statement = statement.replace(
-                            ':allocation_ids', allocation_query_str
+                            ":allocation_ids", allocation_query_str
                         )
                         query_params.extend(allocation_bindparams)
 
@@ -1867,7 +1856,7 @@ async def get_sources(
 
                     if verbose:
                         log_verbose(
-                            f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                            f"1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                         )
                 else:
                     # SORTING JOINS
@@ -1891,9 +1880,9 @@ async def get_sources(
                             ":accessible_group_ids", accessible_groups_query_str
                         )
                         query_params.extend(accessible_groups_bindparams)
-                    if ':allocation_ids' in statement:
+                    if ":allocation_ids" in statement:
                         statement = statement.replace(
-                            ':allocation_ids', allocation_query_str
+                            ":allocation_ids", allocation_query_str
                         )
                         query_params.extend(allocation_bindparams)
 
@@ -1912,8 +1901,8 @@ async def get_sources(
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
                     if verbose:
-                        log_verbose(f'Params:\n{query_params}')
-                        log_verbose(f'Query:\n{statement}')
+                        log_verbose(f"Params:\n{query_params}")
+                        log_verbose(f"Query:\n{statement}")
 
                     startTime = time.time()
 
@@ -1922,13 +1911,13 @@ async def get_sources(
                     all_obj_ids = [r[0] for r in results]
                     if len(all_obj_ids) != len(set(all_obj_ids)):
                         raise ValueError(
-                            f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
+                            f"Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}"
                         )
 
                     endTime = time.time()
                     if verbose:
                         log_verbose(
-                            f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                            f"1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                         )
 
                 if len(all_obj_ids) == 0:
@@ -1938,10 +1927,10 @@ async def get_sources(
                     all_obj_ids_bytes = array_to_bytes(all_obj_ids)
                     query_id = hashlib.sha256(all_obj_ids_bytes).hexdigest()
                     cache[query_id] = all_obj_ids_bytes
-                    data['queryID'] = query_id
+                    data["queryID"] = query_id
 
             objs, total_matches = [], len(all_obj_ids)
-            data['totalMatches'] = total_matches
+            data["totalMatches"] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -1960,9 +1949,9 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
-                        'groups': [],
-                        'host': None,
-                        'host_offset': None,
+                        "groups": [],
+                        "host": None,
+                        "host_offset": None,
                     }
                     for obj in objs
                 ]  # convert to dict
@@ -1970,14 +1959,14 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
-                        'groups': [],
+                        "groups": [],
                     }
                     for obj in objs
                 ]  # convert to dict
 
             endTime = time.time()
             if verbose:
-                log_verbose(f'2. Objs Query took {endTime - startTime} seconds.')
+                log_verbose(f"2. Objs Query took {endTime - startTime} seconds.")
 
             # SOURCES
             startTime = time.time()
@@ -1988,24 +1977,26 @@ async def get_sources(
                 .all()
             )
             sources = sorted(
-                (s.to_dict() for s in sources), key=lambda s: s['created_at']
+                (s.to_dict() for s in sources), key=lambda s: s["created_at"]
             )
 
             endTime = time.time()
             if verbose:
-                log_verbose(f'3. Sources Query took {endTime - startTime} seconds.')
+                log_verbose(f"3. Sources Query took {endTime - startTime} seconds.")
 
             if not remove_nested:
                 # REFORMAT SOURCES (SAVE INFO)
                 start = time.time()
                 source_group_ids, source_user_ids = [], []
                 for source in sources:
-                    source_group_ids.append(source['group_id']), source_user_ids.append(
-                        source['saved_by_id']
+                    (
+                        source_group_ids.append(source["group_id"]),
+                        source_user_ids.append(source["saved_by_id"]),
                     )
 
-                source_group_ids, source_user_ids = set(source_group_ids), set(
-                    source_user_ids
+                source_group_ids, source_user_ids = (
+                    set(source_group_ids),
+                    set(source_user_ids),
                 )
 
                 groups = (
@@ -2027,56 +2018,56 @@ async def get_sources(
                 # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
                 for source in sources:
                     obj = next(
-                        (obj for obj in objs if obj['id'] == source['obj_id']), None
+                        (obj for obj in objs if obj["id"] == source["obj_id"]), None
                     )
-                    obj['groups'].append(
+                    obj["groups"].append(
                         {
-                            **groups[source['group_id']],
-                            "active": source['active'],
-                            "requested": source['requested'],
-                            "saved_at": source['saved_at'],
-                            "saved_by": users.get(source['saved_by_id'], None),
+                            **groups[source["group_id"]],
+                            "active": source["active"],
+                            "requested": source["requested"],
+                            "saved_at": source["saved_at"],
+                            "saved_by": users.get(source["saved_by_id"], None),
                         }
                     )
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                        f"4. Sources Refomatting took {endTime - startTime} seconds."
                     )
 
             else:
                 # remove the groups key from the objs
                 for obj in objs:
-                    obj.pop('groups', None)
+                    obj.pop("groups", None)
             startTime = time.time()
-            obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
+            obj_coords = np.array([[obj["ra"], obj["dec"]] for obj in objs])
             obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])
             for i in range(len(objs)):
-                objs[i]['gal_lon'] = obj_coords_gal[0][i]
-                objs[i]['gal_lat'] = obj_coords_gal[1][i]
-                redshift = objs[i]['redshift']
+                objs[i]["gal_lon"] = obj_coords_gal[0][i]
+                objs[i]["gal_lat"] = obj_coords_gal[1][i]
+                redshift = objs[i]["redshift"]
                 luminosity_distance = get_luminosity_distance(objs[i])
-                objs[i]['luminosity_distance'] = luminosity_distance
-                objs[i]['dm'] = (
+                objs[i]["luminosity_distance"] = luminosity_distance
+                objs[i]["dm"] = (
                     5.0 * np.log10((luminosity_distance * u.Mpc) / (10 * u.pc)).value
                     if luminosity_distance
                     else None
                 )
                 if luminosity_distance:
                     if redshift and redshift * HOOG_REDSHIFT_A > HOOG_REDSHIFT_B:
-                        objs[i]['angular_diameter_distance'] = (
+                        objs[i]["angular_diameter_distance"] = (
                             luminosity_distance / (1 + redshift) ** 2
                         )
                     else:
-                        objs[i]['angular_diameter_distance'] = luminosity_distance
+                        objs[i]["angular_diameter_distance"] = luminosity_distance
                 else:
-                    objs[i]['angular_diameter_distance'] = None
+                    objs[i]["angular_diameter_distance"] = None
 
             endTime = time.time()
             if verbose:
                 log_verbose(
-                    f'5. Various obj computations took {endTime - startTime} seconds.'
+                    f"5. Various obj computations took {endTime - startTime} seconds."
                 )
 
             if include_thumbnails and not remove_nested:
@@ -2089,18 +2080,18 @@ async def get_sources(
                     .all()
                 )
                 thumbnails = sorted(
-                    (t.to_dict() for t in thumbnails), key=lambda t: t['created_at']
+                    (t.to_dict() for t in thumbnails), key=lambda t: t["created_at"]
                 )
 
                 for obj in objs:
-                    obj['thumbnails'] = [
-                        t for t in thumbnails if t['obj_id'] == obj['id']
+                    obj["thumbnails"] = [
+                        t for t in thumbnails if t["obj_id"] == obj["id"]
                     ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'6. Thumbnails Query took {endTime - startTime} seconds.'
+                        f"6. Thumbnails Query took {endTime - startTime} seconds."
                     )
 
             if include_detection_stats:
@@ -2115,17 +2106,17 @@ async def get_sources(
                     .all()
                 )
                 photstats = sorted(
-                    (p.to_dict() for p in photstats), key=lambda p: p['created_at']
+                    (p.to_dict() for p in photstats), key=lambda p: p["created_at"]
                 )
                 for obj in objs:
-                    obj['photstats'] = [
-                        p for p in photstats if p['obj_id'] == obj['id']
+                    obj["photstats"] = [
+                        p for p in photstats if p["obj_id"] == obj["id"]
                     ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'7. Photstats Query took {endTime - startTime} seconds.'
+                        f"7. Photstats Query took {endTime - startTime} seconds."
                     )
 
             if not remove_nested:
@@ -2144,21 +2135,21 @@ async def get_sources(
                 classifications = [
                     {
                         **c.to_dict(),
-                        'groups': [],  # TODO
-                        'votes': [],  # TODO
+                        "groups": [],  # TODO
+                        "votes": [],  # TODO
                     }
                     for c in classifications
                 ]
-                classifications = sorted(classifications, key=lambda c: c['created_at'])
+                classifications = sorted(classifications, key=lambda c: c["created_at"])
                 for obj in objs:
-                    obj['classifications'] = [
-                        c for c in classifications if c['obj_id'] == obj['id']
+                    obj["classifications"] = [
+                        c for c in classifications if c["obj_id"] == obj["id"]
                     ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'8. Classifications Query took {endTime - startTime} seconds.'
+                        f"8. Classifications Query took {endTime - startTime} seconds."
                     )
 
             if not remove_nested or include_period_exists:
@@ -2173,25 +2164,25 @@ async def get_sources(
                     .all()
                 )
                 annotations = sorted(
-                    (a.to_dict() for a in annotations), key=lambda a: a['created_at']
+                    (a.to_dict() for a in annotations), key=lambda a: a["created_at"]
                 )
 
                 for obj in objs:
-                    obj['annotations'] = [
-                        a for a in annotations if a['obj_id'] == obj['id']
+                    obj["annotations"] = [
+                        a for a in annotations if a["obj_id"] == obj["id"]
                     ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'9. Annotations Query took {endTime - startTime} seconds.'
+                        f"9. Annotations Query took {endTime - startTime} seconds."
                     )
 
             if include_hosts:
                 # HOST GALAXY
                 startTime = time.time()
                 host_ids = list(
-                    {obj['host_id'] for obj in objs if obj['host_id'] is not None}
+                    {obj["host_id"] for obj in objs if obj["host_id"] is not None}
                 )
                 if len(host_ids) > 0:
                     hosts = (
@@ -2203,15 +2194,15 @@ async def get_sources(
                     hosts = {host.id: host.to_dict() for host in hosts}
 
                     objs_with_host = [
-                        (i, obj['host_id'], (obj['ra'], obj['dec']))
+                        (i, obj["host_id"], (obj["ra"], obj["dec"]))
                         for i, obj in enumerate(objs)
-                        if obj['host_id'] is not None
+                        if obj["host_id"] is not None
                     ]
                     objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
 
                     hosts = [hosts[obj[1]] for obj in objs_with_host]
                     hosts_coords = np.array(
-                        [[host['ra'], host['dec']] for host in hosts]
+                        [[host["ra"], host["dec"]] for host in hosts]
                     )
 
                     # now we can compute the offset for all of them at once
@@ -2225,13 +2216,13 @@ async def get_sources(
                         * 3600
                     )  # in arcsec
                     for i, offset in enumerate(offsets):
-                        objs[objs_with_host[i][0]]['host'] = hosts[i]
-                        objs[objs_with_host[i][0]]['host_offset'] = offset
+                        objs[objs_with_host[i][0]]["host"] = hosts[i]
+                        objs[objs_with_host[i][0]]["host_offset"] = offset
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'10. Hosts Query (+offset) took {endTime - startTime} seconds.'
+                        f"10. Hosts Query (+offset) took {endTime - startTime} seconds."
                     )
 
             if include_spectrum_exists:
@@ -2239,10 +2230,10 @@ async def get_sources(
                 if has_spectrum:
                     # if we already filtered for sources with spectra, we can just set the flag to True
                     for obj in objs:
-                        obj['spectrum_exists'] = True
+                        obj["spectrum_exists"] = True
                 else:
                     query_str, bindparams = array2sql(
-                        obj_ids, type=sa.String, prefix='obj_ids'
+                        obj_ids, type=sa.String, prefix="obj_ids"
                     )
                     stmt = f"""
                     SELECT DISTINCT obj_id
@@ -2254,12 +2245,12 @@ async def get_sources(
                     )
                     spectrum_exists = [r[0] for r in spectrum_exists]
                     for obj in objs:
-                        obj['spectrum_exists'] = obj['id'] in spectrum_exists
+                        obj["spectrum_exists"] = obj["id"] in spectrum_exists
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'11. Spectrum Exists Query took {endTime - startTime} seconds.'
+                        f"11. Spectrum Exists Query took {endTime - startTime} seconds."
                     )
 
             if include_comment_exists:
@@ -2272,10 +2263,10 @@ async def get_sources(
                 ):
                     # if we already filtered for sources with comments, we can just set the flag to True
                     for obj in objs:
-                        obj['comment_exists'] = True
+                        obj["comment_exists"] = True
                 else:
                     query_str, bindparams = array2sql(
-                        obj_ids, type=sa.String, prefix='obj_ids'
+                        obj_ids, type=sa.String, prefix="obj_ids"
                     )
                     stmt = f"""
                     SELECT DISTINCT obj_id
@@ -2285,19 +2276,19 @@ async def get_sources(
                     comment_exists = session.execute(text(stmt).bindparams(*bindparams))
                     comment_exists = [r[0] for r in comment_exists]
                     for obj in objs:
-                        obj['comment_exists'] = obj['id'] in comment_exists
+                        obj["comment_exists"] = obj["id"] in comment_exists
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'12. Comment Exists Query took {endTime - startTime} seconds.'
+                        f"12. Comment Exists Query took {endTime - startTime} seconds."
                     )
 
             if include_photometry_exists:
                 startTime = time.time()
 
                 query_str, bindparams = array2sql(
-                    obj_ids, type=sa.String, prefix='obj_ids'
+                    obj_ids, type=sa.String, prefix="obj_ids"
                 )
                 stmt = f"""
                 SELECT DISTINCT obj_id
@@ -2307,11 +2298,11 @@ async def get_sources(
                 photometry_exists = session.execute(text(stmt).bindparams(*bindparams))
                 photometry_exists = [r[0] for r in photometry_exists]
                 for obj in objs:
-                    obj['photometry_exists'] = obj['id'] in photometry_exists
+                    obj["photometry_exists"] = obj["id"] in photometry_exists
                 objs_missing_photometry = [
-                    obj['id']
+                    obj["id"]
                     for i, obj in enumerate(objs)
-                    if not obj['photometry_exists']
+                    if not obj["photometry_exists"]
                 ]
                 if len(objs_missing_photometry) > 0:
                     # if it doesn't exist, check if it has a photometric series
@@ -2327,15 +2318,15 @@ async def get_sources(
                         r[0] for r in photometric_series_exists
                     ]
                     for obj in objs:
-                        obj['photometry_exists'] = (
-                            obj['photometry_exists']
-                            or obj['id'] in photometric_series_exists
+                        obj["photometry_exists"] = (
+                            obj["photometry_exists"]
+                            or obj["id"] in photometric_series_exists
                         )
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'13. Photometry Exists Query took {endTime - startTime} seconds.'
+                        f"13. Photometry Exists Query took {endTime - startTime} seconds."
                     )
 
             if include_period_exists:
@@ -2344,16 +2335,16 @@ async def get_sources(
                 # the period, like the color_mag, is computed from the annotations
                 # we already have the annotations, so we can compute the period for each obj
                 for obj in objs:
-                    obj['period'] = get_period_exists(obj['annotations'])
+                    obj["period"] = get_period_exists(obj["annotations"])
 
                 endTime = time.time()
                 if remove_nested:
                     # if we don't need the annotations anymore, we can remove them
                     for obj in objs:
-                        del obj['annotations']
+                        del obj["annotations"]
                 if verbose:
                     log_verbose(
-                        f'14. Period Exists Query took {endTime - startTime} seconds.'
+                        f"14. Period Exists Query took {endTime - startTime} seconds."
                     )
 
             if include_comments:
@@ -2367,24 +2358,24 @@ async def get_sources(
                     .all()
                 )
                 comments = [c.to_dict() for c in comments]
-                comments = sorted(comments, key=lambda c: c['created_at'])
+                comments = sorted(comments, key=lambda c: c["created_at"])
                 if len(comments) > 0:
                     for obj in objs:
-                        obj['comments'] = [
+                        obj["comments"] = [
                             {
                                 k: v
                                 for k, v in comment.items()
                                 if k != "attachment_bytes"
                             }
                             for comment in [
-                                c for c in comments if c['obj_id'] == obj['id']
+                                c for c in comments if c["obj_id"] == obj["id"]
                             ]
                         ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'15. Comments Query took {endTime - startTime} seconds.'
+                        f"15. Comments Query took {endTime - startTime} seconds."
                     )
 
             if include_labellers:
@@ -2399,35 +2390,35 @@ async def get_sources(
                 )
                 labellers = sorted(
                     (lab.to_dict() for lab in labellers),
-                    key=lambda lab: lab['created_at'],
+                    key=lambda lab: lab["created_at"],
                 )
                 for obj in objs:
-                    obj['labellers'] = [
-                        lab for lab in labellers if lab['obj_id'] == obj['id']
+                    obj["labellers"] = [
+                        lab for lab in labellers if lab["obj_id"] == obj["id"]
                     ]
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'16. Labellers Query took {endTime - startTime} seconds.'
+                        f"16. Labellers Query took {endTime - startTime} seconds."
                     )
 
             if include_color_mag:
                 startTime = time.time()
                 for obj in objs:
-                    obj['color_magnitude'] = get_color_mag(obj['annotations'])
+                    obj["color_magnitude"] = get_color_mag(obj["annotations"])
 
                 endTime = time.time()
                 if verbose:
                     log_verbose(
-                        f'17. Color Mag Query took {endTime - startTime} seconds.'
+                        f"17. Color Mag Query took {endTime - startTime} seconds."
                     )
 
-            data['sources'] = objs
+            data["sources"] = objs
 
             # when querying for group sources, return the group_id used
             if len(group_ids) == 1:
-                data['group_id'] = int(group_ids[0])
+                data["group_id"] = int(group_ids[0])
 
             if includeGeoJSON:
                 startTime = time.time()
@@ -2456,7 +2447,7 @@ async def get_sources(
 
         endMethodTime = time.time()
         if verbose:
-            log_verbose(f'TOTAL took {endMethodTime - startMethodTime} seconds.')
+            log_verbose(f"TOTAL took {endMethodTime - startMethodTime} seconds.")
 
         return data
     except Exception as e:

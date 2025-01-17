@@ -516,7 +516,7 @@ def post_followup_request(
                 raise ValueError(
                     f'Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint).'
                 )
-        if isinstance(constraints.get("not_if_tns_reported", None), (int, float)):
+        if isinstance(constraints.get("not_if_tns_reported", None), int | float):
             # don't trigger if there is any source reported to TNS within the radius
             # and the "tns_time" is older than the constraint's allowed age
             # where the tns_time is the time of latest photometry point or the discovery date (first point)
@@ -545,11 +545,9 @@ def post_followup_request(
                     tns_time = None
                     tns_photometry = tns_info.get('photometry', [])
                     if len(tns_photometry) > 0 and all(
-                        [
-                            isinstance(p, dict)
-                            and isinstance(p.get("jd"), (int, float, str))
+                        isinstance(p, dict)
+                            and isinstance(p.get("jd"), int | float | str)
                             for p in tns_photometry
-                        ]
                     ):
                         # jd to datetime
                         tns_time = max(float(p['jd']) for p in tns_photometry)
@@ -1307,7 +1305,7 @@ class FollowupRequestHandler(BaseHandler):
                 existing_status = str(followup_request.status).lower()
 
                 if any(
-                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                    x in existing_status for x in ['failed to submit', 'rejected']
                 ):
                     if not api.implements()['submit']:
                         return self.error('Cannot submit requests on this instrument.')
@@ -1345,7 +1343,7 @@ class FollowupRequestHandler(BaseHandler):
                     setattr(followup_request, k, data[k])
 
                 if any(
-                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                    x in existing_status for x in ['failed to submit', 'rejected']
                 ):
                     try:
                         followup_request.instrument.api_class.submit(
@@ -2060,7 +2058,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             else:
                 magnitude_range = ast.literal_eval(magnitude_range_str)
                 if not (
-                    isinstance(magnitude_range, (list, tuple))
+                    isinstance(magnitude_range, list | tuple)
                     and len(magnitude_range) == 2
                 ):
                     return self.error('Invalid argument for `magnitude_range`')
@@ -2297,7 +2295,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
                 if localization.is_3d:
                     prob, distmu, distsigma, distnorm = tab
-                    if not all([dist > 0 for dist in dists]):
+                    if not all(dist > 0 for dist in dists):
                         weights = prob[ipix]
                     else:
                         weights = prob[ipix] * (
@@ -2656,7 +2654,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 return self.error("Could not retrieve followup request.")
 
             watchers = followup_request.watchers
-            if any([watcher.id == session.user_or_token.id for watcher in watchers]):
+            if any(watcher.id == session.user_or_token.id for watcher in watchers):
                 return self.error("User already watching this request")
 
             watcher = FollowupRequestUser(

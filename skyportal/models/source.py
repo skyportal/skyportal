@@ -1,19 +1,18 @@
-__all__ = ['Source']
+__all__ = ["Source"]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy import func
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
-    DBSession,
-    join_model,
-    UserAccessControl,
     CustomUserAccessControl,
+    DBSession,
+    UserAccessControl,
+    join_model,
 )
 
-from .obj import Obj
 from .group import Group, GroupUser, accessible_by_group_members
-
+from .obj import Obj
 
 Source = join_model("sources", Group, Obj)
 
@@ -21,8 +20,8 @@ Source = join_model("sources", Group, Obj)
 # Please see obj.py for other Obj relationships.
 Obj.sources = relationship(
     Source,
-    back_populates='obj',
-    cascade='delete',
+    back_populates="obj",
+    cascade="delete",
     passive_deletes=True,
     doc="Instances in which a group saved this Obj.",
 )
@@ -60,7 +59,7 @@ Source.saved_by = relationship(
     backref="saved_sources",
     doc="User that saved the Obj to its Group.",
 )
-utcnow = func.timezone('UTC', func.current_timestamp())
+utcnow = func.timezone("UTC", func.current_timestamp())
 Source.saved_at = sa.Column(
     sa.DateTime,
     nullable=False,
