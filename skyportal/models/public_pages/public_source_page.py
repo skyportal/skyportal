@@ -13,7 +13,8 @@ from baselayer.app.json_util import to_json
 from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
 
 from ...utils.cache import Cache, dict_to_bytes
-from .. import GroupUser, Source
+from ..group import GroupUser
+from ..source import Source
 
 env, cfg = load_env()
 

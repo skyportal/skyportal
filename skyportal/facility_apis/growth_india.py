@@ -54,8 +54,8 @@ def get_table(json_data, sunrise_hor=-12, horizon=20, priority=10000, domesleep=
     target = ['EMGW'] * len(t)
 
     for i in range(len(t)):
-        filt = t[i]['filter'][-1]
-        dic[filt][i] = '1X%i' % (t[i]['exposure_time'])
+        filt = t[i]["filter"][-1]
+        dic[filt][i] = f'1X{t[i]["exposure_time"]:d}'
 
     del t['request_id', 'program_pi', 'filter', 'exposure_time']
     t['field_id'].name = 'tile_id'
