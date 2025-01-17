@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import time
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -119,6 +120,7 @@ def service(*args, **kwargs):
             send_reminders()
         except Exception as e:
             log(e)
+        time.sleep(60)
 
 
 if __name__ == "__main__":

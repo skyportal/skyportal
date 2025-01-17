@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+import time
 
 from astropy.time import Time
 
@@ -103,6 +104,7 @@ def service(*args, **kwargs):
             perform_api_calls()
         except Exception as e:
             log(e)
+        time.sleep(60)
 
 
 if __name__ == "__main__":
