@@ -1,6 +1,5 @@
 import copy
 import os
-from typing import List, Optional
 
 import yaml
 from langchain_openai import OpenAIEmbeddings

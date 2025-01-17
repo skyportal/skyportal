@@ -186,7 +186,7 @@ class UVOTXRTRequest:
         too.source_type = request.payload["source_type"]
 
         too.exp_time_per_visit = request.payload["exposure_time"]
-        too.monitoring_freq = "%d days" % request.payload["monitoring_freq"]
+        too.monitoring_freq = f"{request.payload['monitoring_freq']:d} days"
         too.num_of_visits = int(request.payload["exposure_counts"])
 
         too.opt_mag = request.payload.get("opt_mag", None)

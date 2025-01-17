@@ -34,7 +34,7 @@ def basic_user_display_info(user):
 def user_to_dict(self):
     return {
         field: getattr(self, field)
-        for field in User.__table__.columns
+        for field in User.__table__.columns.keys()  # noqa: SIM118
         if field != "preferences"
     }
 
