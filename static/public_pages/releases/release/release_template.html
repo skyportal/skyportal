@@ -63,6 +63,14 @@
                 {% end %}
               </span>
             </div>
+            <div class="sourceInfo">
+              <div>
+                {{ versions[0].data.get('ra') }}
+              </div>
+              <div>
+                {{ versions[0].data.get('dec') }}
+              </div>
+            </div>
             <button type="button" onclick="displayVersions('{{ source_id }}')">
                 view all...
             </button>
