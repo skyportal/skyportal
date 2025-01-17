@@ -75,19 +75,6 @@ jobs:
               password: anything
           EOF
 
-          cat << EOF > test_config.yaml
-            database:
-              database: skyportal_test
-              user: skyportal
-              host: localhost
-              port: 5432
-              password: anything
-
-            server:
-              auth:
-                debug_login: True
-          EOF
-
       - name: Install system dependencies
         run: |
           sudo apt update -y
