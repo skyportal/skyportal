@@ -27,9 +27,12 @@ export const fetchPublicSourcePages = (sourceId) => {
 export const deletePublicSourcePage = (pageId) =>
   API.DELETE(`/api/public_pages/source/${pageId}`, DELETE_PUBLIC_SOURCE_PAGE);
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_PUBLIC_SOURCE_PAGES) {
-    dispatch(fetchPublicSourcePages(payload.source_id));
+    const { source_id } = payload;
+    if (getState().source.id === source_id) {
+      dispatch(fetchPublicSourcePages(source_id));
+    }
   }
 });
 
