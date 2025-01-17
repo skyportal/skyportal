@@ -43,9 +43,33 @@ header {
         flex-wrap: wrap;
         gap: 0.2rem 1rem;
         align-items: baseline;
-        h2 {
+        .sourceId {
+          position: relative;
+          color: rgb(29, 53, 87);
           margin: 0;
           font-weight: bold;
+
+          &::after {
+            content: " ";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 3px;
+            width: 0;
+            background-image: linear-gradient(
+              to right,
+              rgb(29, 53, 87),
+              rgb(50, 91, 167)
+            );
+            transition: width 0.3s;
+          }
+
+          &:hover {
+            &::after {
+              width: 100%;
+            }
+          }
         }
         span {
           font-size: 0.9rem;

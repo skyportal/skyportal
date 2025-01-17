@@ -41,7 +41,11 @@
         <div class="sourceAndVersions" id="{{ source_id }}">
           <div class="source">
             <div class="sourceAndTimeAgo">
-              <h2 class="sourceId">{{ source_id }}</h2>
+              <h2 class="sourceId">
+                <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
+                  {{ source_id }}
+                </a>
+              </h2>
               {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
               {% set days = time_difference.days %}
               {% set hours = time_difference.seconds // 3600 %}
@@ -58,13 +62,10 @@
                   {{ days }} days and {{ hours }} hours ago
                 {% end %}
               </span>
-              <button type="button" onclick="displayVersions('{{ source_id }}')">
-                view all...
-              </button>
             </div>
-            <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
-              Link to the latest version
-            </a>
+            <button type="button" onclick="displayVersions('{{ source_id }}')">
+                view all...
+            </button>
           </div>
           <div
             class="versions"
