@@ -442,7 +442,7 @@ def get_galaxies(
             if source["name"] is not None:
                 source_name = source["name"]
             else:
-                source_name = f'{source["ra"]},{source["dec"]}'
+                source_name = f"{source['ra']},{source['dec']}"
 
             features.append(Feature(geometry=point, properties={"name": source_name}))
 

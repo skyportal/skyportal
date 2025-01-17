@@ -252,7 +252,9 @@ def test_delete_comment_on_spectrum(
 
     # try to delete using the wrong spectrum ID
     status, data = api(
-        "DELETE", f"spectra/{spectrum_id+1}/comments/{comment_id}", token=comment_token
+        "DELETE",
+        f"spectra/{spectrum_id + 1}/comments/{comment_id}",
+        token=comment_token,
     )
     assert_api_fail(
         status,

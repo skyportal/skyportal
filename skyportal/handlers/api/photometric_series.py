@@ -342,8 +342,8 @@ def individual_enum_checks(metadata):
     # check filter is legal
     if metadata["filter"] not in ALLOWED_BANDPASSES:
         raise ValueError(
-            f'Filter {metadata["filter"]} is not allowed. '
-            f'Allowed filters are: {ALLOWED_BANDPASSES}'
+            f"Filter {metadata['filter']} is not allowed. "
+            f"Allowed filters are: {ALLOWED_BANDPASSES}"
         )
 
     # check time_stamp_alignement is legal
@@ -1613,8 +1613,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 owner_id = int(owner_id)
             except ValueError:
                 return self.error(
-                    f"Invalid value for ownerId {owner_id}. "
-                    "Could not convert to int. "
+                    f"Invalid value for ownerId {owner_id}. Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.owner_id == owner_id)
 
@@ -1692,8 +1691,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_rms = float(max_rms)
             except ValueError:
                 return self.error(
-                    f"Invalid value for maxRMS {max_rms}. "
-                    "Could not convert to float. "
+                    f"Invalid value for maxRMS {max_rms}. Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_rms <= max_rms)
@@ -1705,8 +1703,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_rms = float(min_rms)
             except ValueError:
                 return self.error(
-                    f"Invalid value for minRMS {min_rms}. "
-                    "Could not convert to float. "
+                    f"Invalid value for minRMS {min_rms}. Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_rms >= min_rms)
@@ -1796,8 +1793,7 @@ class PhotometricSeriesHandler(BaseHandler):
 
         if sort_order not in ["asc", "desc"]:
             return self.error(
-                f'Invalid value "{sort_order}" for sortOrder. '
-                'Must be "asc" or "desc". '
+                f'Invalid value "{sort_order}" for sortOrder. Must be "asc" or "desc". '
             )
         if sort_order == "desc":
             order_by_column = order_by_column.desc()

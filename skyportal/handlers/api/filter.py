@@ -98,7 +98,7 @@ class FilterHandler(BaseHandler):
                 fil = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(fil)
             session.commit()
@@ -149,7 +149,7 @@ class FilterHandler(BaseHandler):
                 fil = schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             if fil.group_id != f.group_id or fil.stream_id != f.stream_id:

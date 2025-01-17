@@ -120,7 +120,7 @@ class ObjMPCHandler(BaseHandler):
             hour = int(date.strftime("%H"))
             minute = int(date.strftime("%M"))
             second = float(date.strftime("%S.%f"))
-            day = f"{int(date.strftime('%d'))+(hour+minute/60+second/3600)/24:.2f}"
+            day = f"{int(date.strftime('%d')) + (hour + minute / 60 + second / 3600) / 24:.2f}"
 
             ra = Angle(obj.ra, unit="degree")
             ra_hms = ra.to_string(

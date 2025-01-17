@@ -16,7 +16,7 @@ from . import FollowUpAPI
 
 env, cfg = load_env()
 
-log = make_log('facility_apis/tarot')
+log = make_log("facility_apis/tarot")
 
 
 def validate_request_to_tarot(request):
@@ -36,14 +36,14 @@ def validate_request_to_tarot(request):
         "date",
     ]:
         if param not in request.payload:
-            raise ValueError(f'Parameter {param} required.')
+            raise ValueError(f"Parameter {param} required.")
 
     if any(
         filt not in ["B", "V", "R", "I", "g", "r", "i", "z", "NoFilter"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
-            f'Filter configuration {request.payload["observation_choices"]} unknown.'
+            f"Filter configuration {request.payload['observation_choices']} unknown."
         )
 
     if request.payload["station_name"] not in [
@@ -54,31 +54,31 @@ def validate_request_to_tarot(request):
         "Tarot_Reunion",
     ]:
         raise ValueError(
-            'observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion'
+            "observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion"
         )
 
     if (
         request.payload["exposure_time"] < 0
         and not request.payload["exposure_time"] == -1
     ):
-        raise ValueError('exposure_time must be positive or -1.')
+        raise ValueError("exposure_time must be positive or -1.")
 
     if request.payload["minimum_elevation"] < 10:
-        raise ValueError('minimum_elevation must be at least 10 degrees.')
+        raise ValueError("minimum_elevation must be at least 10 degrees.")
 
     filts = {
-        'NoFilter': 0,
-        'C': 1,
-        'B': 2,
-        'V': 3,
-        'R': 4,
-        'I': 5,
-        'VN': 6,
-        'g': 13,
-        'r': 14,
-        'i': 15,
-        'z': 16,
-        'U': 19,
+        "NoFilter": 0,
+        "C": 1,
+        "B": 2,
+        "V": 3,
+        "R": 4,
+        "I": 5,
+        "VN": 6,
+        "g": 13,
+        "r": 14,
+        "i": 15,
+        "z": 16,
+        "U": 19,
     }
     tt = Time(request.payload["date"], format="isot")
     observations = []
@@ -86,12 +86,12 @@ def validate_request_to_tarot(request):
     if request.payload["exposure_time"] == -1:
         photstats = request.obj.photstats
         if len(photstats) == 0:
-            raise ValueError('No photometry to base exposure time calculation on')
+            raise ValueError("No photometry to base exposure time calculation on")
         photstats = photstats[0]
         last_detected_mag = photstats.last_detected_mag
 
         if last_detected_mag is None:
-            raise ValueError('No detections to base exposure time calculation on')
+            raise ValueError("No detections to base exposure time calculation on")
 
         phase_angle = np.rad2deg(moon_phase_angle(tt).value)
 
@@ -197,16 +197,16 @@ def validate_request_to_tarot(request):
 
         seq = sequence.get(request.payload["station_name"], None)
         if seq is None:
-            raise ValueError('Default sequence not available for this telescope')
+            raise ValueError("Default sequence not available for this telescope")
 
         observations = []
         for filt in seq:
             exp_count, exposure_time = seq[filt]
-            observations.extend([f'{exposure_time} {filts[filt]}'] * exp_count)
+            observations.extend([f"{exposure_time} {filts[filt]}"] * exp_count)
 
     else:
         for filt in request.payload["observation_choices"]:
-            observations.append(f'{request.payload["exposure_time"]} {filts[filt]}')
+            observations.append(f"{request.payload['exposure_time']} {filts[filt]}")
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
     observation_strings = []
@@ -257,15 +257,15 @@ class TAROTAPI(FollowUpAPI):
 
         observation_strings = validate_request_to_tarot(request)
 
-        if cfg['app.tarot_endpoint'] is not None:
+        if cfg["app.tarot_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             headers = {
-                'Content-Type': 'application/json',
-                'TAROT': altdata['token'],
+                "Content-Type": "application/json",
+                "TAROT": altdata["token"],
             }
             payload = json.dumps({"script": observation_strings})
             url = f"{cfg['app.tarot_endpoint']}/newobservation"
@@ -278,9 +278,9 @@ class TAROTAPI(FollowUpAPI):
             )
 
             if r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -289,7 +289,7 @@ class TAROTAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -300,18 +300,18 @@ class TAROTAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -331,7 +331,7 @@ class TAROTAPI(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if cfg['app.tarot_endpoint'] is not None:
+        if cfg["app.tarot_endpoint"] is not None:
             req = (
                 DBSession()
                 .query(FollowupRequest)
@@ -342,7 +342,7 @@ class TAROTAPI(FollowUpAPI):
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             url = f"{cfg['app.tarot_endpoint']}/cancelobservation"
 
@@ -353,8 +353,8 @@ class TAROTAPI(FollowUpAPI):
             payload = json.dumps({"obs_id": [uid]})
 
             headers = {
-                'Content-Type': 'application/json',
-                'TAROT': altdata['token'],
+                "Content-Type": "application/json",
+                "TAROT": altdata["token"],
             }
             r = requests.request("POST", url, headers=headers, data=payload)
 
@@ -368,7 +368,7 @@ class TAROTAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'deleted'
+            request.status = "deleted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -379,18 +379,18 @@ class TAROTAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {

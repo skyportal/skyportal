@@ -562,7 +562,7 @@ class UVOTXRTAPI(FollowUpAPI):
             else:
                 if returnedData["OK"] == 0:
                     request.status = (
-                        f'rejected: {returnedData["ERROR"], returnedData["listErr"]}'
+                        f"rejected: {returnedData['ERROR'], returnedData['listErr']}"
                     )
                 else:
                     request.status = "submitted"

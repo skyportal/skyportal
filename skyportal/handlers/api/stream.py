@@ -103,7 +103,7 @@ class StreamHandler(BaseHandler):
                 stream = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(stream)
             session.commit()
@@ -160,7 +160,7 @@ class StreamHandler(BaseHandler):
                 schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             for k in data:
                 setattr(s, k, data[k])

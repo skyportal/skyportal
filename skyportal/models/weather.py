@@ -1,4 +1,4 @@
-__all__ = ['Weather']
+__all__ = ["Weather"]
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB

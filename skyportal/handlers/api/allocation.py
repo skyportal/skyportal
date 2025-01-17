@@ -87,12 +87,12 @@ class AllocationObservationPlanHandler(BaseHandler):
                 page_number = int(page_number)
                 n_per_page = int(n_per_page)
             except Exception as e:
-                raise ValueError(f'Invalid pagination arguments: {e}')
+                raise ValueError(f"Invalid pagination arguments: {e}")
 
             sortBy = self.get_query_argument("sortBy", "created_at")
             sortOrder = self.get_query_argument("sortOrder", "asc")
 
-            if sortBy not in ["created_at", "modified", "status", 'gcnevent_id']:
+            if sortBy not in ["created_at", "modified", "status", "gcnevent_id"]:
                 return self.error("Invalid sortBy value.")
             if sortOrder not in ["asc", "desc"]:
                 return self.error("Invalid sortOrder value.")
@@ -171,8 +171,8 @@ class AllocationObservationPlanHandler(BaseHandler):
                 plan_data = []
                 for plan in dat["observation_plans"]:
                     plan_dict = plan.to_dict()
-                    plan_dict['statistics'] = [
-                        statistics.to_dict() for statistics in plan_dict['statistics']
+                    plan_dict["statistics"] = [
+                        statistics.to_dict() for statistics in plan_dict["statistics"]
                     ]
                     plan_data.append(plan_dict)
 
@@ -180,10 +180,10 @@ class AllocationObservationPlanHandler(BaseHandler):
                 request_data.append(dat)
 
             data = {
-                'totalMatches': total_matches,
-                'observation_plan_requests': request_data,
-                'pageNumber': page_number,
-                'numPerPage': n_per_page,
+                "totalMatches": total_matches,
+                "observation_plan_requests": request_data,
+                "pageNumber": page_number,
+                "numPerPage": n_per_page,
             }
 
             return self.success(data=data)
@@ -267,7 +267,7 @@ class AllocationHandler(BaseHandler):
                 sortBy = self.get_query_argument("sortBy", "created_at")
                 sortOrder = self.get_query_argument("sortOrder", "asc")
 
-                if sortBy not in ["created_at", "modified", "status", 'obj']:
+                if sortBy not in ["created_at", "modified", "status", "obj"]:
                     return self.error("Invalid sortBy value.")
                 if sortOrder not in ["asc", "desc"]:
                     return self.error("Invalid sortOrder value.")
@@ -284,7 +284,7 @@ class AllocationHandler(BaseHandler):
 
                 if n_per_page > MAX_FOLLOWUP_REQUESTS:
                     return self.error(
-                        f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
+                        f"numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}."
                     )
 
                 allocations = Allocation.select(self.current_user).where(
@@ -352,44 +352,44 @@ class AllocationHandler(BaseHandler):
                 for request in followup_requests:
                     request_data = request.to_dict()
                     if request.requester is not None:
-                        request_data['requester'] = request.requester.to_dict()
-                    request_data['obj'] = request.obj.to_dict()
-                    request_data['obj']['thumbnails'] = [
+                        request_data["requester"] = request.requester.to_dict()
+                    request_data["obj"] = request.obj.to_dict()
+                    request_data["obj"]["thumbnails"] = [
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
                     ]
-                    request_data['set_time_utc'] = request.set_time().iso
+                    request_data["set_time_utc"] = request.set_time().iso
                     if isinstance(
-                        request_data['set_time_utc'], np.ma.MaskedArray | MaskedNDArray
+                        request_data["set_time_utc"], np.ma.MaskedArray | MaskedNDArray
                     ):
-                        request_data['set_time_utc'] = None
-                    request_data['rise_time_utc'] = request.rise_time().iso
+                        request_data["set_time_utc"] = None
+                    request_data["rise_time_utc"] = request.rise_time().iso
                     if isinstance(
-                        request_data['rise_time_utc'],
+                        request_data["rise_time_utc"],
                         np.ma.MaskedArray | MaskedNDArray,
                     ):
-                        request_data['rise_time_utc'] = None
+                        request_data["rise_time_utc"] = None
                     requests.append(request_data)
 
-                allocation_data['requests'] = requests
-                allocation_data[
-                    'ephemeris'
-                ] = allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
-                allocation_data['telescope'] = allocation.instrument.telescope.to_dict()
+                allocation_data["requests"] = requests
+                allocation_data["ephemeris"] = (
+                    allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
+                )
+                allocation_data["telescope"] = allocation.instrument.telescope.to_dict()
                 return self.success(
                     data={
-                        'allocation': allocation_data,
+                        "allocation": allocation_data,
                         "totalMatches": int(total_matches),
                     }
                 )
 
             allocations = Allocation.select(self.current_user)
-            instrument_id = self.get_query_argument('instrument_id', None)
+            instrument_id = self.get_query_argument("instrument_id", None)
             if instrument_id is not None:
                 allocations = allocations.where(
                     Allocation.instrument_id == instrument_id
                 )
 
-            apitype = self.get_query_argument('apiType', None)
+            apitype = self.get_query_argument("apiType", None)
             if apitype is not None:
                 if apitype == "api_classname":
                     instruments_subquery = (
@@ -423,7 +423,7 @@ class AllocationHandler(BaseHandler):
             allocations = session.scalars(allocations).unique().all()
             # order by allocation.instrument.telescope.name, then instrument.name, then pi
 
-            apiImplements = self.get_query_argument('apiImplements', None)
+            apiImplements = self.get_query_argument("apiImplements", None)
             if apiImplements is not None:
                 if apiImplements not in [
                     "update",
@@ -474,7 +474,7 @@ class AllocationHandler(BaseHandler):
             allocations = [
                 {
                     **allocation.to_dict(),
-                    'allocation_users': [
+                    "allocation_users": [
                         user.user.to_dict() for user in allocation.allocation_users
                     ],
                 }
@@ -482,7 +482,7 @@ class AllocationHandler(BaseHandler):
             ]
             return self.success(data=allocations)
 
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def post(self):
         """
         ---
@@ -512,44 +512,44 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
-        if 'instrument_id' not in data:
-            return self.error('instrument_id is required')
+        if "instrument_id" not in data:
+            return self.error("instrument_id is required")
         try:
-            data['instrument_id'] = int(data['instrument_id'])
+            data["instrument_id"] = int(data["instrument_id"])
         except ValueError:
-            return self.error('instrument_id must be an integer')
-        if isinstance(data.get('_altdata'), dict):
+            return self.error("instrument_id must be an integer")
+        if isinstance(data.get("_altdata"), dict):
             # sanitize the dictionnary, removing keys with null or empty values
-            data['_altdata'] = {
+            data["_altdata"] = {
                 k: v
-                for k, v in data['_altdata'].items()
+                for k, v in data["_altdata"].items()
                 if v is not None and str(v).strip() != ""
             }
             # if it ends up being a dictionnary with no keys, remove it
-            if not data['_altdata'] or not any(data['_altdata']):
-                data.pop('_altdata')
+            if not data["_altdata"] or not any(data["_altdata"]):
+                data.pop("_altdata")
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(self.current_user).where(
-                    Instrument.id == int(data['instrument_id'])
+                    Instrument.id == int(data["instrument_id"])
                 )
             ).first()
             if instrument is None:
                 return self.error(
-                    f'No instrument with specified ID: {data["instrument_id"]}'
+                    f"No instrument with specified ID: {data['instrument_id']}"
                 )
-            if isinstance(data.get('_altdata'), dict):
-                if instrument.api_class.implements()['validate_altdata']:
+            if isinstance(data.get("_altdata"), dict):
+                if instrument.api_class.implements()["validate_altdata"]:
                     try:
-                        data['_altdata'] = instrument.api_class.validate_altdata(
-                            data['_altdata'], instrument=instrument.to_dict()
+                        data["_altdata"] = instrument.api_class.validate_altdata(
+                            data["_altdata"], instrument=instrument.to_dict()
                         )
                     except Exception as e:
-                        return self.error(f'Error validating altdata: {str(e)}')
+                        return self.error(f"Error validating altdata: {str(e)}")
                 # then convert it to a string
-                data['_altdata'] = json.dumps(data['_altdata'])
+                data["_altdata"] = json.dumps(data["_altdata"])
 
-            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            allocation_admin_ids = data.pop("allocation_admin_ids", None)
             if allocation_admin_ids is not None:
                 allocation_admins = session.scalars(
                     User.select(self.current_user).where(
@@ -572,7 +572,7 @@ class AllocationHandler(BaseHandler):
                 )
             ).first()
             if group is None:
-                return self.error(f'No group with specified ID: {allocation.group_id}')
+                return self.error(f"No group with specified ID: {allocation.group_id}")
 
             instrument = session.scalars(
                 Instrument.select(session.user_or_token).where(
@@ -581,7 +581,7 @@ class AllocationHandler(BaseHandler):
             ).first()
             if instrument is None:
                 return self.error(
-                    f'No group with specified ID: {allocation.instrument_id}'
+                    f"No group with specified ID: {allocation.instrument_id}"
                 )
 
             session.add(allocation)
@@ -597,10 +597,10 @@ class AllocationHandler(BaseHandler):
             )
 
             session.commit()
-            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            self.push_all(action="skyportal/REFRESH_ALLOCATIONS")
             return self.success(data={"id": allocation.id})
 
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def put(self, allocation_id):
         """
         ---
@@ -636,38 +636,38 @@ class AllocationHandler(BaseHandler):
                 )
             ).first()
             if allocation is None:
-                return self.error('No such allocation')
+                return self.error("No such allocation")
 
             data = self.get_json()
-            data['id'] = allocation_id
-            if isinstance(data.get('_altdata'), dict):
+            data["id"] = allocation_id
+            if isinstance(data.get("_altdata"), dict):
                 # sanitize the dictionnary, removing keys with null or empty values
-                data['_altdata'] = {
+                data["_altdata"] = {
                     k: v
-                    for k, v in data['_altdata'].items()
+                    for k, v in data["_altdata"].items()
                     if v is not None and str(v).strip() != ""
                 }
                 # if it ends up being a dictionnary with no keys, remove it
                 # otherwise convert it to a string
-                if not data['_altdata'] or not any(data['_altdata']):
-                    data.pop('_altdata')
+                if not data["_altdata"] or not any(data["_altdata"]):
+                    data.pop("_altdata")
                 else:
                     # then convert it to a string
-                    data['_altdata'] = json.dumps(data['_altdata'])
+                    data["_altdata"] = json.dumps(data["_altdata"])
 
-            allocation_admin_ids = data.pop('allocation_admin_ids', [])
+            allocation_admin_ids = data.pop("allocation_admin_ids", [])
 
             if not isinstance(allocation_admin_ids, list):
-                return self.error('allocation_admin_ids must be a list of user IDs')
+                return self.error("allocation_admin_ids must be a list of user IDs")
             if not all(isinstance(x, int) for x in allocation_admin_ids):
-                return self.error('allocation_admin_ids must be a list of user IDs')
+                return self.error("allocation_admin_ids must be a list of user IDs")
 
             schema = Allocation.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
@@ -687,10 +687,10 @@ class AllocationHandler(BaseHandler):
                     session.add(AllocationUser(allocation=allocation, user=user))
 
             session.commit()
-            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            self.push_all(action="skyportal/REFRESH_ALLOCATIONS")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def delete(self, allocation_id):
         """
         ---
@@ -718,11 +718,11 @@ class AllocationHandler(BaseHandler):
                 )
             ).first()
             if allocation is None:
-                return self.error('No such allocation')
+                return self.error("No such allocation")
 
             session.delete(allocation)
             session.commit()
-            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            self.push_all(action="skyportal/REFRESH_ALLOCATIONS")
             return self.success()
 
 
@@ -759,9 +759,9 @@ class AllocationReportHandler(BaseHandler):
                 schema: Error
         """
 
-        output_format = self.get_query_argument('output_format', 'pdf')
+        output_format = self.get_query_argument("output_format", "pdf")
         if output_format not in ["pdf", "png"]:
-            return self.error('output_format must be png or pdf')
+            return self.error("output_format must be png or pdf")
 
         with self.Session() as session:
             # get owned allocations
@@ -770,7 +770,7 @@ class AllocationReportHandler(BaseHandler):
             allocations = session.scalars(stmt).unique().all()
 
             if len(allocations) == 0:
-                return self.error('Need at least one allocation for analysis')
+                return self.error("Need at least one allocation for analysis")
 
             instrument = allocations[0].instrument
 
@@ -784,7 +784,7 @@ class AllocationReportHandler(BaseHandler):
                         val = 0
                     else:
                         val = int(round(pct * total / 100.0))
-                    return f'{pct:.0f}%  ({val:d} {label})'
+                    return f"{pct:.0f}%  ({val:d} {label})"
 
                 return my_autopct
 
@@ -797,8 +797,8 @@ class AllocationReportHandler(BaseHandler):
                 startangle=90,
                 autopct=make_autopct(values, label="Hours"),
             )
-            ax1.axis('equal')
-            ax1.set_title('Time Allocated')
+            ax1.axis("equal")
+            ax1.set_title("Time Allocated")
 
             values = [len(a.requests) for a in allocations]
             if sum(values) > 0:
@@ -809,8 +809,8 @@ class AllocationReportHandler(BaseHandler):
                     startangle=90,
                     autopct=make_autopct(values, label="Requests"),
                 )
-                ax2.axis('equal')
-                ax2.set_title('Requests Made')
+                ax2.axis("equal")
+                ax2.set_title("Requests Made")
             else:
                 ax2.remove()
 
@@ -820,7 +820,7 @@ class AllocationReportHandler(BaseHandler):
                 stmt = (
                     FollowupRequest.select(session.user_or_token)
                     .where(FollowupRequest.allocation_id == a.id)
-                    .where(FollowupRequest.status.contains('Complete'))
+                    .where(FollowupRequest.status.contains("Complete"))
                 )
                 total_matches = session.execute(
                     sa.select(func.count()).select_from(stmt)
@@ -833,7 +833,7 @@ class AllocationReportHandler(BaseHandler):
                     try:
                         status_split = followup_request.status.split(" ")[-1]
                         status_split = status_split.replace("_", ":").replace(" ", "T")
-                        tt = astropy.time.Time(status_split, format='isot')
+                        tt = astropy.time.Time(status_split, format="isot")
                         phase_angle = moon_phase_angle(tt)
                         phase_angles.append(phase_angle.value)
                     except Exception:
@@ -848,8 +848,8 @@ class AllocationReportHandler(BaseHandler):
                     startangle=90,
                     autopct=make_autopct(values, label="Observations"),
                 )
-                ax3.axis('equal')
-                ax3.set_title('Requests Completed')
+                ax3.axis("equal")
+                ax3.set_title("Requests Completed")
             else:
                 ax3.remove()
 
@@ -859,11 +859,11 @@ class AllocationReportHandler(BaseHandler):
                 bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
                 hist = hist / np.sum(hist)
                 ax4.step(bin_centers, hist, label=label)
-            ax4.set_yscale('log')
-            ax4.set_xlabel('Phase Angle')
-            ax4.legend(loc='upper right')
-            ax4.axis('equal')
-            ax4.set_title('Moon Phase')
+            ax4.set_yscale("log")
+            ax4.set_xlabel("Phase Angle")
+            ax4.legend(loc="upper right")
+            ax4.axis("equal")
+            ax4.set_title("Moon Phase")
 
             buf = io.BytesIO()
             fig.savefig(buf, format=output_format)

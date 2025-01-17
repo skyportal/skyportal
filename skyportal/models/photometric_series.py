@@ -119,7 +119,7 @@ def verify_data(data):
         )
     if not any(c in data for c in ["mjd", "mjds"]):
         raise KeyError(
-            "Input to photometric series must contain " 'a "mjd" or "mjds" column. '
+            'Input to photometric series must contain a "mjd" or "mjds" column. '
         )
 
 

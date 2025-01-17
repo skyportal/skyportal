@@ -76,10 +76,10 @@ class UserACLHandler(BaseHandler):
             if (not isinstance(new_acl_ids, list | tuple)) or (
                 not all(
                     session.scalars(
-                            ACL.select(session.user_or_token).where(ACL.id == acl_id)
-                        ).first()
-                        is not None
-                        for acl_id in new_acl_ids
+                        ACL.select(session.user_or_token).where(ACL.id == acl_id)
+                    ).first()
+                    is not None
+                    for acl_id in new_acl_ids
                 )
             ):
                 return self.error(

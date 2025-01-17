@@ -1743,9 +1743,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             payload = {"api_token": api_token, "graceid": graceid}
 
             # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
-            if not all(
-                obs["filt"] in TREASUREMAP_FILTERS for obs in observations
-            ):
+            if not all(obs["filt"] in TREASUREMAP_FILTERS for obs in observations):
                 return self.error(
                     "Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted"
                 )
@@ -1785,12 +1783,12 @@ class ObservationTreasureMapHandler(BaseHandler):
                     if (
                         all(
                             existing_pointing[key] == pointing[key]
-                                for key in [
-                                    "status",
-                                    "depth",
-                                    "central_wave",
-                                    "bandwidth",
-                                ]
+                            for key in [
+                                "status",
+                                "depth",
+                                "central_wave",
+                                "bandwidth",
+                            ]
                         )
                         and existing_pointing["instrumentid"] == treasuremap_id
                         and existing_pointing["position"]

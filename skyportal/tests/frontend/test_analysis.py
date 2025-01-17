@@ -128,9 +128,9 @@ def test_analysis_page(
         max_attempts -= 1
         time.sleep(5)
     else:
-        assert (
-            False
-        ), f"analysis was not started properly ({data['data']['status_message']})"
+        assert False, (
+            f"analysis was not started properly ({data['data']['status_message']})"
+        )
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{obj_id}/analysis/{analysis_id}")

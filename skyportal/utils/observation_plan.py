@@ -730,7 +730,7 @@ def generate_plan(
             field_ids = {}
             if use_skyportal_fields is True:
                 for request in requests:
-                    query_id = f"{str(request.localization.id)}_{str(request.instrument.id)}_{str(int(request.payload['integrated_probability'])/100.0)}"
+                    query_id = f"{str(request.localization.id)}_{str(request.instrument.id)}_{str(int(request.payload['integrated_probability']) / 100.0)}"
                     cache_filename = cache[query_id]
                     if cache_filename is not None:
                         field_tiles = np.load(cache_filename).tolist()

@@ -79,8 +79,8 @@ def post_classification(data, user_id, session):
     if data["classification"] not in allowed_classes(taxonomy.hierarchy):
         raise ValueError(
             f"That classification ({data['classification']}) "
-            'is not in the allowed classes for the chosen '
-            f'taxonomy (id={taxonomy_id}'
+            "is not in the allowed classes for the chosen "
+            f"taxonomy (id={taxonomy_id}"
         )
 
     probability = data.get("probability")
@@ -493,7 +493,7 @@ class ClassificationHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:

@@ -5,12 +5,12 @@ Revises: 1f4da189227e
 Create Date: 2021-07-23 17:30:16.102665
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '4ef77725b330'
-down_revision = '1f4da189227e'
+revision = "4ef77725b330"
+down_revision = "1f4da189227e"
 branch_labels = None
 depends_on = None
 

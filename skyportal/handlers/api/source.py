@@ -410,8 +410,8 @@ async def get_source(
         period_str_options = ["period", "Period", "PERIOD"]
         source_info["period_exists"] = any(
             isinstance(an.data, dict) and period_str in an.data
-                for an in annotations
-                for period_str in period_str_options
+            for an in annotations
+            for period_str in period_str_options
         )
     if include_labellers:
         labels_subquery = (
@@ -788,7 +788,7 @@ def post_source(data, user_id, session, refresh_source=True):
             obj = schema.load(data)
         except ValidationError as e:
             raise ValidationError(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                f"Invalid/missing parameters: {e.normalized_messages()}"
             )
         session.add(obj)
 
@@ -2191,7 +2191,7 @@ class SourceHandler(BaseHandler):
                 obj = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
             update_summary_history_if_relevant(data, obj, self.associated_user_object)
@@ -2853,11 +2853,13 @@ class SourceNotificationHandler(BaseHandler):
 
             source_id = data["sourceId"]
 
-            source_group_ids = list(session.scalars(
+            source_group_ids = list(
+                session.scalars(
                     Source.select(
                         session.user_or_token, columns=[Source.group_id]
                     ).where(Source.obj_id == source_id)
-                ).all())
+                ).all()
+            )
 
             if bool(set(group_ids).difference(set(source_group_ids))):
                 forbidden_groups = list(set(group_ids) - set(source_group_ids))

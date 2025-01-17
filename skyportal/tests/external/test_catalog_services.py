@@ -15,7 +15,9 @@ swift_isonline = False
 try:
     requests.get(endpoint, timeout=5)
 except Exception as e:
-    if isinstance(e, requests.exceptions.ConnectionError | requests.exceptions.ConnectTimeout):
+    if isinstance(
+        e, requests.exceptions.ConnectionError | requests.exceptions.ConnectTimeout
+    ):
         pass
     else:
         # if it is another exception we set swift_isonline to True anyway

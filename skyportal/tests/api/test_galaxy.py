@@ -41,9 +41,8 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904"
-                and d["mstar"] == 336.60756522868667
-                for d in data
+            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
+            for d in data
         ):
             galaxies_loaded = True
             break
@@ -69,8 +68,7 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
     # now we have restricted to only 3/92 being in localization
     assert len(data) == 3
     assert any(
-        d["name"] == "MCG -04-03-023" and d["mstar"] == 20113219211.26844
-            for d in data
+        d["name"] == "MCG -04-03-023" and d["mstar"] == 20113219211.26844 for d in data
     )
 
     # The GeoJSON takes the form of
@@ -84,8 +82,8 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
 
     assert any(
         d["geometry"]["coordinates"] == [13.1945, -25.671583]
-            and d["properties"]["name"] == "MCG -04-03-023"
-            for d in geojson["features"]
+        and d["properties"]["name"] == "MCG -04-03-023"
+        for d in geojson["features"]
     )
 
     status, data = api(
@@ -158,9 +156,8 @@ def test_source_host(
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904"
-                and d["mstar"] == 336.60756522868667
-                for d in data
+            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
+            for d in data
         ):
             galaxies_loaded = True
             break

@@ -40,7 +40,7 @@ class WebhookMixin:
         allowed_webbook_status_types,
         nullable=False,
         doc=(
-            f"""Status of the Webhook. One of: {', '.join(f"'{t}'" for t in WEBHOOK_STATUS_TYPES)}."""
+            f"""Status of the Webhook. One of: {", ".join(f"'{t}'" for t in WEBHOOK_STATUS_TYPES)}."""
         ),
     )
 

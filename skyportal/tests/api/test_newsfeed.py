@@ -19,20 +19,20 @@ def test_retrieve_newsfeed(view_only_token, public_group, upload_data_token):
     )
     assert status == 200
 
-    params = {'numItems': 1000}
-    status, data = api('GET', 'newsfeed', token=view_only_token, params=params)
+    params = {"numItems": 1000}
+    status, data = api("GET", "newsfeed", token=view_only_token, params=params)
 
     assert status == 200
-    data = data['data']
-    assert any(d['type'] == 'source' for d in data)
-    assert any(d['message'] == 'New source saved' for d in data)
-    assert any(d['source_id'] == obj_id for d in data)
+    data = data["data"]
+    assert any(d["type"] == "source" for d in data)
+    assert any(d["message"] == "New source saved" for d in data)
+    assert any(d["source_id"] == obj_id for d in data)
 
 
 def test_fail_newsfeed_request_too_many(
     view_only_token,
 ):
-    params = {'numItems': 1001}
-    status, data = api('GET', 'newsfeed', token=view_only_token, params=params)
+    params = {"numItems": 1001}
+    status, data = api("GET", "newsfeed", token=view_only_token, params=params)
     assert status == 400
-    assert data['message'] == 'numItems should be no larger than 1000.'
+    assert data["message"] == "numItems should be no larger than 1000."

@@ -44,8 +44,8 @@ _, cfg = load_env()
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
 
-HOST = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg["server.port"] not in [80, 443] else ""
+HOST = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
+    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
 NGPS_TARGET_BANDS_TO_SNCOSMO = {
@@ -631,9 +631,7 @@ def _calculate_best_position_for_offset_stars(
         Remove positions that are this number of std away from the median
     """
     if not isinstance(photometry, list):
-        log(
-            "Warning: No photometry given. Falling back to" " original source position."
-        )
+        log("Warning: No photometry given. Falling back to original source position.")
         return fallback
 
     # convert the photometry into a dataframe
@@ -856,7 +854,7 @@ def get_formatted_standards_list(
             starlist.append(
                 {
                     "str": (
-                        f"{row['name'].replace(' ',''):{space}<{maxname_size}}"
+                        f"{row['name'].replace(' ', ''):{space}<{maxname_size}}"
                         + col_sep
                         + f"{row.skycoord}"
                         + col_sep
@@ -1266,9 +1264,9 @@ def get_nearby_offset_stars(
             offsets = ""
 
         if starlist_type == "P200-NGPS":
-            name = f"{abrev_basename}_o{i+1}"
+            name = f"{abrev_basename}_o{i + 1}"
         else:
-            name = f"{abrev_basename}_{starlist_type.lower()[0]}{i+1}"
+            name = f"{abrev_basename}_{starlist_type.lower()[0]}{i + 1}"
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
@@ -1303,7 +1301,7 @@ def get_nearby_offset_stars(
                 + col_sep
                 + f"{offsets}"
                 + f"{col_sep if giveoffsets else ''}"
-                + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
+                + f'{commentstr} dist={3600 * dist:<0.02f}"; {source["phot_rp_mean_mag"]:<0.02f} mag'
                 + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
                 + f" ID={source[id_col]}"
             )
@@ -1615,7 +1613,7 @@ def get_finding_chart(
     ax.set_ylabel(r"$\delta$ (J2000)", fontsize="large")
     obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     ax.set_title(
-        f'{source_name} Finder (for {obstime.split("T")[0]})',
+        f"{source_name} Finder (for {obstime.split('T')[0]})",
         fontsize="large",
         fontweight="bold",
     )
@@ -1698,7 +1696,7 @@ def get_finding_chart(
         ax.text(
             0.95,
             0.95,
-            f'image date {date_obs.split("T")[0]}',
+            f"image date {date_obs.split('T')[0]}",
             horizontalalignment="right",
             verticalalignment="center",
             transform=ax.transAxes,
@@ -1784,7 +1782,7 @@ def get_finding_chart(
             and (star.get("ddecs") is not None)
             and (star.get("pa") is not None)
         ):
-            source_text += f'  {star.get("dras")} {star.get("ddecs")} (PA={star.get("pa"):<0.02f}°)'
+            source_text += f"  {star.get('dras')} {star.get('ddecs')} (PA={star.get('pa'):<0.02f}°)"
         ax_text.text(
             start_text[0],
             start_text[1] - (i * 1.1) / ncolors - 0.06,

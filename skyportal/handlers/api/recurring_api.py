@@ -112,7 +112,7 @@ class RecurringAPIHandler(BaseHandler):
                 recurring_api = schema.load(data)
             except ValidationError as exc:
                 return self.error(
-                    "Invalid/missing parameters: " f"{exc.normalized_messages()}"
+                    f"Invalid/missing parameters: {exc.normalized_messages()}"
                 )
             recurring_api.owner_id = self.associated_user_object.id
             session.add(recurring_api)

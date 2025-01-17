@@ -638,14 +638,14 @@ class ZTFAPI(FollowUpAPI):
                     req = FacilityTransactionRequest(**request_body)
                 except ValidationError as e:
                     raise ValidationError(
-                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
                 session.add(req)
                 session.commit()
 
                 facility_microservice_url = (
-                    f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+                    f"http://127.0.0.1:{cfg['ports.facility_queue']}"
                 )
                 requests.post(
                     facility_microservice_url,

@@ -246,10 +246,10 @@ def get_period_exists(annotations):
     period_str_options = {"period", "Period", "PERIOD"}
     return any(
         isinstance(an["data"], dict)
-            and period_str_options.intersection(
-                set(an["data"].keys())
-            )  # check if the period string is an annotation
-            for an in annotations
+        and period_str_options.intersection(
+            set(an["data"].keys())
+        )  # check if the period string is an annotation
+        for an in annotations
     )
 
 
@@ -364,7 +364,7 @@ def create_annotation_query(
     if len(stmts) > 0:
         return (
             f"""
-        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {' AND '.join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :accessible_group_ids)" if not is_admin else ""})
+        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {" AND ".join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :accessible_group_ids)" if not is_admin else ""})
         """,
             params,
         )
@@ -932,7 +932,7 @@ async def get_sources(
             if len(photstat_query) > 0:
                 statements.append(
                     f"""
-                    EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
+                    EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {" AND ".join(photstat_query)})
                     """
                 )
 
@@ -1051,10 +1051,13 @@ async def get_sources(
 
                 classification_taxonomy_names, classifications_text = list(
                     zip(
-                        *[(
-                                    c.split(":")[0].strip(),
-                                    c.split(":")[1].strip(),
-                                ) for c in classifications]
+                        *[
+                            (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            )
+                            for c in classifications
+                        ]
                     )
                 )
                 all_taxonomy_names.extend(classification_taxonomy_names)
@@ -1076,10 +1079,13 @@ async def get_sources(
                     )
                 nonclassification_taxonomy_names, nonclassifications_text = list(
                     zip(
-                        *[(
-                                    c.split(":")[0].strip(),
-                                    c.split(":")[1].strip(),
-                                ) for c in nonclassifications]
+                        *[
+                            (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            )
+                            for c in nonclassifications
+                        ]
                     )
                 )
                 all_taxonomy_names.extend(nonclassification_taxonomy_names)
@@ -1131,12 +1137,12 @@ async def get_sources(
 
                 if not is_admin:
                     classification_statement = f"""
-                RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE ({' OR '.join(classifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
+                RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE ({" OR ".join(classifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
                 GROUP BY obj_id) classifications ON classifications.obj_id=objs.id
                 """
                 else:
                     classification_statement = f"""
-                    RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE {' OR '.join(classifications_query)}
+                    RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE {" OR ".join(classifications_query)}
                     GROUP BY obj_id) classifications ON classifications.obj_id=objs.id
                     """
                 # add the join before any WHERE statements
@@ -1176,12 +1182,12 @@ async def get_sources(
                 # a left outer join was the fastest way to do this
                 if not is_admin:
                     nonclassification_statement = f"""
-                    LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE ({' OR '.join(nonclassifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
+                    LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE ({" OR ".join(nonclassifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
                     GROUP BY obj_id) nonclassifications ON nonclassifications.obj_id=objs.id
                     """
                 else:
                     nonclassification_statement = f"""
-                    LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE {' OR '.join(nonclassifications_query)}
+                    LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE {" OR ".join(nonclassifications_query)}
                     GROUP BY obj_id) nonclassifications ON nonclassifications.obj_id=objs.id
                     """
                 # add the join before any WHERE statements
@@ -1401,7 +1407,7 @@ async def get_sources(
                     bindparam(f"comments_filter_{i}", value=f"%{c}%", type_=sa.String)
                 )
             comments_query.append(
-                f"""comments.text ilike any(array[{', '.join([f':comments_filter_{i}' for i in range(len(comments_filter))])}])"""
+                f"""comments.text ilike any(array[{", ".join([f":comments_filter_{i}" for i in range(len(comments_filter))])}])"""
             )
         if comments_filter_before is not None:
             try:
@@ -1458,7 +1464,7 @@ async def get_sources(
         if len(comments_query) > 0:
             statements.append(
                 f"""
-                EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} {"and comments.id in (select comment_id from group_comments where group_id in :accessible_group_ids)" if not is_admin else ""})
+                EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {" AND ".join(comments_query)} {"and comments.id in (select comment_id from group_comments where group_id in :accessible_group_ids)" if not is_admin else ""})
                 """
             )
         localization_queries = []
@@ -1495,7 +1501,7 @@ async def get_sources(
                 if localization_reject_sources or sort_by == "gcn_status":
                     joins.append(
                         f"""
-                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                         """
                     )
                     if localization_reject_sources:
@@ -1507,7 +1513,7 @@ async def get_sources(
                 if include_sources_in_gcn:
                     localization_queries.append(
                         f"""
-                        EXISTS (SELECT sourcesconfirmedingcns.obj_id FROM sourcesconfirmedingcns WHERE sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}' AND sourcesconfirmedingcns.confirmed is not false)
+                        EXISTS (SELECT sourcesconfirmedingcns.obj_id FROM sourcesconfirmedingcns WHERE sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND sourcesconfirmedingcns.confirmed is not false)
                     """
                     )
             except Exception as e:
@@ -1603,8 +1609,8 @@ async def get_sources(
                         statement = f"""
                             SELECT sources.id
                             FROM sources INNER JOIN objs ON sources.obj_id = objs.id
-                            {' '.join(joins)}
-                            WHERE {' AND '.join(statements + [localization_query])}
+                            {" ".join(joins)}
+                            WHERE {" AND ".join(statements + [localization_query])}
                             GROUP BY sources.id
                         """
 
@@ -1649,8 +1655,8 @@ async def get_sources(
                     statement = f"""
                         SELECT sources.id
                         FROM sources INNER JOIN objs ON sources.obj_id = objs.id
-                        {' '.join(joins)}
-                        WHERE {' AND '.join(statements)}
+                        {" ".join(joins)}
+                        WHERE {" AND ".join(statements)}
                         GROUP BY sources.id
                     """
                     if ":accessible_group_ids" in statement:
@@ -1745,8 +1751,8 @@ async def get_sources(
                         # ADD QUERY STATEMENTS
                         statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                             FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-                            {' '.join(joins)}
-                            WHERE {' AND '.join(statements + [localization_query])}
+                            {" ".join(joins)}
+                            WHERE {" AND ".join(statements + [localization_query])}
                             GROUP BY objs.id
                         """
 
@@ -1793,7 +1799,7 @@ async def get_sources(
                     if sort_by == "gcn_status":
                         joins.append(
                             f"""
-                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                             """
                         )
                     elif sort_by == "favorites":
@@ -1811,7 +1817,7 @@ async def get_sources(
                     query_params.extend(bindparams)
                     statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                         FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-                        {' '.join(joins)}
+                        {" ".join(joins)}
                         where objs.id in {query_str}
                         GROUP BY objs.id
                     """
@@ -1870,8 +1876,8 @@ async def get_sources(
                     # ADD QUERY STATEMENTS
                     statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                         FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-                        {' '.join(joins)}
-                        WHERE {' AND '.join(statements)}
+                        {" ".join(joins)}
+                        WHERE {" AND ".join(statements)}
                         GROUP BY objs.id
                     """
 

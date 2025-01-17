@@ -130,7 +130,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
             if getattr(method, "__permissions__", None):
                 spec["description"] = (
-                    f'<b>Permission(s) required:</b> <em>{", ".join(method.__permissions__)} (or System admin)</em><br><br>'
+                    f"<b>Permission(s) required:</b> <em>{', '.join(method.__permissions__)} (or System admin)</em><br><br>"
                     + spec.get("description", "")
                 )
 

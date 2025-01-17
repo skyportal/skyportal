@@ -339,7 +339,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         if len(obj_ids) == 0:
             catalog_query.status = "completed: No new objects"
         else:
-            catalog_query.status = f'completed: Added {",".join(obj_ids)}'
+            catalog_query.status = f"completed: Added {','.join(obj_ids)}"
         session.commit()
 
         flow = Flow()

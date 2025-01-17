@@ -51,7 +51,7 @@ def api(
     """
     if host is None:
         env, cfg = load_env()
-        host = f'http://localhost:{cfg["ports.app"]}'
+        host = f"http://localhost:{cfg['ports.app']}"
     url = urllib.parse.urljoin(host, f"/api/{endpoint}")
     headers = {"Authorization": f"token {token}"} if token else None
     response = session.request(method, url, json=data, params=params, headers=headers)
@@ -82,7 +82,7 @@ def assert_api(status, data):
     """
     if status != 200 or data["status"] != "success":
         if data:
-            raise Exception(f'Expected success, got {status}: {data["message"]}')
+            raise Exception(f"Expected success, got {status}: {data['message']}")
         else:
             raise Exception(f"Expected success, got {status}")
 
@@ -113,7 +113,7 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
     if expected_error_partial is not None:
         if not data or expected_error_partial not in data["message"]:
             raise Exception(
-                f'Expected error message to contain {expected_error_partial}, got {data["message"]}'
+                f"Expected error message to contain {expected_error_partial}, got {data['message']}"
             )
     if expected_status is not None:
         if status != expected_status:

@@ -64,7 +64,7 @@ class Classification(Base):
     author_name = sa.Column(
         sa.String,
         nullable=False,
-        doc="User.username or Token.id " "of the Classification's author.",
+        doc="User.username or Token.id of the Classification's author.",
     )
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),

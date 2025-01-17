@@ -421,7 +421,7 @@ def serialize(
 def standardize_photometry_data(data):
     if not isinstance(data, dict):
         raise ValidationError(
-            "Top level JSON must be an instance of `dict`, got " f"{type(data)}."
+            f"Top level JSON must be an instance of `dict`, got {type(data)}."
         )
 
     max_num_elements = max(
@@ -494,7 +494,7 @@ def standardize_photometry_data(data):
             df = pd.DataFrame(data)
     except ValueError as e:
         raise ValidationError(
-            "Unable to coerce passed JSON to a series of packets. " f'Error was: "{e}"'
+            f'Unable to coerce passed JSON to a series of packets. Error was: "{e}"'
         )
 
     if altdata is not None and len(altdata) > 0:
@@ -561,8 +561,7 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f"field {field} must be finite."
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
                 )
 
         # ensure nothing is null for the required fields
@@ -577,8 +576,7 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f"missing required field {field}."
+                    f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
         # convert the mags to fluxes
@@ -620,8 +618,7 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f"missing required field {field}."
+                    f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
         for field in ["flux", "fluxerr"]:
@@ -635,8 +632,7 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f"field {field} must be finite."
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
                 )
 
         phot_table = Table.from_pandas(df[["mjd", "magsys", "filter", "zp"]])
@@ -788,8 +784,7 @@ def insert_new_photometry_data(
 
         if len(dict_rep) > 0:
             raise ValidationError(
-                "The following photometry already exists "
-                f"in the database: {dict_rep}."
+                f"The following photometry already exists in the database: {dict_rep}."
             )
 
     # pre-fetch the photometry PKs. these are not guaranteed to be
@@ -798,7 +793,7 @@ def insert_new_photometry_data(
     # PK slots for uninserted rows
 
     pkq = sa.text(
-        f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+        f"SELECT nextval('photometry_id_seq') FROM generate_series(1, {len(df)})"
     )
 
     proxy = session.execute(pkq)
@@ -824,7 +819,7 @@ def insert_new_photometry_data(
         ):
             instrument = instrument_cache[packet["instrument_id"]]
             raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{packet['filter']}."
+                f"Instrument {instrument.name} has no filter {packet['filter']}."
             )
 
         flux = packet.pop("standardized_flux")

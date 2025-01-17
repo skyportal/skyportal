@@ -20,7 +20,7 @@ def test_api_rate_limiting(view_only_token):
     time.sleep(1)
     for n_successful_requests in range(100):
         r = requests.get(
-            f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
+            f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
             headers={"Authorization": f"token {view_only_token}"},
         )
         if r.status_code != 200:
@@ -29,7 +29,7 @@ def test_api_rate_limiting(view_only_token):
     # See https://www.nginx.com/blog/rate-limiting-nginx/#bursts
     assert 11 <= n_successful_requests <= 20
     r = requests.get(
-        f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
+        f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
         headers={"Authorization": f"token {view_only_token}"},
     )
     assert r.status_code == 429
@@ -39,7 +39,7 @@ def test_api_rate_limiting(view_only_token):
 
     # Ensure request is now successful
     r = requests.get(
-        f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
+        f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
         headers={"Authorization": f"token {view_only_token}"},
     )
     assert r.status_code == 200
@@ -49,7 +49,7 @@ def test_rate_limited_requests_ok(view_only_token):
     # This is above the 15/s (regular + burst) threshold, but throttled down:
     for i in range(30):
         r = requests.get(
-            f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
+            f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
             headers={"Authorization": f"token {view_only_token}"},
         )
         assert r.status_code == 200

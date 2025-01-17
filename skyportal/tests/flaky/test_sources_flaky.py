@@ -156,29 +156,25 @@ def test_sources_include_detection_stats(
     # <Arrow [1858-11-17T00:00:00+00:00]>
 
     assert any(
-        arrow.get(
-                Time(s["photstats"][-1]["last_detected_mjd"], format="mjd").datetime
-            )
-            == arrow.get((90000.0 - 40_587) * 86400.0)
-            for s in data["data"]["sources"]
+        arrow.get(Time(s["photstats"][-1]["last_detected_mjd"], format="mjd").datetime)
+        == arrow.get((90000.0 - 40_587) * 86400.0)
+        for s in data["data"]["sources"]
     )
     assert any(
-        arrow.get(
-                Time(s["photstats"][-1]["peak_mjd_global"], format="mjd").datetime
-            )
-            == arrow.get((90000.0 - 40_587) * 86400.0)
-            for s in data["data"]["sources"]
+        arrow.get(Time(s["photstats"][-1]["peak_mjd_global"], format="mjd").datetime)
+        == arrow.get((90000.0 - 40_587) * 86400.0)
+        for s in data["data"]["sources"]
     )
 
     assert any(
         np.isclose(s["photstats"][-1]["last_detected_mag"], 22.280546455476145)
-            if s["photstats"][-1]["last_detected_mag"] is not None
-            else False
-            for s in data["data"]["sources"]
+        if s["photstats"][-1]["last_detected_mag"] is not None
+        else False
+        for s in data["data"]["sources"]
     )
     assert any(
         np.isclose(s["photstats"][-1]["peak_mag_global"], 22.280546455476145)
-            if s["photstats"][-1]["peak_mag_global"] is not None
-            else False
-            for s in data["data"]["sources"]
+        if s["photstats"][-1]["peak_mag_global"] is not None
+        else False
+        for s in data["data"]["sources"]
     )

@@ -86,8 +86,8 @@ def send_source_notification(mapper, connection, target):
     # Send SMS messages to opted-in users if desired
     if target.level == "hard":
         message_text = (
-            f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
-            f' attention to a source at {link_location} ({source_info}).'
+            f"{cfg['app.title']}: {sent_by_name} would like to call your immediate"
+            f" attention to a source at {link_location} ({source_info})."
         )
         if target.additional_notes != "" and target.additional_notes is not None:
             message_text += f" Addtional notes: {target.additional_notes}"
@@ -131,6 +131,6 @@ def send_source_notification(mapper, connection, target):
     if len(recipients) > 0:
         send_email(
             recipients=recipients,
-            subject=f'{cfg["app.title"]}: Source Alert',
+            subject=f"{cfg['app.title']}: Source Alert",
             body=html_content,
         )

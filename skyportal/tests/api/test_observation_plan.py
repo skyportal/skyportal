@@ -164,7 +164,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
             for i, d in enumerate(data):
                 assert any(
                     d["payload"] == request_data["payload"]
-                        for request_data in requests_data
+                    for request_data in requests_data
                 )
                 observation_plans = d["observation_plans"]
                 assert len(observation_plans) == 1
@@ -172,37 +172,37 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
 
                 assert any(
                     observation_plan["plan_name"]
-                        == request_data["payload"]["queue_name"]
-                        for request_data in requests_data
+                    == request_data["payload"]["queue_name"]
+                    for request_data in requests_data
                 )
                 assert any(
                     observation_plan["validity_window_start"]
-                        == request_data["payload"]["start_date"].replace(" ", "T")
-                        for request_data in requests_data
+                    == request_data["payload"]["start_date"].replace(" ", "T")
+                    for request_data in requests_data
                 )
                 # same with the validity window start
                 assert any(
                     observation_plan["validity_window_start"]
-                        == request_data["payload"]["start_date"].replace(" ", "T")
-                        for request_data in requests_data
+                    == request_data["payload"]["start_date"].replace(" ", "T")
+                    for request_data in requests_data
                 )
                 # same with the validity window end
                 assert any(
                     observation_plan["validity_window_end"]
-                        == request_data["payload"]["end_date"].replace(" ", "T")
-                        for request_data in requests_data
+                    == request_data["payload"]["end_date"].replace(" ", "T")
+                    for request_data in requests_data
                 )
 
                 planned_observations = observation_plan["planned_observations"]
 
                 assert all(
                     obs["filt"] == requests_data[0]["payload"]["filters"]
-                        for obs in planned_observations
+                    for obs in planned_observations
                 )
                 assert all(
                     obs["exposure_time"]
-                        == int(requests_data[0]["payload"]["exposure_time"])
-                        for obs in planned_observations
+                    == int(requests_data[0]["payload"]["exposure_time"])
+                    for obs in planned_observations
                 )
             break
         except AssertionError:
@@ -313,9 +313,8 @@ def test_observation_plan_galaxy(
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904"
-                and d["mstar"] == 336.60756522868667
-                for d in data
+            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
+            for d in data
         ):
             galaxies_loaded = True
             break
@@ -399,9 +398,8 @@ def test_observation_plan_galaxy(
 
             for i, d in enumerate(data):
                 assert any(
-                    d["payload"]["queue_name"]
-                        == request_data["payload"]["queue_name"]
-                        for request_data in requests_data
+                    d["payload"]["queue_name"] == request_data["payload"]["queue_name"]
+                    for request_data in requests_data
                 )
                 observation_plans = d["observation_plans"]
                 assert len(observation_plans) == 1
@@ -409,8 +407,8 @@ def test_observation_plan_galaxy(
 
                 assert any(
                     observation_plan["plan_name"]
-                        == request_data["payload"]["queue_name"]
-                        for request_data in requests_data
+                    == request_data["payload"]["queue_name"]
+                    for request_data in requests_data
                 )
                 assert observation_plan["validity_window_start"] == requests_data[0][
                     "payload"
@@ -424,12 +422,12 @@ def test_observation_plan_galaxy(
 
                 assert all(
                     obs["filt"] == requests_data[i]["payload"]["filters"]
-                        for obs in planned_observations
+                    for obs in planned_observations
                 )
                 assert all(
                     obs["exposure_time"]
-                        == int(requests_data[i]["payload"]["exposure_time"])
-                        for obs in planned_observations
+                    == int(requests_data[i]["payload"]["exposure_time"])
+                    for obs in planned_observations
                 )
             break
         except AssertionError:

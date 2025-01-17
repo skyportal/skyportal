@@ -1660,7 +1660,7 @@ class CandidateHandler(BaseHandler):
                     obj = schema.load(data)
                 except ValidationError as e:
                     return self.error(
-                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 session.add(obj)
 

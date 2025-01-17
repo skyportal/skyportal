@@ -1,10 +1,10 @@
 __all__ = [
-    'Stream',
-    'StreamUser',
-    'StreamPhotometry',
-    'StreamPhotometricSeries',
-    'StreamInvitation',
-    'StreamTNSRobot',
+    "Stream",
+    "StreamUser",
+    "StreamPhotometry",
+    "StreamPhotometricSeries",
+    "StreamInvitation",
+    "StreamTNSRobot",
 ]
 
 import sqlalchemy as sa
@@ -32,7 +32,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter."""
 
-    read = AccessibleIfUserMatches('users')
+    read = AccessibleIfUserMatches("users")
     create = update = delete = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
@@ -44,22 +44,22 @@ class Stream(Base):
     )
 
     groups = relationship(
-        'Group',
-        secondary='group_streams',
-        back_populates='streams',
+        "Group",
+        secondary="group_streams",
+        back_populates="streams",
         passive_deletes=True,
         doc="The Groups with access to this Stream.",
     )
     users = relationship(
-        'User',
-        secondary='stream_users',
-        back_populates='streams',
+        "User",
+        secondary="stream_users",
+        back_populates="streams",
         passive_deletes=True,
         doc="The users with access to this stream.",
     )
     filters = relationship(
-        'Filter',
-        back_populates='stream',
+        "Filter",
+        back_populates="stream",
         passive_deletes=True,
         doc="The filters with access to this stream.",
     )
@@ -69,7 +69,7 @@ class Stream(Base):
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The photometry associated with this stream.',
+        doc="The photometry associated with this stream.",
     )
 
     photometric_series = relationship(
@@ -78,7 +78,7 @@ class Stream(Base):
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Photometric series associated with this stream.',
+        doc="Photometric series associated with this stream.",
     )
 
     tnsrobots = relationship(
@@ -117,7 +117,7 @@ def stream_delete_logic(cls, user_or_token):
     )
 
 
-StreamUser = join_model('stream_users', Stream, User)
+StreamUser = join_model("stream_users", Stream, User)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
 StreamUser.create = restricted
 # only system admins can modify user stream permissions
@@ -134,7 +134,7 @@ StreamPhotometricSeries = join_model(
 StreamPhotometricSeries.__doc__ = "Join table mapping Streams to PhotometricSeries."
 StreamPhotometricSeries.create = accessible_by_stream_members
 
-StreamInvitation = join_model('stream_invitations', Stream, Invitation)
+StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
 StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
 StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."

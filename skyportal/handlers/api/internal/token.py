@@ -196,7 +196,7 @@ class TokenHandler(BaseHandler):
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 if "name" in data:
                     token.name = data["name"]
@@ -212,12 +212,10 @@ class TokenHandler(BaseHandler):
                     new_acl_ids = list(set(token_acls))
                     if not all(
                         session.scalars(
-                                ACL.select(session.user_or_token).where(
-                                    ACL.id == acl_id
-                                )
-                            ).first()
-                            is not None
-                            for acl_id in new_acl_ids
+                            ACL.select(session.user_or_token).where(ACL.id == acl_id)
+                        ).first()
+                        is not None
+                        for acl_id in new_acl_ids
                     ):
                         return self.error(
                             "Improperly formatted parameter aclIds; must be an array of strings corresponding to valid ACLs."

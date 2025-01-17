@@ -129,7 +129,7 @@ class AnalysisService(Base):
         allowed_external_authentication_types,
         nullable=False,
         doc=(
-            f"""Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}."""
+            f"""Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}."""
             " See https://docs.python-requests.org/en/master/user/authentication/"
         ),
     )
@@ -145,7 +145,7 @@ class AnalysisService(Base):
     analysis_type = sa.Column(
         allowed_analysis_types,
         nullable=False,
-        doc=f"""Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}""",
+        doc=f"""Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}""",
     )
 
     input_data_types = sa.Column(

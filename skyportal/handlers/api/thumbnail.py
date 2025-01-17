@@ -46,7 +46,7 @@ def post_thumbnail(data, user_id, session):
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
     file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png'
+        basedir / f"static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
     )
     if not os.path.exists(os.path.dirname(file_uri)):
         Path(os.path.dirname(file_uri)).mkdir(parents=True)
@@ -69,7 +69,7 @@ def post_thumbnail(data, user_id, session):
             obj_id=data["obj_id"],
             type=data["ttype"],
             file_uri=file_uri,
-            public_url=f'/static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png',
+            public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
         )
         with open(file_uri, "wb") as f:
             f.write(file_bytes)
@@ -223,7 +223,7 @@ class ThumbnailHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:

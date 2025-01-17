@@ -5,12 +5,12 @@ Revises: 9f6032c799a9
 Create Date: 2022-12-12 20:38:41.151525
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '9f2563d6c9b5'
-down_revision = '9f6032c799a9'
+revision = "9f2563d6c9b5"
+down_revision = "9f6032c799a9"
 branch_labels = None
 depends_on = None
 

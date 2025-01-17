@@ -101,9 +101,8 @@ def test_observation(super_admin_token, view_only_token, gcn_GW190425):
     assert len(data["observations"]) == 10
     assert np.isclose(data["probability"], 2.927898964006069e-05)
     assert any(
-        d["obstime"] == "2019-04-25T08:18:18.002909"
-            and d["observation_id"] == 84434604
-            for d in data["observations"]
+        d["obstime"] == "2019-04-25T08:18:18.002909" and d["observation_id"] == 84434604
+        for d in data["observations"]
     )
 
     observation_id = None
@@ -150,9 +149,8 @@ def test_observation(super_admin_token, view_only_token, gcn_GW190425):
 
     assert len(data["observations"]) == 9
     assert not any(
-        d["obstime"] == "2019-04-25T08:18:18.002909"
-            and d["observation_id"] == 84434604
-            for d in data["observations"]
+        d["obstime"] == "2019-04-25T08:18:18.002909" and d["observation_id"] == 84434604
+        for d in data["observations"]
     )
 
     # delete the event
@@ -255,9 +253,8 @@ def test_observation_radec(super_admin_token, view_only_token):
             time.sleep(3)
 
     assert any(
-        d["obstime"] == "2019-04-25T08:18:18.002909"
-            and d["observation_id"] == 94434604
-            for d in data["observations"]
+        d["obstime"] == "2019-04-25T08:18:18.002909" and d["observation_id"] == 94434604
+        for d in data["observations"]
     )
 
 
@@ -358,5 +355,5 @@ def test_observation_isot(super_admin_token, view_only_token):
 
     assert any(
         d["obstime"] == "2019-04-25T08:18:18" and d["observation_id"] == 94434604
-            for d in data["observations"]
+        for d in data["observations"]
     )

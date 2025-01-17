@@ -14,14 +14,13 @@ from . import FollowUpAPI
 env, cfg = load_env()
 
 
-if cfg.get('app.colibri.port') is None:
+if cfg.get("app.colibri.port") is None:
     COLIBRI_URL = f"{cfg['app.colibri.protocol']}://{cfg['app.colibri.host']}"
 else:
     COLIBRI_URL = f"{cfg['app.colibri.protocol']}://{cfg['app.colibri.host']}:{cfg['app.colibri.port']}"
 
 
 class COLIBRIRequest:
-
     """A dictionary structure for COLIBRI ToO requests."""
 
     def _build_payload(self, request):
@@ -44,31 +43,30 @@ class COLIBRIRequest:
                 raise ValueError(f"Improper observation_choice {filt}")
 
         c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
-        ra_str = c.ra.to_string(unit='hour', sep=':', precision=2, pad=True)
-        dec_str = c.dec.to_string(unit='degree', sep=':', precision=2, pad=True)
+        ra_str = c.ra.to_string(unit="hour", sep=":", precision=2, pad=True)
+        dec_str = c.dec.to_string(unit="degree", sep=":", precision=2, pad=True)
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'alpha': ra_str,
-            'delta': dec_str,
-            'equinox': '2000',
-            'uncertainty': '1.0as',
-            'priority': int(request.payload["priority"]),
-            'filters': "".join(request.payload["observation_choices"]),
-            'type': 'transient',
-            'projectidentifier': str(request.allocation.id),
-            'identifier': str(request.id),
-            'enabled': "true",
-            'eventtimestamp': request.payload["start_date"],
-            'alerttimestamp': request.payload["start_date"],
+            "name": request.obj.id,
+            "alpha": ra_str,
+            "delta": dec_str,
+            "equinox": "2000",
+            "uncertainty": "1.0as",
+            "priority": int(request.payload["priority"]),
+            "filters": "".join(request.payload["observation_choices"]),
+            "type": "transient",
+            "projectidentifier": str(request.allocation.id),
+            "identifier": str(request.id),
+            "enabled": "true",
+            "eventtimestamp": request.payload["start_date"],
+            "alerttimestamp": request.payload["start_date"],
         }
 
         return target
 
 
 class COLIBRIAPI(FollowUpAPI):
-
     """An interface to COLIBRI operations."""
 
     # subclasses *must* implement the method below
@@ -91,21 +89,21 @@ class COLIBRIAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         requestpath = f"{COLIBRI_URL}/cgi-bin/internal/process_colibri_ztf_request.py"
 
         r = requests.post(
             requestpath,
-            auth=HTTPBasicAuth(altdata['username'], altdata['password']),
+            auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
             json=requestgroup,
         )
         r.raise_for_status()
 
         if r.status_code == 200:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -116,18 +114,18 @@ class COLIBRIAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -147,18 +145,18 @@ class COLIBRIAPI(FollowUpAPI):
                 "Can't delete requests already submitted successfully to COLIBRI."
             )
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -211,5 +209,5 @@ class COLIBRIAPI(FollowUpAPI):
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {
-        'observation_choices': "Request",
+        "observation_choices": "Request",
     }

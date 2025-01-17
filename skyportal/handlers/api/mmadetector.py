@@ -56,7 +56,7 @@ class MMADetectorHandler(BaseHandler):
                 mmadetector = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             if data["fixed_location"]:
                 if (
@@ -186,7 +186,7 @@ class MMADetectorHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             if "name" in data:
@@ -298,7 +298,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
-                    f'Cannot find mmadetector with ID: {data["detector_id"]}'
+                    f"Cannot find mmadetector with ID: {data['detector_id']}"
                 )
 
             owner_id = self.associated_user_object.id
@@ -523,9 +523,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
         try:
             data = MMADetectorSpectrumPost.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
-            )
+            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
         group_ids = data.pop("group_ids", None)
         if group_ids == "all":
@@ -672,7 +670,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
-                    f'Cannot find mmadetector with ID: {json["detector_id"]}'
+                    f"Cannot find mmadetector with ID: {json['detector_id']}"
                 )
 
             owner_id = self.associated_user_object.id

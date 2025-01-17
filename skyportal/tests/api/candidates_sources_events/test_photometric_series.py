@@ -250,7 +250,7 @@ def test_post_bad_metadata(
         status,
         data,
         400,
-        "The following keys are missing: " "['ra', 'dec', 'exp_time', 'filter']",
+        "The following keys are missing: ['ra', 'dec', 'exp_time', 'filter']",
     )
 
     # add everything else, but wrong filter
@@ -1534,13 +1534,9 @@ def test_get_series_by_frame_rate(
         assert data["data"]["totalMatches"] == 2
         assert len(data["data"]["series"]) == 2
         if op == "min":
-            assert all(
-                ps["frame_rate"] >= split_rate for ps in data["data"]["series"]
-            )
+            assert all(ps["frame_rate"] >= split_rate for ps in data["data"]["series"])
         if op == "max":
-            assert all(
-                ps["frame_rate"] <= split_rate for ps in data["data"]["series"]
-            )
+            assert all(ps["frame_rate"] <= split_rate for ps in data["data"]["series"])
 
 
 def test_get_series_by_num_exp(

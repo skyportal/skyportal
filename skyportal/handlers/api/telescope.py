@@ -77,7 +77,7 @@ class TelescopeHandler(BaseHandler):
                 telescope = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(telescope)
             session.commit()
@@ -266,7 +266,7 @@ class TelescopeHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             if "name" in data:

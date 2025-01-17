@@ -85,9 +85,9 @@ def test_token_user_post_get_instrument(super_admin_token):
 
     assert any(
         d["field_id"] == 1
-            and d["contour"]["features"][0]["geometry"]["coordinates"][0][0]
-            == [110.84791974982103, -87.01522999646508]
-            for d in data["data"]["fields"]
+        and d["contour"]["features"][0]["geometry"]["coordinates"][0][0]
+        == [110.84791974982103, -87.01522999646508]
+        for d in data["data"]["fields"]
     )
 
     params = {"includeGeoJSONSummary": True}
@@ -104,9 +104,9 @@ def test_token_user_post_get_instrument(super_admin_token):
 
     assert any(
         d["field_id"] == 1
-            and d["contour_summary"]["features"][0]["geometry"]["coordinates"][0]
-            == [1.0238351746164418, -89.93777511600825]
-            for d in data["data"]["fields"]
+        and d["contour_summary"]["features"][0]["geometry"]["coordinates"][0]
+        == [1.0238351746164418, -89.93777511600825]
+        for d in data["data"]["fields"]
     )
 
 

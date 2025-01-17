@@ -131,7 +131,7 @@ class Taxonomy(Base):
     groups = relationship(
         "Group",
         secondary="group_taxonomy",
-        cascade="save-update," "merge, refresh-expire, expunge",
+        cascade="save-update,merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="List of Groups that have access to this Taxonomy.",
     )

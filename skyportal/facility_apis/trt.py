@@ -48,7 +48,7 @@ def validate_request_to_trt(request):
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
-            f'Filter configuration {request.payload["observation_choices"]} unknown.'
+            f"Filter configuration {request.payload['observation_choices']} unknown."
         )
 
     if request.payload["station_name"] not in ["SRO", "GAO", "SBO"]:
@@ -310,7 +310,7 @@ class TRTAPI(FollowUpAPI):
 
                 if not isinstance(data.get("file_path", []), list):
                     raise ValueError(
-                        f'Unexpected response from TRT, expected list of file paths, got {data.get("file_path", [])}'
+                        f"Unexpected response from TRT, expected list of file paths, got {data.get('file_path', [])}"
                     )
                 for file_path in data.get("file_path", []):
                     for key in file_path:

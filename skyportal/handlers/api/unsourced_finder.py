@@ -178,7 +178,7 @@ class UnsourcedFinderHandler(BaseHandler):
                 )
             ra = response["ra_obs"].data[0]
             dec = response["dec_obs"].data[0]
-            obj_id = f'{location_type.split("_")[-1]} {catalog_id}'
+            obj_id = f"{location_type.split('_')[-1]} {catalog_id}"
             pmra, pmdec = (
                 ma.getdata(response["pmra"])[0],
                 ma.getdata(response["pmdec"])[0],

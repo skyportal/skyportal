@@ -280,7 +280,7 @@ class ShiftHandler(BaseHandler):
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
                 if "name" in data:

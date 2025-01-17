@@ -106,9 +106,7 @@ class InstrumentHandler(BaseHandler):
                     return self.error(
                         "references must contain at least field and filter columns"
                     )
-                if not set(references.columns).issubset(
-                    {"field", "filter", "limmag"}
-                ):
+                if not set(references.columns).issubset({"field", "filter", "limmag"}):
                     return self.error(
                         "references can only contain field, filter, and limmag columns"
                     )
@@ -175,7 +173,7 @@ class InstrumentHandler(BaseHandler):
                 instrument = schema.load(data)
             except ValidationError as exc:
                 return self.error(
-                    "Invalid/missing parameters: " f"{exc.normalized_messages()}"
+                    f"Invalid/missing parameters: {exc.normalized_messages()}"
                 )
 
             stmt = Instrument.select(session.user_or_token).where(
@@ -698,9 +696,7 @@ class InstrumentHandler(BaseHandler):
             filters = data.get("filters", None)
             if filters is not None:
                 if not set(instrument.filters).issubset(set(filters)):
-                    new_filters = list(
-                        set(instrument.filters).difference(set(filters))
-                    )
+                    new_filters = list(set(instrument.filters).difference(set(filters)))
                     for filt in new_filters:
                         stmt = Photometry.select(session.user_or_token).where(
                             Photometry.filter == filt,
@@ -748,9 +744,7 @@ class InstrumentHandler(BaseHandler):
                     return self.error(
                         "references must contain at least field and filter columns"
                     )
-                if not set(references.columns).issubset(
-                    {"field", "filter", "limmag"}
-                ):
+                if not set(references.columns).issubset({"field", "filter", "limmag"}):
                     return self.error(
                         "references can only contain field, filter, and limmag columns"
                     )
@@ -821,7 +815,7 @@ class InstrumentHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:

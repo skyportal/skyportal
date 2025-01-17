@@ -941,11 +941,7 @@ def test_candidate_list_saved_to_any_selected_groups(
     # Should get obj_id1 and obj_id2 back
     assert len(data["data"]["candidates"]) == 2
     assert (
-        len(
-            {obj_id1, obj_id2}.difference(
-                x["id"] for x in data["data"]["candidates"]
-            )
-        )
+        len({obj_id1, obj_id2}.difference(x["id"] for x in data["data"]["candidates"]))
         == 0
     )
 
@@ -1119,11 +1115,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
     # Should get obj_id1 and obj_id2 back
     assert len(data["data"]["candidates"]) == 2
     assert (
-        len(
-            {obj_id1, obj_id2}.difference(
-                x["id"] for x in data["data"]["candidates"]
-            )
-        )
+        len({obj_id1, obj_id2}.difference(x["id"] for x in data["data"]["candidates"]))
         == 0
     )
 
@@ -1326,11 +1318,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
     # Should get obj_id2 and obj_id3 back
     assert len(data["data"]["candidates"]) == 2
     assert (
-        len(
-            {obj_id2, obj_id3}.difference(
-                x["id"] for x in data["data"]["candidates"]
-            )
-        )
+        len({obj_id2, obj_id3}.difference(x["id"] for x in data["data"]["candidates"]))
         == 0
     )
 
@@ -1405,7 +1393,9 @@ def test_candidates_hidden_photometry_not_leaked(
     assert len(public_candidate.photometry) - 1 == len(
         data["data"]["candidates"][0]["photometry"]
     )
-    assert photometry_id not in (x["id"] for x in data["data"]["candidates"][0]["photometry"])
+    assert photometry_id not in (
+        x["id"] for x in data["data"]["candidates"][0]["photometry"]
+    )
 
     # Check for single GET call as well
     status, data = api(

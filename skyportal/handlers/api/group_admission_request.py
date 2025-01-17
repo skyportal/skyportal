@@ -202,7 +202,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             if group.streams:
                 if not all(
                     stream in requesting_user.accessible_streams
-                        for stream in group.streams
+                    for stream in group.streams
                 ):
                     return self.error(
                         f"User {user_id} does not have sufficient stream access "

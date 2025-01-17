@@ -167,7 +167,7 @@ def test_failed_check(request):
 # make a screenshot with a name of the test, date and time.
 # also save the page HTML.
 def take_screenshot_and_page_source(webdriver, nodeid):
-    file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.png'.replace(
+    file_name = f"{nodeid}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}.png".replace(
         "/", "_"
     ).replace(":", "_")
     file_name = os.path.join(os.path.dirname(__file__), "../../test-results", file_name)
@@ -178,7 +178,7 @@ def take_screenshot_and_page_source(webdriver, nodeid):
         f.write(webdriver.page_source)
 
     file_name = (
-        f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.console.log'.replace(
+        f"{nodeid}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}.console.log".replace(
             "/", "_"
         ).replace(":", "_")
     )

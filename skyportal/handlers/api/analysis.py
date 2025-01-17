@@ -401,7 +401,7 @@ def post_analysis(
         )
     # Add more analysis_resource_types here one day (eg. GCN)
     else:
-        raise ValueError(f'analysis_resource_type must be one of {", ".join(["obj"])}')
+        raise ValueError(f"analysis_resource_type must be one of {', '.join(['obj'])}")
 
     session.add(analysis)
     try:
@@ -565,7 +565,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   _authinfo:
                     type: object
@@ -579,14 +579,14 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
@@ -655,7 +655,7 @@ class AnalysisServiceHandler(BaseHandler):
 
         if authentication_type not in AUTHENTICATION_TYPES:
             return self.error(
-                f'`authentication_type` must be one of: {", ".join(list(AUTHENTICATION_TYPES))}.'
+                f"`authentication_type` must be one of: {', '.join(list(AUTHENTICATION_TYPES))}."
             )
         else:
             if authentication_type != "none":
@@ -699,7 +699,7 @@ class AnalysisServiceHandler(BaseHandler):
                 analysis_service = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             session.add(analysis_service)
@@ -854,7 +854,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   authinfo:
                     type: object
@@ -864,14 +864,14 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
@@ -926,7 +926,7 @@ class AnalysisServiceHandler(BaseHandler):
                 new_analysis_service = schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             new_analysis_service.id = analysis_service_id
@@ -1392,7 +1392,7 @@ class AnalysisHandler(BaseHandler):
                     ret_array.append(analysis_dict)
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
             return self.success(data=ret_array)
@@ -1461,7 +1461,7 @@ class AnalysisHandler(BaseHandler):
                 return self.success()
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
 
@@ -1628,7 +1628,7 @@ class AnalysisProductsHandler(BaseHandler):
                         )
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
 
@@ -1800,7 +1800,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                 )
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
             session.add(analysis)

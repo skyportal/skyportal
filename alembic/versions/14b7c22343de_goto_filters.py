@@ -5,12 +5,12 @@ Revises: 655e76025488
 Create Date: 2023-06-26 11:41:57.816883
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '14b7c22343de'
-down_revision = '655e76025488'
+revision = "14b7c22343de"
+down_revision = "655e76025488"
 branch_labels = None
 depends_on = None
 

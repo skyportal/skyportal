@@ -5,11 +5,12 @@ Revises: 29fbb7ea2c4f
 Create Date: 2022-02-23 22:16:08.873220
 
 """
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '6a769fd6d909'
-down_revision = '29fbb7ea2c4f'
+revision = "6a769fd6d909"
+down_revision = "29fbb7ea2c4f"
 branch_labels = None
 depends_on = None
 

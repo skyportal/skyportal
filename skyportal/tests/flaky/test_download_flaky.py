@@ -562,9 +562,8 @@ def test_gcn_summary_galaxies(
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904"
-                and d["mstar"] == 336.60756522868667
-                for d in data
+            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
+            for d in data
         ):
             galaxies_loaded = True
             break

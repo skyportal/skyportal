@@ -5,12 +5,12 @@ Revises: 47d84da106c4
 Create Date: 2023-05-01 16:54:02.130267
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '97266d7af6e7'
-down_revision = '47d84da106c4'
+revision = "97266d7af6e7"
+down_revision = "47d84da106c4"
 branch_labels = None
 depends_on = None
 

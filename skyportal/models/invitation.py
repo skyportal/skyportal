@@ -64,7 +64,7 @@ def send_user_invite_email(mapper, connection, target):
         recipients=[target.user_email],
         subject=cfg["invitations.email_subject"],
         body=(
-            f'{cfg["invitations.email_body_preamble"]}<br /><br />'
+            f"{cfg['invitations.email_body_preamble']}<br /><br />"
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )

@@ -581,7 +581,7 @@ def post_gcnevent_from_json(
     notice_type = payload.get("notice_type")
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode("utf-8"),
-        ivorn=f'{instrument}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
+        ivorn=f"{instrument}-{date.strftime('%Y-%m-%dT%H:%M:%S')}",
         notice_type=notice_type,
         stream=instrument,
         date=date,
@@ -2278,13 +2278,12 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
                 if len(filters.get("notice_types", [])) > 0:
                     if not any(
                         notice_type in event_notice_types
-                            for notice_type in filters["notice_type"]
+                        for notice_type in filters["notice_type"]
                     ):
                         continue
                 if len(filters.get("localization_tags", [])) > 0:
                     if not any(
-                        tag in localization_tags
-                            for tag in filters["localization_tags"]
+                        tag in localization_tags for tag in filters["localization_tags"]
                     ):
                         continue
                 tag_name = default_gcn_tag.default_tag_name
@@ -2949,7 +2948,9 @@ def add_gcn_summary(
             header_text.append(f"""## TITLE: {title.upper()}\n""")
             if number is not None:
                 header_text.append(f"""#### NUMBER: {number}\n""")
-            header_text.append(f"""#### SUBJECT: {subject[0].upper()+subject[1:]}\n""")
+            header_text.append(
+                f"""#### SUBJECT: {subject[0].upper() + subject[1:]}\n"""
+            )
             now_date = astropy.time.Time.now()
             header_text.append(f"""#### DATE: {now_date}\n""")
 
@@ -2999,7 +3000,7 @@ def add_gcn_summary(
                 [", ".join(users_txt[i : i + 5]) for i in range(0, len(users_txt), 5)]
             )
             header_text.append(
-                f"""\n{users_txt} report{'s' if len(user_ids) == 1 else ''} on behalf of the {group.name} group:\n"""
+                f"""\n{users_txt} report{"s" if len(user_ids) == 1 else ""} on behalf of the {group.name} group:\n"""
             )
             contents.extend(header_text)
 
@@ -3117,7 +3118,7 @@ def add_gcn_summary(
                 df = df.fillna("--")
 
                 sources_text.append(
-                    f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
+                    f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0] > 1 else 'has'} been rejected after characterization:\n"
                 ) if not no_text else None
 
                 if df_confirmed_or_unknown.shape[0] > 0:
@@ -3159,7 +3160,7 @@ def add_gcn_summary(
                     photometry = session.scalars(stmt).all()
                     if len(photometry) > 0:
                         sources_text.append(
-                            f"""\nPhotometry of **{source['id']}**:\n"""
+                            f"""\nPhotometry of **{source["id"]}**:\n"""
                         ) if not no_text else None
                         mjds, mags, filters, origins, instruments = (
                             [],
@@ -3178,7 +3179,7 @@ def add_gcn_summary(
                                 and phot["magerr"] is not None
                             ):
                                 mags.append(
-                                    f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
+                                    f"{np.round(phot['mag'], 2)}±{np.round(phot['magerr'], 2)}"
                                 )
                             elif (
                                 "limiting_mag" in phot
@@ -3251,7 +3252,7 @@ def add_gcn_summary(
                     break
             if len(galaxies) > 0:
                 galaxies_text.append(
-                    f"""\nFound **{len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'}** in the event's localization:\n"""
+                    f"""\nFound **{len(galaxies)} {"galaxies" if len(galaxies) > 1 else "galaxy"}** in the event's localization:\n"""
                 ) if not no_text else None
                 names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
                     [],
@@ -3326,7 +3327,7 @@ def add_gcn_summary(
                         completeness = None
 
                     if completeness is not None and not no_text:
-                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
+                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness * 100, 0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
                         contents.append(completeness_text)
 
         if show_observations:
@@ -3375,7 +3376,7 @@ def add_gcn_summary(
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
                         observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format="datetime").isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
                         ) if not no_text else None
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],

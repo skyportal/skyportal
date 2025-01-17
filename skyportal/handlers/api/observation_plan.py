@@ -175,7 +175,7 @@ op_options = [
 Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
-    f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
+    f"http://127.0.0.1:{cfg['ports.observation_plan_queue']}"
 )
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
@@ -489,7 +489,7 @@ def post_survey_efficiency_analysis(
             )
             if field is None:
                 raise ValueError(
-                    f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                    f"Missing field {obs_dict['field']['id']} required to estimate field size"
                 )
             contour_summary = field.contour_summary["features"][0]
             coordinates = np.squeeze(
@@ -1317,7 +1317,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 ).first()
                 if field is None:
                     return self.error(
-                        f'No field for instrument with ID {instrument.id} available with ID {planned_obs["field_id"]}'
+                        f"No field for instrument with ID {instrument.id} available with ID {planned_obs['field_id']}"
                     )
 
                 planned_observation = PlannedObservation(
@@ -1894,9 +1894,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             }
 
             # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
-            if not all(
-                obs.filt in TREASUREMAP_FILTERS for obs in planned_observations
-            ):
+            if not all(obs.filt in TREASUREMAP_FILTERS for obs in planned_observations):
                 return self.error(
                     "Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted"
                 )
@@ -1936,12 +1934,12 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     if (
                         all(
                             existing_pointing[key] == pointing[key]
-                                for key in [
-                                    "status",
-                                    "depth",
-                                    "central_wave",
-                                    "bandwidth",
-                                ]
+                            for key in [
+                                "status",
+                                "depth",
+                                "central_wave",
+                                "bandwidth",
+                            ]
                         )
                         and existing_pointing["instrumentid"] == treasuremap_id
                         and existing_pointing["position"]
@@ -3320,7 +3318,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     field = session.scalars(stmt).first()
                     if field is None:
                         return self.error(
-                            message=f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                            message=f"Missing field {obs_dict['field']['id']} required to estimate field size"
                         )
                     contour_summary = field.to_dict()["contour_summary"]["features"][0]
                     coordinates = np.squeeze(
@@ -3553,7 +3551,9 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if "queue_name" in payload:
                 return self.error("Cannot have queue_name in the payload")
             else:
-                payload["queue_name"] = f"ToO_{str(datetime.utcnow()).replace(' ','T')}"
+                payload["queue_name"] = (
+                    f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}"
+                )
 
             # validate the payload
             try:
@@ -3571,9 +3571,9 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                     return self.error("Filters must be set if auto_send is True")
             elif not any(
                 f in filters
-                    and isinstance(filters.get(f), list)
-                    and len(filters.get(f, [])) > 0
-                    for f in DEFAULT_OBSPLAN_OPTIONS
+                and isinstance(filters.get(f), list)
+                and len(filters.get(f, [])) > 0
+                for f in DEFAULT_OBSPLAN_OPTIONS
             ):
                 return self.error(
                     f"Filters must contain at least one of: {DEFAULT_OBSPLAN_OPTIONS}"

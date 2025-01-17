@@ -351,11 +351,11 @@ def test_gcn_Swift(super_admin_token):
     assert data["dateobs"] == "2022-09-30T11:11:52"
     assert any(
         loc["localization_name"] == "64.71490_13.35000_0.00130"
-            for loc in data["localizations"]
+        for loc in data["localizations"]
     )
     assert any(
         loc["localization_name"] == "64.73730_13.35170_0.05000"
-            for loc in data["localizations"]
+        for loc in data["localizations"]
     )
 
     # wait for the async tasks to finish before finishing the tests, which will delete the user
@@ -544,9 +544,8 @@ def test_gcn_summary_galaxies(
         assert status == 200
         data = data["data"]["galaxies"]
         if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904"
-                and d["mstar"] == 336.60756522868667
-                for d in data
+            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
+            for d in data
         ):
             galaxies_loaded = True
             break

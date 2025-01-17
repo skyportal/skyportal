@@ -489,9 +489,9 @@ def test_run_analysis_with_correct_and_incorrect_token(
         max_attempts -= 1
         time.sleep(5)
     else:
-        assert (
-            False
-        ), f"analysis was not started properly ({data['data']['status_message']})"
+        assert False, (
+            f"analysis was not started properly ({data['data']['status_message']})"
+        )
 
     # Since this is random data, this fit might succeed (usually) or fail (seldom)
     # that's ok because it means we're getting the
@@ -885,9 +885,9 @@ def test_retrieve_data_products(
         max_attempts -= 1
         time.sleep(3)
     else:
-        assert (
-            False
-        ), f"analysis was not started properly ({data['data']['status_message']})"
+        assert False, (
+            f"analysis was not started properly ({data['data']['status_message']})"
+        )
 
     if analysis_status == "completed":
         # try to get a plot
@@ -1131,9 +1131,9 @@ def test_run_analysis_with_file_input(
         max_attempts -= 1
         time.sleep(5)
     else:
-        assert (
-            False
-        ), f"analysis was not started properly ({data['data']['status_message']})"
+        assert False, (
+            f"analysis was not started properly ({data['data']['status_message']})"
+        )
 
 
 def test_default_analysis(

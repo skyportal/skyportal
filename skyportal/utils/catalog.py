@@ -130,9 +130,9 @@ def query_kowalski(
     TIMEOUT = 180
     k = Kowalski(
         token=token,
-        protocol=cfg['app.ztf.protocol'],
-        host=cfg['app.ztf.host'],
-        port=cfg['app.ztf.port'],
+        protocol=cfg["app.ztf.protocol"],
+        host=cfg["app.ztf.host"],
+        port=cfg["app.ztf.port"],
         verbose=verbose,
         timeout=TIMEOUT,
     )
@@ -142,57 +142,57 @@ def query_kowalski(
     # Correct the minimum number of detections
     ndethist_min_corrected = int(ndethist_min - 1)
 
-    dateobs_str = dateobs.strftime('%Y-%m-%dT%H:%M:%S')
+    dateobs_str = dateobs.strftime("%Y-%m-%dT%H:%M:%S")
     exists = k.api(
-        'get',
-        'api/skymap',
+        "get",
+        "api/skymap",
         data={
-            'dateobs': dateobs_str,
-            'localization_name': localization_name,
-            'contours': [contour],
+            "dateobs": dateobs_str,
+            "localization_name": localization_name,
+            "contours": [contour],
         },
     )
-    if exists['status'] not in ['success']:
+    if exists["status"] not in ["success"]:
         ra, dec, radius = None, None, None
         try:
-            ra, dec, radius = map(float, localization_name.split('_'))
+            ra, dec, radius = map(float, localization_name.split("_"))
         except ValueError:
             pass
         if ra is not None and dec is not None and radius is not None:
             skymap_data = {
-                'ra': ra,
-                'dec': dec,
-                'error': radius,
+                "ra": ra,
+                "dec": dec,
+                "error": radius,
             }
             posted = k.api(
-                'put',
-                'api/skymap',
+                "put",
+                "api/skymap",
                 data={
-                    'dateobs': dateobs_str,
-                    'skymap': skymap_data,
-                    'contours': [contour],
+                    "dateobs": dateobs_str,
+                    "skymap": skymap_data,
+                    "contours": [contour],
                 },
             )
-            if posted['status'] not in ['success', 'already_exists']:
-                raise ValueError('Failed to post skymap to kowalski')
+            if posted["status"] not in ["success", "already_exists"]:
+                raise ValueError("Failed to post skymap to kowalski")
         else:
-            with open(localization_file, 'rb') as f:
+            with open(localization_file, "rb") as f:
                 skymap = f.read()
                 skymap_data = {
-                    'localization_name': localization_name,
-                    'content': base64.b64encode(skymap).decode('utf-8'),
+                    "localization_name": localization_name,
+                    "content": base64.b64encode(skymap).decode("utf-8"),
                 }
                 posted = k.api(
-                    'put',
-                    'api/skymap',
+                    "put",
+                    "api/skymap",
                     data={
-                        'dateobs': dateobs_str,
-                        'skymap': skymap_data,
-                        'contours': [contour],
+                        "dateobs": dateobs_str,
+                        "skymap": skymap_data,
+                        "contours": [contour],
                     },
                 )
-                if posted['status'] not in ['success', 'already_exists']:
-                    raise ValueError('Failed to post skymap to kowalski')
+                if posted["status"] not in ["success", "already_exists"]:
+                    raise ValueError("Failed to post skymap to kowalski")
 
     # Correct the jd_trigger if the user specifies to query
     # also before the trigger
@@ -211,12 +211,12 @@ def query_kowalski(
             },
             "catalog": "ZTF_alerts",
             "filter": {
-                "candidate.jd": {'$gt': jd_trigger},
-                "candidate.drb": {'$gt': 0.8},
-                "candidate.ndethist": {'$gt': ndethist_min_corrected},
+                "candidate.jd": {"$gt": jd_trigger},
+                "candidate.drb": {"$gt": 0.8},
+                "candidate.ndethist": {"$gt": ndethist_min_corrected},
                 "candidate.jdstarthist": {
-                    '$gt': jd_trigger,
-                    '$lt': jd_trigger + within_days,
+                    "$gt": jd_trigger,
+                    "$lt": jd_trigger + within_days,
                 },
             },
             "projection": {
@@ -253,9 +253,9 @@ def query_kowalski(
     }
 
     if after_trigger is True:
-        q['query']['filter']['candidate.jd'] = {
-            '$gt': jd_trigger,
-            '$lt': jd_trigger + within_days,
+        q["query"]["filter"]["candidate.jd"] = {
+            "$gt": jd_trigger,
+            "$lt": jd_trigger + within_days,
         }
     # Perform the query
     r = k.query(query=q)
@@ -270,76 +270,76 @@ def query_kowalski(
 
     candidates = r.get("default", {}).get("data", {})
     for info in candidates:
-        if info['objectId'] in old:
+        if info["objectId"] in old:
             continue
-        if info['objectId'] in stellar_list:
+        if info["objectId"] in stellar_list:
             continue
-        if np.abs(info['candidate']['ssdistnr']) < 10:
+        if np.abs(info["candidate"]["ssdistnr"]) < 10:
             continue
-        if info['candidate']['isdiffpos'] in ['f', 0]:
-            with_neg_sub.append(info['objectId'])
+        if info["candidate"]["isdiffpos"] in ["f", 0]:
+            with_neg_sub.append(info["objectId"])
         if (
-            info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+            info["candidate"]["jdendhist"] - info["candidate"]["jdstarthist"]
         ) < min_days:
             continue
         if (
-            info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+            info["candidate"]["jdendhist"] - info["candidate"]["jdstarthist"]
         ) > max_days:
-            old.append(info['objectId'])
-        if (info['candidate']['jdstarthist'] - jd_trigger) > within_days:
-            old.append(info['objectId'])
+            old.append(info["objectId"])
+        if (info["candidate"]["jdstarthist"] - jd_trigger) > within_days:
+            old.append(info["objectId"])
         # REMOVE!  Only for O3a paper
         # if (info['candidate']['jdendhist'] -
         # info['candidate']['jdstarthist']) >= 72./24. and info['candidate']['ndethist'] <= 2.:
         #    out_of_time_window.append(info['objectId'])
         if after_trigger is True:
-            if (info['candidate']['jdendhist'] - jd_trigger) > max_days:
-                out_of_time_window.append(info['objectId'])
+            if (info["candidate"]["jdendhist"] - jd_trigger) > max_days:
+                out_of_time_window.append(info["objectId"])
         else:
             if (
-                info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+                info["candidate"]["jdendhist"] - info["candidate"]["jdstarthist"]
             ) > max_days:
-                out_of_time_window.append(info['objectId'])
+                out_of_time_window.append(info["objectId"])
         try:
             if (
-                np.abs(info['candidate']['distpsnr1']) < 1.5
-                and info['candidate']['sgscore1'] > 0.50
+                np.abs(info["candidate"]["distpsnr1"]) < 1.5
+                and info["candidate"]["sgscore1"] > 0.50
             ):
-                stellar_list.append(info['objectId'])
+                stellar_list.append(info["objectId"])
         except (KeyError, ValueError):
             pass
         try:
             if (
-                np.abs(info['candidate']['distpsnr1']) < 15.0
-                and info['candidate']['srmag1'] < 15.0
-                and info['candidate']['srmag1'] > 0.0
-                and info['candidate']['sgscore1'] >= 0.5
-            ):
-                continue
-        except (KeyError, ValueError):
-            pass
-        try:
-            if (
-                np.abs(info['candidate']['distpsnr2']) < 15.0
-                and info['candidate']['srmag2'] < 15.0
-                and info['candidate']['srmag2'] > 0.0
-                and info['candidate']['sgscore2'] >= 0.5
+                np.abs(info["candidate"]["distpsnr1"]) < 15.0
+                and info["candidate"]["srmag1"] < 15.0
+                and info["candidate"]["srmag1"] > 0.0
+                and info["candidate"]["sgscore1"] >= 0.5
             ):
                 continue
         except (KeyError, ValueError):
             pass
         try:
             if (
-                np.abs(info['candidate']['distpsnr3']) < 15.0
-                and info['candidate']['srmag3'] < 15.0
-                and info['candidate']['srmag3'] > 0.0
-                and info['candidate']['sgscore3'] >= 0.5
+                np.abs(info["candidate"]["distpsnr2"]) < 15.0
+                and info["candidate"]["srmag2"] < 15.0
+                and info["candidate"]["srmag2"] > 0.0
+                and info["candidate"]["sgscore2"] >= 0.5
+            ):
+                continue
+        except (KeyError, ValueError):
+            pass
+        try:
+            if (
+                np.abs(info["candidate"]["distpsnr3"]) < 15.0
+                and info["candidate"]["srmag3"] < 15.0
+                and info["candidate"]["srmag3"] > 0.0
+                and info["candidate"]["sgscore3"] >= 0.5
             ):
                 continue
         except (KeyError, ValueError):
             pass
 
-        objectId_list.append(info['objectId'])
+        objectId_list.append(info["objectId"])
 
         set_objectId = (
             set(objectId_list)
@@ -355,9 +355,9 @@ def query_kowalski(
     for n in set_objectId_all:
         source = {}
         source["id"] = n
-        source["ra"] = [
-            r["candidate"]["ra"] for r in candidates if r["objectId"] == n
-        ][0]
+        source["ra"] = [r["candidate"]["ra"] for r in candidates if r["objectId"] == n][
+            0
+        ]
         source["dec"] = [
             r["candidate"]["dec"] for r in candidates if r["objectId"] == n
         ][0]
@@ -403,43 +403,43 @@ def query_fink(
         Kowalski verbosity. Defaults to False.
     """
 
-    time_min = Time(jd_trigger + min_days, format='jd')
-    time_max = Time(jd_trigger + max_days, format='jd')
+    time_min = Time(jd_trigger + min_days, format="jd")
+    time_max = Time(jd_trigger + max_days, format="jd")
 
     sources = []
     sources_data = []
     for ra, dec in zip(ra_center, dec_center):
         r = requests.post(
-            urllib.parse.urljoin(cfg['app.fink_endpoint'], 'api/v1/explorer'),
+            urllib.parse.urljoin(cfg["app.fink_endpoint"], "api/v1/explorer"),
             json={
-                'ra': ra,
-                'dec': dec,
-                'radius': 60 * radius,
-                'startdate_conesearch': Time(jd_trigger + min_days, format='jd').iso,
-                'window_days_conesearch': max_days,
+                "ra": ra,
+                "dec": dec,
+                "radius": 60 * radius,
+                "startdate_conesearch": Time(jd_trigger + min_days, format="jd").iso,
+                "window_days_conesearch": max_days,
             },
         )
         objs = pd.DataFrame(r.json())
         for index, obj in objs.iterrows():
-            objectId = obj['i:objectId']
-            ra_obj, dec_obj = obj['i:ra'], obj['i:dec']
-            jdstarthist = obj['i:jdstarthist']
-            jdendhist = obj['i:jd']
+            objectId = obj["i:objectId"]
+            ra_obj, dec_obj = obj["i:ra"], obj["i:dec"]
+            jdstarthist = obj["i:jdstarthist"]
+            jdendhist = obj["i:jd"]
             if (jdstarthist < time_min.jd) or (jdendhist > time_max.jd):
                 continue
             if objectId in sources:
                 continue
             df = query_fink_photometry(objectId)
             det = np.where(
-                (~np.isnan(df['mag']))
-                & (df['mjd'] >= time_min.mjd)
-                & (df['mjd'] <= time_max.mjd)
+                (~np.isnan(df["mag"]))
+                & (df["mjd"] >= time_min.mjd)
+                & (df["mjd"] <= time_max.mjd)
             )[0]
             ndet = len(det)
             if ndet >= ndethist_min:
                 sources.append(objectId)
                 sources_data.append(
-                    {'id': objectId, 'ra': ra_obj, 'dec': dec_obj, 'data': df}
+                    {"id": objectId, "ra": ra_obj, "dec": dec_obj, "data": df}
                 )
 
     return sources_data
@@ -457,43 +457,43 @@ def query_fink_photometry(objectId):
     """
 
     desired_columns = {
-        'i:jd',
-        'i:ra',
-        'i:dec',
-        'i:magpsf',
-        'i:sigmapsf',
-        'i:diffmaglim',
-        'i:magzpsci',
-        'i:fid',
+        "i:jd",
+        "i:ra",
+        "i:dec",
+        "i:magpsf",
+        "i:sigmapsf",
+        "i:diffmaglim",
+        "i:magzpsci",
+        "i:fid",
     }
 
     r = requests.post(
-        urllib.parse.urljoin(cfg['app.fink_endpoint'], 'api/v1/objects'),
-        json={'objectId': objectId, 'output-format': 'json'},
+        urllib.parse.urljoin(cfg["app.fink_endpoint"], "api/v1/objects"),
+        json={"objectId": objectId, "output-format": "json"},
     )
     df = pd.DataFrame.from_dict(r.json())
 
     if not desired_columns.issubset(set(df.columns)):
-        raise ValueError('Missing expected column')
+        raise ValueError("Missing expected column")
 
     df.rename(
         columns={
-            'i:jd': 'jd',
-            'i:ra': 'ra',
-            'i:dec': 'dec',
-            'i:magpsf': 'mag',
-            'i:sigmapsf': 'magerr',
-            'i:diffmaglim': 'limiting_mag',
-            'i:magzpsci': 'zp',
-            'i:fid': 'filter',
+            "i:jd": "jd",
+            "i:ra": "ra",
+            "i:dec": "dec",
+            "i:magpsf": "mag",
+            "i:sigmapsf": "magerr",
+            "i:diffmaglim": "limiting_mag",
+            "i:magzpsci": "zp",
+            "i:fid": "filter",
         },
         inplace=True,
     )
-    df['filter'] = [inv_bands[int(filt)] for filt in df['filter']]
-    df['mjd'] = [Time(jd, format='jd').mjd for jd in df['jd']]
+    df["filter"] = [inv_bands[int(filt)] for filt in df["filter"]]
+    df["mjd"] = [Time(jd, format="jd").mjd for jd in df["jd"]]
 
-    columns_to_keep = ['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter']
+    columns_to_keep = ["mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"]
     df = df[columns_to_keep]
-    df['magsys'] = 'ab'
+    df["magsys"] = "ab"
 
     return df

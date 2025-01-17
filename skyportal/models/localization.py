@@ -437,30 +437,30 @@ for year in range(2023, 2026):
         date = datetime.date(year, month, 1)
         table_args = (
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_id_dateobs_healpix_idx',
+                f"localizationtiles_{date.strftime('%Y_%m')}_id_dateobs_healpix_idx",
                 "id",
                 "dateobs",
                 "healpix",
                 unique=True,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_idx',
+                f"localizationtiles_{date.strftime('%Y_%m')}_localization_id_idx",
                 "localization_id",
                 unique=False,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_probdensity_idx',
+                f"localizationtiles_{date.strftime('%Y_%m')}_probdensity_idx",
                 "probdensity",
                 unique=False,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_healpix_idx',
+                f"localizationtiles_{date.strftime('%Y_%m')}_healpix_idx",
                 "healpix",
                 unique=False,
                 postgresql_using="spgist",
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
+                f"localizationtiles_{date.strftime('%Y_%m')}_created_at_idx",
                 "created_at",
                 unique=False,
             ),

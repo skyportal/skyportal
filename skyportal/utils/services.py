@@ -6,16 +6,16 @@ from baselayer.app.env import load_env
 
 env, cfg = load_env()
 
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
+REQUEST_TIMEOUT_SECONDS = cfg["health_monitor.request_timeout_seconds"]
 
-HOST = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+HOST = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
+    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
 
 def is_loaded():
     try:
-        r = requests.get(f'{HOST}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
+        r = requests.get(f"{HOST}/api/sysinfo", timeout=REQUEST_TIMEOUT_SECONDS)
     except Exception:
         status_code = 0
     else:
@@ -34,8 +34,8 @@ def check_loaded(*args, **kwargs):
         while True:
             if is_loaded():
                 break
-            elif kwargs.get('logger') is not None and callable(kwargs['logger']):
-                kwargs['logger']("Waiting for the app to start...")
+            elif kwargs.get("logger") is not None and callable(kwargs["logger"]):
+                kwargs["logger"]("Waiting for the app to start...")
             time.sleep(10)
 
         func(*args, **kwargs)

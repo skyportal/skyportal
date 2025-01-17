@@ -596,8 +596,7 @@ class PhotBase:
 
     obj_id = fields.String(
         metadata={
-            "description": "ID of the Object to which the "
-            "photometry will be attached."
+            "description": "ID of the Object to which the photometry will be attached."
         },
         required=True,
     )
@@ -795,16 +794,16 @@ class PhotometryFlux(_Schema, PhotBase):
         # get the instrument
         instrument = Instrument.query.get(data["instrument_id"])
         if not instrument:
-            raise ValidationError(f'Invalid instrument ID: {data["instrument_id"]}')
+            raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
         obj = Obj.query.get(data["obj_id"])  # TODO : implement permissions checking
         if not obj:
-            raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
+            raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
         if data["filter"] not in instrument.filters:
             raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{data['filter']}."
+                f"Instrument {instrument.name} has no filter {data['filter']}."
             )
 
         # convert flux to microJanskies.
@@ -955,7 +954,7 @@ class PhotometryMag(_Schema, PhotBase):
         # check that mag and magerr are both null or both not null, not a mix
         ok = any(
             all(op(field, None) for field in [data["mag"], data["magerr"]])
-                for op in [operator.is_, operator.is_not]
+            for op in [operator.is_, operator.is_not]
         )
 
         if not ok:
@@ -968,16 +967,16 @@ class PhotometryMag(_Schema, PhotBase):
         # get the instrument
         instrument = Instrument.query.get(data["instrument_id"])
         if not instrument:
-            raise ValidationError(f'Invalid instrument ID: {data["instrument_id"]}')
+            raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
         obj = Obj.query.get(data["obj_id"])  # TODO: implement permissions checking
         if not obj:
-            raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
+            raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
         if data["filter"] not in instrument.filters:
             raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{data['filter']}."
+                f"Instrument {instrument.name} has no filter {data['filter']}."
             )
 
         if data["mag"] is not None:  # measurement
@@ -1071,7 +1070,7 @@ class AssignmentSchema(_Schema):
         py_followup_priorities,
         required=True,
         metadata={
-            "description": ("Priority of the request, " "(lowest = 1, highest = 5).")
+            "description": ("Priority of the request, (lowest = 1, highest = 5).")
         },
     )
     status = fields.String(metadata={"description": "The status of the request"})
@@ -1139,9 +1138,7 @@ class ObservationASCIIFileHandlerPost(_Schema):
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
         required=True,
-        metadata={
-            "description": ("The ID of the instrument to be " "used in this run.")
-        },
+        metadata={"description": ("The ID of the instrument to be used in this run.")},
     )
 
     # name of the PI
@@ -1720,7 +1717,7 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         required=False,
         metadata={
             "by_value": True,
-            "description": f"""Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+            "description": f"""Type of spectrum. One of: {", ".join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                     Defaults to 'f{default_spectrum_type}'.""",
         },
     )
@@ -1794,7 +1791,7 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         required=False,
         metadata={
             "description": (
-                "ID of the Followup request that generated this spectrum, " "if any."
+                "ID of the Followup request that generated this spectrum, if any."
             )
         },
     )
@@ -1803,8 +1800,7 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         required=False,
         metadata={
             "description": (
-                "ID of the classical assignment that generated this spectrum, "
-                "if any."
+                "ID of the classical assignment that generated this spectrum, if any."
             )
         },
     )
@@ -1896,7 +1892,7 @@ class SpectrumPost(_Schema):
         validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
         required=False,
         metadata={
-            "description": f"""Type of spectrum. One of: {''.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+            "description": f"""Type of spectrum. One of: {"".join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                          Defaults to 'f{default_spectrum_type}'."""
         },
     )
@@ -2005,7 +2001,7 @@ class SpectrumHead(_Schema):
         validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
         required=False,
         metadata={
-            "description": f"""Type of spectrum. One of: {''.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+            "description": f"""Type of spectrum. One of: {"".join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                          Defaults to 'f{default_spectrum_type}'."""
         },
     )

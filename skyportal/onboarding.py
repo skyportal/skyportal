@@ -153,8 +153,8 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     if not all(
         stream in invitation.streams
-            for group in invitation.groups
-            for stream in group.streams
+        for group in invitation.groups
+        for stream in group.streams
     ):
         raise Exception(
             "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."

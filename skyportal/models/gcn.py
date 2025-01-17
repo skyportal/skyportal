@@ -52,8 +52,8 @@ from .localization import Localization
 
 env, cfg = load_env()
 
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg["server.port"] not in [80, 443] else ""
+host = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
+    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
 cache_dir = "cache/public_pages/reports"

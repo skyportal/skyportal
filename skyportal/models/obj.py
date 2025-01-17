@@ -48,7 +48,7 @@ config["data_dir"] = cfg["misc.dustmap_folder"]
 required_files = ["sfd/SFD_dust_4096_ngp.fits", "sfd/SFD_dust_4096_sgp.fits"]
 if any(
     not os.path.isfile(os.path.join(config["data_dir"], required_file))
-        for required_file in required_files
+    for required_file in required_files
 ):
     try:
         dustmaps.sfd.fetch()

@@ -103,7 +103,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
     assert data["status"] == "success"
     assert any(
         group["single_user_group"] and group["name"] == username
-            for group in data["data"]["all_groups"]
+        for group in data["data"]["all_groups"]
     )
 
     status, data = api("DELETE", f"user/{new_user_id}", token=super_admin_token)
@@ -116,7 +116,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
 
     assert not any(
         group["single_user_group"] and group["name"] == username
-            for group in data["data"]["all_groups"]
+        for group in data["data"]["all_groups"]
     )
 
 
@@ -137,7 +137,7 @@ def test_add_modify_user_adds_modifies_single_user_group(
     assert data["status"] == "success"
     assert any(
         group["single_user_group"] and group["name"] == username
-            for group in data["data"]["all_groups"]
+        for group in data["data"]["all_groups"]
     )
 
     token_id = create_token(ACLs=[], user_id=new_user_id, name=token_name)
@@ -154,7 +154,7 @@ def test_add_modify_user_adds_modifies_single_user_group(
     assert data["status"] == "success"
     assert any(
         group["single_user_group"] and group["name"] == new_username
-            for group in data["data"]["all_groups"]
+        for group in data["data"]["all_groups"]
     )
 
 

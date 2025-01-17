@@ -259,7 +259,7 @@ class WINTERAPI(FollowUpAPI):
             if key not in altdata
         ]
         if missing:
-            raise ValueError(f'Missing allocation information: {", ".join(missing)}')
+            raise ValueError(f"Missing allocation information: {', '.join(missing)}")
 
         payload = req._build_payload(request)
         url = urllib.parse.urljoin(WINTER_URL, "too/winter")

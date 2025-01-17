@@ -89,17 +89,17 @@ def test_token_user_request_all_groups(super_admin_token, super_admin_user):
     )
     assert any(
         group["single_user_group"] is True
-            and group["name"] == super_admin_user.username
-            for group in data["data"]["user_groups"]
+        and group["name"] == super_admin_user.username
+        for group in data["data"]["user_groups"]
     )
     assert any(
         user_group["name"] == group_name
-            for user_group in data["data"]["user_accessible_groups"]
+        for user_group in data["data"]["user_accessible_groups"]
     )
     assert not any(
         group["single_user_group"] is True
-            and group["name"] == super_admin_user.username
-            for group in data["data"]["user_accessible_groups"]
+        and group["name"] == super_admin_user.username
+        for group in data["data"]["user_accessible_groups"]
     )
 
 
@@ -230,7 +230,7 @@ def test_add_stream_to_single_user_group_delete_stream(
     assert data["status"] == "success"
     assert any(
         group["single_user_group"] and group["name"] == username
-            for group in data["data"]["all_groups"]
+        for group in data["data"]["all_groups"]
     )
     single_user_group = [
         group for group in data["data"]["all_groups"] if group["name"] == username

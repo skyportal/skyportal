@@ -119,7 +119,7 @@ def post_spectrum(data, user_id, session):
     stmt = Instrument.select(user).where(Instrument.id == data["instrument_id"])
     instrument = session.scalars(stmt).first()
     if instrument is None:
-        raise ValueError(f'Cannot find instrument with ID: {data["instrument_id"]}')
+        raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
 
     if "units" in data:
         if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
@@ -741,7 +741,7 @@ class SpectrumHandler(BaseHandler):
                         for i, com in enumerate(comments):
                             if comments_filter_author is None or any(
                                 cf in com.author.username
-                                    for cf in comments_filter_author
+                                for cf in comments_filter_author
                             ):
                                 author_check[i] = True
                             if comments_filter is None or any(
@@ -855,9 +855,7 @@ class SpectrumHandler(BaseHandler):
         try:
             data = SpectrumPost.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
-            )
+            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
         group_ids = data.pop("group_ids", None)
         if group_ids == "all":
@@ -1049,7 +1047,7 @@ class ASCIIHandler:
             json = validator.load(json)
         except ValidationError as e:
             raise ValidationError(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                f"Invalid/missing parameters: {e.normalized_messages()}"
             )
 
         ascii = json.pop("ascii")
@@ -1132,7 +1130,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             ).first()
 
             if obj_check is None:
-                return self.error(f'Cannot find object with ID: {json["obj_id"]}')
+                return self.error(f"Cannot find object with ID: {json['obj_id']}")
 
             inst_check = session.scalars(
                 Instrument.select(session.user_or_token).where(
@@ -1142,7 +1140,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
             if inst_check is None:
                 return self.error(
-                    f'Cannot find instrument with ID: {json["instrument_id"]}'
+                    f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
             # always add the single user group

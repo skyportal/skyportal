@@ -2,8 +2,8 @@ import uuid
 
 
 def test_bulk_invite_users(driver, super_admin_user, public_group, public_stream):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
 
     user1_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     user2_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
@@ -44,8 +44,8 @@ def test_invite_single_user(driver, super_admin_user, public_group, public_strea
 
 
 def test_delete_invitation(driver, super_admin_user, public_group, public_stream):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 
@@ -72,8 +72,8 @@ def test_delete_invitation(driver, super_admin_user, public_group, public_stream
 def test_add_invitation_stream(
     driver, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 
@@ -103,8 +103,8 @@ def test_add_invitation_stream(
 def test_edit_invitation_role(
     driver, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 

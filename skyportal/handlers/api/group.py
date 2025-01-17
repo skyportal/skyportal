@@ -290,7 +290,7 @@ class GroupHandler(BaseHandler):
             ).first()
             if existing_group is not None:
                 return self.error(
-                    f'Group with name {data["name"]} already exists. Please select a new one.'
+                    f"Group with name {data['name']} already exists. Please select a new one."
                 )
 
             g = Group(
@@ -357,7 +357,7 @@ class GroupHandler(BaseHandler):
                 schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
