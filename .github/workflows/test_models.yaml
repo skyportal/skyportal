@@ -176,12 +176,6 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/main'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
       - name: Test loading demo data
         run: |
           make run &

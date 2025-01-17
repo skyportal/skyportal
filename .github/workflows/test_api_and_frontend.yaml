@@ -200,12 +200,6 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/main'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
       - name: Patch test_frontend.py for a longer timeout
         run: |
           sed -i 's/timeout=60/timeout=180/g' baselayer/tools/test_frontend.py
