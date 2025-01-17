@@ -32,9 +32,9 @@ repos:
         exclude: baselayer|node_modules|doc|data|^(.*_template\.html)$
   - repo: local
     hooks:
-      - id: ESLint
+      - id: eslint
         name: ESLint
         entry: npx eslint -c eslint.config.js --fix
         language: system
-        files: static/.*\.jsx?$|static/.*\.js$
+        files: static/.*\.jsx?$
         types: [file]
