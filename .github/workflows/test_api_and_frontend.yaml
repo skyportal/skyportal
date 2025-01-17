@@ -100,16 +100,12 @@ jobs:
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
 
           # if nginx is already installed, remove it
-          sudo apt remove -y nginx nginx-common nginx-core nginx-full
           sudo apt purge -y nginx nginx-common nginx-core nginx-full
 
           # add the PPA repository with brotli support for nginx
           sudo add-apt-repository ppa:ondrej/nginx -y
           sudo apt update -y
           sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
-
-          pip install pip==24.0
-          pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -139,6 +135,8 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+
+          # Install dependencies, and initialize the database
           make db_init
 
           pip list --format=columns
