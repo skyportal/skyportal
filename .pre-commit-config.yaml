@@ -23,9 +23,9 @@ repos:
         args: [--prose-wrap=preserve]
   - repo: local
     hooks:
-      - id: ESLint
+      - id: eslint
         name: ESLint
-        entry: npx eslint -c eslint.config.js --fix
+        entry: npx eslint -c eslint.config.js
         language: system
-        files: static/.*\.jsx?$|static/.*\.js$
+        files: static/.*\.jsx?$
         types: [file]
