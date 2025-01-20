@@ -3,7 +3,7 @@
 # fixture data directly into the database). Used for testing broadly that a
 # server or Docker image was started successfully.
 
-from skyportal.models import Source, DBSession
+from skyportal.models import DBSession, Source
 
 
 def test_remote(driver):
@@ -12,5 +12,5 @@ def test_remote(driver):
     Source.query.delete()
     DBSession.commit()
     driver.get("/")
-    assert 'localhost' in driver.current_url
+    assert "localhost" in driver.current_url
     driver.wait_for_xpath('//p[contains(.,"New Sources")]')

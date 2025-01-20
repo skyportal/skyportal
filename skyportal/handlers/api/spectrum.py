@@ -1,49 +1,49 @@
 import io
 from pathlib import Path
-from astropy.time import Time
+
 import arrow
-from arrow import ParserError
 import numpy as np
 import pandas as pd
 import sncosmo
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
-
+from arrow import ParserError
+from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.model_util import recursive_to_dict
-from baselayer.app.env import load_env
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
-from baselayer.app.custom_exceptions import AccessError
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
-from .photometry import add_external_photometry
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
+
+from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (
+    AnnotationOnSpectrum,
+    ClassicalAssignment,
+    CommentOnSpectrum,
     FollowupRequest,
     Group,
-    CommentOnSpectrum,
-    AnnotationOnSpectrum,
     Instrument,
     Obj,
     Spectrum,
+    SpectrumObserver,
     SpectrumPI,
     SpectrumReducer,
-    SpectrumObserver,
     User,
-    ClassicalAssignment,
 )
 from ...models.schema import (
+    SpectrumAsciiFileParseJSON,
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
-    SpectrumAsciiFileParseJSON,
 )
-
-from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
+from ..base import BaseHandler
+from .photometry import add_external_photometry
 
 _, cfg = load_env()
-log = make_log('api/spectrum')
+log = make_log("api/spectrum")
 
 
 def parse_id_list(id_list, model_class, session):
@@ -70,18 +70,18 @@ def parse_id_list(id_list, model_class, session):
             session.scalars(model_class.select(session.user_or_token)).unique().all()
         )
         validated_ids = []
-        for id in id_list.split(','):
+        for id in id_list.split(","):
             id = int(id)
             if id not in [row.id for row in accessible_rows]:
                 raise AccessError(
                     f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
-                    f'Not all {model_class.__name__} IDs are valid/accessible'
+                    f"Not all {model_class.__name__} IDs are valid/accessible"
                 )
             validated_ids.append(id)
     except ValueError:
         raise ValueError(
             f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
-            f'Could not parse all elements to integers'
+            f"Could not parse all elements to integers"
         )
 
     return validated_ids
@@ -101,7 +101,7 @@ def parse_string_list(str_list):
         else:
             return [c.strip() for c in str_list.split(",")]
     else:
-        raise TypeError('Must input a string!')
+        raise TypeError("Must input a string!")
 
 
 def post_spectrum(data, user_id, session):
@@ -116,10 +116,10 @@ def post_spectrum(data, user_id, session):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    stmt = Instrument.select(user).where(Instrument.id == data['instrument_id'])
+    stmt = Instrument.select(user).where(Instrument.id == data["instrument_id"])
     instrument = session.scalars(stmt).first()
     if instrument is None:
-        raise ValueError(f'Cannot find instrument with ID: {data["instrument_id"]}')
+        raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
 
     if "units" in data:
         if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
@@ -136,7 +136,7 @@ def post_spectrum(data, user_id, session):
         stmt = User.select(user).where(User.id == pi_id)
         pi = session.scalars(stmt).first()
         if pi is None:
-            raise ValueError(f'Invalid pi ID: {pi_id}.')
+            raise ValueError(f"Invalid pi ID: {pi_id}.")
         pi_association = SpectrumPI(external_pi=external_pi)
         pi_association.user = pi
         pis.append(pi_association)
@@ -152,7 +152,7 @@ def post_spectrum(data, user_id, session):
         stmt = User.select(user).where(User.id == reducer_id)
         reducer = session.scalars(stmt).first()
         if reducer is None:
-            raise ValueError(f'Invalid reducer ID: {reducer_id}.')
+            raise ValueError(f"Invalid reducer ID: {reducer_id}.")
         reducer_association = SpectrumReducer(external_reducer=external_reducer)
         reducer_association.user = reducer
         reducers.append(reducer_association)
@@ -168,7 +168,7 @@ def post_spectrum(data, user_id, session):
         stmt = User.select(user).where(User.id == observer_id)
         observer = session.scalars(stmt).first()
         if observer is None:
-            raise ValueError(f'Invalid observer ID: {observer_id}.')
+            raise ValueError(f"Invalid observer ID: {observer_id}.")
         observer_association = SpectrumObserver(external_observer=external_observer)
         observer_association.user = observer
         observers.append(observer_association)
@@ -180,7 +180,7 @@ def post_spectrum(data, user_id, session):
         .all()
     )
     if {g.id for g in groups} != set(group_ids):
-        raise ValueError(f'Cannot find one or more groups with IDs: {group_ids}.')
+        raise ValueError(f"Cannot find one or more groups with IDs: {group_ids}.")
 
     spec = Spectrum(**data)
     spec.instrument = instrument
@@ -205,22 +205,22 @@ def post_spectrum(data, user_id, session):
 
     flow = Flow()
     flow.push(
-        '*',
-        'skyportal/REFRESH_SOURCE',
-        payload={'obj_key': spec.obj.internal_key},
+        "*",
+        "skyportal/REFRESH_SOURCE",
+        payload={"obj_key": spec.obj.internal_key},
     )
 
     flow.push(
-        '*',
-        'skyportal/REFRESH_SOURCE_SPECTRA',
-        payload={'obj_internal_key': spec.obj.internal_key},
+        "*",
+        "skyportal/REFRESH_SOURCE_SPECTRA",
+        payload={"obj_internal_key": spec.obj.internal_key},
     )
 
     return spec.id
 
 
 class SpectrumHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -258,7 +258,7 @@ class SpectrumHandler(BaseHandler):
             data = SpectrumPost.load(json)
         except ValidationError as e:
             return self.error(
-                f'Invalid / missing parameters; {e.normalized_messages()}'
+                f"Invalid / missing parameters; {e.normalized_messages()}"
             )
 
         with self.Session() as session:
@@ -275,7 +275,7 @@ class SpectrumHandler(BaseHandler):
                 if single_user_group.id not in group_ids:
                     group_ids.append(single_user_group.id)
 
-                data['group_ids'] = group_ids
+                data["group_ids"] = group_ids
 
                 spectrum_id = post_spectrum(
                     data,
@@ -284,7 +284,7 @@ class SpectrumHandler(BaseHandler):
                 )
                 return self.success(data={"id": spectrum_id})
             except Exception as e:
-                return self.error(f'Failed to post spectrum: {str(e)}')
+                return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
     def get(self, spectrum_id=None):
@@ -466,7 +466,7 @@ class SpectrumHandler(BaseHandler):
                 ).first()
                 if spectrum is None:
                     return self.error(
-                        f'Could not access spectrum {spectrum_id}.', status=403
+                        f"Could not access spectrum {spectrum_id}.", status=403
                     )
                 comments = (
                     session.scalars(
@@ -527,21 +527,21 @@ class SpectrumHandler(BaseHandler):
                 return self.success(data=spec_dict)
 
         # multiple spectra
-        minimal_payload = self.get_query_argument('minimalPayload', False)
-        observed_before = self.get_query_argument('observedBefore', None)
-        observed_after = self.get_query_argument('observedAfter', None)
-        obj_id = self.get_query_argument('objID', None)
-        instrument_ids = self.get_query_argument('instrumentIDs', None)
-        group_ids = self.get_query_argument('groupIDs', None)
-        followup_ids = self.get_query_argument('followupRequestIDs', None)
-        assignment_ids = self.get_query_argument('assignmentIDs', None)
-        spec_origin = self.get_query_argument('origin', None)
-        spec_label = self.get_query_argument('label', None)
-        spec_type = self.get_query_argument('type', None)
-        comments_filter = self.get_query_argument('commentsFilter', None)
-        comments_filter_author = self.get_query_argument('commentsFilterAuthor', None)
-        comments_filter_before = self.get_query_argument('commentsFilterBefore', None)
-        comments_filter_after = self.get_query_argument('commentsFilterAfter', None)
+        minimal_payload = self.get_query_argument("minimalPayload", False)
+        observed_before = self.get_query_argument("observedBefore", None)
+        observed_after = self.get_query_argument("observedAfter", None)
+        obj_id = self.get_query_argument("objID", None)
+        instrument_ids = self.get_query_argument("instrumentIDs", None)
+        group_ids = self.get_query_argument("groupIDs", None)
+        followup_ids = self.get_query_argument("followupRequestIDs", None)
+        assignment_ids = self.get_query_argument("assignmentIDs", None)
+        spec_origin = self.get_query_argument("origin", None)
+        spec_label = self.get_query_argument("label", None)
+        spec_type = self.get_query_argument("type", None)
+        comments_filter = self.get_query_argument("commentsFilter", None)
+        comments_filter_author = self.get_query_argument("commentsFilterAuthor", None)
+        comments_filter_before = self.get_query_argument("commentsFilterBefore", None)
+        comments_filter_after = self.get_query_argument("commentsFilterAfter", None)
 
         # validate inputs
         try:
@@ -592,7 +592,7 @@ class SpectrumHandler(BaseHandler):
                     if t not in ALLOWED_SPECTRUM_TYPES:
                         return self.error(
                             f'Spectrum type "{t}" is not in list of allowed '
-                            f'spectrum types: {ALLOWED_SPECTRUM_TYPES}.'
+                            f"spectrum types: {ALLOWED_SPECTRUM_TYPES}."
                         )
 
             if comments_filter is not None:
@@ -677,18 +677,18 @@ class SpectrumHandler(BaseHandler):
 
             if minimal_payload:
                 columns = [
-                    'id',
-                    'owner_id',
-                    'obj_id',
-                    'observed_at',
-                    'origin',
-                    'type',
-                    'label',
-                    'instrument_id',
-                    'followup_request_id',
-                    'assignment_id',
-                    'altdata',
-                    'original_file_filename',
+                    "id",
+                    "owner_id",
+                    "obj_id",
+                    "observed_at",
+                    "origin",
+                    "type",
+                    "label",
+                    "instrument_id",
+                    "followup_request_id",
+                    "assignment_id",
+                    "altdata",
+                    "original_file_filename",
                 ]
                 for spec in result_spectra:
                     keys = list(spec.keys())
@@ -708,10 +708,10 @@ class SpectrumHandler(BaseHandler):
                     comments_query = CommentOnSpectrum.select(
                         session.user_or_token,
                         options=[joinedload(CommentOnSpectrum.groups)],
-                    ).where(CommentOnSpectrum.spectrum_id == spec_dict['id'])
+                    ).where(CommentOnSpectrum.spectrum_id == spec_dict["id"])
 
                     if not minimal_payload:  # grab these before further filtering
-                        spec_dict['comments'] = recursive_to_dict(
+                        spec_dict["comments"] = recursive_to_dict(
                             session.scalars(comments_query).unique().all()
                         )
 
@@ -740,14 +740,12 @@ class SpectrumHandler(BaseHandler):
 
                         for i, com in enumerate(comments):
                             if comments_filter_author is None or any(
-                                [
-                                    cf in com.author.username
-                                    for cf in comments_filter_author
-                                ]
+                                cf in com.author.username
+                                for cf in comments_filter_author
                             ):
                                 author_check[i] = True
                             if comments_filter is None or any(
-                                [cf in com.text for cf in comments_filter]
+                                cf in com.text for cf in comments_filter
                             ):
                                 text_check[i] = True
 
@@ -772,7 +770,7 @@ class SpectrumHandler(BaseHandler):
                         .unique()
                         .all()
                     )
-                    spec_dict['annotations'] = recursive_to_dict(annotations)
+                    spec_dict["annotations"] = recursive_to_dict(annotations)
 
                     external_pi = session.scalars(
                         SpectrumPI.select(session.user_or_token).where(
@@ -782,7 +780,7 @@ class SpectrumHandler(BaseHandler):
                     if external_pi is not None:
                         spec_dict["external_pi"] = external_pi.external_pi
 
-                    spec_dict['pis'] = recursive_to_dict(spec.pis)
+                    spec_dict["pis"] = recursive_to_dict(spec.pis)
 
                     external_reducer = session.scalars(
                         SpectrumReducer.select(session.user_or_token).where(
@@ -790,11 +788,11 @@ class SpectrumHandler(BaseHandler):
                         )
                     ).first()
                     if external_reducer is not None:
-                        spec_dict[
-                            "external_reducer"
-                        ] = external_reducer.external_reducer
+                        spec_dict["external_reducer"] = (
+                            external_reducer.external_reducer
+                        )
 
-                    spec_dict['reducers'] = recursive_to_dict(spec.reducers)
+                    spec_dict["reducers"] = recursive_to_dict(spec.reducers)
 
                     external_observer = session.scalars(
                         SpectrumObserver.select(session.user_or_token).where(
@@ -802,24 +800,24 @@ class SpectrumHandler(BaseHandler):
                         )
                     ).first()
                     if external_observer is not None:
-                        spec_dict[
-                            "external_observer"
-                        ] = external_observer.external_observer
+                        spec_dict["external_observer"] = (
+                            external_observer.external_observer
+                        )
 
-                    spec_dict['observers'] = recursive_to_dict(spec.observers)
+                    spec_dict["observers"] = recursive_to_dict(spec.observers)
 
-                    spec_dict['instrument_name'] = spec.instrument.name
-                    spec_dict['telescope_id'] = spec.instrument.telescope.id
-                    spec_dict['telescope_name'] = spec.instrument.telescope.name
+                    spec_dict["instrument_name"] = spec.instrument.name
+                    spec_dict["telescope_id"] = spec.instrument.telescope.id
+                    spec_dict["telescope_name"] = spec.instrument.telescope.name
 
-                    spec_dict['groups'] = recursive_to_dict(spec.groups)
-                    spec_dict['owner'] = recursive_to_dict(spec.owner)
+                    spec_dict["groups"] = recursive_to_dict(spec.groups)
+                    spec_dict["owner"] = recursive_to_dict(spec.owner)
 
-            result_spectra = sorted(result_spectra, key=lambda x: x['observed_at'])
+            result_spectra = sorted(result_spectra, key=lambda x: x["observed_at"])
 
             return self.success(data=result_spectra)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def put(self, spectrum_id):
         """
         ---
@@ -850,19 +848,17 @@ class SpectrumHandler(BaseHandler):
         try:
             spectrum_id = int(spectrum_id)
         except TypeError:
-            return self.error('Could not convert spectrum id to int.')
+            return self.error("Could not convert spectrum id to int.")
 
         data = self.get_json()
 
         try:
             data = SpectrumPost.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
         group_ids = data.pop("group_ids", None)
-        if group_ids == 'all':
+        if group_ids == "all":
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
         pi = data.pop("pi", None)
@@ -887,7 +883,7 @@ class SpectrumHandler(BaseHandler):
                 )
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 if groups:
@@ -900,7 +896,7 @@ class SpectrumHandler(BaseHandler):
                     stmt = User.select(session.user_or_token).where(User.id == pi_id)
                     pi = session.scalars(stmt).first()
                     if pi is None:
-                        raise ValueError(f'Invalid pi ID: {pi_id}.')
+                        raise ValueError(f"Invalid pi ID: {pi_id}.")
                     pi_association = SpectrumReducer(external_pi=external_pi)
                     pi_association.user = pi
                     pis.append(pi_association)
@@ -928,7 +924,7 @@ class SpectrumHandler(BaseHandler):
                     )
                     reducer = session.scalars(stmt).first()
                     if reducer is None:
-                        raise ValueError(f'Invalid reducer ID: {reducer_id}.')
+                        raise ValueError(f"Invalid reducer ID: {reducer_id}.")
                     reducer_association = SpectrumReducer(
                         external_reducer=external_reducer
                     )
@@ -958,7 +954,7 @@ class SpectrumHandler(BaseHandler):
                     )
                     observer = session.scalars(stmt).first()
                     if observer is None:
-                        raise ValueError(f'Invalid observer ID: {observer_id}.')
+                        raise ValueError(f"Invalid observer ID: {observer_id}.")
                     observer_association = SpectrumObserver(
                         external_observer=external_observer
                     )
@@ -986,16 +982,16 @@ class SpectrumHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': spectrum.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": spectrum.obj.internal_key},
             )
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': spectrum.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                payload={"obj_internal_key": spectrum.obj.internal_key},
             )
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, spectrum_id):
         """
         ---
@@ -1028,13 +1024,13 @@ class SpectrumHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_key},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': spectrum.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                payload={"obj_internal_key": spectrum.obj.internal_key},
             )
 
             return self.success()
@@ -1051,34 +1047,34 @@ class ASCIIHandler:
             json = validator.load(json)
         except ValidationError as e:
             raise ValidationError(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                f"Invalid/missing parameters: {e.normalized_messages()}"
             )
 
-        ascii = json.pop('ascii')
+        ascii = json.pop("ascii")
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
         if len(ascii) > 1e7:
-            raise ValueError('File must be smaller than 10MB.')
+            raise ValueError("File must be smaller than 10MB.")
 
         # pass ascii in as a file-like object
         try:
-            file = io.BytesIO(ascii.encode('ascii', 'ignore'))
+            file = io.BytesIO(ascii.encode("ascii", "ignore"))
         except UnicodeEncodeError:
             raise ValueError(
-                'Unable to parse uploaded spectrum file as ascii. '
-                'Ensure the file is not a FITS file and retry.'
+                "Unable to parse uploaded spectrum file as ascii. "
+                "Ensure the file is not a FITS file and retry."
             )
 
         spec = Spectrum.from_ascii(
             file,
-            obj_id=json.get('obj_id', None),
-            instrument_id=json.get('instrument_id', None),
-            type=json.get('type', None),
-            label=json.get('label', None),
-            observed_at=json.get('observed_at', None),
-            wave_column=json.get('wave_column', None),
-            flux_column=json.get('flux_column', None),
-            fluxerr_column=json.get('fluxerr_column', None),
+            obj_id=json.get("obj_id", None),
+            instrument_id=json.get("instrument_id", None),
+            type=json.get("type", None),
+            label=json.get("label", None),
+            observed_at=json.get("observed_at", None),
+            wave_column=json.get("wave_column", None),
+            flux_column=json.get("flux_column", None),
+            fluxerr_column=json.get("fluxerr_column", None),
         )
         spec.original_file_string = ascii
         spec.owner = self.associated_user_object
@@ -1088,7 +1084,7 @@ class ASCIIHandler:
 
 
 class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -1124,37 +1120,37 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         try:
             spec, json = self.spec_from_ascii_request(return_json=True)
         except Exception as e:
-            return self.error(f'Error parsing spectrum: {e.args[0]}')
+            return self.error(f"Error parsing spectrum: {e.args[0]}")
 
-        filename = json.pop('filename')
+        filename = json.pop("filename")
 
         with self.Session() as session:
             obj_check = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == json['obj_id'])
+                Obj.select(session.user_or_token).where(Obj.id == json["obj_id"])
             ).first()
 
             if obj_check is None:
-                return self.error(f'Cannot find object with ID: {json["obj_id"]}')
+                return self.error(f"Cannot find object with ID: {json['obj_id']}")
 
             inst_check = session.scalars(
                 Instrument.select(session.user_or_token).where(
-                    Instrument.id == json['instrument_id']
+                    Instrument.id == json["instrument_id"]
                 )
             ).first()
 
             if inst_check is None:
                 return self.error(
-                    f'Cannot find instrument with ID: {json["instrument_id"]}'
+                    f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
             # always add the single user group
             single_user_group = self.associated_user_object.single_user_group
 
-            group_ids = json.pop('group_ids', [])
+            group_ids = json.pop("group_ids", [])
             if group_ids is None:
                 group_ids = [single_user_group.id]
             elif group_ids == "all":
-                public_name = cfg['misc.public_group_name']
+                public_name = cfg["misc.public_group_name"]
                 stmt = Group.select(self.current_user).where(Group.name == public_name)
                 public_groups = session.scalars(stmt).unique().all()
                 group_ids = [g.id for g in public_groups]
@@ -1171,12 +1167,12 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             pis = []
             external_pi = json.pop("external_pi", None)
-            pi_ids = json.pop('pi', [])
+            pi_ids = json.pop("pi", [])
             if external_pi is not None and len(pi_ids) == 0:
                 raise ValueError(
                     "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
@@ -1185,14 +1181,14 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 stmt = User.select(self.current_user).where(User.id == pi_id)
                 pi = session.scalars(stmt).first()
                 if pi is None:
-                    return self.error(f'Invalid pi ID: {pi_id}.')
+                    return self.error(f"Invalid pi ID: {pi_id}.")
                 pi_association = SpectrumPI(external_pi=external_pi)
                 pi_association.user = pi
                 pis.append(pi_association)
 
             reducers = []
             external_reducer = json.pop("external_reducer", None)
-            reducer_ids = json.pop('reduced_by', [])
+            reducer_ids = json.pop("reduced_by", [])
             if external_reducer is not None and len(reducer_ids) == 0:
                 self.error(
                     "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
@@ -1201,14 +1197,14 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 stmt = User.select(self.current_user).where(User.id == reducer_id)
                 reducer = session.scalars(stmt).first()
                 if reducer is None:
-                    return self.error(f'Invalid reducer ID: {reducer_id}.')
+                    return self.error(f"Invalid reducer ID: {reducer_id}.")
                 reducer_association = SpectrumReducer(external_reducer=external_reducer)
                 reducer_association.user = reducer
                 reducers.append(reducer_association)
 
             observers = []
             external_observer = json.pop("external_observer", None)
-            observer_ids = json.pop('observed_by', [])
+            observer_ids = json.pop("observed_by", [])
             if external_observer is not None and len(observer_ids) == 0:
                 self.error(
                     "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
@@ -1217,7 +1213,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 stmt = User.select(self.current_user).where(User.id == observer_id)
                 observer = session.scalars(stmt).first()
                 if observer is None:
-                    return self.error(f'Invalid observer ID: {observer_id}.')
+                    return self.error(f"Invalid observer ID: {observer_id}.")
                 observer_association = SpectrumObserver(
                     external_observer=external_observer
                 )
@@ -1225,7 +1221,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 observers.append(observer_association)
 
             # will never KeyError as missing value is imputed
-            followup_request_id = json.pop('followup_request_id', None)
+            followup_request_id = json.pop("followup_request_id", None)
             if followup_request_id is not None:
                 stmt = FollowupRequest.select(self.current_user)
                 stmt = stmt.where(FollowupRequest.id == followup_request_id)
@@ -1235,13 +1231,13 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                     if group not in groups:
                         groups.append(group)
 
-            assignment_id = json.pop('assignment_id', None)
+            assignment_id = json.pop("assignment_id", None)
             if assignment_id is not None:
                 stmt = ClassicalAssignment.select(self.current_user)
                 stmt = stmt.where(ClassicalAssignment.id == assignment_id)
                 assignment = session.scalars(stmt).first()
                 if assignment is None:
-                    return self.error('Invalid assignment.')
+                    return self.error("Invalid assignment.")
                 spec.assignment = assignment
                 if assignment.run.group is not None:
                     groups.append(assignment.run.group)
@@ -1263,20 +1259,20 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': spec.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": spec.obj.internal_key},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': spec.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                payload={"obj_internal_key": spec.obj.internal_key},
             )
 
-            return self.success(data={'id': spec.id})
+            return self.success(data={"id": spec.id})
 
 
 class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -1302,7 +1298,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         try:
             spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
         except Exception as e:
-            return self.error(f'Error parsing spectrum: {e.args[0]}')
+            return self.error(f"Error parsing spectrum: {e.args[0]}")
         return self.success(data=spec)
 
 
@@ -1374,38 +1370,38 @@ class ObjSpectraHandler(BaseHandler):
                 schema: Error
         """
 
-        sortBy = self.get_query_argument('sortBy', 'observed_at')
-        sortOrder = self.get_query_argument('sortOrder', 'asc')
+        sortBy = self.get_query_argument("sortBy", "observed_at")
+        sortOrder = self.get_query_argument("sortOrder", "asc")
 
-        if sortBy not in ['observed_at', 'created_at']:
+        if sortBy not in ["observed_at", "created_at"]:
             return self.error(
-                'Invalid sortBy, must be one of: observed_at, created_at.'
+                "Invalid sortBy, must be one of: observed_at, created_at."
             )
 
-        if sortOrder not in ['asc', 'desc']:
-            return self.error('Invalid sortOrder, must be one of: asc, desc.')
+        if sortOrder not in ["asc", "desc"]:
+            return self.error("Invalid sortOrder, must be one of: asc, desc.")
 
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
             if obj is None:
-                return self.error('Invalid object ID.')
+                return self.error("Invalid object ID.")
 
             stmt = Spectrum.select(session.user_or_token).where(
                 Spectrum.obj_id == obj_id
             )
 
-            if sortBy == 'observed_at':
+            if sortBy == "observed_at":
                 stmt = stmt.order_by(
                     Spectrum.observed_at.asc()
-                    if sortOrder == 'asc'
+                    if sortOrder == "asc"
                     else Spectrum.observed_at.desc()
                 )
-            elif sortBy == 'created_at':
+            elif sortBy == "created_at":
                 stmt = stmt.order_by(
                     Spectrum.created_at.asc()
-                    if sortOrder == 'asc'
+                    if sortOrder == "asc"
                     else Spectrum.created_at.desc()
                 )
 
@@ -1452,7 +1448,7 @@ class ObjSpectraHandler(BaseHandler):
                     reverse=True,
                 )
                 annotations = [
-                    {**a.to_dict(), 'author': a.author.to_dict(), 'type': 'spectrum'}
+                    {**a.to_dict(), "author": a.author.to_dict(), "type": "spectrum"}
                     for a in annotations
                 ]
                 spec_dict["annotations"] = annotations
@@ -1494,7 +1490,7 @@ class ObjSpectraHandler(BaseHandler):
 
                 return_values.append(spec_dict)
 
-            normalization = self.get_query_argument('normalization', None)
+            normalization = self.get_query_argument("normalization", None)
 
             if normalization is not None:
                 if normalization == "median":
@@ -1514,7 +1510,7 @@ class ObjSpectraHandler(BaseHandler):
                         f'Invalid "normalization" value "{normalization}, use '
                         '"median" or None'
                     )
-            return self.success(data={'obj_id': obj.id, 'spectra': return_values})
+            return self.success(data={"obj_id": obj.id, "spectra": return_values})
 
 
 class SpectrumRangeHandler(BaseHandler):
@@ -1577,9 +1573,9 @@ class SpectrumRangeHandler(BaseHandler):
                 schema: Error
         """
 
-        instrument_ids = self.get_query_arguments('instrument_ids')
-        min_date = self.get_query_argument('min_date', None)
-        max_date = self.get_query_argument('max_date', None)
+        instrument_ids = self.get_query_arguments("instrument_ids")
+        min_date = self.get_query_argument("min_date", None)
+        max_date = self.get_query_argument("max_date", None)
 
         with self.Session() as session:
             if len(instrument_ids) > 0:
@@ -1590,10 +1586,10 @@ class SpectrumRangeHandler(BaseHandler):
                 query = Spectrum.select(session.user_or_token)
 
             if min_date is not None:
-                utc = Time(min_date, format='isot', scale='utc')
+                utc = Time(min_date, format="isot", scale="utc")
                 query = query.where(Spectrum.observed_at >= utc.isot)
             if max_date is not None:
-                utc = Time(max_date, format='isot', scale='utc')
+                utc = Time(max_date, format="isot", scale="utc")
                 query = query.where(Spectrum.observed_at <= utc.isot)
 
             return self.success(data=session.scalars(query).unique().all())
@@ -1633,24 +1629,24 @@ class SyntheticPhotometryHandler(BaseHandler):
         """
 
         data = self.get_json()
-        filters = data.get('filters')
+        filters = data.get("filters")
 
         with self.Session() as session:
             spectrum = session.scalars(
                 Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
             ).first()
             if spectrum is None:
-                return self.error(f'No spectrum with id {spectrum_id}')
+                return self.error(f"No spectrum with id {spectrum_id}")
 
             spec_dict = recursive_to_dict(spectrum)
-            wav = spec_dict['wavelengths']
-            flux = spec_dict['fluxes']
-            err = spec_dict['errors']
-            obstime = spec_dict['observed_at']
+            wav = spec_dict["wavelengths"]
+            flux = spec_dict["fluxes"]
+            err = spec_dict["errors"]
+            obstime = spec_dict["observed_at"]
 
             if spectrum.astropy_units is None:
                 return self.error(
-                    f'Spectrum with id {spectrum_id} needs astropy_units set to compute synthetic photometry'
+                    f"Spectrum with id {spectrum_id} needs astropy_units set to compute synthetic photometry"
                 )
 
             try:
@@ -1663,7 +1659,7 @@ class SyntheticPhotometryHandler(BaseHandler):
             data_list = []
             for filt in filters:
                 try:
-                    mag = spec.bandmag(filt, magsys='ab')
+                    mag = spec.bandmag(filt, magsys="ab")
                     magerr = 0
                 except ValueError as e:
                     return self.error(
@@ -1672,24 +1668,24 @@ class SyntheticPhotometryHandler(BaseHandler):
 
                 data_list.append(
                     {
-                        'mjd': Time(obstime, format='datetime').mjd,
-                        'ra': spectrum.obj.ra,
-                        'dec': spectrum.obj.dec,
-                        'mag': mag,
-                        'magerr': magerr,
-                        'filter': filt,
-                        'limiting_mag': 25.0,
+                        "mjd": Time(obstime, format="datetime").mjd,
+                        "ra": spectrum.obj.ra,
+                        "dec": spectrum.obj.dec,
+                        "mag": mag,
+                        "magerr": magerr,
+                        "filter": filt,
+                        "limiting_mag": 25.0,
                     }
                 )
 
             if len(data_list) > 0:
                 df = pd.DataFrame.from_dict(data_list)
-                df['magsys'] = 'ab'
+                df["magsys"] = "ab"
                 data_out = {
-                    'obj_id': spectrum.obj.id,
-                    'instrument_id': spectrum.instrument.id,
-                    'group_ids': [g.id for g in self.current_user.accessible_groups],
-                    **df.to_dict(orient='list'),
+                    "obj_id": spectrum.obj.id,
+                    "instrument_id": spectrum.instrument.id,
+                    "group_ids": [g.id for g in self.current_user.accessible_groups],
+                    **df.to_dict(orient="list"),
                 }
                 add_external_photometry(data_out, self.associated_user_object)
 

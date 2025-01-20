@@ -1,4 +1,4 @@
-__all__ = ['cosmo']
+__all__ = ["cosmo"]
 
 from baselayer.app.env import load_env
 

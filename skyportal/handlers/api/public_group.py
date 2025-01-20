@@ -1,8 +1,8 @@
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from ..base import BaseHandler
-from ...models import Group
 
+from ...models import Group
+from ..base import BaseHandler
 
 env, cfg = load_env()
 
@@ -26,9 +26,9 @@ class PublicGroupHandler(BaseHandler):
         with self.Session() as session:
             pg = session.scalars(
                 Group.select(session.user_or_token).where(
-                    Group.name == cfg['misc.public_group_name']
+                    Group.name == cfg["misc.public_group_name"]
                 )
             ).first()
             if pg is None:
-                return self.error('Public group does not exist')
+                return self.error("Public group does not exist")
             return self.success(data=pg)

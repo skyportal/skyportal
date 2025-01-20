@@ -1,20 +1,20 @@
 import io
+
 import arrow
-from astropy.time import Time, TimeDelta
 import astropy.units as u
 import numpy as np
 import obspy
+import sqlalchemy as sa
+from astropy.time import Time, TimeDelta
 from obspy.geodetics.base import gps2dist_azimuth
 from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
-import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
     EarthquakeEvent,
     EarthquakeMeasured,
@@ -26,8 +26,9 @@ from ...models import (
 from ...utils.earthquake import (
     get_country,
 )
+from ..base import BaseHandler
 
-log = make_log('earthquake')
+log = make_log("earthquake")
 
 
 def post_earthquake_from_xml(payload, user_id, session):
@@ -63,7 +64,7 @@ def post_earthquake_from_xml(payload, user_id, session):
             )
         ).first()
         if event is not None:
-            event.status = 'canceled'
+            event.status = "canceled"
             session.add(event)
             session.commit()
 
@@ -73,7 +74,7 @@ def post_earthquake_from_xml(payload, user_id, session):
 
     magnitudes = event.magnitudes
     if len(magnitudes) == 0:
-        raise ValueError('Must have magnitude information to create Earthquake.')
+        raise ValueError("Must have magnitude information to create Earthquake.")
 
     mag = magnitudes[-1].mag
     origin = event.origins[-1]
@@ -95,7 +96,7 @@ def post_earthquake_from_xml(payload, user_id, session):
 
     country = get_country(origin.latitude, origin.longitude)
     earthquake_notice = EarthquakeNotice(
-        content=payload.encode('utf-8'),
+        content=payload.encode("utf-8"),
         event_id=event_id,
         lat=origin.latitude,
         lon=origin.longitude,
@@ -123,12 +124,12 @@ def post_earthquake_from_dictionary(payload, user_id, session):
 
     user = session.query(User).get(user_id)
 
-    date = payload['date']
-    event_id = payload['event_id']
-    latitude = payload['latitude']
-    longitude = payload['longitude']
-    depth = payload['depth']
-    magnitude = payload['magnitude']
+    date = payload["date"]
+    event_id = payload["event_id"]
+    latitude = payload["latitude"]
+    longitude = payload["longitude"]
+    depth = payload["depth"]
+    magnitude = payload["magnitude"]
 
     event = session.scalars(
         EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
@@ -220,14 +221,14 @@ class EarthquakeHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'xml' not in data:
+        if "xml" not in data:
             required_keys = {
-                'date',
-                'event_id',
-                'latitude',
-                'longitude',
-                'depth',
-                'magnitude',
+                "date",
+                "event_id",
+                "latitude",
+                "longitude",
+                "depth",
+                "magnitude",
             }
             if not required_keys.issubset(set(data.keys())):
                 return self.error(
@@ -235,16 +236,16 @@ class EarthquakeHandler(BaseHandler):
                 )
 
         with self.Session() as session:
-            if 'xml' in data:
+            if "xml" in data:
                 event_id = post_earthquake_from_xml(
-                    data['xml'], self.associated_user_object.id, session
+                    data["xml"], self.associated_user_object.id, session
                 )
             else:
                 event_id = post_earthquake_from_dictionary(
                     data, self.associated_user_object.id, session
                 )
 
-            return self.success(data={'id': event_id})
+            return self.success(data={"id": event_id})
 
     @auth_or_token
     async def get(self, event_id=None):
@@ -335,18 +336,18 @@ class EarthquakeHandler(BaseHandler):
         try:
             page_number = int(page_number)
         except ValueError as e:
-            return self.error(f'pageNumber fails: {e}')
+            return self.error(f"pageNumber fails: {e}")
 
         n_per_page = self.get_query_argument("numPerPage", 100)
         try:
             n_per_page = int(n_per_page)
         except ValueError as e:
-            return self.error(f'numPerPage fails: {e}')
+            return self.error(f"numPerPage fails: {e}")
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
-        status_keep = self.get_query_argument('statusKeep', None)
-        status_remove = self.get_query_argument('statusRemove', None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        status_keep = self.get_query_argument("statusKeep", None)
+        status_remove = self.get_query_argument("statusRemove", None)
 
         if event_id is not None:
             with self.Session() as session:
@@ -534,7 +535,7 @@ class EarthquakePredictionHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                    f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
             detector = session.scalars(
@@ -543,16 +544,16 @@ class EarthquakePredictionHandler(BaseHandler):
                 )
             ).first()
             if detector is None:
-                return self.error(f'Cannot find MMADetector with ID {mma_detector_id}')
+                return self.error(f"Cannot find MMADetector with ID {mma_detector_id}")
 
             notices = event.notices
             if len(notices) == 0:
-                return self.error('Cannot make prediction with no information.')
+                return self.error("Cannot make prediction with no information.")
             notice = notices[-1]
 
             if not detector.fixed_location:
                 return self.error(
-                    'Cannot make prediction for a detector not at a fixed location.'
+                    "Cannot make prediction for a detector not at a fixed location."
                 )
 
             (
@@ -602,7 +603,7 @@ def compute_traveltimes(earthquake, detector):
     """
 
     depth = earthquake.depth
-    eqtime = Time(earthquake.date, format='datetime')
+    eqtime = Time(earthquake.date, format="datetime")
     eqlat = earthquake.lat
     eqlon = earthquake.lon
     ifolat = detector.lat
@@ -671,9 +672,9 @@ class EarthquakeMeasurementHandler(BaseHandler):
         """
 
         data = self.get_json()
-        if 'rfamp' not in data and 'lockloss' not in data:
+        if "rfamp" not in data and "lockloss" not in data:
             return self.error(
-                'Need to provide at least one of rfamp or lockloss measurement'
+                "Need to provide at least one of rfamp or lockloss measurement"
             )
 
         with self.Session() as session:
@@ -684,7 +685,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                    f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
             detector = session.scalars(
@@ -693,7 +694,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
                 )
             ).first()
             if detector is None:
-                return self.error(f'Cannot find MMADetector with ID {mma_detector_id}')
+                return self.error(f"Cannot find MMADetector with ID {mma_detector_id}")
 
             measurement = session.scalars(
                 EarthquakeMeasured.select(session.user_or_token).where(
@@ -703,11 +704,11 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if measurement is not None:
                 return self.error(
-                    'Measurement for this earthquake and detector already exists. Please patch that measurement if an update is required'
+                    "Measurement for this earthquake and detector already exists. Please patch that measurement if an update is required"
                 )
 
-            rfamp = data.get('rfamp', None)
-            lockloss = data.get('lockloss', None)
+            rfamp = data.get("rfamp", None)
+            lockloss = data.get("lockloss", None)
 
             measurement = EarthquakeMeasured(
                 event_id=event.id,
@@ -759,7 +760,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                    f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
             measurement = session.scalars(
@@ -770,7 +771,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if measurement is None:
                 return self.error(
-                    'Measurement for this earthquake and detector not found.'
+                    "Measurement for this earthquake and detector not found."
                 )
 
             return self.success(data=measurement)
@@ -802,9 +803,9 @@ class EarthquakeMeasurementHandler(BaseHandler):
         """
 
         data = self.get_json()
-        if 'rfamp' not in data and 'lockloss' not in data:
+        if "rfamp" not in data and "lockloss" not in data:
             return self.error(
-                'Need to provide at least one of rfamp or lockloss measurement'
+                "Need to provide at least one of rfamp or lockloss measurement"
             )
 
         with self.Session() as session:
@@ -815,22 +816,22 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                    f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
             measurement = session.scalars(
-                EarthquakeMeasured.select(session.user_or_token, mode='update').where(
+                EarthquakeMeasured.select(session.user_or_token, mode="update").where(
                     EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
             ).first()
             if measurement is None:
                 return self.error(
-                    'Measurement for this earthquake and detector not found.'
+                    "Measurement for this earthquake and detector not found."
                 )
 
-            rfamp = data.get('rfamp', None)
-            lockloss = data.get('lockloss', None)
+            rfamp = data.get("rfamp", None)
+            lockloss = data.get("lockloss", None)
 
             if rfamp is not None:
                 measurement.rfamp = rfamp
@@ -881,18 +882,18 @@ class EarthquakeMeasurementHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                    f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
             measurement = session.scalars(
-                EarthquakeMeasured.select(session.user_or_token, mode='delete').where(
+                EarthquakeMeasured.select(session.user_or_token, mode="delete").where(
                     EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
             ).first()
             if measurement is None:
                 return self.error(
-                    'Measurement for this earthquake and detector not found.'
+                    "Measurement for this earthquake and detector not found."
                 )
 
             session.delete(measurement)

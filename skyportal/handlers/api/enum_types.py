@@ -1,17 +1,17 @@
 from baselayer.app.access import auth_or_token
 
-from ..base import BaseHandler
 from ...enum_types import (
-    ALLOWED_SPECTRUM_TYPES,
-    ALLOWED_MAGSYSTEMS,
-    ALLOWED_BANDPASSES,
-    THUMBNAIL_TYPES,
-    FOLLOWUP_PRIORITIES,
     ALLOWED_API_CLASSNAMES,
-    ANALYSIS_TYPES,
+    ALLOWED_BANDPASSES,
+    ALLOWED_MAGSYSTEMS,
+    ALLOWED_SPECTRUM_TYPES,
     ANALYSIS_INPUT_TYPES,
+    ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
+    FOLLOWUP_PRIORITIES,
+    THUMBNAIL_TYPES,
 )
+from ..base import BaseHandler
 
 
 class EnumTypesHandler(BaseHandler):

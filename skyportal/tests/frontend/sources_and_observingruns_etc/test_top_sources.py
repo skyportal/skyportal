@@ -11,25 +11,25 @@ from skyportal.tests import api
 def test_top_sources(driver, user, public_source, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': obj_id,
-            'ra': 50.4,
-            'dec': 22.33,
-            'redshift': 2.1,
+            "id": obj_id,
+            "ra": 50.4,
+            "dec": 22.33,
+            "redshift": 2.1,
             "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
     # Wait for just added source to show up in added sources
     driver.wait_for_xpath(f'//a/span[contains(.,"{obj_id}")]')
 
@@ -55,7 +55,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
 
     # Test that token requests (which register source views) do not increment the view count in the UI
     # (we used to show token views, but periodic scripts ran by users with tokens would artificially inflate the view count)
-    status, data = api('GET', f'sources/{obj_id}', token=upload_data_token)
+    status, data = api("GET", f"sources/{obj_id}", token=upload_data_token)
     time.sleep(1)
     assert status == 200
     driver.refresh()
@@ -67,22 +67,22 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     # Add an old source and give it an old view
     obj_id = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': obj_id,
-            'ra': 50.4,
-            'dec': 22.33,
-            'redshift': 2.1,
+            "id": obj_id,
+            "ra": 50.4,
+            "dec": 22.33,
+            "redshift": 2.1,
             "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
     twenty_days_ago = datetime.datetime.now() - datetime.timedelta(days=20)
     sv = SourceView(
@@ -94,8 +94,8 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     DBSession().add(sv)
     DBSession().commit()
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
 
     # Wait for just top source widget to show up
     timespan_button = "//button[contains(@data-testid, 'topSources_timespanButton')]"

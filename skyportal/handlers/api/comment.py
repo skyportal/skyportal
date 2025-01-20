@@ -1,80 +1,81 @@
-import string
 import base64
-from marshmallow.exceptions import ValidationError
 import os
-import sqlalchemy as sa
+import string
 import time
 import unicodedata
 
-from baselayer.app.access import permissions, auth_or_token
+import sqlalchemy as sa
+from marshmallow.exceptions import ValidationError
+
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..base import BaseHandler
-from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
-from ...utils.fits_display import get_fits_preview
 from ...models import (
     Comment,
-    CommentOnSpectrum,
-    CommentOnGCN,
     CommentOnEarthquake,
+    CommentOnGCN,
     CommentOnShift,
+    CommentOnSpectrum,
     EarthquakeEvent,
-    Spectrum,
     GcnEvent,
+    Group,
     Instrument,
     Shift,
-    Group,
+    Spectrum,
+    Token,
     User,
     UserNotification,
-    Token,
 )
+from ...utils.fits_display import get_fits_preview
+from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
-log = make_log('api/comment')
+log = make_log("api/comment")
 
 MAX_COMMENTS_NO_RESOURCE_ID = 1000
 
 AUDIO_EXTENSION_TO_CONTENT_TYPE = {
-    'aac': 'audio/aac',
-    'mp3': 'audio/mpeg',
-    'oga': 'audio/ogg',
-    'wav': 'audio/wav',
+    "aac": "audio/aac",
+    "mp3": "audio/mpeg",
+    "oga": "audio/ogg",
+    "wav": "audio/wav",
 }
 
 VIDEO_EXTENSION_TO_CONTENT_TYPE = {
-    'mp4': 'video/mp4',
-    'ogg': 'video/ogg',
-    'ogv': 'video/ogg',
-    'webm': 'video/webm',
+    "mp4": "video/mp4",
+    "ogg": "video/ogg",
+    "ogv": "video/ogg",
+    "webm": "video/webm",
 }
 
 IMAGE_EXTENSION_TO_CONTENT_TYPE = {
-    'apng': 'image/apng',
-    'avif': 'image/avif',
-    'bmp': 'image/bmp',
-    'gif': 'image/gif',
-    'ico': 'image/x-icon',
-    'jpeg': 'image/jpeg',
-    'jpg': 'image/jpeg',
-    'png': 'image/png',
-    'svg': 'image/svg+xml',
-    'webp': 'image/webp',
+    "apng": "image/apng",
+    "avif": "image/avif",
+    "bmp": "image/bmp",
+    "gif": "image/gif",
+    "ico": "image/x-icon",
+    "jpeg": "image/jpeg",
+    "jpg": "image/jpeg",
+    "png": "image/png",
+    "svg": "image/svg+xml",
+    "webp": "image/webp",
 }
 
 TEXT_EXTENSION_TO_CONTENT_TYPE = {
-    'txt': 'text/plain',
-    'log': 'text/plain',
-    'logs': 'text/plain',
-    'csv': 'text/csv',
-    'htm': 'text/html',
-    'html': 'text/html',
-    'js': 'text/javascript',
-    'mjs': 'text/javascript',
-    'json': 'application/json',
-    'xml': 'application/xml',
-    'pdf': 'application/pdf',
+    "txt": "text/plain",
+    "log": "text/plain",
+    "logs": "text/plain",
+    "csv": "text/csv",
+    "htm": "text/html",
+    "html": "text/html",
+    "js": "text/javascript",
+    "mjs": "text/javascript",
+    "json": "application/json",
+    "xml": "application/xml",
+    "pdf": "application/pdf",
 }
 
 EXTENSION_TO_CONTENT_TYPE = {
@@ -295,7 +296,7 @@ class CommentHandler(BaseHandler):
                     query_output = [
                         {
                             **c.to_dict(),
-                            'resourceType': associated_resource_type.lower(),
+                            "resourceType": associated_resource_type.lower(),
                         }
                         for c in comments
                     ]
@@ -303,8 +304,8 @@ class CommentHandler(BaseHandler):
                     query_output = [
                         {
                             **c.to_dict(),
-                            'resourceType': 'gcn_event',
-                            'dateobs': c.gcn.dateobs,
+                            "resourceType": "gcn_event",
+                            "dateobs": c.gcn.dateobs,
                         }
                         for c in comments
                     ]
@@ -317,7 +318,7 @@ class CommentHandler(BaseHandler):
                     end = time.time()
                     duration = end - start
                     log(
-                        f'User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds'
+                        f"User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds"
                     )
 
                 return self.success(data=query_output)
@@ -336,7 +337,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if comment is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.obj_id)
 
@@ -348,7 +349,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if comment is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
@@ -359,7 +360,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if comment is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
@@ -370,7 +371,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if comment is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "shift":
@@ -381,7 +382,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if comment is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.shift_id)
             # add more options using elif
@@ -392,24 +393,24 @@ class CommentHandler(BaseHandler):
 
             if comment_resource_id_str != resource_id:
                 return self.error(
-                    f'Comment resource ID does not match resource ID given in path ({resource_id})'
+                    f"Comment resource ID does not match resource ID given in path ({resource_id})"
                 )
 
             comment_data = {
                 **comment.to_dict(),
-                'resourceType': associated_resource_type.lower(),
+                "resourceType": associated_resource_type.lower(),
             }
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
                 log(
-                    f'User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds'
+                    f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
                 )
 
             return self.success(data=comment_data)
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def post(self, associated_resource_type, resource_id, *ignore_args):
         """
         ---
@@ -485,18 +486,18 @@ class CommentHandler(BaseHandler):
         comment_text = data.get("text")
         attachment_bytes, attachment_name, data_to_disk = None, None, None
 
-        if 'attachment' in data:
+        if "attachment" in data:
             if (
-                isinstance(data['attachment'], dict)
-                and 'body' in data['attachment']
-                and 'name' in data['attachment']
+                isinstance(data["attachment"], dict)
+                and "body" in data["attachment"]
+                and "name" in data["attachment"]
             ):
-                attachment_name = data['attachment']['name']
-                if data['attachment']['body'] is None:
+                attachment_name = data["attachment"]["name"]
+                if data["attachment"]["body"] is None:
                     return self.error("Comment attachment body is empty")
 
                 data_to_disk = base64.b64decode(
-                    data['attachment']['body'].split('base64,')[-1]
+                    data["attachment"]["body"].split("base64,")[-1]
                 )
             else:
                 return self.error("Malformed comment attachment")
@@ -506,11 +507,11 @@ class CommentHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                group_ids = data.pop('group_ids', None)
+                group_ids = data.pop("group_ids", None)
                 if not isinstance(group_ids, list) or len(group_ids) == 0:
                     public_group = session.scalar(
                         sa.select(Group.id).where(
-                            Group.name == cfg['misc.public_group_name']
+                            Group.name == cfg["misc.public_group_name"]
                         )
                     )
                     if public_group is None:
@@ -523,7 +524,7 @@ class CommentHandler(BaseHandler):
                 ).all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 existing = None
@@ -561,7 +562,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if spectrum is None:
                         return self.error(
-                            f'Could not find any accessible spectra with ID {spectrum_id}.'
+                            f"Could not find any accessible spectra with ID {spectrum_id}."
                         )
                     existing = session.scalars(
                         CommentOnSpectrum.select(session.user_or_token).where(
@@ -597,7 +598,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if gcn_event is None:
                         return self.error(
-                            f'Could not find any accessible gcn events with ID {gcnevent_id}.'
+                            f"Could not find any accessible gcn events with ID {gcnevent_id}."
                         )
                     existing = session.scalars(
                         CommentOnGCN.select(session.user_or_token).where(
@@ -631,7 +632,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if earthquake is None:
                         return self.error(
-                            f'Could not find any accessible earthquakes with ID {earthquake_id}.'
+                            f"Could not find any accessible earthquakes with ID {earthquake_id}."
                         )
                     existing = session.scalars(
                         CommentOnEarthquake.select(session.user_or_token).where(
@@ -663,7 +664,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if shift is None:
                         return self.error(
-                            f'Could not access Shift {shift.id}.', status=403
+                            f"Could not access Shift {shift.id}.", status=403
                         )
                     existing = session.scalars(
                         CommentOnShift.select(session.user_or_token).where(
@@ -696,7 +697,7 @@ class CommentHandler(BaseHandler):
                 if existing is not None:
                     return self.success(
                         data={
-                            'comment_id': existing.id,
+                            "comment_id": existing.id,
                             "message": "Same comment already exists.",
                         }
                     )
@@ -800,42 +801,42 @@ class CommentHandler(BaseHandler):
                         )
 
                 if hasattr(
-                    comment, 'obj'
+                    comment, "obj"
                 ):  # comment on object, or object related resources
                     self.push_all(
-                        action='skyportal/REFRESH_SOURCE',
-                        payload={'obj_key': comment.obj.internal_key},
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": comment.obj.internal_key},
                     )
 
                 if isinstance(comment, CommentOnGCN):
                     self.push_all(
-                        action='skyportal/REFRESH_GCN_EVENT',
-                        payload={'gcnEvent_dateobs': comment.gcn.dateobs},
+                        action="skyportal/REFRESH_GCN_EVENT",
+                        payload={"gcnEvent_dateobs": comment.gcn.dateobs},
                     )
                 elif isinstance(comment, CommentOnEarthquake):
                     self.push_all(
-                        action='skyportal/REFRESH_EARTHQUAKE',
-                        payload={'earthquake_event_id': comment.earthquake.event_id},
+                        action="skyportal/REFRESH_EARTHQUAKE",
+                        payload={"earthquake_event_id": comment.earthquake.event_id},
                     )
                 elif isinstance(comment, CommentOnSpectrum):
                     self.push_all(
-                        action='skyportal/REFRESH_SOURCE_SPECTRA',
-                        payload={'obj_internal_key': comment.obj.internal_key},
+                        action="skyportal/REFRESH_SOURCE_SPECTRA",
+                        payload={"obj_internal_key": comment.obj.internal_key},
                     )
                 elif isinstance(comment, CommentOnShift):
                     self.push_all(
-                        action='skyportal/REFRESH_SHIFT',
-                        payload={'shift_id': comment.shift_id},
+                        action="skyportal/REFRESH_SHIFT",
+                        payload={"shift_id": comment.shift_id},
                     )
 
-                return self.success(data={'comment_id': comment.id})
+                return self.success(data={"comment_id": comment.id})
             except Exception as e:
                 session.rollback()
                 return self.error(
-                    f'Error posting comment for {associated_resource_type} {resource_id}: {str(e)}'
+                    f"Error posting comment for {associated_resource_type} {resource_id}: {str(e)}"
                 )
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def put(self, associated_resource_type, resource_id, comment_id):
         """
         ---
@@ -911,7 +912,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if c is None:
                         return self.error(
-                            'Could not find any accessible comments.', status=403
+                            "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.obj_id)
 
@@ -924,7 +925,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if c is None:
                         return self.error(
-                            'Could not find any accessible comments.', status=403
+                            "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.spectrum_id)
 
@@ -937,7 +938,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if c is None:
                         return self.error(
-                            'Could not find any accessible comments.', status=403
+                            "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.gcn_id)
                 elif associated_resource_type.lower() == "earthquake":
@@ -949,7 +950,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if c is None:
                         return self.error(
-                            'Could not find any accessible comments.', status=403
+                            "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.gcn_id)
                 elif associated_resource_type.lower() == "shift":
@@ -961,7 +962,7 @@ class CommentHandler(BaseHandler):
                     ).first()
                     if c is None:
                         return self.error(
-                            'Could not find any accessible comments.', status=403
+                            "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.shift_id)
                 # add more options using elif
@@ -972,19 +973,19 @@ class CommentHandler(BaseHandler):
 
                 data = self.get_json()
                 group_ids = data.pop("group_ids", None)
-                data['id'] = comment_id
+                data["id"] = comment_id
 
                 attachment_name, data_to_disk = None, None
-                attachment = data.pop('attachment', None)
+                attachment = data.pop("attachment", None)
                 if attachment:
                     if (
                         isinstance(attachment, dict)
-                        and 'body' in attachment
-                        and 'name' in attachment
+                        and "body" in attachment
+                        and "name" in attachment
                     ):
-                        attachment_name = attachment['name']
+                        attachment_name = attachment["name"]
                         data_to_disk = base64.b64decode(
-                            attachment['body'].split('base64,')[-1]
+                            attachment["body"].split("base64,")[-1]
                         )
                     else:
                         return self.error("Malformed comment attachment")
@@ -993,11 +994,11 @@ class CommentHandler(BaseHandler):
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
-                if 'text' in data:
-                    c.text = data['text']
+                if "text" in data:
+                    c.text = data["text"]
                 if attachment_name:
                     c.attachment_name = attachment_name
 
@@ -1009,13 +1010,13 @@ class CommentHandler(BaseHandler):
                     ).all()
                     if {g.id for g in groups} != set(group_ids):
                         return self.error(
-                            f'Cannot find one or more groups with IDs: {group_ids}.'
+                            f"Cannot find one or more groups with IDs: {group_ids}."
                         )
                     c.groups = groups
 
                 if comment_resource_id_str != resource_id:
                     return self.error(
-                        f'Comment resource ID does not match resource ID given in path ({resource_id})'
+                        f"Comment resource ID does not match resource ID given in path ({resource_id})"
                     )
 
                 session.add(c)
@@ -1024,39 +1025,39 @@ class CommentHandler(BaseHandler):
                     c.save_data(attachment_name, data_to_disk)
                     session.commit()
 
-                if hasattr(c, 'obj'):  # comment on object, or object related resources
+                if hasattr(c, "obj"):  # comment on object, or object related resources
                     self.push_all(
-                        action='skyportal/REFRESH_SOURCE',
-                        payload={'obj_key': c.obj.internal_key},
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": c.obj.internal_key},
                     )
                 if isinstance(c, CommentOnSpectrum):  # also update the spectrum
                     self.push_all(
-                        action='skyportal/REFRESH_SOURCE_SPECTRA',
-                        payload={'obj_internal_key': c.obj.internal_key},
+                        action="skyportal/REFRESH_SOURCE_SPECTRA",
+                        payload={"obj_internal_key": c.obj.internal_key},
                     )
                 elif isinstance(c, CommentOnGCN):  # also update the gcn
                     self.push_all(
-                        action='skyportal/REFRESH_GCN_EVENT',
-                        payload={'gcnEvent_dateobs': c.gcn.dateobs},
+                        action="skyportal/REFRESH_GCN_EVENT",
+                        payload={"gcnEvent_dateobs": c.gcn.dateobs},
                     )
                 elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
                     self.push_all(
-                        action='skyportal/REFRESH_EARTHQUAKE',
-                        payload={'earthquake_id': c.earthquake.event_id},
+                        action="skyportal/REFRESH_EARTHQUAKE",
+                        payload={"earthquake_id": c.earthquake.event_id},
                     )
                 elif isinstance(c, CommentOnShift):  # also update the shift
                     self.push_all(
-                        action='skyportal/REFRESH_SHIFT',
-                        payload={'shift_id': c.shift_id},
+                        action="skyportal/REFRESH_SHIFT",
+                        payload={"shift_id": c.shift_id},
                     )
 
                 return self.success()
             except Exception as e:
                 return self.error(
-                    f'Failed to update comment with ID {comment_id}: {str(e)}'
+                    f"Failed to update comment with ID {comment_id}: {str(e)}"
                 )
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def delete(self, associated_resource_type, resource_id, comment_id):
         """
         ---
@@ -1111,7 +1112,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.obj_id)
             elif associated_resource_type.lower() == "spectra":
@@ -1122,7 +1123,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
@@ -1133,7 +1134,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
@@ -1144,7 +1145,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.earthquake_id)
             elif associated_resource_type.lower() == "shift":
@@ -1155,7 +1156,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error(
-                        'Could not find any accessible comments.', status=403
+                        "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.shift_id)
 
@@ -1176,37 +1177,37 @@ class CommentHandler(BaseHandler):
 
             if comment_resource_id_str != resource_id:
                 return self.error(
-                    f'Comment resource ID does not match resource ID given in path ({resource_id})'
+                    f"Comment resource ID does not match resource ID given in path ({resource_id})"
                 )
 
             session.delete(c)
             session.commit()
 
-            if hasattr(c, 'obj'):  # comment on object, or object related resources
+            if hasattr(c, "obj"):  # comment on object, or object related resources
                 self.push_all(
-                    action='skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': obj_key},
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_key},
                 )
 
             if isinstance(c, CommentOnGCN):  # also update the GcnEvent
                 self.push_all(
-                    action='skyportal/REFRESH_GCN_EVENT',
-                    payload={'gcnEvent_dateobs': gcnevent_dateobs},
+                    action="skyportal/REFRESH_GCN_EVENT",
+                    payload={"gcnEvent_dateobs": gcnevent_dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
                 self.push_all(
-                    action='skyportal/REFRESH_EARTHQUAKE',
-                    payload={'earthquake_event_id': event_id},
+                    action="skyportal/REFRESH_EARTHQUAKE",
+                    payload={"earthquake_event_id": event_id},
                 )
             elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
                 self.push_all(
-                    action='skyportal/REFRESH_SOURCE_SPECTRA',
-                    payload={'obj_internal_key': obj_key},
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj_key},
                 )
             elif isinstance(c, CommentOnShift):  # also update the shift
                 self.push_all(
-                    action='skyportal/REFRESH_SHIFT',
-                    payload={'shift_id': shift_id},
+                    action="skyportal/REFRESH_SHIFT",
+                    payload={"shift_id": shift_id},
                 )
 
             return self.success()
@@ -1289,12 +1290,12 @@ class CommentAttachmentHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-        download = self.get_query_argument('download', True)
-        preview = self.get_query_argument('preview', False)
+        download = self.get_query_argument("download", True)
+        preview = self.get_query_argument("preview", False)
 
         if download is True and preview is True:
             return self.error(
-                'Cannot set both download and preview to True. Please set only one to True, or set both to False.'
+                "Cannot set both download and preview to True. Please set only one to True, or set both to False."
             )
 
         table, resource_id_col = None, None
@@ -1318,43 +1319,43 @@ class CommentAttachmentHandler(BaseHandler):
                 table.select(session.user_or_token).where(table.id == comment_id)
             ).first()
             if comment is None:
-                return self.error('Could not find any accessible comments.', status=403)
+                return self.error("Could not find any accessible comments.", status=403)
 
             if str(getattr(comment, resource_id_col)) != str(resource_id):
                 return self.error(
-                    f'Comment resource ID does not match resource ID given in path ({resource_id})'
+                    f"Comment resource ID does not match resource ID given in path ({resource_id})"
                 )
 
             data_path = comment.get_attachment_path()
             if not comment.attachment_bytes and not data_path:
-                return self.error('Comment has no attachment')
+                return self.error("Comment has no attachment")
 
             if data_path is None:
                 try:
                     attachment = base64.b64decode(comment.attachment_bytes)
                 except Exception as e:
-                    return self.error(f'Error decoding comment attachment: {e}')
+                    return self.error(f"Error decoding comment attachment: {e}")
             else:
                 try:
                     if os.path.isfile(data_path):
-                        with open(data_path, 'rb') as f:
+                        with open(data_path, "rb") as f:
                             attachment = f.read()
                     else:
                         return self.error(
-                            f'Comment attachment cannot be found on disk: {data_path}'
+                            f"Comment attachment cannot be found on disk: {data_path}"
                         )
                 except Exception as e:
-                    return self.error(f'Error reading comment attachment: {e}')
+                    return self.error(f"Error reading comment attachment: {e}")
 
-            attachment_name = ''.join(
+            attachment_name = "".join(
                 c
-                for c in unicodedata.normalize('NFD', comment.attachment_name)
-                if unicodedata.category(c) != 'Mn'
+                for c in unicodedata.normalize("NFD", comment.attachment_name)
+                if unicodedata.category(c) != "Mn"
             )
             # we remove all non-ascii characters from the attachment name, which tornado does not like
             # as they can't be encoded in latin-1
-            attachment_name = ''.join(
-                [i if ord(i) < 128 else ' ' for i in attachment_name]
+            attachment_name = "".join(
+                [i if ord(i) < 128 else " " for i in attachment_name]
             )
 
             if download:
@@ -1373,12 +1374,12 @@ class CommentAttachmentHandler(BaseHandler):
                         attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
-                        log(f'Cannot render {attachment_name} as image: {str(e)}')
+                        log(f"Cannot render {attachment_name} as image: {str(e)}")
                         return self.error(
-                            f'Cannot render {attachment_name} as image: {str(e)}'
+                            f"Cannot render {attachment_name} as image: {str(e)}"
                         )
 
-                extension = attachment_name.split('.')[-1].strip().lower()
+                extension = attachment_name.split(".")[-1].strip().lower()
                 if extension not in EXTENSION_TO_CONTENT_TYPE:
                     return self.error(
                         f'Unsupported file type "{extension}" for preview, must be one of: "{EXTENSION_TO_CONTENT_TYPE.keys()}"'
@@ -1393,7 +1394,7 @@ class CommentAttachmentHandler(BaseHandler):
 
             comment_data = {
                 "commentId": int(comment_id),
-                "attachment": attachment.decode('utf-8')
+                "attachment": attachment.decode("utf-8")
                 if isinstance(attachment, bytes)
                 else attachment,
                 "attachmentName": attachment_name,
@@ -1402,7 +1403,7 @@ class CommentAttachmentHandler(BaseHandler):
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 log(
-                    f'User {self.associated_user_object.id} comment attachment query ({table.__tablename__} with ID {comment_id}) returned {query_size} bytes'
+                    f"User {self.associated_user_object.id} comment attachment query ({table.__tablename__} with ID {comment_id}) returned {query_size} bytes"
                 )
 
             return self.success(data=comment_data)

@@ -4,6 +4,7 @@ import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 
 from skyportal.tests import api
+
 from .test_quick_search import remove_notification
 
 
@@ -12,32 +13,32 @@ def test_news_feed(driver, user, public_group, upload_data_token, comment_token)
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
         status, data = api(
-            'POST',
-            'sources',
+            "POST",
+            "sources",
             data={
-                'id': f'{obj_id_base}_{i}',
-                'ra': 234.22,
-                'dec': -22.33,
-                'redshift': 3,
-                'transient': False,
-                'ra_dis': 2.3,
-                'group_ids': [public_group.id],
+                "id": f"{obj_id_base}_{i}",
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "transient": False,
+                "ra_dis": 2.3,
+                "group_ids": [public_group.id],
             },
             token=upload_data_token,
         )
         assert status == 200
-        assert data['data']['id'] == f'{obj_id_base}_{i}'
+        assert data["data"]["id"] == f"{obj_id_base}_{i}"
 
         status, data = api(
-            'POST',
-            f'sources/{obj_id_base}_{i}/comments',
-            data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
+            "POST",
+            f"sources/{obj_id_base}_{i}/comments",
+            data={"obj_id": f"{obj_id_base}_{i}", "text": f"comment_text_{i}"},
             token=comment_token,
         )
         assert status == 200
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
 
@@ -64,32 +65,32 @@ def test_news_feed_prefs_widget(
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
         status, data = api(
-            'POST',
-            'sources',
+            "POST",
+            "sources",
             data={
-                'id': f'{obj_id_base}_{i}',
-                'ra': 234.22,
-                'dec': -22.33,
-                'redshift': 3,
-                'transient': False,
-                'ra_dis': 2.3,
-                'group_ids': [public_group.id],
+                "id": f"{obj_id_base}_{i}",
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "transient": False,
+                "ra_dis": 2.3,
+                "group_ids": [public_group.id],
             },
             token=upload_data_token,
         )
         assert status == 200
-        assert data['data']['id'] == f'{obj_id_base}_{i}'
+        assert data["data"]["id"] == f"{obj_id_base}_{i}"
 
         status, data = api(
-            'POST',
-            f'sources/{obj_id_base}_{i}/comments',
-            data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
+            "POST",
+            f"sources/{obj_id_base}_{i}/comments",
+            data={"obj_id": f"{obj_id_base}_{i}", "text": f"comment_text_{i}"},
             token=comment_token,
         )
         assert status == 200
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
 
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')

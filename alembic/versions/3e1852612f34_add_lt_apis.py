@@ -5,12 +5,12 @@ Revises: c1354c411fab
 Create Date: 2021-02-25 19:10:55.114202
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '3e1852612f34'
-down_revision = 'c1354c411fab'
+revision = "3e1852612f34"
+down_revision = "c1354c411fab"
 branch_labels = None
 depends_on = None
 

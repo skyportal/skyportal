@@ -58,18 +58,18 @@ def get_observer(telescope: dict):
     facility, accounting for the latitude, longitude, and elevation."""
 
     return astroplan.Observer(
-        longitude=telescope['lon'] * u.deg,
-        latitude=telescope['lat'] * u.deg,
-        elevation=telescope['elevation'] * u.m,
+        longitude=telescope["lon"] * u.deg,
+        latitude=telescope["lat"] * u.deg,
+        elevation=telescope["elevation"] * u.m,
     )
 
 
 def get_target(fields: list[dict]):
     """Return an `astroplan.FixedTarget` representing the target of this
     observation."""
-    ra = np.array([field['ra'] for field in fields])
-    dec = np.array([field['dec'] for field in fields])
-    field_ids = np.array([field['field_id'] for field in fields])
+    ra = np.array([field["ra"] for field in fields])
+    dec = np.array([field["dec"] for field in fields])
+    field_ids = np.array([field["field_id"] for field in fields])
     return astroplan.FixedTarget(
         SkyCoord(ra=ra * u.deg, dec=dec * u.deg), name=field_ids
     )
@@ -125,16 +125,16 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
         The airmass of the Obj at the requested times
     """
 
-    if 'observer' in kwargs:
-        observer = kwargs['observer']
-    elif 'telescope' in kwargs:
-        observer = observer(kwargs['telescope'])
+    if "observer" in kwargs:
+        observer = kwargs["observer"]
+    elif "telescope" in kwargs:
+        observer = observer(kwargs["telescope"])
 
     # the output shape should be targets x times
     output_shape = (len(fields), len(time))
     time = np.atleast_1d(time)
     target = get_target(fields)
-    altitude = get_altitude(time, target, observer).to('degree').value
+    altitude = get_altitude(time, target, observer).to("degree").value
     above = altitude > 0
 
     # use Pickering (2002) interpolation to calculate the airmass
@@ -154,25 +154,25 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
 
 def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     """The set time of the field as an astropy.time.Time."""
-    if 'observer' in kwargs:
-        observer = kwargs['observer']
-    elif 'telescope' in kwargs:
-        observer = get_observer(kwargs['telescope'])
+    if "observer" in kwargs:
+        observer = kwargs["observer"]
+    elif "telescope" in kwargs:
+        observer = get_observer(kwargs["telescope"])
 
-    if 'time' in kwargs:
-        time = kwargs['time']
+    if "time" in kwargs:
+        time = kwargs["time"]
     else:
         time = Time.now()
 
-    sunrise = observer.sun_rise_time(time, which='next')
-    sunset = observer.sun_set_time(time, which='next')
+    sunrise = observer.sun_rise_time(time, which="next")
+    sunset = observer.sun_set_time(time, which="next")
 
     targets = get_target(fields)
 
     rise_time = observer.target_rise_time(
-        sunset, targets, which='next', horizon=altitude
+        sunset, targets, which="next", horizon=altitude
     )
-    set_time = observer.target_set_time(sunset, targets, which='next', horizon=altitude)
+    set_time = observer.target_set_time(sunset, targets, which="next", horizon=altitude)
 
     # if next rise time is after next sunrise, the target rises before
     # sunset. show the previous rise so that the target is shown to be
@@ -183,7 +183,7 @@ def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     if np.any(recalc):
         # recalculate the rise time only for those targets that need it
         rise_time[recalc] = observer.target_rise_time(
-            sunset, targets, which='previous', horizon=altitude
+            sunset, targets, which="previous", horizon=altitude
         )[recalc]
 
     return rise_time, set_time
@@ -196,7 +196,7 @@ def next_sunrise(observer, time=None):
         return None
     if time is None:
         time = Time.now()
-    return observer.sun_rise_time(time, which='next')
+    return observer.sun_rise_time(time, which="next")
 
 
 def deg2hms(x):

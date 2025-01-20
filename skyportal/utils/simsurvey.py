@@ -1,4 +1,5 @@
 import numpy as np
+
 from ..models import (
     cosmo,
 )
@@ -17,7 +18,7 @@ def get_simsurvey_parameters(model_name, optional_injection_parameters):
     if model_name == "kilonova":
         # default taken from https://github.com/mbulla/kilonova_models
         parameters = {
-            "injection_filename": 'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt'
+            "injection_filename": "data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt"
         }
     elif model_name == "afterglow":
         parameters = {
@@ -79,4 +80,4 @@ def random_parameters_notheta(redshifts, model, r_v=2.0, ebv_rate=0.11, **kwargs
     for z in redshifts:
         amp.append(10 ** (-0.4 * cosmo.distmod(z).value))
 
-    return {'amplitude': np.array(amp)}
+    return {"amplitude": np.array(amp)}

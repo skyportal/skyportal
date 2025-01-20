@@ -1,11 +1,12 @@
-import uuid
-import pytest
-from skyportal.models import DBSession, ObservingRun
-from skyportal.tests import api
 import time
+import uuid
 
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+
+from skyportal.models import DBSession, ObservingRun
+from skyportal.tests import api
 
 
 def post_assignment(obj, run, priority, comment, token):
@@ -116,7 +117,7 @@ def test_observing_run_skycam_component(
     )
 
     red_transients_run.instrument.telescope.skycam_link = (
-        'http://this.is.a.bad.link.web.biz'
+        "http://this.is.a.bad.link.web.biz"
     )
     DBSession().add(red_transients_run.instrument.telescope)
     DBSession().commit()
@@ -147,8 +148,8 @@ def test_observing_run_skycam_component(
 
 @pytest.mark.flaky(reruns=2)
 def test_observing_run_page(driver, view_only_user, red_transients_run):
-    driver.get(f'/become_user/{view_only_user.id}')
-    driver.get('/runs')
+    driver.get(f"/become_user/{view_only_user.id}")
+    driver.get("/runs")
     runs = ObservingRun.query.all()
 
     driver.click_xpath('//button[@data-testid="observationRunButton"]')
@@ -169,10 +170,10 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
 def test_add_run_to_observing_run_page(
     driver, user, lris, public_group, red_transients_run
 ):
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/runs')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/runs")
 
-    driver.wait_for_xpath('//form')
+    driver.wait_for_xpath("//form")
 
     driver.click_xpath('//button[@data-testid="observationRunButton"]')
 
@@ -191,7 +192,7 @@ def test_add_run_to_observing_run_page(
 
     pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
 
-    calendar_keys = '02022021'
+    calendar_keys = "02022021"
     observer = uuid.uuid4().hex
     pi_name = uuid.uuid4().hex
 
@@ -199,11 +200,7 @@ def test_add_run_to_observing_run_page(
         1
     ).send_keys(Keys.TAB).send_keys(calendar_keys).pause(1).send_keys(Keys.TAB).pause(
         1
-    ).send_keys(
-        observer
-    ).pause(
-        1
-    ).perform()
+    ).send_keys(observer).pause(1).perform()
 
     # instruments
     driver.click_xpath('//*[@id="root_instrument_id"]')
@@ -227,6 +224,6 @@ def test_add_run_to_observing_run_page(
     # observingrun list, and instrumentlist to fully load on
     # when these lists are long and the webserver is strained
     driver.wait_for_xpath(
-        f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
+        f"""//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']""",
         timeout=15,
     )

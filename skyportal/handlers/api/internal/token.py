@@ -1,9 +1,10 @@
 from marshmallow.exceptions import ValidationError
 
-from ...base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ....models import ACL, Token, User
+
 from ....model_util import create_token
+from ....models import ACL, Token, User
+from ...base import BaseHandler
 
 
 class TokenHandler(BaseHandler):
@@ -35,8 +36,8 @@ class TokenHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            if 'user_id' in data:
-                user_id = data['user_id']
+            if "user_id" in data:
+                user_id = data["user_id"]
                 user = session.scalars(
                     User.select(session.user_or_token).where(User.id == user_id)
                 ).first()
@@ -44,8 +45,8 @@ class TokenHandler(BaseHandler):
                 user = self.associated_user_object
                 user_id = user.id
 
-            token_acls = set(data['acls'])
-            if not all([acl_id in user.permissions for acl_id in token_acls]):
+            token_acls = set(data["acls"])
+            if not all(acl_id in user.permissions for acl_id in token_acls):
                 return self.error(
                     "User has attempted to grant token ACLs they do not have "
                     "access to. Please try again."
@@ -60,7 +61,7 @@ class TokenHandler(BaseHandler):
                     "You have reached the maximum number of tokens "
                     "allowed for your account type."
                 )
-            token_name = data['name']
+            token_name = data["name"]
             if session.scalars(
                 Token.select(session.user_or_token).where(Token.name == token_name)
             ).first():
@@ -68,11 +69,11 @@ class TokenHandler(BaseHandler):
             token_id = create_token(ACLs=token_acls, user_id=user_id, name=token_name)
             session.commit()
             self.push(
-                action='baselayer/SHOW_NOTIFICATION',
-                payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
+                action="baselayer/SHOW_NOTIFICATION",
+                payload={"note": f'Token "{token_name}" created.', "type": "info"},
             )
             return self.success(
-                data={'token_id': token_id}, action='skyportal/FETCH_USER_PROFILE'
+                data={"token_id": token_id}, action="skyportal/FETCH_USER_PROFILE"
             )
 
     @auth_or_token
@@ -173,16 +174,16 @@ class TokenHandler(BaseHandler):
                 ).first()
                 if token is None:
                     return self.error(
-                        'Either the specified token does not exist, '
-                        'or the user does not have the necessary '
-                        'permissions to update it.'
+                        "Either the specified token does not exist, "
+                        "or the user does not have the necessary "
+                        "permissions to update it."
                     )
 
                 data = self.get_json()
-                data['id'] = token_id
+                data["id"] = token_id
 
-                if 'user_id' in data:
-                    user_id = data['user_id']
+                if "user_id" in data:
+                    user_id = data["user_id"]
                     user = session.scalars(
                         User.select(session.user_or_token).where(User.id == user_id)
                     ).first()
@@ -195,14 +196,14 @@ class TokenHandler(BaseHandler):
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
-                if 'name' in data:
-                    token.name = data['name']
+                if "name" in data:
+                    token.name = data["name"]
 
-                if 'acls' in data:
-                    token_acls = set(data['acls'])
-                    if not all([acl_id in user.permissions for acl_id in token_acls]):
+                if "acls" in data:
+                    token_acls = set(data["acls"])
+                    if not all(acl_id in user.permissions for acl_id in token_acls):
                         return self.error(
                             "User has attempted to grant token ACLs they do not have "
                             "access to. Please try again."
@@ -210,21 +211,17 @@ class TokenHandler(BaseHandler):
 
                     new_acl_ids = list(set(token_acls))
                     if not all(
-                        [
-                            session.scalars(
-                                ACL.select(session.user_or_token).where(
-                                    ACL.id == acl_id
-                                )
-                            ).first()
-                            is not None
-                            for acl_id in new_acl_ids
-                        ]
+                        session.scalars(
+                            ACL.select(session.user_or_token).where(ACL.id == acl_id)
+                        ).first()
+                        is not None
+                        for acl_id in new_acl_ids
                     ):
                         return self.error(
                             "Improperly formatted parameter aclIds; must be an array of strings corresponding to valid ACLs."
                         )
                     if len(new_acl_ids) == 0:
-                        return self.error(f'No new ACLs to add to token {token_id}')
+                        return self.error(f"No new ACLs to add to token {token_id}")
 
                     new_acls = (
                         session.scalars(
@@ -241,12 +238,12 @@ class TokenHandler(BaseHandler):
 
                 session.commit()
                 self.push(
-                    action='skyportal/FETCH_USER_PROFILE',
+                    action="skyportal/FETCH_USER_PROFILE",
                 )
 
                 return self.success()
             except Exception as e:
-                return self.error(f'Could not update token: {e}')
+                return self.error(f"Could not update token: {e}")
 
     @auth_or_token
     def delete(self, token_id):
@@ -278,16 +275,16 @@ class TokenHandler(BaseHandler):
             ).first()
             if token is None:
                 return self.error(
-                    'Either the specified token does not exist, '
-                    'or the user does not have the necessary '
-                    'permissions to delete it.'
+                    "Either the specified token does not exist, "
+                    "or the user does not have the necessary "
+                    "permissions to delete it."
                 )
 
             session.delete(token)
             session.commit()
 
             self.push(
-                action='baselayer/SHOW_NOTIFICATION',
-                payload={'note': f'Token "{token.name}" deleted.', 'type': 'info'},
+                action="baselayer/SHOW_NOTIFICATION",
+                payload={"note": f'Token "{token.name}" deleted.', "type": "info"},
             )
-            return self.success(action='skyportal/FETCH_USER_PROFILE')
+            return self.success(action="skyportal/FETCH_USER_PROFILE")

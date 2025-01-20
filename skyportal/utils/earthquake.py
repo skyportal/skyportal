@@ -19,7 +19,7 @@ def get_country(latitude, longitude):
     """
 
     world = geopandas.read_file(COUNTRIES_FILE)
-    eq = pd.DataFrame({'lat': latitude, 'lon': longitude}, index=[0])
+    eq = pd.DataFrame({"lat": latitude, "lon": longitude}, index=[0])
     gdf = geopandas.GeoDataFrame(
         eq, geometry=geopandas.points_from_xy(eq.lon, eq.lat), crs="EPSG:4326"
     )

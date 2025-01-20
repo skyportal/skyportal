@@ -1,18 +1,16 @@
 import os
+import uuid
 
 import numpy as np
 import pandas as pd
-import uuid
-
-import sqlalchemy as sa
 import sncosmo
+import sqlalchemy as sa
 
 from baselayer.app.env import load_env
-from skyportal.models import DBSession, Token
-from skyportal.tests import api, assert_api
-from skyportal.models.photometry import Photometry
 from skyportal.handlers.api.photometry import add_external_photometry
-
+from skyportal.models import DBSession, Token
+from skyportal.models.photometry import Photometry
+from skyportal.tests import api, assert_api
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -22,95 +20,95 @@ def test_token_user_post_get_photometry_data(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert_api(status, data)
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['ra'] is None
-    assert data['data']['dec'] is None
-    assert data['data']['ra_unc'] is None
-    assert data['data']['dec_unc'] is None
-    assert data['data']['altdata'] == {'some_key': 'some_value'}
+    assert data["data"]["ra"] is None
+    assert data["data"]["dec"] is None
+    assert data["data"]["ra_unc"] is None
+    assert data["data"]["dec_unc"] is None
+    assert data["data"]["altdata"] == {"some_key": "some_value"}
 
     np.testing.assert_allclose(
-        data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
+        data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
 
 
 def test_ref_flux(upload_data_token, public_source, public_group, ztf_camera):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58003.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'ref_flux': 8.01,
-            'ref_fluxerr': 0.01,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58003.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "ref_flux": 8.01,
+            "ref_fluxerr": 0.01,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert_api(status, data)
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
 
-    assert data['data']['ra'] is None
-    assert data['data']['dec'] is None
-    assert data['data']['ra_unc'] is None
-    assert data['data']['dec_unc'] is None
-    assert data['data']['altdata'] == {'some_key': 'some_value'}
+    assert data["data"]["ra"] is None
+    assert data["data"]["dec"] is None
+    assert data["data"]["ra_unc"] is None
+    assert data["data"]["dec_unc"] is None
+    assert data["data"]["altdata"] == {"some_key": "some_value"}
 
     # correct for the difference in zeropoints
     corrected_flux = 12.24 / 10 ** (0.4 * (25.0 - 23.9))
     corrected_fluxerr = 0.031 / 10 ** (0.4 * (25.0 - 23.9))
-    assert np.isclose(data['data']['flux'], corrected_flux)
-    assert data['data']['fluxerr'] == corrected_fluxerr
-    assert data['data']['ref_flux'] == 8.01
-    assert data['data']['ref_fluxerr'] == 0.01
-    assert data['data']['tot_flux'] == 8.01 + corrected_flux
-    assert data['data']['tot_fluxerr'] == np.sqrt(corrected_fluxerr**2 + 0.01**2)
+    assert np.isclose(data["data"]["flux"], corrected_flux)
+    assert data["data"]["fluxerr"] == corrected_fluxerr
+    assert data["data"]["ref_flux"] == 8.01
+    assert data["data"]["ref_fluxerr"] == 0.01
+    assert data["data"]["tot_flux"] == 8.01 + corrected_flux
+    assert data["data"]["tot_fluxerr"] == np.sqrt(corrected_fluxerr**2 + 0.01**2)
 
     # what about magnitudes?
-    assert np.isclose(data['data']['mag'], -2.5 * np.log10(corrected_flux) + 23.9)
+    assert np.isclose(data["data"]["mag"], -2.5 * np.log10(corrected_flux) + 23.9)
     assert np.isclose(
-        data['data']['magerr'], 2.5 / np.log(10) * corrected_fluxerr / corrected_flux
+        data["data"]["magerr"], 2.5 / np.log(10) * corrected_fluxerr / corrected_flux
     )
-    assert np.isclose(data['data']['magref'], -2.5 * np.log10(8.01) + 23.9)
-    assert np.isclose(data['data']['e_magref'], 2.5 / np.log(10) * 0.01 / 8.01)
+    assert np.isclose(data["data"]["magref"], -2.5 * np.log10(8.01) + 23.9)
+    assert np.isclose(data["data"]["e_magref"], 2.5 / np.log(10) * 0.01 / 8.01)
     assert np.isclose(
-        data['data']['magtot'], -2.5 * np.log10(8.01 + corrected_flux) + 23.9
+        data["data"]["magtot"], -2.5 * np.log10(8.01 + corrected_flux) + 23.9
     )
     total_mag_error_expected = (
         2.5
@@ -118,196 +116,196 @@ def test_ref_flux(upload_data_token, public_source, public_group, ztf_camera):
         * np.sqrt(corrected_fluxerr**2 + 0.01**2)
         / (8.01 + corrected_flux)
     )
-    assert np.isclose(data['data']['e_magtot'], total_mag_error_expected)
+    assert np.isclose(data["data"]["e_magtot"], total_mag_error_expected)
 
     status, data = api(
-        'DELETE', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "DELETE", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
 
     # give the reference flux a different zeropoint
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58003.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'ref_flux': 8.01,
-            'ref_fluxerr': 0.01,
-            'ref_zp': 26.0,  # different zeropoint
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58003.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "ref_flux": 8.01,
+            "ref_fluxerr": 0.01,
+            "ref_zp": 26.0,  # different zeropoint
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert_api(status, data)
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
 
     corrected_ref_flux = 8.01 / 10 ** (0.4 * (26.0 - 23.9))
     corrected_ref_fluxerr = 0.01 / 10 ** (0.4 * (26.0 - 23.9))
 
-    assert np.isclose(data['data']['ref_flux'], corrected_ref_flux)
-    assert np.isclose(data['data']['ref_fluxerr'], corrected_ref_fluxerr)
-    assert np.isclose(data['data']['tot_flux'], corrected_ref_flux + corrected_flux)
+    assert np.isclose(data["data"]["ref_flux"], corrected_ref_flux)
+    assert np.isclose(data["data"]["ref_fluxerr"], corrected_ref_fluxerr)
+    assert np.isclose(data["data"]["tot_flux"], corrected_ref_flux + corrected_flux)
     assert np.isclose(
-        data['data']['tot_fluxerr'],
+        data["data"]["tot_fluxerr"],
         np.sqrt(corrected_fluxerr**2 + corrected_ref_fluxerr**2),
     )
 
     # patch the reference flux
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}',
+        "PATCH",
+        f"photometry/{photometry_id}",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58003.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'ref_flux': 9.02,
-            'ref_fluxerr': 0.03,
-            'ref_zp': 27.0,  # same zeropoint
+            "obj_id": str(public_source.id),
+            "mjd": 58003.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "ref_flux": 9.02,
+            "ref_fluxerr": 0.03,
+            "ref_zp": 27.0,  # same zeropoint
         },
         token=upload_data_token,
     )
     assert_api(status, data)
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
     corrected_ref_flux = 9.02 / 10 ** (0.4 * (27.0 - 23.9))
     corrected_ref_fluxerr = 0.03 / 10 ** (0.4 * (27.0 - 23.9))
 
-    assert np.isclose(data['data']['ref_flux'], corrected_ref_flux)
-    assert np.isclose(data['data']['ref_fluxerr'], corrected_ref_fluxerr)
-    assert np.isclose(data['data']['tot_flux'], corrected_ref_flux + corrected_flux)
+    assert np.isclose(data["data"]["ref_flux"], corrected_ref_flux)
+    assert np.isclose(data["data"]["ref_fluxerr"], corrected_ref_fluxerr)
+    assert np.isclose(data["data"]["tot_flux"], corrected_ref_flux + corrected_flux)
     assert np.isclose(
-        data['data']['tot_fluxerr'],
+        data["data"]["tot_fluxerr"],
         np.sqrt(corrected_fluxerr**2 + corrected_ref_fluxerr**2),
     )
 
 
 def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58003.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 19.24,
-            'limiting_mag': 20.5,
-            'magerr': 0.123,
-            'magref': 17.01,
-            'e_magref': 0.01,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58003.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 19.24,
+            "limiting_mag": 20.5,
+            "magerr": 0.123,
+            "magref": 17.01,
+            "e_magref": 0.01,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert_api(status, data)
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
 
-    assert data['data']['altdata'] == {'some_key': 'some_value'}
+    assert data["data"]["altdata"] == {"some_key": "some_value"}
 
     expected_flux = 10 ** (-0.4 * (19.24 - 23.9))
     expected_fluxerr = 0.123 * (np.log(10) / 2.5) * expected_flux
-    assert np.isclose(data['data']['flux'], expected_flux)
-    assert np.isclose(data['data']['fluxerr'], expected_fluxerr)
-    assert np.isclose(data['data']['mag'], 19.24)
-    assert np.isclose(data['data']['magerr'], 0.123)
-    assert np.isclose(data['data']['magref'], 17.01)
-    assert np.isclose(data['data']['e_magref'], 0.01)
+    assert np.isclose(data["data"]["flux"], expected_flux)
+    assert np.isclose(data["data"]["fluxerr"], expected_fluxerr)
+    assert np.isclose(data["data"]["mag"], 19.24)
+    assert np.isclose(data["data"]["magerr"], 0.123)
+    assert np.isclose(data["data"]["magref"], 17.01)
+    assert np.isclose(data["data"]["e_magref"], 0.01)
 
     expected_ref_flux = 10 ** (-0.4 * (17.01 - 23.9))
     expected_ref_fluxerr = 0.01 * (np.log(10) / 2.5) * expected_ref_flux
-    assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
-    assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
-    assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)
+    assert np.isclose(data["data"]["ref_flux"], expected_ref_flux)
+    assert np.isclose(data["data"]["ref_fluxerr"], expected_ref_fluxerr)
+    assert np.isclose(data["data"]["tot_flux"], expected_ref_flux + expected_flux)
     assert np.isclose(
-        data['data']['tot_fluxerr'],
+        data["data"]["tot_fluxerr"],
         np.sqrt(expected_fluxerr**2 + expected_ref_fluxerr**2),
     )
 
     assert np.isclose(
-        data['data']['magtot'],
+        data["data"]["magtot"],
         -2.5 * np.log10(expected_ref_flux + expected_flux) + 23.9,
     )
 
     expected_mag_error = (
-        2.5 / np.log(10) * data['data']['tot_fluxerr'] / data['data']['tot_flux']
+        2.5 / np.log(10) * data["data"]["tot_fluxerr"] / data["data"]["tot_flux"]
     )
-    assert np.isclose(data['data']['e_magtot'], expected_mag_error)
+    assert np.isclose(data["data"]["e_magtot"], expected_mag_error)
 
     # patch the reference mag
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}',
+        "PATCH",
+        f"photometry/{photometry_id}",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58003.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 19.24,
-            'limiting_mag': 20.5,
-            'magerr': 0.123,
-            'magref': 18.01,
-            'e_magref': 0.02,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58003.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 19.24,
+            "limiting_mag": 20.5,
+            "magerr": 0.123,
+            "magref": 18.01,
+            "e_magref": 0.02,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert_api(status, data)
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=both", token=upload_data_token
     )
     assert_api(status, data)
 
     expected_ref_flux = 10 ** (-0.4 * (18.01 - 23.9))
     expected_ref_fluxerr = 0.02 * (np.log(10) / 2.5) * expected_ref_flux
-    assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
-    assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
-    assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)
+    assert np.isclose(data["data"]["ref_flux"], expected_ref_flux)
+    assert np.isclose(data["data"]["ref_fluxerr"], expected_ref_fluxerr)
+    assert np.isclose(data["data"]["tot_flux"], expected_ref_flux + expected_flux)
     assert np.isclose(
-        data['data']['tot_fluxerr'],
+        data["data"]["tot_fluxerr"],
         np.sqrt(expected_fluxerr**2 + expected_ref_fluxerr**2),
     )
-    assert np.isclose(data['data']['magref'], 18.01)
-    assert np.isclose(data['data']['e_magref'], 0.02)
+    assert np.isclose(data["data"]["magref"], 18.01)
+    assert np.isclose(data["data"]["e_magref"], 0.02)
 
 
 def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_camera):
     origin = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': public_source.id,
-            'instrument_id': ztf_camera.id,
+            "obj_id": public_source.id,
+            "instrument_id": ztf_camera.id,
             "mjd": [59410, 59411, 59412],
             "mag": [19.2, 19.3, np.random.uniform(19.3, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -319,7 +317,7 @@ def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_ca
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": origin,
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": {"key1": "value1"},
         },
         token=upload_data_token,
@@ -331,38 +329,38 @@ def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_ca
 
     # check the first point is correct
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token
+        "GET", f"photometry/{ids[0]}?format=flux", token=upload_data_token
     )
     assert_api(status, data)
-    assert data['data']['magref'] == 18.1
-    assert data['data']['e_magref'] == 0.01
+    assert data["data"]["magref"] == 18.1
+    assert data["data"]["e_magref"] == 0.01
     flux_trans1 = 10 ** (-0.4 * (19.2 - 23.9))
     fluxerr_trans1 = 0.05 / 2.5 * np.log(10) * flux_trans1
-    assert np.isclose(data['data']['flux'], flux_trans1)
-    assert np.isclose(data['data']['fluxerr'], fluxerr_trans1)
+    assert np.isclose(data["data"]["flux"], flux_trans1)
+    assert np.isclose(data["data"]["fluxerr"], fluxerr_trans1)
     flux_ref1 = 10 ** (-0.4 * (18.1 - 23.9))
     fluxerr_ref1 = 0.01 / 2.5 * np.log(10) * flux_ref1
-    assert np.isclose(data['data']['ref_flux'], flux_ref1)
-    assert np.isclose(data['data']['ref_fluxerr'], fluxerr_ref1)
+    assert np.isclose(data["data"]["ref_flux"], flux_ref1)
+    assert np.isclose(data["data"]["ref_fluxerr"], fluxerr_ref1)
 
-    assert np.isclose(data['data']['tot_flux'], flux_trans1 + flux_ref1)
+    assert np.isclose(data["data"]["tot_flux"], flux_trans1 + flux_ref1)
     assert np.isclose(
-        data['data']['tot_fluxerr'],
+        data["data"]["tot_fluxerr"],
         np.sqrt(fluxerr_trans1**2 + fluxerr_ref1**2),
     )
 
     # check the second point is correct
     status, data = api(
-        'GET', f'photometry/{ids[1]}?format=flux', token=upload_data_token
+        "GET", f"photometry/{ids[1]}?format=flux", token=upload_data_token
     )
     assert_api(status, data)
-    assert data['data']['magref'] == 18.2
-    assert data['data']['e_magref'] == 0.02
+    assert data["data"]["magref"] == 18.2
+    assert data["data"]["e_magref"] == 0.02
 
     flux_ref2 = 10 ** (-0.4 * (18.2 - 23.9))
     fluxerr_ref2 = 0.02 / 2.5 * np.log(10) * flux_ref2
-    assert np.isclose(data['data']['ref_flux'], flux_ref2)
-    assert np.isclose(data['data']['ref_fluxerr'], fluxerr_ref2)
+    assert np.isclose(data["data"]["ref_flux"], flux_ref2)
+    assert np.isclose(data["data"]["ref_fluxerr"], fluxerr_ref2)
 
     # see if we can filter points by ref flux
     mag_midpoint = (19.3 + 19.2) / 2
@@ -423,11 +421,11 @@ def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_ca
 
 def test_ref_mag_vector(upload_data_token, public_source, public_group, ztf_camera):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59410, 59411, 59412],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -437,7 +435,7 @@ def test_ref_mag_vector(upload_data_token, public_source, public_group, ztf_came
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": {"key1": "value1"},
         },
         token=upload_data_token,
@@ -449,10 +447,10 @@ def test_ref_mag_vector(upload_data_token, public_source, public_group, ztf_came
 
     for id in ids:
         status, data = api(
-            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
         assert data["data"]["altdata"] == {"key1": "value1"}
 
 
@@ -460,11 +458,11 @@ def test_post_multiple_photometry_vector_altdata(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59408, 59409, 59410],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -474,13 +472,13 @@ def test_post_multiple_photometry_vector_altdata(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     ids = data["data"]["ids"]
     assert len(ids) == 3
 
@@ -488,10 +486,10 @@ def test_post_multiple_photometry_vector_altdata(
     values = []
     for id in ids:
         status, data = api(
-            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
         assert data["data"]["altdata"] in [
             {"key1": "value1"},
             {"key2": "value2"},
@@ -508,11 +506,11 @@ def test_post_multiple_photometry_scalar_altdata(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59410, 59411, 59412],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -522,7 +520,7 @@ def test_post_multiple_photometry_scalar_altdata(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": {"key1": "value1"},
         },
         token=upload_data_token,
@@ -534,10 +532,10 @@ def test_post_multiple_photometry_scalar_altdata(
 
     for id in ids:
         status, data = api(
-            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
         assert data["data"]["altdata"] == {"key1": "value1"}
 
 
@@ -545,11 +543,11 @@ def test_token_user_post_put_photometry_data(
     super_admin_token, upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59400, 59401, 59402],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -559,22 +557,22 @@ def test_token_user_post_put_photometry_data(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     ids = data["data"]["ids"]
     assert len(ids) == 3
 
     # POSTing photometry that contains the same first two points should fail:
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59400, 59401, 59402],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -584,22 +582,22 @@ def test_token_user_post_put_photometry_data(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     # PUTing photometry that contains
     # the same first point, the second point with a different origin, and a new third point should succeed
     # only the last two points will be ingested
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59400, 59401, 59402],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -609,12 +607,12 @@ def test_token_user_post_put_photometry_data(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "omg", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 3
     assert len(set(new_ids).intersection(set(ids))) == 1
@@ -633,8 +631,8 @@ def test_token_user_post_put_photometry_data(
     # - different third point, should be added as usual.
     ids = new_ids
     input_data = {
-        'obj_id': str(public_source.id),
-        'instrument_id': ztf_camera.id,
+        "obj_id": str(public_source.id),
+        "instrument_id": ztf_camera.id,
         "mjd": [59400, 59401, 59403],
         "mag": [20.2, 20.3, np.random.uniform(18, 19)],
         "magerr": [0.05, 0.1, np.random.uniform(0.01, 0.1)],
@@ -644,13 +642,13 @@ def test_token_user_post_put_photometry_data(
         "ra": [42.01, 42.01, 42.02],
         "dec": [42.02, 42.01, 42.03],
         "origin": [None, "omg", "lol"],
-        'group_ids': [public_group.id],
+        "group_ids": [public_group.id],
     }
 
     # this feature is reserved to super admin, so this should fail
     status, data = api(
-        'PUT',
-        'photometry?duplicate_ignore_flux=True&overwrite_flux=True',
+        "PUT",
+        "photometry?duplicate_ignore_flux=True&overwrite_flux=True",
         data=input_data,
         token=upload_data_token,
     )
@@ -662,13 +660,13 @@ def test_token_user_post_put_photometry_data(
 
     # try with the super admin token now
     status, data = api(
-        'PUT',
-        'photometry?duplicate_ignore_flux=True&overwrite_flux=True',
+        "PUT",
+        "photometry?duplicate_ignore_flux=True&overwrite_flux=True",
         data=input_data,
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 3
     # we should have 1 same + 1 updated - 1 new = 2 identical ids
@@ -677,7 +675,7 @@ def test_token_user_post_put_photometry_data(
     # GET the photometry
     # First point should be identical
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=mag', token=upload_data_token
+        "GET", f"photometry/{ids[0]}?format=mag", token=upload_data_token
     )
     assert status == 200
     assert "data" in data
@@ -688,7 +686,7 @@ def test_token_user_post_put_photometry_data(
 
     # second point should be updated
     status, data = api(
-        'GET', f'photometry/{ids[1]}?format=mag', token=upload_data_token
+        "GET", f"photometry/{ids[1]}?format=mag", token=upload_data_token
     )
     assert status == 200
     assert "data" in data
@@ -702,11 +700,11 @@ def test_token_user_post_put_get_photometry_data(
     upload_data_token_two_groups, public_source, public_group, public_group2, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59400, 59401, 59402],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -716,21 +714,21 @@ def test_token_user_post_put_get_photometry_data(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "lol", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     ids = data["data"]["ids"]
     assert len(ids) == 3
 
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
+        "GET", f"photometry/{ids[0]}?format=flux", token=upload_data_token_two_groups
     )
     assert status == 200
-    assert data['status'] == 'success'
-    group_ids = [g["id"] for g in data['data']['groups']]
+    assert data["status"] == "success"
+    group_ids = [g["id"] for g in data["data"]["groups"]]
     assert len(group_ids) == 2
     assert public_group.id in group_ids
 
@@ -738,11 +736,11 @@ def test_token_user_post_put_get_photometry_data(
     # the same first point, the second point with a different origin, and a new third point should succeed
     # only the last two points will be ingested
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59400, 59401],
             "mag": [19.2, 19.3],
             "magerr": [0.05, 0.06],
@@ -752,22 +750,22 @@ def test_token_user_post_put_get_photometry_data(
             "ra": [42.01, 42.01],
             "dec": [42.02, 42.01],
             "origin": [None, "lol"],
-            'group_ids': [public_group.id, public_group2.id],
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 2
     assert len(set(new_ids).intersection(set(ids))) == 2
 
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
+        "GET", f"photometry/{ids[0]}?format=flux", token=upload_data_token_two_groups
     )
     assert status == 200
-    assert data['status'] == 'success'
-    group_ids = [g["id"] for g in data['data']['groups']]
+    assert data["status"] == "success"
+    group_ids = [g["id"] for g in data["data"]["groups"]]
     assert len(group_ids) == 3
 
     token_object = (
@@ -796,40 +794,40 @@ def test_post_photometry_multiple_groups(
     upload_data_token = upload_data_token_two_groups
     public_source = public_source_two_groups
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id, public_group2.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['ra'] is None
-    assert data['data']['dec'] is None
-    assert data['data']['ra_unc'] is None
-    assert data['data']['dec_unc'] is None
+    assert data["data"]["ra"] is None
+    assert data["data"]["dec"] is None
+    assert data["data"]["ra_unc"] is None
+    assert data["data"]["dec_unc"] is None
 
-    assert len(data['data']['groups']) == 3
+    assert len(data["data"]["groups"]) == 3
 
     np.testing.assert_allclose(
-        data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
+        data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
 
 
@@ -845,46 +843,46 @@ def test_post_photometry_all_groups(
     upload_data_token = upload_data_token_two_groups
     public_source = public_source_two_groups
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': "all",
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": "all",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux',
+        "GET",
+        f"photometry/{photometry_id}?format=flux",
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['ra'] is None
-    assert data['data']['dec'] is None
-    assert data['data']['ra_unc'] is None
-    assert data['data']['dec_unc'] is None
+    assert data["data"]["ra"] is None
+    assert data["data"]["dec"] is None
+    assert data["data"]["ra_unc"] is None
+    assert data["data"]["dec_unc"] is None
 
     # Groups should be single user group and public group
-    assert len(data['data']['groups']) == 2
-    groups = [g['name'] for g in data['data']['groups']]
-    assert cfg['misc']['public_group_name'] in groups
+    assert len(data["data"]["groups"]) == 2
+    groups = [g["name"] for g in data["data"]["groups"]]
+    assert cfg["misc"]["public_group_name"] in groups
     assert user_two_groups.single_user_group.name in groups
 
     np.testing.assert_allclose(
-        data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
+        data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
 
 
@@ -899,38 +897,38 @@ def test_retrieve_photometry_group_membership_posted_by_other(
     upload_data_token = upload_data_token_two_groups
     public_source = public_source_two_groups
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id, public_group2.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=view_only_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['ra'] is None
-    assert data['data']['dec'] is None
-    assert data['data']['ra_unc'] is None
-    assert data['data']['dec_unc'] is None
+    assert data["data"]["ra"] is None
+    assert data["data"]["dec"] is None
+    assert data["data"]["ra_unc"] is None
+    assert data["data"]["dec_unc"] is None
 
     np.testing.assert_allclose(
-        data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
+        data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
 
 
@@ -945,18 +943,18 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     upload_data_token = upload_data_token_two_groups
     public_source = public_source_two_groups
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group2.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group2.id],
         },
         token=upload_data_token,
     )
@@ -964,11 +962,11 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     # Token.query.get(upload_data_token).created_by.single_user_group.id
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=view_only_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token
     )
 
     # the view-only token group ids =
@@ -976,417 +974,417 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
 
     # `view_only_token only` belongs to `public_group`, not `public_group2`
     assert status == 400
-    assert data['status'] == 'error'
-    assert "Cannot find photometry point with ID" in data['message']
+    assert data["status"] == "error"
+    assert "Cannot find photometry point with ID" in data["message"]
 
 
 def test_can_post_photometry_no_groups(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['groups']) == 1
+    assert data["status"] == "success"
+    assert len(data["data"]["groups"]) == 1
 
 
 def test_can_post_photometry_empty_groups_list(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [],
         },
         token=upload_data_token,
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['groups']) == 1
+    assert data["status"] == "success"
+    assert len(data["data"]["groups"]) == 1
 
 
 def test_token_user_post_mag_photometry_data_and_convert(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 21.0,
-            'magerr': 0.2,
-            'limiting_mag': 22.3,
-            'magsys': 'vega',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 21.0,
+            "magerr": 0.2,
+            "limiting_mag": 22.3,
+            "magsys": "vega",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    ab = sncosmo.get_magsystem('ab')
-    vega = sncosmo.get_magsystem('vega')
-    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+    ab = sncosmo.get_magsystem("ab")
+    vega = sncosmo.get_magsystem("vega")
+    correction = 2.5 * np.log10(vega.zpbandflux("ztfg") / ab.zpbandflux("ztfg"))
 
     np.testing.assert_allclose(
-        data['data']['flux'], 10 ** (-0.4 * (21.0 - correction - 23.9))
+        data["data"]["flux"], 10 ** (-0.4 * (21.0 - correction - 23.9))
     )
 
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux']
+        data["data"]["fluxerr"], 0.2 / (2.5 / np.log(10)) * data["data"]["flux"]
     )
 
-    status, data = api('GET', f'photometry/{photometry_id}', token=upload_data_token)
+    status, data = api("GET", f"photometry/{photometry_id}", token=upload_data_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    np.testing.assert_allclose(data['data']['mag'], 21.0 - correction)
+    np.testing.assert_allclose(data["data"]["mag"], 21.0 - correction)
 
-    np.testing.assert_allclose(data['data']['magerr'], 0.2)
+    np.testing.assert_allclose(data["data"]["magerr"], 0.2)
 
 
 def test_token_user_post_and_get_different_systems_mag(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 21.0,
-            'magerr': 0.2,
-            'limiting_mag': 22.3,
-            'magsys': 'vega',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 21.0,
+            "magerr": 0.2,
+            "limiting_mag": 22.3,
+            "magsys": "vega",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=mag&magsys=vega',
+        "GET",
+        f"photometry/{photometry_id}?format=mag&magsys=vega",
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['magsys'] == 'vega'
+    assert data["status"] == "success"
+    assert data["data"]["magsys"] == "vega"
 
-    ab = sncosmo.get_magsystem('ab')
-    vega = sncosmo.get_magsystem('vega')
-    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+    ab = sncosmo.get_magsystem("ab")
+    vega = sncosmo.get_magsystem("vega")
+    correction = 2.5 * np.log10(vega.zpbandflux("ztfg") / ab.zpbandflux("ztfg"))
 
-    np.testing.assert_allclose(data['data']['mag'], 21.0)
-    np.testing.assert_allclose(data['data']['magerr'], 0.2)
-    np.testing.assert_allclose(data['data']['limiting_mag'], 22.3)
+    np.testing.assert_allclose(data["data"]["mag"], 21.0)
+    np.testing.assert_allclose(data["data"]["magerr"], 0.2)
+    np.testing.assert_allclose(data["data"]["limiting_mag"], 22.3)
 
     status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=mag&magsys=ab',
+        "GET",
+        f"photometry/{photometry_id}?format=mag&magsys=ab",
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    np.testing.assert_allclose(data['data']['mag'], 21.0 - correction)
-    np.testing.assert_allclose(data['data']['magerr'], 0.2)
-    np.testing.assert_allclose(data['data']['limiting_mag'], 22.3 - correction)
+    np.testing.assert_allclose(data["data"]["mag"], 21.0 - correction)
+    np.testing.assert_allclose(data["data"]["magerr"], 0.2)
+    np.testing.assert_allclose(data["data"]["limiting_mag"], 22.3 - correction)
 
 
 def test_token_user_post_and_get_different_systems_flux(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 21.0,
-            'magerr': 0.2,
-            'limiting_mag': 22.3,
-            'magsys': 'vega',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 21.0,
+            "magerr": 0.2,
+            "limiting_mag": 22.3,
+            "magsys": "vega",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux&magsys=vega',
+        "GET",
+        f"photometry/{photometry_id}?format=flux&magsys=vega",
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    ab = sncosmo.get_magsystem('ab')
-    vega = sncosmo.get_magsystem('vega')
-    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+    ab = sncosmo.get_magsystem("ab")
+    vega = sncosmo.get_magsystem("vega")
+    correction = 2.5 * np.log10(vega.zpbandflux("ztfg") / ab.zpbandflux("ztfg"))
 
     np.testing.assert_allclose(
-        data['data']['flux'], 10 ** (-0.4 * (21 - correction - 23.9))
+        data["data"]["flux"], 10 ** (-0.4 * (21 - correction - 23.9))
     )
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux']
+        data["data"]["fluxerr"], 0.2 / (2.5 / np.log(10)) * data["data"]["flux"]
     )
-    np.testing.assert_allclose(data['data']['zp'], 23.9 + correction)
+    np.testing.assert_allclose(data["data"]["zp"], 23.9 + correction)
 
     status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux&magsys=ab',
+        "GET",
+        f"photometry/{photometry_id}?format=flux&magsys=ab",
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     np.testing.assert_allclose(
-        data['data']['flux'], 10 ** (-0.4 * (21 - correction - 23.9))
+        data["data"]["flux"], 10 ** (-0.4 * (21 - correction - 23.9))
     )
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux']
+        data["data"]["fluxerr"], 0.2 / (2.5 / np.log(10)) * data["data"]["flux"]
     )
-    np.testing.assert_allclose(data['data']['zp'], 23.9)
+    np.testing.assert_allclose(data["data"]["zp"], 23.9)
 
 
 def test_token_user_mixed_photometry_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': 21.0,
-            'magerr': [0.2, 0.1],
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 21.0,
+            "magerr": [0.2, 0.1],
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][1]
+    photometry_id = data["data"]["ids"][1]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    np.testing.assert_allclose(data['data']['flux'], 10 ** (-0.4 * (21.0 - 23.9)))
+    np.testing.assert_allclose(data["data"]["flux"], 10 ** (-0.4 * (21.0 - 23.9)))
 
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 0.1 / (2.5 / np.log(10)) * data['data']['flux']
+        data["data"]["fluxerr"], 0.1 / (2.5 / np.log(10)) * data["data"]["flux"]
     )
 
     # should fail as len(mag) != len(magerr)
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': [21.0],
-            'magerr': [0.2, 0.1],
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": [21.0],
+            "magerr": [0.2, 0.1],
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_token_user_mixed_mag_none_photometry_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': [0.2, 0.1],
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": [0.2, 0.1],
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': [21.3, None],
-            'magerr': [0.2, 0.1],
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": [21.3, None],
+            "magerr": [0.2, 0.1],
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': [21.3, None],
-            'magerr': [None, 0.1],
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": [21.3, None],
+            "magerr": [None, 0.1],
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_token_user_post_photometry_limits(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     if status != 200:
         print(data)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['flux'] is None
+    assert data["data"]["flux"] is None
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
+        data["data"]["fluxerr"], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
     )
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': None,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": None,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['flux'] is None
+    assert data["data"]["flux"] is None
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 0.031 * 10 ** (-0.4 * (25.0 - 23.9))
+        data["data"]["fluxerr"], 0.031 * 10 ** (-0.4 * (25.0 - 23.9))
     )
 
 
@@ -1394,23 +1392,23 @@ def test_token_user_post_invalid_filter(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'bessellv',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "bessellv",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_token_user_post_photometry_data_series(
@@ -1418,206 +1416,206 @@ def test_token_user_post_photometry_data_series(
 ):
     # valid request
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000.0, 58001.0, 58002.0],
-            'instrument_id': ztf_camera.id,
-            'flux': [12.24, 15.24, 12.24],
-            'fluxerr': [0.031, 0.029, 0.030],
-            'filter': ['ztfg', 'ztfg', 'ztfg'],
-            'zp': [25.0, 30.0, 21.2],
-            'magsys': ['ab', 'ab', 'ab'],
-            'ra': 264.1947917,
-            'dec': [50.5478333, 50.5478333 + 0.00001, 50.5478333],
-            'dec_unc': 0.2,
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": [58000.0, 58001.0, 58002.0],
+            "instrument_id": ztf_camera.id,
+            "flux": [12.24, 15.24, 12.24],
+            "fluxerr": [0.031, 0.029, 0.030],
+            "filter": ["ztfg", "ztfg", "ztfg"],
+            "zp": [25.0, 30.0, 21.2],
+            "magsys": ["ab", "ab", "ab"],
+            "ra": 264.1947917,
+            "dec": [50.5478333, 50.5478333 + 0.00001, 50.5478333],
+            "dec_unc": 0.2,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['ids']) == 3
+    assert data["status"] == "success"
+    assert len(data["data"]["ids"]) == 3
 
-    photometry_id = data['data']['ids'][1]
+    photometry_id = data["data"]["ids"][1]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert np.allclose(data['data']['flux'], 15.24 * 10 ** (-0.4 * (30 - 23.9)))
+    assert data["status"] == "success"
+    assert np.allclose(data["data"]["flux"], 15.24 * 10 ** (-0.4 * (30 - 23.9)))
 
-    assert np.allclose(data['data']['dec'], 50.5478333 + 0.00001)
+    assert np.allclose(data["data"]["dec"], 50.5478333 + 0.00001)
 
-    assert np.allclose(data['data']['dec_unc'], 0.2)
-    assert data['data']['ra_unc'] is None
+    assert np.allclose(data["data"]["dec_unc"], 0.2)
+    assert data["data"]["ra_unc"] is None
 
     # invalid request
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data=[
             {
-                'obj_id': str(public_source.id),
-                'mjd': 58000,
-                'instrument_id': ztf_camera.id,
-                'flux': 12.24,
-                'fluxerr': 0.031,
-                'filter': 'ztfg',
-                'zp': 25.0,
-                'magsys': 'ab',
-                'group_ids': [public_group.id],
+                "obj_id": str(public_source.id),
+                "mjd": 58000,
+                "instrument_id": ztf_camera.id,
+                "flux": 12.24,
+                "fluxerr": 0.031,
+                "filter": "ztfg",
+                "zp": 25.0,
+                "magsys": "ab",
+                "group_ids": [public_group.id],
             },
             {
-                'obj_id': str(public_source.id),
-                'mjd': 58001,
-                'instrument_id': ztf_camera.id,
-                'flux': 15.24,
-                'fluxerr': 0.031,
-                'filter': 'ztfg',
-                'zp': 30.0,
-                'magsys': 'ab',
-                'group_ids': [public_group.id],
+                "obj_id": str(public_source.id),
+                "mjd": 58001,
+                "instrument_id": ztf_camera.id,
+                "flux": 15.24,
+                "fluxerr": 0.031,
+                "filter": "ztfg",
+                "zp": 30.0,
+                "magsys": "ab",
+                "group_ids": [public_group.id],
             },
             {
-                'obj_id': str(public_source.id),
-                'mjd': 58002,
-                'instrument_id': ztf_camera.id,
-                'flux': 12.24,
-                'fluxerr': 0.031,
-                'filter': 'ztfg',
-                'zp': 21.2,
-                'magsys': 'vega',
-                'group_ids': [public_group.id],
+                "obj_id": str(public_source.id),
+                "mjd": 58002,
+                "instrument_id": ztf_camera.id,
+                "flux": 12.24,
+                "fluxerr": 0.031,
+                "filter": "ztfg",
+                "zp": 21.2,
+                "magsys": "vega",
+                "group_ids": [public_group.id],
             },
         ],
         token=upload_data_token,
     )
 
     assert status in [500, 401]
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_post_photometry_no_access_token(
     view_only_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=view_only_token,
     )
     assert status == 401
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_token_user_update_photometry(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
+    assert data["status"] == "success"
+    np.testing.assert_allclose(data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}',
+        "PATCH",
+        f"photometry/{photometry_id}",
         data={
-            'obj_id': str(public_source.id),
-            'flux': 11.0,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
+            "obj_id": str(public_source.id),
+            "flux": 11.0,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
-    np.testing.assert_allclose(data['data']['flux'], 11.0 * 10 ** (-0.4 * (25 - 23.9)))
+    np.testing.assert_allclose(data["data"]["flux"], 11.0 * 10 ** (-0.4 * (25 - 23.9)))
 
 
 def test_token_user_cannot_update_unowned_photometry(
     upload_data_token, manage_sources_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
+    assert data["status"] == "success"
+    np.testing.assert_allclose(data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}',
+        "PATCH",
+        f"photometry/{photometry_id}",
         data={
-            'obj_id': str(public_source.id),
-            'flux': 11.0,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
+            "obj_id": str(public_source.id),
+            "flux": 11.0,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
         },
         token=manage_sources_token,
     )
@@ -1637,55 +1635,55 @@ def test_token_user_update_photometry_groups(
     public_source = public_source_two_groups
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id, public_group2.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=view_only_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}',
+        "PATCH",
+        f"photometry/{photometry_id}",
         data={
-            'obj_id': str(public_source.id),
-            'flux': 11.0,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group2.id],
+            "obj_id": str(public_source.id),
+            "flux": 11.0,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group2.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=view_only_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
     assert "Cannot find photometry point with ID" in data["message"]
 
 
@@ -1693,37 +1691,37 @@ def test_user_can_delete_owned_photometry_data(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
+    assert data["status"] == "success"
+    np.testing.assert_allclose(data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
-    status, data = api('DELETE', f'photometry/{photometry_id}', token=upload_data_token)
+    status, data = api("DELETE", f"photometry/{photometry_id}", token=upload_data_token)
     assert status == 200
 
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 400
 
@@ -1732,34 +1730,34 @@ def test_user_cannot_delete_unowned_photometry_data(
     upload_data_token, manage_sources_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
+    assert data["status"] == "success"
+    np.testing.assert_allclose(data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
     status, data = api(
-        'DELETE', f'photometry/{photometry_id}', token=manage_sources_token
+        "DELETE", f"photometry/{photometry_id}", token=manage_sources_token
     )
 
     assert status == 401
@@ -1769,37 +1767,37 @@ def test_admin_can_delete_unowned_photometry_data(
     upload_data_token, super_admin_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
+    assert data["status"] == "success"
+    np.testing.assert_allclose(data["data"]["flux"], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
-    status, data = api('DELETE', f'photometry/{photometry_id}', token=super_admin_token)
+    status, data = api("DELETE", f"photometry/{photometry_id}", token=super_admin_token)
     assert status == 200
 
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 400
 
@@ -1808,72 +1806,72 @@ def test_token_user_retrieving_source_photometry_and_convert(
     view_only_token, public_source
 ):
     status, data = api(
-        'GET',
-        f'sources/{public_source.id}/photometry?format=flux&magsys=ab',
+        "GET",
+        f"sources/{public_source.id}/photometry?format=flux&magsys=ab",
         token=view_only_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert isinstance(data['data'], list)
-    assert 'mjd' in data['data'][0]
-    assert 'ra_unc' in data['data'][0]
+    assert data["status"] == "success"
+    assert isinstance(data["data"], list)
+    assert "mjd" in data["data"][0]
+    assert "ra_unc" in data["data"][0]
 
-    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
-    mag1_ab = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
-    magerr1_ab = 2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
+    data["data"] = sorted(data["data"], key=lambda d: d["mjd"])
+    mag1_ab = -2.5 * np.log10(data["data"][0]["flux"]) + data["data"][0]["zp"]
+    magerr1_ab = 2.5 / np.log(10) * data["data"][0]["fluxerr"] / data["data"][0]["flux"]
 
-    maglast_ab = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
+    maglast_ab = -2.5 * np.log10(data["data"][-1]["flux"]) + data["data"][-1]["zp"]
     magerrlast_ab = (
-        2.5 / np.log(10) * data['data'][-1]['fluxerr'] / data['data'][-1]['flux']
+        2.5 / np.log(10) * data["data"][-1]["fluxerr"] / data["data"][-1]["flux"]
     )
 
     status, data = api(
-        'GET',
-        f'sources/{public_source.id}/photometry?format=mag&magsys=ab',
+        "GET",
+        f"sources/{public_source.id}/photometry?format=mag&magsys=ab",
         token=view_only_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
-    assert np.allclose(mag1_ab, data['data'][0]['mag'])
-    assert np.allclose(magerr1_ab, data['data'][0]['magerr'])
+    data["data"] = sorted(data["data"], key=lambda d: d["mjd"])
+    assert np.allclose(mag1_ab, data["data"][0]["mag"])
+    assert np.allclose(magerr1_ab, data["data"][0]["magerr"])
 
-    assert np.allclose(maglast_ab, data['data'][-1]['mag'])
-    assert np.allclose(magerrlast_ab, data['data'][-1]['magerr'])
+    assert np.allclose(maglast_ab, data["data"][-1]["mag"])
+    assert np.allclose(magerrlast_ab, data["data"][-1]["magerr"])
 
     status, data = api(
-        'GET',
-        f'sources/{public_source.id}/photometry?format=flux&magsys=vega',
+        "GET",
+        f"sources/{public_source.id}/photometry?format=flux&magsys=vega",
         token=view_only_token,
     )
 
-    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
-    mag1_vega = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
+    data["data"] = sorted(data["data"], key=lambda d: d["mjd"])
+    mag1_vega = -2.5 * np.log10(data["data"][0]["flux"]) + data["data"][0]["zp"]
     magerr1_vega = (
-        2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
+        2.5 / np.log(10) * data["data"][0]["fluxerr"] / data["data"][0]["flux"]
     )
 
-    maglast_vega = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
+    maglast_vega = -2.5 * np.log10(data["data"][-1]["flux"]) + data["data"][-1]["zp"]
     magerrlast_vega = (
-        2.5 / np.log(10) * data['data'][-1]['fluxerr'] / data['data'][-1]['flux']
+        2.5 / np.log(10) * data["data"][-1]["fluxerr"] / data["data"][-1]["flux"]
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    ab = sncosmo.get_magsystem('ab')
-    vega = sncosmo.get_magsystem('vega')
+    ab = sncosmo.get_magsystem("ab")
+    vega = sncosmo.get_magsystem("vega")
     vega_to_ab = {
         filter: 2.5 * np.log10(ab.zpbandflux(filter) / vega.zpbandflux(filter))
-        for filter in ['ztfg', 'ztfr', 'ztfi']
+        for filter in ["ztfg", "ztfr", "ztfi"]
     }
 
-    assert np.allclose(mag1_ab, mag1_vega + vega_to_ab[data['data'][0]['filter']])
+    assert np.allclose(mag1_ab, mag1_vega + vega_to_ab[data["data"][0]["filter"]])
     assert np.allclose(magerr1_ab, magerr1_vega)
 
     assert np.allclose(
-        maglast_ab, maglast_vega + vega_to_ab[data['data'][-1]['filter']]
+        maglast_ab, maglast_vega + vega_to_ab[data["data"][-1]["filter"]]
     )
     assert np.allclose(magerrlast_ab, magerrlast_vega)
 
@@ -1882,113 +1880,113 @@ def test_token_user_retrieve_null_photometry(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['flux'] is None
+    assert data["status"] == "success"
+    assert data["data"]["flux"] is None
 
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
+        data["data"]["fluxerr"], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
     )
 
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=mag', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=mag", token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['mag'] is None
-    assert data['data']['magerr'] is None
+    assert data["status"] == "success"
+    assert data["data"]["mag"] is None
+    assert data["data"]["magerr"] is None
 
 
 def test_token_user_get_range_photometry(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000.0, 58500.0, 59000.0],
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": [58000.0, 58500.0, 59000.0],
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        'photometry/range',
+        "GET",
+        "photometry/range",
         token=upload_data_token,
-        data={'instrument_ids': [ztf_camera.id], 'max_date': '2018-05-15T00:00:00'},
+        data={"instrument_ids": [ztf_camera.id], "max_date": "2018-05-15T00:00:00"},
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) == 1
+    assert data["status"] == "success"
+    assert len(data["data"]) == 1
 
     status, data = api(
-        'GET',
-        'photometry/range?format=flux&magsys=vega',
+        "GET",
+        "photometry/range?format=flux&magsys=vega",
         token=upload_data_token,
-        data={'instrument_ids': [ztf_camera.id], 'max_date': '2019-02-01T00:00:00'},
+        data={"instrument_ids": [ztf_camera.id], "max_date": "2019-02-01T00:00:00"},
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) == 2
+    assert data["status"] == "success"
+    assert len(data["data"]) == 2
 
 
 def test_token_user_post_to_foreign_group_and_retrieve(
     upload_data_token, public_source_two_groups, public_group2, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source_two_groups.id),
-            'mjd': [58000.0, 58500.0, 59000.0],
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group2.id],
+            "obj_id": str(public_source_two_groups.id),
+            "mjd": [58000.0, 58500.0, 59000.0],
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group2.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    photometry_id = data['data']['ids'][0]
+    photometry_id = data["data"]["ids"][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
     )
     assert status == 200
 
@@ -2002,7 +2000,7 @@ def test_problematic_photometry_1263(
         "magsys": "ab",
         "zp": 23.9,
         "instrument_id": ztf_camera.id,
-        'mjd': [
+        "mjd": [
             59145.46447,
             59149.50347,
             59149.50347,
@@ -2045,50 +2043,50 @@ def test_problematic_photometry_1263(
             59143.48529,
             59145.50556,
         ],
-        'filter': [
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfg',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
-            'ztfr',
+        "filter": [
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
         ],
-        'flux': [
+        "flux": [
             105.4095462,
             100.4989583,
             100.4986052,
@@ -2131,7 +2129,7 @@ def test_problematic_photometry_1263(
             99.84977174,
             100.8608292,
         ],
-        'fluxerr': [
+        "fluxerr": [
             8.416851743,
             10.10817406,
             10.10811785,
@@ -2177,13 +2175,13 @@ def test_problematic_photometry_1263(
     }
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data=payload,
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     payload = {
         "obj_id": public_source.id,
@@ -2368,32 +2366,32 @@ def test_problematic_photometry_1263(
     }
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data=payload,
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    payload['group_ids'] = 'all'
+    payload["group_ids"] = "all"
 
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data=payload,
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    for id in data['data']['ids']:
+    for id in data["data"]["ids"]:
         status, data = api(
-            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
-        assert len(data['data']['groups']) == 2
+        assert data["status"] == "success"
+        assert len(data["data"]["groups"]) == 2
 
 
 def test_problematic_photometry_1276(
@@ -2624,59 +2622,59 @@ def test_problematic_photometry_1276(
     }
 
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data=payload,
         token=super_admin_token,
     )
     assert status in [400, 500]
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_cannot_post_negative_fluxerr(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': -0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": -0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
-    assert "Invalid value" in data['message']
+    assert data["status"] == "error"
+    assert "Invalid value" in data["message"]
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000.0, 58000.4],
-            'instrument_id': ztf_camera.id,
-            'flux': [12.24, 12.43],
-            'fluxerr': [0.35, -0.031],
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": [58000.0, 58000.4],
+            "instrument_id": ztf_camera.id,
+            "flux": [12.24, 12.43],
+            "fluxerr": [0.35, -0.031],
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
-    assert "Invalid value" in data['message']
+    assert data["status"] == "error"
+    assert "Invalid value" in data["message"]
 
 
 def test_photometry_stream_read_access(
@@ -2688,39 +2686,39 @@ def test_photometry_stream_read_access(
     ztf_camera,
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    photometry_id = data['data']['ids'][0]
+    assert data["status"] == "success"
+    photometry_id = data["data"]["ids"][0]
 
     # this token has sufficient stream access
     status, data = api(
-        'GET', f'photometry/{photometry_id}', token=view_only_token_no_groups
+        "GET", f"photometry/{photometry_id}", token=view_only_token_no_groups
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # this token does not have sufficient stream access
     status, data = api(
-        'GET', f'photometry/{photometry_id}', token=view_only_token_no_groups_no_streams
+        "GET", f"photometry/{photometry_id}", token=view_only_token_no_groups_no_streams
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_photometry_stream_post_access(
@@ -2732,45 +2730,45 @@ def test_photometry_stream_post_access(
 ):
     # this token has sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # this token doesn't have sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups_no_streams,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_photometry_stream_put_access(
@@ -2784,87 +2782,87 @@ def test_photometry_stream_put_access(
 ):
     # this token has sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # this token doesn't have sufficient stream access to add to stream2
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups_no_streams,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     # this token doesn't have sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     # this token does have sufficient stream access to add to stream2
     status, data = api(
-        'PUT',
-        'photometry',
+        "PUT",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_stream2,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
 
 def test_photometry_stream_patch_access(
@@ -2878,88 +2876,88 @@ def test_photometry_stream_patch_access(
 ):
     # this token has sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups_two_streams,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    phot_id = data['data']['ids'][0]
+    assert data["status"] == "success"
+    phot_id = data["data"]["ids"][0]
 
     # this token doesn't have sufficient stream access to add to stream2
     status, data = api(
-        'PATCH',
-        f'photometry/{phot_id}',
+        "PATCH",
+        f"photometry/{phot_id}",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups_no_streams,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     # this token doesn't have sufficient stream access to create a StreamPhotometry row
     status, data = api(
-        'PATCH',
-        f'photometry/{phot_id}',
+        "PATCH",
+        f"photometry/{phot_id}",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     # this token does have sufficient stream access to add to stream2
     status, data = api(
-        'PATCH',
-        f'photometry/{phot_id}',
+        "PATCH",
+        f"photometry/{phot_id}",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': 58001.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 13.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'stream_ids': [public_stream2.id],
-            'altdata': {'some_key': 'some_value'},
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
         },
         token=upload_data_token_no_groups_two_streams,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
 
 def test_token_user_delete_object_photometry(
@@ -2981,49 +2979,49 @@ def test_token_user_delete_object_photometry(
     assert status == 200
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        f'sources/{obj_id}/photometry',
+        "GET",
+        f"sources/{obj_id}/photometry",
         token=view_only_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) > 0
+    assert data["status"] == "success"
+    assert len(data["data"]) > 0
 
     status, data = api(
-        'DELETE',
-        f'sources/{obj_id}/photometry',
+        "DELETE",
+        f"sources/{obj_id}/photometry",
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        f'sources/{obj_id}/photometry',
+        "GET",
+        f"sources/{obj_id}/photometry",
         token=view_only_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) == 0
+    assert data["status"] == "success"
+    assert len(data["data"]) == 0
 
 
 def test_photometry_validation(
@@ -3045,111 +3043,111 @@ def test_photometry_validation(
     assert status == 200
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    photometry_id = data['data']['ids'][0]
+    assert data["status"] == "success"
+    photometry_id = data["data"]["ids"][0]
 
     # insufficient access, should fail
     status, data = api(
-        'POST',
-        f'photometry/{photometry_id}/validation',
+        "POST",
+        f"photometry/{photometry_id}/validation",
         data={
-            'validated': True,
-            'explanation': 'GOOD SUBTRACTION',
-            'notes': 'beautiful image',
+            "validated": True,
+            "explanation": "GOOD SUBTRACTION",
+            "notes": "beautiful image",
         },
         token=view_only_token,
     )
     assert status == 401
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
     status, data = api(
-        'POST',
-        f'photometry/{photometry_id}/validation',
+        "POST",
+        f"photometry/{photometry_id}/validation",
         data={
-            'validated': True,
-            'explanation': 'GOOD SUBTRACTION',
-            'notes': 'beautiful image',
+            "validated": True,
+            "explanation": "GOOD SUBTRACTION",
+            "notes": "beautiful image",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        f'sources/{obj_id}/photometry',
+        "GET",
+        f"sources/{obj_id}/photometry",
         token=view_only_token,
-        params={'includeValidationInfo': True},
+        params={"includeValidationInfo": True},
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) > 0
-    assert len(data['data'][0]['validations']) > 0
-    assert data['data'][0]['validations'][0]['explanation'] == 'GOOD SUBTRACTION'
-    assert data['data'][0]['validations'][0]['notes'] == 'beautiful image'
-    assert data['data'][0]['validations'][0]['validated'] is True
+    assert data["status"] == "success"
+    assert len(data["data"]) > 0
+    assert len(data["data"][0]["validations"]) > 0
+    assert data["data"][0]["validations"][0]["explanation"] == "GOOD SUBTRACTION"
+    assert data["data"][0]["validations"][0]["notes"] == "beautiful image"
+    assert data["data"][0]["validations"][0]["validated"] is True
 
     status, data = api(
-        'PATCH',
-        f'photometry/{photometry_id}/validation',
+        "PATCH",
+        f"photometry/{photometry_id}/validation",
         data={
-            'validated': False,
-            'explanation': 'BAD SUBTRACTION',
-            'notes': 'ugly image',
+            "validated": False,
+            "explanation": "BAD SUBTRACTION",
+            "notes": "ugly image",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        f'sources/{obj_id}/photometry',
+        "GET",
+        f"sources/{obj_id}/photometry",
         token=view_only_token,
-        params={'includeValidationInfo': True},
+        params={"includeValidationInfo": True},
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) > 0
-    assert len(data['data'][0]['validations']) > 0
-    assert data['data'][0]['validations'][0]['explanation'] == 'BAD SUBTRACTION'
-    assert data['data'][0]['validations'][0]['notes'] == 'ugly image'
-    assert data['data'][0]['validations'][0]['validated'] is False
+    assert data["status"] == "success"
+    assert len(data["data"]) > 0
+    assert len(data["data"][0]["validations"]) > 0
+    assert data["data"][0]["validations"][0]["explanation"] == "BAD SUBTRACTION"
+    assert data["data"][0]["validations"][0]["notes"] == "ugly image"
+    assert data["data"][0]["validations"][0]["validated"] is False
 
     status, data = api(
-        'DELETE',
-        f'photometry/{photometry_id}/validation',
+        "DELETE",
+        f"photometry/{photometry_id}/validation",
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
-        'GET',
-        f'sources/{obj_id}/photometry',
+        "GET",
+        f"sources/{obj_id}/photometry",
         token=view_only_token,
-        params={'includeValidationInfo': True},
+        params={"includeValidationInfo": True},
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) > 0
-    assert len(data['data'][0]['validations']) == 0
+    assert data["status"] == "success"
+    assert len(data["data"]) > 0
+    assert len(data["data"][0]["validations"]) == 0
 
 
 def test_post_external_photometry(
@@ -3172,48 +3170,48 @@ def test_post_external_photometry(
 
     name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': name,
-            'nickname': name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['atlaso', 'atlasc'],
-            'telescope_id': telescope_id,
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["atlaso", "atlasc"],
+            "telescope_id": telescope_id,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
-    datafile = f'{os.path.dirname(__file__)}/../../data/ZTFrlh6cyjh_ATLAS.csv'
+    datafile = f"{os.path.dirname(__file__)}/../../data/ZTFrlh6cyjh_ATLAS.csv"
     df = pd.read_csv(datafile)
-    df.drop(columns=['index'], inplace=True)
+    df.drop(columns=["index"], inplace=True)
 
     data_out = {
-        'obj_id': obj_id,
-        'instrument_id': instrument_id,
-        'group_ids': 'all',
-        **df.to_dict(orient='list'),
+        "obj_id": obj_id,
+        "instrument_id": instrument_id,
+        "group_ids": "all",
+        **df.to_dict(orient="list"),
     }
 
     add_external_photometry(data_out, super_admin_user)
@@ -3228,32 +3226,32 @@ def test_post_external_photometry(
     assert status == 200
     assert len(data["data"]["photometry"]) == 384
 
-    assert all(p['obj_id'] == obj_id for p in data["data"]["photometry"])
-    assert all(p['instrument_id'] == instrument_id for p in data["data"]["photometry"])
+    assert all(p["obj_id"] == obj_id for p in data["data"]["photometry"])
+    assert all(p["instrument_id"] == instrument_id for p in data["data"]["photometry"])
 
 
 def test_token_user_big_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000 + i for i in range(30000)],
-            'instrument_id': ztf_camera.id,
-            'mag': np.random.uniform(low=18, high=22, size=30000).tolist(),
-            'magerr': np.random.uniform(low=0.1, high=0.3, size=30000).tolist(),
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
+            "obj_id": str(public_source.id),
+            "mjd": [58000 + i for i in range(30000)],
+            "instrument_id": ztf_camera.id,
+            "mag": np.random.uniform(low=18, high=22, size=30000).tolist(),
+            "magerr": np.random.uniform(low=0.1, high=0.3, size=30000).tolist(),
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
     assert (
-        data['message']
-        == 'Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again'
+        data["message"]
+        == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
     )

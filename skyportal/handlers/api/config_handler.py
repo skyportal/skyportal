@@ -3,27 +3,24 @@ import copy
 from matplotlib.cm import get_cmap
 from matplotlib.colors import rgb2hex
 
-from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
-from ..base import BaseHandler
-
-from ...enum_types import (
-    default_spectrum_type,
-    ALLOWED_SPECTRUM_TYPES,
-    GCN_NOTICE_TYPES,
-    GCN_ACKNOWLEDGEMENTS,
-    ALLOWED_ALLOCATION_TYPES,
-)
-
-from .recurring_api import ALLOWED_RECURRING_API_METHODS
-from .source import MAX_NUM_DAYS_USING_LOCALIZATION
+from baselayer.app.env import load_env
+from skyportal.models import cosmo
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
+from ...enum_types import (
+    ALLOWED_ALLOCATION_TYPES,
+    ALLOWED_SPECTRUM_TYPES,
+    GCN_ACKNOWLEDGEMENTS,
+    GCN_NOTICE_TYPES,
+    default_spectrum_type,
+)
+from ..base import BaseHandler
 from .photometry import BANDPASSES_COLORS, BANDPASSES_WAVELENGTHS
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
+from .recurring_api import ALLOWED_RECURRING_API_METHODS
+from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 from .summary_query import USE_PINECONE
-
-from skyportal.models import cosmo
 
 _, cfg = load_env()
 

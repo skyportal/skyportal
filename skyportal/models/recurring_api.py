@@ -1,10 +1,10 @@
 __all__ = [
-    'RecurringAPI',
+    "RecurringAPI",
 ]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
     Base,

@@ -1,6 +1,7 @@
 from baselayer.app.access import permissions
-from ..base import BaseHandler
+
 from ...models import Group, Photometry, Spectrum
+from ..base import BaseHandler
 
 
 class SharingHandler(BaseHandler):
@@ -64,7 +65,7 @@ class SharingHandler(BaseHandler):
         invalid_group_ids = [gid for gid in group_ids if gid not in valid_group_ids]
 
         if len(invalid_group_ids) > 0:
-            return self.error(f'Invalid group IDs: {invalid_group_ids}.')
+            return self.error(f"Invalid group IDs: {invalid_group_ids}.")
         groups = valid_groups
 
         phot_obj_ids = []
@@ -76,7 +77,7 @@ class SharingHandler(BaseHandler):
             invalid_phot_ids = [pid for pid in phot_ids if pid not in valid_phot_ids]
 
             if len(invalid_phot_ids) > 0:
-                return self.error(f'Invalid photometry IDs: {invalid_phot_ids}.')
+                return self.error(f"Invalid photometry IDs: {invalid_phot_ids}.")
 
             for phot in valid_phot:
                 # Ensure user has access to data being shared
@@ -98,7 +99,7 @@ class SharingHandler(BaseHandler):
             invalid_spec_ids = [sid for sid in spec_ids if sid not in valid_spec_ids]
 
             if len(invalid_spec_ids) > 0:
-                return self.error(f'Invalid spectrum IDs: {invalid_spec_ids}.')
+                return self.error(f"Invalid spectrum IDs: {invalid_spec_ids}.")
 
             for spec in valid_spec:
                 # Ensure user has access to data being shared

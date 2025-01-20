@@ -13,10 +13,10 @@ from . import FollowUpAPI
 
 env, cfg = load_env()
 
-TESS_URL = cfg['app.tess_endpoint']
+TESS_URL = cfg["app.tess_endpoint"]
 lightcurve_url = f"{TESS_URL}/light_curves/"
 
-log = make_log('facility_apis/tess')
+log = make_log("facility_apis/tess")
 
 
 def commit_photometry(lc, request_id, instrument_id, user_id):
@@ -49,51 +49,51 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         if not allocation:
             raise ValueError("Missing request's allocation information.")
 
-        lc['mjd'] = (
-            Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
+        lc["mjd"] = (
+            Time(2457000, format="jd") + TimeDelta(lc["BTJD"], format="jd")
         ).mjd
-        lc['ra'] = request.obj.ra
-        lc['dec'] = request.obj.dec
-        lc['limiting_mag'] = 18.4
-        lc['zp'] = 20.5
-        lc['filter'] = 'tess'
-        lc['magsys'] = 'ab'
+        lc["ra"] = request.obj.ra
+        lc["dec"] = request.obj.dec
+        lc["limiting_mag"] = 18.4
+        lc["zp"] = 20.5
+        lc["filter"] = "tess"
+        lc["magsys"] = "ab"
 
         df = lc.to_pandas()
         df.rename(
             columns={
-                'e_mag': 'magerr',
-                'cts_per_s': 'flux',
-                'e_cts_per_s': 'fluxerr',
+                "e_mag": "magerr",
+                "cts_per_s": "flux",
+                "e_cts_per_s": "fluxerr",
             },
             inplace=True,
         )
 
-        magerr_none = df['magerr'] == None  # noqa: E711
-        df.loc[magerr_none, 'mag'] = None
+        magerr_none = df["magerr"] == None  # noqa: E711
+        df.loc[magerr_none, "mag"] = None
 
-        isnan = np.isnan(df['magerr'])
-        df.loc[isnan, 'mag'] = None
-        df.loc[isnan, 'magerr'] = None
+        isnan = np.isnan(df["magerr"])
+        df.loc[isnan, "mag"] = None
+        df.loc[isnan, "magerr"] = None
 
-        is99 = np.isclose(df['magerr'], 99.9)
-        df.loc[is99, 'mag'] = None
-        df.loc[is99, 'magerr'] = None
+        is99 = np.isclose(df["magerr"], 99.9)
+        df.loc[is99, "mag"] = None
+        df.loc[is99, "magerr"] = None
 
         drop_columns = list(
             set(df.columns.values)
             - {
-                'mjd',
-                'ra',
-                'dec',
-                'mag',
-                'magerr',
-                'flux',
-                'fluxerr',
-                'zp',
-                'limiting_mag',
-                'filter',
-                'magsys',
+                "mjd",
+                "ra",
+                "dec",
+                "mag",
+                "magerr",
+                "flux",
+                "fluxerr",
+                "zp",
+                "limiting_mag",
+                "filter",
+                "magsys",
             }
         )
         df.drop(
@@ -104,12 +104,12 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         # data is visible to the group attached to the allocation
         # as well as to any of the allocation's default share groups
         data_out = {
-            'obj_id': request.obj.id,
-            'series_name': 'tesstransients',
-            'series_obj_id': request.obj.id,
-            'exp_time': 2.0,
-            'instrument_id': instrument_id,
-            'group_ids': list(
+            "obj_id": request.obj.id,
+            "series_name": "tesstransients",
+            "series_obj_id": request.obj.id,
+            "exp_time": 2.0,
+            "instrument_id": instrument_id,
+            "group_ids": list(
                 set(
                     [allocation.group_id]
                     + (
@@ -152,7 +152,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": request.obj.internal_key},
         )
@@ -166,7 +166,6 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
 
 
 class TESSAPI(FollowUpAPI):
-
     """An interface to TESS photometry."""
 
     # subclasses *must* implement the method below
@@ -199,16 +198,16 @@ class TESSAPI(FollowUpAPI):
 
         name = request.obj.tns_name
         if name is None:
-            request.status = 'No TNS name'
+            request.status = "No TNS name"
         else:
             try:
                 lc = Table.read(
                     f"{lightcurve_url}/lc_{name}_cleaned",
-                    format='ascii',
+                    format="ascii",
                     header_start=1,
                 )
 
-                if 'BTJD' not in list(lc.columns):
+                if "BTJD" not in list(lc.columns):
                     request.status = f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
                 else:
                     IOLoop.current().run_in_executor(
@@ -232,18 +231,18 @@ class TESSAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -263,18 +262,18 @@ class TESSAPI(FollowUpAPI):
 
         session.delete(request)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {}

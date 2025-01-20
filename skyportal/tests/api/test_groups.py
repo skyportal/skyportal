@@ -1,7 +1,8 @@
 import uuid
-from skyportal.tests import api
-from skyportal.model_util import create_token
+
 from baselayer.app.env import load_env
+from skyportal.model_util import create_token
+from skyportal.tests import api
 
 _, cfg = load_env()
 
@@ -84,27 +85,21 @@ def test_token_user_request_all_groups(super_admin_token, super_admin_user):
     status, data = api("GET", "groups", token=super_admin_token)
     assert data["status"] == "success"
     assert any(
-        [user_group["name"] == group_name for user_group in data["data"]["user_groups"]]
+        user_group["name"] == group_name for user_group in data["data"]["user_groups"]
     )
     assert any(
-        [
-            group["single_user_group"] is True
-            and group["name"] == super_admin_user.username
-            for group in data["data"]["user_groups"]
-        ]
+        group["single_user_group"] is True
+        and group["name"] == super_admin_user.username
+        for group in data["data"]["user_groups"]
     )
     assert any(
-        [
-            user_group["name"] == group_name
-            for user_group in data["data"]["user_accessible_groups"]
-        ]
+        user_group["name"] == group_name
+        for user_group in data["data"]["user_accessible_groups"]
     )
     assert not any(
-        [
-            group["single_user_group"] is True
-            and group["name"] == super_admin_user.username
-            for group in data["data"]["user_accessible_groups"]
-        ]
+        group["single_user_group"] is True
+        and group["name"] == super_admin_user.username
+        for group in data["data"]["user_accessible_groups"]
     )
 
 
@@ -149,7 +144,7 @@ def test_manage_groups_token_get_unowned_group(
 
     token_name = str(uuid.uuid4())
     token_id = create_token(
-        ACLs=['Manage groups'], user_id=super_admin_user.id, name=token_name
+        ACLs=["Manage groups"], user_id=super_admin_user.id, name=token_name
     )
 
     status, data = api("GET", f"groups/{new_group_id}", token=token_id)
@@ -234,10 +229,8 @@ def test_add_stream_to_single_user_group_delete_stream(
     )
     assert data["status"] == "success"
     assert any(
-        [
-            group["single_user_group"] and group["name"] == username
-            for group in data["data"]["all_groups"]
-        ]
+        group["single_user_group"] and group["name"] == username
+        for group in data["data"]["all_groups"]
     )
     single_user_group = [
         group for group in data["data"]["all_groups"] if group["name"] == username
@@ -253,7 +246,7 @@ def test_add_stream_to_single_user_group_delete_stream(
 
     # check that you can't add a stream to a single user group
     assert status == 400
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_add_stream_to_group_delete_stream(
@@ -357,7 +350,7 @@ def test_cannot_delete_sitewide_public_group(super_admin_token):
     )
     assert data["status"] == "success"
     assert len(data["data"]) == 1
-    assert data["data"][0]["name"] == cfg['misc.public_group_name']
+    assert data["data"][0]["name"] == cfg["misc.public_group_name"]
     group_id = data["data"][0]["id"]
 
     status, data = api("DELETE", f"groups/{group_id}", token=super_admin_token)
@@ -367,7 +360,7 @@ def test_cannot_delete_sitewide_public_group(super_admin_token):
 
 def test_obj_groups(public_source, public_group, super_admin_token):
     status, data = api(
-        'GET', f'sources/{public_source.id}/groups', token=super_admin_token
+        "GET", f"sources/{public_source.id}/groups", token=super_admin_token
     )
     assert status == 200
     assert data["data"][0]["id"] == public_group.id

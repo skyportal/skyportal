@@ -1,13 +1,11 @@
-__all__ = ['ObservingRun']
+__all__ = ["ObservingRun"]
 
+import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-
 from astropy import time as ap_time
 from astropy import units as u
 from dateutil.tz import tzutc
-
-import numpy as np
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, accessible_by_owner
 
@@ -20,16 +18,16 @@ class ObservingRun(Base):
     update = delete = accessible_by_owner
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Instrument used for this run.",
     )
     instrument = relationship(
-        'Instrument',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
         uselist=False,
-        back_populates='observing_runs',
+        back_populates="observing_runs",
         doc="The Instrument for this run.",
     )
 
@@ -41,46 +39,46 @@ class ObservingRun(Base):
     )
 
     sources = relationship(
-        'Obj',
-        secondary='join(ClassicalAssignment, Obj)',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Obj",
+        secondary="join(ClassicalAssignment, Obj)",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The targets [Objs] for this run.",
-        overlaps='assignments, obj, run',
+        overlaps="assignments, obj, run",
     )
 
     # let this be nullable to accommodate external groups' runs
     group = relationship(
-        'Group',
-        back_populates='observing_runs',
-        doc='The Group associated with this Run.',
+        "Group",
+        back_populates="observing_runs",
+        doc="The Group associated with this Run.",
     )
     group_id = sa.Column(
-        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
-        doc='The ID of the Group associated with this run.',
+        doc="The ID of the Group associated with this run.",
     )
 
     # the person who uploaded the run
     owner = relationship(
-        'User',
-        back_populates='observing_runs',
+        "User",
+        back_populates="observing_runs",
         doc="The User who created this ObservingRun.",
         foreign_keys="ObservingRun.owner_id",
     )
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this ObservingRun.",
     )
 
     assignments = relationship(
-        'ClassicalAssignment',
+        "ClassicalAssignment",
         passive_deletes=True,
         doc="The Target Assignments for this Run.",
-        overlaps='sources',
+        overlaps="sources",
     )
     calendar_date = sa.Column(
         sa.Date, nullable=False, index=True, doc="The Local Calendar date of this Run."
@@ -99,8 +97,8 @@ class ObservingRun(Base):
         month = self.calendar_date.month
         day = self.calendar_date.day
         hour = 12
-        noon_str = f'{year}-{month}-{day}T{hour}:00:00.000'
-        return ap_time.Time(noon_str, format='isot', scale='utc')
+        noon_str = f"{year}-{month}-{day}T{hour}:00:00.000"
+        return ap_time.Time(noon_str, format="isot", scale="utc")
 
     def calculate_run_end_utc(self):
         observer = self.instrument.telescope.observer
@@ -125,7 +123,7 @@ class ObservingRun(Base):
         )
 
         next_rise = observer.target_rise_time(
-            sunset, target_array, which='next', horizon=altitude
+            sunset, target_array, which="next", horizon=altitude
         ).reshape((len(target_array),))
 
         # if next rise time is after next sunrise, the target rises before
@@ -136,7 +134,7 @@ class ObservingRun(Base):
         if recalc.any():
             target_subarr = [t for t, b in zip(target_array, recalc) if b]
             next_rise[recalc] = observer.target_rise_time(
-                sunset, target_subarr, which='previous', horizon=altitude
+                sunset, target_subarr, which="previous", horizon=altitude
             ).reshape((len(target_subarr),))
 
         masked = next_rise.mask
@@ -161,7 +159,7 @@ class ObservingRun(Base):
             [target_or_targets] if len(original_shape) == 0 else target_or_targets
         )
         next_set = observer.target_set_time(
-            sunset, target_array, which='next', horizon=altitude
+            sunset, target_array, which="next", horizon=altitude
         ).reshape((len(target_array),))
 
         masked = next_set.mask

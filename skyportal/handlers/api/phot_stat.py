@@ -3,16 +3,17 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
+
 from ...models import (
     Obj,
     Photometry,
     PhotStat,
 )
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
+from ..base import BaseHandler
 
-log = make_log('api/source')
+log = make_log("api/source")
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
@@ -77,7 +78,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success(data=phot_stat)
 
-    @permissions(['system admin'])
+    @permissions(["system admin"])
     def post(self, obj_id=None):
         """
         ---
@@ -128,7 +129,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['system admin'])
+    @permissions(["system admin"])
     def put(self, obj_id=None):
         """
         ---
@@ -176,7 +177,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['system admin'])
+    @permissions(["system admin"])
     def delete(self, obj_id=None):
         """
         ---
@@ -224,7 +225,7 @@ class PhotStatHandler(BaseHandler):
 
 
 class PhotStatUpdateHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def get(self):
         """
         ---
@@ -312,12 +313,12 @@ class PhotStatUpdateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        created_at_start_time = self.get_query_argument('createdAtStartTime', None)
-        created_at_end_time = self.get_query_argument('createdAtEndTime', None)
-        quick_update_start_time = self.get_query_argument('quickUpdateStartTime', None)
-        quick_update_end_time = self.get_query_argument('quickUpdateEndTime', None)
-        full_update_start_time = self.get_query_argument('fullUpdateStartTime', None)
-        full_update_end_time = self.get_query_argument('fullUpdateEndTime', None)
+        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
+        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
+        quick_update_start_time = self.get_query_argument("quickUpdateStartTime", None)
+        quick_update_end_time = self.get_query_argument("quickUpdateEndTime", None)
+        full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
+        full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
 
         with self.Session() as session:
             try:
@@ -335,8 +336,8 @@ class PhotStatUpdateHandler(BaseHandler):
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
-                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
-                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
+                    f"Cannot parse inputs createdAtStartTime ({created_at_start_time}) "
+                    f"or createdAtEndTime ({created_at_end_time}) as arrow parseable strings."
                 )
 
             # select only objects that don't have a PhotStats object
@@ -385,22 +386,22 @@ class PhotStatUpdateHandler(BaseHandler):
                     )
             except arrow.parser.ParserError:
                 return self.error(
-                    f'Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) '
-                    f'or quickUpdateEndTime ({quick_update_end_time}) '
-                    f'or fullUpdateStartTime ({full_update_start_time}) '
-                    f'or fullUpdateEndTime ({full_update_end_time}) '
-                    'as arrow parseable strings.'
+                    f"Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) "
+                    f"or quickUpdateEndTime ({quick_update_end_time}) "
+                    f"or fullUpdateStartTime ({full_update_start_time}) "
+                    f"or fullUpdateEndTime ({full_update_end_time}) "
+                    "as arrow parseable strings."
                 )
             count_stmt = sa.select(func.count()).select_from(stmt_with.distinct())
             total_phot_stats = session.execute(count_stmt).scalar()
 
         results = {
-            'totalWithoutPhotStats': total_missing,
-            'totalWithPhotStats': total_phot_stats,
+            "totalWithoutPhotStats": total_missing,
+            "totalWithPhotStats": total_phot_stats,
         }
         return self.success(data=results)
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def post(self):
         """
         ---
@@ -465,19 +466,19 @@ class PhotStatUpdateHandler(BaseHandler):
         """
 
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             num_per_page = min(
                 int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
                 MAX_SOURCES_PER_PAGE,
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({num_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({num_per_page}) as an integers."
             )
 
-        created_at_start_time = self.get_query_argument('createdAtStartTime', None)
-        created_at_end_time = self.get_query_argument('createdAtEndTime', None)
+        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
+        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
 
         with self.Session() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
@@ -494,8 +495,8 @@ class PhotStatUpdateHandler(BaseHandler):
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
-                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
-                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
+                    f"Cannot parse inputs createdAtStartTime ({created_at_start_time}) "
+                    f"or createdAtEndTime ({created_at_end_time}) as arrow parseable strings."
                 )
 
             # select only objects that don't have a PhotStats object
@@ -516,19 +517,19 @@ class PhotStatUpdateHandler(BaseHandler):
                     session.add(phot_stat)
             except Exception as e:
                 return self.error(
-                    f'Error calculating photometry stats: {e} for object {obj.id}'
+                    f"Error calculating photometry stats: {e} for object {obj.id}"
                 )
 
             session.commit()
 
         results = {
-            'totalMatches': total_matches,
-            'numPerPage': num_per_page,
-            'pageNumber': page_number,
+            "totalMatches": total_matches,
+            "numPerPage": num_per_page,
+            "pageNumber": page_number,
         }
         return self.success(data=results)
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def patch(self):
         """
         ---
@@ -631,23 +632,23 @@ class PhotStatUpdateHandler(BaseHandler):
         """
 
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             num_per_page = min(
                 int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
                 MAX_SOURCES_PER_PAGE,
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({num_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({num_per_page}) as an integers."
             )
 
-        created_at_start_time = self.get_query_argument('createdAtStartTime', None)
-        created_at_end_time = self.get_query_argument('createdAtEndTime', None)
-        quick_update_start_time = self.get_query_argument('quickUpdateStartTime', None)
-        quick_update_end_time = self.get_query_argument('quickUpdateEndTime', None)
-        full_update_start_time = self.get_query_argument('fullUpdateStartTime', None)
-        full_update_end_time = self.get_query_argument('fullUpdateEndTime', None)
+        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
+        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
+        quick_update_start_time = self.get_query_argument("quickUpdateStartTime", None)
+        quick_update_end_time = self.get_query_argument("quickUpdateEndTime", None)
+        full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
+        full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
 
         with self.Session() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
@@ -664,8 +665,8 @@ class PhotStatUpdateHandler(BaseHandler):
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
-                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
-                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
+                    f"Cannot parse inputs createdAtStartTime ({created_at_start_time}) "
+                    f"or createdAtEndTime ({created_at_end_time}) as arrow parseable strings."
                 )
 
             # only look at Objs with a PhotStat
@@ -707,11 +708,11 @@ class PhotStatUpdateHandler(BaseHandler):
                     )
             except arrow.parser.ParserError:
                 return self.error(
-                    f'Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) '
-                    f'or quickUpdateEndTime ({quick_update_end_time}) '
-                    f'or fullUpdateStartTime ({full_update_start_time}) '
-                    f'or fullUpdateEndTime ({full_update_end_time}) '
-                    'as arrow parseable strings.'
+                    f"Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) "
+                    f"or quickUpdateEndTime ({quick_update_end_time}) "
+                    f"or fullUpdateStartTime ({full_update_start_time}) "
+                    f"or fullUpdateEndTime ({full_update_end_time}) "
+                    "as arrow parseable strings."
                 )
 
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
@@ -730,14 +731,14 @@ class PhotStatUpdateHandler(BaseHandler):
                         session.delete(obj.photstats[j])
             except Exception as e:
                 return self.error(
-                    f'Error calculating photometry stats: {e} for object {obj.id}'
+                    f"Error calculating photometry stats: {e} for object {obj.id}"
                 )
 
             session.commit()
 
         results = {
-            'totalMatches': total_matches,
-            'numPerPage': num_per_page,
-            'pageNumber': page_number,
+            "totalMatches": total_matches,
+            "numPerPage": num_per_page,
+            "pageNumber": page_number,
         }
         return self.success(data=results)

@@ -1,11 +1,11 @@
+import base64
 import os
 import uuid
-import base64
 
 import pandas as pd
 
 
-def dump_dataframe_to_bytestream(df, metadata=None, keyname='phot_series', encode=True):
+def dump_dataframe_to_bytestream(df, metadata=None, keyname="phot_series", encode=True):
     """
     Convert a pandas dataframe to bytes.
 
@@ -37,12 +37,12 @@ def dump_dataframe_to_bytestream(df, metadata=None, keyname='phot_series', encod
     # to delete the file at the end
     # ref: https://github.com/pandas-dev/pandas/issues/9246#issuecomment-74041497
     with pd.HDFStore(
-        filename, mode='w', driver="H5FD_CORE", driver_core_backing_store=0
+        filename, mode="w", driver="H5FD_CORE", driver_core_backing_store=0
     ) as store:
         store.put(
             keyname,
             df,
-            format='table',
+            format="table",
             index=None,
             track_times=False,
         )
@@ -77,11 +77,11 @@ def load_dataframe_from_bytestream(data):
     ) as store:
         keys = store.keys()
         if len(keys) != 1:
-            raise ValueError(f'Expected 1 table in HDF5 file, got {len(keys)}. ')
+            raise ValueError(f"Expected 1 table in HDF5 file, got {len(keys)}. ")
         data = store[keys[0]]
         attributes = store.get_storer(keys[0]).attrs
-        if 'metadata' in attributes and isinstance(attributes['metadata'], dict):
-            metadata = attributes['metadata']
+        if "metadata" in attributes and isinstance(attributes["metadata"], dict):
+            metadata = attributes["metadata"]
         else:
             metadata = {}
 

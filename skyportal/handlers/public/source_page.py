@@ -3,9 +3,9 @@ import sqlalchemy as sa
 
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession
-from ...models.public_pages.public_source_page import PublicSourcePage
-from ...models.public_pages.public_release import PublicRelease
 
+from ...models.public_pages.public_release import PublicRelease
+from ...models.public_pages.public_source_page import PublicSourcePage
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
@@ -130,9 +130,9 @@ class SourcePageHandler(BaseHandler):
 
             data = np.load(cached, allow_pickle=True)
             data = data.item()
-            if data['public']:
+            if data["public"]:
                 self.set_header("Content-Type", "text/html; charset=utf-8")
-                return self.write(data['html'])
+                return self.write(data["html"])
             else:
                 return self.error("Page not found", status=404)
 
@@ -196,8 +196,8 @@ class ReleaseSourcePageHandler(BaseHandler):
 
             data = np.load(cached, allow_pickle=True)
             data = data.item()
-            if data['public']:
+            if data["public"]:
                 self.set_header("Content-Type", "text/html; charset=utf-8")
-                return self.write(data['html'])
+                return self.write(data["html"])
             else:
                 return self.error("Page not found", status=404)

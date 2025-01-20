@@ -3,14 +3,14 @@ import subprocess
 
 from baselayer.log import make_log
 
-log = make_log('gitlog')
+log = make_log("gitlog")
 
 
 def get_gitlog(
-    cwd='.',
+    cwd=".",
     name=None,
-    pr_url_base='https://github.com/skyportal/skyportal/pull',
-    commit_url_base='https://github.com/skyportal/skyportal/commit',
+    pr_url_base="https://github.com/skyportal/skyportal/pull",
+    commit_url_base="https://github.com/skyportal/skyportal/commit",
     N=1000,
 ):
     """Return git log for a given directory.
@@ -79,17 +79,17 @@ def parse_gitlog(gitlog):
         `pr_nr`, `pr_url`.
 
     """
-    pr_url_base = gitlog['pr_url_base']
-    commit_url_base = gitlog['commit_url_base']
-    name = gitlog.get('name', None)
+    pr_url_base = gitlog["pr_url_base"]
+    commit_url_base = gitlog["commit_url_base"]
+    name = gitlog.get("name", None)
 
-    timechars = '[0-9\\-:\\+]'
-    timestamp_re = f'(?P<time>{timechars}+T{timechars}+)'
-    sha_re = '(?P<sha>[0-9a-f]{7,12})'
-    email_re = '(?P<email>\\S*@\\S*?)'
-    pr_desc_re = '(?P<description>.*?)'
-    pr_nr_re = '( \\(\\#(?P<pr_nr>[0-9]*)\\))?'
-    log_re = f'\\[{timestamp_re} {sha_re} {email_re}\\] {pr_desc_re}{pr_nr_re}$'
+    timechars = "[0-9\\-:\\+]"
+    timestamp_re = f"(?P<time>{timechars}+T{timechars}+)"
+    sha_re = "(?P<sha>[0-9a-f]{7,12})"
+    email_re = "(?P<email>\\S*@\\S*?)"
+    pr_desc_re = "(?P<description>.*?)"
+    pr_nr_re = "( \\(\\#(?P<pr_nr>[0-9]*)\\))?"
+    log_re = f"\\[{timestamp_re} {sha_re} {email_re}\\] {pr_desc_re}{pr_nr_re}$"
 
     parsed_log = []
     for line in gitlog["log"]:
@@ -98,15 +98,15 @@ def parse_gitlog(gitlog):
 
         m = re.match(log_re, line)
         if m is None:
-            log(f'sysinfo: could not parse gitlog line: `{line}`')
+            log(f"sysinfo: could not parse gitlog line: `{line}`")
             continue
 
         log_fields = m.groupdict()
-        pr_nr = log_fields['pr_nr']
-        sha = log_fields['sha']
-        log_fields['pr_url'] = f'{pr_url_base}/{pr_nr}' if pr_nr else ''
-        log_fields['commit_url'] = f'{commit_url_base}/{sha}'
-        log_fields['name'] = name
+        pr_nr = log_fields["pr_nr"]
+        sha = log_fields["sha"]
+        log_fields["pr_url"] = f"{pr_url_base}/{pr_nr}" if pr_nr else ""
+        log_fields["commit_url"] = f"{commit_url_base}/{sha}"
+        log_fields["name"] = name
 
         parsed_log.append(log_fields)
 

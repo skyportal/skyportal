@@ -1,35 +1,33 @@
-import copy
-import io
-import os
-import functools
-import tempfile
 import base64
-import traceback
+import copy
+import functools
+import io
 import json
-import yaml
+import os
+import tempfile
+import traceback
 
+import joblib
 import numpy as np
 import pandas as pd
 import requests
-from astropy.table import Table
-import joblib
-
-from pinecone import Pinecone
-
-from tornado.ioloop import IOLoop
-import tornado.web
 import tornado.escape
+import tornado.web
+import yaml
+from astropy.table import Table
+from pinecone import Pinecone
+from tornado.ioloop import IOLoop
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 _, cfg = load_env()
-log = make_log('openai_analysis_service')
+log = make_log("openai_analysis_service")
 
 # Preamble: get the embeddings and summary parameters ready
 # for now, we only support pinecone embeddings
 summarize_embedding_config = cfg[
-    'analysis_services.openai_analysis_service.embeddings_store.summary'
+    "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
 pinecone_client = None
 USE_PINECONE = False
@@ -100,7 +98,7 @@ else:
         "Pinecone access does not seem to be configured in the config file, not using pinecone"
     )
 
-summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
+summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
     # there may be a global API key set in the config file
     openai_api_key = summary_config.pop("api_key")
@@ -111,14 +109,12 @@ else:
     openai_api_key = None
 
 default_analysis_parameters = {
-    **dict(
-        model="gpt-3.5-turbo",
-        temperature=0.1,
-        max_tokens=1500,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=1,
-    ),
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.1,
+    "max_tokens": 1500,
+    "top_p": 1.0,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 1,
     **summary_config.copy(),
 }
 default_analysis_parameters["openai_api_key"] = openai_api_key
@@ -193,7 +189,7 @@ def run_openai_summarization(data_dict):
     analysis_parameters = {
         **default_analysis_parameters,
         **tmp_analysis_parameters["summary_parameters"],
-        **dict(openai_api_key=tmp_analysis_parameters["openai_api_key"]),
+        "openai_api_key": tmp_analysis_parameters["openai_api_key"],
     }
     #
     # the following code transforms these inputs from SkyPortal
@@ -239,8 +235,8 @@ def run_openai_summarization(data_dict):
         comments = pd.DataFrame({"text": []})
 
     try:
-        redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
-        z = float(redshift['redshift'][0])
+        redshift = Table.read(data_dict["inputs"]["redshift"], format="ascii.csv")
+        z = float(redshift["redshift"][0])
         if np.ma.is_masked(z) or np.isnan(z):
             z = None
         source_id = data_dict.get("resource_id", "unknown")
@@ -359,14 +355,14 @@ def run_openai_summarization(data_dict):
 
 class SummarizeHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        self.set_header('Content-Type', 'application/json')
+        self.set_header("Content-Type", "application/json")
 
     def error(self, code, message):
         self.set_status(code)
-        self.write({'message': message})
+        self.write({"message": message})
 
     def get(self):
-        self.write({'status': 'active'})
+        self.write({"status": "active"})
 
     def post(self):
         """
@@ -420,8 +416,8 @@ class SummarizeHandler(tornado.web.RequestHandler):
 
         return self.write(
             {
-                'status': 'pending',
-                'message': 'openai_analysis_service: analysis started',
+                "status": "pending",
+                "message": "openai_analysis_service: analysis started",
             }
         )
 
@@ -436,7 +432,7 @@ def make_app():
 
 if __name__ == "__main__":
     openai_analysis = make_app()
-    port = cfg['analysis_services.openai_analysis_service.port']
+    port = cfg["analysis_services.openai_analysis_service.port"]
     openai_analysis.listen(port)
-    log(f'Listening on port {port}')
+    log(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

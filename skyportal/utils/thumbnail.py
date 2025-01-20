@@ -10,7 +10,7 @@ thumb_size = cfg["image_grayscale_params.thumb_size"]
 MSE_cutoff = cfg["image_grayscale_params.MSE_cutoff"]
 adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"]
 
-log = make_log('thumbnail')
+log = make_log("thumbnail")
 
 
 def get_thumbnail_alt_link(name, ra, dec):
@@ -58,7 +58,7 @@ def image_is_grayscale(
         return False
 
     bands = pil_img.getbands()
-    if bands == ('R', 'G', 'B') or bands == ('R', 'G', 'B', 'A'):
+    if bands == ("R", "G", "B") or bands == ("R", "G", "B", "A"):
         thumb = pil_img.resize((thumb_size, thumb_size))
         SSE, bias = 0, [0, 0, 0]
         if adjust_color_bias:

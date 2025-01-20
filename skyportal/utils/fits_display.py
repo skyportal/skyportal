@@ -1,15 +1,16 @@
-from astropy.io import fits
-from astropy.visualization.stretch import SinhStretch
-from astropy.visualization import ImageNormalize, ZScaleInterval
-from astropy.table import Table
-import healpy
 import io
+import tempfile
+
+import healpy
 import ligo.skymap.bayestar as ligo_bayestar
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pysedm
-import tempfile
+from astropy.io import fits
+from astropy.table import Table
+from astropy.visualization import ImageNormalize, ZScaleInterval
+from astropy.visualization.stretch import SinhStretch
 
 np.seterr(all="ignore")  # ignore numpy warnings from astropy normalization
 
@@ -20,7 +21,7 @@ def get_fits_preview(
     image_name,
     image_data,
     figsize=None,
-    output_format='png',
+    output_format="png",
 ):
     """
     Return an image of fits data
@@ -52,7 +53,7 @@ def get_fits_preview(
     # try reading the data as a sedm cube
     try:
         fig = plt.figure(
-            figsize=(8, 8) if not figsize else figsize, constrained_layout=False
+            figsize=figsize if figsize else (8, 8), constrained_layout=False
         )
         with tempfile.NamedTemporaryFile(suffix=file_type, mode="wb", delete=True) as f:
             f.write(image_data)
@@ -64,7 +65,7 @@ def get_fits_preview(
             ) as h:
                 cube.show(savefile=h.name)
                 h.flush()
-                with open(h.name, mode='rb') as g:
+                with open(h.name, mode="rb") as g:
                     data = g.read()
             return data
     except Exception:
@@ -73,7 +74,7 @@ def get_fits_preview(
     # try reading the data as a fits image
     try:
         fig = plt.figure(
-            figsize=(8, 8) if not figsize else figsize, constrained_layout=False
+            figsize=figsize if figsize else (8, 8), constrained_layout=False
         )
         with tempfile.NamedTemporaryFile(suffix=file_type, mode="wb", delete=True) as f:
             f.write(image_data)
@@ -91,7 +92,7 @@ def get_fits_preview(
             norm = ImageNormalize(
                 image, interval=ZScaleInterval(), stretch=SinhStretch()
             )
-            plt.imshow(image, cmap='gray', norm=norm, origin='lower')
+            plt.imshow(image, cmap="gray", norm=norm, origin="lower")
             plt.colorbar(fraction=0.046, pad=0.04)
 
             buf = io.BytesIO()
@@ -105,7 +106,7 @@ def get_fits_preview(
     # try reading the data as a fits localization skymap
     try:
         fig = plt.figure(
-            figsize=(14, 8) if not figsize else figsize, constrained_layout=False
+            figsize=figsize if figsize else (14, 8), constrained_layout=False
         )
         with tempfile.NamedTemporaryFile(suffix=file_type, mode="wb", delete=True) as f:
             f.write(image_data)
@@ -115,24 +116,24 @@ def get_fits_preview(
             skymap = hdul[1].data
 
             # the skymap should contain at least 2 columns: UNIQ and PROBDENSITY
-            if not set(list(skymap.columns.names)).issuperset({'UNIQ', 'PROBDENSITY'}):
+            if not set(skymap.columns.names).issuperset({"UNIQ", "PROBDENSITY"}):
                 raise ValueError("Invalid skymap format")
 
             table_2d = Table(
                 [
-                    np.asarray(skymap['UNIQ'], dtype=np.int64),
-                    np.asarray(skymap['PROBDENSITY'], dtype=np.float64),
+                    np.asarray(skymap["UNIQ"], dtype=np.int64),
+                    np.asarray(skymap["PROBDENSITY"], dtype=np.float64),
                 ],
-                names=['UNIQ', 'PROBDENSITY'],
+                names=["UNIQ", "PROBDENSITY"],
             )
 
-            prob = ligo_bayestar.rasterize(table_2d, SKYMAP_ORDER)['PROB']
-            prob = healpy.reorder(prob, 'NESTED', 'RING')
+            prob = ligo_bayestar.rasterize(table_2d, SKYMAP_ORDER)["PROB"]
+            prob = healpy.reorder(prob, "NESTED", "RING")
 
-            ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection='astro hours mollweide')
+            ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection="astro hours mollweide")
 
             ax.grid()
-            ax.imshow_hpx(prob, cmap='cylon')
+            ax.imshow_hpx(prob, cmap="cylon")
 
             buf = io.BytesIO()
             fig.savefig(buf, format=output_format)
