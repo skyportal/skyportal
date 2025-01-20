@@ -3,7 +3,7 @@ import urllib.parse
 import requests
 
 from .patch_requests import patch_requests
-from baselayer.app.env import load_env
+from baselayer.app.config import load_config
 
 
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
@@ -49,7 +49,7 @@ def api(
         Response JSON, if `raw_response` is False.
     """
     if host is None:
-        env, cfg = load_env()
+        cfg = load_config(config_files=["test_config.yaml"])
         host = f'http://localhost:{cfg["ports.app"]}'
     url = urllib.parse.urljoin(host, f'/api/{endpoint}')
     headers = {'Authorization': f'token {token}'} if token else None
