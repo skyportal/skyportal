@@ -1,25 +1,26 @@
 __all__ = [
-    'TNSRobot',
-    'TNSRobotCoauthor',
-    'TNSRobotGroup',
-    'TNSRobotGroupAutoreporter',
-    'TNSRobotSubmission',
+    "TNSRobot",
+    "TNSRobotCoauthor",
+    "TNSRobotGroup",
+    "TNSRobotGroupAutoreporter",
+    "TNSRobotSubmission",
 ]
 
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship, column_property, deferred
 from sqlalchemy.dialects import postgresql as psql
+from sqlalchemy.orm import column_property, deferred, relationship
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
-    UserAccessControl,
     CustomUserAccessControl,
+    UserAccessControl,
 )
+
 from .group import Group, GroupUser
 
 _, cfg = load_env()
@@ -35,7 +36,7 @@ class TNSRobot(Base):
     )
 
     _altdata = sa.Column(
-        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
     )
 
     instruments = relationship(
@@ -95,110 +96,110 @@ class TNSRobot(Base):
         self._altdata = value
 
     groups = relationship(
-        'TNSRobotGroup',
-        back_populates='tnsrobot',
+        "TNSRobotGroup",
+        back_populates="tnsrobot",
         passive_deletes=True,
-        doc='Groups associated with this TNSRobot.',
+        doc="Groups associated with this TNSRobot.",
     )
 
     coauthors = relationship(
-        'TNSRobotCoauthor',
-        back_populates='tnsrobot',
+        "TNSRobotCoauthor",
+        back_populates="tnsrobot",
         passive_deletes=True,
-        doc='Coauthors associated with this TNSRobot.',
+        doc="Coauthors associated with this TNSRobot.",
     )
 
 
 # we want a unique constraint on the bot_name, bot_id, source_group_id, testing columns
 # this way you can't have the same bot twice, except for testing
 TNSRobot.__table_args__ = (
-    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id', 'testing'),
+    sa.UniqueConstraint("bot_name", "bot_id", "source_group_id", "testing"),
 )
 
 
 class TNSRobotCoauthor(Base):
     """Coauthors for TNS auto-reports."""
 
-    __tablename__ = 'tnsrobot_coauthors'
+    __tablename__ = "tnsrobot_coauthors"
 
     tnsrobot_id = sa.Column(
-        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey("tnsrobots.id", ondelete="CASCADE"), nullable=False
     )
-    user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     tnsrobot = relationship(
-        'TNSRobot',
-        back_populates='coauthors',
-        doc='The TNSRobot associated with this mapper.',
+        "TNSRobot",
+        back_populates="coauthors",
+        doc="The TNSRobot associated with this mapper.",
     )
 
 
 # unique constraint on the tnsrobot_id and user_id columns
-TNSRobotCoauthor.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'user_id'),)
+TNSRobotCoauthor.__table_args__ = (sa.UniqueConstraint("tnsrobot_id", "user_id"),)
 
 
 class TNSRobotGroup(Base):
     """Mapper between TNSRobots and Groups."""
 
-    __tablename__ = 'tnsrobot_groups'
+    __tablename__ = "tnsrobot_groups"
 
     tnsrobot_id = sa.Column(
-        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey("tnsrobots.id", ondelete="CASCADE"), nullable=False
     )
-    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
+    group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report_allow_bots = sa.Column(
-        sa.Boolean, nullable=False, server_default='false'
+        sa.Boolean, nullable=False, server_default="false"
     )
 
     tnsrobot = relationship(
-        'TNSRobot',
-        back_populates='groups',
-        doc='The TNSRobot associated with this mapper.',
+        "TNSRobot",
+        back_populates="groups",
+        doc="The TNSRobot associated with this mapper.",
     )
 
     group = relationship(
-        'Group',
-        back_populates='tnsrobots',
-        doc='The Group associated with this mapper.',
+        "Group",
+        back_populates="tnsrobots",
+        doc="The Group associated with this mapper.",
     )
 
     autoreporters = relationship(
-        'TNSRobotGroupAutoreporter',
-        back_populates='tnsrobot_group',
+        "TNSRobotGroupAutoreporter",
+        back_populates="tnsrobot_group",
         passive_deletes=True,
-        doc='Users associated with this TNSRobotGroup.',
+        doc="Users associated with this TNSRobotGroup.",
     )
 
 
 # we want a unique index on the tnsrobot_id and group_id columns
-TNSRobotGroup.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
+TNSRobotGroup.__table_args__ = (sa.UniqueConstraint("tnsrobot_id", "group_id"),)
 
 
 class TNSRobotGroupAutoreporter(Base):
     """Mapper between TNSRobots and Users that are allowed to auto-report."""
 
-    __tablename__ = 'tnsrobot_group_users'
+    __tablename__ = "tnsrobot_group_users"
 
     tnsrobot_group_id = sa.Column(
-        sa.ForeignKey('tnsrobot_groups.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey("tnsrobot_groups.id", ondelete="CASCADE"), nullable=False
     )
     group_user_id = sa.Column(
-        sa.ForeignKey('group_users.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey("group_users.id", ondelete="CASCADE"), nullable=False
     )
 
     tnsrobot_group = relationship(
-        'TNSRobotGroup',
-        back_populates='autoreporters',
-        doc='The TNSRobot associated with this mapper.',
+        "TNSRobotGroup",
+        back_populates="autoreporters",
+        doc="The TNSRobot associated with this mapper.",
     )
 
 
 # we want a unique index on the tnsrobot_id and group_user_id columns
 TNSRobotGroupAutoreporter.__table_args__ = (
-    sa.UniqueConstraint('tnsrobot_group_id', 'group_user_id'),
+    sa.UniqueConstraint("tnsrobot_group_id", "group_user_id"),
 )
 
 # we add a method that gives us the user_id from that group_user
@@ -212,13 +213,13 @@ TNSRobotGroupAutoreporter.user_id = column_property(
 class TNSRobotSubmission(Base):
     """Objects to be auto-submitted to TNS."""
 
-    __tablename__ = 'tnsrobot_submissions'
+    __tablename__ = "tnsrobot_submissions"
 
     tnsrobot_id = sa.Column(
-        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey("tnsrobots.id", ondelete="CASCADE"), nullable=False
     )
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False)
-    user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    obj_id = sa.Column(sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False)
+    user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     custom_reporting_string = sa.Column(
         sa.String,
@@ -233,7 +234,7 @@ class TNSRobotSubmission(Base):
         doc="Custom remarks string to use for this submission only.",
     )
 
-    status = sa.Column(sa.String, nullable=False, default='pending')
+    status = sa.Column(sa.String, nullable=False, default="pending")
 
     archival = sa.Column(
         sa.Boolean,
@@ -283,33 +284,33 @@ class TNSRobotSubmission(Base):
         doc="Photometry options to use for this robot, to make some data optional or mandatory. If specified, overrides the robot's default photometry options.",
     )
 
-    payload = deferred(sa.Column(psql.JSONB, doc='Payload to be sent to TNS.'))
-    response = deferred(sa.Column(psql.JSONB, doc='Serialized HTTP response.'))
+    payload = deferred(sa.Column(psql.JSONB, doc="Payload to be sent to TNS."))
+    response = deferred(sa.Column(psql.JSONB, doc="Serialized HTTP response."))
 
     tnsrobot = relationship(
-        'TNSRobot',
-        back_populates='submissions',
-        doc='The TNSRobot associated with this mapper.',
+        "TNSRobot",
+        back_populates="submissions",
+        doc="The TNSRobot associated with this mapper.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='tns_submissions',
-        doc='The Obj associated with this mapper.',
+        "Obj",
+        back_populates="tns_submissions",
+        doc="The Obj associated with this mapper.",
     )
 
     user = relationship(
-        'User',
-        back_populates='tns_submissions',
-        doc='The User associated with this mapper.',
+        "User",
+        back_populates="tns_submissions",
+        doc="The User associated with this mapper.",
     )
 
 
 TNSRobot.submissions = relationship(
-    'TNSRobotSubmission',
-    back_populates='tnsrobot',
+    "TNSRobotSubmission",
+    back_populates="tnsrobot",
     passive_deletes=True,
-    doc='Auto-submissions associated with this TNSRobot.',
+    doc="Auto-submissions associated with this TNSRobot.",
 )
 
 
@@ -395,10 +396,8 @@ def tnsrobot_coauthor_create_update_delete_access_logic(cls, user_or_token):
 
 TNSRobotCoauthor.read = CustomUserAccessControl(tnsrobot_coauthor_read_access_logic)
 
-TNSRobotCoauthor.create = (
-    TNSRobotCoauthor.update
-) = TNSRobotCoauthor.delete = CustomUserAccessControl(
-    tnsrobot_coauthor_create_update_delete_access_logic
+TNSRobotCoauthor.create = TNSRobotCoauthor.update = TNSRobotCoauthor.delete = (
+    CustomUserAccessControl(tnsrobot_coauthor_create_update_delete_access_logic)
 )
 
 
@@ -447,19 +446,15 @@ def tnsrobot_group_create_update_delete_access_logic(cls, user_or_token):
 
 
 TNSRobotGroup.read = CustomUserAccessControl(tnsrobot_group_read_access_logic)
-TNSRobotGroup.create = (
-    TNSRobotGroup.update
-) = TNSRobotGroup.delete = CustomUserAccessControl(
-    tnsrobot_group_create_update_delete_access_logic
+TNSRobotGroup.create = TNSRobotGroup.update = TNSRobotGroup.delete = (
+    CustomUserAccessControl(tnsrobot_group_create_update_delete_access_logic)
 )
 
 # for the TNSRobotGroupAutoreporter, we will use the same access logic as for TNSRobotGroup
 TNSRobotGroupAutoreporter.read = CustomUserAccessControl(tnsrobot_read_access_logic)
-TNSRobotGroupAutoreporter.create = (
-    TNSRobotGroupAutoreporter.update
-) = TNSRobotGroupAutoreporter.delete = CustomUserAccessControl(
-    tnsrobot_update_delete_access_logic
-)
+TNSRobotGroupAutoreporter.create = TNSRobotGroupAutoreporter.update = (
+    TNSRobotGroupAutoreporter.delete
+) = CustomUserAccessControl(tnsrobot_update_delete_access_logic)
 
 
 def tnsrobot_submission_access_logic(cls, user_or_token):
@@ -481,8 +476,6 @@ def tnsrobot_submission_access_logic(cls, user_or_token):
     return query
 
 
-TNSRobotSubmission.read = (
-    TNSRobotSubmission.create
-) = TNSRobotSubmission.update = TNSRobotSubmission.delete = CustomUserAccessControl(
-    tnsrobot_submission_access_logic
-)
+TNSRobotSubmission.read = TNSRobotSubmission.create = TNSRobotSubmission.update = (
+    TNSRobotSubmission.delete
+) = CustomUserAccessControl(tnsrobot_submission_access_logic)

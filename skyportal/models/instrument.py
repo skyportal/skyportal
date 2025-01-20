@@ -1,9 +1,9 @@
 __all__ = [
-    'Instrument',
-    'InstrumentField',
-    'InstrumentFieldTile',
-    'InstrumentLog',
-    'InstrumentTNSRobot',
+    "Instrument",
+    "InstrumentField",
+    "InstrumentFieldTile",
+    "InstrumentLog",
+    "InstrumentTNSRobot",
 ]
 
 import re
@@ -38,7 +38,7 @@ from .tns import TNSRobot
 
 _, cfg = load_env()
 
-log = make_log('model/instrument')
+log = make_log("model/instrument")
 
 
 class ArrayOfEnum(ARRAY):
@@ -49,7 +49,7 @@ class ArrayOfEnum(ARRAY):
         super_rp = super().result_processor(dialect, coltype)
 
         def handle_raw_string(value):
-            if value is None or value == '{}':  # 2nd case, empty array
+            if value is None or value == "{}":  # 2nd case, empty array
                 return []
             inner = re.match(r"^{(.*)}$", value).group(1)
             return inner.split(",")
@@ -63,7 +63,7 @@ class ArrayOfEnum(ARRAY):
 def manage_instrument_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return DBSession().query(cls)
-    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
         return DBSession().query(cls)
     else:
         # return an empty query
@@ -77,56 +77,56 @@ class InstrumentField(Base):
     tile_class = lambda: InstrumentFieldTile  # pylint: disable=E731 # noqa
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument ID',
+        doc="Instrument ID",
     )
 
     instrument = relationship(
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this field belongs to",
-        overlaps='fields',
+        overlaps="fields",
     )
 
     field_id = sa.Column(
         sa.Integer,
-        sa.Sequence('seq_field_id', start=1, increment=1),
+        sa.Sequence("seq_field_id", start=1, increment=1),
         autoincrement=True,
         index=True,
-        doc='The Field ID for the tile (can be repeated between instruments).',
+        doc="The Field ID for the tile (can be repeated between instruments).",
     )
 
     ra = sa.Column(
         sa.Float,
-        doc='The mid-point right ascension for the tile [degrees].',
+        doc="The mid-point right ascension for the tile [degrees].",
         nullable=True,
     )
 
     dec = sa.Column(
         sa.Float,
-        doc='The mid-point declination for the tile [degrees].',
+        doc="The mid-point declination for the tile [degrees].",
         nullable=True,
     )
 
-    contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
+    contour = deferred(sa.Column(JSONB, nullable=False, doc="GeoJSON contours"))
 
     contour_summary = deferred(
         sa.Column(
             JSONB,
             nullable=False,
-            doc='GeoJSON contour bounding box for lower memory display',
+            doc="GeoJSON contour bounding box for lower memory display",
         )
     )
 
     reference_filters = sa.Column(
-        sa.ARRAY(sa.String), nullable=True, comment='Reference template filters'
+        sa.ARRAY(sa.String), nullable=True, comment="Reference template filters"
     )
 
     reference_filter_mags = sa.Column(
         sa.ARRAY(sa.Float),
         nullable=True,
-        comment='Reference filter limiting magnitudes',
+        comment="Reference filter limiting magnitudes",
     )
 
     tiles = relationship("InstrumentFieldTile")
@@ -135,7 +135,7 @@ class InstrumentField(Base):
     def target(self):
         """Representation of the RA and Dec of this Field as an
         astroplan.FixedTarget."""
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
     def airmass(self, time, below_horizon=np.inf):
@@ -162,7 +162,7 @@ class InstrumentField(Base):
 
         output_shape = time.shape
         time = np.atleast_1d(time)
-        altitude = self.altitude(self.instrument.telescope, time).to('degree').value
+        altitude = self.altitude(self.instrument.telescope, time).to("degree").value
         above = altitude > 0
 
         # use Pickering (2002) interpolation to calculate the airmass
@@ -200,16 +200,16 @@ class InstrumentLog(Base):
     """A log for instrument status"""
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument ID',
+        doc="Instrument ID",
     )
 
     instrument = relationship(
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this log belongs to",
-        overlaps='logs',
+        overlaps="logs",
     )
 
     start_date = sa.Column(
@@ -224,7 +224,7 @@ class InstrumentLog(Base):
         sa.Column(
             JSONB,
             nullable=False,
-            doc='Instrument logging information',
+            doc="Instrument logging information",
         )
     )
 
@@ -233,22 +233,22 @@ class InstrumentFieldTile(Base):
     """An individual healpix tile for an InstrumentField."""
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument ID',
+        doc="Instrument ID",
     )
 
     instrument = relationship(
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this tile belongs to",
-        overlaps='tiles',
+        overlaps="tiles",
     )
 
     instrument_field_id = sa.Column(
-        sa.ForeignKey('instrumentfields.id', ondelete="CASCADE"),
+        sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument Field ID',
+        doc="Instrument Field ID",
         index=True,
     )
 
@@ -256,7 +256,7 @@ class InstrumentFieldTile(Base):
         "InstrumentField",
         foreign_keys=instrument_field_id,
         doc="The Field that this tile belongs to",
-        overlaps='tiles',
+        overlaps="tiles",
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
@@ -277,42 +277,35 @@ class Instrument(Base):
 
     band = sa.Column(
         sa.String,
-        doc="The spectral band covered by the instrument " "(e.g., Optical, IR).",
+        doc="The spectral band covered by the instrument (e.g., Optical, IR).",
     )
     telescope_id = sa.Column(
-        sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
+        sa.ForeignKey("telescopes.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the Telescope that hosts the Instrument.",
     )
     telescope = relationship(
-        'Telescope',
-        back_populates='instruments',
+        "Telescope",
+        back_populates="instruments",
         doc="The Telescope that hosts the Instrument.",
     )
 
     photometry = relationship(
-        'Photometry',
-        back_populates='instrument',
+        "Photometry",
+        back_populates="instrument",
         passive_deletes=True,
         doc="The Photometry produced by this instrument.",
     )
     photometric_series = relationship(
-        'PhotometricSeries',
-        back_populates='instrument',
+        "PhotometricSeries",
+        back_populates="instrument",
         passive_deletes=True,
         doc="PhotometricSeries produced by this instrument.",
     )
     spectra = relationship(
-        'Spectrum',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="The Spectra produced by this instrument.",
-    )
-
-    spectra = relationship(
-        'Spectrum',
-        back_populates='instrument',
+        "Spectrum",
+        back_populates="instrument",
         passive_deletes=True,
         doc="The Spectra produced by this instrument.",
     )
@@ -322,7 +315,7 @@ class Instrument(Base):
         ArrayOfEnum(allowed_bandpasses),
         nullable=False,
         default=[],
-        doc='List of filters on the instrument (if any).',
+        doc="List of filters on the instrument (if any).",
     )
 
     sensitivity_data = sa.Column(
@@ -350,14 +343,14 @@ class Instrument(Base):
         doc="The time at which the status was last updated.",
     )
     allocations = relationship(
-        'Allocation',
+        "Allocation",
         back_populates="instrument",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
     observing_runs = relationship(
-        'ObservingRun',
-        back_populates='instrument',
+        "ObservingRun",
+        back_populates="instrument",
         passive_deletes=True,
         doc="List of ObservingRuns on the Instrument.",
     )
@@ -379,17 +372,17 @@ class Instrument(Base):
     )
 
     observations = relationship(
-        'ExecutedObservation',
-        back_populates='instrument',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "ExecutedObservation",
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The ExecutedObservations by this instrument.",
     )
 
     queued_observations = relationship(
-        'QueuedObservation',
-        back_populates='instrument',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "QueuedObservation",
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The QueuedObservations for this instrument.",
     )
@@ -416,13 +409,13 @@ class Instrument(Base):
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
         performing spectroscopy."""
-        return 'spec' in self.type
+        return "spec" in self.type
 
     @property
     def does_imaging(self):
         """Return a boolean indicating whether the instrument is capable of
         performing imaging."""
-        return 'imag' in self.type
+        return "imag" in self.type
 
     @property
     def api_class(self):
@@ -475,14 +468,14 @@ class Instrument(Base):
     has_fields = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
+        server_default="false",
         doc="Whether the instrument has fields or not.",
     )
 
     has_region = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
+        server_default="false",
         doc="Whether the instrument has a region or not.",
     )
 
@@ -501,7 +494,7 @@ class Instrument(Base):
     )
 
 
-@event.listens_for(Instrument.region, 'set')
+@event.listens_for(Instrument.region, "set")
 def _instrument_region_append(target, value, oldvalue, initiator):
     if value is not None and value != "":
         target.has_region = True
@@ -509,7 +502,7 @@ def _instrument_region_append(target, value, oldvalue, initiator):
         target.has_region = False
 
 
-@event.listens_for(Instrument.region, 'remove')
+@event.listens_for(Instrument.region, "remove")
 def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 

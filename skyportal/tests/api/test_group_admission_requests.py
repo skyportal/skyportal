@@ -2,10 +2,10 @@ from skyportal.tests import api, assert_api, assert_api_fail
 
 
 def test_group_admission_existing_member(user, public_group, upload_data_token):
-    request_data = {'groupID': public_group.id, 'userID': user.id}
+    request_data = {"groupID": public_group.id, "userID": user.id}
 
     status, data = api(
-        'POST', 'group_admission_requests', data=request_data, token=upload_data_token
+        "POST", "group_admission_requests", data=request_data, token=upload_data_token
     )
     assert_api_fail(status, data, 400, "already a member of group")
 
@@ -75,10 +75,10 @@ def test_group_admission_read_nonexistent(upload_data_token):
 def test_group_admission_post_for_another_user(
     user_group2, public_group, upload_data_token
 ):
-    request_data = {'groupID': public_group.id, 'userID': user_group2.id}
+    request_data = {"groupID": public_group.id, "userID": user_group2.id}
 
     status, data = api(
-        'POST', 'group_admission_requests', data=request_data, token=upload_data_token
+        "POST", "group_admission_requests", data=request_data, token=upload_data_token
     )
     assert status == 400
     assert "cannot be made on behalf of others" in data["message"]

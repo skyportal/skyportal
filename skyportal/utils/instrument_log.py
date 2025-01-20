@@ -12,13 +12,13 @@ def read_logs(logs):
         if ":" in lineSplit[1]:
             lineSplit[1] = lineSplit[1][:-1]
         try:
-            tt = Time("T".join(lineSplit[:2]), format='isot')
+            tt = Time("T".join(lineSplit[:2]), format="isot")
         except Exception:
             continue
         log_type = lineSplit[2][1:-2]
         message = " ".join(lineSplit[3:])
 
-        logs_dict.append({'mjd': tt.mjd, 'type': log_type, 'message': message})
-    logs = {'logs': logs_dict}
+        logs_dict.append({"mjd": tt.mjd, "type": log_type, "message": message})
+    logs = {"logs": logs_dict}
 
     return logs

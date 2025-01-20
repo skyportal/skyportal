@@ -1,28 +1,31 @@
-from datetime import datetime, timedelta
 import json
+import traceback
+from copy import deepcopy
+from datetime import datetime, timedelta
+
 import requests
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
-from . import FollowUpAPI, Listener
 from ..utils import http
+from . import FollowUpAPI, Listener
 
 env, cfg = load_env()
 
-log = make_log('facility_apis/sedm')
+log = make_log("facility_apis/sedm")
 
 
 class SEDMListener(Listener):
     schema = {
-        'type': 'object',
-        'properties': {
-            'new_status': {
-                'type': 'string',
+        "type": "object",
+        "properties": {
+            "new_status": {
+                "type": "string",
             },
         },
-        'required': ['new_status'],
+        "required": ["new_status"],
     }
 
     @staticmethod
@@ -37,17 +40,17 @@ class SEDMListener(Listener):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
         data = handler_instance.get_json()
 
         request = session.scalars(
-            FollowupRequest.select(session.user_or_token, mode='update').where(
-                FollowupRequest.id == int(data['followup_request_id'])
+            FollowupRequest.select(session.user_or_token, mode="update").where(
+                FollowupRequest.id == int(data["followup_request_id"])
             )
         ).first()
 
-        request.status = data['new_status']
+        request.status = data["new_status"]
 
         transaction_record = FacilityTransaction(
             request=http.serialize_tornado_request(handler_instance),
@@ -58,7 +61,7 @@ class SEDMListener(Listener):
         session.add(transaction_record)
 
 
-def convert_request_to_sedm(request, method_value='new'):
+def convert_request_to_sedm(request, method_value="new"):
     """Convert a FollowupRequest into a dictionary that can be directly
     submitted via HTTP to the SEDM queue.
 
@@ -71,46 +74,48 @@ def convert_request_to_sedm(request, method_value='new'):
         The desired SEDM queue action.
     """
 
-    from ..models import DBSession, UserInvitation, Invitation
+    from ..models import DBSession, Invitation, UserInvitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
 
     for p in photometry:
         if (
-            p.filter.startswith('ztf')
+            p.filter.startswith("ztf")
             and p.filter[-1] not in photometry_payload
             and p.mag is not None
         ):
             # using filter[-1] as SEDM expects the bandpass name without "ZTF"
             photometry_payload[p.filter[-1]] = {
-                'jd': p.mjd + 2_400_000.5,
-                'mag': p.mag,
-                'obsdate': p.iso.date().isoformat(),
+                "jd": p.mjd + 2_400_000.5,
+                "mag": p.mag,
+                "obsdate": p.iso.date().isoformat(),
             }
 
-    rtype = request.payload['observation_type']
+    rtype = request.payload["observation_type"]
 
     filtdict = {
-        'IFU': '',
-        '3-shot (gri)': 'g,r,i',
-        '4-shot (ugri)': 'u,g,r,i',
-        '4-shot+IFU': 'u,g,r,i',
-        '3-shot+IFU': 'g,r,i',
+        "IFU": "",
+        "3-shot (gri)": "g,r,i",
+        "4-shot (ugri)": "u,g,r,i",
+        "4-shot+IFU": "u,g,r,i",
+        "3-shot+IFU": "g,r,i",
     }
 
     if rtype == "Mix 'n Match":
-        choices = request.payload['observation_choices']
-        hasspec = 'IFU' in choices
-        followup = 'IFU' if hasspec else ''
+        # we make a deepcopy so that the payload's observation_choices
+        # aren't edited when we edit choices
+        choices = deepcopy(request.payload["observation_choices"])
+        hasspec = "IFU" in choices
+        followup = "IFU" if hasspec else ""
         if hasspec:
-            choices.remove('IFU')
-        filters = ','.join(choices)
+            choices.remove("IFU")
+        filters = ",".join(choices)
     elif rtype in filtdict:
         filters = filtdict[rtype]
-        followup = 'IFU' if 'IFU' in rtype else ''
+        followup = "IFU" if "IFU" in rtype else ""
     else:
-        raise ValueError('Cannot coerce payload into SEDM format.')
+        raise ValueError("Cannot coerce payload into SEDM format.")
 
     # default to user invitation email if preferred contact email has not been set
     email = request.requester.contact_email
@@ -130,27 +135,27 @@ def convert_request_to_sedm(request, method_value='new'):
             email = invitation.user_email
         else:
             # this should only be true in the CI test suite
-            email = 'test_suite@skyportal.com'
+            email = "test_suite@skyportal.com"
 
     payload = {
-        'Filters': filters,
-        'Followup': followup,
-        'email': email,
-        'enddate': request.payload['end_date'],
-        'startdate': request.payload['start_date'],
-        'prior_photometry': photometry_payload,
-        'priority': request.payload['priority'],
-        'programname': request.allocation.group.name,
-        'requestid': request.id,
-        'sourceid': request.obj_id[:26],  # 26 characters is the max allowed by sedm
-        'sourcename': request.obj_id[:26],
-        'status': method_value,
-        'username': request.requester.username,
-        'ra': request.obj.ra,
-        'dec': request.obj.dec,
-        'exptime': request.payload.get('exposure_time', -1),
-        'maxairmass': request.payload.get('maximum_airmass', 2.8),
-        'max_fwhm': request.payload.get('maximum_fwhm', 10),
+        "Filters": filters,
+        "Followup": followup,
+        "email": email,
+        "enddate": request.payload["end_date"],
+        "startdate": request.payload["start_date"],
+        "prior_photometry": photometry_payload,
+        "priority": request.payload["priority"],
+        "programname": request.allocation.group.name,
+        "requestid": request.id,
+        "sourceid": request.obj_id[:26],  # 26 characters is the max allowed by sedm
+        "sourcename": request.obj_id[:26],
+        "status": method_value,
+        "username": request.requester.username,
+        "ra": request.obj.ra,
+        "dec": request.obj.dec,
+        "exptime": request.payload.get("exposure_time", -1),
+        "maxairmass": request.payload.get("maximum_airmass", 2.8),
+        "max_fwhm": request.payload.get("maximum_fwhm", 10),
     }
 
     return payload
@@ -206,17 +211,17 @@ class SEDMAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction
 
-        payload = convert_request_to_sedm(request, method_value='new')
+        payload = convert_request_to_sedm(request, method_value="new")
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg["app.sedm_endpoint"],
+            files={"jsonfile": ("jsonfile", content)},
         )
 
-        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
-            request.status = 'submitted'
+        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+            request.status = "submitted"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -227,19 +232,43 @@ class SEDMAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
+
+        try:
+            notification_type = request.allocation.altdata.get(
+                "notification_type", "none"
+            )
+            if notification_type == "slack":
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == "email":
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
 
     @staticmethod
     def delete(request, session, **kwargs):
@@ -258,15 +287,15 @@ class SEDMAPI(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        payload = convert_request_to_sedm(request, method_value='delete')
+        payload = convert_request_to_sedm(request, method_value="delete")
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg["app.sedm_endpoint"],
+            files={"jsonfile": ("jsonfile", content)},
         )
 
-        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
-            request.status = 'deleted'
+        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+            request.status = "deleted"
         elif "Rejected Deletion, ACTIVE" in r.content.decode().lower():
             raise Exception("Cannot delete an active request. Data is being taken.")
         else:
@@ -282,16 +311,16 @@ class SEDMAPI(FollowUpAPI):
         session.add(transaction)
 
         flow = Flow()
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -308,15 +337,15 @@ class SEDMAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction
 
-        payload = convert_request_to_sedm(request, method_value='edit')
+        payload = convert_request_to_sedm(request, method_value="edit")
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg["app.sedm_endpoint"],
+            files={"jsonfile": ("jsonfile", content)},
         )
 
-        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
-            request.status = 'submitted'
+        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+            request.status = "submitted"
         elif "Rejected Edit Deletion, ACTIVE" in r.content.decode().lower():
             raise Exception("Cannot edit an active request. Data is being taken.")
         else:
@@ -332,28 +361,52 @@ class SEDMAPI(FollowUpAPI):
         session.add(transaction)
 
         flow = Flow()
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow.push(
-                '*',
+                "*",
                 "skyportal/REFRESH_SOURCE",
                 payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow.push(
                 request.last_modified_by_id,
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
+
+        try:
+            notification_type = request.allocation.altdata.get(
+                "notification_type", "none"
+            )
+            if notification_type == "slack":
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=True,
+                )
+            elif notification_type == "email":
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=True,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
 
     @staticmethod
     def prepare_payload(payload, existing_payload=None):
         return prepare_payload_sedm(payload, existing_payload)
 
     _observation_types = [
-        '3-shot (gri)',
-        '4-shot (ugri)',
-        'IFU',
-        '4-shot+IFU',
-        '3-shot+IFU',
+        "3-shot (gri)",
+        "4-shot (ugri)",
+        "IFU",
+        "4-shot+IFU",
+        "3-shot+IFU",
         "Mix 'n Match",
     ]
 
@@ -455,15 +508,81 @@ class SEDMAPI(FollowUpAPI):
                 ]
             },
         },
-        "required": ["observation_type", 'priority', "start_date", "end_date"],
+        "required": ["observation_type", "priority", "start_date", "end_date"],
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {
-        'observation_choices': "Request",
-        'start_date': "Start Date",
-        'end_date': "End Date",
-        'priority': "Priority",
-        'observation_type': 'Mode',
+        "observation_choices": "Request",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "priority": "Priority",
+        "observation_type": "Mode",
+    }
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
+            },
+        },
     }

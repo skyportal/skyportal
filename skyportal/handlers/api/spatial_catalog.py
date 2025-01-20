@@ -1,17 +1,17 @@
+import time
+from io import StringIO
+
 import numpy as np
-from tornado.ioloop import IOLoop
+import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, scoped_session
-from io import StringIO
-import pandas as pd
-import time
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
 
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
     DBSession,
     SpatialCatalog,
@@ -22,8 +22,9 @@ from ...utils.gcn import (
     from_cone,
     from_ellipse,
 )
+from ..base import BaseHandler
 
-log = make_log('api/spatial_catalog')
+log = make_log("api/spatial_catalog")
 
 Session = scoped_session(sessionmaker())
 
@@ -42,50 +43,50 @@ def add_catalog(catalog_id, catalog_data):
     try:
         entries = []
         # check for cone key
-        if {'radius'}.issubset(set(catalog_data.keys())):
+        if {"radius"}.issubset(set(catalog_data.keys())):
             for ra, dec, name, radius in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['radius'],
+                catalog_data["ra"],
+                catalog_data["dec"],
+                catalog_data["name"],
+                catalog_data["radius"],
             ):
                 name = name.strip().replace(" ", "-")
                 skymap = from_cone(ra, dec, radius, n_sigma=2)
-                del skymap['localization_name']
-                skymap['entry_name'] = name
+                del skymap["localization_name"]
+                skymap["entry_name"] = name
 
-                data = {'ra': ra, 'dec': dec, 'radius': radius}
+                data = {"ra": ra, "dec": dec, "radius": radius}
 
                 entry = SpatialCatalogEntry(
-                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                    **{**skymap, "catalog_id": catalog_id, "data": data}
                 )
                 entries.append(entry)
-        elif {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys())):
+        elif {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys())):
             for ra, dec, name, amaj, amin, phi in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['amaj'],
-                catalog_data['amin'],
-                catalog_data['phi'],
+                catalog_data["ra"],
+                catalog_data["dec"],
+                catalog_data["name"],
+                catalog_data["amaj"],
+                catalog_data["amin"],
+                catalog_data["phi"],
             ):
                 name = name.strip().replace(" ", "-")
                 if np.isclose(amaj, amin):
                     skymap = from_cone(ra, dec, amaj, n_sigma=1)
                 else:
                     skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
-                skymap['entry_name'] = skymap['localization_name']
-                del skymap['localization_name']
+                skymap["entry_name"] = skymap["localization_name"]
+                del skymap["localization_name"]
 
-                data = {'ra': ra, 'dec': dec, 'amaj': amaj, 'amin': amin, 'phi': phi}
+                data = {"ra": ra, "dec": dec, "amaj": amaj, "amin": amin, "phi": phi}
 
                 entry = SpatialCatalogEntry(
-                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                    **{**skymap, "catalog_id": catalog_id, "data": data}
                 )
                 entries.append(entry)
 
         else:
-            return ValueError('Could not disambiguate keys')
+            return ValueError("Could not disambiguate keys")
 
         session.add_all(entries)
         session.commit()
@@ -103,7 +104,7 @@ def add_catalog(catalog_id, catalog_data):
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SPATIAL_CATALOGS",
         )
 
@@ -135,7 +136,7 @@ def delete_catalog(catalog_id):
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SPATIAL_CATALOGS",
         )
 
@@ -182,8 +183,8 @@ class SpatialCatalogHandler(BaseHandler):
         """
 
         data = self.get_json()
-        catalog_name = data.get('catalog_name')
-        catalog_data = data.get('catalog_data')
+        catalog_name = data.get("catalog_name")
+        catalog_data = data.get("catalog_data")
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -197,20 +198,20 @@ class SpatialCatalogHandler(BaseHandler):
             return self.error("catalog_data must be a dictionary")
 
         # check for required parameters
-        if not {'name', 'ra', 'dec'}.issubset(set(catalog_data.keys())):
+        if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
             return self.error("name, ra, and dec required in field_data.")
 
         # check RA bounds
-        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
             return self.error("ra should span 0=<ra<360.")
 
         # check Declination bounds
-        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
             return self.error("declination should span -90<dec<90.")
 
         # check for cone or ellipse keys
-        if (not {'radius'}.issubset(set(catalog_data.keys()))) and (
-            not {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys()))
+        if (not {"radius"}.issubset(set(catalog_data.keys()))) and (
+            not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 
@@ -259,17 +260,17 @@ class SpatialCatalogHandler(BaseHandler):
                 try:
                     catalog_id = int(catalog_id)
                 except ValueError:
-                    return self.error('catalog_id must be an integer')
+                    return self.error("catalog_id must be an integer")
 
                 stmt = SpatialCatalog.select(self.current_user).where(
                     SpatialCatalog.id == catalog_id
                 )
                 catalog = session.scalars(stmt).first()
                 if catalog is None:
-                    return self.error(f'No catalog with name: {catalog_name}')
+                    return self.error(f"No catalog with name: {catalog_name}")
 
                 data = catalog.to_dict()
-                data['entries'] = [entry.to_dict() for entry in catalog.entries]
+                data["entries"] = [entry.to_dict() for entry in catalog.entries]
                 return self.success(data=data)
 
             stmt = SpatialCatalog.select(self.current_user)
@@ -283,7 +284,7 @@ class SpatialCatalogHandler(BaseHandler):
                 entries_count = session.execute(
                     sa.select(func.count()).select_from(count_stmt)
                 ).scalar()
-                data.append({**catalog.to_dict(), 'entries_count': entries_count})
+                data.append({**catalog.to_dict(), "entries_count": entries_count})
             return self.success(data=data)
 
     @auth_or_token
@@ -316,7 +317,7 @@ class SpatialCatalogHandler(BaseHandler):
             )
             catalog = session.scalars(stmt).first()
             if catalog is None:
-                return self.error(f'Missing catalog with ID {catalog_id}')
+                return self.error(f"Missing catalog with ID {catalog_id}")
 
             IOLoop.current().run_in_executor(None, lambda: delete_catalog(catalog.id))
 
@@ -325,7 +326,7 @@ class SpatialCatalogHandler(BaseHandler):
 
 
 class SpatialCatalogASCIIFileHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -359,15 +360,15 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
         """
 
         json = self.get_json()
-        catalog_data = json.pop('catalogData', None)
-        catalog_name = json.pop('catalogName', None)
+        catalog_data = json.pop("catalogData", None)
+        catalog_name = json.pop("catalogName", None)
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
 
         try:
             catalog_data = pd.read_table(StringIO(catalog_data), sep=",").to_dict(
-                orient='list'
+                orient="list"
             )
         except Exception as e:
             return self.error(f"Unable to read in galaxy file: {e}")
@@ -378,20 +379,20 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
             return self.error("catalog_data is a required parameter.")
 
         # check for required parameters
-        if not {'name', 'ra', 'dec'}.issubset(set(catalog_data.keys())):
+        if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
             return self.error("name, ra, and dec required in field_data.")
 
         # check RA bounds
-        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
             return self.error("ra should span 0=<ra<360.")
 
         # check Declination bounds
-        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
             return self.error("declination should span -90<dec<90.")
 
         # check for cone or ellipse keys
-        if (not {'radius'}.issubset(set(catalog_data.keys()))) and (
-            not {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys()))
+        if (not {"radius"}.issubset(set(catalog_data.keys()))) and (
+            not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 

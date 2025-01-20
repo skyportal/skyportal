@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import datetime
-from skyportal.models import init_db, Candidate, Source, Obj, DBSession
-from baselayer.app.env import load_env
 
+from baselayer.app.env import load_env
+from skyportal.models import Candidate, DBSession, Obj, Source, init_db
 
 env, cfg = load_env()
 init_db(**cfg["database"])
@@ -29,7 +29,7 @@ n_deleted = (
     .filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
     .filter(Obj.id.notin_(DBSession.query(Source.obj_id)))
     .filter(Obj.created_at <= cutoff_datetime)
-    .delete(synchronize_session='fetch')
+    .delete(synchronize_session="fetch")
 )
 
 DBSession.commit()

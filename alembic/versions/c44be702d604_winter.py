@@ -5,12 +5,12 @@ Revises: 93a04c1fb3a7
 Create Date: 2024-01-31 11:44:39.089204
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'c44be702d604'
-down_revision = '93a04c1fb3a7'
+revision = "c44be702d604"
+down_revision = "93a04c1fb3a7"
 branch_labels = None
 depends_on = None
 

@@ -3,8 +3,8 @@ import ast
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...base import BaseHandler
 from ....utils.offset import get_formatted_standards_list
+from ...base import BaseHandler
 
 _, cfg = load_env()
 
@@ -22,7 +22,7 @@ class StandardsHandler(BaseHandler):
           required: false
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: standard_type
@@ -85,48 +85,48 @@ class StandardsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        starlist_type = self.get_query_argument('facility', 'Keck')
-        standard_type = self.get_query_argument('standard_type', 'ESO')
-        dec_filter_range_str = self.get_query_argument('dec_filter_range', "[-90, 90]")
-        ra_filter_range_str = self.get_query_argument('ra_filter_range', "[0, 360]")
-        show_first_line = self.get_query_argument('show_first_line', False)
+        starlist_type = self.get_query_argument("facility", "Keck")
+        standard_type = self.get_query_argument("standard_type", "ESO")
+        dec_filter_range_str = self.get_query_argument("dec_filter_range", "[-90, 90]")
+        ra_filter_range_str = self.get_query_argument("ra_filter_range", "[0, 360]")
+        show_first_line = self.get_query_argument("show_first_line", False)
 
         if standard_type not in cfg["standard_stars"]:
             return self.error(
-                f'Invalid `standard_type`. Should be in {list(cfg["standard_stars"].keys())}'
+                f"Invalid `standard_type`. Should be in {list(cfg['standard_stars'].keys())}"
             )
 
-        if starlist_type not in ["Keck", "Shane", "P200"]:
+        if starlist_type not in ["Keck", "Shane", "P200", "P200-NGPS"]:
             return self.error(
-                'Invalid `starlist_type`. Should be in [Keck, Shane, P200]'
+                "Invalid `starlist_type`. Should be in [Keck, Shane, P200, P200-NGPS]"
             )
 
         dec_filter_range = ast.literal_eval(dec_filter_range_str)
         if not (
-            isinstance(dec_filter_range, (list, tuple)) and len(dec_filter_range) == 2
+            isinstance(dec_filter_range, list | tuple) and len(dec_filter_range) == 2
         ):
-            return self.error('Invalid argument for `dec_filter_range`')
+            return self.error("Invalid argument for `dec_filter_range`")
         if not (
-            isinstance(dec_filter_range[0], (float, int))
-            and isinstance(dec_filter_range[1], (float, int))
+            isinstance(dec_filter_range[0], float | int)
+            and isinstance(dec_filter_range[1], float | int)
         ):
-            return self.error('Invalid arguments in `dec_filter_range`')
-        if not all(map(lambda x: x >= -90 and x <= 90, dec_filter_range)):
-            return self.error('Elements out of range in `dec_filter_range`')
+            return self.error("Invalid arguments in `dec_filter_range`")
+        if not all(x >= -90 and x <= 90 for x in dec_filter_range):
+            return self.error("Elements out of range in `dec_filter_range`")
 
         ra_filter_range = ast.literal_eval(ra_filter_range_str)
         if not (
-            isinstance(ra_filter_range, (list, tuple)) and len(ra_filter_range) == 2
+            isinstance(ra_filter_range, list | tuple) and len(ra_filter_range) == 2
         ):
-            return self.error('Invalid argument for `ra_filter_range`')
+            return self.error("Invalid argument for `ra_filter_range`")
         if not (
-            isinstance(ra_filter_range[0], (float, int))
-            and isinstance(ra_filter_range[1], (float, int))
+            isinstance(ra_filter_range[0], float | int)
+            and isinstance(ra_filter_range[1], float | int)
         ):
-            return self.error('Invalid arguments in `ra_filter_range`')
+            return self.error("Invalid arguments in `ra_filter_range`")
 
-        if not all(map(lambda x: x >= 0 and x <= 360, ra_filter_range)):
-            return self.error('Elements out of range in `ra_filter_range`')
+        if not all(x >= 0 and x <= 360 for x in ra_filter_range):
+            return self.error("Elements out of range in `ra_filter_range`")
 
         data = get_formatted_standards_list(
             starlist_type=starlist_type,

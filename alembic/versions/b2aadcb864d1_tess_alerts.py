@@ -5,12 +5,12 @@ Revises: cdfb7edc7438
 Create Date: 2023-05-27 15:27:13.327228
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'b2aadcb864d1'
-down_revision = 'cdfb7edc7438'
+revision = "b2aadcb864d1"
+down_revision = "cdfb7edc7438"
 branch_labels = None
 depends_on = None
 

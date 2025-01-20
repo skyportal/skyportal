@@ -1,19 +1,19 @@
-import os
-import uuid
 import json
+import os
 import time
-
+import uuid
 from io import BytesIO
+
 import pytest
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
 from PIL import Image, ImageChops
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
 from skyportal.models import DBSession
+from skyportal.tests import api
 
 analysis_port = 6802
 
@@ -133,27 +133,27 @@ def test_analysis_start(
     optional_analysis_parameters = {}
 
     post_data = {
-        'name': name,
-        'display_name': "test analysis service name",
-        'description': "A test analysis service description",
-        'version': "1.0",
-        'contact_name': "Vera Rubin",
-        'contact_email': "vr@ls.st",
+        "name": name,
+        "display_name": "test analysis service name",
+        "description": "A test analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
         # this is the URL/port of the SN analysis service that will be running during testing
-        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
-        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
-        'authentication_type': "none",
-        'analysis_type': 'lightcurve_fitting',
-        'input_data_types': ['photometry', 'redshift'],
-        'timeout': 60,
-        'group_ids': [public_group.id],
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
     }
 
     status, data = api(
-        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -184,26 +184,26 @@ def test_analysis_with_file_input_start(
     }
 
     post_data = {
-        'name': name,
-        'display_name': "Spectral_Cube_Analysis",
-        'description': "Spectral_Cube_Analysis description",
-        'version': "1.0",
-        'contact_name': "Michael Coughlin",
+        "name": name,
+        "display_name": "Spectral_Cube_Analysis",
+        "description": "Spectral_Cube_Analysis description",
+        "version": "1.0",
+        "contact_name": "Michael Coughlin",
         # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
-        'url': "http://localhost:7003/analysis/spectral_cube_analysis",
-        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
-        'authentication_type': "none",
-        'analysis_type': 'spectrum_fitting',
-        'input_data_types': [],
-        'timeout': 60,
-        'group_ids': [public_group.id],
+        "url": "http://localhost:7003/analysis/spectral_cube_analysis",
+        "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
+        "authentication_type": "none",
+        "analysis_type": "spectrum_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
     }
 
     status, data = api(
-        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -221,8 +221,8 @@ def test_analysis_with_file_input_start(
     image_data.send_keys(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            '../data',
-            'spectral_cube_analysis.fits',
+            "../data",
+            "spectral_cube_analysis.fits",
         ),
     )
 
@@ -236,29 +236,29 @@ def test_analysis_with_file_input_start(
 
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
-        'class': 'Cepheid',
-        'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
-        'other names': ['Cep', 'CEP'],
-        'subclasses': [
-            {'class': 'Anomolous', 'other names': ['Anomolous Cepheid', 'BLBOO']},
+        "class": "Cepheid",
+        "tags": ["giant/supergiant", "instability strip", "standard candle"],
+        "other names": ["Cep", "CEP"],
+        "subclasses": [
+            {"class": "Anomolous", "other names": ["Anomolous Cepheid", "BLBOO"]},
             {
-                'class': 'Mult-mode',
-                'other names': ['Double-mode Cepheid', 'Multi-mode Cepheid', 'CEP(B)'],
+                "class": "Mult-mode",
+                "other names": ["Double-mode Cepheid", "Multi-mode Cepheid", "CEP(B)"],
             },
             {
-                'class': 'Classical',
-                'tags': [],
-                'other names': [
-                    'Population I Cepheid',
-                    'Type I Cepheid',
-                    'DCEP',
-                    'Delta Cepheid',
-                    'Classical Cepheid',
+                "class": "Classical",
+                "tags": [],
+                "other names": [
+                    "Population I Cepheid",
+                    "Type I Cepheid",
+                    "DCEP",
+                    "Delta Cepheid",
+                    "Classical Cepheid",
                 ],
-                'subclasses': [
+                "subclasses": [
                     {
-                        'class': 'Symmetrical',
-                        'other names': ['DCEPS', 'Delta Cep-type Symmetrical'],
+                        "class": "Symmetrical",
+                        "other names": ["DCEPS", "Delta Cep-type Symmetrical"],
                     }
                 ],
             },
@@ -269,13 +269,13 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     tax_version = "test0.1"
 
     status, _ = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': tax_name,
-            'hierarchy': simple,
-            'group_ids': [public_group.id],
-            'version': tax_version,
+            "name": tax_name,
+            "hierarchy": simple,
+            "group_ids": [public_group.id],
+            "version": tax_version,
         },
         token=taxonomy_token,
     )
@@ -570,32 +570,32 @@ def test_centroid_plot(
     discovery_dec = public_source.dec
     # Put in some actual photometry data first
     status, data = api(
-        'POST',
-        'photometry?refresh=true',
+        "POST",
+        "photometry?refresh=true",
         data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000.0, 58001.0, 58002.0],
-            'instrument_id': ztf_camera.id,
-            'flux': [12.24, 15.24, 12.24],
-            'fluxerr': [0.031, 0.029, 0.030],
-            'filter': ['ztfg', 'ztfg', 'ztfg'],
-            'zp': [25.0, 30.0, 21.2],
-            'magsys': ['ab', 'ab', 'ab'],
-            'ra': [discovery_ra + 0.0001, discovery_ra + 0.0002, discovery_ra + 0.0003],
-            'ra_unc': 0.17,
-            'dec': [
+            "obj_id": str(public_source.id),
+            "mjd": [58000.0, 58001.0, 58002.0],
+            "instrument_id": ztf_camera.id,
+            "flux": [12.24, 15.24, 12.24],
+            "fluxerr": [0.031, 0.029, 0.030],
+            "filter": ["ztfg", "ztfg", "ztfg"],
+            "zp": [25.0, 30.0, 21.2],
+            "magsys": ["ab", "ab", "ab"],
+            "ra": [discovery_ra + 0.0001, discovery_ra + 0.0002, discovery_ra + 0.0003],
+            "ra_unc": 0.17,
+            "dec": [
                 discovery_dec + 0.0001,
                 discovery_dec + 0.0002,
                 discovery_dec + 0.0003,
             ],
-            'dec_unc': 0.2,
-            'group_ids': [public_group.id],
+            "dec_unc": 0.2,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['ids']) == 3
+    assert data["status"] == "success"
+    assert len(data["data"]["ids"]) == 3
 
     driver.wait_for_xpath('//div[@id="centroid-plot"]/div[@class="js-plotly-plot"]')
 
@@ -797,16 +797,16 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
 
     status, data = api(
-        'POST',
-        f'sources/{public_source.id}/annotations',
+        "POST",
+        f"sources/{public_source.id}/annotations",
         data={
-            'obj_id': public_source.id,
-            'origin': 'gaiadr3.gaia_source',
-            'data': {
-                'Mag_G': 11.3,
-                'Mag_Bp': 12.8,
-                'Mag_Rp': 11.0,
-                'Plx': 20,
+            "obj_id": public_source.id,
+            "origin": "gaiadr3.gaia_source",
+            "data": {
+                "Mag_G": 11.3,
+                "Mag_Bp": 12.8,
+                "Mag_Rp": 11.0,
+                "Plx": 20,
             },
         },
         token=annotation_token,
@@ -853,7 +853,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         expected_plot = Image.open(expected_plot_path)
 
         difference = ImageChops.difference(
-            generated_plot.convert('RGB'), expected_plot.convert('RGB')
+            generated_plot.convert("RGB"), expected_plot.convert("RGB")
         )
         assert difference.getbbox() is None
 

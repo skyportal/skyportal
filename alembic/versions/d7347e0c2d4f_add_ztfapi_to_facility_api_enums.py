@@ -5,12 +5,12 @@ Revises: 5efdda259fd0
 Create Date: 2021-05-19 11:09:54.951386
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'd7347e0c2d4f'
-down_revision = '5efdda259fd0'
+revision = "d7347e0c2d4f"
+down_revision = "5efdda259fd0"
 branch_labels = None
 depends_on = None
 

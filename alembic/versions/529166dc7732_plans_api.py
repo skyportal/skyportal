@@ -5,12 +5,12 @@ Revises: 46a40b35cdbb
 Create Date: 2022-02-12 20:55:46.665147
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '529166dc7732'
-down_revision = '46a40b35cdbb'
+revision = "529166dc7732"
+down_revision = "46a40b35cdbb"
 branch_labels = None
 depends_on = None
 

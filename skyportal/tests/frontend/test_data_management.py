@@ -48,10 +48,10 @@ def test_delete_spectrum(driver, public_source):
     delete = driver.wait_for_xpath(
         "//*[contains(@data-testid, 'delete-spectrum-button')]",
     )
-    x = delete.location['x']
-    y = delete.location['y']
-    scroll_by_coord = f'window.scrollTo({x},{y});'
-    scroll_nav_out_of_way = 'window.scrollBy(0, -120);'
+    x = delete.location["x"]
+    y = delete.location["y"]
+    scroll_by_coord = f"window.scrollTo({x},{y});"
+    scroll_nav_out_of_way = "window.scrollBy(0, -120);"
     driver.execute_script(scroll_by_coord)
     driver.execute_script(scroll_nav_out_of_way)
 

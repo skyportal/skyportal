@@ -1,18 +1,18 @@
 # this is the model of a table that has: a source id, a localization id, a flag to indicate if the source is confirmed or rejected
 
-__all__ = ['SourcesConfirmedInGCN']
+__all__ = ["SourcesConfirmedInGCN"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 from baselayer.app.env import load_env
+from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 
 _, cfg = load_env()
 
 
 def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
-    if user_or_token.is_admin or 'Manage GCNs' in user_or_token.permissions:
+    if user_or_token.is_admin or "Manage GCNs" in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
         return DBSession().query(cls).filter(sa.false())
@@ -25,23 +25,23 @@ class SourcesConfirmedInGCN(Base):
     )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc='ID of the Obj.',
+        doc="ID of the Obj.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='sources_in_gcns',
-        doc='The assigned Obj.',
+        "Obj",
+        back_populates="sources_in_gcns",
+        doc="The assigned Obj.",
     )
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc='UTC event timestamp',
+        doc="UTC event timestamp",
     )
 
     confirmed = sa.Column(
@@ -52,13 +52,13 @@ class SourcesConfirmedInGCN(Base):
 
     # the person who uploaded the confirmation
     confirmer = relationship(
-        'User',
-        back_populates='sources_in_gcn',
+        "User",
+        back_populates="sources_in_gcn",
         doc="The User who created this SourcesConfirmedInGCN.",
         foreign_keys="SourcesConfirmedInGCN.confirmer_id",
     )
     confirmer_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this SourcesConfirmedInGCN.",

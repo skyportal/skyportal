@@ -1,8 +1,8 @@
-__all__ = ['SourceView']
-
-import sqlalchemy as sa
+__all__ = ["SourceView"]
 
 from datetime import datetime
+
+import sqlalchemy as sa
 
 from baselayer.app.models import Base
 
@@ -13,7 +13,7 @@ class SourceView(Base):
     """
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         unique=False,
         index=True,

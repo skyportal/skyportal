@@ -39,9 +39,9 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
-    Source,
     Shift,
     ShiftUser,
+    Source,
     Spectrum,
     User,
     UserNotification,
@@ -57,9 +57,9 @@ from skyportal.utils.notifications import (
 )
 
 env, cfg = load_env()
-log = make_log('notification_queue')
+log = make_log("notification_queue")
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
 request_session = requests.Session()
 request_session.trust_env = (
@@ -120,7 +120,7 @@ def user_preferences(target, notification_setting, resource_type):
             return
         # this ensures that an email is sent regardless of the user's preferences
         # this is useful for group_admission_requests, where we want the admins to always be notified by email
-        if resource_type in ['group_admission_request']:
+        if resource_type in ["group_admission_request"]:
             return True
 
     if "preferences" not in target["user"]:
@@ -133,29 +133,29 @@ def user_preferences(target, notification_setting, resource_type):
             return
 
     if notification_setting == "slack":
-        if not target["user"]["preferences"].get('slack_integration'):
+        if not target["user"]["preferences"].get("slack_integration"):
             return
-        if not target["user"]["preferences"]['slack_integration'].get("active"):
+        if not target["user"]["preferences"]["slack_integration"].get("active"):
             return
         if (
-            not target["user"]["preferences"]['slack_integration']
+            not target["user"]["preferences"]["slack_integration"]
             .get("url", "")
             .startswith(cfg["slack.expected_url_preamble"])
         ):
             return
 
-    prefs = target["user"]["preferences"].get('notifications')
+    prefs = target["user"]["preferences"].get("notifications")
     if not prefs:
         return
     else:
         if resource_type in [
-            'sources',
-            'favorite_sources',
-            'gcn_events',
-            'facility_transactions',
-            'mention',
-            'analysis_services',
-            'observation_plans',
+            "sources",
+            "favorite_sources",
+            "gcn_events",
+            "facility_transactions",
+            "mention",
+            "analysis_services",
+            "observation_plans",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -172,14 +172,14 @@ def send_slack_notification(target):
     notifications_prefs = user_preferences(target, "slack", resource_type)
     if not notifications_prefs:
         return
-    integration_url = target["user"]["preferences"]['slack_integration'].get('url')
+    integration_url = target["user"]["preferences"]["slack_integration"].get("url")
 
-    slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+    slack_microservice_url = f"http://127.0.0.1:{cfg['slack.microservice_port']}"
 
     app_url = get_app_base_url()
 
     try:
-        if resource_type == 'gcn_events':
+        if resource_type == "gcn_events":
             data = json.dumps(
                 {
                     "url": integration_url,
@@ -190,7 +190,7 @@ def send_slack_notification(target):
                     ),
                 }
             )
-        elif resource_type == 'sources':
+        elif resource_type == "sources":
             data = json.dumps(
                 {
                     "url": integration_url,
@@ -203,17 +203,17 @@ def send_slack_notification(target):
             data = json.dumps(
                 {
                     "url": integration_url,
-                    "text": f'{target["text"]} ({app_url}{target["url"]})',
+                    "text": f"{target['text']} ({app_url}{target['url']})",
                 }
             )
 
         requests.post(
             slack_microservice_url,
             data=data,
-            headers={'Content-Type': 'application/json'},
+            headers={"Content-Type": "application/json"},
         )
         log(
-            f'Sent slack notification to user {target["user"]["id"]} at slack_url: {integration_url}, body: {target["text"]}, resource_type: {resource_type}'
+            f"Sent slack notification to user {target['user']['id']} at slack_url: {integration_url}, body: {target['text']}, resource_type: {resource_type}"
         )
     except Exception as e:
         log(f"Error sending slack notification: {e}")
@@ -273,14 +273,14 @@ def send_email_notification(target):
         if subject and target["user"]["contact_email"]:
             try:
                 if body is None:
-                    body = f'{target["text"]} ({app_url}{target["url"]})'
+                    body = f"{target['text']} ({app_url}{target['url']})"
                 send_email(
                     recipients=[target["user"]["contact_email"]],
                     subject=subject,
                     body=body,
                 )
                 log(
-                    f'Sent email notification to user {target["user"]["id"]} at email: {target["user"]["contact_email"]}, subject: {subject}, body: {body}, resource_type: {resource_type}'
+                    f"Sent email notification to user {target['user']['id']} at email: {target['user']['contact_email']}, subject: {subject}, body: {body}, resource_type: {resource_type}"
                 )
             except Exception as e:
                 log(f"Error sending email notification: {e}")
@@ -296,7 +296,7 @@ def send_sms_notification(target):
         return
 
     sending = False
-    if prefs[resource_type]['sms'].get("on_shift", False):
+    if prefs[resource_type]["sms"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
             .filter(ShiftUser.user_id == target["user"]["id"])
@@ -307,7 +307,7 @@ def send_sms_notification(target):
         if current_shift is not None:
             sending = True
 
-    timeslot = prefs[resource_type]['sms'].get("time_slot", [])
+    timeslot = prefs[resource_type]["sms"].get("time_slot", [])
     if len(timeslot) > 0:
         current_time = arrow.utcnow().datetime
         if timeslot[0] < timeslot[1]:
@@ -320,12 +320,12 @@ def send_sms_notification(target):
     if sending:
         try:
             client.messages.create(
-                body=f'{cfg["app.title"]} - {target["text"]}',
+                body=f"{cfg['app.title']} - {target['text']}",
                 from_=from_number,
                 to=target["user"]["contact_phone"].e164,
             )
             log(
-                f'Sent SMS notification to user {target["user"]["id"]} at phone number: {target["user"]["contact_phone"].e164}, body: {target["text"]}, resource_type: {resource_type}'
+                f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
@@ -339,7 +339,7 @@ def send_phone_notification(target):
         return
 
     sending = False
-    if prefs[resource_type]['phone'].get("on_shift", False):
+    if prefs[resource_type]["phone"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
             .filter(ShiftUser.user_id == target["user"]["id"])
@@ -350,7 +350,7 @@ def send_phone_notification(target):
         if current_shift is not None:
             sending = True
 
-    timeslot = prefs[resource_type]['phone'].get("time_slot", [])
+    timeslot = prefs[resource_type]["phone"].get("time_slot", [])
     if len(timeslot) > 0:
         current_time = arrow.utcnow().datetime
         if timeslot[0] < timeslot[1]:
@@ -362,14 +362,14 @@ def send_phone_notification(target):
 
     if sending:
         try:
-            message = f'Greetings. This is the SkyPortal robot. {target["text"]}'
+            message = f"Greetings. This is the SkyPortal robot. {target['text']}"
             client.calls.create(
                 twiml=VoiceResponse().append(Say(message=message)),
                 from_=from_number,
                 to=target["user"]["contact_phone"].e164,
             )
             log(
-                f'Sent Phone Call notification to user {target["user"]["id"]} at phone number: {target["user"]["contact_phone"].e164}, message: {message}, resource_type: {resource_type}'
+                f"Sent Phone Call notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, message: {message}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending phone call notification: {e}")
@@ -382,7 +382,7 @@ def send_whatsapp_notification(target):
         return
 
     sending = False
-    if prefs[resource_type]['whatsapp'].get("on_shift", False):
+    if prefs[resource_type]["whatsapp"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
             .filter(ShiftUser.user_id == target["user"]["id"])
@@ -393,7 +393,7 @@ def send_whatsapp_notification(target):
         if current_shift is not None:
             sending = True
 
-    timeslot = prefs[resource_type]['whatsapp'].get("time_slot", [])
+    timeslot = prefs[resource_type]["whatsapp"].get("time_slot", [])
     if len(timeslot) > 0:
         current_time = arrow.utcnow().datetime
         if timeslot[0] < timeslot[1]:
@@ -406,22 +406,22 @@ def send_whatsapp_notification(target):
     if sending:
         try:
             client.messages.create(
-                body=f'{cfg["app.title"]} - {target["text"]}',
+                body=f"{cfg['app.title']} - {target['text']}",
                 from_="whatsapp:" + str(from_number),
                 to="whatsapp" + str(target["user"]["contact_phone"].e164),
             )
             log(
-                f'Sent WhatsApp notification to user {target["user"]["id"]} at phone number: {target["user"]["contact_phone"].e164}, body: {target["text"]}, resource_type: {resource_type}'
+                f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending WhatsApp notification: {e}")
 
 
 def push_frontend_notification(target):
-    if 'user_id' in target:
+    if "user_id" in target:
         user_id = target["user_id"]
-    elif 'user' in target:
-        if 'id' in target["user"]:
+    elif "user" in target:
+        if "id" in target["user"]:
             user_id = target["user"]["id"]
         else:
             user_id = None
@@ -435,7 +435,7 @@ def push_frontend_notification(target):
         return
     resource_type = notification_resource_type(target)
     log(
-        f'Sent frontend notification to user {user_id}, body: {target["text"]}, resource_type: {resource_type}'
+        f"Sent frontend notification to user {user_id}, body: {target['text']}, resource_type: {resource_type}"
     )
     ws_flow = Flow()
     ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
@@ -486,8 +486,8 @@ def api(queue):
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
-            target_class_name = data['target_class_name']
-            target_id = data['target_id']
+            target_class_name = data["target_class_name"]
+            target_id = data["target_id"]
             target_content = None
 
             is_facility_transaction = target_class_name == "FacilityTransaction"
@@ -699,9 +699,9 @@ def api(queue):
                                 "group_ids": [group.id for group in target.groups],
                             }
                             if target.followup_request_id is not None:
-                                target_data[
-                                    "allocation_id"
-                                ] = target.followup_request.allocation_id
+                                target_data["allocation_id"] = (
+                                    target.followup_request.allocation_id
+                                )
                             target_content = source_notification_content(
                                 target, target_type="spectrum"
                             )
@@ -750,13 +750,13 @@ def api(queue):
                         try:
                             # Only notify users who have read access to the new record in question
                             if user.preferences is not None:
-                                pref = user.preferences.get('notifications', None)
+                                pref = user.preferences.get("notifications", None)
                             else:
                                 pref = None
 
                             if (
                                 session.scalars(
-                                    target_class.select(user, mode='read').where(
+                                    target_class.select(user, mode="read").where(
                                         target_class.id == target_id
                                     )
                                 ).first()
@@ -817,7 +817,7 @@ def api(queue):
                                             if (
                                                 notice_type is not None
                                                 and notice_type
-                                                not in gcn_pref['gcn_notice_types']
+                                                not in gcn_pref["gcn_notice_types"]
                                             ):
                                                 continue
 
@@ -959,7 +959,7 @@ def api(queue):
                                             notification_type="gcn_events_new_tag"
                                             if is_gcn_tag
                                             else "gcn_events",
-                                            url=f"/gcn_events/{str(target_data['dateobs']).replace(' ','T')}",
+                                            url=f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
                                         )
                                         session.add(notification)
                                         session.commit()
@@ -974,7 +974,7 @@ def api(queue):
                                         queue.append(target)
 
                                 elif is_facility_transaction:
-                                    if "observation_plan_request" in target_data.keys():
+                                    if "observation_plan_request" in target_data:
                                         allocation_id = target_data[
                                             "observation_plan_request"
                                         ]["allocation_id"]
@@ -1006,7 +1006,7 @@ def api(queue):
                                                 user=user,
                                                 text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
                                                 notification_type="facility_transactions",
-                                                url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                                                url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
                                             )
                                             session.add(notification)
                                             session.commit()
@@ -1018,7 +1018,7 @@ def api(queue):
                                                 },
                                             }
                                             queue.append(target)
-                                    elif "followup_request" in target_data.keys():
+                                    elif "followup_request" in target_data:
                                         allocation_id = target_data["followup_request"][
                                             "allocation_id"
                                         ]
@@ -1068,7 +1068,7 @@ def api(queue):
                                             session.commit()
                                             queue.append(notification.id)
                                 elif is_followup_request:
-                                    if target_data['status'] == "submitted":
+                                    if target_data["status"] == "submitted":
                                         continue
                                     allocation_id = target_data["allocation_id"]
                                     allocation = session.scalars(
@@ -1080,8 +1080,8 @@ def api(queue):
                                         allocation_user.user.id
                                         for allocation_user in allocation.allocation_users
                                     ] + [
-                                        watcher['user_id']
-                                        for watcher in target_data.get('watchers', [])
+                                        watcher["user_id"]
+                                        for watcher in target_data.get("watchers", [])
                                     ]
                                     notification_user_ids.append(
                                         target_data["requester_id"]
@@ -1198,7 +1198,7 @@ def api(queue):
                                             user=user,
                                             text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
                                             notification_type="observation_plans",
-                                            url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                                            url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
                                         )
                                         session.add(notification)
                                         session.commit()
@@ -1245,7 +1245,7 @@ def api(queue):
                                                 ["favorites", "watchlist"]
                                             )
                                         )
-                                        .where(Listing.obj_id == target_data['obj_id'])
+                                        .where(Listing.obj_id == target_data["obj_id"])
                                         .where(Listing.user_id == user.id)
                                     ).all()
                                     if pref is None:
@@ -1254,7 +1254,7 @@ def api(queue):
                                     if is_classification:
                                         if (
                                             len(favorite_sources) > 0
-                                            and "favorite_sources" in pref.keys()
+                                            and "favorite_sources" in pref
                                             and any(
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
@@ -1283,17 +1283,12 @@ def api(queue):
                                             }
                                             queue.append(target)
                                             continue
-                                        if (
-                                            pref is not None
-                                        ) and "sources" in pref.keys():
-                                            if (
-                                                "classifications"
-                                                in pref['sources'].keys()
-                                            ):
+                                        if (pref is not None) and "sources" in pref:
+                                            if "classifications" in pref["sources"]:
                                                 if (
-                                                    target_data['classification']
-                                                    in pref['sources'][
-                                                        'classifications'
+                                                    target_data["classification"]
+                                                    in pref["sources"][
+                                                        "classifications"
                                                     ]
                                                 ):
                                                     if user.is_admin is False:
@@ -1361,9 +1356,9 @@ def api(queue):
                                     elif is_spectra:
                                         if (
                                             len(favorite_sources) > 0
-                                            and "favorite_sources" in pref.keys()
+                                            and "favorite_sources" in pref
                                             and any(
-                                                target_data['obj_id'] == source.obj_id
+                                                target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             )
                                         ):
@@ -1386,7 +1381,7 @@ def api(queue):
                                             continue
                                         if (
                                             (pref is not None)
-                                            and "sources" in pref.keys()
+                                            and "sources" in pref
                                             and pref["sources"].get(
                                                 "new_spectra", False
                                             )
@@ -1470,7 +1465,7 @@ def api(queue):
                                     elif is_comment:
                                         if (
                                             len(favorite_sources) > 0
-                                            and "favorite_sources" in pref.keys()
+                                            and "favorite_sources" in pref
                                             and not (
                                                 target_data.get("bot", False)
                                                 and not pref.get(
@@ -1479,7 +1474,7 @@ def api(queue):
                                             )
                                         ):
                                             if any(
-                                                target_data['obj_id'] == source.obj_id
+                                                target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             ):
                                                 notification = UserNotification(
@@ -1501,10 +1496,10 @@ def api(queue):
                                     elif is_listing:
                                         if (
                                             len(favorite_sources) > 0
-                                            and "favorite_sources" in pref.keys()
+                                            and "favorite_sources" in pref
                                         ):
                                             if any(
-                                                target_data['obj_id'] == source.obj_id
+                                                target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             ):
                                                 notification = UserNotification(

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # skyportal documentation build configuration file, created by
 # sphinx-quickstart on Thu Jul 23 13:00:45 2015 (copied from `cesium`).
 #
@@ -12,8 +10,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
+import sys
+
 import eralchemy2
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -21,7 +20,7 @@ import eralchemy2
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
 
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath(".."))
 from skyportal import models  # noqa
 
 # -- General configuration ------------------------------------------------
@@ -33,46 +32,46 @@ from skyportal import models  # noqa
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'recommonmark',
-    'sphinx.ext.mathjax',
+    "recommonmark",
+    "sphinx.ext.mathjax",
     #    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
+    "sphinx.ext.autosummary",
     #    'sphinx.ext.pngmath',
-    'numpydoc',
+    "numpydoc",
     #    'plot2rst',
-    'sphinx.ext.intersphinx',
+    "sphinx.ext.intersphinx",
     #    'sphinx.ext.linkcode',
     #    'sphinx_gallery.gen_gallery'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown',
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = 'skyportal'
-copyright = '2020–2023, The SkyPortal Team'
-author = 'The SkyPortal Team'
+project = "skyportal"
+copyright = "2020–2023, The SkyPortal Team"
+author = "The SkyPortal Team"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 
-version = 'vUndefined'
-setup_lines = open('../skyportal/__init__.py').readlines()
+version = "vUndefined"
+setup_lines = open("../skyportal/__init__.py").readlines()
 for line in setup_lines:
-    if line.startswith('__version__ = '):
+    if line.startswith("__version__ = "):
         try:
             version = line.split('"')[1]
         except IndexError:
@@ -97,7 +96,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ["_build"]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -115,7 +114,7 @@ exclude_patterns = ['_build']
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -131,11 +130,11 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 # Per https://github.com/snide/sphinx_rtd_theme: specify theme if not on RTD
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+on_rtd = os.environ.get("READTHEDOCS", None) == "True"
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_book_theme  # noqa
 
-    html_theme = 'sphinx_book_theme'
+    html_theme = "sphinx_book_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -164,7 +163,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -227,7 +226,7 @@ html_show_sourcelink = False
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'skyportaldoc'
+htmlhelp_basename = "skyportaldoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -248,10 +247,10 @@ latex_elements = {
 latex_documents = [
     (
         master_doc,
-        'skyportal.tex',
-        'skyportal Documentation',
-        'The skyportal Team',
-        'manual',
+        "skyportal.tex",
+        "skyportal Documentation",
+        "The skyportal Team",
+        "manual",
     ),
 ]
 
@@ -280,7 +279,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, 'skyportal', 'skyportal Documentation', [author], 1)]
+man_pages = [(master_doc, "skyportal", "skyportal Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -294,12 +293,12 @@ man_pages = [(master_doc, 'skyportal', 'skyportal Documentation', [author], 1)]
 texinfo_documents = [
     (
         master_doc,
-        'skyportal',
-        'skyportal Documentation',
+        "skyportal",
+        "skyportal Documentation",
         author,
-        'skyportal',
-        'One line description of project.',
-        'Miscellaneous',
+        "skyportal",
+        "One line description of project.",
+        "Miscellaneous",
     ),
 ]
 
@@ -316,7 +315,7 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 # create entity relationship diagram for skyportal
-erd_path = os.path.join(os.path.dirname(__file__), 'images/erd.png')
+erd_path = os.path.join(os.path.dirname(__file__), "images/erd.png")
 eralchemy2.render_er(models.Base, erd_path)
 
 

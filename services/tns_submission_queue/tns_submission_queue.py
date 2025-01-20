@@ -9,14 +9,15 @@ from urllib.parse import urljoin
 
 import astropy
 import requests
-from skyportal.models.stream import Stream
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
-
-from baselayer.app.flow import Flow
+from skyportal.models.stream import Stream
+from skyportal.utils.http import serialize_requests_response
+from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
@@ -24,19 +25,17 @@ from skyportal.utils.tns import (
     get_IAUname,
     get_internal_names,
 )
-from skyportal.utils.http import serialize_requests_response
-from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
-log = make_log('tns_queue')
+log = make_log("tns_queue")
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
-TNS_URL = cfg['app.tns.endpoint']
-report_url = urljoin(TNS_URL, 'api/bulk-report')
-report_reply_url = urljoin(TNS_URL, 'api/bulk-report-reply')
-search_frontend_url = urljoin(TNS_URL, 'search')
-tns_retrieval_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
+TNS_URL = cfg["app.tns.endpoint"]
+report_url = urljoin(TNS_URL, "api/set/bulk-report")
+report_reply_url = urljoin(TNS_URL, "api/get/bulk-report-reply")
+search_frontend_url = urljoin(TNS_URL, "search")
+tns_retrieval_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
 
 
 # we create a custom exception to be able to catch it and log the error message
@@ -77,8 +76,8 @@ def validate_photometry_options(submission_request, tnsrobot):
 
     try:
         return _validate_photometry_options(
-            getattr(submission_request, 'photometry_options', {}),
-            getattr(tnsrobot, 'photometry_options', {}),
+            getattr(submission_request, "photometry_options", {}),
+            getattr(tnsrobot, "photometry_options", {}),
         )
     except ValueError as e:
         raise TNSReportError(str(e))
@@ -101,7 +100,7 @@ def validate_obj_id(obj_id, tns_source_group_id):
     """
     if tns_source_group_id not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS:
         raise TNSReportError(
-            f'Unknown naming convention for TNS source group ID {tns_source_group_id}, cannot validate object ID.'
+            f"Unknown naming convention for TNS source group ID {tns_source_group_id}, cannot validate object ID."
         )
     regex_pattern = TNS_SOURCE_GROUP_NAMING_CONVENTIONS[tns_source_group_id]
     if not re.match(regex_pattern, obj_id):
@@ -144,7 +143,7 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
 
     if len(tnsrobot_groups) == 0:
         raise TNSReportError(
-            f'User {user_id} does not have access to any group with TNSRobot {tnsrobot_id}.'
+            f"User {user_id} does not have access to any group with TNSRobot {tnsrobot_id}."
         )
 
     # if this is an auto_submission, we need to check if the group has auto-report enabled
@@ -157,7 +156,7 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
         ]
         if len(tnsrobot_groups_with_autoreport) == 0:
             raise TNSReportError(
-                f'No group with TNSRobot {tnsrobot_id} set to auto-report.'
+                f"No group with TNSRobot {tnsrobot_id} set to auto-report."
             )
 
         # we filter out the groups that this user is not an auto-reporter for
@@ -179,7 +178,7 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
 
         if len(tnsrobot_groups_with_autoreport) == 0:
             raise TNSReportError(
-                f'User {user_id} is not an auto-reporter for any group with TNSRobot {tnsrobot_id} set to auto-report.'
+                f"User {user_id} is not an auto-reporter for any group with TNSRobot {tnsrobot_id} set to auto-report."
             )
 
         # if the user is a bot, filter out the groups that are not set to auto-report with bots
@@ -192,7 +191,7 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
 
             if len(tnsrobot_groups_with_autoreport) == 0:
                 raise TNSReportError(
-                    f'No group with TNSRobot {tnsrobot_id} set to auto-report with bot users.'
+                    f"No group with TNSRobot {tnsrobot_id} set to auto-report with bot users."
                 )
 
     return tnsrobot_groups
@@ -221,21 +220,21 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, se
     obj_id = submission_request.obj_id
 
     _, existing_tns_name = get_IAUname(
-        altdata['api_key'], tns_headers, obj_id=obj_id, closest=True
+        altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
     )
     if existing_tns_name is not None:
         if not tnsrobot.report_existing:
             raise TNSReportWarning(
-                f'{obj_id} already posted to TNS as {existing_tns_name}.'
+                f"{obj_id} already posted to TNS as {existing_tns_name}."
             )
         else:
             # look if the object on TNS has already been reported by the same survey (same internal name, here being the obj_id)
             internal_names = get_internal_names(
-                altdata['api_key'], tns_headers, tns_name=existing_tns_name
+                altdata["api_key"], tns_headers, tns_name=existing_tns_name
             )
             if len(internal_names) > 0 and obj_id in internal_names:
                 raise TNSReportWarning(
-                    f'{obj_id} already posted to TNS with the same internal source name.'
+                    f"{obj_id} already posted to TNS with the same internal source name."
                 )
 
 
@@ -278,11 +277,11 @@ def find_source_to_submit(submission_request, tnsrobot_groups, session):
     if source is None:
         if submission_request.auto_submission:
             raise TNSReportError(
-                f'No source {obj_id} saved to any group with TNSRobot {tnsrobot_id}.'
+                f"No source {obj_id} saved to any group with TNSRobot {tnsrobot_id}."
             )
         else:
             raise TNSReportError(
-                f'No source {obj_id} saved to group with TNSRobot {tnsrobot_id}.'
+                f"No source {obj_id} saved to group with TNSRobot {tnsrobot_id}."
             )
 
     return source
@@ -311,7 +310,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
-    from skyportal.models import User, TNSRobotCoauthor
+    from skyportal.models import TNSRobotCoauthor, User
 
     warning = None
 
@@ -337,11 +336,11 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
                 sa.select(User).where(User.id == source.saved_by_id)
             )
             if len(source_saver.affiliations) == 0:
-                warning = f'original source saver {source_saver.username} had no affiliation, ignored as the first author.'
+                warning = f"original source saver {source_saver.username} had no affiliation, ignored as the first author."
             elif source_saver.is_bot and (
                 source_saver.bio is None or str(source_saver.bio).strip() == ""
             ):
-                warning = f'original source saver {source_saver.username} is a bot with no bio, ignored as the first author.'
+                warning = f"original source saver {source_saver.username} is a bot with no bio, ignored as the first author."
             else:
                 author_ids.append(source.saved_by_id)
         author_ids.append(user_id)
@@ -365,7 +364,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
 
         if len(authors) == 0:
             raise TNSReportError(
-                f'No authors found for tnsrobot {tnsrobot_id} and source {obj_id}, cannot report to TNS.'
+                f"No authors found for tnsrobot {tnsrobot_id} and source {obj_id}, cannot report to TNS."
             )
 
         # if any of the users are missing first/last names, we don't submit
@@ -376,18 +375,18 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
         ]
         if len(authors_with_missing_names) > 0:
             raise TNSReportWarning(
-                f'One or more authors are missing a first or last name: {", ".join([author.username for author in authors_with_missing_names])}, cannot report {obj_id} to TNS.'
+                f"One or more authors are missing a first or last name: {', '.join([author.username for author in authors_with_missing_names])}, cannot report {obj_id} to TNS."
             )
         # if any of the users are missing an affiliation, we don't submit
         authors_with_missing_affiliations = [
             author
             for author in authors
             if len(author.affiliations) == 0
-            or all([affiliation in [None, ""] for affiliation in author.affiliations])
+            or all(affiliation in [None, ""] for affiliation in author.affiliations)
         ]
         if len(authors_with_missing_affiliations) > 0:
             raise TNSReportWarning(
-                f'One or more authors are missing an affiliation: {", ".join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS.'
+                f"One or more authors are missing an affiliation: {', '.join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS."
             )
 
         # if any of the users are bot users, and are missing a bio/description
@@ -399,7 +398,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
         ]
         if len(bot_authors_with_missing_bios) > 0:
             raise TNSReportWarning(
-                f'One or more authors are bots that are missing a bio/description: {", ".join([author.username for author in bot_authors_with_missing_bios])}, cannot report {obj_id} to TNS.'
+                f"One or more authors are bots that are missing a bio/description: {', '.join([author.username for author in bot_authors_with_missing_bios])}, cannot report {obj_id} to TNS."
             )
 
         # verify that the bios are correct too, i.e. more than 10 characters and less than 1000 characters
@@ -413,7 +412,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
         ]
         if len(bot_authors_with_invalid_bios) > 0:
             raise TNSReportWarning(
-                f'One or more authors are bots that have a bio/description that is too short or too long: {", ".join([author.username for author in bot_authors_with_invalid_bios])}, cannot report {obj_id} to TNS.'
+                f"One or more authors are bots that have a bio/description that is too short or too long: {', '.join([author.username for author in bot_authors_with_invalid_bios])}, cannot report {obj_id} to TNS."
             )
 
         reporters = []
@@ -439,7 +438,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
             affiliations = sorted(affiliations)
 
             affiliations = ", ".join(affiliations)
-            reporters.append(f'{author.first_name} {author.last_name} ({affiliations})')
+            reporters.append(f"{author.first_name} {author.last_name} ({affiliations})")
 
             if author.is_bot:
                 # if the author is a bot, we use the bio as the remark
@@ -456,7 +455,7 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
 
         # acknowledgments are added to the end of the reporters string if they exist (optional)
         if tnsrobot.acknowledgments not in [None, ""]:
-            reporters += f' {str(tnsrobot.acknowledgments).strip()}'
+            reporters += f" {str(tnsrobot.acknowledgments).strip()}"
 
         reporters = reporters.strip()
         remarks = remarks.strip()
@@ -500,7 +499,7 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
     ).all()
     if len(instrument_ids) == 0:
         raise TNSReportError(
-            f'Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS.'
+            f"Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS."
         )
 
     if (
@@ -513,7 +512,7 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
         )
         if len(instrument_ids) == 0:
             raise TNSReportError(
-                f'None of the instruments specified for the submission request are accessible to TNSRobot {tnsrobot_id}.'
+                f"None of the instruments specified for the submission request are accessible to TNSRobot {tnsrobot_id}."
             )
 
     # fetch the full list of instruments in the database that we have TNS IDs for
@@ -524,7 +523,7 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
     ).all()
     if len(tns_instruments) == 0:
         raise TNSReportError(
-            'No instrument with known TNS IDs available or accessible to this user.'
+            "No instrument with known TNS IDs available or accessible to this user."
         )
 
     # keep the instruments from all_tns_instruments that are in the list of instruments to use for this submission
@@ -576,7 +575,7 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
     # if it is an auto_submission, we require streams to be specified for the TNSRobot
     if len(stream_ids) == 0 and submission_request.auto_submission is True:
         raise TNSReportError(
-            f'Must specify streams for TNSRobot {tnsrobot_id} when to automatically submit sources to TNS.'
+            f"Must specify streams for TNSRobot {tnsrobot_id} when to automatically submit sources to TNS."
         )
 
     if (
@@ -595,7 +594,7 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
         all_streams = [stream for stream in all_streams if stream.id in stream_ids]
         if len(all_streams) == 0:
             raise TNSReportError(
-                f'No streams specified for submission {submission_request.id} with TNS robot {tnsrobot_id} are accessible to this user'
+                f"No streams specified for submission {submission_request.id} with TNS robot {tnsrobot_id} are accessible to this user"
             )
 
         return [stream.id for stream in all_streams]
@@ -668,47 +667,47 @@ def build_at_report(
     detections, non_detections = [], []
 
     for phot in photometry:
-        if phot['mag'] in [None, '', 'None', 'nan']:
+        if phot["mag"] in [None, "", "None", "nan"]:
             non_detections.append(phot)
         else:
             detections.append(phot)
 
     if len(detections) == 0:
         raise TNSReportWarning(
-            f'Need at least one detection to report with TNS robot {tnsrobot.id}.'
+            f"Need at least one detection to report with TNS robot {tnsrobot.id}."
         )
 
     # if we require both first and last detections, we need at least two detections
-    if photometry_options['first_and_last_detections'] is True and len(detections) < 2:
+    if photometry_options["first_and_last_detections"] is True and len(detections) < 2:
         raise TNSReportWarning(
-            f'TNS robot {tnsrobot.id} requires both first and last detections, but only one detection is available.'
+            f"TNS robot {tnsrobot.id} requires both first and last detections, but only one detection is available."
         )
 
     # sort each by mjd ascending
-    non_detections = sorted(non_detections, key=lambda k: k['mjd'])
-    detections = sorted(detections, key=lambda k: k['mjd'])
+    non_detections = sorted(non_detections, key=lambda k: k["mjd"])
+    detections = sorted(detections, key=lambda k: k["mjd"])
 
-    time_first = detections[0]['mjd']
-    mag_first = detections[0]['mag']
-    magerr_first = detections[0]['magerr']
-    filt_first = SNCOSMO_TO_TNSFILTER[detections[0]['filter']]
-    instrument_first = TNS_INSTRUMENT_IDS[detections[0]['instrument_name'].lower()]
+    time_first = detections[0]["mjd"]
+    mag_first = detections[0]["mag"]
+    magerr_first = detections[0]["magerr"]
+    filt_first = SNCOSMO_TO_TNSFILTER[detections[0]["filter"]]
+    instrument_first = TNS_INSTRUMENT_IDS[detections[0]["instrument_name"].lower()]
 
-    time_last = detections[-1]['mjd']
-    mag_last = detections[-1]['mag']
-    magerr_last = detections[-1]['magerr']
-    filt_last = SNCOSMO_TO_TNSFILTER[detections[-1]['filter']]
-    instrument_last = TNS_INSTRUMENT_IDS[detections[-1]['instrument_name'].lower()]
+    time_last = detections[-1]["mjd"]
+    mag_last = detections[-1]["mag"]
+    magerr_last = detections[-1]["magerr"]
+    filt_last = SNCOSMO_TO_TNSFILTER[detections[-1]["filter"]]
+    instrument_last = TNS_INSTRUMENT_IDS[detections[-1]["instrument_name"].lower()]
 
     # remove non detections that are after the first detection
-    non_detections = [phot for phot in non_detections if phot['mjd'] < time_first]
+    non_detections = [phot for phot in non_detections if phot["mjd"] < time_first]
 
     # if we have no non-detection but it's an autosubmission which photometry_options allow
     # switching to archival, we can still submit the source as archival
     if (
         len(non_detections) == 0
         and submission_request.auto_submission is True
-        and photometry_options['autoreport_allow_archival'] is True
+        and photometry_options["autoreport_allow_archival"] is True
     ):
         archival = True
         # write an archival comment like: "No non-detections prior to first detection in <streams comma separated> alert stream"
@@ -718,28 +717,28 @@ def build_at_report(
                 sa.select(Stream.name).where(Stream.id.in_(stream_ids))
             ).all()
             stream_names = list(set(stream_names))
-            archival_comment = f'No non-detections prior to first detection in {", ".join(stream_names)} alert stream{"" if len(stream_names) == 1 else "s"}'
+            archival_comment = f"No non-detections prior to first detection in {', '.join(stream_names)} alert stream{'' if len(stream_names) == 1 else 's'}"
         else:
-            archival_comment = 'No non-detections prior to first detection'
+            archival_comment = "No non-detections prior to first detection"
 
     # if we require a last detection and it's not an archival submission, we need at least one non-detection
     if len(non_detections) == 0 and not archival:
         raise TNSReportWarning(
-            f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
+            f"TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection."
         )
 
     # we already filtered the non detections to only those that are before the first detection
     # so we can just take the last one since they are sorted by mjd
     if not archival:
-        time_last_nondetection = non_detections[-1]['mjd']
-        limmag_last_nondetection = non_detections[-1]['limiting_mag']
-        filt_last_nondetection = SNCOSMO_TO_TNSFILTER[non_detections[-1]['filter']]
+        time_last_nondetection = non_detections[-1]["mjd"]
+        limmag_last_nondetection = non_detections[-1]["limiting_mag"]
+        filt_last_nondetection = SNCOSMO_TO_TNSFILTER[non_detections[-1]["filter"]]
         instrument_last_nondetection = TNS_INSTRUMENT_IDS[
-            non_detections[-1]['instrument_name'].lower()
+            non_detections[-1]["instrument_name"].lower()
         ]
 
         non_detection = {
-            "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
+            "obsdate": astropy.time.Time(time_last_nondetection, format="mjd").jd,
             "limiting_flux": limmag_last_nondetection,
             "flux_units": "1",
             "filter_value": filt_last_nondetection,
@@ -756,7 +755,7 @@ def build_at_report(
     # if we have both first and last detections, we can submit them
     if len(detections) > 1:
         phot_first = {
-            "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+            "obsdate": astropy.time.Time(time_first, format="mjd").jd,
             "flux": mag_first,
             "flux_error": magerr_first,
             "flux_units": "1",
@@ -765,7 +764,7 @@ def build_at_report(
         }
 
         phot_last = {
-            "obsdate": astropy.time.Time(time_last, format='mjd').jd,
+            "obsdate": astropy.time.Time(time_last, format="mjd").jd,
             "flux": mag_last,
             "flux_error": magerr_last,
             "flux_units": "1",
@@ -775,7 +774,7 @@ def build_at_report(
     # else we only submit one (the first detection)
     else:
         phot_first = {
-            "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+            "obsdate": astropy.time.Time(time_first, format="mjd").jd,
             "flux": mag_first,
             "flux_error": magerr_first,
             "flux_units": "1",
@@ -803,8 +802,8 @@ def build_at_report(
         "internal_name": obj_id,
         "reporter": reporters,
         "discovery_datetime": astropy.time.Time(
-            time_first, format='mjd'
-        ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            time_first, format="mjd"
+        ).datetime.strftime("%Y-%m-%d %H:%M:%S.%f"),
         "at_type": 1,  # allow other options?
         "proprietary_period_groups": [tnsrobot.source_group_id],
         "proprietary_period": proprietary_period,
@@ -814,11 +813,11 @@ def build_at_report(
 
     # pop out the last detection if it is None
     if phot_last is None:
-        at_report['photometry']['photometry_group'].pop('1')
+        at_report["photometry"]["photometry_group"].pop("1")
 
     # add the remarks if it's not None
-    if remarks is not None and str(remarks).strip() != '':
-        at_report['remarks'] = remarks
+    if remarks is not None and str(remarks).strip() != "":
+        at_report["remarks"] = remarks
 
     return {"at_report": {"0": at_report}}
 
@@ -840,8 +839,8 @@ def send_at_report(submission_request, tnsrobot, report, tns_headers):
     obj_id = submission_request.obj_id
     tnsrobot_id = tnsrobot.id
     data = {
-        'api_key': tnsrobot.altdata['api_key'],
-        'data': json.dumps(report),
+        "api_key": tnsrobot.altdata["api_key"],
+        "data": json.dumps(report),
     }
 
     status = None
@@ -862,12 +861,12 @@ def send_at_report(submission_request, tnsrobot, report, tns_headers):
                 n_retries += 1
                 continue
             if status_code == 200:
-                tns_id = r.json()['data']['report_id']
+                tns_id = r.json()["data"]["report_id"]
                 log(
-                    f'Successfully submitted {obj_id} to TNS with request ID {tns_id} for TNSRobot {tnsrobot_id}'
+                    f"Successfully submitted {obj_id} to TNS with request ID {tns_id} for TNSRobot {tnsrobot_id}"
                 )
                 submission_id = tns_id
-                status = 'submitted'
+                status = "submitted"
             elif status_code == 401:
                 status = f"Unauthorized to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}, credentials may be invalid"
             else:
@@ -876,7 +875,7 @@ def send_at_report(submission_request, tnsrobot, report, tns_headers):
 
         if status_code == 429:
             status = f"{status}, and exceeded number of retries (6)"
-        submission_request.status = f'error: {status}' if status_code != 200 else status
+        submission_request.status = f"error: {status}" if status_code != 200 else status
 
         if submission_id is not None:
             submission_id = submission_id
@@ -889,7 +888,7 @@ def send_at_report(submission_request, tnsrobot, report, tns_headers):
         log(
             f"TNS Robot {tnsrobot_id} is in testing mode, not submitting {obj_id} to TNS."
         )
-        status = 'testing mode, not submitted to TNS'
+        status = "testing mode, not submitted to TNS"
 
     return status, submission_id, serialized_response
 
@@ -904,8 +903,8 @@ def process_submission_request(submission_request, session):
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
-    from skyportal.models import User, TNSRobot, Photometry, StreamPhotometry
     from skyportal.handlers.api.photometry import serialize
+    from skyportal.models import Photometry, StreamPhotometry, TNSRobot, User
 
     warning = None
 
@@ -915,25 +914,25 @@ def process_submission_request(submission_request, session):
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
-            raise TNSReportError(f'No user found with ID {user_id}.')
+            raise TNSReportError(f"No user found with ID {user_id}.")
 
         tnsrobot = session.scalar(
             TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
         )
         if tnsrobot is None:
             raise TNSReportError(
-                f'No TNSRobot found with ID {tnsrobot_id} or user {user_id} does not have access to it.'
+                f"No TNSRobot found with ID {tnsrobot_id} or user {user_id} does not have access to it."
             )
         altdata = tnsrobot.altdata
-        if not altdata or 'api_key' not in altdata:
-            raise TNSReportError(f'No TNS API key found for TNSRobot {tnsrobot_id}.')
+        if not altdata or "api_key" not in altdata:
+            raise TNSReportError(f"No TNS API key found for TNSRobot {tnsrobot_id}.")
 
         tnsrobot_groups = find_accessible_tnsrobot_groups(
             submission_request, tnsrobot, user, session
         )
 
         tns_headers = {
-            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+            "User-Agent": f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
         photometry_options = validate_photometry_options(submission_request, tnsrobot)
@@ -958,7 +957,7 @@ def process_submission_request(submission_request, session):
         archival_comment = submission_request.archival_comment
         if archival and (archival_comment in [None, ""]):
             raise TNSReportError(
-                f'Archival submission requested for {obj_id} but no archival_comment provided.'
+                f"Archival submission requested for {obj_id} but no archival_comment provided."
             )
 
         instrument_ids = find_accessible_instrument_ids(
@@ -977,13 +976,13 @@ def process_submission_request(submission_request, session):
                 # as we only want to submit alert-based photometry for surveys
                 # like ZTF that also provide a forced photometry service,
                 # which detections might have lower SNR and be less reliable or not real
-                ~Photometry.origin.ilike('%fp%'),
+                ~Photometry.origin.ilike("%fp%"),
             )
         ).all()
 
         if len(photometry) == 0:
             raise TNSReportError(
-                f'No photometry available for {obj_id} with instruments {instrument_ids}.'
+                f"No photometry available for {obj_id} with instruments {instrument_ids}."
             )
 
         # FILTER THE PHOTOMETRY BY STREAMS
@@ -1017,7 +1016,7 @@ def process_submission_request(submission_request, session):
                 [
                     phot.mag
                     for phot in phot_to_keep
-                    if phot.mag in [None, '', 'None', 'nan']
+                    if phot.mag in [None, "", "None", "nan"]
                 ]
             ) == len(phot_to_keep):
                 # get the stream names to include in the error message
@@ -1034,7 +1033,7 @@ def process_submission_request(submission_request, session):
             photometry = phot_to_keep
 
         # SERIALIZE THE PHOTOMETRY
-        photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
+        photometry = [serialize(phot, "ab", "mag") for phot in photometry]
 
         # MAKE THE AT REPORT
         report = build_at_report(
@@ -1055,30 +1054,30 @@ def process_submission_request(submission_request, session):
             submission_request, tnsrobot, report, tns_headers
         )
         if status in [
-            'submitted',
-            'testing mode, not submitted to TNS',
+            "submitted",
+            "testing mode, not submitted to TNS",
         ] and warning not in [None, ""]:
-            status = f'{status} (warning: {warning})'
+            status = f"{status} (warning: {warning})"
         submission_request.status = status
         submission_request.submission_id = submission_id
         submission_request.response = serialized_response
         session.commit()
 
         # if the submission was successful, send a notification
-        if status in ['submitted', 'testing mode, not submitted to TNS']:
+        if status in ["submitted", "testing mode, not submitted to TNS"]:
             note = f"Successfully submitted {submission_request.obj_id} to TNS."
-            if status == 'testing mode, not submitted to TNS':
+            if status == "testing mode, not submitted to TNS":
                 note = f"Successfully created report for {submission_request.obj_id} (testing mode, not sent to TNS)."
             if warning not in [None, ""]:
-                note += f'; Warning: {warning}'
+                note += f"; Warning: {warning}"
             try:
                 flow = Flow()
                 flow.push(
                     user_id=submission_request.user_id,
-                    action_type='baselayer/SHOW_NOTIFICATION',
+                    action_type="baselayer/SHOW_NOTIFICATION",
                     payload={
-                        'note': note,
-                        'type': 'info',
+                        "note": note,
+                        "type": "info",
                     },
                 )
             except Exception:
@@ -1086,17 +1085,17 @@ def process_submission_request(submission_request, session):
 
     except TNSReportError as e:
         log(f"TNSReportError: {str(e)}")
-        submission_request.status = f'error: {str(e)}'
+        submission_request.status = f"error: {str(e)}"
         session.commit()
         try:
             flow = Flow()
             flow.push(
                 user_id=submission_request.user_id,
-                action_type='baselayer/SHOW_NOTIFICATION',
+                action_type="baselayer/SHOW_NOTIFICATION",
                 payload={
-                    'note': str(e),
-                    'type': 'error' if 'already posted' not in str(e) else 'warning',
-                    'duration': 6000,  # in ms
+                    "note": str(e),
+                    "type": "error" if "already posted" not in str(e) else "warning",
+                    "duration": 6000,  # in ms
                 },
             )
         except Exception:
@@ -1104,17 +1103,17 @@ def process_submission_request(submission_request, session):
     except TNSReportWarning as e:
         log(f"TNSReportWarning: {str(e)}")
         # it is still a submission error, but we want to show it as a warning to the user
-        submission_request.status = f'error: {str(e)}'
+        submission_request.status = f"error: {str(e)}"
         session.commit()
         try:
             flow = Flow()
             flow.push(
                 user_id=submission_request.user_id,
-                action_type='baselayer/SHOW_NOTIFICATION',
+                action_type="baselayer/SHOW_NOTIFICATION",
                 payload={
-                    'note': str(e),
-                    'type': 'warning',
-                    'duration': 6000,  # in ms
+                    "note": str(e),
+                    "type": "warning",
+                    "duration": 6000,  # in ms
                 },
             )
         except Exception:
@@ -1151,8 +1150,8 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
     obj_name, response = None, None
 
     data = {
-        'api_key': tnsrobot.altdata['api_key'],
-        'report_id': submission_id,
+        "api_key": tnsrobot.altdata["api_key"],
+        "report_id": submission_id,
     }
     status_code = 429
     n_retries = 0
@@ -1182,29 +1181,29 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
         return None, response, "report not found"
 
     try:
-        at_report = r.json().get('data', {}).get('feedback', {}).get('at_report', [])
+        at_report = r.json().get("data", {}).get("feedback", {}).get("at_report", [])
         if not isinstance(at_report, list) or len(at_report) == 0:
             raise TNSReportError("No AT report found in response.")
-        if 'An identical AT report' in str(
+        if "An identical AT report" in str(
             at_report
         ):  # 'An identical AT report (sender, RA\/DEC, discovery date) already exists.'
             return None, response, None
         at_report = at_report[0]
         # the at_report is a dict with keys 'status code' and 'at_rep'
         keys = list(at_report.keys())
-        keys = list(set(keys) - {'at_rep'})
+        keys = list(set(keys) - {"at_rep"})
         if len(keys) < 1:
             raise TNSReportError("Report has been received but not yet processed.")
-        if '100' in keys:
+        if "100" in keys:
             # an object has been created along with the report
-            obj_name = at_report['100']['objname']
+            obj_name = at_report["100"]["objname"]
             if obj_name is None:
                 raise TNSReportError(
                     "Object created and report posted but no name found."
                 )
-        elif '101' in keys:
+        elif "101" in keys:
             # object already exists, no new object created but report processed
-            obj_name = at_report['101']['objname']
+            obj_name = at_report["101"]["objname"]
             if obj_name is None:
                 raise TNSReportError(
                     "Object found and report posted but no name found."
@@ -1233,7 +1232,7 @@ def process_submission_requests():
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
                     .where(
-                        TNSRobotSubmission.status.in_(['pending', 'processing']),
+                        TNSRobotSubmission.status.in_(["pending", "processing"]),
                         TNSRobotSubmission.submission_id.is_(None),
                     )
                     .order_by(TNSRobotSubmission.created_at.asc())
@@ -1242,7 +1241,7 @@ def process_submission_requests():
                     time.sleep(5)
                     continue
                 else:
-                    submission_request.status = 'processing'
+                    submission_request.status = "processing"
                     session.commit()
             except Exception as e:
                 log(f"Error getting TNS submission request: {str(e)}")
@@ -1268,7 +1267,7 @@ def process_submission_requests():
                                 TNSRobotSubmission.id == submission_request_id
                             )
                         )
-                        submission_request.status = f'error: {str(e)}'
+                        submission_request.status = f"error: {str(e)}"
                         session.commit()
                     except Exception as e:
                         log(f"Error updating TNS request status: {str(e)}")
@@ -1277,7 +1276,7 @@ def process_submission_requests():
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
-    from skyportal.models import DBSession, TNSRobotSubmission, TNSRobot, Obj
+    from skyportal.models import DBSession, Obj, TNSRobot, TNSRobotSubmission
 
     while True:
         time.sleep(5)
@@ -1288,7 +1287,7 @@ def validate_submission_requests():
             try:
                 failed_submission_requests = session.scalars(
                     sa.select(TNSRobotSubmission).where(
-                        TNSRobotSubmission.status.ilike('%504 - Gateway Time-out%'),
+                        TNSRobotSubmission.status.ilike("%504 - Gateway Time-out%"),
                         TNSRobotSubmission.modified
                         < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
                     )
@@ -1304,13 +1303,13 @@ def validate_submission_requests():
                             TNSRobotSubmission.created_at
                             > submission_request.created_at,
                             sa.or_(
-                                TNSRobotSubmission.status.ilike('%submitted%'),
-                                TNSRobotSubmission.status.ilike('%confirmed%'),
+                                TNSRobotSubmission.status.ilike("%submitted%"),
+                                TNSRobotSubmission.status.ilike("%confirmed%"),
                             ),
                         )
                     )
                     if recent_submission_request is not None:
-                        submission_request.status = 'error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same robot) reported the object since.'
+                        submission_request.status = "error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same robot) reported the object since."
                         continue
 
                     # let's check if the object is already on TNS and submitted by this robot, in which case we can mark the submission request as confirmed
@@ -1320,25 +1319,25 @@ def validate_submission_requests():
                     if (
                         obj.tns_name is not None
                         and isinstance(obj.tns_info, dict)
-                        and obj.tns_info.get('reporterid') is not None
-                        and obj.tns_info.get('reporterid')
+                        and obj.tns_info.get("reporterid") is not None
+                        and obj.tns_info.get("reporterid")
                         == submission_request.tnsrobot.bot_id
-                        and isinstance(obj.tns_info.get('reporting_group', {}), dict)
-                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        and isinstance(obj.tns_info.get("reporting_group", {}), dict)
+                        and obj.tns_info.get("reporting_group", {}).get("group_id")
                         is not None
-                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        and obj.tns_info.get("reporting_group", {}).get("group_id")
                         == submission_request.tnsrobot.source_group_id
-                        and obj.tns_info.get('discoverer') is not None
+                        and obj.tns_info.get("discoverer") is not None
                         and (
                             (
                                 submission_request.payload is not None
                                 and isinstance(submission_request.payload, dict)
-                                and obj.tns_info.get('discoverer')
-                                == submission_request.payload.get('reporter')
+                                and obj.tns_info.get("discoverer")
+                                == submission_request.payload.get("reporter")
                             )
                             or (
                                 submission_request.custom_reporting_string is not None
-                                and obj.tns_info.get('discoverer')
+                                and obj.tns_info.get("discoverer")
                                 == submission_request.custom_reporting_string
                             )
                         )
@@ -1346,14 +1345,14 @@ def validate_submission_requests():
                         log(
                             f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
                         )
-                        submission_request.status = 'confirmed'
+                        submission_request.status = "confirmed"
                         continue
 
                     # not reported on TNS by this robot yet, re-set the submission request to pending
                     log(
                         f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
-                    submission_request.status = 'pending'
+                    submission_request.status = "pending"
                 if len(failed_submission_requests) > 0:
                     session.commit()
             except Exception as e:
@@ -1365,7 +1364,7 @@ def validate_submission_requests():
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
                     .where(
-                        TNSRobotSubmission.status.like('submitted'),
+                        TNSRobotSubmission.status.like("submitted"),
                         TNSRobotSubmission.submission_id.isnot(None),
                         TNSRobotSubmission.tnsrobot_id.notin_(
                             sa.select(TNSRobot.id).where(TNSRobot.testing.is_(True))
@@ -1390,7 +1389,7 @@ def validate_submission_requests():
                     continue
 
                 tns_headers = {
-                    'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+                    "User-Agent": f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
                 }
 
                 tns_source, serialized_response, err = check_at_report(
@@ -1400,10 +1399,10 @@ def validate_submission_requests():
                     err is None
                     and tns_source is None
                     and serialized_response is not None
-                    and 'An identical AT report' in str(serialized_response)
+                    and "An identical AT report" in str(serialized_response)
                 ):
                     # we mark as complete
-                    submission_request.status = 'complete'
+                    submission_request.status = "complete"
                     submission_request.response = serialized_response
                     session.merge(submission_request)
                     session.commit()
@@ -1440,16 +1439,16 @@ def validate_submission_requests():
                         flow = Flow()
                         flow.push(
                             user_id=submission_request.user_id,
-                            action_type='baselayer/SHOW_NOTIFICATION',
+                            action_type="baselayer/SHOW_NOTIFICATION",
                             payload={
-                                'note': f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
-                                'type': 'info',
-                                'duration': 4000,  # in ms
+                                "note": f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
+                                "type": "info",
+                                "duration": 4000,  # in ms
                             },
                         )
                     except Exception:
                         pass
-                elif err == 'report not found':
+                elif err == "report not found":
                     # it can happen that even after sending a report to TNS and getting
                     # a submission ID back, the report is not found in TNS... Probably,
                     # TNS "lost" the report if we still get that error more than 1 minute
@@ -1461,7 +1460,7 @@ def validate_submission_requests():
                     if (
                         datetime.datetime.utcnow() - submission_request.modified
                     ).total_seconds() > 60:
-                        submission_request.status = 'pending'
+                        submission_request.status = "pending"
                         submission_request.submission_id = None
                         session.merge(submission_request)
                         session.commit()
@@ -1469,7 +1468,7 @@ def validate_submission_requests():
                             f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
                         )
                 elif err is not None and serialized_response is not None:
-                    submission_request.status = f'error: {err}'
+                    submission_request.status = f"error: {err}"
                     submission_request.response = serialized_response
                     session.merge(submission_request)
                     session.commit()

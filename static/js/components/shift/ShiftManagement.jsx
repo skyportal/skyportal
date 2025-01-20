@@ -171,7 +171,20 @@ const ShiftManagement = ({ currentShift }) => {
 
   const currentShiftGroup = currentShift.group;
 
-  const users = currentShiftGroup?.group_users || [];
+  let users = currentShiftGroup?.group_users || [];
+
+  // remove users from the users list if they are not already in the shift
+  // AND their expiration_date is set AND it is in the past (when compared to the current UTC date)
+  users = users.filter(
+    (user) =>
+      !(
+        !currentShift.shift_users.find(
+          (shiftUser) => shiftUser.user_id === user.id,
+        ) &&
+        user.expiration_date &&
+        new Date(user.expiration_date).getTime() < new Date().getTime()
+      ),
+  );
 
   function MultipleGroupSelectChip() {
     const { selectedUsers } = useSelector((state) => state.shift);

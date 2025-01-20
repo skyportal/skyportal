@@ -1,20 +1,21 @@
+import astropy.units as u
+import healpix_alchemy as ha
 import sqlalchemy as sa
 from sqlalchemy import func
-import healpix_alchemy as ha
-import astropy.units as u
 
-from ..base import BaseHandler
+from baselayer.app.access import permissions
+
 from ...models import (
     Obj,
 )
-from baselayer.app.access import permissions
+from ..base import BaseHandler
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 
 
 class HealpixUpdateHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def get(self):
         """
         ---
@@ -55,12 +56,12 @@ class HealpixUpdateHandler(BaseHandler):
             total_healpix = session.execute(count_stmt).scalar()
 
         results = {
-            'totalWithoutHealpix': total_missing,
-            'totalWithHealpix': total_healpix,
+            "totalWithoutHealpix": total_missing,
+            "totalWithHealpix": total_healpix,
         }
         return self.success(data=results)
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def post(self):
         """
         ---
@@ -107,15 +108,15 @@ class HealpixUpdateHandler(BaseHandler):
         """
 
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             num_per_page = min(
                 int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
                 MAX_SOURCES_PER_PAGE,
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({num_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({num_per_page}) as an integers."
             )
 
         with self.Session() as session:
@@ -134,8 +135,8 @@ class HealpixUpdateHandler(BaseHandler):
             session.commit()
 
         results = {
-            'totalMatches': total_matches,
-            'numPerPage': num_per_page,
-            'pageNumber': page_number,
+            "totalMatches": total_matches,
+            "numPerPage": num_per_page,
+            "pageNumber": page_number,
         }
         return self.success(data=results)

@@ -1,22 +1,22 @@
+import makeStyles from "@mui/styles/makeStyles";
 import React, { Suspense, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import makeStyles from "@mui/styles/makeStyles";
 
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
-import CircularProgress from "@mui/material/CircularProgress";
-import FormControl from "@mui/material/FormControl";
-import Input from "@mui/material/Input";
-import Grid from "@mui/material/Grid";
+import PrintIcon from "@mui/icons-material/Print";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControl from "@mui/material/FormControl";
+import Grid from "@mui/material/Grid";
+import Input from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
-import PrintIcon from "@mui/icons-material/Print";
 
-import TextLoop from "react-text-loop";
-import { useImage } from "react-image";
 import { Controller, useForm } from "react-hook-form";
+import { useImage } from "react-image";
+import TextLoop from "react-text-loop";
 import { useReactToPrint } from "react-to-print";
 import Button from "./Button";
 
@@ -82,7 +82,7 @@ const FindingChart = () => {
   const [params, setParams] = useState({
     imagesource: "ps1",
     facility: "Keck",
-    positionsource: "gaia",
+    positionsource: "ztfref",
     findersize: 4.0,
     numoffset: 3,
   });
@@ -242,6 +242,7 @@ const FindingChart = () => {
                             <MenuItem value="Keck">Keck</MenuItem>
                             <MenuItem value="Shane">Shane</MenuItem>
                             <MenuItem value="P200">P200</MenuItem>
+                            <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
                           </Select>
                         )}
                       />

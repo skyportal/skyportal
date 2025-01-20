@@ -108,7 +108,10 @@ const REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
   "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
 
 export const fetchGcnEvent = (dateobs) =>
-  API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
+  API.GET(
+    `/api/gcn_event/${dateobs}?excludeNoticeContent=true`,
+    FETCH_GCNEVENT,
+  );
 
 export function addCommentOnGcnEvent(formData) {
   function fileReaderPromise(file) {

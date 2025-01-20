@@ -1,17 +1,16 @@
-__all__ = ['Photometry', 'PHOT_ZP', 'PHOT_SYS']
+__all__ = ["Photometry", "PHOT_ZP", "PHOT_SYS"]
 import uuid
 
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
-
+import arrow
 import conesearch_alchemy
 import numpy as np
-import arrow
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, accessible_by_owner
 from baselayer.app.env import load_env
+from baselayer.app.models import Base, accessible_by_owner
 
 from ..enum_types import allowed_bandpasses
 from .group import accessible_by_groups_members, accessible_by_streams_members
@@ -21,7 +20,7 @@ _, cfg = load_env()
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
-PHOT_SYS = 'ab'
+PHOT_SYS = "ab"
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -30,7 +29,7 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 class Photometry(conesearch_alchemy.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
-    __tablename__ = 'photometry'
+    __tablename__ = "photometry"
 
     read = (
         accessible_by_groups_members
@@ -39,23 +38,23 @@ class Photometry(conesearch_alchemy.Point, Base):
     )
     update = delete = accessible_by_owner
 
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
+    mjd = sa.Column(sa.Float, nullable=False, doc="MJD of the observation.", index=True)
     flux = sa.Column(
         sa.Float,
-        doc='Flux of the observation in µJy. '
-        'Corresponds to an AB Zeropoint of 23.9 in all '
-        'filters.',
-        server_default='NaN',
+        doc="Flux of the observation in µJy. "
+        "Corresponds to an AB Zeropoint of 23.9 in all "
+        "filters.",
+        server_default="NaN",
         nullable=False,
     )
 
     fluxerr = sa.Column(
-        sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
+        sa.Float, nullable=False, doc="Gaussian error on the flux in µJy."
     )
     filter = sa.Column(
         allowed_bandpasses,
         nullable=False,
-        doc='Filter with which the observation was taken.',
+        doc="Filter with which the observation was taken.",
     )
 
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
@@ -76,13 +75,13 @@ class Photometry(conesearch_alchemy.Point, Base):
 
     original_user_data = sa.Column(
         JSONB,
-        doc='Original data passed by the user '
-        'through the PhotometryHandler.POST '
-        'API or the PhotometryHandler.PUT '
-        'API. The schema of this JSON '
-        'validates under either '
-        'schema.PhotometryFlux or schema.PhotometryMag '
-        '(depending on how the data was passed).',
+        doc="Original data passed by the user "
+        "through the PhotometryHandler.POST "
+        "API or the PhotometryHandler.PUT "
+        "API. The schema of this JSON "
+        "validates under either "
+        "schema.PhotometryFlux or schema.PhotometryMag "
+        "(depending on how the data was passed).",
     )
     altdata = sa.Column(JSONB, doc="Arbitrary metadata in JSON format..")
     upload_id = sa.Column(
@@ -98,16 +97,16 @@ class Photometry(conesearch_alchemy.Point, Base):
         unique=False,
         index=True,
         doc="Origin from which this Photometry was extracted (if any).",
-        server_default='',
+        server_default="",
     )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Photometry's Obj.",
     )
-    obj = relationship('Obj', back_populates='photometry', doc="The Photometry's Obj.")
+    obj = relationship("Obj", back_populates="photometry", doc="The Photometry's Obj.")
     groups = relationship(
         "Group",
         secondary="group_photometry",
@@ -125,46 +124,46 @@ class Photometry(conesearch_alchemy.Point, Base):
         doc="Streams associated with this Photometry.",
     )
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Instrument that took this Photometry.",
     )
     instrument = relationship(
-        'Instrument',
-        back_populates='photometry',
+        "Instrument",
+        back_populates="photometry",
         doc="Instrument that took this Photometry.",
     )
 
     followup_request_id = sa.Column(
-        sa.ForeignKey('followuprequests.id'), nullable=True, index=True
+        sa.ForeignKey("followuprequests.id"), nullable=True, index=True
     )
-    followup_request = relationship('FollowupRequest', back_populates='photometry')
+    followup_request = relationship("FollowupRequest", back_populates="photometry")
 
     assignment_id = sa.Column(
-        sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
+        sa.ForeignKey("classicalassignments.id"), nullable=True, index=True
     )
-    assignment = relationship('ClassicalAssignment', back_populates='photometry')
+    assignment = relationship("ClassicalAssignment", back_populates="photometry")
 
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User who uploaded the photometry.",
     )
     owner = relationship(
-        'User',
-        back_populates='photometry',
+        "User",
+        back_populates="photometry",
         foreign_keys=[owner_id],
         passive_deletes=True,
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade="save-update, merge, refresh-expire, expunge",
         doc="The User who uploaded the photometry.",
     )
 
     annotations = relationship(
-        'AnnotationOnPhotometry',
-        back_populates='photometry',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "AnnotationOnPhotometry",
+        back_populates="photometry",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="AnnotationOnPhotometry.created_at",
         doc="Annotations posted about this photometry.",
@@ -198,7 +197,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The magnitude of the photometry point in the AB system."""
         return sa.case(
             (
-                sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
+                sa.and_(cls.flux != "NaN", cls.flux > 0),  # noqa
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ),
             else_=None,
@@ -209,7 +208,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The error on the magnitude of the photometry point."""
         return sa.case(
             (
-                sa.and_(cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
+                sa.and_(cls.flux != "NaN", cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
                 2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
             ),
             else_=None,
@@ -247,7 +246,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -262,7 +261,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711
@@ -311,9 +310,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
-                    cls.flux != 'NaN',
+                    cls.flux != "NaN",
                     cls.flux > 0,
                 ),  # noqa
                 -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
@@ -328,11 +327,11 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux is not None,
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                     cls.flux is not None,
-                    cls.flux != 'NaN',
+                    cls.flux != "NaN",
                     cls.flux > 0,
                     cls.fluxerr > 0,
                 ),  # noqa: E711
@@ -374,9 +373,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
-                    cls.flux != 'NaN',
+                    cls.flux != "NaN",
                     cls.flux > 0,
                 ),  # noqa
                 cls.ref_flux + cls.flux,
@@ -391,10 +390,10 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_fluxerr != None,  # noqa: E711
-                    cls.ref_fluxerr != 'NaN',
+                    cls.ref_fluxerr != "NaN",
                     cls.ref_fluxerr > 0,
                     cls.fluxerr != None,  # noqa: E711
-                    cls.fluxerr != 'NaN',
+                    cls.fluxerr != "NaN",
                     cls.fluxerr > 0,
                 ),  # noqa
                 sa.func.sqrt(
@@ -438,7 +437,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             [
                 (
                     sa.and_(
-                        self.flux != 'NaN', self.fluxerr != 'NaN', self.fluxerr != 0
+                        self.flux != "NaN", self.fluxerr != "NaN", self.fluxerr != 0
                     ),  # noqa
                     self.flux / self.fluxerr,
                 )
@@ -451,8 +450,8 @@ class Photometry(conesearch_alchemy.Point, Base):
 
         serialize_photometry = serialize(
             self,
-            'ab',
-            'mag',
+            "ab",
+            "mag",
             created_at=False,
             groups=False,
             annotations=False,
@@ -481,7 +480,7 @@ class Photometry(conesearch_alchemy.Point, Base):
 
 Photometry.__table_args__ = (
     sa.Index(
-        'deduplication_index',
+        "deduplication_index",
         Photometry.obj_id,
         Photometry.instrument_id,
         Photometry.origin,

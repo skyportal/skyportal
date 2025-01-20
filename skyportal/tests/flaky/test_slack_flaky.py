@@ -8,8 +8,8 @@ def test_slack_url(driver, user):
     good_path = "https://hooks.slack.com/"
     bad_path = "http://garbage.url"
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/profile')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
     slack_toggle = driver.wait_for_xpath('//*[@data-testid="slack_toggle"]')
 
     if not slack_toggle.is_selected():

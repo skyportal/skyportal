@@ -2,12 +2,14 @@ import operator  # noqa: F401
 import re
 
 from sqlalchemy import func
+
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
-from ...base import BaseHandler
-from ....models import Group, PublicRelease, PublicSourcePage, GroupPublicRelease
 
-log = make_log('api/public_release')
+from ....models import Group, GroupPublicRelease, PublicRelease, PublicSourcePage
+from ...base import BaseHandler
+
+log = make_log("api/public_release")
 
 
 def process_link_name_validation(session, link_name, release_id):
@@ -23,7 +25,7 @@ def process_link_name_validation(session, link_name, release_id):
     if not is_unique:
         return False, "This link name is already in use"
 
-    is_url_safe = bool(re.compile(r'^[0-9A-Za-z-_.+]+$').match(link_name))
+    is_url_safe = bool(re.compile(r"^[0-9A-Za-z-_.+]+$").match(link_name))
     if not is_url_safe:
         return (
             False,
@@ -34,7 +36,7 @@ def process_link_name_validation(session, link_name, release_id):
 
 
 class PublicReleaseHandler(BaseHandler):
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     async def post(self):
         """
         ---
@@ -114,7 +116,7 @@ class PublicReleaseHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
             return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def patch(self, release_id):
         """
         ---
@@ -257,7 +259,7 @@ class PublicReleaseHandler(BaseHandler):
 
             return self.success(data=public_releases)
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, release_id):
         """
         ---

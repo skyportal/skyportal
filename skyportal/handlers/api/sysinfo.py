@@ -1,10 +1,10 @@
 import glob
-import json
 import itertools
-
-from ..base import BaseHandler
+import json
 
 from skyportal.utils.gitlog import get_gitlog, parse_gitlog
+
+from ..base import BaseHandler
 
 # This file is generated with `utils.get_gitlog`.
 #
@@ -51,12 +51,12 @@ class SysInfoHandler(BaseHandler):
 
         parsed_logs = [parse_gitlog(gitlog) for gitlog in gitlogs]
         parsed_log = list(itertools.chain(*parsed_logs))
-        parsed_log = list(sorted(parsed_log, key=lambda x: x['time'], reverse=True))
+        parsed_log = sorted(parsed_log, key=lambda x: x["time"], reverse=True)
         parsed_log = parsed_log[:max_log_lines]
         parsed_log = [
             entry
             for entry in parsed_log
-            if not (entry['description'].lower().startswith(('bump', 'pin')))
+            if not (entry["description"].lower().startswith(("bump", "pin")))
         ]
 
         return self.success(

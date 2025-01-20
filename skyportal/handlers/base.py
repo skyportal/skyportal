@@ -1,9 +1,10 @@
 from math import ceil
 
-from tornado.iostream import StreamClosedError
 from tornado.gen import sleep
+from tornado.iostream import StreamClosedError
 
 from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
+
 from .. import __version__
 
 
@@ -15,10 +16,10 @@ class BaseHandler(BaselayerHandler):
         return self.current_user.created_by
 
     def success(self, *args, **kwargs):
-        super().success(*args, **kwargs, extra={'version': __version__})
+        super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
-        super().error(message, *args, **kwargs, extra={'version': __version__})
+        super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(
         self,
@@ -49,13 +50,16 @@ class BaseHandler(BaselayerHandler):
         # do not send result via `.success`, since that uses content-type JSON
         self.set_status(200)
         if output_type == "pdf":
-            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        elif output_type in ["txt", "xml", "json", "csv"]:
+            self.set_header("Content-type", "text/plain")
             self.set_header("Content-Disposition", f"attachment; filename={filename}")
         else:
             self.set_header("Content-type", f"image/{output_type}")
 
         self.set_header(
-            'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
+            "Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"
         )
 
         for i in range(ceil(max_file_size / chunk_size)):

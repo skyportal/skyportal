@@ -1,5 +1,6 @@
 import pytest
 from selenium.webdriver import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 
 @pytest.mark.flaky(reruns=2)
@@ -92,8 +93,8 @@ def test_upload_photometry_csv_with_altdata(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
-        "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
-        "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
+        '58001,55,1,25,ab,sdssg,44.4,"abc,abc"\n'
+        '58002,53,1,25,ab,sdssg,44.2,"edf,edf"'
     )
     # instrument select
     driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
@@ -136,9 +137,7 @@ def test_upload_photometry_csv_form_validation(
     )
     csv_text_input.clear()
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab"
+        "mjd,flux,fluxerr,zp,magsys,filter\n58001,55,1,25,ab,sdssg\n58002,53,1,25,ab"
     )
     driver.wait_for_xpath(
         '//div[contains(.,"Invalid input: All data rows must have the same number of columns as header row")]'
@@ -183,15 +182,23 @@ def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
     # instrument select
     driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{sedm.id}"]', scroll_parent=True)
+    # wait for the modal to disappear
+    driver.wait_for_xpath_to_disappear(f'//li[@data-value="{sedm.id}"]')
 
-    driver.wait_for_xpath('//*[@id="root_dateobs"]').send_keys("2017-05-09T12:34:56")
+    groups_dropdown = driver.wait_for_xpath('//*[@id="root_group_ids"]')
+    driver.scroll_to_element_and_click(groups_dropdown)
+    # click on the first group
+    driver.wait_for_xpath('//*[@aria-labelledby="root_group_ids-label"]/li[1]').click()
+    groups_dropdown.send_keys(Keys.ESCAPE)
+
+    driver.wait_for_xpath_to_disappear(
+        '//*[@aria-labelledby="root_group_ids-label"]/li[1]'
+    )
+
+    driver.wait_for_xpath('//*[@id="root_obsdate"]').send_keys("2017-05-09T12:34:56")
     driver.wait_for_xpath('//*[@id="root_mag"]').send_keys("12.3")
     driver.wait_for_xpath('//*[@id="root_magerr"]').send_keys("0.1")
     driver.wait_for_xpath('//*[@id="root_limiting_mag"]').send_keys("20.0")
-
-    magsys_dropdown = driver.wait_for_xpath('//*[@id="root_magsys"]')
-    driver.scroll_to_element_and_click(magsys_dropdown)
-    driver.wait_for_xpath('//*[text()="AB"]').click()
 
     driver.wait_for_xpath('//*[@id="root_origin"]').send_keys("test")
     driver.wait_for_xpath('//*[@id="root_nb_exposure"]').send_keys("6")

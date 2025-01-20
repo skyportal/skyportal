@@ -1,9 +1,10 @@
 import uuid
+
 from skyportal.tests import api
 
 
 def test_invite_new_user(manage_users_token, public_stream, public_group):
-    status, _ = api(
+    status, data = api(
         "POST",
         "invitations",
         data={
@@ -14,6 +15,8 @@ def test_invite_new_user(manage_users_token, public_stream, public_group):
         },
         token=manage_users_token,
     )
+    print(status)
+    print(data)
     assert status == 200
 
 
@@ -48,6 +51,8 @@ def test_get_invitations(
         },
         token=manage_users_token,
     )
+    print(status)
+    print(data)
     assert status == 200
     invitation_id = data["data"]["id"]
 
@@ -92,6 +97,8 @@ def test_patch_invitation(
         },
         token=manage_users_token,
     )
+    print(status)
+    print(data)
     assert status == 200
     invitation_id = data["data"]["id"]
 
@@ -147,6 +154,8 @@ def test_delete_invitation(
         },
         token=manage_users_token,
     )
+    print(status)
+    print(data)
     assert status == 200
     invitation_id = data["data"]["id"]
 
@@ -154,6 +163,9 @@ def test_delete_invitation(
     status, data = api(
         "DELETE", f"invitations/{invitation_id}", token=manage_users_token_group2
     )
+    print("-------")
+    print(status)
+    print(data)
     assert status == 400
     assert "Insufficient permissions" in data["message"]
 

@@ -1,5 +1,6 @@
 import os
 import uuid
+
 import pytest
 
 
@@ -20,7 +21,7 @@ def test_upload_galaxies(driver, super_admin_user, super_admin_token):
     attachment_file.send_keys(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'data',
+            "data",
             filename,
         ),
     )
@@ -32,6 +33,6 @@ def test_upload_galaxies(driver, super_admin_user, super_admin_token):
     search_button_xpath = '//button[@data-testid="Search-iconButton"]'
     driver.click_xpath(search_button_xpath, scroll_parent=True)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
-    search_bar.send_keys('6dFgs gJ0001313-055904')
+    search_bar.send_keys("6dFgs gJ0001313-055904")
     driver.wait_for_xpath('//*[text()="6dFgs gJ0001313-055904"]', timeout=10)
     search_bar.clear()

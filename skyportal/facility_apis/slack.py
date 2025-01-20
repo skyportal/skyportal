@@ -1,16 +1,16 @@
 import json
-import requests
 import textwrap
 
-from astropy.coordinates import SkyCoord
+import requests
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..app_utils import get_app_base_url
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -19,7 +19,6 @@ SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
 
 
 class SLACKRequest:
-
     """A dictionary structure for SLACK ToO requests."""
 
     def _build_payload(self, request):
@@ -61,14 +60,14 @@ class SLACKRequest:
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'instrument_request': request.allocation.instrument.name,
-            'ra': f"{request.obj.ra:.5f}",
-            'dec': f"{request.obj.dec:.5f}",
-            'filters': ",".join(request.payload["observation_choices"]),
-            'exposure_time': request.payload["exposure_time"],
-            'exposure_counts': request.payload["exposure_counts"],
-            'username': request.requester.username,
+            "name": request.obj.id,
+            "instrument_request": request.allocation.instrument.name,
+            "ra": f"{request.obj.ra:.5f}",
+            "dec": f"{request.obj.dec:.5f}",
+            "filters": ",".join(request.payload["observation_choices"]),
+            "exposure_time": request.payload["exposure_time"],
+            "exposure_counts": request.payload["exposure_counts"],
+            "username": request.requester.username,
         }
 
         c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
@@ -112,9 +111,9 @@ class SLACKAPI(FollowUpAPI):
         altdata = request.allocation.altdata
 
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
-        slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+        slack_microservice_url = f"http://127.0.0.1:{cfg['slack.microservice_port']}"
 
         data = json.dumps(
             {
@@ -126,14 +125,14 @@ class SLACKAPI(FollowUpAPI):
         r = requests.post(
             slack_microservice_url,
             data=data,
-            headers={'Content-Type': 'application/json'},
+            headers={"Content-Type": "application/json"},
         )
         r.raise_for_status()
 
         if r.status_code == 200:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -144,18 +143,18 @@ class SLACKAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -175,18 +174,18 @@ class SLACKAPI(FollowUpAPI):
                 "Can't delete requests already sent successfully to Slack."
             )
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     def custom_json_schema(instrument, user, **kwargs):
@@ -245,5 +244,5 @@ class SLACKAPI(FollowUpAPI):
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {
-        'observation_choices': "Request",
+        "observation_choices": "Request",
     }

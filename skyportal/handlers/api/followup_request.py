@@ -2,21 +2,21 @@ import ast
 import functools
 import io
 import json
+import operator
 import tempfile
 import time
+import traceback
 import uuid
 from datetime import datetime, timedelta
-import traceback
 
 import arrow
+import conesearch_alchemy as ca
 import healpy as hp
 import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import operator
 import pandas as pd
-import conesearch_alchemy as ca
 import sqlalchemy as sa
 from astroplan import FixedTarget, Observer, ObservingBlock
 from astroplan.constraints import (
@@ -34,9 +34,9 @@ from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import cast
-from sqlalchemy.dialects.postgresql import JSONB
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -47,6 +47,7 @@ from ...models import (
     Allocation,
     ClassicalAssignment,
     Classification,
+    DBSession,
     DefaultFollowupRequest,
     FollowupRequest,
     FollowupRequestUser,
@@ -59,13 +60,12 @@ from ...models import (
     Spectrum,
     User,
     cosmo,
-    DBSession,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
 from ..base import BaseHandler
 
-log = make_log('api/followup_request')
+log = make_log("api/followup_request")
 
 MAX_FOLLOWUP_REQUESTS = 1000
 
@@ -82,16 +82,16 @@ def post_assignment(data, session):
         assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
     except ValidationError as e:
         raise ValidationError(
-            'Error parsing followup request: ' f'"{e.normalized_messages()}"'
+            f'Error parsing followup request: "{e.normalized_messages()}"'
         )
 
     run_id = assignment.run_id
-    data['priority'] = assignment.priority.name
+    data["priority"] = assignment.priority.name
     run = session.scalars(
         ObservingRun.select(session.user_or_token).where(ObservingRun.id == run_id)
     ).first()
     if run is None:
-        raise ValueError('Observing run is not accessible.')
+        raise ValueError("Observing run is not accessible.")
 
     predecessor = session.scalars(
         ClassicalAssignment.select(session.user_or_token).where(
@@ -101,11 +101,11 @@ def post_assignment(data, session):
     ).first()
 
     if predecessor is not None:
-        raise ValueError('Object is already assigned to this run.')
+        raise ValueError("Object is already assigned to this run.")
 
     assignment = ClassicalAssignment(**data)
 
-    if hasattr(session.user_or_token, 'created_by'):
+    if hasattr(session.user_or_token, "created_by"):
         user_id = session.user_or_token.created_by.id
     else:
         user_id = session.user_or_token.id
@@ -117,12 +117,12 @@ def post_assignment(data, session):
 
     flow = Flow()
     flow.push(
-        '*',
+        "*",
         "skyportal/REFRESH_SOURCE",
         payload={"obj_key": assignment.obj.internal_key},
     )
     flow.push(
-        '*',
+        "*",
         "skyportal/REFRESH_OBSERVING_RUN",
         payload={"run_id": assignment.run_id},
     )
@@ -199,17 +199,17 @@ class AssignmentHandler(BaseHandler):
 
             # calculate when the targets rise and set
             for json_obj, assignment in zip(out_json, assignments):
-                json_obj['rise_time_utc'] = assignment.rise_time.isot
-                json_obj['set_time_utc'] = assignment.set_time.isot
-                json_obj['obj'] = assignment.obj
-                json_obj['requester'] = assignment.requester
+                json_obj["rise_time_utc"] = assignment.rise_time.isot
+                json_obj["set_time_utc"] = assignment.set_time.isot
+                json_obj["obj"] = assignment.obj
+                json_obj["requester"] = assignment.requester
 
             if assignment_id is not None:
                 out_json = out_json[0]
 
             return self.success(data=out_json)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -245,12 +245,12 @@ class AssignmentHandler(BaseHandler):
                 assignment_id = post_assignment(data, session)
             except ValidationError as e:
                 return self.error(
-                    'Error posting followup request: ' f'"{e.normalized_messages()}"'
+                    f'Error posting followup request: "{e.normalized_messages()}"'
                 )
             except ValueError as e:
-                return self.error('Error posting followup request: ' f'"{e.args[0]}"')
+                return self.error(f'Error posting followup request: "{e.args[0]}"')
             except Exception as e:
-                return self.error('Error posting followup request: ' f'"{str(e)}"')
+                return self.error(f'Error posting followup request: "{str(e)}"')
 
             return self.success(data={"id": assignment_id})
 
@@ -290,10 +290,10 @@ class AssignmentHandler(BaseHandler):
                 )
             ).first()
             if assignment is None:
-                return self.error(f'Could not find assigment with ID {assignment_id}.')
+                return self.error(f"Could not find assigment with ID {assignment_id}.")
 
             data = self.get_json()
-            data['id'] = assignment_id
+            data["id"] = assignment_id
             data["last_modified_by_id"] = self.associated_user_object.id
 
             schema = ClassicalAssignment.__schema__()
@@ -301,20 +301,20 @@ class AssignmentHandler(BaseHandler):
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            if 'comment' in data:
-                assignment.comment = data['comment']
+            if "comment" in data:
+                assignment.comment = data["comment"]
 
-            if 'status' in data:
-                assignment.status = data['status']
+            if "status" in data:
+                assignment.status = data["status"]
 
-            if 'priority' in data:
-                assignment.priority = data['priority']
+            if "priority" in data:
+                assignment.priority = data["priority"]
 
-            if 'last_modified_by_id' in data:
-                assignment.last_modified_by_id = data['last_modified_by_id']
+            if "last_modified_by_id" in data:
+                assignment.last_modified_by_id = data["last_modified_by_id"]
 
             session.commit()
 
@@ -356,7 +356,7 @@ class AssignmentHandler(BaseHandler):
                 )
             ).first()
             if assignment is None:
-                return self.error(f'Could not find assigment with ID {assignment_id}.')
+                return self.error(f"Could not find assigment with ID {assignment_id}.")
 
             obj_key = assignment.obj.internal_key
             session.delete(assignment)
@@ -390,44 +390,44 @@ def post_followup_request(
     """
 
     if isinstance(constraints, dict):
-        if len(constraints.get('source_group_ids', [])) > 0:
+        if len(constraints.get("source_group_ids", [])) > 0:
             # verify that there is a source for each of the group IDs
             existing_sources = session.scalars(
                 Source.select(session.user_or_token).where(
-                    Source.group_id.in_(constraints['source_group_ids']),
-                    Source.obj_id == data['obj_id'],
+                    Source.group_id.in_(constraints["source_group_ids"]),
+                    Source.obj_id == data["obj_id"],
                     Source.active.is_(True),
                 )
             ).all()
-            if len(existing_sources) != len(constraints['source_group_ids']):
+            if len(existing_sources) != len(constraints["source_group_ids"]):
                 raise ValueError(
-                    'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
+                    "There is no source for one or more of the source_group_ids specified as a constraint, not submitting request."
                 )
 
         # the following constraints are spatial and require position and radius
-        radius = constraints.get('radius', 0.5) / 3600
+        radius = constraints.get("radius", 0.5) / 3600
         obj = session.scalars(
-            Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
+            Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
         ).first()
         if obj is None:
-            raise ValueError(f'Could not find source with ID {data["obj_id"]}.')
+            raise ValueError(f"Could not find source with ID {data['obj_id']}.")
 
-        if constraints.get('not_if_duplicates', False):
+        if constraints.get("not_if_duplicates", False):
             # verify that there is no follow-up requests with the same allocation and within the radius
             # that are in the "submitted" or "completed" state
             # apply the same logic to a list of allocations if provided, not just the one for the new request
             try:
-                ignore_allocation_ids = constraints.get('ignore_allocation_ids', [])
+                ignore_allocation_ids = constraints.get("ignore_allocation_ids", [])
                 ignore_allocation_ids = [int(i) for i in ignore_allocation_ids]
             except ValueError:
                 raise ValueError(
-                    'ignore_allocation_ids must be a valid list of integers.'
+                    "ignore_allocation_ids must be a valid list of integers."
                 )
 
             existing_requests = session.scalars(
                 FollowupRequest.select(session.user_or_token).where(
                     FollowupRequest.allocation_id.in_(
-                        list(set([data['allocation_id']] + ignore_allocation_ids))
+                        list(set([data["allocation_id"]] + ignore_allocation_ids))
                     ),
                     sa.or_(
                         func.lower(FollowupRequest.status)
@@ -445,20 +445,20 @@ def post_followup_request(
                 )
             ).first()
             if existing_requests is not None:
-                if existing_requests.allocation_id == data['allocation_id']:
+                if existing_requests.allocation_id == data["allocation_id"]:
                     raise ValueError(
-                        'There is already a follow-up request for this source and allocation, not submitting request.'
+                        "There is already a follow-up request for this source and allocation, not submitting request."
                     )
                 else:
                     raise ValueError(
-                        'There is already a follow-up request for this source and one of the ignore_allocation_ids, not submitting request.'
+                        "There is already a follow-up request for this source and one of the ignore_allocation_ids, not submitting request."
                     )
 
-        if len(constraints.get('ignore_source_group_ids', [])) > 0:
+        if len(constraints.get("ignore_source_group_ids", [])) > 0:
             # verify that there is NO source saved to any of the group IDs (within the radius)
             ignore_existing_sources = session.scalars(
                 Source.select(session.user_or_token).where(
-                    Source.group_id.in_(constraints['ignore_source_group_ids']),
+                    Source.group_id.in_(constraints["ignore_source_group_ids"]),
                     Source.obj_id.in_(
                         sa.select(Obj.id).where(
                             Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
@@ -469,7 +469,7 @@ def post_followup_request(
             ).first()
             if ignore_existing_sources is not None:
                 raise ValueError(
-                    'There is a source for one or more of the ignore_source_group_ids specified as a constraint, not submitting request.'
+                    "There is a source for one or more of the ignore_source_group_ids specified as a constraint, not submitting request."
                 )
 
         if constraints.get("not_if_classified", False):
@@ -486,7 +486,7 @@ def post_followup_request(
             ).first()
             if existing_classifications is not None:
                 raise ValueError(
-                    'Source has already been classified, not submitting request (as per constraint).'
+                    "Source has already been classified, not submitting request (as per constraint)."
                 )
         if constraints.get("not_if_spectra_exist", False):
             # verify that there is no source with spectra within the radius
@@ -501,7 +501,7 @@ def post_followup_request(
             ).first()
             if existing_spectra is not None:
                 raise ValueError(
-                    'Source has already been observed spectroscopically, not submitting request (as per constraint).'
+                    "Source has already been observed spectroscopically, not submitting request (as per constraint)."
                 )
         if constraints.get("not_if_tns_classified", False):
             # don't trigger if there is any source within the radius
@@ -514,37 +514,88 @@ def post_followup_request(
             ).first()
             if existing_tns_classifications is not None:
                 raise ValueError(
-                    'Source within 0.5 arcsec has already been classified in TNS, not submitting request (as per constraint).'
+                    f"Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint)."
                 )
+        if isinstance(constraints.get("not_if_tns_reported", None), int | float):
+            # don't trigger if there is any source reported to TNS within the radius
+            # and the "tns_time" is older than the constraint's allowed age
+            # where the tns_time is the time of latest photometry point or the discovery date (first point)
+            # if we cannot parse the photometry
+            # Basically, discoverydate < max([p.jd for p in photometry]) < reported_at
+            # but we do not have the reported_at, the last photometry point is a good approximation
+            # which might actually be even better, since we are then not affected by the delay
+            # between the last photometry point and the report to TNS
+            existing_tns_sources = session.scalars(
+                Obj.select(session.user_or_token).where(
+                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
+                    Obj.tns_name.isnot(None),
+                    Obj.tns_name != "",
+                    Obj.tns_info.isnot(None),
+                    Obj.tns_info != "",
+                )
+            ).all()
+            for existing_tns_source in existing_tns_sources:
+                try:
+                    tns_info = existing_tns_source.tns_info
+                    if tns_info is None:
+                        raise ValueError("TNS info missing")
+                    if isinstance(tns_info, str):
+                        tns_info = json.loads(tns_info)
+
+                    tns_time = None
+                    tns_photometry = tns_info.get("photometry", [])
+                    if len(tns_photometry) > 0 and all(
+                        isinstance(p, dict)
+                        and isinstance(p.get("jd"), int | float | str)
+                        for p in tns_photometry
+                    ):
+                        # jd to datetime
+                        tns_time = max(float(p["jd"]) for p in tns_photometry)
+                        tns_time = Time(tns_time, format="jd").datetime
+                    else:
+                        # string to datetime
+                        tns_time = tns_info.get("discoverydate", None)
+                        tns_time = arrow.get(tns_time).datetime
+                except Exception as e:
+                    log(
+                        f"Error parsing TNS info for source {existing_tns_source.id}: {e}, skipping."
+                    )
+                    continue
+                if tns_time is not None:
+                    delta_hours = (datetime.utcnow() - tns_time).total_seconds() / 3600
+                    if delta_hours > float(constraints["not_if_tns_reported"]):
+                        raise ValueError(
+                            f"A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint)."
+                        )
 
     stmt = Allocation.select(session.user_or_token).where(
-        Allocation.id == data['allocation_id'],
+        Allocation.id == data["allocation_id"],
     )
     allocation = session.scalars(stmt).first()
     if allocation is None:
-        raise ValueError(f'Could not find allocation with ID {data["allocation_id"]}.')
+        raise ValueError(f"Could not find allocation with ID {data['allocation_id']}.")
 
     instrument = allocation.instrument
     if instrument is None:
-        raise ValueError(f'Could not find instrument for allocation {allocation.id}.')
+        raise ValueError(f"Could not find instrument for allocation {allocation.id}.")
 
     if instrument.api_classname is None:
-        raise ValueError('Instrument has no remote API.')
+        raise ValueError("Instrument has no remote API.")
 
-    if not instrument.api_class.implements()['submit']:
-        raise ValueError('Cannot submit followup requests to this Instrument.')
+    if not instrument.api_class.implements()["submit"]:
+        raise ValueError("Cannot submit followup requests to this Instrument.")
 
-    group_ids = data.pop('target_group_ids', [])
+    group_ids = data.pop("target_group_ids", [])
     stmt = Group.select(session.user_or_token).where(Group.id.in_(group_ids))
     target_groups = session.scalars(stmt).all()
     obj = session.scalar(
-        Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
+        Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
     )
     requester = session.scalar(
-        User.select(session.user_or_token).where(User.id == data['requester_id'])
+        User.select(session.user_or_token).where(User.id == data["requester_id"])
     )
 
-    watcher_ids = data.pop('watcher_ids', None)
+    watcher_ids = data.pop("watcher_ids", None)
     if watcher_ids is not None:
         watchers = session.scalars(
             sa.select(User).where(User.id.in_(watcher_ids))
@@ -567,29 +618,29 @@ def post_followup_request(
         formSchemaForcedPhotometry = None
 
     # not all requests need payloads
-    if 'payload' not in data:
-        data['payload'] = {}
+    if "payload" not in data:
+        data["payload"] = {}
 
     # if the instrument has a "prepare_payload" method, call it
-    if instrument.api_class.implements()['prepare_payload']:
-        data['payload'] = instrument.api_class.prepare_payload(data['payload'])
+    if instrument.api_class.implements()["prepare_payload"]:
+        data["payload"] = instrument.api_class.prepare_payload(data["payload"])
 
     # validate the payload
     if formSchemaForcedPhotometry is not None and (
-        data['payload'].get('request_type', None) == 'forced_photometry'
+        data["payload"].get("request_type", None) == "forced_photometry"
         or formSchema is None
     ):
-        jsonschema.validate(data['payload'], formSchemaForcedPhotometry)
+        jsonschema.validate(data["payload"], formSchemaForcedPhotometry)
     else:
-        jsonschema.validate(data['payload'], formSchema)
+        jsonschema.validate(data["payload"], formSchema)
 
     followup_request = FollowupRequest(
-        requester_id=data['requester_id'],
-        last_modified_by_id=data['last_modified_by_id'],
-        obj_id=data['obj_id'],
-        payload=data['payload'],
-        allocation_id=data['allocation_id'],
-        comment=data.get('comment', None),
+        requester_id=data["requester_id"],
+        last_modified_by_id=data["last_modified_by_id"],
+        obj_id=data["obj_id"],
+        payload=data["payload"],
+        allocation_id=data["allocation_id"],
+        comment=data.get("comment", None),
     )
     followup_request.obj = obj
     followup_request.requester = requester
@@ -604,7 +655,7 @@ def post_followup_request(
         flow = Flow()
         if refresh_source:
             flow.push(
-                '*',
+                "*",
                 "skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
@@ -623,17 +674,19 @@ def post_followup_request(
             refresh_requests=refresh_requests,
         )
     except Exception as e:
-        followup_request.status = f'failed to submit: {e}'
+        log(f"Failed to submit follow-up request: {e}, traceback:")
+        log(traceback.format_exc())
+        followup_request.status = f"failed to submit: {e}"
         raise
     finally:
         session.commit()
         if (
             refresh_source or refresh_requests
-        ) and 'failed to submit' in followup_request.status:
+        ) and "failed to submit" in followup_request.status:
             flow = Flow()
             if refresh_source:
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_SOURCE",
                     payload={"obj_key": followup_request.obj.internal_key},
                 )
@@ -643,7 +696,7 @@ def post_followup_request(
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                     payload={"request_id": followup_request.id},
                 )
-    return followup_request.id
+    return followup_request.id, followup_request.status
 
 
 def post_default_followup_requests(obj_id, default_followup_requests, user_id):
@@ -673,7 +726,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
         for ii, default_followup_request in enumerate(default_followup_requests):
             try:
                 followup_request = default_followup_request.to_dict()
-                allocation_id = followup_request['allocation_id']
+                allocation_id = followup_request["allocation_id"]
 
                 # if there is already a follow-up request for the same allocation_id and obj_id, cancel
                 existing_request = session.scalars(
@@ -688,16 +741,16 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                     )
                     continue
                 payload = {
-                    **followup_request['payload'],
-                    'start_date': start_date,
-                    'end_date': end_date,
+                    **followup_request["payload"],
+                    "start_date": start_date,
+                    "end_date": end_date,
                 }
                 data = {
-                    'payload': payload,
-                    'allocation_id': allocation_id,
-                    'obj_id': obj_id,
-                    'requester_id': user_id,
-                    'last_modified_by_id': user_id,
+                    "payload": payload,
+                    "allocation_id": allocation_id,
+                    "obj_id": obj_id,
+                    "requester_id": user_id,
+                    "last_modified_by_id": user_id,
                 }
                 post_followup_request(data, {}, session, refresh_source=False)
                 log(
@@ -836,23 +889,23 @@ class FollowupRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
-        observation_start_date = self.get_query_argument('observationStartDate', None)
-        observation_end_date = self.get_query_argument('observationEndDate', None)
-        sourceID = self.get_query_argument('sourceID', None)
-        instrumentID = self.get_query_argument('instrumentID', None)
-        allocationID = self.get_query_argument('allocationID', None)
-        requesters = self.get_query_argument('requesters', [])
-        priority_threshold = self.get_query_argument('priorityThreshold', None)
-        status = self.get_query_argument('status', None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        observation_start_date = self.get_query_argument("observationStartDate", None)
+        observation_end_date = self.get_query_argument("observationEndDate", None)
+        sourceID = self.get_query_argument("sourceID", None)
+        instrumentID = self.get_query_argument("instrumentID", None)
+        allocationID = self.get_query_argument("allocationID", None)
+        requesters = self.get_query_argument("requesters", [])
+        priority_threshold = self.get_query_argument("priorityThreshold", None)
+        status = self.get_query_argument("status", None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
         include_obj_thumbnails = self.get_query_argument("includeObjThumbnails", True)
         sortBy = self.get_query_argument("sortBy", "created_at")
         sortOrder = self.get_query_argument("sortOrder", "asc")
 
-        if sortBy not in ["created_at", "modified", "status", 'obj']:
+        if sortBy not in ["created_at", "modified", "status", "obj"]:
             return self.error("Invalid sortBy value.")
         if sortOrder not in ["asc", "desc"]:
             return self.error("Invalid sortOrder value.")
@@ -868,20 +921,20 @@ class FollowupRequestHandler(BaseHandler):
 
         if n_per_page > MAX_FOLLOWUP_REQUESTS:
             return self.error(
-                f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
+                f"numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}."
             )
 
         if requesters is not None:
             try:
                 if isinstance(requesters, str):
-                    if ',' in requesters:
-                        requesters = requesters.split(',')
+                    if "," in requesters:
+                        requesters = requesters.split(",")
                     else:
                         requesters = [requesters]
                 requesters = [int(r) for r in requesters]
             except ValueError:
                 return self.error(
-                    'requesters must be a comma seperated string list or list of integers'
+                    "requesters must be a comma seperated string list or list of integers"
                 )
 
         if allocationID is not None:
@@ -900,7 +953,7 @@ class FollowupRequestHandler(BaseHandler):
                 ).first()
                 if allocation is None:
                     return self.error(
-                        'Allocation ID does not exist or is not accessible.'
+                        "Allocation ID does not exist or is not accessible."
                     )
 
             if len(requesters) > 0:
@@ -912,7 +965,7 @@ class FollowupRequestHandler(BaseHandler):
                 ).all()
                 if len(existing_users) != len(requesters):
                     return self.error(
-                        'One or more of the requesters specified does not exist.'
+                        "One or more of the requesters specified does not exist."
                     )
             # get owned assignments
             followup_requests = FollowupRequest.select(session.user_or_token)
@@ -1117,39 +1170,39 @@ class FollowupRequestHandler(BaseHandler):
             data = FollowupRequestPost.load(data)
         except ValidationError as e:
             return self.error(
-                f'Invalid / missing parameters: {e.normalized_messages()}'
+                f"Invalid / missing parameters: {e.normalized_messages()}"
             )
 
         constraints = {}
-        if 'not_if_duplicates' in data:
-            constraints['not_if_duplicates'] = data.pop('not_if_duplicates')
-        if 'source_group_ids' in data:
-            constraints['source_group_ids'] = data.pop('source_group_ids')
-        if 'ignore_source_group_ids' in data:
-            constraints['ignore_source_group_ids'] = data.pop('ignore_source_group_ids')
-        if 'not_if_classified' in data:
-            constraints['not_if_classified'] = data.pop('not_if_classified')
-        if 'not_if_spectra_exist' in data:
-            constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
-        if 'not_if_tns_classified' in data:
-            constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
-        if 'ignore_allocation_ids' in data:
-            constraints['ignore_allocation_ids'] = data.pop('ignore_allocation_ids')
+        if "not_if_duplicates" in data:
+            constraints["not_if_duplicates"] = data.pop("not_if_duplicates")
+        if "source_group_ids" in data:
+            constraints["source_group_ids"] = data.pop("source_group_ids")
+        if "ignore_source_group_ids" in data:
+            constraints["ignore_source_group_ids"] = data.pop("ignore_source_group_ids")
+        if "not_if_classified" in data:
+            constraints["not_if_classified"] = data.pop("not_if_classified")
+        if "not_if_spectra_exist" in data:
+            constraints["not_if_spectra_exist"] = data.pop("not_if_spectra_exist")
+        if "not_if_tns_classified" in data:
+            constraints["not_if_tns_classified"] = data.pop("not_if_tns_classified")
+        if "ignore_allocation_ids" in data:
+            constraints["ignore_allocation_ids"] = data.pop("ignore_allocation_ids")
         if len(list(constraints.keys())) == 0:
             constraints = None
         if constraints is not None:
             try:
-                constraints['radius'] = float(data.pop('radius', 0.5))
+                constraints["radius"] = float(data.pop("radius", 0.5))
             except ValueError:
-                return self.error('Invalid specified radius for spatial constraints.')
+                return self.error("Invalid specified radius for spatial constraints.")
 
         with self.Session() as session:
             try:
                 data["requester_id"] = self.associated_user_object.id
                 data["last_modified_by_id"] = self.associated_user_object.id
-                data['allocation_id'] = int(data['allocation_id'])
+                data["allocation_id"] = int(data["allocation_id"])
 
-                followup_request_id = post_followup_request(
+                followup_request_id, followup_request_status = post_followup_request(
                     data,
                     constraints,
                     session,
@@ -1157,20 +1210,25 @@ class FollowupRequestHandler(BaseHandler):
                     refresh_requests=refresh_requests,
                 )
 
-                return self.success(data={"id": followup_request_id})
+                return self.success(
+                    data={
+                        "id": followup_request_id,
+                        "request_status": followup_request_status,
+                    }
+                )
             except Exception as e:
                 if (
-                    'not submitting request' in str(e)
+                    "not submitting request" in str(e)
                     and len(list(constraints.keys())) > 0
                 ):
                     log(
-                        f'Not submitting request with allocation_id {data["allocation_id"]}: {e}'
+                        f"Not submitting request with allocation_id {data['allocation_id']}: {e}"
                     )
                     return self.success(
                         data={"id": None, "ignored": True, "message": str(e)}
                     )
                 return self.error(
-                    f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
+                    f"Error submitting follow-up request: {e.normalized_messages() if hasattr(e, 'normalized_messages') else str(e)}"
                 )
 
     @permissions(["Upload data"])
@@ -1205,7 +1263,7 @@ class FollowupRequestHandler(BaseHandler):
         try:
             request_id = int(request_id)
         except ValueError:
-            return self.error('Request id must be an int.')
+            return self.error("Request id must be an int.")
 
         with self.Session() as session:
             followup_request = session.scalars(
@@ -1227,7 +1285,7 @@ class FollowupRequestHandler(BaseHandler):
                 "refreshRequests", data.pop("refreshRequests", False)
             )
 
-            if 'status' in data:
+            if "status" in data:
                 # updating status does not require instrument API interaction
                 for k in data:
                     setattr(followup_request, k, data[k])
@@ -1237,24 +1295,23 @@ class FollowupRequestHandler(BaseHandler):
                     data = FollowupRequestPost.load(data)
                 except ValidationError as e:
                     return self.error(
-                        f'Invalid / missing parameters: {e.normalized_messages()}'
+                        f"Invalid / missing parameters: {e.normalized_messages()}"
                     )
 
-                data['id'] = request_id
+                data["id"] = request_id
                 data["last_modified_by_id"] = self.associated_user_object.id
 
                 api = followup_request.instrument.api_class
-                existing_status = followup_request.status
+                existing_status = str(followup_request.status).lower()
 
-                if 'failed to submit' in existing_status:
-                    if not api.implements()['submit']:
-                        return self.error('Cannot submit requests on this instrument.')
-
+                if any(x in existing_status for x in ["failed to submit", "rejected"]):
+                    if not api.implements()["submit"]:
+                        return self.error("Cannot submit requests on this instrument.")
                 else:
-                    if not api.implements()['update']:
-                        return self.error('Cannot update requests on this instrument.')
+                    if not api.implements()["update"]:
+                        return self.error("Cannot update requests on this instrument.")
 
-                group_ids = data.pop('target_group_ids', None)
+                group_ids = data.pop("target_group_ids", None)
                 if group_ids is not None:
                     stmt = Group.select(session.user_or_token).where(
                         Group.id.in_(group_ids)
@@ -1272,18 +1329,18 @@ class FollowupRequestHandler(BaseHandler):
 
                 # if the instrument has a "prepare_payload" method, call it
                 if followup_request.instrument.api_class.implements()[
-                    'prepare_payload'
+                    "prepare_payload"
                 ]:
-                    data[
-                        'payload'
-                    ] = followup_request.instrument.api_class.prepare_payload(
-                        data['payload'], followup_request.payload
+                    data["payload"] = (
+                        followup_request.instrument.api_class.prepare_payload(
+                            data["payload"], followup_request.payload
+                        )
                     )
 
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                if 'failed to submit' in existing_status:
+                if any(x in existing_status for x in ["failed to submit", "rejected"]):
                     try:
                         followup_request.instrument.api_class.submit(
                             followup_request,
@@ -1293,8 +1350,8 @@ class FollowupRequestHandler(BaseHandler):
                         )
                         session.commit()
                     except Exception as e:
-                        return self.error(f'Failed to submit follow-up request: {e}')
-                else:
+                        return self.error(f"Failed to submit follow-up request: {e}")
+                elif followup_request.instrument.api_class.implements()["update"]:
                     try:
                         followup_request.instrument.api_class.update(
                             followup_request,
@@ -1304,7 +1361,11 @@ class FollowupRequestHandler(BaseHandler):
                         )
                         session.commit()
                     except Exception as e:
-                        return self.error(f'Failed to update follow-up request: {e}')
+                        return self.error(f"Failed to update follow-up request: {e}")
+                else:
+                    return self.error(
+                        "Could not update existing request, not implemented for this instrument."
+                    )
 
             return self.success()
 
@@ -1350,8 +1411,8 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
             api = followup_request.instrument.api_class
-            if not api.implements()['delete']:
-                return self.error('Cannot delete requests on this instrument.')
+            if not api.implements()["delete"]:
+                return self.error("Cannot delete requests on this instrument.")
 
             followup_request.last_modified_by_id = self.associated_user_object.id
 
@@ -1364,7 +1425,8 @@ class FollowupRequestHandler(BaseHandler):
                 )
                 session.commit()
             except Exception as e:
-                return self.error(f'Failed to delete follow-up request: {e}')
+                traceback.print_exc()
+                return self.error(f"Failed to delete follow-up request: {e}")
             return self.success()
 
 
@@ -1421,10 +1483,10 @@ class FollowupRequestCommentHandler(BaseHandler):
                 followup_request.comment = comment
                 session.commit()
                 self.push_all(
-                    action='skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT',
+                    action="skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT",
                     payload={
-                        'followup_request_id': followup_request.id,
-                        'followup_request_comment': followup_request.comment,
+                        "followup_request_id": followup_request.id,
+                        "followup_request_comment": followup_request.comment,
                     },
                 )
                 return self.success({"id": followup_request.id})
@@ -1482,7 +1544,7 @@ class HourAngleConstraint(Constraint):
         elif self.min is not None and self.max is not None:
             mask = (self.min <= has) & (has <= self.max)
         else:
-            raise ValueError("No max and/or min specified in " "HourAngleConstraint.")
+            raise ValueError("No max and/or min specified in HourAngleConstraint.")
         return mask
 
 
@@ -1523,7 +1585,7 @@ def observation_schedule(
     observation_end=Time.now() + TimeDelta(12 * u.hour),
     time_resolution=20 * u.second,
     standards=pd.DataFrame(),
-    output_format='csv',
+    output_format="csv",
     figsize=(10, 8),
 ):
     """Create a schedule to display observations for a particular instrument
@@ -1623,13 +1685,13 @@ def observation_schedule(
         constraints = []
         if "minimum_lunar_distance" in payload:
             constraints.append(
-                MoonSeparationConstraint(min=payload['minimum_lunar_distance'] * u.deg)
+                MoonSeparationConstraint(min=payload["minimum_lunar_distance"] * u.deg)
             )
 
         if "maximum_airmass" in payload:
             constraints.append(
                 AirmassConstraint(
-                    max=payload['maximum_airmass'], boolean_constraint=False
+                    max=payload["maximum_airmass"], boolean_constraint=False
                 )
             )
 
@@ -1648,11 +1710,11 @@ def observation_schedule(
         if "observation_choices" in payload:
             configurations = [
                 {
-                    'requester': requester.username,
-                    'group_id': allocation.group_id,
-                    'request_id': followup_request.id,
-                    'filter': bandpass,
-                    'exposure_time': exposure_time,
+                    "requester": requester.username,
+                    "group_id": allocation.group_id,
+                    "request_id": followup_request.id,
+                    "filter": bandpass,
+                    "exposure_time": exposure_time,
                     **{key: payload[key] for key in other_keys},
                 }
                 for bandpass in payload["observation_choices"]
@@ -1660,11 +1722,11 @@ def observation_schedule(
         else:
             configurations = [
                 {
-                    'requester': requester.username,
-                    'group_id': allocation.group_id,
-                    'request_id': followup_request.id,
-                    'filter': 'default',
-                    'exposure_time': exposure_time,
+                    "requester": requester.username,
+                    "group_id": allocation.group_id,
+                    "request_id": followup_request.id,
+                    "filter": "default",
+                    "exposure_time": exposure_time,
                     **{key: payload[key] for key in other_keys},
                 }
             ]
@@ -1700,11 +1762,11 @@ def observation_schedule(
         too = False
 
         configuration = {
-            'requester': 'calibration',
-            'group_id': 1,
-            'request_id': f'standard_{str(uuid.uuid4())}',
-            'filter': 'default',
-            'exposure_time': exposure_time,
+            "requester": "calibration",
+            "group_id": 1,
+            "request_id": f"standard_{str(uuid.uuid4())}",
+            "filter": "default",
+            "exposure_time": exposure_time,
         }
 
         b = ObservingBlock.from_exposures(
@@ -1734,7 +1796,7 @@ def observation_schedule(
 
     # FIXME: account for different telescope slew rates
     slew_rate = 2.0 * u.deg / u.second
-    transitioner = Transitioner(slew_rate, {'filter': {'default': 10 * u.second}})
+    transitioner = Transitioner(slew_rate, {"filter": {"default": 10 * u.second}})
 
     # Initialize the sequential scheduler with the constraints and transitioner
     prior_scheduler = PriorityScheduler(
@@ -1774,7 +1836,7 @@ def observation_schedule(
             )
         except Exception as e:
             raise ValueError(
-                f'Scheduling failed: there are probably no observable targets: {str(e)}.'
+                f"Scheduling failed: there are probably no observable targets: {str(e)}."
             )
 
         schedule = []
@@ -1790,14 +1852,14 @@ def observation_schedule(
             requester = configuration["requester"]
             exposure_time = int(configuration["exposure_time"].value)
 
-            obs_start = Time(block["start time (UTC)"], format='iso')
-            obs_end = Time(block["end time (UTC)"], format='iso')
+            obs_start = Time(block["start time (UTC)"], format="iso")
+            obs_end = Time(block["end time (UTC)"], format="iso")
 
             c = SkyCoord(
-                ra=block["ra"] * u.degree, dec=block["dec"] * u.degree, frame='icrs'
+                ra=block["ra"] * u.degree, dec=block["dec"] * u.degree, frame="icrs"
             )
-            ra = c.ra.to_string(unit=u.hour, sep=':')
-            dec = c.dec.to_string(unit=u.degree, sep=':')
+            ra = c.ra.to_string(unit=u.hour, sep=":")
+            dec = c.dec.to_string(unit=u.degree, sep=":")
 
             other_keys = set(configuration.keys()) - {
                 "requester",
@@ -1807,27 +1869,27 @@ def observation_schedule(
                 "exposure_time",
             }
             observation = {
-                'request_id': request_id,
-                'group_id': group_id,
-                'object_id': target,
-                'ra': ra,
-                'dec': dec,
-                'epoch': 2000,
-                'observation_start': obs_start,
-                'observation_end': obs_end,
-                'exposure_time': exposure_time,
-                'filter': filt,
-                'requester': requester,
+                "request_id": request_id,
+                "group_id": group_id,
+                "object_id": target,
+                "ra": ra,
+                "dec": dec,
+                "epoch": 2000,
+                "observation_start": obs_start,
+                "observation_end": obs_end,
+                "exposure_time": exposure_time,
+                "filter": filt,
+                "requester": requester,
                 **{key: configuration[key] for key in other_keys},
             }
             schedule.append(observation)
 
         df = pd.DataFrame(schedule)
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.' + output_format) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix="." + output_format) as f:
             df.to_csv(f.name)
             f.flush()
 
-            with open(f.name, mode='rb') as g:
+            with open(f.name, mode="rb") as g:
                 csv_content = g.read()
 
         return {
@@ -1972,30 +2034,30 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Missing instrument with id {instrument_id}")
 
-            start_date = self.get_query_argument('startDate', None)
-            end_date = self.get_query_argument('endDate', None)
-            sourceID = self.get_query_argument('sourceID', None)
-            status = self.get_query_argument('status', None)
-            priority_threshold = self.get_query_argument('priorityThreshold', None)
-            output_format = self.get_query_argument('output_format', 'csv')
+            start_date = self.get_query_argument("startDate", None)
+            end_date = self.get_query_argument("endDate", None)
+            sourceID = self.get_query_argument("sourceID", None)
+            status = self.get_query_argument("status", None)
+            priority_threshold = self.get_query_argument("priorityThreshold", None)
+            output_format = self.get_query_argument("output_format", "csv")
             observation_start_date = self.get_query_argument(
-                'observationStartDate', None
+                "observationStartDate", None
             )
-            observation_end_date = self.get_query_argument('observationEndDate', None)
-            standard_type = self.get_query_argument('standardType', 'ESO')
-            include_standards = self.get_query_argument('includeStandards', False)
-            standards_only = self.get_query_argument('standardsOnly', False)
-            magnitude_range_str = self.get_query_argument('magnitudeRange', None)
-            time_resolution = self.get_query_argument('timeResolution', 20)
+            observation_end_date = self.get_query_argument("observationEndDate", None)
+            standard_type = self.get_query_argument("standardType", "ESO")
+            include_standards = self.get_query_argument("includeStandards", False)
+            standards_only = self.get_query_argument("standardsOnly", False)
+            magnitude_range_str = self.get_query_argument("magnitudeRange", None)
+            time_resolution = self.get_query_argument("timeResolution", 20)
             if magnitude_range_str is None:
                 magnitude_range = (np.inf, -np.inf)
             else:
                 magnitude_range = ast.literal_eval(magnitude_range_str)
                 if not (
-                    isinstance(magnitude_range, (list, tuple))
+                    isinstance(magnitude_range, list | tuple)
                     and len(magnitude_range) == 2
                 ):
-                    return self.error('Invalid argument for `magnitude_range`')
+                    return self.error("Invalid argument for `magnitude_range`")
 
             if magnitude_range[0] < magnitude_range[1]:
                 magnitude_range = magnitude_range[::-1]
@@ -2079,7 +2141,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 standards = pd.DataFrame()
 
             if (len(followup_requests) == 0) and (len(standards) == 0):
-                return self.error('Need at least one observation to schedule.')
+                return self.error("Need at least one observation to schedule.")
 
             schedule = functools.partial(
                 observation_schedule,
@@ -2094,7 +2156,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             )
 
             self.push_notification(
-                'Schedule generation in progress. Download will start soon.'
+                "Schedule generation in progress. Download will start soon."
             )
             rez = await IOLoop.current().run_in_executor(None, schedule)
 
@@ -2158,22 +2220,22 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         """
 
         data = self.get_json()
-        priority_type = data.get('priorityType', 'magnitude')
-        magnitude_ordering = data.get('magnitudeOrdering', 'ascending')
-        localization_id = data.get('localizationId', None)
-        request_ids = data.get('requestIds', None)
-        minimum_priority = data.get('minimumPriority', 1)
-        maximum_priority = data.get('maximumPriority', 5)
+        priority_type = data.get("priorityType", "magnitude")
+        magnitude_ordering = data.get("magnitudeOrdering", "ascending")
+        localization_id = data.get("localizationId", None)
+        request_ids = data.get("requestIds", None)
+        minimum_priority = data.get("minimumPriority", 1)
+        maximum_priority = data.get("maximumPriority", 5)
 
         if request_ids is None:
-            return self.error('requestIds is required')
+            return self.error("requestIds is required")
 
         if priority_type not in ["magnitude", "localization"]:
-            return self.error('priority_type must be either magnitude or localization')
+            return self.error("priority_type must be either magnitude or localization")
 
         if magnitude_ordering not in ["ascending", "descending"]:
             return self.error(
-                'magnitude_ordering must be either ascending or descending'
+                "magnitude_ordering must be either ascending or descending"
             )
 
         with self.Session() as session:
@@ -2192,12 +2254,12 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 followup_requests.append(followup_request)
 
             if len(followup_requests) == 0:
-                return self.error('Need at least one observation to modify.')
+                return self.error("Need at least one observation to modify.")
 
             if priority_type == "localization":
                 if localization_id is None:
                     return self.error(
-                        'localizationId is required if priorityType is localization'
+                        "localizationId is required if priorityType is localization"
                     )
 
                 localization = session.scalars(
@@ -2229,7 +2291,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
                 if localization.is_3d:
                     prob, distmu, distsigma, distnorm = tab
-                    if not all([dist > 0 for dist in dists]):
+                    if not all(dist > 0 for dist in dists):
                         weights = prob[ipix]
                     else:
                         weights = prob[ipix] * (
@@ -2272,13 +2334,13 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
             for followup_request, priority in zip(followup_requests, priorities):
                 api = followup_request.instrument.api_class
-                if not api.implements()['update']:
-                    return self.error('Cannot update requests on this instrument.')
+                if not api.implements()["update"]:
+                    return self.error("Cannot update requests on this instrument.")
                 payload = followup_request.payload
                 payload["priority"] = priority
                 session.query(FollowupRequest).filter(
                     FollowupRequest.id == request_id
-                ).update({'payload': payload})
+                ).update({"payload": payload})
                 session.commit()
 
                 followup_request.payload = payload
@@ -2286,7 +2348,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
             flow = Flow()
             flow.push(
-                '*',
+                "*",
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
@@ -2300,15 +2362,15 @@ def load_source_filter(source_filter):
     if source_filter.startswith('"') and source_filter.endswith('"'):
         source_filter = source_filter[1:-1]
     source_filter = source_filter.replace("'", '"')
-    source_filter = source_filter.encode().decode('unicode-escape')
+    source_filter = source_filter.encode().decode("unicode-escape")
     source_filter_json = json.loads(source_filter)
 
-    if 'group_id' in source_filter_json:
+    if "group_id" in source_filter_json:
         try:
-            source_filter_json['group_id'] = int(source_filter_json['group_id'])
+            source_filter_json["group_id"] = int(source_filter_json["group_id"])
         except Exception:
             raise ValueError(
-                'The group_id provided in the source filter is not an integer.'
+                "The group_id provided in the source filter is not an integer."
             )
 
     return source_filter_json
@@ -2346,14 +2408,14 @@ class DefaultFollowupRequestHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            target_group_ids = data.pop('target_group_ids', [])
+            target_group_ids = data.pop("target_group_ids", [])
             stmt = Group.select(session.user_or_token).where(
                 Group.id.in_(target_group_ids)
             )
             target_groups = session.scalars(stmt).all()
 
             stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == data['allocation_id'],
+                Allocation.id == data["allocation_id"],
             )
             allocation = session.scalars(stmt).first()
             if allocation is None:
@@ -2364,7 +2426,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
             instrument = allocation.instrument
             if instrument.api_classname is None:
-                return self.error('Instrument has no remote API.', status=403)
+                return self.error("Instrument has no remote API.", status=403)
 
             try:
                 formSchema = instrument.api_class.custom_json_schema(
@@ -2373,22 +2435,22 @@ class DefaultFollowupRequestHandler(BaseHandler):
             except AttributeError:
                 formSchema = instrument.api_class.form_json_schema
 
-            payload = data['payload']
+            payload = data["payload"]
             if "start_date" in payload:
-                return self.error('Cannot have start_date in the payload')
+                return self.error("Cannot have start_date in the payload")
             else:
-                payload['start_date'] = str(datetime.utcnow())
+                payload["start_date"] = str(datetime.utcnow())
 
             if "end_date" in payload:
-                return self.error('Cannot have end_date in the payload')
+                return self.error("Cannot have end_date in the payload")
             else:
-                payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
 
             # validate the payload
             try:
                 jsonschema.validate(payload, formSchema)
             except jsonschema.exceptions.ValidationError as e:
-                return self.error(f'Payload failed to validate: {e}', status=403)
+                return self.error(f"Payload failed to validate: {e}", status=403)
 
             if "source_filter" in data:
                 if not isinstance(data["source_filter"], dict):
@@ -2398,17 +2460,17 @@ class DefaultFollowupRequestHandler(BaseHandler):
                         )
                     except Exception as e:
                         return self.error(
-                            f'Incorrect format for source_filter. Must be a valid json string: {e}',
+                            f"Incorrect format for source_filter. Must be a valid json string: {e}",
                         )
             else:
-                return self.error('source_filter is required')
+                return self.error("source_filter is required")
 
             default_followup_request = DefaultFollowupRequest(
                 requester=self.associated_user_object,
                 allocation=allocation,
                 payload=payload,
-                default_followup_name=data['default_followup_name'],
-                source_filter=data['source_filter'],
+                default_followup_name=data["default_followup_name"],
+                source_filter=data["source_filter"],
             )
             default_followup_request.target_groups = target_groups
 
@@ -2469,7 +2531,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 ).first()
                 if default_followup_request is None:
                     return self.error(
-                        f'Cannot find DefaultFollowupRequestRequest with ID {default_followup_request_id}'
+                        f"Cannot find DefaultFollowupRequestRequest with ID {default_followup_request_id}"
                     )
                 return self.success(data=default_followup_request)
 
@@ -2489,8 +2551,8 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 default_followup_request_data.append(
                     {
                         **request.to_dict(),
-                        'source_filter': load_source_filter(request.source_filter),
-                        'allocation': request.allocation.to_dict(),
+                        "source_filter": load_source_filter(request.source_filter),
+                        "allocation": request.allocation.to_dict(),
                     }
                 )
 
@@ -2525,7 +2587,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
             if default_followup_request is None:
                 return self.error(
-                    f'Default follow-up request with ID {default_followup_request_id} is not available.'
+                    f"Default follow-up request with ID {default_followup_request_id} is not available."
                 )
 
             session.delete(default_followup_request)
@@ -2588,7 +2650,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 return self.error("Could not retrieve followup request.")
 
             watchers = followup_request.watchers
-            if any([watcher.id == session.user_or_token.id for watcher in watchers]):
+            if any(watcher.id == session.user_or_token.id for watcher in watchers):
                 return self.error("User already watching this request")
 
             watcher = FollowupRequestUser(

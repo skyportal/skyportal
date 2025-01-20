@@ -1,37 +1,34 @@
 import os
 import traceback
 
-import pandas as pd
 import arrow
-
-from astropy.time import Time
-
+import conesearch_alchemy as ca
+import pandas as pd
 import sqlalchemy as sa
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
 from sqlalchemy import func
 from sqlalchemy.sql.expression import case
-import conesearch_alchemy as ca
 
 from baselayer.app.access import permissions  # , auth_or_token
-from marshmallow.exceptions import ValidationError
-
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...enum_types import ALLOWED_BANDPASSES
+from ...models.assignment import ClassicalAssignment
+from ...models.followup_request import FollowupRequest
+from ...models.group import Group
+from ...models.instrument import Instrument
+from ...models.obj import Obj
 from ...models.photometric_series import (
     PhotometricSeries,
-    verify_data,
     infer_metadata,
+    verify_data,
     verify_metadata,
 )
-from ...models.group import Group
 from ...models.stream import Stream
-from ...models.obj import Obj
-from ...models.instrument import Instrument
-from ...models.followup_request import FollowupRequest
-from ...models.assignment import ClassicalAssignment
 from ...utils.hdf5_files import load_dataframe_from_bytestream
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -233,7 +230,7 @@ body_schema_docstring = """
         """
 
 
-log = make_log('api/photometric_series')
+log = make_log("api/photometric_series")
 
 DEFAULT_SERIES_PER_PAGE = 100
 MAX_SERIES_PER_PAGE = 500
@@ -268,9 +265,9 @@ def get_group_ids(data, user, session):
             sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
         ).first()
         group_ids = [public_group.id]
-    if isinstance(group_ids, (int, str)):
+    if isinstance(group_ids, int | str):
         group_ids = [group_ids]
-    if not isinstance(group_ids, (list, tuple)):
+    if not isinstance(group_ids, list | tuple):
         raise ValidationError(
             "Invalid group_ids parameter value. Must be a list of IDs "
             "(integers) or the string 'all'."
@@ -284,7 +281,7 @@ def get_group_ids(data, user, session):
             )
         group = session.scalars(Group.select(user).where(Group.id == group_id)).first()
         if group is None:
-            raise ValidationError(f'Invalid group ID: {group_id}')
+            raise ValidationError(f"Invalid group ID: {group_id}")
 
     # always add the single user group
     group_ids.append(user.single_user_group.id)
@@ -312,7 +309,7 @@ def get_stream_ids(data, user, session):
         and returns the list of unique values.
     """
     stream_ids = data.pop("stream_ids", [])
-    if not isinstance(stream_ids, (list, tuple)):
+    if not isinstance(stream_ids, list | tuple):
         raise ValidationError(
             "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
         )
@@ -328,7 +325,7 @@ def get_stream_ids(data, user, session):
         ).first()
 
         if stream is None:
-            raise ValidationError(f'No stream with ID {stream_id}')
+            raise ValidationError(f"No stream with ID {stream_id}")
 
     stream_ids = list(set(stream_ids))
     return stream_ids
@@ -343,18 +340,18 @@ def individual_enum_checks(metadata):
     If not, will raise a ValueError.
     """
     # check filter is legal
-    if metadata['filter'] not in ALLOWED_BANDPASSES:
+    if metadata["filter"] not in ALLOWED_BANDPASSES:
         raise ValueError(
-            f'Filter {metadata["filter"]} is not allowed. '
-            f'Allowed filters are: {ALLOWED_BANDPASSES}'
+            f"Filter {metadata['filter']} is not allowed. "
+            f"Allowed filters are: {ALLOWED_BANDPASSES}"
         )
 
     # check time_stamp_alignement is legal
-    tsa = metadata.get('time_stamp_alignment', 'middle')
-    if tsa not in ['start', 'middle', 'end']:
+    tsa = metadata.get("time_stamp_alignment", "middle")
+    if tsa not in ["start", "middle", "end"]:
         raise ValueError(
-            f'Time stamp alignment {tsa} is not allowed. '
-            f'Allowed values are: start, middle, end'
+            f"Time stamp alignment {tsa} is not allowed. "
+            f"Allowed values are: start, middle, end"
         )
 
 
@@ -376,25 +373,25 @@ def check_objects_exist(metadata, user, session):
         The database session.
 
     """
-    obj_id = metadata.get('obj_id', None)
+    obj_id = metadata.get("obj_id", None)
     if obj_id is None:
-        raise ValueError('Must supply an obj_id')
+        raise ValueError("Must supply an obj_id")
     obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
     if obj is None:
-        raise ValueError(f'Invalid obj_id: {obj_id}')
+        raise ValueError(f"Invalid obj_id: {obj_id}")
 
-    instrument_id = metadata.get('instrument_id')
+    instrument_id = metadata.get("instrument_id")
 
     if instrument_id is None:
-        raise ValueError('Must supply an instrument_id')
+        raise ValueError("Must supply an instrument_id")
 
     instrument = session.scalars(
         Instrument.select(user).where(Instrument.id == instrument_id)
     ).first()
     if instrument is None:
-        raise ValueError(f'Invalid instrument_id: {instrument_id}')
+        raise ValueError(f"Invalid instrument_id: {instrument_id}")
 
-    followup_request_id = metadata.get('followup_request_id')
+    followup_request_id = metadata.get("followup_request_id")
     if followup_request_id is not None:
         followup_request = session.scalars(
             FollowupRequest.select(user).where(
@@ -402,9 +399,9 @@ def check_objects_exist(metadata, user, session):
             )
         ).first()
         if followup_request is None:
-            raise ValueError(f'Invalid followup_request_id: {followup_request_id}')
+            raise ValueError(f"Invalid followup_request_id: {followup_request_id}")
 
-    assignment_id = metadata.get('assignment_id')
+    assignment_id = metadata.get("assignment_id")
     if assignment_id is not None:
         assignment = session.scalars(
             ClassicalAssignment.select(user).where(
@@ -412,7 +409,7 @@ def check_objects_exist(metadata, user, session):
             )
         ).first()
         if assignment is None:
-            raise ValueError(f'Invalid assignment_id: {assignment_id}')
+            raise ValueError(f"Invalid assignment_id: {assignment_id}")
 
 
 def post_photometric_series(json_data, data, attributes_metadata, user, session):
@@ -454,32 +451,32 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
                 metadata.pop(k)
 
     except Exception:
-        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
 
     # check all the related DB objects are valid:
     try:
         group_ids = get_group_ids(metadata, user, session)
     except Exception:
-        raise ValueError(f'Could not parse group IDs: {traceback.format_exc()}')
+        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
     try:
         stream_ids = get_stream_ids(metadata, user, session)
     except Exception:
-        raise ValueError(f'Could not parse stream IDs: {traceback.format_exc()}')
+        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
 
     try:
         check_objects_exist(metadata, user, session)
     except Exception:
         raise ValueError(
-            f'Problems accessing database objects: {traceback.format_exc()}'
+            f"Problems accessing database objects: {traceback.format_exc()}"
         )
 
     try:
         # load the group, stream and owner IDs:
         metadata.update(
             {
-                'group_ids': group_ids,
-                'stream_ids': stream_ids,
-                'owner_id': user.id,
+                "group_ids": group_ids,
+                "stream_ids": stream_ids,
+                "owner_id": user.id,
             }
         )
 
@@ -489,28 +486,28 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         metadata = verify_metadata(metadata)
 
     except Exception:
-        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
 
     try:
         individual_enum_checks(metadata)
     except Exception:
-        raise ValueError(f'Problem parsing metadata: {traceback.format_exc()}')
+        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
 
     try:
         ps = PhotometricSeries(data, **metadata)
         # allow the config to change the default behavior:
-        ps.autodelete = cfg.get('photometric_series_autodelete', True)
+        ps.autodelete = cfg.get("photometric_series_autodelete", True)
 
     except Exception:
         raise ValueError(
-            f'Could not create PhotometricSeries object: {traceback.format_exc()}'
+            f"Could not create PhotometricSeries object: {traceback.format_exc()}"
         )
 
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
     except Exception:
-        raise ValueError(f'Errors when making file name: {traceback.format_exc()}')
+        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
 
     # make sure the file does not exist:
     if os.path.isfile(full_name):
@@ -520,7 +517,7 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         ).first()
         if existing_ps is not None:
             raise ValueError(
-                f'PhotometricSeries with filename {full_name} already exists'
+                f"PhotometricSeries with filename {full_name} already exists"
             )
         else:
             # if the file exists but is not in the DB, we can overwrite it
@@ -532,8 +529,8 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     ).first()
     if existing_ps is not None:
         raise ValueError(
-            'A PhotometricSeries with the same hash already exists, '
-            f'with filename: {existing_ps.make_full_name()[0]}'
+            "A PhotometricSeries with the same hash already exists, "
+            f"with filename: {existing_ps.make_full_name()[0]}"
         )
 
     try:
@@ -546,7 +543,7 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     except Exception:
         session.rollback()
         ps.delete_data()  # make sure not to leave files behind
-        raise ValueError(f'Could not save photometric series: {traceback.format_exc()}')
+        raise ValueError(f"Could not save photometric series: {traceback.format_exc()}")
 
 
 def update_photometric_series(ps, json_data, data, attributes_metadata, user, session):
@@ -578,7 +575,7 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
             verify_data(data)
             inferred_metadata = infer_metadata(data)
         except Exception:
-            raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+            raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
 
     prev_filename = ps.filename
 
@@ -594,26 +591,26 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     try:
         group_ids = get_group_ids(metadata, user, session)
     except Exception:
-        raise ValueError(f'Could not parse group IDs: {traceback.format_exc()}')
+        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
     try:
         stream_ids = get_stream_ids(metadata, user, session)
     except Exception:
-        raise ValueError(f'Could not parse stream IDs: {traceback.format_exc()}')
+        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
 
     try:
         check_objects_exist(metadata, user, session)
     except Exception:
         raise ValueError(
-            f'Problems accessing database objects: {traceback.format_exc()}'
+            f"Problems accessing database objects: {traceback.format_exc()}"
         )
 
     try:
         # load the group and stream IDs:
         metadata.update(
             {
-                'group_ids': group_ids,
-                'stream_ids': stream_ids,
-                'owner_id': ps.owner_id,  # does not change on PATCH
+                "group_ids": group_ids,
+                "stream_ids": stream_ids,
+                "owner_id": ps.owner_id,  # does not change on PATCH
             }
         )
 
@@ -623,19 +620,19 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         metadata = verify_metadata(metadata)
 
     except Exception:
-        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
 
     try:
         individual_enum_checks(metadata)
     except Exception:
-        raise ValueError(f'Problem parsing metadata: {traceback.format_exc()}')
+        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
 
     # update the underlying data (if given)
     if data is not None:
         try:
             ps.data = data  # also run calc_flux_mag() and calc_stats()
         except Exception:
-            raise ValueError(f'Could not update data: {traceback.format_exc()}')
+            raise ValueError(f"Could not update data: {traceback.format_exc()}")
 
     # update the metadata on the PhotometricSeries object
     for k, v in metadata.items():
@@ -645,11 +642,11 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
     except Exception:
-        raise ValueError(f'Errors when making file name: {traceback.format_exc()}')
+        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
 
     # make sure the file does not exist:
     if prev_filename != full_name and os.path.isfile(full_name):
-        raise ValueError(f'New filename already exists: {full_name}')
+        raise ValueError(f"New filename already exists: {full_name}")
 
     # make sure this file is not already saved using the hash:
     # this includes only objects different from the one being updated
@@ -660,8 +657,8 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     ).first()
     if existing_ps is not None:
         raise ValueError(
-            'Another PhotometricSeries with the same hash already exists, '
-            f'with filename: {existing_ps.make_full_name()[0]}'
+            "Another PhotometricSeries with the same hash already exists, "
+            f"with filename: {existing_ps.make_full_name()[0]}"
         )
 
     try:
@@ -673,21 +670,21 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     except Exception:
         session.rollback()
         ps.delete_data(temp=True)  # make sure not to leave files behind
-        raise ValueError(f'Could not save photometric series: {traceback.format_exc()}')
+        raise ValueError(f"Could not save photometric series: {traceback.format_exc()}")
 
     # get rid of the old data, regardless of new name
     try:
         if os.path.isfile(prev_filename):
             os.remove(prev_filename)
     except Exception:
-        log(f'Could not remove old file {prev_filename}: {traceback.format_exc()}')
+        log(f"Could not remove old file {prev_filename}: {traceback.format_exc()}")
     ps.move_temp_data()  # make the temp file permanent
 
     return ps.id
 
 
 class PhotometricSeriesHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         f"""
         ---
@@ -700,7 +697,7 @@ class PhotometricSeriesHandler(BaseHandler):
         responses:
           200:
             content:
-            application/json:
+              application/json:
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
@@ -714,10 +711,10 @@ class PhotometricSeriesHandler(BaseHandler):
                               description: New photometric series ID
         """
         json_data = self.get_json()
-        data = json_data.pop('data', None)
+        data = json_data.pop("data", None)
         if data is None:
             return self.error(
-                'Must supply data as a dictionary (JSON) or dataframe in HDF5 format. '
+                "Must supply data as a dictionary (JSON) or dataframe in HDF5 format. "
             )
 
         attributes_metadata = {}
@@ -726,18 +723,18 @@ class PhotometricSeriesHandler(BaseHandler):
                 data = pd.DataFrame(data)
             except Exception:
                 return self.error(
-                    f'Could not convert data to a DataFrame. {traceback.format_exc()} '
+                    f"Could not convert data to a DataFrame. {traceback.format_exc()} "
                 )
         elif isinstance(data, str):
             try:
                 data, attributes_metadata = load_dataframe_from_bytestream(data)
             except Exception:
                 return self.error(
-                    f'Could not load DataFrame from HDF5 file. {traceback.format_exc()} '
+                    f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
                 )
         else:
             return self.error(
-                'Data must be a dictionary (JSON) or dataframe in HDF5 format. '
+                "Data must be a dictionary (JSON) or dataframe in HDF5 format. "
             )
 
         with self.Session() as session:
@@ -750,11 +747,11 @@ class PhotometricSeriesHandler(BaseHandler):
                     session,
                 )
             except Exception as e:
-                return self.error(f'Unable to post photometric series: {str(e)}')
+                return self.error(f"Unable to post photometric series: {str(e)}")
 
-        return self.success(data={'id': photometric_series_id})
+        return self.success(data={"id": photometric_series_id})
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, photometric_series_id):
         f"""
         ---
@@ -782,7 +779,7 @@ class PhotometricSeriesHandler(BaseHandler):
         responses:
           200:
             content:
-            application/json:
+              application/json:
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
@@ -803,10 +800,10 @@ class PhotometricSeriesHandler(BaseHandler):
             ).first()
 
             if ps is None:
-                return self.error('Invalid photometric series ID.')
+                return self.error("Invalid photometric series ID.")
 
             json_data = self.get_json()
-            data = json_data.pop('data', None)  # allowed to be None
+            data = json_data.pop("data", None)  # allowed to be None
 
             attributes_metadata = {}
             if isinstance(data, dict):
@@ -814,14 +811,14 @@ class PhotometricSeriesHandler(BaseHandler):
                     data = pd.DataFrame(data)
                 except Exception:
                     return self.error(
-                        f'Could not convert data to a DataFrame. {traceback.format_exc()} '
+                        f"Could not convert data to a DataFrame. {traceback.format_exc()} "
                     )
             elif isinstance(data, str):
                 try:
                     data, attributes_metadata = load_dataframe_from_bytestream(data)
                 except Exception:
                     return self.error(
-                        f'Could not load DataFrame from HDF5 file. {traceback.format_exc()} '
+                        f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
                     )
 
             try:
@@ -834,11 +831,11 @@ class PhotometricSeriesHandler(BaseHandler):
                     session,
                 )
             except Exception as e:
-                return self.error(f'Unable to update photometric series: {str(e)}')
+                return self.error(f"Unable to update photometric series: {str(e)}")
 
-            return self.success(data={'id': photometric_series_id})
+            return self.success(data={"id": photometric_series_id})
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def get(self, photometric_series_id=None):
         """
         ---
@@ -1322,75 +1319,75 @@ class PhotometricSeriesHandler(BaseHandler):
                     )
                 ).first()
                 if ps is None:
-                    return self.error('Invalid photometric series ID.')
-                data_format = self.get_query_argument('dataFormat', 'json')
+                    return self.error("Invalid photometric series ID.")
+                data_format = self.get_query_argument("dataFormat", "json")
 
                 try:
                     output_dict = ps.to_dict(data_format=data_format)
                 except Exception:
                     return self.error(
-                        f'Cannot convert photometric series to dictionary: {traceback.format_exc()}'
+                        f"Cannot convert photometric series to dictionary: {traceback.format_exc()}"
                     )
 
                 return self.success(data=output_dict)
 
         # get all photometric series
-        data_format = self.get_query_argument('dataFormat', 'none')
+        data_format = self.get_query_argument("dataFormat", "none")
 
         # verify the format is valid before going through the whole query
-        if data_format.lower() not in ['none', 'json', 'hdf5']:
+        if data_format.lower() not in ["none", "json", "hdf5"]:
             return self.error(
                 f'Invalid dataFormat: "{data_format}". Must be one of "none", "json", "hdf5".'
             )
-        ra = self.get_query_argument('ra', None)
-        dec = self.get_query_argument('dec', None)
-        radius = self.get_query_argument('radius', None)
-        object_id = self.get_query_argument('objectID', None)
-        rejected_id = self.get_query_argument('rejectedObjectID', None)
-        series_name = self.get_query_argument('seriesName', None)
-        series_obj_id = self.get_query_argument('seriesObjID', None)
-        filter = self.get_query_argument('filter', None)
-        channel = self.get_query_argument('channel', None)
-        origin = self.get_query_argument('origin', None)
-        filename = self.get_query_argument('filename', None)
-        start_before = self.get_query_argument('startBefore', None)
-        start_after = self.get_query_argument('startAfter', None)
-        middle_before = self.get_query_argument('midBefore', None)
-        middle_after = self.get_query_argument('midAfter', None)
-        end_before = self.get_query_argument('endBefore', None)
-        end_after = self.get_query_argument('endAfter', None)
-        detected = self.get_query_argument('detected', None)
-        exp_time_exact = self.get_query_argument('expTime', None)
-        min_exp_time = self.get_query_argument('minExpTime', None)
-        max_exp_time = self.get_query_argument('maxExpTime', None)
-        min_frame_rate = self.get_query_argument('minFrameRate', None)
-        max_frame_rate = self.get_query_argument('maxFrameRate', None)
-        min_num_exp = self.get_query_argument('minNumExposures', None)
-        max_num_exp = self.get_query_argument('maxNumExposures', None)
-        instrument_id = self.get_query_argument('instrumentID', None)
-        followup_id = self.get_query_argument('followupRequestID', None)
-        assignment_id = self.get_query_argument('assignmentID', None)
-        owner_id = self.get_query_argument('ownerID', None)
-        mag_brighter = self.get_query_argument('magBrighterThan', None)
-        mag_fainter = self.get_query_argument('magFainterThan', None)
-        lim_mag_brighter = self.get_query_argument('limitingMagBrighterThan', None)
-        lim_mag_fainter = self.get_query_argument('limitingMagFainterThan', None)
-        lim_mag_none = self.get_query_argument('limitingMagIsNaN', False)
-        magref_brighter = self.get_query_argument('magrefBrighterThan', None)
-        magref_fainter = self.get_query_argument('magrefFainterThan', None)
-        max_rms = self.get_query_argument('maxRMS', None)
-        min_rms = self.get_query_argument('minRMS', None)
-        use_robust = self.get_query_argument('useRobustMagAndRMS', False)
-        min_median_snr = self.get_query_argument('minMedianSNR', None)
-        max_median_snr = self.get_query_argument('maxMedianSNR', None)
-        min_best_snr = self.get_query_argument('minBestSNR', None)
-        max_best_snr = self.get_query_argument('maxBestSNR', None)
-        min_worst_snr = self.get_query_argument('minWorstSNR', None)
-        max_worst_snr = self.get_query_argument('maxWorstSNR', None)
-        hash = self.get_query_argument('hash', None)
-        sort_by = self.get_query_argument('sortBy', 'obj_id')
-        sort_order = self.get_query_argument('sortOrder', 'asc')
-        page_number = self.get_query_argument('pageNumber', 1)
+        ra = self.get_query_argument("ra", None)
+        dec = self.get_query_argument("dec", None)
+        radius = self.get_query_argument("radius", None)
+        object_id = self.get_query_argument("objectID", None)
+        rejected_id = self.get_query_argument("rejectedObjectID", None)
+        series_name = self.get_query_argument("seriesName", None)
+        series_obj_id = self.get_query_argument("seriesObjID", None)
+        filter = self.get_query_argument("filter", None)
+        channel = self.get_query_argument("channel", None)
+        origin = self.get_query_argument("origin", None)
+        filename = self.get_query_argument("filename", None)
+        start_before = self.get_query_argument("startBefore", None)
+        start_after = self.get_query_argument("startAfter", None)
+        middle_before = self.get_query_argument("midBefore", None)
+        middle_after = self.get_query_argument("midAfter", None)
+        end_before = self.get_query_argument("endBefore", None)
+        end_after = self.get_query_argument("endAfter", None)
+        detected = self.get_query_argument("detected", None)
+        exp_time_exact = self.get_query_argument("expTime", None)
+        min_exp_time = self.get_query_argument("minExpTime", None)
+        max_exp_time = self.get_query_argument("maxExpTime", None)
+        min_frame_rate = self.get_query_argument("minFrameRate", None)
+        max_frame_rate = self.get_query_argument("maxFrameRate", None)
+        min_num_exp = self.get_query_argument("minNumExposures", None)
+        max_num_exp = self.get_query_argument("maxNumExposures", None)
+        instrument_id = self.get_query_argument("instrumentID", None)
+        followup_id = self.get_query_argument("followupRequestID", None)
+        assignment_id = self.get_query_argument("assignmentID", None)
+        owner_id = self.get_query_argument("ownerID", None)
+        mag_brighter = self.get_query_argument("magBrighterThan", None)
+        mag_fainter = self.get_query_argument("magFainterThan", None)
+        lim_mag_brighter = self.get_query_argument("limitingMagBrighterThan", None)
+        lim_mag_fainter = self.get_query_argument("limitingMagFainterThan", None)
+        lim_mag_none = self.get_query_argument("limitingMagIsNaN", False)
+        magref_brighter = self.get_query_argument("magrefBrighterThan", None)
+        magref_fainter = self.get_query_argument("magrefFainterThan", None)
+        max_rms = self.get_query_argument("maxRMS", None)
+        min_rms = self.get_query_argument("minRMS", None)
+        use_robust = self.get_query_argument("useRobustMagAndRMS", False)
+        min_median_snr = self.get_query_argument("minMedianSNR", None)
+        max_median_snr = self.get_query_argument("maxMedianSNR", None)
+        min_best_snr = self.get_query_argument("minBestSNR", None)
+        max_best_snr = self.get_query_argument("maxBestSNR", None)
+        min_worst_snr = self.get_query_argument("minWorstSNR", None)
+        max_worst_snr = self.get_query_argument("maxWorstSNR", None)
+        hash = self.get_query_argument("hash", None)
+        sort_by = self.get_query_argument("sortBy", "obj_id")
+        sort_order = self.get_query_argument("sortOrder", "asc")
+        page_number = self.get_query_argument("pageNumber", 1)
         num_per_page = min(
             int(self.get_query_argument("numPerPage", DEFAULT_SERIES_PER_PAGE)),
             MAX_SERIES_PER_PAGE,
@@ -1416,7 +1413,7 @@ class PhotometricSeriesHandler(BaseHandler):
         if object_id:
             stmt = stmt.where(PhotometricSeries.obj_id.contains(str(object_id).strip()))
         if rejected_id:
-            rejected_id = rejected_id.split(',')
+            rejected_id = rejected_id.split(",")
             rejected_id = [x.strip() for x in rejected_id]
             stmt = stmt.where(PhotometricSeries.obj_id.notin_(rejected_id))
 
@@ -1433,7 +1430,7 @@ class PhotometricSeriesHandler(BaseHandler):
 
         if filename:
             persistent_folder = cfg.get(
-                'photometric_series_folder', 'persistentdata/phot_series'
+                "photometric_series_folder", "persistentdata/phot_series"
             )
             basedir = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
@@ -1453,7 +1450,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 start_after_mjd = Time(arrow.get(start_after).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {start_after}: {traceback.format_exc()}'
+                    f"Cannot parse time {start_after}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_first > start_after_mjd)
         if start_before is not None:
@@ -1461,7 +1458,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 start_before_mjd = Time(arrow.get(start_before).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {start_before}: {traceback.format_exc()}'
+                    f"Cannot parse time {start_before}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_first < start_before_mjd)
         if middle_after is not None:
@@ -1469,7 +1466,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 middle_after_mjd = Time(arrow.get(middle_after).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {middle_after}: {traceback.format_exc()}'
+                    f"Cannot parse time {middle_after}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_mid > middle_after_mjd)
         if middle_before is not None:
@@ -1477,7 +1474,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 middle_before_mjd = Time(arrow.get(middle_before).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {middle_before}: {traceback.format_exc()}'
+                    f"Cannot parse time {middle_before}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_mid < middle_before_mjd)
         if end_after is not None:
@@ -1485,7 +1482,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 end_after_mjd = Time(arrow.get(end_after).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {end_after}: {traceback.format_exc()}'
+                    f"Cannot parse time {end_after}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_last > end_after_mjd)
         if end_before is not None:
@@ -1493,21 +1490,21 @@ class PhotometricSeriesHandler(BaseHandler):
                 end_before_mjd = Time(arrow.get(end_before).datetime).mjd
             except Exception:
                 return self.error(
-                    f'Cannot parse time {end_before}: {traceback.format_exc()}'
+                    f"Cannot parse time {end_before}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
 
         if detected is not None:
-            if isinstance(detected, str) and detected.lower() in ['true', 't', '1']:
+            if isinstance(detected, str) and detected.lower() in ["true", "t", "1"]:
                 detected = True
-            elif isinstance(detected, str) and detected.lower() in ['false', 'f', '0']:
+            elif isinstance(detected, str) and detected.lower() in ["false", "f", "0"]:
                 detected = False
 
             try:
                 detected = bool(detected)
             except ValueError:
                 return self.error(
-                    f'Cannot parse detected value {detected}: {traceback.format_exc()}'
+                    f"Cannot parse detected value {detected}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.is_detected.is_(detected))
 
@@ -1516,8 +1513,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 exp_time_exact = float(exp_time_exact)
             except ValueError:
                 return self.error(
-                    f'Invalid value for expTimeExact {exp_time_exact}. '
-                    'Could not convert to float. '
+                    f"Invalid value for expTimeExact {exp_time_exact}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.exp_time == exp_time_exact)
 
@@ -1526,8 +1523,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_exp_time = float(min_exp_time)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minExpTime {min_exp_time}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minExpTime {min_exp_time}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.exp_time >= min_exp_time)
 
@@ -1536,8 +1533,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_exp_time = float(max_exp_time)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxExpTime {max_exp_time}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxExpTime {max_exp_time}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.exp_time <= max_exp_time)
 
@@ -1546,8 +1543,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_frame_rate = float(min_frame_rate)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minFrameRate {min_frame_rate}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minFrameRate {min_frame_rate}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.frame_rate >= min_frame_rate)
 
@@ -1556,8 +1553,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_frame_rate = float(max_frame_rate)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxFrameRate {max_frame_rate}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxFrameRate {max_frame_rate}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.frame_rate <= max_frame_rate)
 
@@ -1566,8 +1563,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_num_exp = int(min_num_exp)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minNumExposures {min_num_exp}. '
-                    'Could not convert to int. '
+                    f"Invalid value for minNumExposures {min_num_exp}. "
+                    "Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.num_exp >= min_num_exp)
 
@@ -1576,8 +1573,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_num_exp = int(max_num_exp)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxNumExposures {max_num_exp}. '
-                    'Could not convert to int. '
+                    f"Invalid value for maxNumExposures {max_num_exp}. "
+                    "Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.num_exp <= max_num_exp)
 
@@ -1586,8 +1583,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 instrument_id = int(instrument_id)
             except ValueError:
                 return self.error(
-                    f'Invalid value for instrumentId {instrument_id}. '
-                    'Could not convert to int. '
+                    f"Invalid value for instrumentId {instrument_id}. "
+                    "Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.instrument_id == instrument_id)
 
@@ -1596,8 +1593,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 followup_id = int(followup_id)
             except ValueError:
                 return self.error(
-                    f'Invalid value for followupId {followup_id}. '
-                    'Could not convert to int. '
+                    f"Invalid value for followupId {followup_id}. "
+                    "Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.followup_request_id == followup_id)
 
@@ -1606,8 +1603,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 assignment_id = int(assignment_id)
             except ValueError:
                 return self.error(
-                    f'Invalid value for assignmentId {assignment_id}. '
-                    'Could not convert to int. '
+                    f"Invalid value for assignmentId {assignment_id}. "
+                    "Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.assignment_id == assignment_id)
 
@@ -1616,8 +1613,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 owner_id = int(owner_id)
             except ValueError:
                 return self.error(
-                    f'Invalid value for ownerId {owner_id}. '
-                    'Could not convert to int. '
+                    f"Invalid value for ownerId {owner_id}. Could not convert to int. "
                 )
             stmt = stmt.where(PhotometricSeries.owner_id == owner_id)
 
@@ -1626,8 +1622,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 mag_fainter = float(mag_fainter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for magFainterThan {mag_fainter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for magFainterThan {mag_fainter}. "
+                    "Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_mag >= mag_fainter)
@@ -1639,8 +1635,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 mag_brighter = float(mag_brighter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for magBrighterThan {mag_brighter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for magBrighterThan {mag_brighter}. "
+                    "Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_mag <= mag_brighter)
@@ -1652,8 +1648,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 lim_mag_fainter = float(lim_mag_fainter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for limMagFainterThan {lim_mag_fainter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for limMagFainterThan {lim_mag_fainter}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.limiting_mag >= lim_mag_fainter)
 
@@ -1662,8 +1658,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 lim_mag_brighter = float(lim_mag_brighter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for limMagBrighterThan {lim_mag_brighter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for limMagBrighterThan {lim_mag_brighter}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.limiting_mag <= lim_mag_brighter)
 
@@ -1675,8 +1671,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 magref_fainter = float(magref_fainter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for magrefFainterThan {magref_fainter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for magrefFainterThan {magref_fainter}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.magref >= magref_fainter)
 
@@ -1685,8 +1681,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 magref_brighter = float(magref_brighter)
             except ValueError:
                 return self.error(
-                    f'Invalid value for magrefBrighterThan {magref_brighter}. '
-                    'Could not convert to float. '
+                    f"Invalid value for magrefBrighterThan {magref_brighter}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.magref <= magref_brighter)
 
@@ -1695,8 +1691,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_rms = float(max_rms)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxRMS {max_rms}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxRMS {max_rms}. Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_rms <= max_rms)
@@ -1708,8 +1703,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_rms = float(min_rms)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minRMS {min_rms}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minRMS {min_rms}. Could not convert to float. "
                 )
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_rms >= min_rms)
@@ -1721,8 +1715,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_median_snr = float(min_median_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minMedianSNR {min_median_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minMedianSNR {min_median_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.median_snr >= min_median_snr)
 
@@ -1731,8 +1725,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_median_snr = float(max_median_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxMedianSNR {max_median_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxMedianSNR {max_median_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.median_snr <= max_median_snr)
 
@@ -1741,8 +1735,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_best_snr = float(min_best_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minBestSNR {min_best_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minBestSNR {min_best_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.best_snr >= min_best_snr)
 
@@ -1751,8 +1745,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_best_snr = float(max_best_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxBestSNR {max_best_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxBestSNR {max_best_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.best_snr <= max_best_snr)
 
@@ -1761,8 +1755,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 min_worst_snr = float(min_worst_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minWorstSNR {min_worst_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for minWorstSNR {min_worst_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.worst_snr >= min_worst_snr)
 
@@ -1771,8 +1765,8 @@ class PhotometricSeriesHandler(BaseHandler):
                 max_worst_snr = float(max_worst_snr)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxWorstSNR {max_worst_snr}. '
-                    'Could not convert to float. '
+                    f"Invalid value for maxWorstSNR {max_worst_snr}. "
+                    "Could not convert to float. "
                 )
             stmt = stmt.where(PhotometricSeries.worst_snr <= max_worst_snr)
 
@@ -1781,7 +1775,7 @@ class PhotometricSeriesHandler(BaseHandler):
 
         try:
             # add any additional enums to this list:
-            if sort_by in ['filter']:
+            if sort_by in ["filter"]:
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
@@ -1794,15 +1788,14 @@ class PhotometricSeriesHandler(BaseHandler):
                 order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
             return self.error(
-                f'Invalid value for sortBy {sort_by}. Could not find column. '
+                f"Invalid value for sortBy {sort_by}. Could not find column. "
             )
 
-        if sort_order not in ['asc', 'desc']:
+        if sort_order not in ["asc", "desc"]:
             return self.error(
-                f'Invalid value "{sort_order}" for sortOrder. '
-                'Must be "asc" or "desc". '
+                f'Invalid value "{sort_order}" for sortOrder. Must be "asc" or "desc". '
             )
-        if sort_order == 'desc':
+        if sort_order == "desc":
             order_by_column = order_by_column.desc()
 
         stmt = stmt.order_by(order_by_column)
@@ -1820,7 +1813,7 @@ class PhotometricSeriesHandler(BaseHandler):
         if num_per_page > MAX_SERIES_PER_PAGE:
             return self.error(
                 f'Invalid value "{num_per_page}" for numPerPage. '
-                f'Maximum value is {MAX_SERIES_PER_PAGE}. '
+                f"Maximum value is {MAX_SERIES_PER_PAGE}. "
             )
 
         with self.Session() as session:
@@ -1832,18 +1825,18 @@ class PhotometricSeriesHandler(BaseHandler):
 
             try:
                 results = {
-                    'series': [s.to_dict(data_format) for s in series],
-                    'totalMatches': total_matches,
-                    'numPerPage': num_per_page,
-                    'pageNumber': page_number,
+                    "series": [s.to_dict(data_format) for s in series],
+                    "totalMatches": total_matches,
+                    "numPerPage": num_per_page,
+                    "pageNumber": page_number,
                 }
             except Exception:
                 return self.error(
-                    f'Could not convert series to dict {traceback.format_exc()}'
+                    f"Could not convert series to dict {traceback.format_exc()}"
                 )
             return self.success(data=results)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, photometric_series_id):
         """
         ---
@@ -1877,7 +1870,7 @@ class PhotometricSeriesHandler(BaseHandler):
 
             if ps is None:
                 return self.error(
-                    f'Cannot find photometry point with ID: {photometric_series_id}.'
+                    f"Cannot find photometry point with ID: {photometric_series_id}."
                 )
 
             obj_id = ps.obj_id

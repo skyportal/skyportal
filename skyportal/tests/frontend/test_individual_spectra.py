@@ -55,27 +55,27 @@ def test_annotations(
     annotation_data = str(uuid.uuid4())
 
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source.id),
-            'observed_at': '2021-11-02 12:00:00',
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
+            "obj_id": str(public_source.id),
+            "observed_at": "2021-11-02 12:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/annotations',
+        "POST",
+        f"spectra/{spectrum_id}/annotations",
         data={
-            'origin': 'kowalski',
-            'data': {'useful_info': annotation_data},
+            "origin": "kowalski",
+            "data": {"useful_info": annotation_data},
         },
         token=annotation_token,
     )

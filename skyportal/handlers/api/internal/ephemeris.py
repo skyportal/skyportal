@@ -1,7 +1,9 @@
-from ...base import BaseHandler
-from baselayer.app.access import auth_or_token
-from ....models import Telescope
 from astropy import time as ap_time
+
+from baselayer.app.access import auth_or_token
+
+from ....models import Telescope
+from ...base import BaseHandler
 
 MAX_TELESCOPES_TO_DISPLAY = 16
 
@@ -56,13 +58,13 @@ class EphemerisHandler(BaseHandler):
                   schema: Error
         """
 
-        time = self.get_query_argument('time', None)
+        time = self.get_query_argument("time", None)
 
         if time is not None:
             try:
-                time = ap_time.Time(time, format='iso')
+                time = ap_time.Time(time, format="iso")
             except ValueError as e:
-                return self.error(f'Invalid time format: {e.args[0]}')
+                return self.error(f"Invalid time format: {e.args[0]}")
         else:
             time = ap_time.Time.now()
 
@@ -73,26 +75,26 @@ class EphemerisHandler(BaseHandler):
                 try:
                     telescope_id = int(telescope_id)
                 except ValueError as e:
-                    return self.error(f'Invalid value for Telescope id: {e.args[0]}')
+                    return self.error(f"Invalid value for Telescope id: {e.args[0]}")
                 telescope = session.scalars(
                     Telescope.select(session.user_or_token).where(
                         Telescope.id == telescope_id
                     )
                 ).first()
                 if telescope is None:
-                    return self.error('No Telescope with this id')
+                    return self.error("No Telescope with this id")
                 else:
                     if telescope.fixed_location is not True:
-                        return self.error('Telescope is not fixed')
+                        return self.error("Telescope is not fixed")
                     else:
                         ephemerides = telescope.ephemeris(time)
             else:
-                telescope_ids = self.get_query_argument('telescopeIds', None)
+                telescope_ids = self.get_query_argument("telescopeIds", None)
                 if telescope_ids is not None:
                     try:
-                        telescope_ids = [int(t) for t in telescope_ids.split(',')]
+                        telescope_ids = [int(t) for t in telescope_ids.split(",")]
                     except ValueError as e:
-                        return self.error(f'Invalid telescopeIds format: {e.args[0]}')
+                        return self.error(f"Invalid telescopeIds format: {e.args[0]}")
 
                     if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
                         telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]

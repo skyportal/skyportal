@@ -21,6 +21,11 @@ help: baselayer/Makefile
 baselayer/Makefile:
 	git submodule update --init
 
+dependencies_no_js: ## Install Python dependencies and check environment, without checking/installing JS dependencies
+	@PYTHONPATH=. pip install packaging
+	@baselayer/tools/check_app_environment.py
+	@PYTHONPATH=. python baselayer/tools/pip_install_requirements.py baselayer/requirements.txt requirements.txt
+
 docker-images: ## Make and upload docker images
 docker-images: docker-local
 	@# Add --no-cache flag to rebuild from scratch
@@ -50,13 +55,18 @@ prepare_seed_data:
 
 load_demo_data: ## Import example dataset
 load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
-load_demo_data: | dependencies prepare_seed_data
+load_demo_data: | dependencies_no_js prepare_seed_data
 	@PYTHONPATH=. python tools/data_loader.py data/db_demo.yaml $(FLAGS)
 
 load_seed_data: ## Seed database with common telescopes, instruments, and a taxonomy
 load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
-load_seed_data: | dependencies prepare_seed_data
+load_seed_data: | dependencies_no_js prepare_seed_data
 	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
+
+db_create_tables: ## Create tables in the database
+db_create_tables: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
+db_create_tables: | dependencies_no_js
+	@PYTHONPATH=. python skyportal/initial_setup.py $(FLAGS)
 
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)

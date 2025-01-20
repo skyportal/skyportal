@@ -1,9 +1,9 @@
-from pathlib import Path
 import os
 import re
+from pathlib import Path
 
-RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
-RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
+RE_SLASHES = re.compile(r"^[\w_\-\+\/\\]*$")
+RE_NO_SLASHES = re.compile(r"^[\w_\-\+]*$")
 
 MAX_FILEPATH_LENGTH = 255
 
@@ -33,10 +33,10 @@ def save_file_data(root_folder, path_string, filename, file_data):
 
     if len(full_path) > MAX_FILEPATH_LENGTH:
         raise ValueError(
-            f'Full path to file {full_path} is longer than {MAX_FILEPATH_LENGTH} characters.'
+            f"Full path to file {full_path} is longer than {MAX_FILEPATH_LENGTH} characters."
         )
 
-    with open(full_path, 'wb') as f:
+    with open(full_path, "wb") as f:
         f.write(file_data)
 
     return full_path
@@ -51,7 +51,7 @@ def delete_file_data(attachment_path):
         try:
             if parent_dir.is_dir():
                 for file_name in os.listdir(parent_dir):
-                    file = str(parent_dir) + '/' + file_name
+                    file = str(parent_dir) + "/" + file_name
                     if os.path.isfile(file):
                         os.remove(file)
                 parent_dir.rmdir()
@@ -60,13 +60,13 @@ def delete_file_data(attachment_path):
 
 
 def filesize_to_human_readable(size):
-    if not isinstance(size, (int, float)) and size > 0:
-        raise ValueError('size must be a positive number')
+    if not isinstance(size, int | float) and size > 0:
+        raise ValueError("size must be a positive number")
     if size < 1024:
-        return f'{size} B'
+        return f"{size} B"
     elif size < 1024 * 1024:
-        return f'{size / 1024:.1f} KB'
+        return f"{size / 1024:.1f} KB"
     elif size < 1024 * 1024 * 1024:
-        return f'{size / 1024 / 1024:.1f} MB'
+        return f"{size / 1024 / 1024:.1f} MB"
     else:
-        return f'{size / 1024 / 1024 / 1024:.1f} GB'
+        return f"{size / 1024 / 1024 / 1024:.1f} GB"

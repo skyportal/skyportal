@@ -1,29 +1,29 @@
-import phonenumbers
-from phonenumbers.phonenumberutil import NumberParseException
-from email_validator import validate_email, EmailNotValidError
-import arrow
 from datetime import datetime
 
+import arrow
+import phonenumbers
 import sqlalchemy as sa
+from email_validator import EmailNotValidError, validate_email
+from phonenumbers.phonenumberutil import NumberParseException
 from sqlalchemy import func
 
-from ..base import BaseHandler
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.model_util import all_acl_ids, role_acls
+
 from ...models import (
-    User,
-    Role,
-    UserRole,
-    UserACL,
     ACL,
     Group,
     GroupUser,
-    StreamUser,
+    Role,
     Stream,
+    StreamUser,
+    User,
+    UserACL,
+    UserRole,
 )
-
-from skyportal.model_util import role_acls, all_acl_ids
+from ..base import BaseHandler
 
 log = make_log("api/user")
 env, cfg = load_env()
@@ -38,7 +38,7 @@ def set_default_role(user, session):
     If the default role from the config does not exist,
     an exception is raised, and can be caught by the caller (i.e., in a handler).
     """
-    default_role = cfg['user.default_role']
+    default_role = cfg["user.default_role"]
     if isinstance(default_role, str) and default_role in role_acls:
         role = session.scalars(sa.select(Role).where(Role.id == default_role)).first()
         if role is None:
@@ -59,12 +59,12 @@ def set_default_acls(user, session):
     If the default acl from the config does not exist,
     an exception is raised, and can be caught by the caller (i.e., in a handler).
     """
-    for acl_id in cfg['user.default_acls']:
+    for acl_id in cfg["user.default_acls"]:
         if acl_id not in all_acl_ids:
             raise Exception(
                 f"Invalid default_acl configuration value: {acl_id} does not exist"
             )
-    for acl_id in cfg['user.default_acls']:
+    for acl_id in cfg["user.default_acls"]:
         session.add(UserACL(user_id=user.id, acl_id=acl_id))
 
 
@@ -78,9 +78,9 @@ def set_default_group(user, session):
     an exception is raised, and can be caught by the caller (i.e., in a handler).
     """
     default_groups = []
-    if cfg['misc.public_group_name'] is not None:
-        default_groups.append(cfg['misc.public_group_name'])
-    default_groups.extend(cfg['user.default_groups'])
+    if cfg["misc.public_group_name"] is not None:
+        default_groups.append(cfg["misc.public_group_name"])
+    default_groups.extend(cfg["user.default_groups"])
     default_groups = list(set(default_groups))
     for default_group_name in default_groups:
         group = session.scalars(
@@ -256,6 +256,12 @@ class UserHandler(BaseHandler):
             schema:
               type: string
             description: Get users with access to the stream with name given by this parameter.
+          - in: query
+            name: includeExpired
+            nullable: true
+            schema:
+              type: boolean
+            description: Include users with expired accounts in the results.
           responses:
             200:
               content:
@@ -552,12 +558,12 @@ class UserHandler(BaseHandler):
 
             with self.Session() as session:
                 user = session.scalars(
-                    User.select(self.current_user, mode='update').where(
+                    User.select(self.current_user, mode="update").where(
                         User.id == user_id
                     )
                 ).first()
                 if user is None:
-                    return self.error(f'Cannot find user with ID {user_id}')
+                    return self.error(f"Cannot find user with ID {user_id}")
                 expiration_date = data.get("expirationDate")
                 if expiration_date is not None:
                     try:
@@ -568,7 +574,7 @@ class UserHandler(BaseHandler):
                         return self.error("Unable to parse `expirationDate` parameter.")
 
                 for k in data:
-                    if k != 'expiration_date':
+                    if k != "expiration_date":
                         setattr(user, k, data[k])
 
                 session.commit()
@@ -603,7 +609,7 @@ class UserHandler(BaseHandler):
         """
         with self.Session() as session:
             user = session.scalars(
-                User.select(self.current_user, mode='delete').where(User.id == user_id)
+                User.select(self.current_user, mode="delete").where(User.id == user_id)
             ).first()
             if user is None:
                 return self.error(f"Cannot find/delete user with ID {user_id}")

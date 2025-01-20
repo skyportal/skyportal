@@ -1,21 +1,21 @@
-import os
 import copy
-import yaml
+import os
 
+import yaml
 from langchain_openai import OpenAIEmbeddings
-from typing import List, Optional
 from pinecone import Pinecone
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from ..base import BaseHandler
+
 from ...models import (
     User,
 )
+from ..base import BaseHandler
 
 _, cfg = load_env()
-log = make_log('query')
+log = make_log("query")
 
 
 # add in this new search method to the Pinecone class
@@ -23,11 +23,11 @@ def search_sources(
     client: Pinecone,
     query: str,
     k: int = 4,
-    filter: Optional[dict] = None,
-    index_name: Optional[str] = None,
-    namespace: Optional[str] = None,
-    openai_api_key: Optional[str] = None,
-) -> List[dict]:
+    filter: dict | None = None,
+    index_name: str | None = None,
+    namespace: str | None = None,
+    openai_api_key: str | None = None,
+) -> list[dict]:
     """Return pinecone documents most similar to query, along with scores.
 
     Args:
@@ -85,7 +85,7 @@ pinecone_client = None
 # Preamble: get the embeddings and summary parameters ready
 # for now, we only support pinecone embeddings
 summarize_embedding_config = cfg[
-    'analysis_services.openai_analysis_service.embeddings_store.summary'
+    "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
 USE_PINECONE = False
 if (
@@ -108,20 +108,20 @@ if (
     ]:
         USE_PINECONE = True
 else:
-    if cfg['database.database'] == 'skyportal_test':
+    if cfg["database.database"] == "skyportal_test":
         USE_PINECONE = True
         log("Setting USE_PINECONE=True as it seems like we are in a test environment")
     else:
         log("No valid pinecone configuration found. Please check the config file.")
 
-summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
+summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
     # there may be a global API key set in the config file
     openai_api_key = summary_config.pop("api_key")
 elif os.path.exists(".secret"):
     # try to get this key from the dev environment, useful for debugging
     openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
-elif cfg['database.database'] == 'skyportal_test':
+elif cfg["database.database"] == "skyportal_test":
     openai_api_key = "TEST_KEY"
 else:
     openai_api_key = None
@@ -223,12 +223,12 @@ class SummaryQueryHandler(BaseHandler):
                 ).first()
                 if user is None:
                     return self.error(
-                        'No global OpenAI key found and cannot find user.', status=400
+                        "No global OpenAI key found and cannot find user.", status=400
                     )
 
                 if user.preferences is not None and user.preferences.get(
                     "summary", {}
-                ).get("OpenAI", {}).get('active', False):
+                ).get("OpenAI", {}).get("active", False):
                     user_pref_openai = user.preferences["summary"]["OpenAI"].get(
                         "apikey"
                     )
@@ -236,25 +236,25 @@ class SummaryQueryHandler(BaseHandler):
         else:
             user_openai_key = openai_api_key
         if not user_openai_key:
-            return self.error('No OpenAI API key found.', status=400)
+            return self.error("No OpenAI API key found.", status=400)
 
         data = self.get_json()
-        query = data.get('q')
-        objID = data.get('objID')
-        if query in [None, ''] and objID in [None, '']:
+        query = data.get("q")
+        objID = data.get("objID")
+        if query in [None, ""] and objID in [None, ""]:
             return self.error('Missing one of the required: "q" or "objID"')
         if query is not None and objID is not None:
             return self.error('Cannot specify both "q" and "objID"')
 
-        search_by_string = query not in [None, '']
-        k = data.get('k', 5)
+        search_by_string = query not in [None, ""]
+        k = data.get("k", 5)
         if k < 1 or k > 100:
-            return self.error('k must be 1<=k<=100')
-        z_min = data.get('z_min', None)
-        z_max = data.get('z_max', None)
+            return self.error("k must be 1<=k<=100")
+        z_min = data.get("z_min", None)
+        z_max = data.get("z_max", None)
         if z_min is not None and z_max is not None and z_min > z_max:
-            return self.error('z_min must be <= z_max')
-        classification_types = data.get('classificationTypes', None)
+            return self.error("z_min must be <= z_max")
+        classification_types = data.get("classificationTypes", None)
 
         # construct the filter
         if z_min is not None and z_max is None:
@@ -294,7 +294,7 @@ class SummaryQueryHandler(BaseHandler):
                     user_openai_key,
                 )
             except Exception as e:
-                return self.error(f'Could not search sources: {e}')
+                return self.error(f"Could not search sources: {e}")
         else:
             # search by objID. Will return an empty list if objID not in
             # vector database.
@@ -310,6 +310,6 @@ class SummaryQueryHandler(BaseHandler):
                 )
                 results = query_response.get("matches", [])
             except Exception as e:
-                return self.error(f'Could not query index: {e}')
+                return self.error(f"Could not query index: {e}")
 
-        return self.success(data={'query_results': results})
+        return self.success(data={"query_results": results})

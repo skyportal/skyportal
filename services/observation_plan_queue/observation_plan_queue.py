@@ -9,22 +9,22 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
+from skyportal.handlers.api.observation_plan import (
+    post_survey_efficiency_analysis,
+    send_observation_plan,
+)
 from skyportal.models import (
     DBSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     ObservationPlanRequest,
 )
-from skyportal.handlers.api.observation_plan import (
-    send_observation_plan,
-    post_survey_efficiency_analysis,
-)
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
-log = make_log('observation_plan_queue')
+log = make_log("observation_plan_queue")
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
 
 def prioritize_requests(requests):
@@ -41,7 +41,7 @@ def prioritize_requests(requests):
         for ii, plan_requests in enumerate(requests):
             for plan in plan_requests:
                 allocation_id = plan.allocation_id
-                if ii not in allocationByPlanLookup.keys():
+                if ii not in allocationByPlanLookup:
                     allocationByPlanLookup[ii] = [
                         {
                             "allocation_id": allocation_id,
@@ -56,9 +56,9 @@ def prioritize_requests(requests):
                         }
                     )
                 if allocation_id not in telescopeAllocationLookup:
-                    telescopeAllocationLookup[
-                        allocation_id
-                    ] = plan.allocation.instrument.telescope.current_time()
+                    telescopeAllocationLookup[allocation_id] = (
+                        plan.allocation.instrument.telescope.current_time()
+                    )
 
         # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
         # at the same time, we pick the plan to prioritize
@@ -161,15 +161,15 @@ def service(*args, **kwargs):
                             ObservationPlanRequest.created_at
                             > arrow.utcnow().shift(days=-3).datetime,
                         ),
-                        # or plans that have been "running" for more than 24 hours but less than 72 hours
+                        # or plans that have been "running" for more than 5 minutes but less than 1 hours
                         # this is a way to grab plans that have been stuck in the running state
                         # and have not been processed
                         sa.and_(
                             ObservationPlanRequest.status == "running",
                             ObservationPlanRequest.created_at
-                            < arrow.utcnow().shift(days=-1).datetime,
+                            < arrow.utcnow().shift(minutes=-5).datetime,
                             ObservationPlanRequest.created_at
-                            > arrow.utcnow().shift(days=-3).datetime,
+                            > arrow.utcnow().shift(hours=-1).datetime,
                         ),
                     )
                 )
@@ -228,8 +228,8 @@ def service(*args, **kwargs):
                         plan_ids.append(plan_id)
                     except Exception as e:
                         traceback.print_exc()
-                        plan_request.status = 'failed to process'
-                        log(f'Error processing observation plan: {e.args[0]}')
+                        plan_request.status = "failed to process"
+                        log(f"Error processing observation plan: {e.args[0]}")
                         session.commit()
                         time.sleep(2)
                         continue
@@ -240,20 +240,20 @@ def service(*args, **kwargs):
                     )
                     log(f"Plan {plan_id} status: {plan_request.status}")
                     if plan_request.status == "running":
-                        plan_request.status = 'complete'
+                        plan_request.status = "complete"
                         session.merge(plan_request)
                         session.commit()
 
                     try:
                         flow = Flow()
                         flow.push(
-                            '*',
+                            "*",
                             "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                             payload={"gcnEvent_dateobs": plan_request.gcnevent.dateobs},
                         )
                     except Exception as e:
                         log(
-                            f'Error refreshing observation plan requests on the frontend: {e.args[0]}'
+                            f"Error refreshing observation plan requests on the frontend: {e.args[0]}"
                         )
 
                 else:
@@ -265,9 +265,9 @@ def service(*args, **kwargs):
                         )
                     except Exception as e:
                         for plan_request in plan_requests:
-                            plan_request.status = 'failed to process'
+                            plan_request.status = "failed to process"
                         log(
-                            f'Error processing combined plans: {[plan_request.id for plan_request in plan_requests]}: {str(e)}'
+                            f"Error processing combined plans: {[plan_request.id for plan_request in plan_requests]}: {str(e)}"
                         )
                         session.commit()
                         time.sleep(2)
@@ -281,7 +281,7 @@ def service(*args, **kwargs):
                         )
                         log(f"Plan {plan_request.id} status: {plan_request.status}")
                         if plan_request.status == "running":
-                            plan_request.status = 'complete'
+                            plan_request.status = "complete"
                             session.merge(plan_request)
                             session.commit()
 
@@ -292,7 +292,7 @@ def service(*args, **kwargs):
                         flow = Flow()
                         for dateobs in unique_dateobs:
                             flow.push(
-                                '*',
+                                "*",
                                 "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                                 payload={"gcnEvent_dateobs": dateobs},
                             )
@@ -310,7 +310,7 @@ def service(*args, **kwargs):
                             )
                         ).first()
                         default = plan.observation_plan_request.payload.get(
-                            'default', None
+                            "default", None
                         )
                         if default is not None:
                             defaultobsplanrequest = session.scalars(

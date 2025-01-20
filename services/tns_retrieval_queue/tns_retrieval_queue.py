@@ -1,55 +1,56 @@
 import asyncio
 import json
 import time
+import traceback
 import urllib
-from threading import Thread
 from datetime import datetime, timedelta
+from threading import Thread
 
+import conesearch_alchemy as ca
 import requests
-from skyportal.utils.calculations import great_circle_distance
 import sqlalchemy as sa
 import tornado.escape
 import tornado.ioloop
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
-import conesearch_alchemy as ca
 
 from baselayer.app.env import load_env
-from baselayer.app.models import init_db
 from baselayer.app.flow import Flow
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Obj, Source, User, Group
+from skyportal.models import DBSession, Group, Obj, Source, User
+from skyportal.utils.calculations import great_circle_distance
+from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
     get_IAUname,
+    get_recent_TNS,
     read_tns_photometry,
     read_tns_spectrum,
-    get_recent_TNS,
 )
-from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
-log = make_log('tns_queue')
+log = make_log("tns_queue")
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
 Session = scoped_session(sessionmaker())
 
 USER_ID = 1  # super admin user ID
 DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
 
-TNS_URL = cfg['app.tns.endpoint']
-object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
+TNS_URL = cfg["app.tns.endpoint"]
+object_url = urllib.parse.urljoin(TNS_URL, "api/get/object")
 
-bot_id = cfg.get('app.tns.bot_id', None)
-bot_name = cfg.get('app.tns.bot_name', None)
-api_key = cfg.get('app.tns.api_key', None)
-look_back_days = cfg.get('app.tns.look_back_days', 1)
+bot_id = cfg.get("app.tns.bot_id", None)
+bot_name = cfg.get("app.tns.bot_name", None)
+api_key = cfg.get("app.tns.api_key", None)
+look_back_days = cfg.get("app.tns.look_back_days", 1)
 
 
-def refresh_obj_on_frontend(obj, user_id='*'):
+def refresh_obj_on_frontend(obj, user_id="*"):
     """Refresh an object's source page on the frontend for all users or a specific user.
 
     Parameters
@@ -63,11 +64,11 @@ def refresh_obj_on_frontend(obj, user_id='*'):
         flow = Flow()
         flow.push(
             user_id,
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
         )
     except Exception:
-        log(f'Error refreshing object {obj.id} on frontend')
+        log(f"Error refreshing object {obj.id} on frontend")
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -159,7 +160,7 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
         )
         return
 
-    photometry = tns_source_data.get('photometry', [])
+    photometry = tns_source_data.get("photometry", [])
     if len(photometry) == 0:
         log(f"No photometry found on TNS for source {tns_source}")
         return
@@ -171,16 +172,16 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
         try:
             df, instrument_id = read_tns_photometry(phot, session)
             data_out = {
-                'obj_id': tns_source,
-                'instrument_id': instrument_id,
-                'group_ids': [public_group_id],
-                **df.to_dict(orient='list'),
+                "obj_id": tns_source,
+                "instrument_id": instrument_id,
+                "group_ids": [public_group_id],
+                **df.to_dict(orient="list"),
             }
             read_photometry = True
         except Exception as e:
             failed_photometry.append(phot)
             failed_photometry_errors.append(str(e))
-            log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
+            log(f"Cannot read TNS photometry {str(phot)}: {str(e)}")
             continue
         if read_photometry:
             try:
@@ -192,11 +193,11 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
 
     if len(failed_photometry) > 0:
         log(
-            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_name}: {str(list(set(failed_photometry_errors)))}'
+            f"Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_name}: {str(list(set(failed_photometry_errors)))}"
         )
     else:
         log(
-            f'Successfully retrieved {len(photometry)} TNS photometry points from {tns_name}'
+            f"Successfully retrieved {len(photometry)} TNS photometry points from {tns_name}"
         )
 
 
@@ -216,7 +217,7 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
     session : `sqlalchemy.orm.session.Session`
         Database session object
     """
-    spectra = tns_source_data.get('spectra', [])
+    spectra = tns_source_data.get("spectra", [])
     if len(spectra) == 0:
         log(f"No spectra found on TNS for source {tns_source}")
         return
@@ -228,7 +229,7 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
         try:
             data = read_tns_spectrum(spectrum, session)
         except Exception as e:
-            log(f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}')
+            log(f"Cannot read TNS spectrum {str(spectrum)}: {str(e)}")
             continue
         data["obj_id"] = tns_source
         data["group_ids"] = [public_group_id]
@@ -236,10 +237,10 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
 
     if len(failed_spectra) > 0:
         log(
-            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_name}: {str(list(set(failed_spectra_errors)))}'
+            f"Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_name}: {str(list(set(failed_spectra_errors)))}"
         )
     else:
-        log(f'Successfully retrieved {len(spectra)} TNS spectra from {tns_name}')
+        log(f"Successfully retrieved {len(spectra)} TNS spectra from {tns_name}")
 
 
 def process_queue(queue):
@@ -308,7 +309,7 @@ def process_queue(queue):
                         f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
                     )
                     if tns_source in [None, "None", ""]:
-                        raise ValueError(f'{task.get("obj_id")} not found on TNS.')
+                        raise ValueError(f"{task.get('obj_id')} not found on TNS.")
                     tns_name = f"{tns_prefix} {tns_source}"
                 elif task.get("tns_source") is not None:
                     # here we just want to create a TNS source
@@ -328,8 +329,8 @@ def process_queue(queue):
 
                 # fetch the data from TNS
                 data = {
-                    'api_key': api_key,
-                    'data': json.dumps(
+                    "api_key": api_key,
+                    "data": json.dumps(
                         {
                             "objname": tns_source,
                             "photometry": 1,
@@ -365,7 +366,7 @@ def process_queue(queue):
                     continue
 
                 try:
-                    tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                    tns_source_data = r.json().get("data", {})
                 except Exception:
                     tns_source_data = None
                 if tns_source_data is None:
@@ -379,7 +380,7 @@ def process_queue(queue):
                         .get("110", {})
                         .get("message", None)
                     )
-                    if msg == 'No results found.':
+                    if msg == "No results found.":
                         log(f"Could not find {tns_name} on TNS at {TNS_URL}")
                         continue
                 except Exception:
@@ -387,13 +388,16 @@ def process_queue(queue):
 
                 tns_prefix = tns_source_data.get("name_prefix", None)
                 if tns_prefix is None:
-                    log(f"Error processing TNS source {tns_name}: obj has no prefix")
+                    log(
+                        f"Error processing TNS source {tns_name}: obj has no prefix ({str(r.json())})"
+                    )
                     continue
 
                 tns_name = f"{tns_prefix} {tns_source}"
 
-                ra, dec = tns_source_data.get("radeg", None), tns_source_data.get(
-                    "decdeg", None
+                ra, dec = (
+                    tns_source_data.get("radeg", None),
+                    tns_source_data.get("decdeg", None),
                 )
                 if ra is None or dec is None:
                     log(f"Error processing TNS source {tns_name}: no coordinates")
@@ -467,11 +471,12 @@ def process_queue(queue):
                             session,
                         )
         except Exception as e:
+            traceback.print_exc()
             log(f"Error processing TNS source {tns_name}: {e}")
             user_id = task.get("user_id", None)
             if user_id is not None:
                 flow = Flow()
-                if 'not found on TNS' in str(e):
+                if "not found on TNS" in str(e):
                     flow.push(
                         user_id,
                         action_type="baselayer/SHOW_NOTIFICATION",
@@ -528,8 +533,8 @@ def tns_watcher(queue):
                 # add the tns_source to the queue
                 queue.append(
                     {
-                        "tns_prefix": tns_source['prefix'],
-                        "tns_source": tns_source['id'],
+                        "tns_prefix": tns_source["prefix"],
+                        "tns_source": tns_source["id"],
                         "obj_id": None,
                     }
                 )
@@ -566,8 +571,8 @@ def api(queue):
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
-            if 'tns_source' in data:
-                queue.append({"tns_source": data['tns_source']})
+            if "tns_source" in data:
+                queue.append({"tns_source": data["tns_source"]})
                 self.set_status(200)
                 return self.write(
                     {
@@ -577,7 +582,7 @@ def api(queue):
                     }
                 )
 
-            required_keys = {'obj_id', 'user_id'}
+            required_keys = {"obj_id", "user_id"}
             if not required_keys.issubset(set(data.keys())):
                 self.set_status(400)
                 return self.write(

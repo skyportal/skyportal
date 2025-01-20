@@ -4,6 +4,16 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
+# Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
+# http://adsabs.harvard.edu/abs/1989A&A...218..325M
+RGE = np.array(
+    [
+        [-0.054875539, -0.873437105, -0.483834992],
+        [+0.494109454, -0.444829594, +0.746982249],
+        [-0.867666136, -0.198076390, +0.455983795],
+    ]
+)
+
 
 def radec_str2deg(_ra_str, _dec_str):
     c = SkyCoord(_ra_str, _dec_str, unit=(u.hourangle, u.deg))
@@ -48,18 +58,18 @@ def get_observer(telescope: dict):
     facility, accounting for the latitude, longitude, and elevation."""
 
     return astroplan.Observer(
-        longitude=telescope['lon'] * u.deg,
-        latitude=telescope['lat'] * u.deg,
-        elevation=telescope['elevation'] * u.m,
+        longitude=telescope["lon"] * u.deg,
+        latitude=telescope["lat"] * u.deg,
+        elevation=telescope["elevation"] * u.m,
     )
 
 
 def get_target(fields: list[dict]):
     """Return an `astroplan.FixedTarget` representing the target of this
     observation."""
-    ra = np.array([field['ra'] for field in fields])
-    dec = np.array([field['dec'] for field in fields])
-    field_ids = np.array([field['field_id'] for field in fields])
+    ra = np.array([field["ra"] for field in fields])
+    dec = np.array([field["dec"] for field in fields])
+    field_ids = np.array([field["field_id"] for field in fields])
     return astroplan.FixedTarget(
         SkyCoord(ra=ra * u.deg, dec=dec * u.deg), name=field_ids
     )
@@ -115,16 +125,16 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
         The airmass of the Obj at the requested times
     """
 
-    if 'observer' in kwargs:
-        observer = kwargs['observer']
-    elif 'telescope' in kwargs:
-        observer = observer(kwargs['telescope'])
+    if "observer" in kwargs:
+        observer = kwargs["observer"]
+    elif "telescope" in kwargs:
+        observer = observer(kwargs["telescope"])
 
     # the output shape should be targets x times
     output_shape = (len(fields), len(time))
     time = np.atleast_1d(time)
     target = get_target(fields)
-    altitude = get_altitude(time, target, observer).to('degree').value
+    altitude = get_altitude(time, target, observer).to("degree").value
     above = altitude > 0
 
     # use Pickering (2002) interpolation to calculate the airmass
@@ -144,25 +154,25 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
 
 def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     """The set time of the field as an astropy.time.Time."""
-    if 'observer' in kwargs:
-        observer = kwargs['observer']
-    elif 'telescope' in kwargs:
-        observer = get_observer(kwargs['telescope'])
+    if "observer" in kwargs:
+        observer = kwargs["observer"]
+    elif "telescope" in kwargs:
+        observer = get_observer(kwargs["telescope"])
 
-    if 'time' in kwargs:
-        time = kwargs['time']
+    if "time" in kwargs:
+        time = kwargs["time"]
     else:
         time = Time.now()
 
-    sunrise = observer.sun_rise_time(time, which='next')
-    sunset = observer.sun_set_time(time, which='next')
+    sunrise = observer.sun_rise_time(time, which="next")
+    sunset = observer.sun_set_time(time, which="next")
 
     targets = get_target(fields)
 
     rise_time = observer.target_rise_time(
-        sunset, targets, which='next', horizon=altitude
+        sunset, targets, which="next", horizon=altitude
     )
-    set_time = observer.target_set_time(sunset, targets, which='next', horizon=altitude)
+    set_time = observer.target_set_time(sunset, targets, which="next", horizon=altitude)
 
     # if next rise time is after next sunrise, the target rises before
     # sunset. show the previous rise so that the target is shown to be
@@ -173,7 +183,7 @@ def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     if np.any(recalc):
         # recalculate the rise time only for those targets that need it
         rise_time[recalc] = observer.target_rise_time(
-            sunset, targets, which='previous', horizon=altitude
+            sunset, targets, which="previous", horizon=altitude
         )[recalc]
 
     return rise_time, set_time
@@ -186,4 +196,76 @@ def next_sunrise(observer, time=None):
         return None
     if time is None:
         time = Time.now()
-    return observer.sun_rise_time(time, which='next')
+    return observer.sun_rise_time(time, which="next")
+
+
+def deg2hms(x):
+    """Transform degrees to *hours:minutes:seconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [0, 360) to be written as a sexagesimal string.
+
+    Returns
+    -------
+    out : str
+        The input angle written as a sexagesimal string, in the
+        form, hours:minutes:seconds.
+
+    """
+    if not 0.0 <= x < 360.0:
+        raise ValueError("Bad RA value in degrees")
+    _h = np.floor(x * 12.0 / 180.0)
+    _m = np.floor((x * 12.0 / 180.0 - _h) * 60.0)
+    _s = ((x * 12.0 / 180.0 - _h) * 60.0 - _m) * 60.0
+    hms = f"{_h:02.0f}:{_m:02.0f}:{_s:07.4f}"
+    return hms
+
+
+def deg2dms(x):
+    """Transform degrees to *degrees:arcminutes:arcseconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [-90, 90] to be converted.
+
+    Returns
+    -------
+    out : str
+        The input angle as a string, written as degrees:minutes:seconds.
+
+    """
+    if not -90.0 <= x <= 90.0:
+        raise ValueError("Bad Dec value in degrees")
+    _d = np.floor(abs(x)) * np.sign(x)
+    _m = np.floor(np.abs(x - _d) * 60.0)
+    _s = np.abs(np.abs(x - _d) * 60.0 - _m) * 60.0
+    dms = f"{_d:02.0f}:{_m:02.0f}:{_s:06.3f}"
+    return dms
+
+
+def radec2lb(ra, dec):
+    """
+        Convert $R.A.$ and $Decl.$ into Galactic coordinates $l$ and $b$
+    ra [deg]
+    dec [deg]
+
+    return l [deg], b [deg]
+    """
+    ra_rad, dec_rad = np.deg2rad(ra), np.deg2rad(dec)
+    u = np.array(
+        [
+            np.cos(ra_rad) * np.cos(dec_rad),
+            np.sin(ra_rad) * np.cos(dec_rad),
+            np.sin(dec_rad),
+        ]
+    )
+
+    ug = np.dot(RGE, u)
+
+    x, y, z = ug
+    galactic_l = np.arctan2(y, x)
+    galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
+    return np.rad2deg(galactic_l), np.rad2deg(galactic_b)

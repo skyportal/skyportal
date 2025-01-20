@@ -1,40 +1,41 @@
+import re
+
 import arrow
 import requests
-import re
-from tornado.ioloop import IOLoop
-from ..base import BaseHandler
-from baselayer.app.access import auth_or_token, permissions
-from ...models import GcnEvent, DBSession, User
+import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
+from tornado.ioloop import IOLoop
 
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.orm.attributes import flag_modified
+from ...models import DBSession, GcnEvent, User
+from ..base import BaseHandler
 
 Session = scoped_session(sessionmaker())
 
-log = make_log('api/gcn_tach')
+log = make_log("api/gcn_tach")
 
 
 def get_tach_event_id(dateobs, tags, aliases=None):
     date = dateobs.split("T", 1)[0]
-    if 'Neutrino' in tags:
-        tags.append('ν')
+    if "Neutrino" in tags:
+        tags.append("ν")
     url = (
         "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql_fast"
     )
 
     if aliases is not None:
         aliases = [
-            alias.split("#")[1].upper() if '#' in alias else alias.upper()
+            alias.split("#")[1].upper() if "#" in alias else alias.upper()
             for alias in aliases
         ]
 
     payload = {
-        "query": f'''{{
+        "query": f"""{{
               allEventDetails (  date1:\"{date}\" date2:\"{date}\" ) {{
                 totalCount
                 pageInfo{{
@@ -62,7 +63,7 @@ def get_tach_event_id(dateobs, tags, aliases=None):
                     }}
                   }}
                 }}
-            }}'''
+            }}"""
     }
     headers = {
         "Content-Type": "application/json",
@@ -120,7 +121,7 @@ def get_aliases(circular_ids, day):
     aliases = []
     for id in circular_ids:
         payload = {
-            "query": f'''{{
+            "query": f"""{{
                 circularBodyById(id:{id}){{
                     edges{{
                     node{{
@@ -128,7 +129,7 @@ def get_aliases(circular_ids, day):
                     }}
                     }}
                 }}
-            }}'''
+            }}"""
         }
         response = requests.request("POST", url, json=payload, headers=headers)
         if response.status_code == 200:
@@ -138,7 +139,7 @@ def get_aliases(circular_ids, day):
                 pattern = rf"((GRB|IC|S|GW|EP)+\s?({day})([A-Za-z]{{0,2}})?)"
                 matches = re.findall(pattern, body)
                 matches = (
-                    list({match[0].replace(' ', '') for match in matches})
+                    list({match[0].replace(" ", "") for match in matches})
                     if matches is not None
                     else []
                 )
@@ -149,7 +150,7 @@ def get_aliases(circular_ids, day):
 def get_tach_event_aliases(id, gcn_event):
     url = "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql"
     payload = {
-        "query": f'''{{
+        "query": f"""{{
             allCirculars (  evtid:{id} ) {{
               totalCount
               pageInfo{{
@@ -180,7 +181,7 @@ def get_tach_event_aliases(id, gcn_event):
                   }}
                 }}
               }}
-          }}'''
+          }}"""
     }
     headers = {
         "Content-Type": "application/json",
@@ -199,9 +200,9 @@ def get_tach_event_aliases(id, gcn_event):
             event_alias = events[0]["node"]["evtidCircular"]["event"].replace(" ", "")
             new_circulars = {}
             for event in events:
-                if event["node"]["id_"] not in circulars.keys():
+                if event["node"]["id_"] not in circulars:
                     new_circulars[event["node"]["id_"]] = event["node"]["subject"]
-            day = re.sub(r'\D', '', event_alias)
+            day = re.sub(r"\D", "", event_alias)
             if len(new_circulars.keys()) > 0:
                 new_aliases = get_aliases(new_circulars.keys(), day)
             new_aliases = list({alias.upper() for alias in new_aliases})
@@ -240,22 +241,22 @@ def post_aliases(dateobs, tach_id, user_id):
             if not gcn_event.aliases:  # empty list or None
                 gcn_event.aliases = new_gcn_aliases
             else:
-                gcn_aliases = [alias for alias in gcn_event.aliases]
+                gcn_aliases = list(gcn_event.aliases)
                 for new_gcn_alias in new_gcn_aliases:
                     if new_gcn_alias not in gcn_aliases:
                         gcn_aliases.append(new_gcn_alias)
-                setattr(gcn_event, 'aliases', gcn_aliases)
-                flag_modified(gcn_event, 'aliases')
+                setattr(gcn_event, "aliases", gcn_aliases)
+                flag_modified(gcn_event, "aliases")
 
         session.commit()
 
         flow.push(
-            user_id='*',
-            action_type='skyportal/REFRESH_GCN_EVENT',
-            payload={'gcnEvent_dateobs': dateobs},
+            user_id="*",
+            action_type="skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": dateobs},
         )
     except Exception:
-        log(f'Failed to post aliases for {dateobs}')
+        log(f"Failed to post aliases for {dateobs}")
     finally:
         session.close()
         Session.remove()
@@ -300,7 +301,7 @@ class GcnTachHandler(BaseHandler):
         try:
             arrow.get(dateobs).datetime
         except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
+            return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -308,7 +309,7 @@ class GcnTachHandler(BaseHandler):
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
-                    return self.error(f'No GCN event found for {dateobs}')
+                    return self.error(f"No GCN event found for {dateobs}")
 
                 tach_id = (
                     gcn_event.tach_id
@@ -319,7 +320,7 @@ class GcnTachHandler(BaseHandler):
                 )
                 if tach_id is None:
                     return self.error(
-                        f'Event {dateobs} not found on TACH, cannot retrieve aliases'
+                        f"Event {dateobs} not found on TACH, cannot retrieve aliases"
                     )
                 gcn_event_id = gcn_event.id
 
@@ -330,10 +331,10 @@ class GcnTachHandler(BaseHandler):
                     ),
                 )
 
-                return self.success(data={'id': gcn_event_id})
+                return self.success(data={"id": gcn_event_id})
 
         except Exception as e:
-            return self.error(f'Error scraping aliases: {e}')
+            return self.error(f"Error scraping aliases: {e}")
 
     @auth_or_token
     def get(self, dateobs):
@@ -341,7 +342,7 @@ class GcnTachHandler(BaseHandler):
         try:
             arrow.get(dateobs).datetime
         except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
+            return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -349,15 +350,15 @@ class GcnTachHandler(BaseHandler):
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
-                    return self.error(f'No GCN event found for {dateobs}')
+                    return self.error(f"No GCN event found for {dateobs}")
 
                 return self.success(
                     data={
-                        'tach_id': gcn_event.tach_id,
-                        'aliases': gcn_event.aliases,
-                        'circulars': gcn_event.circulars,
+                        "tach_id": gcn_event.tach_id,
+                        "aliases": gcn_event.aliases,
+                        "circulars": gcn_event.circulars,
                     }
                 )
 
         except Exception as e:
-            return self.error(f'Error: {e}')
+            return self.error(f"Error: {e}")

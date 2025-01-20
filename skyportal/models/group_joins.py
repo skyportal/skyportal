@@ -1,71 +1,76 @@
 __all__ = [
-    'GroupTaxonomy',
-    'GroupComment',
-    'GroupAnnotation',
-    'GroupClassification',
-    'GroupMMADetectorSpectrum',
-    'GroupMMADetectorTimeInterval',
-    'GroupPhotometry',
-    'GroupPhotometricSeries',
-    'GroupSpectrum',
-    'GroupCommentOnSpectrum',
-    'GroupCommentOnGCN',
-    'GroupCommentOnEarthquake',
-    'GroupCommentOnShift',
-    'GroupReminder',
-    'GroupReminderOnSpectrum',
-    'GroupReminderOnGCN',
-    'GroupReminderOnEarthquake',
-    'GroupReminderOnShift',
-    'GroupAnnotationOnPhotometry',
-    'GroupAnnotationOnSpectrum',
-    'GroupInvitation',
-    'GroupSourceNotification',
-    'GroupStream',
-    'GroupAnalysisService',
-    'GroupObjAnalysis',
-    'GroupDefaultAnalysis',
-    'GroupPublicRelease',
+    "GroupTaxonomy",
+    "GroupComment",
+    "GroupAnnotation",
+    "GroupClassification",
+    "GroupMMADetectorSpectrum",
+    "GroupMMADetectorTimeInterval",
+    "GroupPhotometry",
+    "GroupPhotometricSeries",
+    "GroupSpectrum",
+    "GroupCommentOnSpectrum",
+    "GroupCommentOnGCN",
+    "GroupCommentOnEarthquake",
+    "GroupCommentOnShift",
+    "GroupReminder",
+    "GroupReminderOnSpectrum",
+    "GroupReminderOnGCN",
+    "GroupReminderOnEarthquake",
+    "GroupReminderOnShift",
+    "GroupAnnotationOnPhotometry",
+    "GroupAnnotationOnSpectrum",
+    "GroupInvitation",
+    "GroupSourceNotification",
+    "GroupStream",
+    "GroupAnalysisService",
+    "GroupObjAnalysis",
+    "GroupDefaultAnalysis",
+    "GroupPublicRelease",
 ]
 
 import sqlalchemy as sa
 
-from baselayer.app.models import join_model, User, AccessibleIfUserMatches
+from baselayer.app.models import (
+    AccessibleIfUserMatches,
+    CustomUserAccessControl,
+    DBSession,
+    User,
+    join_model,
+    restricted,
+)
 
-from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry
-from .photometric_series import PhotometricSeries
-from .taxonomy import Taxonomy
+from .analysis import AnalysisService, DefaultAnalysis, ObjAnalysis
+from .annotation import Annotation, AnnotationOnPhotometry, AnnotationOnSpectrum
+from .classification import Classification
 from .comment import (
     Comment,
-    CommentOnSpectrum,
+    CommentOnEarthquake,
     CommentOnGCN,
     CommentOnShift,
-    CommentOnEarthquake,
+    CommentOnSpectrum,
 )
-from .annotation import Annotation
-from .classification import Classification
+from .filter import Filter
+from .group import Group, accessible_by_group_admins, accessible_by_group_members
+from .invitation import Invitation
 from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
-from .spectrum import Spectrum
-from .annotation import AnnotationOnSpectrum, AnnotationOnPhotometry
+from .photometric_series import PhotometricSeries
+from .photometry import Photometry
+from .public_pages.public_release import PublicRelease
 from .reminder import (
     Reminder,
-    ReminderOnGCN,
-    ReminderOnSpectrum,
-    ReminderOnShift,
     ReminderOnEarthquake,
+    ReminderOnGCN,
+    ReminderOnShift,
+    ReminderOnSpectrum,
 )
-from .invitation import Invitation
 from .source_notification import SourceNotification
-from .filter import Filter
+from .spectrum import Spectrum
 from .stream import Stream, StreamUser
 from .survey_efficiency import (
-    SurveyEfficiencyForObservations,
     SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
 )
-from .group import Group, accessible_by_group_admins, accessible_by_group_members
-from .analysis import AnalysisService, ObjAnalysis, DefaultAnalysis
-from .public_pages.public_release import PublicRelease
+from .taxonomy import Taxonomy
 
 GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
 GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
@@ -112,7 +117,7 @@ GroupSurveyEfficiencyForObservationPlan.__doc__ = (
 )
 GroupSurveyEfficiencyForObservationPlan.delete = (
     GroupSurveyEfficiencyForObservationPlan.update
-) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservationPlan.read)
+) = accessible_by_group_admins & GroupSurveyEfficiencyForObservationPlan.read
 
 GroupSurveyEfficiencyForObservations = join_model(
     "group_survey_efficiency_for_observations", Group, SurveyEfficiencyForObservations
@@ -122,7 +127,7 @@ GroupSurveyEfficiencyForObservations.__doc__ = (
 )
 GroupSurveyEfficiencyForObservations.delete = (
     GroupSurveyEfficiencyForObservations.update
-) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservations.read)
+) = accessible_by_group_admins & GroupSurveyEfficiencyForObservations.read
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
@@ -154,9 +159,9 @@ GroupMMADetectorSpectrum = join_model(
     "group_mmadetector_spectra",
     Group,
     MMADetectorSpectrum,
-    overlaps='mmadetector_spectra',
+    overlaps="mmadetector_spectra",
 )
-GroupMMADetectorSpectrum.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
+GroupMMADetectorSpectrum.__doc__ = "Join table mapping Groups to MMADetectorSpectra."
 GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
     accessible_by_group_admins & GroupMMADetectorSpectrum.read
 )
@@ -165,17 +170,17 @@ GroupMMADetectorTimeInterval = join_model(
     "group_mmadetector_time_intervals",
     Group,
     MMADetectorTimeInterval,
-    overlaps='mmadetector_time_intervals',
+    overlaps="mmadetector_time_intervals",
 )
 GroupMMADetectorTimeInterval.__doc__ = (
-    'Join table mapping Groups to MMADetectorTimeInterval.'
+    "Join table mapping Groups to MMADetectorTimeInterval."
 )
 GroupMMADetectorTimeInterval.update = GroupMMADetectorTimeInterval.delete = (
     accessible_by_group_admins & GroupMMADetectorTimeInterval.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
-GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
+GroupSpectrum.__doc__ = "Join table mapping Groups to Spectra."
 GroupSpectrum.update = GroupSpectrum.delete = (
     accessible_by_group_admins & GroupSpectrum.read
 )
@@ -254,23 +259,22 @@ GroupReminderOnEarthquake.delete = GroupReminderOnEarthquake.update = (
     accessible_by_group_admins & GroupReminderOnEarthquake.read
 )
 
-GroupInvitation = join_model('group_invitations', Group, Invitation)
+GroupInvitation = join_model("group_invitations", Group, Invitation)
 
-GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
-GroupSourceNotification.create = (
-    GroupSourceNotification.read
-) = accessible_by_group_members
-GroupSourceNotification.update = (
-    GroupSourceNotification.delete
-) = accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by')
+GroupSourceNotification = join_model("group_notifications", Group, SourceNotification)
+GroupSourceNotification.create = GroupSourceNotification.read = (
+    accessible_by_group_members
+)
+GroupSourceNotification.update = GroupSourceNotification.delete = (
+    accessible_by_group_admins | AccessibleIfUserMatches("sourcenotification.sent_by")
+)
 
-GroupStream = join_model('group_streams', Group, Stream)
+GroupStream = join_model("group_streams", Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 GroupStream.update = restricted
 GroupStream.delete = (
     # only admins can delete streams from groups
-    accessible_by_group_admins
-    & GroupStream.read
+    accessible_by_group_admins & GroupStream.read
 ) & CustomUserAccessControl(
     # Can only delete a stream from the group if none of the group's filters
     # are operating on the stream.
@@ -319,7 +323,7 @@ GroupStream.create = (
     )
 )
 
-GroupPublicRelease = join_model('group_public_releases', Group, PublicRelease)
+GroupPublicRelease = join_model("group_public_releases", Group, PublicRelease)
 GroupPublicRelease.__doc__ = "Join table mapping Groups to Public Releases."
 GroupPublicRelease.update = GroupPublicRelease.delete = (
     accessible_by_group_admins & GroupPublicRelease.read

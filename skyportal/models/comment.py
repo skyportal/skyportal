@@ -1,31 +1,30 @@
 __all__ = [
-    'Comment',
-    'CommentOnSpectrum',
-    'CommentOnEarthquake',
-    'CommentOnGCN',
-    'CommentOnShift',
+    "Comment",
+    "CommentOnSpectrum",
+    "CommentOnEarthquake",
+    "CommentOnGCN",
+    "CommentOnShift",
 ]
 
 import sqlalchemy as sa
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import relationship
 from sqlalchemy import event
-from sqlalchemy.orm import deferred
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import deferred, relationship
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.models import (
-    Base,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    Base,
 )
+from baselayer.log import make_log
 
+from ..utils.files import delete_file_data, save_file_data
 from .group import accessible_by_groups_members
-from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 
-log = make_log('models/comments')
+log = make_log("models/comments")
 
 """
 NOTE ON ADDING NEW COMMENT TYPES:
@@ -63,10 +62,10 @@ class CommentMixin:
     _attachment_path = sa.Column(
         sa.String,
         nullable=True,
-        doc='file path where the data of the attachment is saved.',
+        doc="file path where the data of the attachment is saved.",
     )
 
-    origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
+    origin = sa.Column(sa.String, nullable=True, doc="Comment origin.")
 
     bot = sa.Column(
         sa.Boolean(),
@@ -77,16 +76,16 @@ class CommentMixin:
 
     @classmethod
     def backref_name(cls):
-        if cls.__name__ == 'Comment':
+        if cls.__name__ == "Comment":
             return "comments"
-        if cls.__name__ == 'CommentOnSpectrum':
-            return 'comments_on_spectra'
-        if cls.__name__ == 'CommentOnGCN':
-            return 'comments_on_gcns'
-        if cls.__name__ == 'CommentOnShift':
-            return 'comments_on_shifts'
-        if cls.__name__ == 'CommentOnEarthquake':
-            return 'comments_on_earthquakes'
+        if cls.__name__ == "CommentOnSpectrum":
+            return "comments_on_spectra"
+        if cls.__name__ == "CommentOnGCN":
+            return "comments_on_gcns"
+        if cls.__name__ == "CommentOnShift":
+            return "comments_on_shifts"
+        if cls.__name__ == "CommentOnEarthquake":
+            return "comments_on_earthquakes"
 
     @declared_attr
     def author(cls):
@@ -101,7 +100,7 @@ class CommentMixin:
     @declared_attr
     def author_id(cls):
         return sa.Column(
-            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             doc="ID of the Comment author's User instance.",
@@ -121,11 +120,11 @@ class CommentMixin:
         return {
             field: getattr(self.author, field)
             for field in (
-                'username',
-                'first_name',
-                'last_name',
-                'gravatar_url',
-                'is_bot',
+                "username",
+                "first_name",
+                "last_name",
+                "gravatar_url",
+                "is_bot",
             )
         }
 
@@ -141,7 +140,7 @@ class CommentMixin:
         """
 
         # there's a default value but it is best to provide a full path in the config
-        root_folder = cfg.get('comments_folder', 'comments_data')
+        root_folder = cfg.get("comments_folder", "comments_data")
 
         full_path = save_file_data(root_folder, str(self.id), filename, file_data)
 
@@ -162,142 +161,142 @@ class CommentMixin:
 class Comment(Base, CommentMixin):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
+        obj="read"
     )
 
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's Obj.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='comments',
+        "Obj",
+        back_populates="comments",
         doc="The Comment's Obj.",
     )
 
 
 class CommentOnSpectrum(Base, CommentMixin):
-    __tablename__ = 'comments_on_spectra'
+    __tablename__ = "comments_on_spectra"
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj="read", spectrum="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read',
-        spectrum='read',
+        obj="read",
+        spectrum="read",
     )
 
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's Obj.",
     )
 
     obj = relationship(
-        'Obj',
-        back_populates='comments_on_spectra',
+        "Obj",
+        back_populates="comments_on_spectra",
         doc="The Comment's Obj.",
     )
 
     spectrum_id = sa.Column(
-        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        sa.ForeignKey("spectra.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's Spectrum.",
     )
     spectrum = relationship(
-        'Spectrum',
-        back_populates='comments',
+        "Spectrum",
+        back_populates="comments",
         doc="The Spectrum referred to by this comment.",
     )
 
 
 class CommentOnGCN(Base, CommentMixin):
-    __tablename__ = 'comments_on_gcns'
+    __tablename__ = "comments_on_gcns"
 
-    create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
+    create = AccessibleIfRelatedRowsAreAccessible(gcn="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        gcn='read',
+        gcn="read",
     )
 
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     gcn_id = sa.Column(
-        sa.ForeignKey('gcnevents.id', ondelete='CASCADE'),
+        sa.ForeignKey("gcnevents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's GCN.",
     )
     gcn = relationship(
-        'GcnEvent',
-        back_populates='comments',
+        "GcnEvent",
+        back_populates="comments",
         doc="The GcnEvent referred to by this comment.",
     )
 
 
 class CommentOnEarthquake(Base, CommentMixin):
-    __tablename__ = 'comments_on_earthquakes'
+    __tablename__ = "comments_on_earthquakes"
 
-    create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
+    create = AccessibleIfRelatedRowsAreAccessible(earthquake="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        earthquake='read',
+        earthquake="read",
     )
 
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     earthquake_id = sa.Column(
-        sa.ForeignKey('earthquakeevents.id', ondelete='CASCADE'),
+        sa.ForeignKey("earthquakeevents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's Earthquake.",
     )
     earthquake = relationship(
-        'EarthquakeEvent',
-        back_populates='comments',
+        "EarthquakeEvent",
+        back_populates="comments",
         doc="The Earthquake referred to by this comment.",
     )
 
 
 class CommentOnShift(Base, CommentMixin):
-    __tablename__ = 'comments_on_shifts'
+    __tablename__ = "comments_on_shifts"
 
-    create = AccessibleIfRelatedRowsAreAccessible(shift='read')
+    create = AccessibleIfRelatedRowsAreAccessible(shift="read")
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        shift='read',
+        shift="read",
     )
 
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = AccessibleIfUserMatches("author")
 
     shift_id = sa.Column(
-        sa.ForeignKey('shifts.id', ondelete='CASCADE'),
+        sa.ForeignKey("shifts.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Comment's Shift.",
     )
     shift = relationship(
-        'Shift',
-        back_populates='comments',
+        "Shift",
+        back_populates="comments",
         doc="The Shift referred to by this comment.",
     )
 
 
-@event.listens_for(Comment, 'after_delete')
-@event.listens_for(CommentOnSpectrum, 'after_delete')
-@event.listens_for(CommentOnGCN, 'after_delete')
-@event.listens_for(CommentOnShift, 'after_delete')
+@event.listens_for(Comment, "after_delete")
+@event.listens_for(CommentOnSpectrum, "after_delete")
+@event.listens_for(CommentOnGCN, "after_delete")
+@event.listens_for(CommentOnShift, "after_delete")
 def delete_comment_data_from_disk(mapper, connection, target):
-    log(f'Deleting comment data for comment id={target.id}')
+    log(f"Deleting comment data for comment id={target.id}")
     target.delete_data()
