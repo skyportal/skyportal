@@ -5,7 +5,7 @@
 SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.
 
-- Python 3.10 or later (<3.13, since `numba` requires <3.13)
+- Python 3.9 or later (<3.13, since `numba` requires <3.13)
 - Supervisor (v>=4.2.1)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
@@ -24,32 +24,9 @@ virtual environment.
 ```
 git clone https://github.com/skyportal/skyportal.git
 cd skyportal/
-```
-Create and activate a virtual environment with Python 3.10. We recommend using conda as it will handle Python version management for you:
-```
-conda create -n skyportal_env python=3.10
-conda activate skyportal_env
-```
-Alternatively, if you prefer to usevirtualenv, first ensure you have Python 3.10 installed:
-```
-# Check your Python version
-python3 --version
-
-# If you need Python 3.10:
-# On MacOS with Homebrew:
-brew install python@3.10
-
-# On Debian/Ubuntu:
-sudo apt install python3.10
-```
-
-Then, create your virtual environment:
-```
-# Using virtualenv
-virtualenv -p python3.10 skyportal_env
+virtualenv skyportal_env
 source skyportal_env/bin/activate
 ```
-Note: If you need to upgrade your Python version in the future, it's recommended to create a new virtual environment rather than upgrading an existing one. You can create a new environment with a different name or remove the old one first with rm -rf skyportal_env (virtualenv) or conda env remove -n skyportal_env (conda).
 
 You can also use `conda` or `pipenv` to create your environment.
 
@@ -101,16 +78,7 @@ After installing each package, Homebrew will print out the installation paths. Y
   - To start automatically at login: `brew services start postgresql`
   - To start manually: `pg_ctl -D /usr/local/var/postgres start`
 
-  You may also need to run the following command to create the proper admin user.
-  First, find your PostgreSQL installation path:
-  ```
-   # Try the opt directory first
-   ls /opt/homebrew/opt/postgresql*/bin/createuser
-
-   # If that doesn't work, try the Cellar directory
-   ls /opt/homebrew/Cellar/postgresql*/*/bin/createuser
-  ```
-  One of these commands should show you the path to createuser. Use that path to create the admin user:
+  You may also need to run the following command to create the proper admin user:
 
   ```bash
   /usr/local/opt/postgres/bin/createuser -s postgres
