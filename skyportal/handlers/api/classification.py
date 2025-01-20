@@ -37,6 +37,12 @@ def post_classification(data, user_id, session):
     user = session.scalar(sa.select(User).where(User.id == user_id))
     obj_id = data["obj_id"]
 
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
+    if obj is None:
+        raise ValueError(f"Cannot find object with ID {obj_id}.")
+
     group_ids = data.pop("group_ids", [])
     if not isinstance(group_ids, list) or len(group_ids) == 0:
         public_group = session.scalar(
