@@ -2,11 +2,11 @@ import conesearch_alchemy as ca
 
 from baselayer.app.access import auth_or_token
 
-from ..base import BaseHandler
 from ...models import (
     Obj,
     Source,
 )
+from ..base import BaseHandler
 
 
 class SourceExistsHandler(BaseHandler):
@@ -51,9 +51,9 @@ class SourceExistsHandler(BaseHandler):
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
         """
 
-        ra = self.get_query_argument('ra', None)
-        dec = self.get_query_argument('dec', None)
-        radius = self.get_query_argument('radius', None)
+        ra = self.get_query_argument("ra", None)
+        dec = self.get_query_argument("dec", None)
+        radius = self.get_query_argument("radius", None)
 
         with self.Session() as session:
             if obj_id is not None:

@@ -1,13 +1,15 @@
 import datetime
 import os
+
 import tornado.web
+
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 from skyportal.utils.files import filesize_to_human_readable
+
 from ...base import BaseHandler
 
-
-log = make_log('js')
+log = make_log("js")
 
 
 class LogHandler(BaseHandler):
@@ -28,35 +30,35 @@ class LogHandler(BaseHandler):
             # 4. format the output as a list of dictionaries, with each entry
             #    containing the file name, file size, and last modified time
             try:
-                log_files = os.listdir('log')
-                log_files = [f for f in log_files if f.endswith('.log')]
+                log_files = os.listdir("log")
+                log_files = [f for f in log_files if f.endswith(".log")]
                 log_files.sort()
                 log_files = [
                     {
-                        'name': f,
-                        'size': filesize_to_human_readable(os.path.getsize(f'log/{f}')),
-                        'last_modified': datetime.datetime.fromtimestamp(
-                            os.path.getmtime(f'log/{f}')
-                        ).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                        "name": f,
+                        "size": filesize_to_human_readable(os.path.getsize(f"log/{f}")),
+                        "last_modified": datetime.datetime.fromtimestamp(
+                            os.path.getmtime(f"log/{f}")
+                        ).strftime("%Y-%m-%d %H:%M:%S.%f"),
                     }
                     for f in log_files
                 ]
                 return self.success(data=log_files)
             except Exception as e:
-                return self.error(f'Error reading log directory: {e}')
+                return self.error(f"Error reading log directory: {e}")
         else:
             # first verify that the log file exists
-            if not os.path.exists(f'log/{file_name}'):
-                return self.error(f'Log file {file_name} not found')
+            if not os.path.exists(f"log/{file_name}"):
+                return self.error(f"Log file {file_name} not found")
 
-            log_data = ''
+            log_data = ""
             try:
-                with open(f'log/{file_name}') as f:
+                with open(f"log/{file_name}") as f:
                     log_data = f.read()
             except Exception as e:
-                return self.error(f'Error reading log file: {e}')
+                return self.error(f"Error reading log file: {e}")
 
             # trigger a download of the .log file
-            self.set_header('Content-Type', 'application/octet-stream')
-            self.set_header('Content-Disposition', f'attachment; filename={file_name}')
+            self.set_header("Content-Type", "application/octet-stream")
+            self.set_header("Content-Disposition", f"attachment; filename={file_name}")
             self.write(log_data)

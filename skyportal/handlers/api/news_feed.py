@@ -1,15 +1,17 @@
 import sqlalchemy as sa
 from sqlalchemy import desc, or_
+
 from baselayer.app.access import auth_or_token
-from ..base import BaseHandler
+
 from ...models import (
-    Source,
-    Comment,
     Classification,
-    Spectrum,
+    Comment,
     Photometry,
+    Source,
+    Spectrum,
     basic_user_display_info,
 )
+from ..base import BaseHandler
 
 MAX_NEWSFEED_ITEMS = 1000
 DEFAULT_NEWSFEED_ITEMS = 50
@@ -57,11 +59,11 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
 
-        preferences = getattr(self.current_user, 'preferences', None) or {}
+        preferences = getattr(self.current_user, "preferences", None) or {}
         n_items_query = self.get_query_argument("numItems", None)
         if n_items_query is not None:
             n_items_query = int(n_items_query)
-        n_items_feed = preferences.get('newsFeed', {}).get('numItems', None)
+        n_items_feed = preferences.get("newsFeed", {}).get("numItems", None)
         if n_items_feed is not None:
             n_items_feed = int(n_items_feed)
 
@@ -72,7 +74,7 @@ class NewsFeedHandler(BaseHandler):
             n_items = max(x for x in n_items_list if x is not None)
         if n_items > MAX_NEWSFEED_ITEMS:
             return self.error(
-                f'numItems should be no larger than {MAX_NEWSFEED_ITEMS}.'
+                f"numItems should be no larger than {MAX_NEWSFEED_ITEMS}."
             )
 
         with self.Session() as session:
@@ -159,20 +161,20 @@ class NewsFeedHandler(BaseHandler):
                 # Iterate in reverse so that we arrive at re-saved sources second
                 for s in reversed(sources):
                     if s.obj_id in source_seen:
-                        message = 'Source saved to new group'
+                        message = "Source saved to new group"
                     else:
-                        message = 'New source saved'
+                        message = "New source saved"
                         source_seen.add(s.obj_id)
 
                     # Prepend since we are iterating in reverse
                     news_feed_items.insert(
                         0,
                         {
-                            'type': 'source',
-                            'time': s.created_at,
-                            'message': message,
-                            'source_id': s.obj_id,
-                            'classification': latest_classification(s.obj),
+                            "type": "source",
+                            "time": s.created_at,
+                            "message": message,
+                            "source_id": s.obj_id,
+                            "classification": latest_classification(s.obj),
                         },
                     )
             if (
@@ -190,13 +192,13 @@ class NewsFeedHandler(BaseHandler):
                 news_feed_items.extend(
                     [
                         {
-                            'type': 'comment',
-                            'time': c.created_at,
-                            'message': c.text,
-                            'source_id': c.obj_id,
-                            'author': c.author.username,
-                            'author_info': c.author_info,
-                            'classification': latest_classification(c.obj),
+                            "type": "comment",
+                            "time": c.created_at,
+                            "message": c.text,
+                            "source_id": c.obj_id,
+                            "author": c.author.username,
+                            "author_info": c.author_info,
+                            "classification": latest_classification(c.obj),
                         }
                         for c in comments
                     ]
@@ -262,6 +264,6 @@ class NewsFeedHandler(BaseHandler):
                     ]
                 )
 
-            news_feed_items.sort(key=lambda x: x['time'], reverse=True)
+            news_feed_items.sort(key=lambda x: x["time"], reverse=True)
             news_feed_items = news_feed_items[:n_items]
             return self.success(data=news_feed_items)

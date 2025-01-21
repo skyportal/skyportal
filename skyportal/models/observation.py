@@ -1,4 +1,4 @@
-__all__ = ['ExecutedObservation', 'QueuedObservation']
+__all__ = ["ExecutedObservation", "QueuedObservation"]
 
 
 import sqlalchemy as sa
@@ -12,51 +12,51 @@ class ExecutedObservation(Base):
     filter."""
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument ID',
+        doc="Instrument ID",
         index=True,
     )
 
     instrument = relationship(
-        'Instrument',
-        back_populates='observations',
+        "Instrument",
+        back_populates="observations",
         doc="The Instrument that executed the observation.",
     )
 
     instrument_field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
         primary_key=True,
-        doc='Field ID',
+        doc="Field ID",
         index=True,
     )
 
     observation_id = sa.Column(
-        sa.BigInteger, primary_key=True, doc='Observation ID supplied by instrument'
+        sa.BigInteger, primary_key=True, doc="Observation ID supplied by instrument"
     )
 
     obstime = sa.Column(
-        sa.DateTime, doc='Exposure timestamp', nullable=False, index=True
+        sa.DateTime, doc="Exposure timestamp", nullable=False, index=True
     )
 
     field = relationship("InstrumentField")
 
-    filt = sa.Column(sa.String, doc='Filter')
+    filt = sa.Column(sa.String, doc="Filter")
 
     exposure_time = sa.Column(
-        sa.Integer, nullable=False, doc='Exposure time in seconds'
+        sa.Integer, nullable=False, doc="Exposure time in seconds"
     )
 
-    airmass = sa.Column(sa.Float, doc='Airmass')
+    airmass = sa.Column(sa.Float, doc="Airmass")
 
-    seeing = sa.Column(sa.Float, doc='Seeing')
+    seeing = sa.Column(sa.Float, doc="Seeing")
 
-    limmag = sa.Column(sa.Float, doc='Limiting magnitude')
+    limmag = sa.Column(sa.Float, doc="Limiting magnitude")
 
-    target_name = sa.Column(sa.String, doc='Name of target for observation')
+    target_name = sa.Column(sa.String, doc="Name of target for observation")
 
     processed_fraction = sa.Column(
-        sa.Float, nullable=False, comment='fraction of image processed successfully'
+        sa.Float, nullable=False, comment="fraction of image processed successfully"
     )
 
 
@@ -65,41 +65,41 @@ class QueuedObservation(Base):
     filter."""
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
-        doc='Instrument ID',
+        doc="Instrument ID",
     )
 
     instrument = relationship(
-        'Instrument',
-        back_populates='queued_observations',
+        "Instrument",
+        back_populates="queued_observations",
         doc="The Instrument that executed the observation.",
     )
 
     instrument_field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
         primary_key=True,
-        doc='Field ID',
+        doc="Field ID",
     )
 
-    queue_name = sa.Column(sa.String, doc='Queue name')
+    queue_name = sa.Column(sa.String, doc="Queue name")
 
-    obstime = sa.Column(sa.DateTime, doc='Queued timestamp', nullable=False, index=True)
+    obstime = sa.Column(sa.DateTime, doc="Queued timestamp", nullable=False, index=True)
 
     validity_window_start = sa.Column(
         sa.DateTime,
-        doc='Start of validity window',
+        doc="Start of validity window",
     )
 
     validity_window_end = sa.Column(
         sa.DateTime,
-        doc='End of validity window',
+        doc="End of validity window",
     )
 
     field = relationship("InstrumentField")
 
-    filt = sa.Column(sa.String, doc='Filter')
+    filt = sa.Column(sa.String, doc="Filter")
 
     exposure_time = sa.Column(
-        sa.Integer, nullable=False, doc='Exposure time in seconds'
+        sa.Integer, nullable=False, doc="Exposure time in seconds"
     )

@@ -1,12 +1,14 @@
-import pytest
-from skyportal.tests import api
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from datetime import date, timedelta, datetime
-import uuid
-import time
 import os
+import time
+import uuid
+from datetime import date, datetime, timedelta
+
 import numpy as np
+import pytest
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+
+from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
@@ -24,17 +26,17 @@ def test_shift(
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
     request_data = {
-        'name': name,
-        'group_id': public_group.id,
-        'start_date': start_date,
-        'end_date': end_date,
-        'description': 'the Night Shift',
-        'shift_admins': [super_admin_user.id],
+        "name": name,
+        "group_id": public_group.id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "description": "the Night Shift",
+        "shift_admins": [super_admin_user.id],
     }
 
-    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    status, data = api("POST", "shifts", data=request_data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     start_date = date.today().strftime("%m/%d/%Y")
     end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
@@ -62,7 +64,7 @@ def test_shift(
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
-    driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys('5')
+    driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys("5")
     # first empty the start date field
     driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
         Keys.COMMAND + "a"
@@ -98,7 +100,7 @@ def test_shift(
     ).click()
 
     # add a comment to the shift
-    driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
+    driver.wait_for_xpath('//*[@id="root_comment"]').send_keys("This is a comment")
     driver.click_xpath('//button[@type="submitComment"]')
 
     driver.wait_for_xpath('//*[contains(text(), "This is a comment")]')
@@ -303,84 +305,84 @@ def test_shift_summary(
     start_date = "2018-01-15T12:00:00"
     end_date = "2018-01-17T12:00:00"
     request_data = {
-        'name': shift_name_1,
-        'group_id': public_group.id,
-        'start_date': start_date,
-        'end_date': end_date,
-        'description': 'Shift during GCN',
-        'shift_admins': [super_admin_user.id],
+        "name": shift_name_1,
+        "group_id": public_group.id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "description": "Shift during GCN",
+        "shift_admins": [super_admin_user.id],
     }
 
-    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    status, data = api("POST", "shifts", data=request_data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    shift_id = data['data']['id']
+    shift_id = data["data"]["id"]
 
     status, data = api(
-        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+        "GET", f"shifts/{shift_id}", data=request_data, token=super_admin_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     shift_name_2 = str(uuid.uuid4())
     start_date = "2018-01-17T12:00:00"
     end_date = "2018-01-18T12:00:00"
     request_data = {
-        'name': shift_name_2,
-        'group_id': public_group.id,
-        'start_date': start_date,
-        'end_date': end_date,
-        'description': 'Shift not during GCN',
-        'shift_admins': [super_admin_user.id],
+        "name": shift_name_2,
+        "group_id": public_group.id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "description": "Shift not during GCN",
+        "shift_admins": [super_admin_user.id],
     }
 
     status, data = api(
-        'GET', f'shifts?group_id={public_group.id}', token=super_admin_token
+        "GET", f"shifts?group_id={public_group.id}", token=super_admin_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # try to get the event first to see if it's already in the DB
-    status, data = api('GET', 'gcn_event/2018-01-16T00:36:53', token=super_admin_token)
+    status, data = api("GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token)
 
     if status == 404:
         datafile = (
-            f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+            f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
         )
-        with open(datafile, 'rb') as fid:
+        with open(datafile, "rb") as fid:
             payload = fid.read()
-        data = {'xml': payload}
+        data = {"xml": payload}
 
-        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+        status, data = api("POST", "gcn_event", data=data, token=super_admin_token)
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
         # wait for event to load
         for n_times in range(26):
             status, data = api(
-                'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+                "GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token
             )
-            if data['status'] == 'success':
+            if data["status"] == "success":
                 break
             time.sleep(2)
         assert n_times < 25
     else:
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     # wait for the localization to load
     skymap = "214.74000_28.14000_11.19000"
     params = {"include2DMap": True}
     for n_times_2 in range(26):
         status, data = api(
-            'GET',
-            f'localization/2018-01-16T00:36:53/name/{skymap}',
+            "GET",
+            f"localization/2018-01-16T00:36:53/name/{skymap}",
             token=super_admin_token,
             params=params,
         )
 
-        if data['status'] == 'success':
+        if data["status"] == "success":
             data = data["data"]
             assert data["dateobs"] == "2018-01-16T00:36:53"
             assert data["localization_name"] == "214.74000_28.14000_11.19000"
@@ -408,22 +410,22 @@ def test_shift_summary(
     assert status == 200
 
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': 58134.025611226854 + 1,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
+            "obj_id": obj_id,
+            "mjd": 58134.025611226854 + 1,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200

@@ -1,25 +1,25 @@
 import datetime
 
 import sqlalchemy as sa
-from sqlalchemy import func, desc
+from sqlalchemy import desc, func
 
 from baselayer.app.access import auth_or_token
+
+from ....models import Candidate, Source, User
 from ...base import BaseHandler
-from ....models import User, Source, Candidate
 
-
-default_prefs = {'maxNumSavers': 100, 'sinceDaysAgo': 7, 'candidatesOnly': True}
+default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}
 
 
 class SourceSaverHandler(BaseHandler):
     @classmethod
     def get_top_source_savers(cls, current_user, session, user_options):
-        user_prefs = getattr(current_user, 'preferences', None) or {}
-        top_savers_prefs = user_prefs.get('topSavers', {})
+        user_prefs = getattr(current_user, "preferences", None) or {}
+        top_savers_prefs = user_prefs.get("topSavers", {})
         top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}
 
-        max_num_savers = int(top_savers_prefs['maxNumSavers'])
-        since_days_ago = float(top_savers_prefs['sinceDaysAgo'])
+        max_num_savers = int(top_savers_prefs["maxNumSavers"])
+        since_days_ago = float(top_savers_prefs["sinceDaysAgo"])
         cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
             days=since_days_ago
         )
@@ -27,12 +27,12 @@ class SourceSaverHandler(BaseHandler):
         stmt = Source.select(
             session.user_or_token,
             columns=[
-                func.count(sa.distinct(Source.obj_id)).label('saves'),
+                func.count(sa.distinct(Source.obj_id)).label("saves"),
                 Source.saved_by_id,
             ],
         ).where(Source.saved_at >= cutoff_day)
 
-        if top_savers_prefs['candidatesOnly']:
+        if top_savers_prefs["candidatesOnly"]:
             stmt = stmt.where(
                 sa.exists(
                     sa.select(Candidate.obj_id).where(Candidate.obj_id == Source.obj_id)
@@ -41,7 +41,7 @@ class SourceSaverHandler(BaseHandler):
 
         stmt = (
             stmt.group_by(Source.saved_by_id)
-            .order_by(desc('saves'))
+            .order_by(desc("saves"))
             .limit(max_num_savers)
         )
 
@@ -82,17 +82,17 @@ class SourceSaverHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        max_num_savers = self.get_query_argument('maxNumSavers', None)
-        since_days_ago = self.get_query_argument('sinceDaysAgo', None)
-        candidates_only = self.get_query_argument('candidatesOnly', None)
+        max_num_savers = self.get_query_argument("maxNumSavers", None)
+        since_days_ago = self.get_query_argument("sinceDaysAgo", None)
+        candidates_only = self.get_query_argument("candidatesOnly", None)
 
         user_options = {}
         if max_num_savers is not None:
-            user_options['maxNumSavers'] = max_num_savers
+            user_options["maxNumSavers"] = max_num_savers
         if since_days_ago is not None:
-            user_options['sinceDaysAgo'] = since_days_ago
+            user_options["sinceDaysAgo"] = since_days_ago
         if candidates_only is not None:
-            user_options['candidatesOnly'] = candidates_only
+            user_options["candidatesOnly"] = candidates_only
 
         with self.Session() as session:
             try:
@@ -106,12 +106,12 @@ class SourceSaverHandler(BaseHandler):
                     ).first()
                     savers.append(
                         {
-                            'rank': rank + 1,
-                            'author': {**s.to_dict(), "gravatar_url": s.gravatar_url},
-                            'saves': saved,
+                            "rank": rank + 1,
+                            "author": {**s.to_dict(), "gravatar_url": s.gravatar_url},
+                            "saves": saved,
                         }
                     )
 
                 return self.success(data=savers)
             except Exception as e:
-                return self.error(f'Failed to fetch source savers: {e}')
+                return self.error(f"Failed to fetch source savers: {e}")

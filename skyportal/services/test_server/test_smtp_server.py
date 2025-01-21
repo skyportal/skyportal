@@ -1,7 +1,7 @@
 import os
 import signal
-import sys
 import ssl
+import sys
 
 import tornado.ioloop
 from aiosmtpd.controller import Controller
@@ -27,7 +27,7 @@ class CustomSMTPHandler:
         log(f"Message addressed from: {mail_from}")
         log(f"Message addressed to  : {rcpt_tos}")
         log(f"Message length        : {len(data)}")
-        return '250 OK'
+        return "250 OK"
 
 
 if __name__ == "__main__":

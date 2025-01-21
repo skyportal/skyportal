@@ -21,11 +21,10 @@ env, cfg = load_env()
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
 archivepath = f"{cfg['app.lco_archive_endpoint']}/frames/"
 
-log = make_log('facility_apis/lco')
+log = make_log("facility_apis/lco")
 
 
 class SINISTRORequest:
-
     """A JSON structure for LCO 1m SINISTRO requests."""
 
     def __init__(self, request):
@@ -58,64 +57,64 @@ class SINISTRORequest:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "epoch": 2000,
         }
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
         configurations = []
-        for filt in request.payload['observation_choices']:
+        for filt in request.payload["observation_choices"]:
             configurations.append(
                 {
-                    'type': 'EXPOSE',
-                    'instrument_type': '1M0-SCICAM-SINISTRO',
-                    'constraints': constraints,
-                    'target': target,
-                    'acquisition_config': {},
-                    'guiding_config': {},
-                    'instrument_configs': [
+                    "type": "EXPOSE",
+                    "instrument_type": "1M0-SCICAM-SINISTRO",
+                    "constraints": constraints,
+                    "target": target,
+                    "acquisition_config": {},
+                    "guiding_config": {},
+                    "instrument_configs": [
                         {
-                            'exposure_time': exp_time,
-                            'exposure_count': exp_count,
-                            'optical_elements': {'filter': '%s' % filt},
+                            "exposure_time": exp_time,
+                            "exposure_count": exp_count,
+                            "optical_elements": {"filter": f"{filt}"},
                         }
                     ],
                 }
             )
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"] + " 00:00:00"
+        tend = request.payload["end_date"] + " 00:00:00"
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '1m0'}
+        location = {"telescope_class": "1m0"}
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -124,7 +123,6 @@ class SINISTRORequest:
 
 
 class SPECTRALRequest:
-
     """A JSON structure for LCO 2m SPECTRAL requests."""
 
     def __init__(self, request):
@@ -156,68 +154,68 @@ class SPECTRALRequest:
         """
 
         if request.obj.dec > 17:
-            raise ValueError('Spectral only available in South.')
+            raise ValueError("Spectral only available in South.")
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "epoch": 2000,
         }
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
         configurations = []
-        for filt in request.payload['observation_choices']:
+        for filt in request.payload["observation_choices"]:
             configurations.append(
                 {
-                    'type': 'EXPOSE',
-                    'instrument_type': '2M0-SCICAM-SPECTRAL',
-                    'constraints': constraints,
-                    'target': target,
-                    'acquisition_config': {},
-                    'guiding_config': {},
-                    'instrument_configs': [
+                    "type": "EXPOSE",
+                    "instrument_type": "2M0-SCICAM-SPECTRAL",
+                    "constraints": constraints,
+                    "target": target,
+                    "acquisition_config": {},
+                    "guiding_config": {},
+                    "instrument_configs": [
                         {
-                            'exposure_time': exp_time,
-                            'exposure_count': exp_count,
-                            'optical_elements': {'filter': '%s' % filt},
+                            "exposure_time": exp_time,
+                            "exposure_count": exp_count,
+                            "optical_elements": {"filter": f"{filt}"},
                         }
                     ],
                 }
             )
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"] + " 00:00:00"
+        tend = request.payload["end_date"] + " 00:00:00"
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '2m0'}
+        location = {"telescope_class": "2m0"}
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -226,7 +224,6 @@ class SPECTRALRequest:
 
 
 class MUSCATRequest:
-
     """A JSON structure for LCO 2m MUSCAT requests."""
 
     def __init__(self, request):
@@ -259,17 +256,17 @@ class MUSCATRequest:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "epoch": 2000,
         }
 
         exp_time = request.payload["exposure_time"]
@@ -277,56 +274,56 @@ class MUSCATRequest:
 
         configurations = [
             {
-                'type': 'EXPOSE',
-                'instrument_type': '2M0-SCICAM-MUSCAT',
-                'target': target,
-                'constraints': constraints,
-                'acquisition_config': {},
-                'guiding_config': {},
-                'instrument_configs': [
+                "type": "EXPOSE",
+                "instrument_type": "2M0-SCICAM-MUSCAT",
+                "target": target,
+                "constraints": constraints,
+                "acquisition_config": {},
+                "guiding_config": {},
+                "instrument_configs": [
                     {
-                        'exposure_time': exp_time,
-                        'exposure_count': exp_count,
-                        'optical_elements': {
-                            'diffuser_g_position': 'out',
-                            'diffuser_r_position': 'out',
-                            'diffuser_i_position': 'out',
-                            'diffuser_z_position': 'out',
+                        "exposure_time": exp_time,
+                        "exposure_count": exp_count,
+                        "optical_elements": {
+                            "diffuser_g_position": "out",
+                            "diffuser_r_position": "out",
+                            "diffuser_i_position": "out",
+                            "diffuser_z_position": "out",
                         },
-                        'extra_params': {
-                            'exposure_mode': 'SYNCHRONOUS',
-                            'exposure_time_g': exp_time,
-                            'exposure_time_r': exp_time,
-                            'exposure_time_i': exp_time,
-                            'exposure_time_z': exp_time,
+                        "extra_params": {
+                            "exposure_mode": "SYNCHRONOUS",
+                            "exposure_time_g": exp_time,
+                            "exposure_time_r": exp_time,
+                            "exposure_time_i": exp_time,
+                            "exposure_time_z": exp_time,
                         },
                     }
                 ],
             }
         ]
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"] + " 00:00:00"
+        tend = request.payload["end_date"] + " 00:00:00"
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '2m0'}
+        location = {"telescope_class": "2m0"}
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -335,7 +332,6 @@ class MUSCATRequest:
 
 
 class FLOYDSRequest:
-
     """A JSON structure for LCO 2m FLOYDS requests."""
 
     def __init__(self, request):
@@ -368,127 +364,127 @@ class FLOYDSRequest:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "epoch": 2000,
         }
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '2m0'}
+        location = {"telescope_class": "2m0"}
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
         configurations = [
             {
-                'type': 'LAMP_FLAT',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {'mode': 'OFF', 'optional': False},
-                'instrument_configs': [
+                "type": "LAMP_FLAT",
+                "instrument_type": "2M0-FLOYDS-SCICAM",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {},
+                "guiding_config": {"mode": "OFF", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': 50,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {'slit': 'slit_1.6as'},
+                        "exposure_time": 50,
+                        "exposure_count": 1,
+                        "rotator_mode": "VFLOAT",
+                        "optical_elements": {"slit": "slit_1.6as"},
                     }
                 ],
             },
             {
-                'type': 'ARC',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {'mode': 'OFF', 'optional': False},
-                'instrument_configs': [
+                "type": "ARC",
+                "instrument_type": "2M0-FLOYDS-SCICAM",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {},
+                "guiding_config": {"mode": "OFF", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': 60,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {'slit': 'slit_1.6as'},
+                        "exposure_time": 60,
+                        "exposure_count": 1,
+                        "rotator_mode": "VFLOAT",
+                        "optical_elements": {"slit": "slit_1.6as"},
                     }
                 ],
             },
             {
-                'type': 'SPECTRUM',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {'mode': 'WCS'},
-                'guiding_config': {'mode': 'ON', 'optional': False},
-                'instrument_configs': [
+                "type": "SPECTRUM",
+                "instrument_type": "2M0-FLOYDS-SCICAM",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {"mode": "WCS"},
+                "guiding_config": {"mode": "ON", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': exp_time,
-                        'exposure_count': exp_count,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {'slit': 'slit_1.6as'},
+                        "exposure_time": exp_time,
+                        "exposure_count": exp_count,
+                        "rotator_mode": "VFLOAT",
+                        "optical_elements": {"slit": "slit_1.6as"},
                     }
                 ],
             },
             {
-                'type': 'ARC',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {'mode': 'OFF', 'optional': False},
-                'instrument_configs': [
+                "type": "ARC",
+                "instrument_type": "2M0-FLOYDS-SCICAM",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {},
+                "guiding_config": {"mode": "OFF", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': 60,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {'slit': 'slit_1.6as'},
+                        "exposure_time": 60,
+                        "exposure_count": 1,
+                        "rotator_mode": "VFLOAT",
+                        "optical_elements": {"slit": "slit_1.6as"},
                     }
                 ],
             },
             {
-                'type': 'LAMP_FLAT',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {'mode': 'OFF', 'optional': False},
-                'instrument_configs': [
+                "type": "LAMP_FLAT",
+                "instrument_type": "2M0-FLOYDS-SCICAM",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {},
+                "guiding_config": {"mode": "OFF", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': 50,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {'slit': 'slit_1.6as'},
+                        "exposure_time": 50,
+                        "exposure_count": 1,
+                        "rotator_mode": "VFLOAT",
+                        "optical_elements": {"slit": "slit_1.6as"},
                     }
                 ],
             },
         ]
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"] + " 00:00:00"
+        tend = request.payload["end_date"] + " 00:00:00"
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -521,12 +517,12 @@ def download_observations(request_id, ar):
         groups = session.scalars(
             Group.select(req.requester).where(Group.id.in_(group_ids))
         ).all()
-        for image in ar.json()['results']:
-            attachment_name = image['filename']
-            with urllib.request.urlopen(image['url']) as f:
+        for image in ar.json()["results"]:
+            attachment_name = image["filename"]
+            with urllib.request.urlopen(image["url"]) as f:
                 attachment_bytes = base64.b64encode(f.read())
             comment = Comment(
-                text=f'LCO: {attachment_name}',
+                text=f"LCO: {attachment_name}",
                 obj_id=req.obj.id,
                 attachment_bytes=attachment_bytes,
                 attachment_name=attachment_name,
@@ -535,7 +531,7 @@ def download_observations(request_id, ar):
                 bot=True,
             )
             session.add(comment)
-        req.status = f'{ar.json()["count"]} images posted as comment'
+        req.status = f"{ar.json()['count']} images posted as comment"
         session.commit()
     except Exception as e:
         session.rollback()
@@ -546,7 +542,6 @@ def download_observations(request_id, ar):
 
 
 class LCOAPI(FollowUpAPI):
-
     """An interface to LCO operations."""
 
     @staticmethod
@@ -575,7 +570,7 @@ class LCOAPI(FollowUpAPI):
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             content = request.transactions[0].response["content"]
             content = json.loads(content)
@@ -585,7 +580,7 @@ class LCOAPI(FollowUpAPI):
 
                 r = requests.post(
                     f"{requestpath}{uid}/cancel/",
-                    headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+                    headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
                 )
 
                 r.raise_for_status()
@@ -605,18 +600,18 @@ class LCOAPI(FollowUpAPI):
                 ).delete()
                 session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -634,11 +629,11 @@ class LCOAPI(FollowUpAPI):
         from ..models import FacilityTransaction
 
         if len(request.transactions) == 0:
-            raise ValueError('No transaction information.')
+            raise ValueError("No transaction information.")
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         content = request.transactions[0].response["content"]
         content = json.loads(content)
@@ -647,7 +642,7 @@ class LCOAPI(FollowUpAPI):
 
         r = requests.get(
             f"{requestpath}{request_id}/",
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
         )
 
         r.raise_for_status()
@@ -659,9 +654,9 @@ class LCOAPI(FollowUpAPI):
         if content["state"] == "COMPLETED":
             request.status = "complete"
 
-            archive_headers = {'Authorization': f'Token {altdata["API_ARCHIVE_TOKEN"]}'}
+            archive_headers = {"Authorization": f"Token {altdata['API_ARCHIVE_TOKEN']}"}
             ar = requests.get(
-                f'{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91',
+                f"{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91",
                 headers=archive_headers,
             )
             if ar.status_code == 200:
@@ -686,18 +681,18 @@ class LCOAPI(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema_altdata = {
@@ -720,7 +715,6 @@ class LCOAPI(FollowUpAPI):
 
 
 class SINISTROAPI(LCOAPI):
-
     """An interface to LCO SINISTRO operations."""
 
     # subclasses *must* implement the method below
@@ -740,19 +734,19 @@ class SINISTROAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         lcoreq = SINISTRORequest(request)
         requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -765,18 +759,18 @@ class SINISTROAPI(LCOAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -851,7 +845,6 @@ class SINISTROAPI(LCOAPI):
 
 
 class SPECTRALAPI(LCOAPI):
-
     """An interface to LCO SPECTRAL operations."""
 
     # subclasses *must* implement the method below
@@ -872,19 +865,19 @@ class SPECTRALAPI(LCOAPI):
         altdata = request.allocation.altdata
 
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         lcoreq = SPECTRALRequest(request)
         requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -897,18 +890,18 @@ class SPECTRALAPI(LCOAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -983,7 +976,6 @@ class SPECTRALAPI(LCOAPI):
 
 
 class MUSCATAPI(LCOAPI):
-
     """An interface to LCO MUSCAT operations."""
 
     # subclasses *must* implement the method below
@@ -1003,19 +995,19 @@ class MUSCATAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         lcoreq = MUSCATRequest(request)
         requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -1028,18 +1020,18 @@ class MUSCATAPI(LCOAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -1107,7 +1099,6 @@ class MUSCATAPI(LCOAPI):
 
 
 class FLOYDSAPI(LCOAPI):
-
     """An interface to LCO FLOYDS operations."""
 
     # subclasses *must* implement the method below
@@ -1127,19 +1118,19 @@ class FLOYDSAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         lcoreq = FLOYDSRequest(request)
         requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             error_message = r.content.decode()
             request.status = error_message
@@ -1153,18 +1144,18 @@ class FLOYDSAPI(LCOAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {

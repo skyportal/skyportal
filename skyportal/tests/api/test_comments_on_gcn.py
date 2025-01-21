@@ -7,23 +7,23 @@ def test_add_and_retrieve_comment_on_gcn(
     gcnevent_id = gcn_GW190425.id
 
     status, data = api(
-        'POST',
-        f'gcn_event/{gcnevent_id}/comments',
+        "POST",
+        f"gcn_event/{gcnevent_id}/comments",
         data={
-            'text': 'Comment text',
-            'group_ids': [public_group.id],
+            "text": "Comment text",
+            "group_ids": [public_group.id],
         },
         token=comment_token,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET', f'gcn_event/{gcnevent_id}/comments/{comment_id}', token=comment_token
+        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
     )
 
     assert status == 200
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
 
 def test_delete_comment_on_gcn(
@@ -32,24 +32,24 @@ def test_delete_comment_on_gcn(
     gcnevent_id = gcn_GW190425.id
 
     status, data = api(
-        'POST',
-        f'gcn_event/{gcnevent_id}/comments',
-        data={'text': 'Comment text'},
+        "POST",
+        f"gcn_event/{gcnevent_id}/comments",
+        data={"text": "Comment text"},
         token=comment_token,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET', f'gcn_event/{gcnevent_id}/comments/{comment_id}', token=comment_token
+        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 200
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
     # try to delete using the wrong object ID
     status, data = api(
-        'DELETE',
-        f'gcn_event/{gcnevent_id}zzz/comments/{comment_id}',
+        "DELETE",
+        f"gcn_event/{gcnevent_id}zzz/comments/{comment_id}",
         token=comment_token,
     )
     assert status == 400
@@ -59,13 +59,13 @@ def test_delete_comment_on_gcn(
     )
 
     status, data = api(
-        'DELETE',
-        f'gcn_event/{gcnevent_id}/comments/{comment_id}',
+        "DELETE",
+        f"gcn_event/{gcnevent_id}/comments/{comment_id}",
         token=comment_token,
     )
     assert status == 200
 
     status, data = api(
-        'GET', f'gcn_event/{gcnevent_id}/comments/{comment_id}', token=comment_token
+        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 403

@@ -1,20 +1,18 @@
 import datetime
 
-from sqlalchemy.orm import sessionmaker, scoped_session, contains_eager
+from sqlalchemy.orm import contains_eager, scoped_session, sessionmaker
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-
-from ..base import BaseHandler
+from baselayer.log import make_log
 
 from ...models import DBSession, ObjAnalysis
-
+from ..base import BaseHandler
 from .candidate import (
     update_summary_history_if_relevant,
 )
 
-log = make_log('app/webhook')
+log = make_log("app/webhook")
 
 _, cfg = load_env()
 
@@ -69,7 +67,7 @@ class AnalysisWebhookHandler(BaseHandler):
         )
 
         # allowable resources now are [obj]. Can be extended in the future.
-        if analysis_resource_type.lower() not in ['obj']:
+        if analysis_resource_type.lower() not in ["obj"]:
             return self.error("Invalid analysis resource type", status=403)
 
         # Authenticate the token, then lock this analysis, before going on.
@@ -90,7 +88,7 @@ class AnalysisWebhookHandler(BaseHandler):
             if not analysis:
                 return self.error("Invalid token", status=403)
             last_active = analysis.last_activity
-            if analysis.status not in ['pending', 'queued']:
+            if analysis.status not in ["pending", "queued"]:
                 return self.error(
                     f"Analysis already updated with status='{analysis.status}'"
                     f" and message={analysis.status_message}",
@@ -100,8 +98,8 @@ class AnalysisWebhookHandler(BaseHandler):
                 analysis.invalid_after
                 and datetime.datetime.utcnow() > analysis.invalid_after
             ):
-                analysis.status = 'timed_out'
-                analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
+                analysis.status = "timed_out"
+                analysis.status_message = f"Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}"
                 analysis.last_activity = datetime.datetime.utcnow()
                 analysis.duration = (
                     analysis.last_activity - last_active
@@ -112,18 +110,18 @@ class AnalysisWebhookHandler(BaseHandler):
 
             # lock the analysis associated with this token and commit immediately to avoid race conditions,
             # so that the results are not written more than once
-            analysis.status = 'completed'
+            analysis.status = "completed"
             analysis.last_activity = datetime.datetime.utcnow()
             analysis.duration = (analysis.last_activity - last_active).total_seconds()
             session.commit()
         except Exception as e:
-            log(f'Trouble accessing Analysis with token {token} {e}.')
+            log(f"Trouble accessing Analysis with token {token} {e}.")
             return self.error("Invalid token", status=403)
 
         data = self.get_json()
 
         if data.get("status", "error") != "success":
-            analysis.status = 'failure'
+            analysis.status = "failure"
         analysis.status_message = data.get("message", "")
 
         results = data.get("analysis", {})
@@ -149,16 +147,16 @@ class AnalysisWebhookHandler(BaseHandler):
                     try:
                         flow.push(
                             analysis.author_id,
-                            'baselayer/SHOW_NOTIFICATION',
+                            "baselayer/SHOW_NOTIFICATION",
                             payload={
-                                'note': 'Invalid OpenAI API key for this summary. If you provided your own key, please correct it and try again.',
-                                'type': 'error',
+                                "note": "Invalid OpenAI API key for this summary. If you provided your own key, please correct it and try again.",
+                                "type": "error",
                             },
                         )
                     except Exception:
                         pass
                 try:
-                    summary = {"summary": analysis.serialize_results_data()['summary']}
+                    summary = {"summary": analysis.serialize_results_data()["summary"]}
                 except Exception as e:
                     raise ValueError(f"Error serializing summary: {e}")
                 summary["created_at"] = analysis.created_at
@@ -170,16 +168,16 @@ class AnalysisWebhookHandler(BaseHandler):
                 session.commit()
                 log("analysis is a summary. Pushing to source.")
                 flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': analysis.obj.internal_key},
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": analysis.obj.internal_key},
                 )
             else:
-                if analysis_resource_type.lower() == 'obj':
+                if analysis_resource_type.lower() == "obj":
                     flow.push(
-                        '*',
-                        'skyportal/REFRESH_OBJ_ANALYSES',
-                        payload={'obj_key': analysis.obj.internal_key},
+                        "*",
+                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        payload={"obj_key": analysis.obj.internal_key},
                     )
         except Exception as e:
             log(f"Error pushing update to source: {e}")

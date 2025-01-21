@@ -1,24 +1,26 @@
-import uuid
 import smtplib
-import python_http_client.exceptions
+import uuid
+
 import arrow
+import python_http_client.exceptions
 import sqlalchemy as sa
 from sqlalchemy import func
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
-from ..base import BaseHandler
+
 from ...models import (
-    Role,
     Group,
-    GroupStream,
     GroupInvitation,
-    StreamInvitation,
-    UserInvitation,
-    User,
+    GroupStream,
     Invitation,
+    Role,
     Stream,
+    StreamInvitation,
+    User,
+    UserInvitation,
 )
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -159,7 +161,7 @@ class InvitationHandler(BaseHandler):
 
                 # Ensure specified groups are covered by specified streams
                 if not all(
-                    [stream in streams for group in groups for stream in group.streams]
+                    stream in streams for group in groups for stream in group.streams
                 ):
                     return self.error(
                         "You have attempted to invite user to group(s) that "
@@ -173,13 +175,13 @@ class InvitationHandler(BaseHandler):
                     .where(GroupStream.group_id.in_(group_ids))
                 ).all()
             admin_for_groups = data.get("groupAdmin", [False] * len(groups))
-            if not all([isinstance(admin, bool) for admin in admin_for_groups]):
+            if not all(isinstance(admin, bool) for admin in admin_for_groups):
                 return self.error(
                     "Invalid value provided for `groupAdmin` parameter: "
                     "all elements must be booleans"
                 )
             can_save = data.get("canSave", [True] * len(groups))
-            if not all([isinstance(can_save_el, bool) for can_save_el in can_save]):
+            if not all(isinstance(can_save_el, bool) for can_save_el in can_save):
                 return self.error(
                     "Invalid value provided for `canSave` parameter: "
                     "all elements must be booleans"
@@ -463,7 +465,7 @@ class InvitationHandler(BaseHandler):
 
             # Ensure specified groups are covered by specified streams
             if not all(
-                [stream in streams for group in groups for stream in group.streams]
+                stream in streams for group in groups for stream in group.streams
             ):
                 return self.error(
                     "You have attempted to invite user to group(s) that "

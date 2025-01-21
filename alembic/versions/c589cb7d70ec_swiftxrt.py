@@ -5,12 +5,12 @@ Revises: fff290c02ef8
 Create Date: 2022-09-10 00:41:18.995925
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'c589cb7d70ec'
-down_revision = 'fff290c02ef8'
+revision = "c589cb7d70ec"
+down_revision = "fff290c02ef8"
 branch_labels = None
 depends_on = None
 

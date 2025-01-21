@@ -1,7 +1,7 @@
+import base64
+import datetime
 import json
 import uuid
-import datetime
-import base64
 
 from skyportal.tests import api, assert_api, assert_api_fail
 
@@ -10,39 +10,39 @@ def test_add_and_retrieve_comment_on_spectrum_group_id(
     comment_token, upload_data_token, public_source, public_group, lris
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': public_source.id,
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
+            "obj_id": public_source.id,
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'text': 'Comment text',
-            'group_ids': [public_group.id],
+            "text": "Comment text",
+            "group_ids": [public_group.id],
         },
         token=comment_token,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
 
     assert status == 200
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
 
 def test_add_and_retrieve_comment_on_spectrum_group_access(
@@ -55,118 +55,118 @@ def test_add_and_retrieve_comment_on_spectrum_group_access(
     lris,
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source_two_groups.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group2.id],
+            "obj_id": str(public_source_two_groups.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group2.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'text': 'Comment text',
-            'group_ids': [public_group2.id],
+            "text": "Comment text",
+            "group_ids": [public_group2.id],
         },
         token=comment_token_two_groups,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     # This token belongs to public_group2
     status, data = api(
-        'GET',
-        f'spectra/{spectrum_id}/comments/{comment_id}',
+        "GET",
+        f"spectra/{spectrum_id}/comments/{comment_id}",
         token=comment_token_two_groups,
     )
     assert status == 200
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
     # This token does not belong to public_group2
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 403
 
     # Both tokens should be able to view this comment, but not the underlying spectrum
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'text': 'Comment text',
-            'group_ids': [public_group.id, public_group2.id],
+            "text": "Comment text",
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=comment_token_two_groups,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET',
-        f'spectra/{spectrum_id}/comments/{comment_id}',
+        "GET",
+        f"spectra/{spectrum_id}/comments/{comment_id}",
         token=comment_token_two_groups,
     )
     assert status == 200
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 403  # the underlying spectrum is not accessible to group1
 
     # post a new spectrum with a comment, open to both groups
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source_two_groups.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id, public_group2.id],
+            "obj_id": str(public_source_two_groups.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'text': 'New comment text',
-            'group_ids': [public_group2.id],
+            "text": "New comment text",
+            "group_ids": [public_group2.id],
         },
         token=comment_token_two_groups,
     )
     assert status == 200
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     # token for group1 can view the spectrum but cannot see comment
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 403
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
-        'PUT',
-        f'spectra/{spectrum_id}/comments/{comment_id}',
+        "PUT",
+        f"spectra/{spectrum_id}/comments/{comment_id}",
         data={
-            'text': 'New comment text',
-            'group_ids': [public_group.id, public_group2.id],
+            "text": "New comment text",
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=comment_token_two_groups,
     )
@@ -174,58 +174,58 @@ def test_add_and_retrieve_comment_on_spectrum_group_access(
 
     # the new comment on the new spectrum should now accessible
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert status == 200
-    assert data['data']['text'] == 'New comment text'
+    assert data["data"]["text"] == "New comment text"
 
 
 def test_cannot_add_comment_on_spectrum_without_permission(
     view_only_token, upload_data_token, public_source, lris
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': "all",
+            "obj_id": str(public_source.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": "all",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'spectrum_id': spectrum_id,
-            'text': 'Comment text',
+            "spectrum_id": spectrum_id,
+            "text": "Comment text",
         },
         token=view_only_token,
     )
     assert status == 401
-    assert data['status'] == 'error'
+    assert data["status"] == "error"
 
 
 def test_delete_comment_on_spectrum(
     comment_token, upload_data_token, public_source, lris
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': "all",
+            "obj_id": str(public_source.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": "all",
         },
         token=upload_data_token,
     )
@@ -233,26 +233,28 @@ def test_delete_comment_on_spectrum(
     spectrum_id = data["data"]["id"]
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'spectrum_id': spectrum_id,
-            'text': 'Comment text',
+            "spectrum_id": spectrum_id,
+            "text": "Comment text",
         },
         token=comment_token,
     )
     assert_api(status, data)
-    comment_id = data['data']['comment_id']
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert_api(status, data)
-    assert data['data']['text'] == 'Comment text'
+    assert data["data"]["text"] == "Comment text"
 
     # try to delete using the wrong spectrum ID
     status, data = api(
-        'DELETE', f'spectra/{spectrum_id+1}/comments/{comment_id}', token=comment_token
+        "DELETE",
+        f"spectra/{spectrum_id + 1}/comments/{comment_id}",
+        token=comment_token,
     )
     assert_api_fail(
         status,
@@ -262,12 +264,12 @@ def test_delete_comment_on_spectrum(
     )
 
     status, data = api(
-        'DELETE', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "DELETE", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert_api(status, data)
 
     status, data = api(
-        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+        "GET", f"spectra/{spectrum_id}/comments/{comment_id}", token=comment_token
     )
     assert_api_fail(status, data, 403)
 
@@ -276,20 +278,20 @@ def test_post_comment_on_spectrum_attachment(
     super_admin_token, public_source, lris, public_group
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': "all",
+            "obj_id": str(public_source.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": "all",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     payload = {
@@ -299,69 +301,69 @@ def test_post_comment_on_spectrum_attachment(
     # note: the attachment_bytes is base64 encoded. The values are a json with a fit to a lightcurve: {"timestamp": "2020-11-04T12:00:03", "run": 1839, "duration": 0.146, "result": {"model": "salt2", "fit_lc_parameters": {"bounds": {"c": [-2, 5], "x1": [-5, 5], "z": [0, 0.2]}}, "fit_acceptable": false, "plot_info": "salt2 chisq 20.29 ndof 1 ok fit False", "model_analysis": {"has_premax_data": true, "has_postmax_data": false, "x1_in_range": true, "_x1_range": [-4, 4], "c_ok": true, "_c_range": [-1, 2]}, "fit_results": {"z": 0.11743956051701065, "t0": 2459158.8197625163, "x0": 0.0006085587726229467, "x1": -0.8735839568199673, "c": -0.05985581166006315, "mwebv": 0.09956195603903112, "mwr_v": 3.1, "z.err": 0.021552540312395424, "t0.err": 0.9573493564967066, "x0.err": 6.746016946789949e-05, "x1.err": 0.6478509759869966, "c.err": 0.13441303639641355}, "sncosmo_info": {"success": true, "chisq": 20.294017910112313, "ndof": 1, "chisqdof": 20.294017910112313}, "flux_dict": {"ztfg": [0.0, -0.04260585575047336, -0.15976361246431942, -0.5059839853552485, -0.10597904547829083, 3.822308947484571, 12.196754867100147, 23.88354491353415, 38.22323282037752, 55.01546727827308, 74.34254141634922, 96.32745393316009, 121.23085521718683, 149.67197334583886, 178.58713367255027, 205.07205565878846, 228.055316068424, 247.35232398087857, 262.6092519634573, 273.960191191851, 282.016391751773, 286.37262876586163, 286.68870101813445, 283.5545671173481, 277.6926455246088, 269.4835459846133, 259.1014121912208, 246.96912944976515, 233.89916873691928, 220.13227246260834, 205.71668739341314, 190.59715200394385, 175.55384144022622, 161.16599396445432, 147.51051782262417, 134.44622046218694, 121.89425017001439, 109.90492674308672, 98.85858205599014, 88.82224924498806, 79.85546579979393, 72.0957233314672, 65.30282339443757, 59.253128203636344, 53.92626603229452, 49.41979031775328, 45.67854825903064, 42.31292073534097, 39.13504249266131, 36.1755465721297, 33.42898795818345, 30.928719726233187, 28.75228186158564, 26.902478590030096, 25.33397834831236, 24.011056239382935, 22.903882222640554, 21.985521103960558, 21.183615798259172, 20.452263069130467, 19.784648140823755, 19.175559755403427, 18.62037487657529, 18.115085014172315, 17.65627039976832, 17.24032085612599, 16.859113035014577, 16.486188766741698, 16.118940802977047, 15.758473743647862, 15.405745704001246, 15.061723334246043, 14.727381022979804, 14.40369531565953, 14.091639911177353, 13.792181144905058, 13.506273869935807, 13.234868483767539, 12.981573318789627], "ztfr": [0.0, 0.2090292759377349, 0.7887464988107039, 1.7225720490024614, 3.6929293270041432, 8.790715650854805, 17.632454021162335, 29.250018351092617, 43.06962940203071, 58.82721079098557, 76.48663042438139, 96.19948398810972, 118.2043531796085, 143.00763850651066, 168.31296079567204, 191.94315051545507, 213.1124920184503, 231.70586709452542, 247.4778402032156, 260.56639507687237, 271.4781846619027, 279.88995582585454, 285.53637206609505, 288.56043234810784, 289.2091803834655, 287.6502117554417, 284.0123913503557, 278.4012742990645, 270.74784523583617, 261.2093367641972, 249.96542520909364, 236.99608084174656, 223.8221883025723, 211.60223019395332, 200.5768848516765, 190.59497704310533, 181.58622220425553, 173.41804171877473, 165.73070457689184, 158.48229532486502, 151.69958908533786, 145.45181494290867, 139.5840753333532, 133.95918683286877, 128.5735130683405, 123.5116847305524, 118.72179052112413, 113.80440771664829, 108.60835586471713, 103.24138668302145, 97.76524682254008, 92.33371416772081, 87.19749220219904, 82.42831046478832, 77.97792527637088, 73.81007156568363, 69.891944326849, 66.1993381916304, 62.814068298745696, 59.77509113972063, 57.05107267689715, 54.614319764565344, 52.44133768365566, 50.51152762252092, 48.80688504102122, 47.309219888691615, 45.98551564214617, 44.74140069344704, 43.562709928609166, 42.44799099342699, 41.3954501168835, 40.40343076096168, 39.47040612822724, 38.5949607206674, 37.77577772586994, 37.011630964854525, 36.301380383465656, 35.64395943646715, 35.043860807349894], "obsjd": [2459136.470971306, 2459137.470971306, 2459138.470971306, 2459139.470971306, 2459140.470971306, 2459141.470971306, 2459142.470971306, 2459143.470971306, 2459144.470971306, 2459145.470971306, 2459146.470971306, 2459147.470971306, 2459148.470971306, 2459149.470971306, 2459150.470971306, 2459151.470971306, 2459152.470971306, 2459153.470971306, 2459154.470971306, 2459155.470971306, 2459156.470971306, 2459157.470971306, 2459158.470971306, 2459159.470971306, 2459160.470971306, 2459161.470971306, 2459162.470971306, 2459163.470971306, 2459164.470971306, 2459165.470971306, 2459166.470971306, 2459167.470971306, 2459168.470971306, 2459169.470971306, 2459170.470971306, 2459171.470971306, 2459172.470971306, 2459173.470971306, 2459174.470971306, 2459175.470971306, 2459176.470971306, 2459177.470971306, 2459178.470971306, 2459179.470971306, 2459180.470971306, 2459181.470971306, 2459182.470971306, 2459183.470971306, 2459184.470971306, 2459185.470971306, 2459186.470971306, 2459187.470971306, 2459188.470971306, 2459189.470971306, 2459190.470971306, 2459191.470971306, 2459192.470971306, 2459193.470971306, 2459194.470971306, 2459195.470971306, 2459196.470971306, 2459197.470971306, 2459198.470971306, 2459199.470971306, 2459200.470971306, 2459201.470971306, 2459202.470971306, 2459203.470971306, 2459204.470971306, 2459205.470971306, 2459206.470971306, 2459207.470971306, 2459208.470971306, 2459209.470971306, 2459210.470971306, 2459211.470971306, 2459212.470971306, 2459213.470971306, 2459214.470971306]}}}
 
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
+        "POST",
+        f"spectra/{spectrum_id}/comments",
         data={
-            'text': 'Looks like Ia',
-            'group_ids': [public_group.id],
+            "text": "Looks like Ia",
+            "group_ids": [public_group.id],
             "attachment": payload,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     comment_id = data["data"]["comment_id"]
 
     status, data = api(
-        'GET',
-        f'spectra/{spectrum_id}/comments/{comment_id}',
+        "GET",
+        f"spectra/{spectrum_id}/comments/{comment_id}",
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    assert data['data']['text'] == 'Looks like Ia'
-    assert data['data']['attachment_name'] == payload['name']
+    assert data["data"]["text"] == "Looks like Ia"
+    assert data["data"]["attachment_name"] == payload["name"]
 
     status, data = api(
-        'GET',
-        f'spectra/{spectrum_id}/comments/{comment_id}/attachment',
+        "GET",
+        f"spectra/{spectrum_id}/comments/{comment_id}/attachment",
         token=super_admin_token,
     )
     assert status == 200
-    assert data == json.loads(base64.b64decode(payload['body']).decode())
+    assert data == json.loads(base64.b64decode(payload["body"]).decode())
 
 
 def test_fetch_all_comments_on_spectrum(
     upload_data_token, comment_token, public_source, lris
 ):
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': "all",
+            "obj_id": str(public_source.id),
+            "observed_at": str(datetime.datetime.now()),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": "all",
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     spectrum_id = data["data"]["id"]
 
     comment_text = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        f'spectra/{spectrum_id}/comments',
-        data={'text': comment_text},
+        "POST",
+        f"spectra/{spectrum_id}/comments",
+        data={"text": comment_text},
         token=comment_token,
     )
     assert status == 200
 
-    status, data = api('GET', f'spectra/{spectrum_id}/comments', token=comment_token)
+    status, data = api("GET", f"spectra/{spectrum_id}/comments", token=comment_token)
 
     assert status == 200
-    assert any([comment['text'] == comment_text for comment in data['data']])
+    assert any(comment["text"] == comment_text for comment in data["data"])

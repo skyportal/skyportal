@@ -1,16 +1,16 @@
 import os
 from os.path import join as pjoin
 
-from . import __version__
-
-from tornado.routing import URLSpec
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+from tornado.routing import URLSpec
+
+from . import __version__
 from .models import schema
 
 HTTP_METHODS = ("head", "get", "post", "put", "patch", "delete", "options")
 
-api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
+api_description = pjoin(os.path.dirname(__file__), "api_description.md")
 
 
 def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
@@ -55,19 +55,19 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
     """
     meta = {
-        'title': 'SkyPortal',
-        'version': __version__,
-        'openapi_version': '3.0.2',
-        'info': {
-            'description': open(api_description).read(),
-            'x-logo': {
-                'url': 'https://raw.githubusercontent.com/skyportal/skyportal/main/static/images/skyportal_logo.png',
-                'backgroundColor': '#FFFFFF',
-                'altText': 'SkyPortal logo',
-                'href': 'https://skyportal.io/docs',
+        "title": "SkyPortal",
+        "version": __version__,
+        "openapi_version": "3.0.2",
+        "info": {
+            "description": open(api_description).read(),
+            "x-logo": {
+                "url": "https://raw.githubusercontent.com/skyportal/skyportal/main/static/images/skyportal_logo.png",
+                "backgroundColor": "#FFFFFF",
+                "altText": "SkyPortal logo",
+                "href": "https://skyportal.io/docs",
             },
         },
-        'security': [{'token': []}],
+        "security": [{"token": []}],
     }
     if metadata is not None:
         meta.update(metadata)
@@ -86,9 +86,10 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
     openapi_spec.components.security_scheme("token", token_scheme)
 
     schema.register_components(openapi_spec)
-    from apispec import yaml_utils
     import inspect
     import re
+
+    from apispec import yaml_utils
 
     handlers = [
         handler
@@ -99,7 +100,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
         handlers = [
             (route, handler_cls)
             for (route, handler_cls) in handlers
-            if '/internal/' not in route
+            if "/internal/" not in route
         ]
     for endpoint, handler in handlers:
         for http_method in HTTP_METHODS:
@@ -108,33 +109,33 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                 continue
 
             path_template = endpoint
-            path_template = re.sub(r'\(.*?\)\??', '/{}', path_template)
-            path_template = re.sub(r'(/)+', '/', path_template)
-            path_parameters = path_template.count('{}')
+            path_template = re.sub(r"\(.*?\)\??", "/{}", path_template)
+            path_template = re.sub(r"(/)+", "/", path_template)
+            path_parameters = path_template.count("{}")
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
             parameters = list(inspect.signature(method).parameters.keys())[1:]
             # remove parameters called "ignored_args"
-            parameters = [param for param in parameters if param != 'ignored_args']
+            parameters = [param for param in parameters if param != "ignored_args"]
             parameters = [f"{{{param}}}" for param in parameters]
             parameters = parameters + (path_parameters - len(parameters)) * [
-                '',
+                "",
             ]
 
-            if parameters[-1:] == [''] and path_template.endswith('/{}'):
+            if parameters[-1:] == [""] and path_template.endswith("/{}"):
                 path_template = path_template[:-3]
 
-            if not getattr(method, '__authenticated__', False):
-                spec['security'] = [{}]
+            if not getattr(method, "__authenticated__", False):
+                spec["security"] = [{}]
 
-            if getattr(method, '__permissions__', None):
-                spec['description'] = (
-                    f'<b>Permission(s) required:</b> <em>{", ".join(method.__permissions__)} (or System admin)</em><br><br>'
-                    + spec.get('description', '')
+            if getattr(method, "__permissions__", None):
+                spec["description"] = (
+                    f"<b>Permission(s) required:</b> <em>{', '.join(method.__permissions__)} (or System admin)</em><br><br>"
+                    + spec.get("description", "")
                 )
 
-            multiple_spec = spec.pop('multiple', {})
-            single_spec = spec.pop('single', {})
+            multiple_spec = spec.pop("multiple", {})
+            single_spec = spec.pop("single", {})
             other_spec = spec
 
             for subspec in [single_spec, other_spec]:
@@ -143,7 +144,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                     openapi_spec.path(path=path, operations={http_method: subspec})
 
             if multiple_spec:
-                multiple_path_template = path_template.rsplit('/', 1)[0]
+                multiple_path_template = path_template.rsplit("/", 1)[0]
                 multiple_path = multiple_path_template.format(*parameters[:-1])
                 openapi_spec.path(
                     path=multiple_path, operations={http_method: multiple_spec}

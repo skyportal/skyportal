@@ -1,101 +1,96 @@
 __all__ = [
-    'PhotometricSeries',
-    'REQUIRED_ATTRIBUTES',
-    'INFERABLE_ATTRIBUTES',
-    'OPTIONAL_ATTRIBUTES',
-    'DATA_TYPES',
-    'verify_data',
-    'infer_metadata',
-    'verify_metadata',
+    "PhotometricSeries",
+    "REQUIRED_ATTRIBUTES",
+    "INFERABLE_ATTRIBUTES",
+    "OPTIONAL_ATTRIBUTES",
+    "DATA_TYPES",
+    "verify_data",
+    "infer_metadata",
+    "verify_metadata",
 ]
+import hashlib
 import os
 import re
-import hashlib
+
 import arrow
-
+import conesearch_alchemy
 import numpy as np
-
 import pandas as pd
-
 import sqlalchemy as sa
 from sqlalchemy import event
-from sqlalchemy.orm import relationship, reconstructor
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import reconstructor, relationship
 
-import conesearch_alchemy
-
-from baselayer.app.models import Base, accessible_by_owner
 from baselayer.app.env import load_env
+from baselayer.app.models import Base, accessible_by_owner
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
-from .group import accessible_by_groups_members, accessible_by_streams_members
-
-from .photometry import PHOT_ZP
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
-
+from .group import accessible_by_groups_members, accessible_by_streams_members
+from .photometry import PHOT_ZP
 
 _, cfg = load_env()
 
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
-RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
-RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
+RE_SLASHES = re.compile(r"^[\w_\-\+\/\\]*$")
+RE_NO_SLASHES = re.compile(r"^[\w_\-\+]*$")
 MAX_FILEPATH_LENGTH = 255
 
 # these must be given explicitly to the initialization function
 REQUIRED_ATTRIBUTES = [
-    'series_name',
-    'series_obj_id',
-    'obj_id',
-    'instrument_id',
-    'owner_id',
-    'group_ids',
-    'stream_ids',
+    "series_name",
+    "series_obj_id",
+    "obj_id",
+    "instrument_id",
+    "owner_id",
+    "group_ids",
+    "stream_ids",
 ]
 # these can either be given directly to the constructor or inferred from the data columns
-INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
+INFERABLE_ATTRIBUTES = ["ra", "dec", "exp_time", "filter"]
 # these are optional and can be given to the constructor
 OPTIONAL_ATTRIBUTES = [
-    'channel',
-    'origin',
-    'limiting_mag',
-    'magref',
-    'e_magref',
-    'ref_flux',
-    'ref_fluxerr',
-    'ra_unc',
-    'dec_unc',
-    'followup_request_id',
-    'assignment_id',
-    'time_stamp_alignment',
-    'altdata',
+    "channel",
+    "origin",
+    "limiting_mag",
+    "magref",
+    "e_magref",
+    "ref_flux",
+    "ref_fluxerr",
+    "ra_unc",
+    "dec_unc",
+    "followup_request_id",
+    "assignment_id",
+    "time_stamp_alignment",
+    "altdata",
 ]
 
 DATA_TYPES = {
-    'series_name': str,
-    'series_obj_id': str,
-    'obj_id': str,
-    'instrument_id': int,
-    'owner_id': int,
-    'group_ids': [int],
-    'stream_ids': [int],
-    'channel': str,
-    'time_stamp_alignment': str,
-    'magref': float,
-    'e_magref': float,
-    'ref_flux': float,
-    'ref_fluxerr': float,
-    'ra': float,
-    'dec': float,
-    'ra_unc': float,
-    'dec_unc': float,
-    'exp_time': float,
-    'filter': str,
-    'altdata': dict,
-    'origin': str,
-    'followup_request_id': int,
-    'assignment_id': int,
+    "series_name": str,
+    "series_obj_id": str,
+    "obj_id": str,
+    "instrument_id": int,
+    "owner_id": int,
+    "group_ids": [int],
+    "stream_ids": [int],
+    "channel": str,
+    "time_stamp_alignment": str,
+    "magref": float,
+    "e_magref": float,
+    "ref_flux": float,
+    "ref_fluxerr": float,
+    "ra": float,
+    "dec": float,
+    "ra_unc": float,
+    "dec_unc": float,
+    "exp_time": float,
+    "filter": str,
+    "altdata": dict,
+    "origin": str,
+    "followup_request_id": int,
+    "assignment_id": int,
 }
 
 
@@ -115,16 +110,16 @@ def verify_data(data):
 
     """
     if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
-        raise ValueError('Must supply a non-empty DataFrame. ')
+        raise ValueError("Must supply a non-empty DataFrame. ")
 
-    if not any([c in data for c in ['flux', 'fluxes', 'mag', 'mags', 'magnitudes']]):
+    if not any(c in data for c in ["flux", "fluxes", "mag", "mags", "magnitudes"]):
         raise KeyError(
-            'Input to photometric series must contain '
+            "Input to photometric series must contain "
             '"flux", "fluxes", "mag", "mags" or "magnitudes". '
         )
-    if not any([c in data for c in ['mjd', 'mjds']]):
+    if not any(c in data for c in ["mjd", "mjds"]):
         raise KeyError(
-            'Input to photometric series must contain ' 'a "mjd" or "mjds" column. '
+            'Input to photometric series must contain a "mjd" or "mjds" column. '
         )
 
 
@@ -147,32 +142,32 @@ def infer_metadata(data):
     """
     metadata = {}
 
-    for key in ['RA', 'ra', 'Ra']:
+    for key in ["RA", "ra", "Ra"]:
         if key in data:
-            metadata['ra'] = data[key].median()
+            metadata["ra"] = data[key].median()
             break
-    for key in ['Dec', 'DEC', 'dec']:
+    for key in ["Dec", "DEC", "dec"]:
         if key in data:
-            metadata['dec'] = data[key].median()
+            metadata["dec"] = data[key].median()
             break
     for key in [
-        'exptime',
-        'exp_time',
-        'exposure',
-        'exposure_time',
-        'EXPTIME',
-        'EXP_TIME',
+        "exptime",
+        "exp_time",
+        "exposure",
+        "exposure_time",
+        "EXPTIME",
+        "EXP_TIME",
     ]:
         if key in data:
-            metadata['exp_time'] = data[key].median()
+            metadata["exp_time"] = data[key].median()
             break
-    for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
+    for key in ["filter", "FILTER", "Filter", "filtercode"]:
         if key in data and len(data[key].unique()) == 1:
-            metadata['filter'] = data[key][0]
+            metadata["filter"] = data[key][0]
             break
-    for key in ['lim_mag', 'limmag', 'limiting_mag', 'limiting_magnitude']:
+    for key in ["lim_mag", "limmag", "limiting_mag", "limiting_magnitude"]:
         if key in data:
-            metadata['limiting_mag'] = data[key].median()
+            metadata["limiting_mag"] = data[key].median()
             break
 
     return metadata
@@ -210,17 +205,17 @@ def verify_metadata(metadata):
         if key not in metadata:
             missing_keys.append(key)
     if len(missing_keys) > 0:
-        raise ValueError(f'The following keys are missing: {missing_keys}')
+        raise ValueError(f"The following keys are missing: {missing_keys}")
 
     unknown_keys = []
-    for key in metadata.keys():
+    for key in metadata:
         if key not in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
             unknown_keys.append(key)
     if len(unknown_keys) > 0:
-        raise ValueError(f'Unknown keys in metadata: {unknown_keys}')
+        raise ValueError(f"Unknown keys in metadata: {unknown_keys}")
 
     verified_metadata = {}
-    for key in metadata.keys():
+    for key in metadata:
         try:
             # make sure each value can be cast to the correct type
             data_type = DATA_TYPES.get(key)
@@ -236,7 +231,7 @@ def verify_metadata(metadata):
             else:
                 verified_metadata[key] = metadata[key]
         except Exception as e:
-            raise ValueError(f'Could not cast {key} to the correct type: {e}')
+            raise ValueError(f"Could not cast {key} to the correct type: {e}")
 
     return verified_metadata
 
@@ -279,7 +274,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             255 characters.
     """
 
-    __tablename__ = 'photometric_series'
+    __tablename__ = "photometric_series"
 
     def __init__(self, data, **kwargs):
         """
@@ -303,13 +298,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
 
         all_keys = REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES
-        for key in kwargs.keys():
+        for key in kwargs:
             if key not in all_keys:
                 raise ValueError(f'Unknown keyword argument "{key}"')
 
         required_keys = REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES
         for key in required_keys:
-            if key not in kwargs.keys():
+            if key not in kwargs:
                 raise ValueError(f'"{key}" is a required attribute.')
             setattr(self, key, kwargs[key])
 
@@ -365,7 +360,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         except Exception:
             pass  # silently fail to load
 
-    def to_dict(self, data_format='json'):
+    def to_dict(self, data_format="json"):
         """
         Convert the object into a dictionary.
 
@@ -378,20 +373,20 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # use the baselayer base model's method
         d = super().to_dict()
 
-        if data_format.lower() == 'json':
-            output_data = self.data.to_dict(orient='list')
-        elif data_format.lower() == 'hdf5':
+        if data_format.lower() == "json":
+            output_data = self.data.to_dict(orient="list")
+        elif data_format.lower() == "hdf5":
             output_data = dump_dataframe_to_bytestream(
                 self.data, self.get_metadata(), encode=True
             )
-        elif data_format.lower() == 'none':
+        elif data_format.lower() == "none":
             output_data = None
         else:
             raise ValueError(
                 f'Invalid dataFormat: "{data_format}". Use "json", "hdf5", or "none".'
             )
 
-        d['data'] = output_data
+        d["data"] = output_data
         return d
 
     @staticmethod
@@ -492,38 +487,38 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         they are included in the dataset.
         """
 
-        if 'flux' in self._data:
-            self._fluxes = self._data['flux']
+        if "flux" in self._data:
+            self._fluxes = self._data["flux"]
             self._mags = self.flux2mag(self._fluxes)
-        elif 'fluxes' in self._data:
-            self._fluxes = self._data['fluxes']
+        elif "fluxes" in self._data:
+            self._fluxes = self._data["fluxes"]
             self._mags = self.flux2mag(self._fluxes)
-        elif 'mag' in self._data:
-            self._mags = self._data['mag']
+        elif "mag" in self._data:
+            self._mags = self._data["mag"]
             self._fluxes = self.mag2flux(self._mags)
-        elif 'mags' in self._data:
-            self._mags = self._data['mags']
+        elif "mags" in self._data:
+            self._mags = self._data["mags"]
             self._fluxes = self.mag2flux(self._mags)
-        elif 'magnitudes' in self._data:
-            self._mags = self._data['magnitudes']
+        elif "magnitudes" in self._data:
+            self._mags = self._data["magnitudes"]
             self._fluxes = self.mag2flux(self._mags)
         else:
             raise KeyError('Cannot find "fluxes" or "mags" in photometric data')
 
-        if 'fluxerr' in self._data:
-            self._fluxerr = self._data['fluxerr']
+        if "fluxerr" in self._data:
+            self._fluxerr = self._data["fluxerr"]
             self._magerr = self.fluxerr2magerr(self.fluxes, self._fluxerr)
-        elif 'magerr' in self._data:
-            self._magerr = self._data['magerr']
+        elif "magerr" in self._data:
+            self._magerr = self._data["magerr"]
             self._fluxerr = self.magerr2fluxerr(self._mags, self._magerr)
         else:
             self._magerr = np.array([])
             self._fluxerr = np.array([])
 
-        if 'mjd' in self._data:
-            self._mjds = self._data['mjd']
-        elif 'mjds' in self._data:
-            self._mjds = self._data['mjds']
+        if "mjd" in self._data:
+            self._mjds = self._data["mjd"]
+        elif "mjds" in self._data:
+            self._mjds = self._data["mjds"]
         else:
             raise KeyError('Cannot find "mjd" or "mjds" in photometric data')
 
@@ -687,36 +682,36 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         left unchanged.
         """
         df = self.data.copy()
-        df['id'] = self.id
-        df['origin'] = self.origin
-        df['obj_id'] = self.obj_id
-        if 'ra' not in df:
-            df['ra'] = self.ra
-        if 'dec' not in df:
-            df['dec'] = self.dec
-        if 'ra_unc' not in df:
-            df['ra_unc'] = self.ra_unc
-        if 'dec_unc' not in df:
-            df['dec_unc'] = self.dec_unc
-        if 'filter' not in df:
-            df['filter'] = self.filter
-        if 'snr' not in df:
-            df['snr'] = self.snr
+        df["id"] = self.id
+        df["origin"] = self.origin
+        df["obj_id"] = self.obj_id
+        if "ra" not in df:
+            df["ra"] = self.ra
+        if "dec" not in df:
+            df["dec"] = self.dec
+        if "ra_unc" not in df:
+            df["ra_unc"] = self.ra_unc
+        if "dec_unc" not in df:
+            df["dec_unc"] = self.dec_unc
+        if "filter" not in df:
+            df["filter"] = self.filter
+        if "snr" not in df:
+            df["snr"] = self.snr
 
-        df['instrument_id'] = self.instrument_id
-        df['instrument'] = self.instrument.name
-        df['telescope'] = self.instrument.telescope.nickname
-        df['created_at'] = self.created_at
+        df["instrument_id"] = self.instrument_id
+        df["instrument"] = self.instrument.name
+        df["telescope"] = self.instrument.telescope.nickname
+        df["created_at"] = self.created_at
 
         if self.ref_flux is not None:
-            if 'magtot' not in df:
-                df['magtot'] = self.magtot
-            if 'e_magtot' not in df:
-                df['e_magtot'] = self.e_magtot
-            if 'tot_flux' not in df:
-                df['tot_flux'] = self.tot_flux
-            if 'tot_fluxerr' not in df:
-                df['tot_fluxerr'] = self.tot_fluxerr
+            if "magtot" not in df:
+                df["magtot"] = self.magtot
+            if "e_magtot" not in df:
+                df["e_magtot"] = self.e_magtot
+            if "tot_flux" not in df:
+                df["tot_flux"] = self.tot_flux
+            if "tot_fluxerr" not in df:
+                df["tot_fluxerr"] = self.tot_fluxerr
 
         return df
 
@@ -724,10 +719,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         Load the underlying photometric data from disk.
         """
-        with pd.HDFStore(self.filename, mode='r') as store:
+        with pd.HDFStore(self.filename, mode="r") as store:
             keys = list(store.keys())
             if len(keys) != 1:
-                raise ValueError('HDF5 file must contain exactly one data table')
+                raise ValueError("HDF5 file must contain exactly one data table")
             self._data = store[keys[0]]
 
     def get_data_bytes(self):
@@ -748,8 +743,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             # without actually writing anything yet
             # ref: https://github.com/pandas-dev/pandas/issues/9246#issuecomment-74041497
             with pd.HDFStore(
-                'test_file.h5',
-                mode='w',
+                "test_file.h5",
+                mode="w",
                 driver="H5FD_CORE",
                 driver_core_backing_store=0,
             ) as store:
@@ -760,13 +755,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 # ref: https://github.com/pandas-dev/pandas/pull/32700#issuecomment-666383395
                 # ref: https://github.com/pandas-dev/pandas/blob/b1b70c7390e589bbfa0d8896aa76e64bec0cf51e/pandas/tests/io/pytables/test_store.py#L324
                 store.put(
-                    'phot_series',
+                    "phot_series",
                     self._data,
-                    format='table',
+                    format="table",
                     index=None,
                     track_times=False,
                 )
-                store.get_storer('phot_series').attrs.metadata = self.get_metadata()
+                store.get_storer("phot_series").attrs.metadata = self.get_metadata()
 
                 self._data_bytes = store._handle.get_file_image()
 
@@ -803,7 +798,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             The full name of the file on disk.
         """
         # there's a default value, but it is best to provide a full path in the config
-        root_folder = cfg.get('photometric_series_folder', 'persistentdata/phot_series')
+        root_folder = cfg.get("photometric_series_folder", "persistentdata/phot_series")
         basedir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
         )
@@ -818,11 +813,11 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # make sure to replace windows style slashes
         subfolder = self.series_name.replace("\\", "/")
 
-        origin = '_' + self.origin.replace(" ", "_") if self.origin else ''
-        channel = '_' + self.channel.replace(" ", "_") if self.channel else ''
+        origin = "_" + self.origin.replace(" ", "_") if self.origin else ""
+        channel = "_" + self.channel.replace(" ", "_") if self.channel else ""
 
         filename = (
-            f'series_{self.series_obj_id}_inst_{self.instrument_id}{channel}{origin}.h5'
+            f"series_{self.series_obj_id}_inst_{self.instrument_id}{channel}{origin}.h5"
         )
 
         path = os.path.join(root_folder, subfolder)
@@ -831,7 +826,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         if len(full_name) > MAX_FILEPATH_LENGTH:
             raise ValueError(
-                f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
+                f"Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters."
             )
 
         return full_name, path
@@ -870,9 +865,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         file_to_write = full_name
         if temp:
-            file_to_write += '.tmp'
+            file_to_write += ".tmp"
 
-        with open(file_to_write, 'wb') as f:
+        with open(file_to_write, "wb") as f:
             f.write(self.get_data_bytes())
 
         self.filename = full_name
@@ -880,8 +875,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     def move_temp_data(self):
         """Rename a temp data file to not have the .tmp extension."""
         full_name, _ = self.make_full_name()
-        if os.path.isfile(full_name + '.tmp'):
-            os.rename(full_name + '.tmp', full_name)
+        if os.path.isfile(full_name + ".tmp"):
+            os.rename(full_name + ".tmp", full_name)
 
     def delete_data(self, temp=False):
         """
@@ -891,7 +886,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         if self.filename and os.path.exists(self.filename):
             file_to_delete = self.filename
             if temp:
-                file_to_delete += '.tmp'
+                file_to_delete += ".tmp"
             os.remove(file_to_delete)
 
     read = (
@@ -902,53 +897,53 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     update = delete = accessible_by_owner
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the photometric series' Obj.",
     )
     obj = relationship(
-        'Obj', back_populates='photometric_series', doc="The photometric series' Obj."
+        "Obj", back_populates="photometric_series", doc="The photometric series' Obj."
     )
 
     series_name = sa.Column(
         sa.String,
         nullable=False,
         index=True,
-        doc='Unique identifier of the series of images '
-        'out of which the photometry is generated. '
-        'E.g., the TESS sector number. ',
+        doc="Unique identifier of the series of images "
+        "out of which the photometry is generated. "
+        "E.g., the TESS sector number. ",
     )
 
     series_obj_id = sa.Column(
         sa.String,
         nullable=False,
         index=True,
-        doc='Unique identifier of an object inside '
-        'the series of images out of which the '
-        'photometry is generated. '
-        'E.g., could be the TESS TICID. ',
+        doc="Unique identifier of an object inside "
+        "the series of images out of which the "
+        "photometry is generated. "
+        "E.g., could be the TESS TICID. ",
     )
 
     filter = sa.Column(
         allowed_bandpasses,
         nullable=False,
         index=True,
-        doc='Filter with which the observation was taken.',
+        doc="Filter with which the observation was taken.",
     )
 
     channel = sa.Column(
         sa.String,
         nullable=False,
-        default='',
+        default="",
         index=True,
-        doc='Name of channel of the photometric series.',
+        doc="Name of channel of the photometric series.",
     )
 
     origin = sa.Column(
         sa.String,
         nullable=False,
-        default='',
+        default="",
         index=True,
         doc="Origin from which this photometric series was extracted (if any).",
     )
@@ -965,81 +960,81 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.Float,
         nullable=False,
         index=True,
-        doc='MJD of the first exposure of the series.',
+        doc="MJD of the first exposure of the series.",
     )
     mag_first = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='Magnitude of the first exposure of the series.',
+        doc="Magnitude of the first exposure of the series.",
     )
 
     mjd_mid = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='MJD of the middle of the observation series.',
+        doc="MJD of the middle of the observation series.",
     )
 
     mjd_last = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='MJD of the last exposure of the series.',
+        doc="MJD of the last exposure of the series.",
     )
     mag_last = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='Magnitude of the last exposure of the series.',
+        doc="Magnitude of the last exposure of the series.",
     )
 
     mjd_last_detected = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='MJD of the last exposure that was above threshold.',
+        doc="MJD of the last exposure that was above threshold.",
     )
     mag_last_detected = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Magnitude of the last exposure that was above threshold.',
+        doc="Magnitude of the last exposure that was above threshold.",
     )
 
     is_detected = sa.Column(
         sa.Boolean,
         nullable=False,
         index=True,
-        doc='True if any of the data points are above threshold.',
+        doc="True if any of the data points are above threshold.",
     )
 
     exp_time = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='Median exposure time of each frame, in seconds.',
+        doc="Median exposure time of each frame, in seconds.",
     )
 
     frame_rate = sa.Column(
         sa.Float,
         nullable=False,
         index=True,
-        doc='Median frame rate (frequency) of exposures in Hz.',
+        doc="Median frame rate (frequency) of exposures in Hz.",
     )
 
     num_exp = sa.Column(
         sa.Integer,
         nullable=False,
         index=True,
-        doc='Number of exposures in the series. ',
+        doc="Number of exposures in the series. ",
     )
 
     time_stamp_alignment = sa.Column(
         time_stamp_alignment_types,
         nullable=False,
-        default='middle',
-        doc='When in each exposure is the mjd timestamp measured: start, middle, or end.',
+        default="middle",
+        doc="When in each exposure is the mjd timestamp measured: start, middle, or end.",
     )
 
     ra_unc = sa.Column(
@@ -1054,9 +1049,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         nullable=False,
         default=np.nan,
         index=True,
-        doc='Limiting magnitude of the photometric series. '
-        'If each point in the series has a limiting magnitude, '
-        'this will be the median value of those limiting magnitudes. ',
+        doc="Limiting magnitude of the photometric series. "
+        "If each point in the series has a limiting magnitude, "
+        "this will be the median value of those limiting magnitudes. ",
     )
 
     ref_flux = sa.Column(
@@ -1093,100 +1088,100 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        sa.ForeignKey("instruments.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Instrument that took this photometric series.",
     )
     instrument = relationship(
-        'Instrument',
-        back_populates='photometric_series',
+        "Instrument",
+        back_populates="photometric_series",
         doc="Instrument that took this photometric series.",
     )
 
     followup_request_id = sa.Column(
-        sa.ForeignKey('followuprequests.id'), nullable=True, index=True
+        sa.ForeignKey("followuprequests.id"), nullable=True, index=True
     )
     followup_request = relationship(
-        'FollowupRequest', back_populates='photometric_series'
+        "FollowupRequest", back_populates="photometric_series"
     )
 
     assignment_id = sa.Column(
-        sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
+        sa.ForeignKey("classicalassignments.id"), nullable=True, index=True
     )
     assignment = relationship(
-        'ClassicalAssignment', back_populates='photometric_series'
+        "ClassicalAssignment", back_populates="photometric_series"
     )
 
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User who uploaded the photometric series.",
     )
     owner = relationship(
-        'User',
-        back_populates='photometric_series',
+        "User",
+        back_populates="photometric_series",
         foreign_keys=[owner_id],
         passive_deletes=True,
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade="save-update, merge, refresh-expire, expunge",
         doc="The User who uploaded the photometric series.",
     )
 
     mean_mag = sa.Column(
-        sa.Float, index=True, doc='The average magnitude using nanmean.'
+        sa.Float, index=True, doc="The average magnitude using nanmean."
     )
     rms_mag = sa.Column(
-        sa.Float, index=True, doc='Root Mean Square of the magnitudes. '
+        sa.Float, index=True, doc="Root Mean Square of the magnitudes. "
     )
     robust_mag = sa.Column(
         sa.Float,
-        doc='Robust estimate of the median magnitude, using outlier rejection.',
+        doc="Robust estimate of the median magnitude, using outlier rejection.",
     )
     robust_rms = sa.Column(
-        sa.Float, doc='Robust estimate of the magnitude RMS, using outlier rejection.'
+        sa.Float, doc="Robust estimate of the magnitude RMS, using outlier rejection."
     )
 
     median_snr = sa.Column(
         sa.Float,
         index=True,
-        doc='Median signal to noise ratio of all measurements.',
+        doc="Median signal to noise ratio of all measurements.",
     )
 
     best_snr = sa.Column(
         sa.Float,
         index=True,
-        doc='Highest signal to noise ratio among all measurements.',
+        doc="Highest signal to noise ratio among all measurements.",
     )
 
     worst_snr = sa.Column(
         sa.Float,
         index=True,
-        doc='Lowest signal to noise ratio among all measurements.',
+        doc="Lowest signal to noise ratio among all measurements.",
     )
 
     medians = sa.Column(
         JSONB,
         index=True,
-        doc='Summary statistics on this series. The nanmedian value of each column in data.',
+        doc="Summary statistics on this series. The nanmedian value of each column in data.",
     )
 
     maxima = sa.Column(
         JSONB,
         index=True,
-        doc='Summary statistics on this series. The nanmax value of each column in data.',
+        doc="Summary statistics on this series. The nanmax value of each column in data.",
     )
 
     minima = sa.Column(
         JSONB,
         index=True,
-        doc='Summary statistics on this series. The nanmin value of each column in data.',
+        doc="Summary statistics on this series. The nanmin value of each column in data.",
     )
 
     stds = sa.Column(
         JSONB,
         index=True,
-        doc='Summary statistics on this series. The nanstd value of each column in data.',
+        doc="Summary statistics on this series. The nanstd value of each column in data.",
     )
 
     hash = sa.Column(
@@ -1194,15 +1189,15 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         nullable=False,
         unique=True,
         index=True,
-        doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
+        doc="MD5sum hash of the data to be saved to file. Prevents duplications.",
     )
 
     autodelete = sa.Column(
         sa.Boolean,
         nullable=False,
         default=True,
-        doc='Whether the data file should be automatically deleted '
-        'from disk when this row is deleted from database. ',
+        doc="Whether the data file should be automatically deleted "
+        "from disk when this row is deleted from database. ",
     )
 
     @property
@@ -1300,7 +1295,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -1335,7 +1330,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != 'NaN',
+                    cls.ref_flux != "NaN",
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711
@@ -1472,7 +1467,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
 PhotometricSeries.__table_args__ = (
     sa.Index(
-        'phot_series_deduplication_index',
+        "phot_series_deduplication_index",
         PhotometricSeries.obj_id,
         PhotometricSeries.instrument_id,
         PhotometricSeries.origin,

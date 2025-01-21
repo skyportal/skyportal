@@ -2,26 +2,26 @@ import sqlalchemy as sa
 
 from baselayer.app.access import permissions
 
-from ..base import BaseHandler
 from ...models import (
-    DBSession,
-    User,
     Annotation,
+    Candidate,
     Comment,
     CronJobRun,
+    DBSession,
     Filter,
+    GcnEvent,
+    Group,
     Instrument,
     Obj,
     Source,
-    Candidate,
-    Token,
-    GcnEvent,
-    Group,
-    Spectrum,
     SourceView,
+    Spectrum,
     Telescope,
     Thumbnail,
+    Token,
+    User,
 )
+from ..base import BaseHandler
 
 
 class StatsHandler(BaseHandler):

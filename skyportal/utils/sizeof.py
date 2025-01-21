@@ -13,6 +13,6 @@ def sizeof(obj):
     size = sys.getsizeof(obj)
     if isinstance(obj, dict):
         return size + sum(map(sizeof, obj.keys())) + sum(map(sizeof, obj.values()))
-    if isinstance(obj, (list, tuple, set, frozenset)):
+    if isinstance(obj, list | tuple | set | frozenset):
         return size + sum(map(sizeof, obj))
     return size

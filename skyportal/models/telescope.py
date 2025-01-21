@@ -1,18 +1,19 @@
-__all__ = ['Telescope']
+__all__ = ["Telescope"]
 
-import numpy as np
-from datetime import timedelta
 import warnings
+from datetime import timedelta
+
+import astroplan
+import numpy as np
 import sqlalchemy as sa
+import timezonefinder
+from astropy import time as ap_time
+from astropy import units as u
+from astropy.utils.masked import MaskedNDArray
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import URLType
 
-import timezonefinder
-import astroplan
-from astropy import units as u
-from astropy import time as ap_time
-from astropy.utils.masked import MaskedNDArray
-
+from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
@@ -20,12 +21,12 @@ from baselayer.app.models import (
     public,
 )
 from baselayer.log import make_log
-from baselayer.app.env import load_env
+
 from ..utils.cache import Cache, dict_to_bytes
 
 env, cfg = load_env()
 
-log = make_log('model/telescope')
+log = make_log("model/telescope")
 
 cache_dir = "cache/telescopes_time_info"
 cache = Cache(
@@ -37,7 +38,7 @@ cache = Cache(
 def manage_telescope_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return DBSession().query(cls)
-    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
         return DBSession().query(cls)
     else:
         # return an empty query
@@ -59,10 +60,10 @@ class Telescope(Base):
     nickname = sa.Column(
         sa.String, nullable=False, doc="Abbreviated facility name (e.g., P200)."
     )
-    lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
-    lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
-    elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
-    diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
+    lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")
+    lon = sa.Column(sa.Float, nullable=True, doc="Longitude in deg.")
+    elevation = sa.Column(sa.Float, nullable=True, doc="Elevation in meters.")
+    diameter = sa.Column(sa.Float, nullable=False, doc="Diameter in meters.")
     skycam_link = sa.Column(
         URLType, nullable=True, doc="Link to the telescope's sky camera."
     )
@@ -74,14 +75,14 @@ class Telescope(Base):
     fixed_location = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='true',
+        server_default="true",
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
 
     instruments = relationship(
-        'Instrument',
-        back_populates='telescope',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "Instrument",
+        back_populates="telescope",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The Instruments on this telescope.",
     )
@@ -188,8 +189,8 @@ class Telescope(Base):
             time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            t = observer.sun_set_time(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.sun_set_time(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -203,8 +204,8 @@ class Telescope(Base):
             time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            t = observer.sun_rise_time(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.sun_rise_time(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -218,8 +219,8 @@ class Telescope(Base):
             time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            t = observer.twilight_evening_nautical(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.twilight_evening_nautical(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -236,8 +237,8 @@ class Telescope(Base):
             # there is no morning nautical twilight
             # so this returns a MaskedArray and raises a warning.
             warnings.simplefilter("ignore")
-            t = observer.twilight_morning_nautical(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.twilight_morning_nautical(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -251,8 +252,8 @@ class Telescope(Base):
             time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            t = observer.twilight_evening_astronomical(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.twilight_evening_astronomical(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -266,8 +267,8 @@ class Telescope(Base):
             time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            t = observer.twilight_morning_astronomical(time, which='next')
-            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+            t = observer.twilight_morning_astronomical(time, which="next")
+            if isinstance(t.value, np.ma.core.MaskedArray | MaskedNDArray):
                 return None
         return t
 
@@ -279,8 +280,8 @@ class Telescope(Base):
         sunset = self.next_sunset(time=time)
 
         if sunset is not None and sunrise is not None and sunset > sunrise:
-            sunset = self.observer.sun_set_time(time, which='previous')
-            time = sunset - ap_time.TimeDelta(30, format='sec')
+            sunset = self.observer.sun_set_time(time, which="previous")
+            time = sunset - ap_time.TimeDelta(30, format="sec")
 
         twilight_morning_astronomical = self.next_twilight_morning_astronomical(
             time=time
@@ -345,20 +346,20 @@ class Telescope(Base):
             twilight_evening_nautical_unix_ms = twilight_evening_nautical.unix * 1000
 
         return {
-            'sunset_utc': sunset_utc,
-            'sunrise_utc': sunrise_utc,
-            'twilight_morning_astronomical_utc': twilight_morning_astronomical_utc,
-            'twilight_evening_astronomical_utc': twilight_evening_astronomical_utc,
-            'twilight_morning_nautical_utc': twilight_morning_nautical_utc,
-            'twilight_evening_nautical_utc': twilight_evening_nautical_utc,
-            'utc_offset_hours': self.observer.timezone.utcoffset(time.datetime)
+            "sunset_utc": sunset_utc,
+            "sunrise_utc": sunrise_utc,
+            "twilight_morning_astronomical_utc": twilight_morning_astronomical_utc,
+            "twilight_evening_astronomical_utc": twilight_evening_astronomical_utc,
+            "twilight_morning_nautical_utc": twilight_morning_nautical_utc,
+            "twilight_evening_nautical_utc": twilight_evening_nautical_utc,
+            "utc_offset_hours": self.observer.timezone.utcoffset(time.datetime)
             / timedelta(hours=1),
-            'sunset_unix_ms': sunset_unix_ms,
-            'sunrise_unix_ms': sunrise_unix_ms,
-            'twilight_morning_astronomical_unix_ms': twilight_morning_astronomical_unix_ms,
-            'twilight_evening_astronomical_unix_ms': twilight_evening_astronomical_unix_ms,
-            'twilight_morning_nautical_unix_ms': twilight_morning_nautical_unix_ms,
-            'twilight_evening_nautical_unix_ms': twilight_evening_nautical_unix_ms,
+            "sunset_unix_ms": sunset_unix_ms,
+            "sunrise_unix_ms": sunrise_unix_ms,
+            "twilight_morning_astronomical_unix_ms": twilight_morning_astronomical_unix_ms,
+            "twilight_evening_astronomical_unix_ms": twilight_evening_astronomical_unix_ms,
+            "twilight_morning_nautical_unix_ms": twilight_morning_nautical_unix_ms,
+            "twilight_evening_nautical_unix_ms": twilight_evening_nautical_unix_ms,
         }
 
     def current_time(self, refresh=False):
@@ -390,7 +391,6 @@ class Telescope(Base):
                     return time_info
             except Exception:
                 log(f"Failed to load cached time info for telescope {self.id}")
-                pass
 
         morning = False
         evening = False

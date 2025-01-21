@@ -51,7 +51,7 @@ class ObjHandler(BaseHandler):
         """
         with self.Session() as session:
             obj = session.scalars(
-                Obj.select(session.user_or_token, mode='delete').where(Obj.id == obj_id)
+                Obj.select(session.user_or_token, mode="delete").where(Obj.id == obj_id)
             ).first()
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
@@ -154,23 +154,23 @@ class ObjPositionHandler(BaseHandler):
             return default
         if isinstance(param, str):
             try:
-                return [operator(id) for id in param.split(',')]
+                return [operator(id) for id in param.split(",")]
             except ValueError:
                 return self.error(
-                    f'Invalid {param} parameter, must be a comma-separated list of {dtype}s'
+                    f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
                 )
-        elif isinstance(param, list) or isinstance(param, tuple):
+        elif isinstance(param, list | tuple):
             try:
                 return [operator(id) for id in param]
             except ValueError:
                 return self.error(
-                    f'Invalid {param} parameter, must be a comma-separated list of {dtype}s'
+                    f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
                 )
         elif isinstance(param, int):
             return [param]
         else:
             return self.error(
-                f'Invalid {param} parameter, must be a comma-separated list of {dtype}s'
+                f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
             )
 
     @auth_or_token
@@ -205,12 +205,12 @@ class ObjPositionHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument_ids = self.get_query_argument('instrument_ids', None)
-        stream_ids = self.get_query_argument('stream_ids', None)
-        stream_only = self.get_query_argument('stream_only', False)
+        instrument_ids = self.get_query_argument("instrument_ids", None)
+        stream_ids = self.get_query_argument("stream_ids", None)
+        stream_only = self.get_query_argument("stream_only", False)
 
-        snr_threshold = self.get_query_argument('snr_threshold', 3.0)
-        method = self.get_query_argument('method', 'snr2')
+        snr_threshold = self.get_query_argument("snr_threshold", 3.0)
+        method = self.get_query_argument("method", "snr2")
 
         # VALIDATE INSTRUMENT IDS IF PROVIDED
         if instrument_ids is not None:
@@ -227,11 +227,11 @@ class ObjPositionHandler(BaseHandler):
                 raise ValueError
         except ValueError:
             return self.error(
-                'Invalid snr_threshold parameter, must be a positive float'
+                "Invalid snr_threshold parameter, must be a positive float"
             )
 
         # VALIDATE METHOD
-        if method not in ['snr2', 'invvar']:
+        if method not in ["snr2", "invvar"]:
             return self.error(
                 'Invalid method parameter, must be one of "snr2" or "invvar"'
             )
@@ -251,7 +251,7 @@ class ObjPositionHandler(BaseHandler):
                 query_constraints = [
                     Photometry.obj_id == obj_id,
                     ~Photometry.origin.ilike(
-                        '%fp%'
+                        "%fp%"
                     ),  # always exclude forced photometry
                 ]
                 if instrument_ids is not None:

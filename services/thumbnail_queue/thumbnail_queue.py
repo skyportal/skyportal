@@ -2,11 +2,10 @@ import time
 
 import sqlalchemy as sa
 
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
-
+from baselayer.app.models import init_db
+from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
     Obj,
@@ -15,9 +14,9 @@ from skyportal.models import (
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
-log = make_log('thumbnail_queue')
+log = make_log("thumbnail_queue")
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
 THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
@@ -109,12 +108,12 @@ def service(*args, **kwargs):
             if internal_key is not None:
                 flow = Flow()
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_SOURCE",
                     payload={"obj_key": internal_key},
                 )
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_CANDIDATE",
                     payload={"id": internal_key},
                 )

@@ -1,20 +1,21 @@
 import datetime
+
 import sqlalchemy as sa
+
+from baselayer.app.env import load_env
+from skyportal.handlers.api import (
+    set_default_acls,
+    set_default_group,
+    set_default_role,
+)
 
 from .models import (
     DBSession,
-    User,
     Group,
     GroupUser,
     Invitation,
     StreamUser,
-)
-from baselayer.app.env import load_env
-
-from skyportal.handlers.api import (
-    set_default_role,
-    set_default_acls,
-    set_default_group,
+    User,
 )
 
 env, cfg = load_env()
@@ -92,7 +93,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 name: kwargs.get(name, details.get(name))
                 for name in backend.setting("USER_FIELDS", USER_FIELDS)
             }
-            user = strategy.create_user(**fields, **{"oauth_uid": uid})
+            user = strategy.create_user(**fields, oauth_uid=uid)
             set_default_role(user, DBSession())
             set_default_acls(user, DBSession())
             set_default_group(user, DBSession())
@@ -104,24 +105,24 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
 
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
-    if 'username' not in backend.setting('USER_FIELDS', USER_FIELDS):
+    if "username" not in backend.setting("USER_FIELDS", USER_FIELDS):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
     existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
     if not user and existing_user is None:
-        email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
-        if email_as_username and details.get('email'):
-            username = details['email']
+        email_as_username = strategy.setting("USERNAME_IS_FULL_EMAIL", False)
+        if email_as_username and details.get("email"):
+            username = details["email"]
         else:
-            username = details['username']
+            username = details["username"]
 
     elif existing_user is not None:
         return {"username": existing_user.username}
     else:
         username = storage.user.get_username(user)
-    return {'username': username}
+    return {"username": username}
 
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
@@ -151,11 +152,9 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     stream_ids = [stream.id for stream in invitation.streams]
 
     if not all(
-        [
-            stream in invitation.streams
-            for group in invitation.groups
-            for stream in group.streams
-        ]
+        stream in invitation.streams
+        for group in invitation.groups
+        for stream in group.streams
     ):
         raise Exception(
             "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
@@ -207,27 +206,27 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
 
     # Default protected user fields (username, id, pk and email) can be ignored
     # by setting the SOCIAL_AUTH_NO_DEFAULT_PROTECTED_USER_FIELDS to True
-    if strategy.setting('NO_DEFAULT_PROTECTED_USER_FIELDS') is True:
+    if strategy.setting("NO_DEFAULT_PROTECTED_USER_FIELDS") is True:
         protected = ()
     else:
         protected = (
-            'username',
-            'id',
-            'pk',
-            'email',
-            'password',
-            'is_active',
-            'is_staff',
-            'is_superuser',
+            "username",
+            "id",
+            "pk",
+            "email",
+            "password",
+            "is_active",
+            "is_staff",
+            "is_superuser",
         )
 
-    protected = protected + tuple(strategy.setting('PROTECTED_USER_FIELDS', []))
+    protected = protected + tuple(strategy.setting("PROTECTED_USER_FIELDS", []))
 
     # Update user model attributes with the new data sent by the current
     # provider. Update on some attributes is disabled by default, for
     # example username and id fields. It's also possible to disable update
     # on fields defined in SOCIAL_AUTH_PROTECTED_USER_FIELDS.
-    field_mapping = strategy.setting('USER_FIELD_MAPPING', {}, backend)
+    field_mapping = strategy.setting("USER_FIELD_MAPPING", {}, backend)
     for name, value in details.items():
         # Convert to existing user field if mapping exists
         name = field_mapping.get(name, name)

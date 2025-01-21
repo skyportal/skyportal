@@ -1,25 +1,23 @@
-import arrow
 import json
 
+import arrow
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.model_util import recursive_to_dict
-
-from baselayer.log import make_log
 from baselayer.app.env import load_env
-
-from ..base import BaseHandler
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
 
 from ...models import (
     RecurringAPI,
 )
+from ..base import BaseHandler
 
-log = make_log('app/recurring_api')
+log = make_log("app/recurring_api")
 
 _, cfg = load_env()
 
-ALLOWED_RECURRING_API_METHODS = ['POST', 'GET']
+ALLOWED_RECURRING_API_METHODS = ["POST", "GET"]
 MAX_RETRIES = 10
 
 
@@ -83,30 +81,30 @@ class RecurringAPIHandler(BaseHandler):
         data = self.get_json()
 
         try:
-            data['next_call'] = str(
-                arrow.get(data.get('next_call')).datetime.replace(tzinfo=None)
+            data["next_call"] = str(
+                arrow.get(data.get("next_call")).datetime.replace(tzinfo=None)
             )
         except arrow.ParserError:
             return self.error(
                 f"Invalid input for parameter next_call:{data.get('next_call')}"
             )
 
-        if 'method' in data:
-            data['method'] = data['method'].upper()
-            if not data['method'] in ALLOWED_RECURRING_API_METHODS:
+        if "method" in data:
+            data["method"] = data["method"].upper()
+            if not data["method"] in ALLOWED_RECURRING_API_METHODS:
                 return self.error(
                     'method must be in {",".join(ALLOWED_RECURRING_API_METHODS)}'
                 )
 
-        if 'number_of_retries' in data:
-            if data['number_of_retries'] > MAX_RETRIES:
-                return self.error(f'number_of_retries must be <= {MAX_RETRIES}')
+        if "number_of_retries" in data:
+            if data["number_of_retries"] > MAX_RETRIES:
+                return self.error(f"number_of_retries must be <= {MAX_RETRIES}")
 
-        if 'payload' in data:
+        if "payload" in data:
             try:
-                json.loads(data['payload'])
+                json.loads(data["payload"])
             except json.JSONDecodeError:
-                return self.error('payload must be a valid JSON string')
+                return self.error("payload must be a valid JSON string")
 
         with self.Session() as session:
             schema = RecurringAPI.__schema__()
@@ -114,13 +112,13 @@ class RecurringAPIHandler(BaseHandler):
                 recurring_api = schema.load(data)
             except ValidationError as exc:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                    f"Invalid/missing parameters: {exc.normalized_messages()}"
                 )
             recurring_api.owner_id = self.associated_user_object.id
             session.add(recurring_api)
             session.commit()
 
-            self.push_all(action='skyportal/REFRESH_RECURRING_APIS')
+            self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
@@ -170,7 +168,7 @@ class RecurringAPIHandler(BaseHandler):
                     )
                 ).first()
                 if s is None:
-                    return self.error('Cannot access this Recurring API.', status=403)
+                    return self.error("Cannot access this Recurring API.", status=403)
 
                 recurring_api_dict = recursive_to_dict(s)
                 return self.success(data=recurring_api_dict)
@@ -188,7 +186,7 @@ class RecurringAPIHandler(BaseHandler):
                 elif isinstance(a.payload, dict):
                     recurring_api_dict["payload"] = a.payload
                 else:
-                    return self.error(message='payload must be dictionary or string')
+                    return self.error(message="payload must be dictionary or string")
                 ret_array.append(recurring_api_dict)
 
             return self.success(data=ret_array)
@@ -221,9 +219,9 @@ class RecurringAPIHandler(BaseHandler):
                 )
             ).first()
             if recurring_api is None:
-                return self.error('Cannot delete this Recurring API.', status=403)
+                return self.error("Cannot delete this Recurring API.", status=403)
             session.delete(recurring_api)
             session.commit()
 
-            self.push_all(action='skyportal/REFRESH_RECURRING_APIS')
+            self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success()

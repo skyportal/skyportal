@@ -1,13 +1,14 @@
-from pathlib import Path
 import hashlib
+import io
 import os
 import time
-import io
+from pathlib import Path
+
 import numpy as np
 
 from baselayer.log import make_log
 
-log = make_log('cache')
+log = make_log("cache")
 
 
 def array_to_bytes(array):
@@ -62,8 +63,8 @@ class Cache:
 
     def _hash_filename(self, filename):
         m = hashlib.md5()
-        m.update(filename.encode('utf-8'))
-        return self._cache_dir / f'{m.hexdigest()}'
+        m.update(filename.encode("utf-8"))
+        return self._cache_dir / f"{m.hexdigest()}"
 
     def __getitem__(self, name):
         """Return item from the cache.
@@ -104,7 +105,7 @@ class Cache:
             return
 
         fn = self._hash_filename(name)
-        with open(fn, 'wb') as f:
+        with open(fn, "wb") as f:
             f.write(data)
 
         log(f"save [{name}] to [{os.path.basename(fn)}]")
@@ -152,7 +153,7 @@ class Cache:
     def clean_cache(self):
         # Remove stale cache files
         cached_files = [
-            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob('*')
+            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob("*")
         ]
         cached_files = sorted(cached_files, key=lambda x: x[0], reverse=True)
 
@@ -171,4 +172,4 @@ class Cache:
             self._remove([filename for (mtime, filename) in oldest])
 
     def __len__(self):
-        return len(list(self._cache_dir.glob('*')))
+        return len(list(self._cache_dir.glob("*")))

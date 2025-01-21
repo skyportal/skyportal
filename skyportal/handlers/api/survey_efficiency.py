@@ -2,13 +2,13 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
-from ..base import BaseHandler
 from ...models import (
     DefaultObservationPlanRequest,
     DefaultSurveyEfficiencyRequest,
-    SurveyEfficiencyForObservations,
     SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
 )
+from ..base import BaseHandler
 
 
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
@@ -80,7 +80,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
                 return self.error("Could not retrieve survey efficiency analyses.")
             return self.success(data=survey_efficiency_analyses[0])
 
-        observation_plan_id = self.get_query_argument('observation_plan_id', None)
+        observation_plan_id = self.get_query_argument("observation_plan_id", None)
         if observation_plan_id is not None:
             survey_efficiency_analyses = survey_efficiency_analyses.filter(
                 SurveyEfficiencyForObservationPlan.observation_plan_id
@@ -162,7 +162,7 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
                 return self.error("Could not retrieve survey efficiency analyses.")
             return self.success(data=survey_efficiency_analyses[0])
 
-        gcnevent_id = self.get_query_argument('gcnevent_id', None)
+        gcnevent_id = self.get_query_argument("gcnevent_id", None)
         if gcnevent_id is not None:
             survey_efficiency_analyses = survey_efficiency_analyses.filter(
                 SurveyEfficiencyForObservations.gcnevent_id == gcnevent_id
@@ -208,7 +208,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         with self.Session() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
                 DefaultObservationPlanRequest.id
-                == data['default_observationplan_request_id'],
+                == data["default_observationplan_request_id"],
             )
             default_observation_plan = session.scalars(stmt).first()
             if default_observation_plan is None:
@@ -283,7 +283,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 ).first()
                 if default_survey_efficiency_request is None:
                     return self.error(
-                        f'Cannot access default_survey_efficiency_request for id {default_survey_efficiency_id}'
+                        f"Cannot access default_survey_efficiency_request for id {default_survey_efficiency_id}"
                     )
 
                 return self.success(data=default_survey_efficiency_request)
@@ -308,7 +308,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 default_survey_efficiency_data.append(
                     {
                         **request.to_dict(),
-                        'default_observationplan_request': request.default_observationplan_request.to_dict(),
+                        "default_observationplan_request": request.default_observationplan_request.to_dict(),
                     }
                 )
 
@@ -343,7 +343,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
 
             if default_survey_efficiency_request is None:
                 return self.error(
-                    'Default survey efficiency with ID {default_survey_efficiency_id} is not available.'
+                    "Default survey efficiency with ID {default_survey_efficiency_id} is not available."
                 )
 
             session.delete(default_survey_efficiency_request)

@@ -17,20 +17,20 @@ from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
-log = make_log('watchlist')
+log = make_log("watchlist")
 
 
 def ztf_observing_times():
     with DBSession() as session:
         telescope = (
             session.query(Telescope)
-            .where(Telescope.nickname.in_(['ZTF', 'P48']))
+            .where(Telescope.nickname.in_(["ZTF", "P48"]))
             .first()
         )
         if telescope is None:
-            raise Exception('Could not find ZTF')
+            raise Exception("Could not find ZTF")
         time_info = telescope.current_time
         return time_info
 
@@ -90,19 +90,19 @@ def check_watch_list(time_info):
                 }
 
                 last_got_candidates_at = Time(
-                    params["last_got_candidates_at"], format='isot', scale='utc'
+                    params["last_got_candidates_at"], format="isot", scale="utc"
                 ).jd
 
                 # if after_night is True, force the cadence to one day as anyway nothing is updated during the day
                 if params["after_night"]:
                     params["cadence"] = 1440.0
 
-                if params["after_night"] and time_info['is_night_astronomical']:
+                if params["after_night"] and time_info["is_night_astronomical"]:
                     # if the user requests for update after night has ended and its still night, skip
                     continue
                 if (
                     Time(
-                        params["last_processed_at"], format='isot', scale='utc'
+                        params["last_processed_at"], format="isot", scale="utc"
                     ).datetime
                     + timedelta(minutes=params["cadence"])
                     > datetime.utcnow()
@@ -156,8 +156,8 @@ def check_watch_list(time_info):
                 if alerts is None:
                     continue
 
-                object_ids = list({alert['objectId'] for alert in alerts})
-                jds = [alert['candidate']['jd'] for alert in alerts]
+                object_ids = list({alert["objectId"] for alert in alerts})
+                jds = [alert["candidate"]["jd"] for alert in alerts]
 
                 if len(object_ids) == 0:
                     continue
@@ -168,7 +168,7 @@ def check_watch_list(time_info):
 
                 listing.params = {
                     **params,
-                    "last_got_candidates_at": Time(max(jds), format='jd').isot,
+                    "last_got_candidates_at": Time(max(jds), format="jd").isot,
                 }
 
                 all_photometry_ids = []
@@ -185,12 +185,12 @@ def check_watch_list(time_info):
 
                 if len(all_photometry_ids) > 0:
                     request_body = {
-                        'target_class_name': "Listing",
-                        'target_id': listing_id,
+                        "target_class_name": "Listing",
+                        "target_id": listing_id,
                     }
 
                     notifications_microservice_url = (
-                        f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
+                        f"http://127.0.0.1:{cfg['ports.notification_queue']}"
                     )
 
                     resp = requests.post(
@@ -200,7 +200,7 @@ def check_watch_list(time_info):
                     )
                     if resp.status_code != 200:
                         log(
-                            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
+                            f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {resp.content}"
                         )
             except Exception as e:
                 log(e)

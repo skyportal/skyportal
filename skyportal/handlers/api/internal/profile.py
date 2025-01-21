@@ -2,19 +2,21 @@ from copy import deepcopy
 
 import phonenumbers
 import sqlalchemy as sa
+from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
-from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.exc import IntegrityError
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
-from ...base import BaseHandler
+
 from ....models import (
-    User,
     GroupUser,
+    TNSRobotCoauthor,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
-    TNSRobotCoauthor,
+    User,
 )
+from ...base import BaseHandler
 
 
 class ProfileHandler(BaseHandler):
@@ -172,7 +174,7 @@ class ProfileHandler(BaseHandler):
                 )
             ).first()
             if user is None:
-                return self.error(f'Cannot find User with ID: {user_id}')
+                return self.error(f"Cannot find User with ID: {user_id}")
 
             if data.get("username") is not None:
                 username = data.pop("username").strip()
@@ -312,14 +314,14 @@ class ProfileHandler(BaseHandler):
                         "spectroscopyButtons"
                     ]
                 gcn_event_properties = (
-                    preferences.get('notifications', {})
-                    .get('gcn_events', {})
-                    .get('properties', None)
+                    preferences.get("notifications", {})
+                    .get("gcn_events", {})
+                    .get("properties", None)
                 )
                 if gcn_event_properties is not None:
-                    user_prefs["notifications"]["gcn_events"][
-                        "properties"
-                    ] = gcn_event_properties
+                    user_prefs["notifications"]["gcn_events"]["properties"] = (
+                        gcn_event_properties
+                    )
                 user_prefs = recursive_update(user_prefs, preferences)
             user.preferences = user_prefs
 

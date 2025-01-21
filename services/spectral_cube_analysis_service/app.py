@@ -1,29 +1,28 @@
-import os
-import functools
-import tempfile
 import base64
-import traceback
-import json
+import functools
 import io
+import json
+import os
+import tempfile
+import traceback
 
 import joblib
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import requests
+import numpy as np
 import pysedm
-
-from tornado.ioloop import IOLoop
-import tornado.web
+import requests
 import tornado.escape
+import tornado.web
+from tornado.ioloop import IOLoop
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 _, cfg = load_env()
-log = make_log('spectral_cube_analysis_service')
+log = make_log("spectral_cube_analysis_service")
 
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 rng = np.random.default_rng()
 
 default_analysis_parameters = {
@@ -101,13 +100,13 @@ def run_spectral_cube_model(data_dict):
 
     local_temp_files = []
     try:
-        file_data = file_data.split('base64,')
-        file_name = file_data[0].split('name=')[1].split(';')[0]
+        file_data = file_data.split("base64,")
+        file_name = file_data[0].split("name=")[1].split(";")[0]
 
-        if file_name.endswith('.fz'):
-            suffix = '.fits.fz'
+        if file_name.endswith(".fz"):
+            suffix = ".fits.fz"
         else:
-            suffix = '.fits'
+            suffix = ".fits"
         prefix = file_name.split(".")[0]
 
         with tempfile.NamedTemporaryFile(
@@ -121,23 +120,23 @@ def run_spectral_cube_model(data_dict):
 
             centroid_data = {}
             if (centroid_x is not None) and (centroid_y is not None):
-                centroid_data['centroid'] = (centroid_x, centroid_y)
+                centroid_data["centroid"] = (centroid_x, centroid_y)
             else:
-                centroid_data['centroid'] = 'max'
+                centroid_data["centroid"] = "max"
 
             if spaxel_buffer is not None:
-                centroid_data['spaxelbuffer'] = spaxel_buffer
+                centroid_data["spaxelbuffer"] = spaxel_buffer
             cube.extract_pointsource(**centroid_data)
 
             fluxcal_data = analysis_parameters["fluxcal_data"]
             if fluxcal_data is not None:
-                file_data = fluxcal_data.split('base64,')
-                file_name = file_data[0].split('name=')[1].split(';')[0]
+                file_data = fluxcal_data.split("base64,")
+                file_name = file_data[0].split("name=")[1].split(";")[0]
                 # if image name contains (.fz) then it is a compressed file
-                if file_name.endswith('.fz'):
-                    suffix = '.fits.fz'
+                if file_name.endswith(".fz"):
+                    suffix = ".fits.fz"
                 else:
-                    suffix = '.fits'
+                    suffix = ".fits"
                 prefix = file_name.split(".")[0]
 
                 with tempfile.NamedTemporaryFile(
@@ -188,7 +187,7 @@ def run_spectral_cube_model(data_dict):
             fig.suptitle("Spectrum at the centroid", fontsize=16)
 
             buf = io.BytesIO()
-            fig.savefig(buf, format='png')
+            fig.savefig(buf, format="png")
             plt.close(fig)
             buf.seek(0)
 
@@ -223,14 +222,14 @@ def run_spectral_cube_model(data_dict):
 
 class MainHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        self.set_header('Content-Type', 'application/json')
+        self.set_header("Content-Type", "application/json")
 
     def error(self, code, message):
         self.set_status(code)
-        self.write({'message': message})
+        self.write({"message": message})
 
     def get(self):
-        self.write({'status': 'active'})
+        self.write({"status": "active"})
 
     def post(self):
         """
@@ -284,8 +283,8 @@ class MainHandler(tornado.web.RequestHandler):
 
         return self.write(
             {
-                'status': 'pending',
-                'message': 'spectral_cube_analysis_service: analysis started',
+                "status": "pending",
+                "message": "spectral_cube_analysis_service: analysis started",
             }
         )
 
@@ -300,7 +299,7 @@ def make_app():
 
 if __name__ == "__main__":
     spectral_cube_analysis = make_app()
-    port = cfg['analysis_services.spectral_cube_analysis_service.port']
+    port = cfg["analysis_services.spectral_cube_analysis_service.port"]
     spectral_cube_analysis.listen(port)
-    log(f'Listening on port {port}')
+    log(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

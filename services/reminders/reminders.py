@@ -1,28 +1,26 @@
 from datetime import datetime, timedelta, timezone
 
-from baselayer.log import make_log
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import User, init_db
+from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
     Reminder,
-    ReminderOnSpectrum,
     ReminderOnGCN,
     ReminderOnShift,
+    ReminderOnSpectrum,
     UserNotification,
 )
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
-from baselayer.app.models import User
-
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
-log = make_log('reminders')
+log = make_log("reminders")
 
 
 def send_reminders():

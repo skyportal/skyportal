@@ -9,7 +9,7 @@ from ...models import DBSession, GcnReport
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
-log = make_log('api/galaxy')
+log = make_log("api/galaxy")
 env, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
@@ -71,13 +71,13 @@ class ReportHandler(BaseHandler):
 
             data = np.load(cached, allow_pickle=True)
             data = data.item()
-            if data['published']:
+            if data["published"]:
                 if option == "plot":
                     self.set_header("Content-Type", "image/png")
-                    return self.write(data['plot'])
+                    return self.write(data["plot"])
                 else:
                     self.set_header("Content-Type", "text/html; charset=utf-8")
-                    return self.write(data['html'])
+                    return self.write(data["html"])
             else:
                 return self.error(f"Report {report_id} not yet published")
         else:

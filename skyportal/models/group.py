@@ -1,26 +1,25 @@
 __all__ = [
-    'AccessibleIfUserMatches',
-    'AccessibleIfGroupUserIsAdminAndUserMatches',
-    'Group',
-    'GroupAdmissionRequest',
+    "AccessibleIfUserMatches",
+    "AccessibleIfGroupUserIsAdminAndUserMatches",
+    "Group",
+    "GroupAdmissionRequest",
 ]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
+    AccessibleIfUserMatches,
     Base,
+    CustomUserAccessControl,
     DBSession,
-    join_model,
     User,
     UserAccessControl,
-    AccessibleIfUserMatches,
-    CustomUserAccessControl,
+    join_model,
     public,
     safe_aliased,
 )
-from baselayer.app.env import load_env
-
 
 _, cfg = load_env()
 
@@ -71,14 +70,14 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
     def relationship_chain(self, value):
         if not isinstance(value, str):
             raise ValueError(
-                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+                f"Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}"
             )
-        relationship_names = value.split('.')
+        relationship_names = value.split(".")
         if len(relationship_names) < 2:
-            raise ValueError('Need at least 2 relationships to join on.')
-        if relationship_names[-1] != 'users' and relationship_names[-2] not in [
-            'group',
-            'groups',
+            raise ValueError("Need at least 2 relationships to join on.")
+        if relationship_names[-1] != "users" and relationship_names[-2] not in [
+            "group",
+            "groups",
         ]:
             raise ValueError(
                 'Relationship chain must end with "group.users" or "groups.users".'
@@ -180,13 +179,13 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
     def relationship_chain(self, value):
         if not isinstance(value, str):
             raise ValueError(
-                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+                f"Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}"
             )
-        relationship_names = value.split('.')
-        if 'group_users' not in value:
+        relationship_names = value.split(".")
+        if "group_users" not in value:
             raise ValueError('Relationship chain must contain "group_users".')
         if len(relationship_names) < 1:
-            raise ValueError('Need at least 1 relationship to join on.')
+            raise ValueError("Need at least 1 relationship to join on.")
         self._relationship_key = value
 
     def query_accessible_rows(self, cls, user_or_token, columns=None):
@@ -229,17 +228,17 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
 
 
 accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
-    'group.group_users.user'
+    "group.group_users.user"
 )
 accessible_by_groups_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
-    'groups.group_users.user'
+    "groups.group_users.user"
 )
-accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
-accessible_by_members = AccessibleIfUserMatches('users')
-accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
-accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
-accessible_by_groups_members = AccessibleIfGroupUserMatches('groups.users')
-accessible_by_group_members = AccessibleIfGroupUserMatches('group.users')
+accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches("group_users.user")
+accessible_by_members = AccessibleIfUserMatches("users")
+accessible_by_stream_members = AccessibleIfUserMatches("stream.users")
+accessible_by_streams_members = AccessibleIfUserMatches("streams.users")
+accessible_by_groups_members = AccessibleIfGroupUserMatches("groups.users")
+accessible_by_group_members = AccessibleIfGroupUserMatches("group.users")
 
 
 def delete_group_access_logic(cls, user_or_token):
@@ -250,7 +249,7 @@ def delete_group_access_logic(cls, user_or_token):
         DBSession()
         .query(cls)
         .join(GroupUser)
-        .filter(cls.name != cfg['misc']['public_group_name'])
+        .filter(cls.name != cfg["misc"]["public_group_name"])
         .filter(cls.single_user_group.is_(False))
     )
     if not user_or_token.is_system_admin:
@@ -274,13 +273,13 @@ class Group(Base):
     delete = CustomUserAccessControl(delete_group_access_logic)
 
     name = sa.Column(
-        sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
+        sa.String, unique=True, nullable=False, index=True, doc="Name of the group."
     )
     nickname = sa.Column(
-        sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
+        sa.String, unique=True, nullable=True, index=True, doc="Short group nickname."
     )
     description = sa.Column(
-        sa.Text, nullable=True, doc='Longer description of the group.'
+        sa.Text, nullable=True, doc="Longer description of the group."
     )
     private = sa.Column(
         sa.Boolean,
@@ -290,47 +289,47 @@ class Group(Base):
         doc="Boolean indicating whether group is invisible to non-members.",
     )
     streams = relationship(
-        'Stream',
-        secondary='group_streams',
-        back_populates='groups',
+        "Stream",
+        secondary="group_streams",
+        back_populates="groups",
         passive_deletes=True,
-        doc='Stream access required for a User to become a member of the Group.',
+        doc="Stream access required for a User to become a member of the Group.",
     )
     filters = relationship(
         "Filter",
         back_populates="group",
         passive_deletes=True,
-        doc='All filters (not just active) associated with a group.',
+        doc="All filters (not just active) associated with a group.",
     )
 
     shifts = relationship(
         "Shift",
         back_populates="group",
         passive_deletes=True,
-        doc='All shifts associated with a group.',
+        doc="All shifts associated with a group.",
     )
 
     users = relationship(
-        'User',
-        secondary='group_users',
-        back_populates='groups',
+        "User",
+        secondary="group_users",
+        back_populates="groups",
         passive_deletes=True,
-        doc='The members of this group.',
+        doc="The members of this group.",
     )
 
     group_users = relationship(
-        'GroupUser',
-        back_populates='group',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "GroupUser",
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Elements of a join table mapping Users to Groups.',
-        overlaps='users, groups',
+        doc="Elements of a join table mapping Users to Groups.",
+        overlaps="users, groups",
     )
 
     observing_runs = relationship(
-        'ObservingRun',
-        back_populates='group',
-        doc='The observing runs associated with this group.',
+        "ObservingRun",
+        back_populates="group",
+        doc="The observing runs associated with this group.",
     )
     photometry = relationship(
         "Photometry",
@@ -338,7 +337,7 @@ class Group(Base):
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The photometry visible to this group.',
+        doc="The photometry visible to this group.",
     )
 
     photometric_series = relationship(
@@ -347,7 +346,7 @@ class Group(Base):
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Photometric series visible to this group.',
+        doc="Photometric series visible to this group.",
     )
 
     spectra = relationship(
@@ -356,7 +355,7 @@ class Group(Base):
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The spectra visible to this group.',
+        doc="The spectra visible to this group.",
     )
 
     mmadetector_spectra = relationship(
@@ -365,7 +364,7 @@ class Group(Base):
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The MMADetector spectra visible to this group.',
+        doc="The MMADetector spectra visible to this group.",
     )
 
     mmadetector_time_intervals = relationship(
@@ -374,25 +373,25 @@ class Group(Base):
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The MMADetector time intervals visible to this group.',
+        doc="The MMADetector time intervals visible to this group.",
     )
 
     single_user_group = sa.Column(
         sa.Boolean,
         default=False,
         index=True,
-        doc='Flag indicating whether this group '
-        'is a singleton group for one user only.',
+        doc="Flag indicating whether this group "
+        "is a singleton group for one user only.",
     )
     allocations = relationship(
-        'Allocation',
+        "Allocation",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Allocations made to this group.",
     )
     source_labels = relationship(
-        'SourceLabel',
+        "SourceLabel",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
@@ -405,21 +404,21 @@ class Group(Base):
         doc="User requests to join this group.",
     )
     tnsrobots = relationship(
-        'TNSRobotGroup',
+        "TNSRobotGroup",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="TNS Robots associated with this group.",
     )
     gcnreports = relationship(
-        'GcnReport',
+        "GcnReport",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Gcn Reports associated with this group.",
     )
     gcnsummaries = relationship(
-        'GcnSummary',
+        "GcnSummary",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
@@ -427,7 +426,7 @@ class Group(Base):
     )
 
 
-GroupUser = join_model('group_users', Group, User)
+GroupUser = join_model("group_users", Group, User)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
 GroupUser.admin = sa.Column(
     sa.Boolean,
@@ -446,7 +445,7 @@ GroupUser.delete = (
     # users can remove themselves from a group
     # admins can remove users from a group
     # no one can remove a user from their single user group
-    (accessible_by_group_admins | AccessibleIfUserMatches('user'))
+    (accessible_by_group_admins | AccessibleIfUserMatches("user"))
     & GroupUser.read
     & CustomUserAccessControl(
         lambda cls, user_or_token: DBSession()
@@ -507,8 +506,8 @@ User.group_admission_requests = relationship(
 class GroupAdmissionRequest(Base):
     """Table tracking requests from users to join groups."""
 
-    read = AccessibleIfUserMatches('user') | accessible_by_group_admins
-    create = delete = AccessibleIfUserMatches('user')
+    read = AccessibleIfUserMatches("user") | accessible_by_group_admins
+    create = delete = AccessibleIfUserMatches("user")
     update = accessible_by_group_admins
 
     user_id = sa.Column(
