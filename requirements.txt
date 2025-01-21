@@ -10,7 +10,7 @@ joblib>=1.4.2, <2.0.0
 seaborn>=0.13.2, <1.0.0
 pytest-randomly==3.16.0
 factory-boy==3.3.1
-astropy==6.1.4
+astropy==7.0.0
 distributed>=2024.5.2
 dustmaps==1.0.13
 reproject==0.14.0
