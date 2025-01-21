@@ -191,9 +191,6 @@ class PublicReleaseHandler(BaseHandler):
             if not groups:
                 return self.error("Invalid groups")
 
-            if not groups:
-                return self.error("Invalid groups")
-
             if (
                 data.get("is_visible", False) is False
                 and public_release.is_visible is True
