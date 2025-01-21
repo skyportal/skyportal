@@ -15,6 +15,9 @@ on:
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
       - "requirements.txt"
+      - ".github/workflows/test_migrations.yaml"
+      - ".github/actions/cache-dependencies/action.yaml"
+      - ".github/actions/cache-dependencies-save/action.yaml"
     types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
@@ -129,11 +132,6 @@ jobs:
           ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
 
-      - name: Cache migration reference branch dependencies
-        uses: ./.github/actions/cache-dependencies
-        with:
-          key-prefix: ref
-
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -175,11 +173,6 @@ jobs:
           make run &
           sleep 180 && make load_demo_data
           kill %1
-
-      - name: Save migration reference branch cache
-        uses: ./.github/actions/cache-dependencies-save
-        with:
-          key-prefix: ref
 
       - name: Checkout branch being tested
         uses: actions/checkout@v4
