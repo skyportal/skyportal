@@ -93,14 +93,15 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            if set(group_ids).issubset(
+            if not set(group_ids).issubset(
                 [g.id for g in self.current_user.accessible_groups]
             ):
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
-            else:
                 return self.error("Invalid groups")
+
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).all()
+
             if not groups:
                 return self.error("Invalid groups")
 
@@ -180,14 +181,15 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            if set(group_ids).issubset(
+            if not set(group_ids).issubset(
                 [g.id for g in self.current_user.accessible_groups]
             ):
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
-            else:
                 return self.error("Invalid groups")
+
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).all()
+
             if not groups:
                 return self.error("Invalid groups")
 
