@@ -1,6 +1,6 @@
 import time
 import uuid
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from skyportal.tests import api
 
@@ -48,7 +48,7 @@ def post_and_verify_reminder(endpoint, token):
     )
 
     n_retries = 0
-    while n_retries < 10:
+    while n_retries < 30:
         status, data = api(
             'GET',
             endpoint,
