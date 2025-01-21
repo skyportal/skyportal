@@ -221,7 +221,8 @@ class SourceGroupsHandler(BaseHandler):
                         PublicRelease.automatically_publish,
                     )
                 ).all()
-                if releases is not None and len(releases) > 0:
+
+                if len(releases) > 0:
                     from .public_pages.public_source_page import (
                         async_post_public_source_page,
                     )
