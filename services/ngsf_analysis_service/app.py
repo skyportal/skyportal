@@ -1,36 +1,35 @@
 import ast
-from astropy.table import Table
-import joblib
-import io
-import os
-import functools
-import tempfile
 import base64
-import traceback
+import functools
+import io
 import json
+import os
 import subprocess
+import tempfile
+import traceback
 import uuid
 import zipfile
 
-import numpy as np
+import joblib
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import requests
-
-from tornado.ioloop import IOLoop
-import tornado.web
 import tornado.escape
+import tornado.web
+from astropy.table import Table
+from tornado.ioloop import IOLoop
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 _, cfg = load_env()
-log = make_log('ngsf_analysis_service')
+log = make_log("ngsf_analysis_service")
 
 # we need to set the backend here to insure we
 # can render the plot headlessly
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 rng = np.random.default_rng()
 
 default_analysis_parameters = {"fix_z": False}
@@ -92,8 +91,8 @@ def run_ngsf_model(data_dict):
     try:
         data = pd.read_csv(io.StringIO(data_dict["inputs"]["spectra"]))
 
-        redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
-        z = redshift['redshift'][0]
+        redshift = Table.read(data_dict["inputs"]["redshift"], format="ascii.csv")
+        z = redshift["redshift"][0]
     except Exception as e:
         rez.update(
             {
@@ -117,9 +116,9 @@ def run_ngsf_model(data_dict):
     # to the results dictionary for uploading
     local_temp_files = []
 
-    SUPERFIT_PATH = 'services/ngsf_analysis_service/NGSF'
-    SUPERFIT_DATA_PATH = f'{SUPERFIT_PATH}/data'
-    SUPERFIT_PARAMETERS_JSON = 'services/ngsf_analysis_service/parameters.json'
+    SUPERFIT_PATH = "services/ngsf_analysis_service/NGSF"
+    SUPERFIT_DATA_PATH = f"{SUPERFIT_PATH}/data"
+    SUPERFIT_PARAMETERS_JSON = "services/ngsf_analysis_service/parameters.json"
     NGSF = "https://github.com/samanthagoldwasser25/NGSF.git"
     NGSF_bank = "https://www.wiserep.org/sites/default/files/supyfit_bank.zip"
     NGSF_zip = f"{SUPERFIT_PATH}/{NGSF_bank.split('/')[-1]}"
@@ -156,50 +155,50 @@ def run_ngsf_model(data_dict):
     try:
         for index, row in data.iterrows():
             filebase = str(uuid.uuid4())
-            SPECFILE = f'{SUPERFIT_DATA_PATH}/{filebase}.dat'
-            wavelengths = np.array(ast.literal_eval(row['wavelengths']))
+            SPECFILE = f"{SUPERFIT_DATA_PATH}/{filebase}.dat"
+            wavelengths = np.array(ast.literal_eval(row["wavelengths"]))
 
             # we might have some issues reading `nan` values, so we need to
             # convert them to `None` first
-            fluxes = row['fluxes'].replace('nan', 'None')
+            fluxes = row["fluxes"].replace("nan", "None")
             fluxes = np.array(ast.literal_eval(fluxes))
             # then we convert `None` values back to `np.nan`
             fluxes = np.array([np.nan if x is None else x for x in fluxes])
 
-            with open(SPECFILE, 'w') as fid:
+            with open(SPECFILE, "w") as fid:
                 for w, f in zip(wavelengths.tolist(), fluxes.tolist()):
-                    fid.write(f'{w} {f}\n')
+                    fid.write(f"{w} {f}\n")
 
             params = json.loads(open(SUPERFIT_PARAMETERS_JSON).read())
-            params['object_to_fit'] = f'data/{filebase}.dat'
+            params["object_to_fit"] = f"data/{filebase}.dat"
             if fix_z:
-                params['use_exact_z'] = 1
-                params['z_exact'] = z
+                params["use_exact_z"] = 1
+                params["z_exact"] = z
 
-            JSON_FILE = f'{SUPERFIT_DATA_PATH}/{filebase}.json'
-            with open(JSON_FILE, 'w') as f:
+            JSON_FILE = f"{SUPERFIT_DATA_PATH}/{filebase}.json"
+            with open(JSON_FILE, "w") as f:
                 json.dump(params, f)
 
             subprocess.call(
-                f'cd {SUPERFIT_PATH}; python run.py data/{filebase}.json', shell=True
+                f"cd {SUPERFIT_PATH}; python run.py data/{filebase}.json", shell=True
             )
 
             results_path = os.path.join(SUPERFIT_PATH, f"{filebase}.csv")
             results = pd.read_csv(results_path)
-            results.sort_values(by=['CHI2/dof'], inplace=True)
+            results.sort_values(by=["CHI2/dof"], inplace=True)
 
-            plot_file = os.path.join(SUPERFIT_DATA_PATH, f'{filebase}.png')
+            plot_file = os.path.join(SUPERFIT_DATA_PATH, f"{filebase}.png")
             plt.figure(figsize=(20, 10))
             ax = plt.gca()
-            y_pos = np.arange(len(results['SN']))
-            ax.barh(y_pos, results['CHI2/dof'], align='center')
-            ax.set_yticks(y_pos, labels=results['SN'])
-            ax.set_xlabel('CHI2/dof')
-            ax.set_xscale('log')
+            y_pos = np.arange(len(results["SN"]))
+            ax.barh(y_pos, results["CHI2/dof"], align="center")
+            ax.set_yticks(y_pos, labels=results["SN"])
+            ax.set_xlabel("CHI2/dof")
+            ax.set_xscale("log")
             ax.set_xlim(
-                [np.min(results['CHI2/dof']) - 0.5, np.max(results['CHI2/dof']) + 0.5]
+                [np.min(results["CHI2/dof"]) - 0.5, np.max(results["CHI2/dof"]) + 0.5]
             )
-            plt.savefig(plot_file, bbox_inches='tight')
+            plt.savefig(plot_file, bbox_inches="tight")
             plt.close()
 
             f = tempfile.NamedTemporaryFile(
@@ -257,14 +256,14 @@ def run_ngsf_model(data_dict):
 
 class MainHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        self.set_header('Content-Type', 'application/json')
+        self.set_header("Content-Type", "application/json")
 
     def error(self, code, message):
         self.set_status(code)
-        self.write({'message': message})
+        self.write({"message": message})
 
     def get(self):
-        self.write({'status': 'active'})
+        self.write({"status": "active"})
 
     def post(self):
         """
@@ -317,7 +316,7 @@ class MainHandler(tornado.web.RequestHandler):
         future_result.add_done_callback(ngsf_analysis_done_callback)
 
         return self.write(
-            {'status': 'pending', 'message': 'ngsf_analysis_service: analysis started'}
+            {"status": "pending", "message": "ngsf_analysis_service: analysis started"}
         )
 
 
@@ -331,7 +330,7 @@ def make_app():
 
 if __name__ == "__main__":
     ngsf_analysis = make_app()
-    port = cfg['analysis_services.ngsf_analysis_service.port']
+    port = cfg["analysis_services.ngsf_analysis_service.port"]
     ngsf_analysis.listen(port)
-    log(f'Listening on port {port}')
+    log(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

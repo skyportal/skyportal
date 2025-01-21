@@ -7,15 +7,20 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.models import DBSession, RecurringAPI, User, UserNotification
+from skyportal.models import (
+    DBSession,
+    RecurringAPI,
+    User,
+    UserNotification,
+)
 from skyportal.tests import api
 from skyportal.utils.services import HOST, check_loaded
 
 env, cfg = load_env()
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
-log = make_log('recurring_apis')
+log = make_log("recurring_apis")
 
 MAX_RETRIES = 10
 
@@ -42,7 +47,7 @@ def perform_api_calls():
             elif isinstance(recurring_api.payload, dict):
                 data = recurring_api.payload
             else:
-                raise Exception('payload must be dictionary or string')
+                raise Exception("payload must be dictionary or string")
 
             if recurring_api.method.upper() == "POST":
                 response_status, data = api(
@@ -61,24 +66,24 @@ def perform_api_calls():
                     params=data,
                 )
             else:
-                log('Unable to execute recurring API calls that are not GET or POST')
+                log("Unable to execute recurring API calls that are not GET or POST")
                 continue
 
             while True:
                 recurring_api.next_call += timedelta(days=recurring_api.call_delay)
-                if recurring_api.next_call > Time(now, format='datetime'):
+                if recurring_api.next_call > Time(now, format="datetime"):
                     break
 
             if response_status == 200:
                 recurring_api.number_of_retries = MAX_RETRIES
-                text_to_send = f'Successfully called recurring API {recurring_api.id}'
+                text_to_send = f"Successfully called recurring API {recurring_api.id}"
             else:
                 recurring_api.number_of_retries = recurring_api.number_of_retries - 1
                 if recurring_api.number_of_retries == 0:
                     recurring_api.active = False
-                    text_to_send = f'Failed call to recurring API {recurring_api.id}: {str(data)}; Maximum Retries exceeded, deactivating service.'
+                    text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; Maximum Retries exceeded, deactivating service."
                 else:
-                    text_to_send = f'Failed call to recurring API {recurring_api.id}: {str(data)}; will try again {recurring_api.next_call}, remaining calls before deactivation: {recurring_api.number_of_retries}.'
+                    text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; will try again {recurring_api.next_call}, remaining calls before deactivation: {recurring_api.number_of_retries}."
 
             log(text_to_send)
             session.add(recurring_api)

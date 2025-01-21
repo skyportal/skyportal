@@ -1,7 +1,8 @@
 import uuid
-import pytest
-from baselayer.app.env import load_env
 
+import pytest
+
+from baselayer.app.env import load_env
 
 _, cfg = load_env()
 
@@ -9,8 +10,8 @@ _, cfg = load_env()
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.xfail(strict=False)
 def test_add_filter(driver, super_admin_user, user, public_group, public_stream):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/groups')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)

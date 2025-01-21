@@ -93,8 +93,8 @@ def test_upload_photometry_csv_with_altdata(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
-        "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
-        "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
+        '58001,55,1,25,ab,sdssg,44.4,"abc,abc"\n'
+        '58002,53,1,25,ab,sdssg,44.2,"edf,edf"'
     )
     # instrument select
     driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
@@ -137,9 +137,7 @@ def test_upload_photometry_csv_form_validation(
     )
     csv_text_input.clear()
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab"
+        "mjd,flux,fluxerr,zp,magsys,filter\n58001,55,1,25,ab,sdssg\n58002,53,1,25,ab"
     )
     driver.wait_for_xpath(
         '//div[contains(.,"Invalid input: All data rows must have the same number of columns as header row")]'

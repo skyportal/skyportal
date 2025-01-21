@@ -2,17 +2,15 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from baselayer.app.config import load_config
-from baselayer.app.models import init_db
-
 # These imports need to happen for their side-effects of registering models
 from baselayer.app import models as baselayer_models  # noqa
 from baselayer.app import psa  # noqa
+from baselayer.app.config import load_config
+from baselayer.app.models import init_db
 from skyportal import models  # noqa
 
-
-config_arg = context.get_x_argument(as_dictionary=True).get('config')
-skyportal_configs = config_arg.split(':') if config_arg else []
+config_arg = context.get_x_argument(as_dictionary=True).get("config")
+skyportal_configs = config_arg.split(":") if config_arg else []
 cfg = load_config(config_files=skyportal_configs)
 
 # this is the Alembic Config object, which provides
@@ -45,12 +43,12 @@ def run_migrations_offline():
     script output.
 
     """
-    db = cfg['database']
-    user = db['user']
-    password = db.get('password', '') or ''
-    host = db['host']
+    db = cfg["database"]
+    user = db["user"]
+    password = db.get("password", "") or ""
+    host = db["host"]
 
-    url = f'postgresql://{user}:{password}@/{host}/{db["database"]}'
+    url = f"postgresql://{user}:{password}@/{host}/{db['database']}"
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -69,7 +67,7 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connectable = init_db(**cfg['database'])
+    connectable = init_db(**cfg["database"])
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

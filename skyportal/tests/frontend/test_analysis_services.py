@@ -40,7 +40,7 @@ def test_analysis_service_frontend(
             continue
 
     if n_retries == 10:
-        raise Exception('Failed to click submit button')
+        raise Exception("Failed to click submit button")
 
     # check for analysis service
     driver.wait_for_xpath(f'//td/div[contains(.,"{display_name}")]', timeout=20)

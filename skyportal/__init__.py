@@ -1,14 +1,14 @@
-__version__ = '1.1.0'
+__version__ = "1.2.0"
 
-if 'dev' in __version__:
+if "dev" in __version__:
     # Append last commit date and hash to dev version information, if available
 
-    import subprocess
     import os.path
+    import subprocess
 
     try:
         p = subprocess.Popen(
-            ['git', 'log', '-1', '--format="%h %aI"'],
+            ["git", "log", "-1", '--format="%h %aI"'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=os.path.dirname(__file__),
@@ -19,15 +19,15 @@ if 'dev' in __version__:
         out, err = p.communicate()
         if p.returncode == 0:
             git_hash, git_date = (
-                out.decode('utf-8')
+                out.decode("utf-8")
                 .strip()
-                .replace('"', '')
-                .split('T')[0]
-                .replace('-', '')
+                .replace('"', "")
+                .split("T")[0]
+                .replace("-", "")
                 .split()
             )
 
-            __version__ = '+'.join(
-                [tag for tag in __version__.split('+') if not tag.startswith('git')]
+            __version__ = "+".join(
+                [tag for tag in __version__.split("+") if not tag.startswith("git")]
             )
-            __version__ += f'+git{git_date}.{git_hash}'
+            __version__ += f"+git{git_date}.{git_hash}"

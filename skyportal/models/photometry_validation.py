@@ -1,18 +1,18 @@
 # this is the model of a table that has: a photometry id, a flag to indicate if the photometry is validated or not
 
-__all__ = ['PhotometryValidation']
+__all__ = ["PhotometryValidation"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 from baselayer.app.env import load_env
+from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 
 _, cfg = load_env()
 
 
 def manage_photometry_validation_access_logic(cls, user_or_token):
-    if user_or_token.is_admin or 'Manage sources' in user_or_token.permissions:
+    if user_or_token.is_admin or "Manage sources" in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
         return DBSession().query(cls).filter(sa.false())
@@ -25,14 +25,14 @@ class PhotometryValidation(Base):
     )
 
     photometry_id = sa.Column(
-        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
+        sa.ForeignKey("photometry.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the Annotation's Photometry.",
     )
     photometry = relationship(
-        'Photometry',
-        back_populates='validations',
+        "Photometry",
+        back_populates="validations",
         doc="The Photometry referred to by this validation.",
     )
 
@@ -43,7 +43,7 @@ class PhotometryValidation(Base):
     )
 
     validator_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this PhotometryValidation.",

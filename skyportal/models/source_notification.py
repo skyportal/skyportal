@@ -1,32 +1,29 @@
-__all__ = ['SourceNotification']
+__all__ = ["SourceNotification"]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy import event
-
+from sqlalchemy.orm import relationship
 from twilio.rest import Client as TwilioClient
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
-    Base,
-    DBSession,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    Base,
+    DBSession,
 )
-from baselayer.app.env import load_env
 
-from ..email_utils import send_email
 from ..app_utils import get_app_base_url
-
-from .obj import Obj
+from ..email_utils import send_email
 from .group import Group
-
+from .obj import Obj
 
 _, cfg = load_env()
 
 
 class SourceNotification(Base):
-    create = read = AccessibleIfRelatedRowsAreAccessible(source='read')
-    update = delete = AccessibleIfUserMatches('sent_by')
+    create = read = AccessibleIfRelatedRowsAreAccessible(source="read")
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     groups = relationship(
         "Group",
@@ -53,24 +50,24 @@ class SourceNotification(Base):
         doc="ID of the target Obj.",
     )
     source = relationship(
-        'Obj', back_populates='obj_notifications', doc='The target Obj.'
+        "Obj", back_populates="obj_notifications", doc="The target Obj."
     )
 
     additional_notes = sa.Column(sa.String(), nullable=True)
     level = sa.Column(sa.String(), nullable=False)
 
 
-@event.listens_for(SourceNotification, 'after_insert')
+@event.listens_for(SourceNotification, "after_insert")
 def send_source_notification(mapper, connection, target):
     app_base_url = get_app_base_url()
 
-    link_location = f'{app_base_url}/source/{target.source_id}'
+    link_location = f"{app_base_url}/source/{target.source_id}"
     if target.sent_by.first_name is not None and target.sent_by.last_name is not None:
-        sent_by_name = f'{target.sent_by.first_name} {target.sent_by.last_name}'
+        sent_by_name = f"{target.sent_by.first_name} {target.sent_by.last_name}"
     else:
         sent_by_name = target.sent_by.username
 
-    group_ids = map(lambda group: group.id, target.groups)
+    group_ids = (group.id for group in target.groups)
     groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
 
     target_users = set()
@@ -81,19 +78,19 @@ def send_source_notification(mapper, connection, target):
     source = DBSession().query(Obj).get(target.source_id)
     source_info = ""
     if source.ra is not None:
-        source_info += f'RA={source.ra} '
+        source_info += f"RA={source.ra} "
     if source.dec is not None:
-        source_info += f'Dec={source.dec}'
+        source_info += f"Dec={source.dec}"
     source_info = source_info.strip()
 
     # Send SMS messages to opted-in users if desired
     if target.level == "hard":
         message_text = (
-            f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
-            f' attention to a source at {link_location} ({source_info}).'
+            f"{cfg['app.title']}: {sent_by_name} would like to call your immediate"
+            f" attention to a source at {link_location} ({source_info})."
         )
         if target.additional_notes != "" and target.additional_notes is not None:
-            message_text += f' Addtional notes: {target.additional_notes}'
+            message_text += f" Addtional notes: {target.additional_notes}"
 
         account_sid = cfg["twilio.sms_account_sid"]
         auth_token = cfg["twilio.sms_auth_token"]
@@ -125,15 +122,15 @@ def send_source_notification(mapper, connection, target):
 
     descriptor = "immediate" if target.level == "hard" else ""
     html_content = (
-        f'{sent_by_name} would like to call your {descriptor} attention to'
+        f"{sent_by_name} would like to call your {descriptor} attention to"
         f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
     )
     if target.additional_notes != "" and target.additional_notes is not None:
-        html_content += f'<br /><br />Additional notes: {target.additional_notes}'
+        html_content += f"<br /><br />Additional notes: {target.additional_notes}"
 
     if len(recipients) > 0:
         send_email(
             recipients=recipients,
-            subject=f'{cfg["app.title"]}: Source Alert',
+            subject=f"{cfg['app.title']}: Source Alert",
             body=html_content,
         )

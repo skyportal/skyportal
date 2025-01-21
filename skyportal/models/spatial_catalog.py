@@ -1,18 +1,17 @@
 __all__ = [
-    'SpatialCatalog',
-    'SpatialCatalogEntry',
-    'SpatialCatalogEntryTile',
+    "SpatialCatalog",
+    "SpatialCatalogEntry",
+    "SpatialCatalogEntryTile",
 ]
 
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship, deferred
-from sqlalchemy.dialects.postgresql import JSONB
-
-from astropy.table import Table
-import numpy as np
-import ligo.skymap.bayestar as ligo_bayestar
-import healpy
 import healpix_alchemy
+import healpy
+import ligo.skymap.bayestar as ligo_bayestar
+import numpy as np
+import sqlalchemy as sa
+from astropy.table import Table
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import deferred, relationship
 
 from baselayer.app.models import Base
 
@@ -20,15 +19,15 @@ from baselayer.app.models import Base
 class SpatialCatalog(Base):
     """Spatial catalog information, composed of SpatialCatalogEntry's"""
 
-    __tablename__ = 'spatial_catalogs'
+    __tablename__ = "spatial_catalogs"
 
     catalog_name = sa.Column(
         sa.String, unique=True, nullable=False, doc="Name of the catalog.", index=True
     )
 
     entries = relationship(
-        'SpatialCatalogEntry',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "SpatialCatalogEntry",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="SpatialCatalogEntry.entry_name",
         doc="Entries associated with this catalog.",
@@ -38,13 +37,13 @@ class SpatialCatalog(Base):
 class SpatialCatalogEntry(Base):
     """Spatial catalog entry"""
 
-    __tablename__ = 'spatial_catalog_entries'
+    __tablename__ = "spatial_catalog_entries"
 
     catalog_id = sa.Column(
-        sa.ForeignKey('spatial_catalogs.id', ondelete="CASCADE"),
+        sa.ForeignKey("spatial_catalogs.id", ondelete="CASCADE"),
         primary_key=True,
         index=True,
-        doc='localization ID',
+        doc="localization ID",
     )
 
     catalog = relationship(
@@ -55,7 +54,7 @@ class SpatialCatalogEntry(Base):
     )
 
     entry_name = sa.Column(
-        sa.String, unique=True, nullable=False, doc='Entry name', index=True
+        sa.String, unique=True, nullable=False, doc="Entry name", index=True
     )
 
     data = sa.Column(
@@ -72,7 +71,7 @@ class SpatialCatalogEntry(Base):
         sa.Column(
             sa.ARRAY(sa.BigInteger),
             nullable=False,
-            doc='Multiresolution HEALPix UNIQ pixel index array',
+            doc="Multiresolution HEALPix UNIQ pixel index array",
         )
     )
 
@@ -80,7 +79,7 @@ class SpatialCatalogEntry(Base):
         sa.Column(
             sa.ARRAY(sa.Float),
             nullable=False,
-            doc='Multiresolution HEALPix probability density array',
+            doc="Multiresolution HEALPix probability density array",
         )
     )
 
@@ -89,27 +88,27 @@ class SpatialCatalogEntry(Base):
         """Get multiresolution HEALPix dataset, probability density only."""
         return Table(
             [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
-            names=['UNIQ', 'PROBDENSITY'],
+            names=["UNIQ", "PROBDENSITY"],
         )
 
     @property
     def flat(self):
         """Get flat resolution HEALPix dataset, probability density only."""
         order = healpy.nside2order(SpatialCatalogEntry.nside)
-        result = ligo_bayestar.rasterize(self.table, order)['PROB']
-        return healpy.reorder(result, 'NESTED', 'RING')
+        result = ligo_bayestar.rasterize(self.table, order)["PROB"]
+        return healpy.reorder(result, "NESTED", "RING")
 
 
 class SpatialCatalogEntryTile(Base):
     """This is a single tile within a catalog entry (as in the SpatialCatalogEntry table).
     Each tile has an associated healpix id and probability density."""
 
-    __tablename__ = 'spatial_catalog_entriess'
+    __tablename__ = "spatial_catalog_entriess"
 
     entry_name = sa.Column(
-        sa.ForeignKey('spatial_catalog_entries.entry_name', ondelete="CASCADE"),
+        sa.ForeignKey("spatial_catalog_entries.entry_name", ondelete="CASCADE"),
         nullable=False,
-        doc='Catalog entry name',
+        doc="Catalog entry name",
     )
 
     probdensity = sa.Column(

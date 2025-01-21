@@ -1,32 +1,30 @@
-import os
-import functools
-import tempfile
 import base64
-import traceback
+import functools
 import json
+import os
+import tempfile
+import traceback
 
-import joblib
-import numpy as np
-import matplotlib
 import arviz as az
+import joblib
+import matplotlib
+import numpy as np
 import requests
-
-from tornado.ioloop import IOLoop
-import tornado.web
-import tornado.escape
-
-from astropy.table import Table
 import sncosmo
+import tornado.escape
+import tornado.web
+from astropy.table import Table
+from tornado.ioloop import IOLoop
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 _, cfg = load_env()
-log = make_log('sn_analysis_service')
+log = make_log("sn_analysis_service")
 
 # we need to set the backend here to insure we
 # can render the plot headlessly
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 rng = np.random.default_rng()
 
 default_analysis_parameters = {"source": "nugent-sn2p", "fix_z": False}
@@ -88,16 +86,16 @@ def run_sn_model(data_dict):
     #
     rez = {"status": "failure", "message": "", "analysis": {}}
     try:
-        data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
-        data.rename_column('mjd', 'time')
-        data.rename_column('filter', 'band')
-        data.rename_column('magsys', 'zpsys')
+        data = Table.read(data_dict["inputs"]["photometry"], format="ascii.csv")
+        data.rename_column("mjd", "time")
+        data.rename_column("filter", "band")
+        data.rename_column("magsys", "zpsys")
 
         # Need to remove limits between first and last detection
         # as sncosmo does not intrinsically understand them
 
-        filts = list(set(data['band']))
-        data.add_index('time')
+        filts = list(set(data["band"]))
+        data.add_index("time")
 
         data_slices = {}
         for filt in filts:
@@ -106,35 +104,35 @@ def run_sn_model(data_dict):
             data_slices[filt]["last_detection"] = -np.inf
 
         for row in data:
-            if hasattr(row['flux'], 'mask') and row['flux'].mask:
+            if hasattr(row["flux"], "mask") and row["flux"].mask:
                 continue
-            filt = row['band']
+            filt = row["band"]
 
-            if row['time'] < data_slices[filt]["first_detection"]:
-                data_slices[filt]["first_detection"] = row['time']
+            if row["time"] < data_slices[filt]["first_detection"]:
+                data_slices[filt]["first_detection"] = row["time"]
 
-            if row['time'] > data_slices[filt]["last_detection"]:
-                data_slices[filt]["last_detection"] = row['time']
+            if row["time"] > data_slices[filt]["last_detection"]:
+                data_slices[filt]["last_detection"] = row["time"]
 
         idx_to_keep = []
         for ii, row in enumerate(data):
-            if hasattr(row['flux'], 'mask') and row['flux'].mask:
-                filt = row['band']
+            if hasattr(row["flux"], "mask") and row["flux"].mask:
+                filt = row["band"]
                 first_detection = data_slices[filt]["first_detection"]
                 last_detection = data_slices[filt]["last_detection"]
 
-                if (row['time'] > first_detection) and (row['time'] < last_detection):
+                if (row["time"] > first_detection) and (row["time"] < last_detection):
                     continue
             idx_to_keep.append(ii)
 
         data = data.iloc[idx_to_keep]
 
-        data['flux'].fill_value = 1e-6
+        data["flux"].fill_value = 1e-6
         data = data.filled()
         data.sort("time")
 
-        redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
-        z = redshift['redshift'][0]
+        redshift = Table.read(data_dict["inputs"]["redshift"], format="ascii.csv")
+        z = redshift["redshift"][0]
     except Exception as e:
         rez.update(
             {
@@ -155,11 +153,11 @@ def run_sn_model(data_dict):
         if fix_z:
             if z is not None:
                 model.set(z=z)
-                bounds = {'z': (z, z)}
+                bounds = {"z": (z, z)}
             else:
                 raise ValueError("No redshift provided but `fix_z` requested.")
         else:
-            bounds = {'z': (0.01, 1.0)}
+            bounds = {"z": (0.01, 1.0)}
 
         # run the fit
         result, fitted_model = sncosmo.fit_lc(
@@ -198,7 +196,7 @@ def run_sn_model(data_dict):
             )
             f.close()
             inference.to_netcdf(f.name)
-            inference_data = base64.b64encode(open(f.name, 'rb').read())
+            inference_data = base64.b64encode(open(f.name, "rb").read())
             local_temp_files.append(f.name)
 
             result.update({"source": source, "fix_z": fix_z})
@@ -244,14 +242,14 @@ def run_sn_model(data_dict):
 
 class MainHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        self.set_header('Content-Type', 'application/json')
+        self.set_header("Content-Type", "application/json")
 
     def error(self, code, message):
         self.set_status(code)
-        self.write({'message': message})
+        self.write({"message": message})
 
     def get(self):
-        self.write({'status': 'active'})
+        self.write({"status": "active"})
 
     def post(self):
         """
@@ -304,7 +302,7 @@ class MainHandler(tornado.web.RequestHandler):
         future_result.add_done_callback(sn_analysis_done_callback)
 
         return self.write(
-            {'status': 'pending', 'message': 'sn_analysis_service: analysis started'}
+            {"status": "pending", "message": "sn_analysis_service: analysis started"}
         )
 
 
@@ -318,7 +316,7 @@ def make_app():
 
 if __name__ == "__main__":
     sn_analysis = make_app()
-    port = cfg['analysis_services.sn_analysis_service.port']
+    port = cfg["analysis_services.sn_analysis_service.port"]
     sn_analysis.listen(port)
-    log(f'Listening on port {port}')
+    log(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

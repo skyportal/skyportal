@@ -1,8 +1,9 @@
 import uuid
+
 import pytest
 
-from skyportal.tests import api
 from skyportal.model_util import create_token
+from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=3)
@@ -51,30 +52,30 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
 
     # upload a new source, saved to the public group
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=token_id,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
 
     status, data = api(
-        'POST',
-        'listing',
+        "POST",
+        "listing",
         data={
-            'user_id': super_admin_user.id,
-            'obj_id': obj_id,
-            'list_name': 'favorites',
+            "user_id": super_admin_user.id,
+            "obj_id": obj_id,
+            "list_name": "favorites",
         },
         token=token_id,
     )
@@ -118,30 +119,30 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
 
     # upload a new source, saved to the public group
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=token_id,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
 
     status, data = api(
-        'POST',
-        'listing',
+        "POST",
+        "listing",
         data={
-            'user_id': super_admin_user.id,
-            'obj_id': obj_id,
-            'list_name': 'favorites',
+            "user_id": super_admin_user.id,
+            "obj_id": obj_id,
+            "list_name": "favorites",
         },
         token=token_id,
     )
@@ -159,8 +160,8 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
 
     # remove this listing via API
     status, data = api(
-        'DELETE',
-        f'listing/{listing_id}',
+        "DELETE",
+        f"listing/{listing_id}",
         token=token_id,
     )
 

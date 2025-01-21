@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import PropTypes from "prop-types";
-import Select from "@mui/material/Select";
+
+import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-
+import Select from "@mui/material/Select";
+import makeStyles from "@mui/styles/makeStyles";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
+import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import * as sourceActions from "../../ducks/source";
 import * as allocationActions from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
+import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -247,7 +247,14 @@ const FollowupRequestForm = ({
     const result = await dispatch(sourceActions.submitFollowupRequest(json));
     setIsSubmitting(false);
     if (result.status === "success") {
-      dispatch(showNotification("Photometry successfully requested."));
+      if (
+        result?.data?.request_status &&
+        result.data.request_status.startsWith("rejected")
+      ) {
+        dispatch(showNotification("Photometry request rejected.", "error"));
+      } else {
+        dispatch(showNotification("Photometry successfully requested."));
+      }
     }
   };
 

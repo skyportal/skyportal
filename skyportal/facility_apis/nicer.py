@@ -1,15 +1,16 @@
-from astropy.time import Time
-from datetime import datetime, timedelta
 import re
-import requests
 import urllib
+from datetime import datetime, timedelta
 
-from . import FollowUpAPI
+import requests
+from astropy.time import Time
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -18,13 +19,12 @@ env, cfg = load_env()
 LOGIN_URL = f"{cfg['app.heasarc_endpoint']}/ark/LOGIN"
 NICER_URL = f"{cfg['app.heasarc_endpoint']}/ark/nicertoo/form.html"
 
-log = make_log('facility_apis/nicer')
+log = make_log("facility_apis/nicer")
 
-CLEANR = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+CLEANR = re.compile("<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});")
 
 
 class NICERRequest:
-
     """A JSON structure for NICER requests."""
 
     def __init__(self, request):
@@ -54,72 +54,71 @@ class NICERRequest:
         """
 
         data = {
-            'RPS_DHTML': '',
-            'RPS_BEGIN': '',
-            'COVER': '',
-            'RPS_CLOSED_3': '',
-            'RPS_END': '',
-            'Urgency': request.payload["Urgency"],
-            'NICER Proposal Number': request.payload.get("ProposalNumber", None),
-            'Justification for Target of Opportunity': request.payload[
+            "RPS_DHTML": "",
+            "RPS_BEGIN": "",
+            "COVER": "",
+            "RPS_CLOSED_3": "",
+            "RPS_END": "",
+            "Urgency": request.payload["Urgency"],
+            "NICER Proposal Number": request.payload.get("ProposalNumber", None),
+            "Justification for Target of Opportunity": request.payload[
                 "JustificationToO"
             ],
-            'Target Name': request.obj.id,
-            'Target Category': request.payload["TargetCategory"],
-            'Right Ascension': request.obj.ra,
-            'Declination': request.obj.dec,
-            'Total Observation Time': request.payload["ObservationTime"],
-            'Justification for Exposure': request.payload["JustificationExposure"],
-            'Monitoring Program': request.payload["MonitoringProgram"],
-            'Monitoring Criteria': request.payload.get('MonitoringCriteria', None),
-            'Phase Dependent Observation': request.payload["PhaseDependentObservation"],
-            'Phase Dependent Epoch': request.payload.get("PhaseDependentEpoch", None),
-            'Phase Dependent Period': request.payload.get("PhaseDependentPeriod", None),
-            'Minimum Phase': request.payload.get("PhaseMinimum", None),
-            'Maximum Phase': request.payload.get("PhaseMaximum", None),
-            'Phase Dependent Remarks': request.payload.get(
+            "Target Name": request.obj.id,
+            "Target Category": request.payload["TargetCategory"],
+            "Right Ascension": request.obj.ra,
+            "Declination": request.obj.dec,
+            "Total Observation Time": request.payload["ObservationTime"],
+            "Justification for Exposure": request.payload["JustificationExposure"],
+            "Monitoring Program": request.payload["MonitoringProgram"],
+            "Monitoring Criteria": request.payload.get("MonitoringCriteria", None),
+            "Phase Dependent Observation": request.payload["PhaseDependentObservation"],
+            "Phase Dependent Epoch": request.payload.get("PhaseDependentEpoch", None),
+            "Phase Dependent Period": request.payload.get("PhaseDependentPeriod", None),
+            "Minimum Phase": request.payload.get("PhaseMinimum", None),
+            "Maximum Phase": request.payload.get("PhaseMaximum", None),
+            "Phase Dependent Remarks": request.payload.get(
                 "PhaseDependentRemarks", None
             ),
-            'Specific Time Range Observation': request.payload[
+            "Specific Time Range Observation": request.payload[
                 "SpecificTimeRangeObservation"
             ],
-            'Specific Time Range Start': request.payload.get("TimeRangeStart", None),
-            'Specific Time Range End': request.payload.get("TimeRangeEnd", None),
-            'Specific Time Range Remarks': request.payload.get(
+            "Specific Time Range Start": request.payload.get("TimeRangeStart", None),
+            "Specific Time Range End": request.payload.get("TimeRangeEnd", None),
+            "Specific Time Range Remarks": request.payload.get(
                 "TimeRangeRemarks", None
             ),
-            'Coordinated Observation': request.payload["CoordinatedObservation"],
-            'Coordinating Observatory': request.payload.get(
+            "Coordinated Observation": request.payload["CoordinatedObservation"],
+            "Coordinating Observatory": request.payload.get(
                 "CoordinatingObservatory", None
             ),
-            'Coordinated Observation Description': request.payload.get(
+            "Coordinated Observation Description": request.payload.get(
                 "CoordinatedObservationDescription", None
             ),
-            'Uninterrupted Observation': request.payload["UninterruptedObservation"],
-            'Uninterrupted Observation Justification': request.payload.get(
+            "Uninterrupted Observation": request.payload["UninterruptedObservation"],
+            "Uninterrupted Observation Justification": request.payload.get(
                 "UninterruptedObservationJustification", None
             ),
-            'Expected 0.3-10keV Count Rate': request.payload["ExpectedCountRate"],
+            "Expected 0.3-10keV Count Rate": request.payload["ExpectedCountRate"],
         }
 
-        if data['Phase Dependent Epoch'] is not None:
-            data['Phase Dependent Epoch'] = Time(
-                data['Phase Dependent Epoch'], format='isot'
+        if data["Phase Dependent Epoch"] is not None:
+            data["Phase Dependent Epoch"] = Time(
+                data["Phase Dependent Epoch"], format="isot"
             ).mjd
-        if data['Specific Time Range Start'] is not None:
-            data['Specific Time Range Start'] = Time(
-                data['Specific Time Range Start'], format='isot'
+        if data["Specific Time Range Start"] is not None:
+            data["Specific Time Range Start"] = Time(
+                data["Specific Time Range Start"], format="isot"
             ).mjd
-        if data['Specific Time Range End'] is not None:
-            data['Specific Time Range End'] = Time(
-                data['Specific Time Range End'], format='isot'
+        if data["Specific Time Range End"] is not None:
+            data["Specific Time Range End"] = Time(
+                data["Specific Time Range End"], format="isot"
             ).mjd
 
         return data
 
 
 class NICERAPI(FollowUpAPI):
-
     """An interface to NICER operations."""
 
     @staticmethod
@@ -138,15 +137,15 @@ class NICERAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         nicerreq = NICERRequest(request)
         data = nicerreq.requestgroup
 
         params = {
-            'destination': urllib.parse.quote('/ark/user/', safe=''),
-            'credential_0': request.allocation.altdata['username'],
-            'credential_1': request.allocation.altdata['password'],
+            "destination": urllib.parse.quote("/ark/user/", safe=""),
+            "credential_0": request.allocation.altdata["username"],
+            "credential_1": request.allocation.altdata["password"],
         }
 
         r_cred = requests.post(LOGIN_URL, params=params)
@@ -157,31 +156,31 @@ class NICERAPI(FollowUpAPI):
 
         cookie_string = "; ".join([str(x) + "=" + str(y) for x, y in cookies.items()])
         headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cookie': cookie_string,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cookie": cookie_string,
         }
 
-        data_verify = {**data, 'RPS_VERIFY.x': 49, 'RPS_VERIFY.y': 15}
+        data_verify = {**data, "RPS_VERIFY.x": 49, "RPS_VERIFY.y": 15}
         r = requests.post(url=NICER_URL, data=data_verify, headers=headers)
-        if 'Attempted verification detected' in r.text:
+        if "Attempted verification detected" in r.text:
             error_message = re.sub(
                 CLEANR,
-                '',
-                r.text.split('Attempted verification detected')[1].split('</span>')[0],
+                "",
+                r.text.split("Attempted verification detected")[1].split("</span>")[0],
             ).replace("\n", " ")
-            request.status = f'rejected: {error_message}'
-        elif 'Form verified successfully' in r.text:
+            request.status = f"rejected: {error_message}"
+        elif "Form verified successfully" in r.text:
             data_submit = {
                 **data,
-                'RPS_VERIFIED': '',
-                'RPS_SUBMIT.x': 45,
-                'RPS_SUBMIT.y': 4,
-                'RPS_OPENED_3': '',
+                "RPS_VERIFIED": "",
+                "RPS_SUBMIT.x": 45,
+                "RPS_SUBMIT.y": 4,
+                "RPS_OPENED_3": "",
             }
             r = requests.post(url=NICER_URL, data=data_submit, headers=headers)
-            request.status = 'submitted'
+            request.status = "submitted"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -192,18 +191,18 @@ class NICERAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -223,18 +222,18 @@ class NICERAPI(FollowUpAPI):
                 "Can't delete requests already sent successfully to NICER."
             )
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -243,10 +242,10 @@ class NICERAPI(FollowUpAPI):
             "Urgency": {
                 "type": "string",
                 "enum": [
-                    'Next Day',
-                    'Next Business Day',
-                    'Within a Week',
-                    'One Month or Longer',
+                    "Next Day",
+                    "Next Business Day",
+                    "Within a Week",
+                    "One Month or Longer",
                 ],
                 "default": "Next Day",
                 "title": "Urgency",
@@ -262,19 +261,19 @@ class NICERAPI(FollowUpAPI):
             "TargetCategory": {
                 "type": "string",
                 "enum": [
-                    'Magnetars and Rotation-Powered Pulsars',
-                    'X-Ray Binaries',
-                    'White Dwarfs and Cataclysmic Variables',
-                    'Non-Compact Stellar Objects',
-                    'Supernova Remnants/Other Extended Galactic Sources',
-                    'Normal Galaxies',
-                    'Active Galaxies and Quasars',
-                    'Galaxy Clusters and Extragalactic Extended Objects',
-                    'Gravitational-Wave Sources',
-                    'Solar System Objects',
-                    'Other',
+                    "Magnetars and Rotation-Powered Pulsars",
+                    "X-Ray Binaries",
+                    "White Dwarfs and Cataclysmic Variables",
+                    "Non-Compact Stellar Objects",
+                    "Supernova Remnants/Other Extended Galactic Sources",
+                    "Normal Galaxies",
+                    "Active Galaxies and Quasars",
+                    "Galaxy Clusters and Extragalactic Extended Objects",
+                    "Gravitational-Wave Sources",
+                    "Solar System Objects",
+                    "Other",
                 ],
-                "default": 'Gravitational-Wave Sources',
+                "default": "Gravitational-Wave Sources",
                 "title": "Target Category",
             },
             "ObservationTime": {

@@ -12,23 +12,23 @@ from requests import Request, Session
 from scp import SCPClient
 from sqlalchemy.orm import joinedload
 
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ..email_utils import send_email
 from ..utils import http
 from . import FollowUpAPI
 
-log = make_log('api/observation_plan')
+log = make_log("api/observation_plan")
 
 env, cfg = load_env()
 
 SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
 
-default_filters = cfg['app.observation_plan.default_filters']
+default_filters = cfg["app.observation_plan.default_filters"]
 
-use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+use_skyportal_fields = cfg["app.observation_plan.use_skyportal_fields"]
 
 email = False
 if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
@@ -36,7 +36,6 @@ if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
 
 
 class GenericRequest:
-
     """A dictionary structure for ToO requests."""
 
     def _build_observation_plan_payload(self, request):
@@ -54,40 +53,40 @@ class GenericRequest:
             payload for requests.
         """
 
-        start_mjd = Time(request.payload["start_date"], format='iso').mjd
-        end_mjd = Time(request.payload["end_date"], format='iso').mjd
+        start_mjd = Time(request.payload["start_date"], format="iso").mjd
+        end_mjd = Time(request.payload["end_date"], format="iso").mjd
 
         json_data = {
-            'queue_name': "ToO_" + request.payload["queue_name"],
-            'validity_window_mjd': [start_mjd, end_mjd],
+            "queue_name": "ToO_" + request.payload["queue_name"],
+            "validity_window_mjd": [start_mjd, end_mjd],
         }
 
         # One observation plan per request
         if not len(request.observation_plans) == 1:
-            raise ValueError('Should be one observation plan for this request.')
+            raise ValueError("Should be one observation plan for this request.")
 
         observation_plan = request.observation_plans[0]
         planned_observations = observation_plan.planned_observations
 
         if len(planned_observations) == 0:
-            raise ValueError('Cannot submit observing plan with no observations.')
+            raise ValueError("Cannot submit observing plan with no observations.")
 
         targets = []
         cnt = 1
         for obs in planned_observations:
             target = {
-                'request_id': cnt,
-                'field_id': obs.field.field_id,
-                'ra': obs.field.ra,
-                'dec': obs.field.dec,
-                'filter': obs.filt,
-                'exposure_time': obs.exposure_time,
-                'program_pi': request.requester.username,
+                "request_id": cnt,
+                "field_id": obs.field.field_id,
+                "ra": obs.field.ra,
+                "dec": obs.field.dec,
+                "filter": obs.filt,
+                "exposure_time": obs.exposure_time,
+                "program_pi": request.requester.username,
             }
             targets.append(target)
             cnt = cnt + 1
 
-        json_data['targets'] = targets
+        json_data["targets"] = targets
 
         return json_data
 
@@ -109,6 +108,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
+
         from ..models import DBSession, EventObservationPlan
         from ..utils.observation_plan import generate_plan
 
@@ -120,27 +120,27 @@ class MMAAPI(FollowUpAPI):
             if plan is None:
                 # check payload
                 required_parameters = {
-                    'start_date',
-                    'end_date',
-                    'schedule_type',
-                    'schedule_strategy',
-                    'filter_strategy',
-                    'exposure_time',
-                    'filters',
-                    'maximum_airmass',
-                    'integrated_probability',
-                    'galactic_latitude',
+                    "start_date",
+                    "end_date",
+                    "schedule_type",
+                    "schedule_strategy",
+                    "filter_strategy",
+                    "exposure_time",
+                    "filters",
+                    "maximum_airmass",
+                    "integrated_probability",
+                    "galactic_latitude",
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
-                    raise ValueError('Missing required planning parameter')
+                    raise ValueError("Missing required planning parameter")
 
                 if (
                     request.payload["filter_strategy"] == "integrated"
                     and "minimum_time_difference" not in request.payload
                 ):
                     raise ValueError(
-                        'minimum_time_difference must be defined for integrated scheduling'
+                        "minimum_time_difference must be defined for integrated scheduling"
                     )
 
                 if request.payload["schedule_type"] not in [
@@ -150,29 +150,29 @@ class MMAAPI(FollowUpAPI):
                     "airmass_weighted",
                 ]:
                     raise ValueError(
-                        'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                        "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
                     )
 
                 if (
                     request.payload["integrated_probability"] < 0
                     or request.payload["integrated_probability"] > 100
                 ):
-                    raise ValueError('integrated_probability must be between 0 and 100')
+                    raise ValueError("integrated_probability must be between 0 and 100")
 
                 if request.payload["filter_strategy"] not in ["block", "integrated"]:
                     raise ValueError(
-                        'filter_strategy must be either block or integrated'
+                        "filter_strategy must be either block or integrated"
                     )
 
                 start_time = Time(
-                    request.payload["start_date"], format='iso', scale='utc'
+                    request.payload["start_date"], format="iso", scale="utc"
                 )
-                end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,
                     dateobs=request.gcnevent.dateobs,
-                    plan_name=request.payload['queue_name'],
+                    plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
                     validity_window_start=start_time.datetime,
                     validity_window_end=end_time.datetime,
@@ -181,7 +181,7 @@ class MMAAPI(FollowUpAPI):
                 DBSession().add(plan)
                 DBSession().commit()
 
-                request.status = 'running'
+                request.status = "running"
                 DBSession().merge(request)
                 DBSession().commit()
 
@@ -191,7 +191,7 @@ class MMAAPI(FollowUpAPI):
 
                 flow = Flow()
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
@@ -200,7 +200,7 @@ class MMAAPI(FollowUpAPI):
                 request_ids.append(request.id)
             else:
                 raise ValueError(
-                    f'plan_name {request.payload["queue_name"]} already exists.'
+                    f"plan_name {request.payload['queue_name']} already exists."
                 )
 
         log(f"Generating schedule for observation plan {plan.id}")
@@ -238,6 +238,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
+
         from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
         from ..utils.observation_plan import generate_plan
 
@@ -258,10 +259,10 @@ class MMAAPI(FollowUpAPI):
             # then mark the request as complete as well
             if (
                 plan is not None
-                and plan.status == 'complete'
-                and request.status == 'running'
+                and plan.status == "complete"
+                and request.status == "running"
             ):
-                request.status = 'complete'
+                request.status = "complete"
                 session.merge(request)
                 session.commit()
                 log(
@@ -274,8 +275,8 @@ class MMAAPI(FollowUpAPI):
             # so we delete the plan and create a new one
             if (
                 plan is not None
-                and plan.status == 'pending submission'
-                and request.status == 'running'
+                and plan.status == "pending submission"
+                and request.status == "running"
             ):
                 log(
                     f"Plan {plan.id} has been pending submission for more than 24 hours. Deleting and creating a new plan."
@@ -287,26 +288,26 @@ class MMAAPI(FollowUpAPI):
             if plan is None:
                 # check payload
                 required_parameters = {
-                    'start_date',
-                    'end_date',
-                    'schedule_type',
-                    'schedule_strategy',
-                    'filter_strategy',
-                    'exposure_time',
-                    'filters',
-                    'maximum_airmass',
-                    'integrated_probability',
+                    "start_date",
+                    "end_date",
+                    "schedule_type",
+                    "schedule_strategy",
+                    "filter_strategy",
+                    "exposure_time",
+                    "filters",
+                    "maximum_airmass",
+                    "integrated_probability",
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
-                    raise ValueError('Missing required planning parameter')
+                    raise ValueError("Missing required planning parameter")
 
                 if (
                     request.payload["filter_strategy"] == "integrated"
                     and "minimum_time_difference" not in request.payload
                 ):
                     raise ValueError(
-                        'minimum_time_difference must be defined for integrated scheduling'
+                        "minimum_time_difference must be defined for integrated scheduling"
                     )
 
                 if request.payload["schedule_type"] not in [
@@ -316,29 +317,29 @@ class MMAAPI(FollowUpAPI):
                     "airmass_weighted",
                 ]:
                     raise ValueError(
-                        'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                        "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
                     )
 
                 if (
                     request.payload["integrated_probability"] < 0
                     or request.payload["integrated_probability"] > 100
                 ):
-                    raise ValueError('integrated_probability must be between 0 and 100')
+                    raise ValueError("integrated_probability must be between 0 and 100")
 
                 if request.payload["filter_strategy"] not in ["block", "integrated"]:
                     raise ValueError(
-                        'filter_strategy must be either block or integrated'
+                        "filter_strategy must be either block or integrated"
                     )
 
                 start_time = Time(
-                    request.payload["start_date"], format='iso', scale='utc'
+                    request.payload["start_date"], format="iso", scale="utc"
                 )
-                end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,
                     dateobs=request.gcnevent.dateobs,
-                    plan_name=request.payload['queue_name'],
+                    plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
                     validity_window_start=start_time.datetime,
                     validity_window_end=end_time.datetime,
@@ -349,7 +350,7 @@ class MMAAPI(FollowUpAPI):
 
                 plan_id = plan.id
 
-                request.status = 'running'
+                request.status = "running"
                 session.merge(request)
                 session.commit()
 
@@ -359,13 +360,13 @@ class MMAAPI(FollowUpAPI):
 
                 flow = Flow()
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
                 flow.push(
-                    '*',
+                    "*",
                     "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
                 )
 
@@ -393,7 +394,7 @@ class MMAAPI(FollowUpAPI):
 
             else:
                 raise ValueError(
-                    f'plan_name {request.payload["queue_name"]} already exists.'
+                    f"plan_name {request.payload['queue_name']} already exists."
                 )
 
     @staticmethod
@@ -421,7 +422,7 @@ class MMAAPI(FollowUpAPI):
 
         if len(req.observation_plans) > 1:
             raise ValueError(
-                'Should only be one observation plan associated to this request'
+                "Should only be one observation plan associated to this request"
             )
 
         if len(req.observation_plans) > 0:
@@ -437,13 +438,13 @@ class MMAAPI(FollowUpAPI):
         galaxy_catalogs = kwargs.get("galaxy_catalog_names", [])
         if not isinstance(galaxy_catalogs, list) or len(galaxy_catalogs) == 0:
             galaxy_catalogs = [
-                g for g, in DBSession().query(GalaxyCatalog.name).distinct().all()
+                g for (g,) in DBSession().query(GalaxyCatalog.name).distinct().all()
             ]
         end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
             end_date = str(datetime.utcnow() + timedelta(days=1))
         else:
-            end_date = Time(end_date, format='jd').iso
+            end_date = Time(end_date, format="jd").iso
 
         # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
         has_references = (
@@ -451,7 +452,7 @@ class MMAAPI(FollowUpAPI):
             .query(InstrumentField)
             .filter(
                 InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters != '{}',
+                InstrumentField.reference_filters != "{}",
             )
             .count()
             > 0
@@ -720,21 +721,21 @@ class MMAAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         req = GenericRequest()
         requestgroup = req._build_observation_plan_payload(request)
 
         payload = {
-            'targets': requestgroup["targets"],
-            'queue_name': requestgroup["queue_name"],
-            'validity_window_mjd': requestgroup["validity_window_mjd"],
-            'queue_type': 'list',
-            'user': request.requester.username,
+            "targets": requestgroup["targets"],
+            "queue_name": requestgroup["queue_name"],
+            "validity_window_mjd": requestgroup["validity_window_mjd"],
+            "queue_type": "list",
+            "user": request.requester.username,
         }
 
-        if 'type' in altdata and altdata['type'] == 'scp':
-            with tempfile.NamedTemporaryFile(mode='w') as f:
+        if "type" in altdata and altdata["type"] == "scp":
+            with tempfile.NamedTemporaryFile(mode="w") as f:
                 json.dump(payload, f, indent=4, sort_keys=True)
                 f.flush()
 
@@ -742,19 +743,19 @@ class MMAAPI(FollowUpAPI):
                 ssh.load_system_host_keys()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(
-                    hostname=altdata['host'],
-                    port=altdata['port'],
-                    username=altdata['username'],
-                    password=altdata['password'],
+                    hostname=altdata["host"],
+                    port=altdata["port"],
+                    username=altdata["username"],
+                    password=altdata["password"],
                 )
                 scp = SCPClient(ssh.get_transport())
                 scp.put(
                     f.name,
-                    os.path.join(altdata['directory'], payload["queue_name"] + '.json'),
+                    os.path.join(altdata["directory"], payload["queue_name"] + ".json"),
                 )
                 scp.close()
 
-                request.status = 'submitted'
+                request.status = "submitted"
 
                 transaction = FacilityTransaction(
                     request=None,
@@ -762,9 +763,9 @@ class MMAAPI(FollowUpAPI):
                     observation_plan_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
-        elif 'type' in altdata and altdata['type'] == 'slack':
+        elif "type" in altdata and altdata["type"] == "slack":
             slack_microservice_url = (
-                f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+                f"http://127.0.0.1:{cfg['slack.microservice_port']}"
             )
 
             data = json.dumps(
@@ -777,11 +778,11 @@ class MMAAPI(FollowUpAPI):
             r = requests.post(
                 slack_microservice_url,
                 data=data,
-                headers={'Content-Type': 'application/json'},
+                headers={"Content-Type": "application/json"},
             )
             r.raise_for_status()
 
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -790,16 +791,16 @@ class MMAAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        elif 'type' in altdata and altdata['type'] == 'email':
+        elif "type" in altdata and altdata["type"] == "email":
             subject = f"{cfg['app.title']} - New observation plans"
 
             send_email(
-                recipients=[altdata['email']],
+                recipients=[altdata["email"]],
                 subject=subject,
                 body=str(payload),
             )
 
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -813,22 +814,22 @@ class MMAAPI(FollowUpAPI):
 
             # default to API
             url = (
-                altdata['protocol']
-                + '://'
-                + ('127.0.0.1' if 'localhost' in altdata['host'] else altdata['host'])
-                + ':'
-                + altdata['port']
-                + '/api/obsplans'
+                altdata["protocol"]
+                + "://"
+                + ("127.0.0.1" if "localhost" in altdata["host"] else altdata["host"])
+                + ":"
+                + altdata["port"]
+                + "/api/obsplans"
             )
             s = Session()
-            genericreq = Request('PUT', url, json=payload, headers=headers)
+            genericreq = Request("PUT", url, json=payload, headers=headers)
             prepped = genericreq.prepare()
             r = s.send(prepped)
 
             if r.status_code == 200:
-                request.status = 'submitted to telescope queue'
+                request.status = "submitted to telescope queue"
             else:
-                request.status = f'rejected from telescope queue: {r.content}'
+                request.status = f"rejected from telescope queue: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),

@@ -1,65 +1,64 @@
 import copy
-import uuid
 import datetime
 import json
-from io import StringIO
 import traceback
+import uuid
+from io import StringIO
 
-from astropy.time import Time
-from astropy.table import Table
-from marshmallow.exceptions import ValidationError
+import arrow
 import numpy as np
 import pandas as pd
 import sncosmo
-from sncosmo.photdata import PhotometricData
-import arrow
-from matplotlib import cm
-from matplotlib.colors import rgb2hex, LinearSegmentedColormap
-
 import sqlalchemy as sa
-from sqlalchemy.sql import column, Values
-from sqlalchemy.orm import joinedload
+from astropy.table import Table
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
+from matplotlib import cm
+from matplotlib.colors import LinearSegmentedColormap, rgb2hex
+from sncosmo.photdata import PhotometricData
 from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import Values, column
 
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
-from ..base import BaseHandler
+from baselayer.log import make_log
+
+from ...enum_types import ALLOWED_BANDPASSES, ALLOWED_MAGSYSTEMS
 from ...models import (
-    DBSession,
+    PHOT_ZP,
     Annotation,
+    DBSession,
     Group,
-    Stream,
-    Photometry,
-    PhotometricSeries,
+    GroupPhotometry,
     Instrument,
     Obj,
-    PHOT_ZP,
-    GroupPhotometry,
-    StreamPhotometry,
+    PhotometricSeries,
+    Photometry,
     PhotStat,
+    Stream,
+    StreamPhotometry,
     User,
 )
-
 from ...models.schema import (
-    PhotometryMag,
-    PhotometryFlux,
     PhotFluxFlexible,
     PhotMagFlexible,
+    PhotometryFlux,
+    PhotometryMag,
     PhotometryRangeQuery,
 )
-from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES
+from ..base import BaseHandler
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
 _, cfg = load_env()
 
 
-log = make_log('api/photometry')
+log = make_log("api/photometry")
 
 MAX_NUMBER_ROWS = 10000
 
-cmap_ir = cm.get_cmap('autumn')
+cmap_ir = cm.get_cmap("autumn")
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
@@ -100,7 +99,7 @@ def get_effective_wavelength(bandpass_name, radius=None):
     try:
         args = {}
         if radius is not None:
-            args['radius'] = radius
+            args["radius"] = radius
         bandpass = sncosmo.get_bandpass(bandpass_name, **args)
     except ValueError as e:
         raise ValueError(
@@ -129,46 +128,46 @@ def get_color(bandpass, format="hex"):
     wavelength = get_effective_wavelength(bandpass)
 
     if 0 < wavelength <= 1500:  # EUV
-        bandcolor = '#4B0082'
+        bandcolor = "#4B0082"
     elif 1500 < wavelength <= 2100:  # uvw2
-        bandcolor = '#6A5ACD'
+        bandcolor = "#6A5ACD"
     elif 2100 < wavelength <= 2400:  # uvm2
-        bandcolor = '#9400D3'
+        bandcolor = "#9400D3"
     elif 2400 < wavelength <= 3000:  # uvw1
-        bandcolor = '#FF00FF'
+        bandcolor = "#FF00FF"
     elif 3000 < wavelength <= 4000:  # U, sdss u
-        bandcolor = '#0000FF'
+        bandcolor = "#0000FF"
     elif 4000 < wavelength <= 4800:  # B, sdss g
-        bandcolor = '#02d193'
+        bandcolor = "#02d193"
     elif 4800 < wavelength <= 5000:  # ztfg
-        bandcolor = '#008000'
+        bandcolor = "#008000"
     elif 5000 < wavelength <= 6000:  # V
-        bandcolor = '#9ACD32'
+        bandcolor = "#9ACD32"
     elif 6000 < wavelength <= 6400:  # sdssr
-        bandcolor = '#ff6f00'
+        bandcolor = "#ff6f00"
     elif 6400 < wavelength <= 6600:  # ztfr
-        bandcolor = '#FF0000'
+        bandcolor = "#FF0000"
     elif 6400 < wavelength <= 7000:  # bessellr, atlaso
-        bandcolor = '#c80000'
+        bandcolor = "#c80000"
     elif 7000 < wavelength <= 8000:  # sdss i
-        bandcolor = '#FFA500'
+        bandcolor = "#FFA500"
     elif 8000 < wavelength <= 9000:  # sdss z
-        bandcolor = '#A52A2A'
+        bandcolor = "#A52A2A"
     elif 9000 < wavelength <= 10000:  # PS1 y
-        bandcolor = '#B8860B'
+        bandcolor = "#B8860B"
     elif 10000 < wavelength <= 13000:  # 2MASS J
-        bandcolor = '#000000'
+        bandcolor = "#000000"
     elif 13000 < wavelength <= 17000:  # 2MASS H
-        bandcolor = '#9370D8'
+        bandcolor = "#9370D8"
     elif 17000 < wavelength <= 1e5:  # mm to Radio
         bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
     elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
         bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
     else:
         log(
-            f'{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black'
+            f"{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black"
         )
-        bandcolor = '#000000'
+        bandcolor = "#000000"
 
     if format == "rgb":
         return hex2rgb(bandcolor[1:])
@@ -205,9 +204,9 @@ def save_data_using_copy(rows, table, columns):
     df.to_csv(
         output,
         index=False,
-        sep='\t',
+        sep="\t",
         header=False,
-        encoding='utf8',
+        encoding="utf8",
         quotechar="'",
     )
     output.seek(0)
@@ -218,8 +217,8 @@ def save_data_using_copy(rows, table, columns):
     cursor.copy_from(
         output,
         table,
-        sep='\t',
-        null='',
+        sep="\t",
+        null="",
         columns=columns,
     )
     cursor.close()
@@ -250,55 +249,55 @@ def serialize(
     validation=False,
 ):
     return_value = {
-        'obj_id': phot.obj_id,
-        'ra': phot.ra,
-        'dec': phot.dec,
-        'filter': phot.filter,
-        'mjd': phot.mjd,
-        'snr': phot.snr,
-        'instrument_id': phot.instrument_id,
-        'instrument_name': phot.instrument.name,
-        'ra_unc': phot.ra_unc,
-        'dec_unc': phot.dec_unc,
-        'origin': phot.origin,
-        'id': phot.id,
-        'altdata': phot.altdata,
+        "obj_id": phot.obj_id,
+        "ra": phot.ra,
+        "dec": phot.dec,
+        "filter": phot.filter,
+        "mjd": phot.mjd,
+        "snr": phot.snr,
+        "instrument_id": phot.instrument_id,
+        "instrument_name": phot.instrument.name,
+        "ra_unc": phot.ra_unc,
+        "dec_unc": phot.dec_unc,
+        "origin": phot.origin,
+        "id": phot.id,
+        "altdata": phot.altdata,
     }
     if created_at:
-        return_value['created_at'] = phot.created_at
+        return_value["created_at"] = phot.created_at
     if groups:
-        return_value['groups'] = [
+        return_value["groups"] = [
             {
-                'id': group.id,
-                'name': group.name,
-                'nickname': group.nickname,
-                'single_user_group': group.single_user_group,
+                "id": group.id,
+                "name": group.name,
+                "nickname": group.nickname,
+                "single_user_group": group.single_user_group,
             }
             for group in phot.groups
         ]
     if annotations:
-        return_value['annotations'] = (
+        return_value["annotations"] = (
             [annotation.to_dict() for annotation in phot.annotations]
-            if hasattr(phot, 'annotations')
+            if hasattr(phot, "annotations")
             else []
         )
     if owner:
-        return_value['owner'] = {
-            'id': phot.owner.id,
-            'username': phot.owner.username,
-            'first_name': phot.owner.first_name,
-            'last_name': phot.owner.last_name,
+        return_value["owner"] = {
+            "id": phot.owner.id,
+            "username": phot.owner.username,
+            "first_name": phot.owner.first_name,
+            "last_name": phot.owner.last_name,
         }
     if stream:
-        return_value['streams'] = [
+        return_value["streams"] = [
             {
-                'id': stream.id,
-                'name': stream.name,
+                "id": stream.id,
+                "name": stream.name,
             }
             for stream in phot.streams
         ]
     if USE_PHOTOMETRY_VALIDATION and validation:
-        return_value['validations'] = [
+        return_value["validations"] = [
             validation.to_dict() for validation in phot.validations
         ]
 
@@ -308,18 +307,18 @@ def serialize(
         and phot.ref_fluxerr is not None
         and not np.isnan(phot.ref_fluxerr)
     ):
-        return_value['ref_flux'] = phot.ref_flux
-        return_value['tot_flux'] = phot.tot_flux
-        return_value['ref_fluxerr'] = phot.ref_fluxerr
-        return_value['tot_fluxerr'] = phot.tot_fluxerr
-        return_value['magref'] = phot.magref
-        return_value['magtot'] = phot.magtot
-        return_value['e_magref'] = phot.e_magref
-        return_value['e_magtot'] = phot.e_magtot
+        return_value["ref_flux"] = phot.ref_flux
+        return_value["tot_flux"] = phot.tot_flux
+        return_value["ref_fluxerr"] = phot.ref_fluxerr
+        return_value["tot_fluxerr"] = phot.tot_fluxerr
+        return_value["magref"] = phot.magref
+        return_value["magtot"] = phot.magtot
+        return_value["e_magref"] = phot.e_magref
+        return_value["e_magtot"] = phot.e_magtot
 
     filter = phot.filter
 
-    magsys_db = sncosmo.get_magsystem('ab')
+    magsys_db = sncosmo.get_magsystem("ab")
     outsys = sncosmo.get_magsystem(outsys)
 
     try:
@@ -336,21 +335,21 @@ def serialize(
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
 
-        if format not in ['mag', 'flux', 'both']:
+        if format not in ["mag", "flux", "both"]:
             raise ValueError(
-                'Invalid output format specified. Must be one of '
+                "Invalid output format specified. Must be one of "
                 f"['flux', 'mag', 'both'], got '{format}'."
             )
 
-        if format in ['mag', 'both']:
+        if format in ["mag", "both"]:
             if (
                 phot.original_user_data is not None
-                and 'limiting_mag' in phot.original_user_data
+                and "limiting_mag" in phot.original_user_data
             ):
-                magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
+                magsys_packet = sncosmo.get_magsystem(phot.original_user_data["magsys"])
                 relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
                 packet_correction = relzp_out - relzp_packet
-                maglimit = float(phot.original_user_data['limiting_mag'])
+                maglimit = float(phot.original_user_data["limiting_mag"])
                 maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
@@ -360,14 +359,14 @@ def serialize(
 
             return_value.update(
                 {
-                    'mag': phot.mag + db_correction
+                    "mag": phot.mag + db_correction
                     if nan_to_none(phot.mag) is not None
                     else None,
-                    'magerr': phot.e_mag
+                    "magerr": phot.e_mag
                     if nan_to_none(phot.e_mag) is not None
                     else None,
-                    'magsys': outsys.name,
-                    'limiting_mag': maglimit_out,
+                    "magsys": outsys.name,
+                    "limiting_mag": maglimit_out,
                 }
             )
             if (
@@ -378,22 +377,22 @@ def serialize(
             ):
                 return_value.update(
                     {
-                        'magref': phot.magref + db_correction
+                        "magref": phot.magref + db_correction
                         if nan_to_none(phot.magref) is not None
                         else None,
-                        'magtot': phot.magtot,
-                        'e_magref': phot.e_magref,
-                        'e_magtot': phot.e_magtot,
+                        "magtot": phot.magtot,
+                        "e_magref": phot.e_magref,
+                        "e_magtot": phot.e_magtot,
                     }
                 )
 
-        if format in ['flux', 'both']:
+        if format in ["flux", "both"]:
             return_value.update(
                 {
-                    'flux': nan_to_none(phot.flux),
-                    'magsys': outsys.name,
-                    'zp': corrected_db_zp,
-                    'fluxerr': phot.fluxerr,
+                    "flux": nan_to_none(phot.flux),
+                    "magsys": outsys.name,
+                    "zp": corrected_db_zp,
+                    "fluxerr": phot.fluxerr,
                 }
             )
             if (
@@ -404,10 +403,10 @@ def serialize(
             ):
                 return_value.update(
                     {
-                        'ref_flux': phot.ref_flux,
-                        'tot_flux': phot.tot_flux,
-                        'ref_fluxerr': phot.ref_fluxerr,
-                        'tot_fluxerr': phot.tot_fluxerr,
+                        "ref_flux": phot.ref_flux,
+                        "tot_flux": phot.tot_flux,
+                        "ref_fluxerr": phot.ref_fluxerr,
+                        "tot_fluxerr": phot.tot_fluxerr,
                     }
                 )
     except ValueError as e:
@@ -422,14 +421,14 @@ def serialize(
 def standardize_photometry_data(data):
     if not isinstance(data, dict):
         raise ValidationError(
-            'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
+            f"Top level JSON must be an instance of `dict`, got {type(data)}."
         )
 
     max_num_elements = max(
         [
             len(data[key])
             for key in data
-            if isinstance(data[key], (list, tuple))
+            if isinstance(data[key], list | tuple)
             and key not in ["group_ids", "stream_ids"]
         ]
         + [1]
@@ -439,15 +438,15 @@ def standardize_photometry_data(data):
         del data["altdata"]
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
-            for key in data["altdata"].keys():
+            for key in data["altdata"]:
                 if isinstance(data["altdata"][key], list):
-                    if not len(data["altdata"][key]) == max_num_elements:
+                    if len(data["altdata"][key]) != max_num_elements:
                         if len(data["altdata"][key]) == 1:
                             data["altdata"][key] = (
                                 data["altdata"][key] * max_num_elements
                             )
                         else:
-                            raise ValueError(f'{key} in altdata incorrect length')
+                            raise ValueError(f"{key} in altdata incorrect length")
                 elif max_num_elements > 1:
                     data["altdata"][key] = [data["altdata"][key]] * max_num_elements
 
@@ -456,7 +455,7 @@ def standardize_photometry_data(data):
                 df = pd.DataFrame(altdata)
             except ValueError:
                 df = pd.DataFrame(altdata, index=[0])
-            altdata = df.to_dict(orient='records')
+            altdata = df.to_dict(orient="records")
         else:
             altdata = data.pop("altdata")
     else:
@@ -470,20 +469,20 @@ def standardize_photometry_data(data):
             data = PhotFluxFlexible.load(data)
         except ValidationError as e2:
             raise ValidationError(
-                'Invalid input format: Tried to parse data '
-                f'in mag space, got: '
+                "Invalid input format: Tried to parse data "
+                f"in mag space, got: "
                 f'"{e1.normalized_messages()}." Tried '
-                f'to parse data in flux space, got:'
+                f"to parse data in flux space, got:"
                 f' "{e2.normalized_messages()}."'
             )
         else:
-            kind = 'flux'
+            kind = "flux"
     else:
-        kind = 'mag'
+        kind = "mag"
 
     # not used here
-    _ = data.pop('group_ids', None)
-    _ = data.pop('stream_ids', None)
+    _ = data.pop("group_ids", None)
+    _ = data.pop("stream_ids", None)
 
     if allscalar(data):
         data = [data]
@@ -495,17 +494,17 @@ def standardize_photometry_data(data):
             df = pd.DataFrame(data)
     except ValueError as e:
         raise ValidationError(
-            'Unable to coerce passed JSON to a series of packets. ' f'Error was: "{e}"'
+            f'Unable to coerce passed JSON to a series of packets. Error was: "{e}"'
         )
 
     if altdata is not None and len(altdata) > 0:
         for index, e in enumerate(altdata):
             altdata[index] = (
-                {k: v for k, v in e.items() if v not in [None, '']}
-                if not all([v in [None, ''] for v in e.values()])
+                {k: v for k, v in e.items() if v not in [None, ""]}
+                if not all(v in [None, ""] for v in e.values())
                 else None
             )
-        df['altdata'] = altdata
+        df["altdata"] = altdata
 
     # `to_numeric` coerces numbers written as strings to numeric types
     #  (int, float)
@@ -516,16 +515,16 @@ def standardize_photometry_data(data):
     #  apply is used to apply it to each column
     # (https://stackoverflow.com/questions/34844711/convert-entire-pandas
     # -dataframe-to-integers-in-pandas-0-17-0/34844867
-    df = df.apply(pd.to_numeric, errors='ignore')
+    df = df.apply(pd.to_numeric, errors="ignore")
 
     # set origin to 'None' where it is None.
-    df.loc[df['origin'].isna(), 'origin'] = 'None'
+    df.loc[df["origin"].isna(), "origin"] = "None"
     ref_phot_table = None
 
-    if kind == 'mag':
+    if kind == "mag":
         # ensure that neither or both mag and magerr are null
-        magnull = df['mag'].isna()
-        magerrnull = df['magerr'].isna()
+        magnull = df["mag"].isna()
+        magerrnull = df["magerr"].isna()
         magdet = ~magnull
 
         # https://en.wikipedia.org/wiki/Bitwise_operation#XOR
@@ -542,16 +541,16 @@ def standardize_photometry_data(data):
 
             # coerce nans to nones
             for key in packet:
-                if key != 'standardized_flux':
+                if key != "standardized_flux":
                     packet[key] = nan_to_none(packet[key])
 
             raise ValidationError(
                 f'Error parsing packet "{packet}": mag '
-                f'and magerr must both be null, or both be '
-                f'not null.'
+                f"and magerr must both be null, or both be "
+                f"not null."
             )
 
-        for field in ['mag', 'magerr', 'limiting_mag']:
+        for field in ["mag", "magerr", "limiting_mag"]:
             infinite = np.isinf(df[field].values)
             if any(infinite):
                 first_offender = np.argwhere(infinite)[0, 0]
@@ -562,8 +561,7 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f'field {field} must be finite.'
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
                 )
 
         # ensure nothing is null for the required fields
@@ -578,37 +576,36 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f'missing required field {field}.'
+                    f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
         # convert the mags to fluxes
         # detections
-        detflux = 10 ** (-0.4 * (df[magdet]['mag'] - PHOT_ZP))
-        detfluxerr = df[magdet]['magerr'] / (2.5 / np.log(10)) * detflux
+        detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))
+        detfluxerr = df[magdet]["magerr"] / (2.5 / np.log(10)) * detflux
 
         # non-detections
-        limmag_flux = 10 ** (-0.4 * (df[magnull]['limiting_mag'] - PHOT_ZP))
-        ndetfluxerr = limmag_flux / df[magnull]['limiting_mag_nsigma']
+        limmag_flux = 10 ** (-0.4 * (df[magnull]["limiting_mag"] - PHOT_ZP))
+        ndetfluxerr = limmag_flux / df[magnull]["limiting_mag_nsigma"]
 
         # initialize flux to be none
-        phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter']])
+        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
 
-        phot_table['zp'] = PHOT_ZP
-        phot_table['flux'] = np.nan
-        phot_table['fluxerr'] = np.nan
-        phot_table['flux'][magdet] = detflux
-        phot_table['fluxerr'][magdet] = detfluxerr
-        phot_table['fluxerr'][magnull] = ndetfluxerr
+        phot_table["zp"] = PHOT_ZP
+        phot_table["flux"] = np.nan
+        phot_table["fluxerr"] = np.nan
+        phot_table["flux"][magdet] = detflux
+        phot_table["fluxerr"][magdet] = detfluxerr
+        phot_table["fluxerr"][magnull] = ndetfluxerr
 
         if "magref" in df.columns and "e_magref" in df.columns:
-            ref_phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter']])
-            magref = df['magref'].fillna(np.nan)
-            ref_phot_table['flux'] = 10 ** (-0.4 * (magref - PHOT_ZP))
-            ref_phot_table['fluxerr'] = (
-                df['e_magref'] / (2.5 / np.log(10)) * ref_phot_table['flux']
+            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
+            magref = df["magref"].fillna(np.nan)
+            ref_phot_table["flux"] = 10 ** (-0.4 * (magref - PHOT_ZP))
+            ref_phot_table["fluxerr"] = (
+                df["e_magref"] / (2.5 / np.log(10)) * ref_phot_table["flux"]
             )
-            ref_phot_table['zp'] = PHOT_ZP
+            ref_phot_table["zp"] = PHOT_ZP
 
     else:
         for field in PhotFluxFlexible.required_keys:
@@ -621,11 +618,10 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f'missing required field {field}.'
+                    f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
-        for field in ['flux', 'fluxerr']:
+        for field in ["flux", "fluxerr"]:
             infinite = np.isinf(df[field].values)
             if any(infinite):
                 first_offender = np.argwhere(infinite)[0, 0]
@@ -636,58 +632,57 @@ def standardize_photometry_data(data):
                     packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
-                    f'Error parsing packet "{packet}": '
-                    f'field {field} must be finite.'
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
                 )
 
-        phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter', 'zp']])
-        phot_table['flux'] = df['flux'].fillna(np.nan)
-        phot_table['fluxerr'] = df['fluxerr'].fillna(np.nan)
+        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter", "zp"]])
+        phot_table["flux"] = df["flux"].fillna(np.nan)
+        phot_table["fluxerr"] = df["fluxerr"].fillna(np.nan)
 
         if "ref_flux" in df.columns and "ref_fluxerr" in df.columns:
-            ref_phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter']])
-            ref_phot_table['flux'] = df['ref_flux'].fillna(np.nan)
-            ref_phot_table['fluxerr'] = df['ref_fluxerr'].fillna(np.nan)
-            if 'ref_zp' in df.columns:
-                ref_phot_table['zp'] = df['ref_zp'].fillna(np.nan)
+            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
+            ref_phot_table["flux"] = df["ref_flux"].fillna(np.nan)
+            ref_phot_table["fluxerr"] = df["ref_fluxerr"].fillna(np.nan)
+            if "ref_zp" in df.columns:
+                ref_phot_table["zp"] = df["ref_zp"].fillna(np.nan)
             else:
-                ref_phot_table['zp'] = PHOT_ZP
+                ref_phot_table["zp"] = PHOT_ZP
 
-    unknown_filters = set(phot_table['filter']).difference(ALLOWED_BANDPASSES)
+    unknown_filters = set(phot_table["filter"]).difference(ALLOWED_BANDPASSES)
     if len(unknown_filters) > 0:
         raise ValidationError(
-            f'Filter(s) {unknown_filters} is not allowed. '
-            f'Allowed filters are: {ALLOWED_BANDPASSES}'
+            f"Filter(s) {unknown_filters} is not allowed. "
+            f"Allowed filters are: {ALLOWED_BANDPASSES}"
         )
 
     # convert to microjanskies, AB for DB storage as a vectorized operation
     pdata = PhotometricData(phot_table)
-    standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
+    standardized = pdata.normalized(zp=PHOT_ZP, zpsys="ab")
 
-    df['standardized_flux'] = standardized.flux
-    df['standardized_fluxerr'] = standardized.fluxerr
+    df["standardized_flux"] = standardized.flux
+    df["standardized_fluxerr"] = standardized.fluxerr
 
     # convert the reference flux to microjanskies, AB
     if ref_phot_table:
         ref_pdata = PhotometricData(ref_phot_table)
-        ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys='ab')
-        df['ref_standardized_flux'] = ref_standardized.flux
-        df['ref_standardized_fluxerr'] = ref_standardized.fluxerr
+        ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+        df["ref_standardized_flux"] = ref_standardized.flux
+        df["ref_standardized_fluxerr"] = ref_standardized.fluxerr
 
     instrument_cache = {}
-    for iid in df['instrument_id'].unique():
+    for iid in df["instrument_id"].unique():
         instrument = Instrument.query.get(int(iid))
         if not instrument:
-            raise ValidationError(f'Invalid instrument ID: {iid}')
+            raise ValidationError(f"Invalid instrument ID: {iid}")
         instrument_cache[iid] = instrument
 
     # convert the object IDs to str datatype
-    df['obj_id'] = df['obj_id'].astype(str)
+    df["obj_id"] = df["obj_id"].astype(str)
 
-    for oid in df['obj_id'].unique():
+    for oid in df["obj_id"].unique():
         obj = Obj.query.get(oid)
         if not obj:
-            raise ValidationError(f'Invalid object ID: {oid}')
+            raise ValidationError(f"Invalid object ID: {oid}")
 
     return df, instrument_cache
 
@@ -789,8 +784,7 @@ def insert_new_photometry_data(
 
         if len(dict_rep) > 0:
             raise ValidationError(
-                'The following photometry already exists '
-                f'in the database: {dict_rep}.'
+                f"The following photometry already exists in the database: {dict_rep}."
             )
 
     # pre-fetch the photometry PKs. these are not guaranteed to be
@@ -799,19 +793,19 @@ def insert_new_photometry_data(
     # PK slots for uninserted rows
 
     pkq = sa.text(
-        f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+        f"SELECT nextval('photometry_id_seq') FROM generate_series(1, {len(df)})"
     )
 
     proxy = session.execute(pkq)
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
-    df['id'] = ids
+    df["id"] = ids
 
     df = df.where(pd.notnull(df), None)
-    df.loc[df['standardized_flux'].isna(), 'standardized_flux'] = np.nan
+    df.loc[df["standardized_flux"].isna(), "standardized_flux"] = np.nan
 
-    rows = df.to_dict('records')
+    rows = df.to_dict("records")
     upload_id = str(uuid.uuid4())
 
     params = []
@@ -819,72 +813,72 @@ def insert_new_photometry_data(
     stream_photometry_params = []
     for packet in rows:
         if (
-            instrument_cache[packet['instrument_id']].type == "imager"
+            instrument_cache[packet["instrument_id"]].type == "imager"
             and packet["filter"]
-            not in instrument_cache[packet['instrument_id']].filters
+            not in instrument_cache[packet["instrument_id"]].filters
         ):
-            instrument = instrument_cache[packet['instrument_id']]
+            instrument = instrument_cache[packet["instrument_id"]]
             raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{packet['filter']}."
+                f"Instrument {instrument.name} has no filter {packet['filter']}."
             )
 
-        flux = packet.pop('standardized_flux')
-        fluxerr = packet.pop('standardized_fluxerr')
+        flux = packet.pop("standardized_flux")
+        fluxerr = packet.pop("standardized_fluxerr")
 
         # reduce the DB size by ~2x
-        keys = ['limiting_mag', 'magsys', 'limiting_mag_nsigma']
+        keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
         original_user_data = {key: packet[key] for key in keys if key in packet}
         if original_user_data == {}:
             original_user_data = None
 
         utcnow = datetime.datetime.utcnow().isoformat()
-        phot = dict(
-            id=packet['id'],
-            original_user_data=json.dumps(original_user_data),
-            upload_id=upload_id,
-            flux=flux,
-            fluxerr=fluxerr,
-            obj_id=packet['obj_id'],
-            altdata=json.dumps(packet.get('altdata')),
-            instrument_id=packet['instrument_id'],
-            ra_unc=packet['ra_unc'],
-            dec_unc=packet['dec_unc'],
-            mjd=packet['mjd'],
-            filter=packet['filter'],
-            ra=packet['ra'],
-            dec=packet['dec'],
-            origin=packet["origin"],
-            owner_id=user.id,
-            created_at=utcnow,
-            modified=utcnow,
-        )
+        phot = {
+            "id": packet["id"],
+            "original_user_data": json.dumps(original_user_data),
+            "upload_id": upload_id,
+            "flux": flux,
+            "fluxerr": fluxerr,
+            "obj_id": packet["obj_id"],
+            "altdata": json.dumps(packet.get("altdata")),
+            "instrument_id": packet["instrument_id"],
+            "ra_unc": packet["ra_unc"],
+            "dec_unc": packet["dec_unc"],
+            "mjd": packet["mjd"],
+            "filter": packet["filter"],
+            "ra": packet["ra"],
+            "dec": packet["dec"],
+            "origin": packet["origin"],
+            "owner_id": user.id,
+            "created_at": utcnow,
+            "modified": utcnow,
+        }
 
-        if 'ref_standardized_flux' in packet:
-            phot['ref_flux'] = packet.pop('ref_standardized_flux')
-            phot['ref_fluxerr'] = packet.pop('ref_standardized_fluxerr')
+        if "ref_standardized_flux" in packet:
+            phot["ref_flux"] = packet.pop("ref_standardized_flux")
+            phot["ref_fluxerr"] = packet.pop("ref_standardized_fluxerr")
         else:
-            phot['ref_flux'] = None
-            phot['ref_fluxerr'] = None
+            phot["ref_flux"] = None
+            phot["ref_fluxerr"] = None
 
         params.append(phot)
 
         for group_id in group_ids:
             group_photometry_params.append(
                 {
-                    'photometr_id': packet['id'],
-                    'group_id': group_id,
-                    'created_at': utcnow,
-                    'modified': utcnow,
+                    "photometr_id": packet["id"],
+                    "group_id": group_id,
+                    "created_at": utcnow,
+                    "modified": utcnow,
                 }
             )
 
         for stream_id in stream_ids:
             stream_photometry_params.append(
                 {
-                    'photometr_id': packet['id'],
-                    'stream_id': stream_id,
-                    'created_at': utcnow,
-                    'modified': utcnow,
+                    "photometr_id": packet["id"],
+                    "stream_id": stream_id,
+                    "created_at": utcnow,
+                    "modified": utcnow,
                 }
             )
 
@@ -893,26 +887,26 @@ def insert_new_photometry_data(
             params,
             "photometry",
             (
-                'id',
-                'original_user_data',
-                'upload_id',
-                'flux',
-                'fluxerr',
-                'obj_id',
-                'altdata',
-                'instrument_id',
-                'ra_unc',
-                'dec_unc',
-                'mjd',
-                'filter',
-                'ra',
-                'dec',
-                'origin',
-                'owner_id',
-                'created_at',
-                'modified',
-                'ref_flux',
-                'ref_fluxerr',
+                "id",
+                "original_user_data",
+                "upload_id",
+                "flux",
+                "fluxerr",
+                "obj_id",
+                "altdata",
+                "instrument_id",
+                "ra_unc",
+                "dec_unc",
+                "mjd",
+                "filter",
+                "ra",
+                "dec",
+                "origin",
+                "owner_id",
+                "created_at",
+                "modified",
+                "ref_flux",
+                "ref_fluxerr",
             ),
         )
 
@@ -921,7 +915,7 @@ def insert_new_photometry_data(
         save_data_using_copy(
             group_photometry_params,
             "group_photometry",
-            ('photometr_id', 'group_id', 'created_at', 'modified'),
+            ("photometr_id", "group_id", "created_at", "modified"),
         )
 
     if len(stream_photometry_params) > 0:
@@ -929,11 +923,11 @@ def insert_new_photometry_data(
         save_data_using_copy(
             stream_photometry_params,
             "stream_photometry",
-            ('photometr_id', 'stream_id', 'created_at', 'modified'),
+            ("photometr_id", "stream_id", "created_at", "modified"),
         )
 
     # add a phot stats for each photometry
-    obj_id = phot['obj_id']
+    obj_id = phot["obj_id"]
     phot_stat = session.scalars(
         sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
     ).first()
@@ -960,21 +954,21 @@ def insert_new_photometry_data(
     if refresh:
         flow = Flow()
         # grab the list of unique obj_ids
-        obj_ids = df['obj_id'].unique()
+        obj_ids = df["obj_id"].unique()
         for obj_id in obj_ids:
             internal_key = session.scalar(
                 sa.select(Obj.internal_key).where(Obj.id == obj_id)
             )
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
             )
 
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE_PHOTOMETRY',
-                payload={'obj_id': obj_id},
+                "*",
+                "skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
             )
 
     return ids, upload_id
@@ -987,7 +981,7 @@ def get_group_ids(data, user, parent_session=None):
         session = parent_session
 
     group_ids = data.pop("group_ids", [])
-    if isinstance(group_ids, (list, tuple)):
+    if isinstance(group_ids, list | tuple):
         try:
             group_ids = {int(group_id) for group_id in group_ids}
         except ValueError:
@@ -1005,7 +999,7 @@ def get_group_ids(data, user, parent_session=None):
             raise ValidationError(
                 f"Invalid group IDs: {diff_group_ids}. Available group IDs: {available_group_ids}"
             )
-    elif group_ids == 'all':
+    elif group_ids == "all":
         public_group = session.scalar(
             sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
         )
@@ -1034,7 +1028,7 @@ def get_stream_ids(data, user, parent_session=None):
     else:
         session = parent_session
     stream_ids = data.pop("stream_ids", [])
-    if isinstance(stream_ids, (list, tuple)):
+    if isinstance(stream_ids, list | tuple):
         try:
             stream_ids = {int(stream_id) for stream_id in stream_ids}
         except ValueError:
@@ -1094,12 +1088,12 @@ def add_external_photometry(
 
     if len(df.index) > MAX_NUMBER_ROWS:
         raise ValueError(
-            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
-            'Please break up the data into smaller sets and try again'
+            f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
+            "Please break up the data into smaller sets and try again"
         )
 
     username = user.username
-    log(f'Pending request from {username} with {len(df.index)} rows')
+    log(f"Pending request from {username} with {len(df.index)} rows")
 
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
@@ -1110,7 +1104,7 @@ def add_external_photometry(
     try:
         session.execute(
             sa.text(
-                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
             )
         )
         if duplicates in ["ignore", "update"]:
@@ -1161,7 +1155,7 @@ def add_external_photometry(
                     # update the corresponding photometry entry in the db
                     duplicate.groups = groups
                     log(
-                        f'Adding groups {group_ids_update} to photometry {duplicate.id}'
+                        f"Adding groups {group_ids_update} to photometry {duplicate.id}"
                     )
                     updated = True
 
@@ -1177,7 +1171,7 @@ def add_external_photometry(
                                 )
                             )
                         log(
-                            f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                            f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                         )
                         updated = True
 
@@ -1186,13 +1180,13 @@ def add_external_photometry(
 
             if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
                 log(
-                    f'A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}'
+                    f"A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}"
                 )
             # now safely drop the duplicates:
             new_photometry = df.loc[new_photometry_df_idxs]
             log(
-                f'Inserting {len(new_photometry.index)} '
-                f'(out of {len(df.index)}) new photometry points'
+                f"Inserting {len(new_photometry.index)} "
+                f"(out of {len(df.index)}) new photometry points"
             )
         else:
             new_photometry = df.copy()
@@ -1206,7 +1200,7 @@ def add_external_photometry(
                 stream_ids,
                 user,
                 session,
-                validate=True if duplicates in ["error"] else False,
+                validate=duplicates in ["error"],
                 refresh=refresh,
             )
 
@@ -1223,13 +1217,13 @@ def add_external_photometry(
 
         if len(new_photometry) > 0:
             log(
-                f'Request from {username} with '
-                f'{len(new_photometry.index)} rows complete with upload_id {upload_id}.'
+                f"Request from {username} with "
+                f"{len(new_photometry.index)} rows complete with upload_id {upload_id}."
             )
         else:
             log(
-                f'Request from {username} with '
-                f'{len(new_photometry.index)} rows complete with no new photometry.'
+                f"Request from {username} with "
+                f"{len(new_photometry.index)} rows complete with no new photometry."
             )
         return ids, upload_id
     except Exception as e:
@@ -1242,7 +1236,7 @@ def add_external_photometry(
 
 
 class PhotometryHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         f"""
         ---
@@ -1291,7 +1285,7 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        refresh = self.get_query_argument('refresh', default=False)
+        refresh = self.get_query_argument("refresh", default=False)
 
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
@@ -1300,14 +1294,14 @@ class PhotometryHandler(BaseHandler):
 
         if len(df.index) > MAX_NUMBER_ROWS:
             return self.error(
-                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
-                'Please break up the data into smaller sets and try again'
+                f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
+                "Please break up the data into smaller sets and try again"
             )
 
-        obj_id = df['obj_id'].unique()[0]
+        obj_id = df["obj_id"].unique()[0]
         username = self.associated_user_object.username
         log(
-            f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
+            f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
         )
 
         # This lock ensures that the Photometry table data are not modified in any way
@@ -1320,7 +1314,7 @@ class PhotometryHandler(BaseHandler):
             try:
                 session.execute(
                     sa.text(
-                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                        f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
                     )
                 )
                 ids, upload_id = insert_new_photometry_data(
@@ -1340,12 +1334,12 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
             log(
-                f'Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}'
+                f"Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}"
             )
 
-            return self.success(data={'ids': ids, 'upload_id': upload_id})
+            return self.success(data={"ids": ids, "upload_id": upload_id})
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def put(self):
         """
         ---
@@ -1423,9 +1417,9 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        refresh = self.get_query_argument('refresh', default=False)
+        refresh = self.get_query_argument("refresh", default=False)
 
-        if refresh is not None and str(refresh).lower() in ['true', 't', '1']:
+        if refresh is not None and str(refresh).lower() in ["true", "t", "1"]:
             refresh = True
         else:
             refresh = False
@@ -1437,14 +1431,14 @@ class PhotometryHandler(BaseHandler):
 
         if len(df.index) > MAX_NUMBER_ROWS:
             return self.error(
-                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
-                'Please break up the data into smaller sets and try again'
+                f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
+                "Please break up the data into smaller sets and try again"
             )
 
-        ignore_flux = self.get_query_argument('duplicate_ignore_flux', False)
-        overwrite_flux = self.get_query_argument('overwrite_flux', False)
+        ignore_flux = self.get_query_argument("duplicate_ignore_flux", False)
+        overwrite_flux = self.get_query_argument("overwrite_flux", False)
 
-        if ignore_flux is not None and str(ignore_flux).lower() in ['true', 't', '1']:
+        if ignore_flux is not None and str(ignore_flux).lower() in ["true", "t", "1"]:
             ignore_flux = True
         else:
             ignore_flux = False
@@ -1452,22 +1446,22 @@ class PhotometryHandler(BaseHandler):
         # if ignore_flux is True, verify that the current_user is a super admin
         if ignore_flux and not self.associated_user_object.is_admin:
             return self.error(
-                'Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only'
+                "Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only"
             )
 
         if overwrite_flux is not None and str(overwrite_flux).lower() in [
-            'true',
-            't',
-            '1',
+            "true",
+            "t",
+            "1",
         ]:
             overwrite_flux = True
         else:
             overwrite_flux = False
 
-        obj_id = df['obj_id'].unique()[0]
+        obj_id = df["obj_id"].unique()[0]
         username = self.associated_user_object.username
         log(
-            f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
+            f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
         )
 
         values_table, condition = get_values_table_and_condition(df, ignore_flux)
@@ -1483,7 +1477,7 @@ class PhotometryHandler(BaseHandler):
             try:
                 session.execute(
                     sa.text(
-                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                        f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
                     )
                 )
                 new_photometry_query = session.execute(
@@ -1528,7 +1522,7 @@ class PhotometryHandler(BaseHandler):
                         # update the corresponding photometry entry in the db
                         duplicate.groups = groups
                         log(
-                            f'Adding groups {group_ids_update} to photometry {duplicate.id}'
+                            f"Adding groups {group_ids_update} to photometry {duplicate.id}"
                         )
 
                     # posting to new streams?
@@ -1543,7 +1537,7 @@ class PhotometryHandler(BaseHandler):
                                     )
                                 )
                             log(
-                                f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                                f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                             )
 
                     # update duplicate's flux and fluxerr if we are ignoring flux deduplication
@@ -1553,9 +1547,9 @@ class PhotometryHandler(BaseHandler):
                         and ignore_flux
                         and overwrite_flux
                         and str(duplicate.origin).strip().lower()
-                        not in ['none', '', 'nan', 'null']
-                        and str(df.loc[df_index]['origin']).strip().lower()
-                        not in ['none', '', 'nan', 'null']
+                        not in ["none", "", "nan", "null"]
+                        and str(df.loc[df_index]["origin"]).strip().lower()
+                        not in ["none", "", "nan", "null"]
                     ):
                         # we might have more than one datapoint at a given: jd, instrument_id, filter, and origin
                         # that have different flux values (i.e, multiple duplicates not just one)
@@ -1566,18 +1560,18 @@ class PhotometryHandler(BaseHandler):
                         duplicate_value = f"{duplicate.jd}_{duplicate.instrument_id}_{duplicate.filter}_{duplicate.origin}".encode()
                         if duplicate_value in updated_duplicate_values:
                             continue
-                        duplicate.flux = df.loc[df_index]['standardized_flux']
-                        duplicate.fluxerr = df.loc[df_index]['standardized_fluxerr']
-                        duplicate.filter = df.loc[df_index]['filter']
-                        duplicate.ra = df.loc[df_index]['ra']
-                        duplicate.dec = df.loc[df_index]['dec']
-                        duplicate.ra_unc = df.loc[df_index]['ra_unc']
-                        duplicate.dec_unc = df.loc[df_index]['dec_unc']
-                        duplicate.ref_flux = df.loc[df_index]['ref_standardized_flux']
+                        duplicate.flux = df.loc[df_index]["standardized_flux"]
+                        duplicate.fluxerr = df.loc[df_index]["standardized_fluxerr"]
+                        duplicate.filter = df.loc[df_index]["filter"]
+                        duplicate.ra = df.loc[df_index]["ra"]
+                        duplicate.dec = df.loc[df_index]["dec"]
+                        duplicate.ra_unc = df.loc[df_index]["ra_unc"]
+                        duplicate.dec_unc = df.loc[df_index]["dec_unc"]
+                        duplicate.ref_flux = df.loc[df_index]["ref_standardized_flux"]
                         duplicate.ref_fluxerr = df.loc[df_index][
-                            'ref_standardized_fluxerr'
+                            "ref_standardized_fluxerr"
                         ]
-                        duplicate.altdata = json.dumps(df.loc[df_index]['altdata'])
+                        duplicate.altdata = json.dumps(df.loc[df_index]["altdata"])
                         duplicate.modified = datetime.datetime.utcnow().isoformat()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
@@ -1585,12 +1579,12 @@ class PhotometryHandler(BaseHandler):
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
                 log(
-                    f'Inserting {len(new_photometry.index)} '
-                    f'(out of {len(df.index)}) new photometry points'
+                    f"Inserting {len(new_photometry.index)} "
+                    f"(out of {len(df.index)}) new photometry points"
                 )
                 if ignore_flux and overwrite_flux and len(updated_ids) > 0:
                     log(
-                        f'A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested.'
+                        f"A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested."
                     )
 
                 if len(new_photometry) > 0:
@@ -1616,15 +1610,15 @@ class PhotometryHandler(BaseHandler):
 
                 if len(new_photometry) > 0:
                     log(
-                        f'Request from {username} for object {obj_id} with '
-                        f'{len(new_photometry.index)} rows complete with upload_id {upload_id}.'
+                        f"Request from {username} for object {obj_id} with "
+                        f"{len(new_photometry.index)} rows complete with upload_id {upload_id}."
                     )
                 else:
                     log(
-                        f'Request from {username} for object {obj_id} with '
-                        f'{len(new_photometry.index)} rows complete with no new photometry.'
+                        f"Request from {username} for object {obj_id} with "
+                        f"{len(new_photometry.index)} rows complete with no new photometry."
                     )
-                return self.success(data={'ids': ids})
+                return self.success(data={"ids": ids})
 
             except Exception:
                 session.rollback()
@@ -1643,16 +1637,16 @@ class PhotometryHandler(BaseHandler):
 
             if phot is None:
                 return self.error(
-                    f'Cannot find photometry point with ID: {photometry_id}.'
+                    f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
             # get the desired output format
-            format = self.get_query_argument('format', 'mag')
-            outsys = self.get_query_argument('magsys', 'ab')
+            format = self.get_query_argument("format", "mag")
+            outsys = self.get_query_argument("magsys", "ab")
             output = serialize(phot, outsys, format)
             return self.success(data=output)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, photometry_id):
         """
         ---
@@ -1686,14 +1680,14 @@ class PhotometryHandler(BaseHandler):
         try:
             photometry_id = int(photometry_id)
         except ValueError:
-            return self.error('Photometry id must be an int.')
+            return self.error("Photometry id must be an int.")
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
-        magsys = data.get('magsys', 'ab')
+        magsys = data.get("magsys", "ab")
 
-        refresh = self.get_query_argument('refresh', default=False)
+        refresh = self.get_query_argument("refresh", default=False)
 
         with self.Session() as session:
             photometry = session.scalars(
@@ -1704,17 +1698,17 @@ class PhotometryHandler(BaseHandler):
 
             if photometry is None:
                 return self.error(
-                    f'Cannot find photometry point with ID: {photometry_id}.'
+                    f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
             original_user_data = copy.deepcopy(data)
 
-            nan_if_none_keys = {'flux', 'fluxerr', 'mag', 'magerr'}
+            nan_if_none_keys = {"flux", "fluxerr", "mag", "magerr"}
             for key in nan_if_none_keys:
                 if key in data and data[key] is None:
                     data[key] = np.nan
 
-            optional_keys = {'ra', 'dec', 'ra_unc', 'dec_unc', 'assignment_id'}
+            optional_keys = {"ra", "dec", "ra_unc", "dec_unc", "assignment_id"}
             for key in optional_keys:
                 if key not in data:
                     data[key] = None
@@ -1726,10 +1720,10 @@ class PhotometryHandler(BaseHandler):
                     phot = PhotometryMag.load(data, partial=True)
                 except ValidationError as e2:
                     return self.error(
-                        'Invalid input format: Tried to parse '
-                        f'{data} as PhotometryFlux, got: '
+                        "Invalid input format: Tried to parse "
+                        f"{data} as PhotometryFlux, got: "
                         f'"{e1.normalized_messages()}." Tried '
-                        f'to parse {data} as PhotometryMag, got:'
+                        f"to parse {data} as PhotometryMag, got:"
                         f' "{e2.normalized_messages()}."'
                     )
 
@@ -1750,7 +1744,7 @@ class PhotometryHandler(BaseHandler):
                 accessible_group_ids = [
                     g.id for g in self.current_user.accessible_groups
                 ]
-                if not all([g.id in accessible_group_ids for g in groups]):
+                if not all(g.id in accessible_group_ids for g in groups):
                     return self.error(
                         "Cannot upload photometry to groups you are not a member of."
                     )
@@ -1807,20 +1801,20 @@ class PhotometryHandler(BaseHandler):
                     sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
                 )
                 flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': internal_key},
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": internal_key},
                 )
 
                 flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE_PHOTOMETRY',
-                    payload={'obj_id': photometry.obj_id, 'magsys': magsys},
+                    "*",
+                    "skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                    payload={"obj_id": photometry.obj_id, "magsys": magsys},
                 )
 
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, photometry_id):
         """
         ---
@@ -1854,7 +1848,7 @@ class PhotometryHandler(BaseHandler):
 
             if photometry is None:
                 return self.error(
-                    f'Cannot find photometry point with ID: {photometry_id}.'
+                    f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
             obj_id = photometry.obj_id
@@ -1887,34 +1881,34 @@ class ObjPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
-        format = self.get_query_argument('format', 'mag')
-        outsys = self.get_query_argument('magsys', 'ab')
-        include_owner_info = self.get_query_argument('includeOwnerInfo', False)
-        include_stream_info = self.get_query_argument('includeStreamInfo', False)
+        format = self.get_query_argument("format", "mag")
+        outsys = self.get_query_argument("magsys", "ab")
+        include_owner_info = self.get_query_argument("includeOwnerInfo", False)
+        include_stream_info = self.get_query_argument("includeStreamInfo", False)
         include_validation_info = self.get_query_argument(
-            'includeValidationInfo', False
+            "includeValidationInfo", False
         )
         include_annotation_info = self.get_query_argument(
-            'includeAnnotationInfo', False
+            "includeAnnotationInfo", False
         )
-        deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
+        deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
-        if str(include_owner_info).lower() in ['true', 't', '1']:
+        if str(include_owner_info).lower() in ["true", "t", "1"]:
             include_owner_info = True
         else:
             include_owner_info = False
 
-        if str(include_stream_info).lower() in ['true', 't', '1']:
+        if str(include_stream_info).lower() in ["true", "t", "1"]:
             include_stream_info = True
         else:
             include_stream_info = False
 
-        if str(include_validation_info).lower() in ['true', 't', '1']:
+        if str(include_validation_info).lower() in ["true", "t", "1"]:
             include_validation_info = True
         else:
             include_validation_info = False
 
-        if str(include_annotation_info).lower() in ['true', 't', '1']:
+        if str(include_annotation_info).lower() in ["true", "t", "1"]:
             include_annotation_info = True
         else:
             include_annotation_info = False
@@ -1986,7 +1980,7 @@ class ObjPhotometryHandler(BaseHandler):
                         df_phot.sort_values(by="created_at", ascending=False)
                         .drop_duplicates(["mjd", "filter"])
                         .reset_index(drop=True)
-                        .to_dict(orient='records')
+                        .to_dict(orient="records")
                     )
 
             if individual_or_series in ["series", "both"]:
@@ -2002,12 +1996,12 @@ class ObjPhotometryHandler(BaseHandler):
                 series_data = []
                 for s in series:
                     series_data += s.get_data_with_extra_columns().to_dict(
-                        orient='records'
+                        orient="records"
                     )
 
             data = phot_data + series_data
 
-            data.sort(key=lambda x: x['mjd'])
+            data.sort(key=lambda x: x["mjd"])
 
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
@@ -2017,7 +2011,7 @@ class ObjPhotometryHandler(BaseHandler):
                         Annotation.obj_id == obj_id
                     )
                 ).all()
-                period_str_options = ['period', 'Period', 'PERIOD']
+                period_str_options = ["period", "Period", "PERIOD"]
                 for an in annotations:
                     if not isinstance(an.data, dict):
                         continue
@@ -2026,9 +2020,9 @@ class ObjPhotometryHandler(BaseHandler):
                             period = an.data[period_str]
                             modified = arrow.get(an.modified)
                 if period is None:
-                    self.error(f'No period for object {obj_id}')
+                    self.error(f"No period for object {obj_id}")
                 for ii in range(len(data)):
-                    data[ii]['phase'] = np.mod(data[ii]['mjd'], period) / period
+                    data[ii]["phase"] = np.mod(data[ii]["mjd"], period) / period
 
             return self.success(data=data)
 
@@ -2066,7 +2060,7 @@ class ObjPhotometryHandler(BaseHandler):
 
             n = len(photometry_to_delete)
             if n == 0:
-                return self.error('Invalid object id.')
+                return self.error("Invalid object id.")
 
             for phot in photometry_to_delete:
                 session.delete(phot)
@@ -2120,7 +2114,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
 
             n = len(photometry_to_delete)
             if n == 0:
-                return self.error('Invalid bulk upload id.')
+                return self.error("Invalid bulk upload id.")
 
             for phot in photometry_to_delete:
                 session.delete(phot)
@@ -2147,24 +2141,24 @@ class PhotometryRangeHandler(BaseHandler):
         """Docstring appears below as an f-string."""
 
         json = self.get_json()
-        magsys = self.get_query_argument('magsys', default='ab')
+        magsys = self.get_query_argument("magsys", default="ab")
 
         if magsys not in ALLOWED_MAGSYSTEMS:
-            return self.error('Invalid mag system.')
+            return self.error("Invalid mag system.")
 
-        format = self.get_query_argument('format', default='mag')
-        if format not in ['mag', 'flux']:
-            return self.error('Invalid output format.')
+        format = self.get_query_argument("format", default="mag")
+        if format not in ["mag", "flux"]:
+            return self.error("Invalid output format.")
 
         with self.Session() as session:
             try:
                 standardized = PhotometryRangeQuery.load(json)
             except ValidationError as e:
-                return self.error(f'Invalid request body: {e.normalized_messages()}')
+                return self.error(f"Invalid request body: {e.normalized_messages()}")
 
-            instrument_ids = standardized['instrument_ids']
-            min_date = standardized['min_date']
-            max_date = standardized['max_date']
+            instrument_ids = standardized["instrument_ids"]
+            min_date = standardized["min_date"]
+            max_date = standardized["max_date"]
 
             gids = [g.id for g in self.current_user.accessible_groups]
 
@@ -2178,10 +2172,10 @@ class PhotometryRangeHandler(BaseHandler):
             if instrument_ids is not None:
                 query = query.where(Photometry.instrument_id.in_(instrument_ids))
             if min_date is not None:
-                mjd = Time(min_date, format='datetime').mjd
+                mjd = Time(min_date, format="datetime").mjd
                 query = query.where(Photometry.mjd >= mjd)
             if max_date is not None:
-                mjd = Time(max_date, format='datetime').mjd
+                mjd = Time(max_date, format="datetime").mjd
                 query = query.where(Photometry.mjd <= mjd)
 
             query = query.join(

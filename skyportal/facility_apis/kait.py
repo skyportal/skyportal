@@ -1,16 +1,16 @@
 import requests
 from requests.auth import HTTPBasicAuth
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
 
-if cfg.get('app.kait.port') is None:
+if cfg.get("app.kait.port") is None:
     KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
 else:
     KAIT_URL = (
@@ -19,7 +19,6 @@ else:
 
 
 class KAITRequest:
-
     """A dictionary structure for KAIT ToO requests."""
 
     def _build_payload(self, request):
@@ -48,18 +47,17 @@ class KAITRequest:
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'ra': f"{request.obj.ra:.5f}",
-            'dec': f"{request.obj.dec:.5f}",
-            'filters': "".join(request.payload["observation_choices"]),
-            'exposure': request.payload["observation_type"],
+            "name": request.obj.id,
+            "ra": f"{request.obj.ra:.5f}",
+            "dec": f"{request.obj.dec:.5f}",
+            "filters": "".join(request.payload["observation_choices"]),
+            "exposure": request.payload["observation_type"],
         }
 
         return target
 
 
 class KAITAPI(FollowUpAPI):
-
     """An interface to KAIT operations."""
 
     # subclasses *must* implement the method below
@@ -82,21 +80,21 @@ class KAITAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         requestpath = f"{KAIT_URL}/cgi-bin/internal/process_kait_ztf_request.py"
 
         r = requests.post(
             requestpath,
-            auth=HTTPBasicAuth(altdata['username'], altdata['password']),
+            auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
             json=requestgroup,
         )
         r.raise_for_status()
 
         if r.status_code == 200:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -107,18 +105,18 @@ class KAITAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -138,18 +136,18 @@ class KAITAPI(FollowUpAPI):
                 "Can't delete requests already submitted successfully to KAIT."
             )
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -194,5 +192,5 @@ class KAITAPI(FollowUpAPI):
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {
-        'observation_choices': "Request",
+        "observation_choices": "Request",
     }

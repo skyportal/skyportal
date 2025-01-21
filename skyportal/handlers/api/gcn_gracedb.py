@@ -1,25 +1,26 @@
-import arrow
-from ligo.gracedb.rest import GraceDb
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
+
+import arrow
+import sqlalchemy as sa
+from ligo.gracedb.rest import GraceDb
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import permissions
-from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
+from ...models import CommentOnGCN, DBSession, GcnEvent, Group, User
 from ..base import BaseHandler
-from ...models import DBSession, CommentOnGCN, GcnEvent, Group, User
 
 Session = scoped_session(sessionmaker())
 
-log = make_log('api/gcn_gracedb')
+log = make_log("api/gcn_gracedb")
 
 _, cfg = load_env()
-GRACEDB_URL = cfg['app.gracedb_endpoint']
-GRACEDB_CREDENTIAL = cfg.get('app.gracedb_credential')
+GRACEDB_URL = cfg["app.gracedb_endpoint"]
+GRACEDB_CREDENTIAL = cfg.get("app.gracedb_credential")
 
 if GRACEDB_CREDENTIAL is not None:
     client = GraceDb(service_url=GRACEDB_URL, cred=GRACEDB_CREDENTIAL)
@@ -49,7 +50,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
         gcn_event.gracedb_log = superevent_dict_log
         gcn_event.gracedb_labels = superevent_dict_labels
 
-        gracedb_link = superevent_dict['links']['self']
+        gracedb_link = superevent_dict["links"]["self"]
 
         group_ids = [g.id for g in user.accessible_groups]
         groups = (
@@ -59,7 +60,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
         )
 
         comment = CommentOnGCN(
-            text=f'GraceDB link: {gracedb_link}',
+            text=f"GraceDB link: {gracedb_link}",
             gcn_id=gcn_event.id,
             author=user,
             groups=groups,
@@ -78,16 +79,16 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
             file = client.files(gracedb_id, filename)
             output_format = filename.split(".")[-1]
             with tempfile.NamedTemporaryFile(
-                mode='wb', delete=False, suffix='.' + output_format
+                mode="wb", delete=False, suffix="." + output_format
             ) as f:
                 f.write(file.read())
                 f.flush()
 
-                with open(f.name, mode='rb') as g:
+                with open(f.name, mode="rb") as g:
                     data_to_disk = g.read()
 
                 comment = CommentOnGCN(
-                    text=f'GraceDB file: {filename}',
+                    text=f"GraceDB file: {filename}",
                     gcn_id=gcn_event.id,
                     attachment_name=filename,
                     author=user,
@@ -100,13 +101,13 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
         session.commit()
 
         flow.push(
-            user_id='*',
-            action_type='skyportal/REFRESH_GCN_EVENT',
-            payload={'gcnEvent_dateobs': dateobs},
+            user_id="*",
+            action_type="skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": dateobs},
         )
-        log(f'Posted GraceDB data for {dateobs}')
+        log(f"Posted GraceDB data for {dateobs}")
     except Exception as e:
-        log(f'Failed to post GraceDB data for {dateobs}: {str(e)}')
+        log(f"Failed to post GraceDB data for {dateobs}: {str(e)}")
     finally:
         session.close()
         Session.remove()
@@ -151,7 +152,7 @@ class GcnGraceDBHandler(BaseHandler):
         try:
             arrow.get(dateobs).datetime
         except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
+            return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -159,7 +160,7 @@ class GcnGraceDBHandler(BaseHandler):
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
-                    return self.error(f'No GCN event found for {dateobs}')
+                    return self.error(f"No GCN event found for {dateobs}")
 
                 gracedb_id = None
                 aliases = gcn_event.aliases
@@ -170,7 +171,7 @@ class GcnGraceDBHandler(BaseHandler):
 
                 if gracedb_id is None:
                     return self.error(
-                        f'Event {dateobs} does not have GraceDB ID, cannot retrieve data.'
+                        f"Event {dateobs} does not have GraceDB ID, cannot retrieve data."
                     )
                 gcn_event_id = gcn_event.id
 
@@ -181,7 +182,7 @@ class GcnGraceDBHandler(BaseHandler):
                     ),
                 )
 
-                return self.success(data={'id': gcn_event_id})
+                return self.success(data={"id": gcn_event_id})
 
         except Exception as e:
-            return self.error(f'Error scraping GraceDB: {e}')
+            return self.error(f"Error scraping GraceDB: {e}")

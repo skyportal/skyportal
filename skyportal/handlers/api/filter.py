@@ -1,10 +1,10 @@
 from marshmallow.exceptions import ValidationError
-
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
-from ..base import BaseHandler
+
 from ...models import Filter
+from ..base import BaseHandler
 
 
 class FilterHandler(BaseHandler):
@@ -56,7 +56,7 @@ class FilterHandler(BaseHandler):
                     ).where(Filter.id == filter_id)
                 ).first()
                 if f is None:
-                    return self.error(f'Cannot find a filter with ID: {filter_id}.')
+                    return self.error(f"Cannot find a filter with ID: {filter_id}.")
 
                 return self.success(data=f)
 
@@ -98,7 +98,7 @@ class FilterHandler(BaseHandler):
                 fil = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(fil)
             session.commit()
@@ -139,7 +139,7 @@ class FilterHandler(BaseHandler):
                 )
             ).first()
             if f is None:
-                return self.error(f'Cannot find a filter with ID: {filter_id}.')
+                return self.error(f"Cannot find a filter with ID: {filter_id}.")
 
             data = self.get_json()
             data["id"] = filter_id
@@ -149,7 +149,7 @@ class FilterHandler(BaseHandler):
                 fil = schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             if fil.group_id != f.group_id or fil.stream_id != f.stream_id:
@@ -189,7 +189,7 @@ class FilterHandler(BaseHandler):
                 )
             ).first()
             if f is None:
-                return self.error(f'Cannot find a filter with ID: {filter_id}.')
+                return self.error(f"Cannot find a filter with ID: {filter_id}.")
             session.delete(f)
             session.commit()
             return self.success()

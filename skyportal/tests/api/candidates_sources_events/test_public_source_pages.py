@@ -40,7 +40,7 @@ def test_group_manage_sources_create_page_no_data(manage_sources_token, public_s
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
-        data={'': {}},
+        data={"": {}},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "Options are required")
@@ -52,7 +52,7 @@ def test_group_manage_sources_create_page_with_empty_options(
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
-        data={'options': {}},
+        data={"options": {}},
         token=manage_sources_token,
     )
     assert_api(status, data)
@@ -87,7 +87,7 @@ def test_group_manage_sources_create_page_includes_no_groups_and_streams(
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
-        data={'summary': 'This is a summary'},
+        data={"summary": "This is a summary"},
         token=super_admin_token,
     )
     assert_api(status, data)
@@ -113,13 +113,13 @@ def test_group_manage_sources_create_page_includes_no_groups_and_streams(
         "POST",
         f"public_pages/source/{public_source.id}",
         data={
-            'options': {
-                'include_summary': True,
-                'include_photometry': True,
-                'include_spectroscopy': True,
-                'include_classifications': True,
-                'groups': [],
-                'streams': [],
+            "options": {
+                "include_summary": True,
+                "include_photometry": True,
+                "include_spectroscopy": True,
+                "include_classifications": True,
+                "groups": [],
+                "streams": [],
             },
         },
         token=manage_sources_token,
@@ -144,7 +144,7 @@ def test_group_manage_sources_create_page_no_includes_no_groups_and_streams(
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
-        data={'summary': 'This is a summary'},
+        data={"summary": "This is a summary"},
         token=super_admin_token,
     )
     assert_api(status, data)
@@ -161,13 +161,13 @@ def test_group_manage_sources_create_page_no_includes_no_groups_and_streams(
         "POST",
         f"public_pages/source/{public_source.id}",
         data={
-            'options': {
-                'include_summary': False,
-                'include_photometry': False,
-                'include_spectroscopy': False,
-                'include_classifications': False,
-                'groups': [],
-                'streams': [],
+            "options": {
+                "include_summary": False,
+                "include_photometry": False,
+                "include_spectroscopy": False,
+                "include_classifications": False,
+                "groups": [],
+                "streams": [],
             },
         },
         token=manage_sources_token,
@@ -192,7 +192,7 @@ def test_group_manage_sources_create_page_includes_bad_groups_and_streams(
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
-        data={'summary': 'This is a summary'},
+        data={"summary": "This is a summary"},
         token=super_admin_token,
     )
     assert_api(status, data)
@@ -209,13 +209,13 @@ def test_group_manage_sources_create_page_includes_bad_groups_and_streams(
         "POST",
         f"public_pages/source/{public_source.id}",
         data={
-            'options': {
-                'include_summary': True,
-                'include_photometry': True,
-                'include_spectroscopy': True,
-                'include_classifications': True,
-                'groups': [0],
-                'streams': [0],
+            "options": {
+                "include_summary": True,
+                "include_photometry": True,
+                "include_spectroscopy": True,
+                "include_classifications": True,
+                "groups": [0],
+                "streams": [0],
             },
         },
         token=manage_sources_token,
@@ -242,7 +242,7 @@ def test_group_manage_sources_create_page_bad_source(
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id[:1]}",
-        data={'options': {}},
+        data={"options": {}},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 404, "Source not found")
@@ -255,8 +255,8 @@ def test_group_manage_sources_create_page_bad_release(
         "POST",
         f"public_pages/source/{public_source.id}",
         data={
-            'options': {},
-            'release_id': '',
+            "options": {},
+            "release_id": "",
         },
         token=manage_sources_token,
     )
@@ -266,8 +266,8 @@ def test_group_manage_sources_create_page_bad_release(
         "POST",
         f"public_pages/source/{public_source.id}",
         data={
-            'options': {},
-            'release_id': 0,
+            "options": {},
+            "release_id": 0,
         },
         token=manage_sources_token,
     )
@@ -281,7 +281,7 @@ def test_non_group_manage_sources_cannot_delete_page(
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
-        data={'options': {}},
+        data={"options": {}},
         token=manage_sources_token,
     )
     assert_api(status, data)
@@ -303,7 +303,7 @@ def test_group_manage_sources_delete_page(manage_sources_token, public_source):
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
-        data={'options': {}},
+        data={"options": {}},
         token=manage_sources_token,
     )
     assert_api(status, data)

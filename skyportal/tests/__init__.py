@@ -1,10 +1,11 @@
 import os
 import urllib.parse
+
 import requests
 
-from .patch_requests import patch_requests
-from baselayer.app.env import load_env
+from baselayer.app.config import load_config
 
+from .patch_requests import patch_requests
 
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
 
@@ -49,10 +50,10 @@ def api(
         Response JSON, if `raw_response` is False.
     """
     if host is None:
-        env, cfg = load_env()
-        host = f'http://localhost:{cfg["ports.app"]}'
-    url = urllib.parse.urljoin(host, f'/api/{endpoint}')
-    headers = {'Authorization': f'token {token}'} if token else None
+        cfg = load_config(config_files=["test_config.yaml"])
+        host = f"http://localhost:{cfg['ports.app']}"
+    url = urllib.parse.urljoin(host, f"/api/{endpoint}")
+    headers = {"Authorization": f"token {token}"} if token else None
     response = session.request(method, url, json=data, params=params, headers=headers)
 
     if raw_response:
@@ -79,11 +80,11 @@ def assert_api(status, data):
         The response data.
 
     """
-    if status != 200 or data['status'] != 'success':
+    if status != 200 or data["status"] != "success":
         if data:
-            raise Exception(f'Expected success, got {status}: {data["message"]}')
+            raise Exception(f"Expected success, got {status}: {data['message']}")
         else:
-            raise Exception(f'Expected success, got {status}')
+            raise Exception(f"Expected success, got {status}")
 
 
 def assert_api_fail(status, data, expected_status=None, expected_error_partial=None):
@@ -108,12 +109,12 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
 
     """
     if status == 200:
-        raise Exception(f'Expected failure, got status==200')
+        raise Exception(f"Expected failure, got status==200")
     if expected_error_partial is not None:
-        if not data or expected_error_partial not in data['message']:
+        if not data or expected_error_partial not in data["message"]:
             raise Exception(
-                f'Expected error message to contain {expected_error_partial}, got {data["message"]}'
+                f"Expected error message to contain {expected_error_partial}, got {data['message']}"
             )
     if expected_status is not None:
         if status != expected_status:
-            raise Exception(f'Expected status {expected_status}, got {status}')
+            raise Exception(f"Expected status {expected_status}, got {status}")

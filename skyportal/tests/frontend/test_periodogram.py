@@ -37,29 +37,29 @@ def test_periodogram(
     fluxerr = 0.1 + 0.02 * np.random.normal(size=times.shape)
 
     data = {
-        'obj_id': obj_id,
-        'mjd': list(times),
-        'instrument_id': ztf_camera.id,
-        'flux': list(flux),
-        'fluxerr': list(fluxerr),
-        'filter': ['ztfr'] * len(flux),
-        'zp': [25.0] * len(flux),
-        'magsys': ['ab'] * len(flux),
-        'ra': 165.0,
-        'ra_unc': 0.17,
-        'dec': -30.0,
-        'dec_unc': 0.2,
-        'group_ids': [public_group.id],
+        "obj_id": obj_id,
+        "mjd": list(times),
+        "instrument_id": ztf_camera.id,
+        "flux": list(flux),
+        "fluxerr": list(fluxerr),
+        "filter": ["ztfr"] * len(flux),
+        "zp": [25.0] * len(flux),
+        "magsys": ["ab"] * len(flux),
+        "ra": 165.0,
+        "ra_unc": 0.17,
+        "dec": -30.0,
+        "dec_unc": 0.2,
+        "group_ids": [public_group.id],
     }
     # Put in some actual photometry data first
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data=data,
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{obj_id}/periodogram")

@@ -7,31 +7,30 @@ from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-
 from skyportal.models.group import Group
-from ...base import BaseHandler
-from ....models import Obj, Source
-from .source_views import t_index
 
+from ....models import Obj, Source
+from ...base import BaseHandler
+from .source_views import t_index
 
 # maxNumSources is the maximum number of sources to return
 # includeSitewide is a boolean that determines whether to include
 # sources that are only in the sitewide group
-default_prefs = {'maxNumSources': 5, 'includeSitewideSources': False}
+default_prefs = {"maxNumSources": 5, "includeSitewideSources": False}
 
 env, cfg = load_env()
-log = make_log('api/recent_sources')
+log = make_log("api/recent_sources")
 
 
 class RecentSourcesHandler(BaseHandler):
     @classmethod
     def get_recent_source_ids(cls, current_user, session):
-        user_prefs = getattr(current_user, 'preferences', None) or {}
-        recent_sources_prefs = user_prefs.get('recentSources', {})
+        user_prefs = getattr(current_user, "preferences", None) or {}
+        recent_sources_prefs = user_prefs.get("recentSources", {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
-        max_num_sources = int(recent_sources_prefs['maxNumSources'])
-        include_sitewide = recent_sources_prefs.get('includeSitewideSources', False)
+        max_num_sources = int(recent_sources_prefs["maxNumSources"])
+        include_sitewide = recent_sources_prefs.get("includeSitewideSources", False)
 
         stmt = (
             Source.select(session.user_or_token)
@@ -49,7 +48,7 @@ class RecentSourcesHandler(BaseHandler):
                 )
             stmt = stmt.where(Source.group_id != public_group_id)
         query_results = session.scalars(stmt.limit(max_num_sources)).all()
-        ids = map(lambda src: src.obj_id, query_results)
+        ids = (src.obj_id for src in query_results)
         return ids
 
     @auth_or_token
@@ -86,11 +85,11 @@ class RecentSourcesHandler(BaseHandler):
 
                 sources.append(
                     {
-                        'obj_id': s.id,
-                        'ra': s.ra,
-                        'dec': s.dec,
-                        'created_at': source_entry.created_at,
-                        'thumbnails': [
+                        "obj_id": s.id,
+                        "ra": s.ra,
+                        "dec": s.dec,
+                        "created_at": source_entry.created_at,
+                        "thumbnails": [
                             {
                                 "type": t.type,
                                 "is_grayscale": t.is_grayscale,
@@ -98,9 +97,9 @@ class RecentSourcesHandler(BaseHandler):
                             }
                             for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                         ],
-                        'classifications': s.classifications,
-                        'recency_index': recency_index,
-                        'tns_name': s.tns_name,
+                        "classifications": s.classifications,
+                        "recency_index": recency_index,
+                        "tns_name": s.tns_name,
                     }
                 )
 

@@ -1,11 +1,12 @@
-import pytest
-import uuid
 import os
-from tdtax import taxonomy, __version__
+import uuid
 from datetime import datetime, timezone
+
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import (
@@ -29,7 +30,7 @@ def filter_for_value(driver, value, last=False):
 def test_mention_generates_notification_then_mark_read_and_delete(
     driver, user, public_source
 ):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable notifications for mentions
@@ -75,8 +76,8 @@ def test_group_admission_requests_notifications(
     )
     assert status == 200
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/groups')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="My Groups"]')
     filter_for_value(driver, public_group2.name)
     driver.click_xpath(f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]')
@@ -98,7 +99,7 @@ def test_group_admission_requests_notifications(
     driver.wait_for_xpath('//div[text()="accepted"]')
     driver.wait_for_xpath(f'//a[text()="{user.username}"]')
 
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath('//em[text()="accepted"]')
@@ -109,7 +110,7 @@ def test_group_admission_requests_notifications(
 def test_comment_on_favorite_source_triggers_notification(
     driver, user, user2, public_source
 ):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable browser notifications for favorite source comments
@@ -149,13 +150,13 @@ def test_comment_on_favorite_source_triggers_notification(
     )
 
     # Become user2 and submit comment on source
-    driver.get(f'/become_user/{user2.id}')
+    driver.get(f"/become_user/{user2.id}")
     driver.get(f"/source/{public_source.id}")
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath(f"//p[text()='{comment_text}']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -167,22 +168,22 @@ def test_classification_on_favorite_source_triggers_notification(
     driver, user, public_source, public_group, taxonomy_token, classification_token
 ):
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable browser notifications for favorite source comments
@@ -218,22 +219,22 @@ def test_classification_on_favorite_source_triggers_notification(
     driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': public_source.id,
-            'classification': 'AGN',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
-            'ml': True,
+            "obj_id": public_source.id,
+            "classification": "AGN",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+            "ml": True,
         },
         token=classification_token,
     )
     assert status == 200
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -246,7 +247,7 @@ def test_classification_on_favorite_source_triggers_notification(
 def test_spectra_on_favorite_source_triggers_notification(
     driver, user, public_source, lris, upload_data_token, public_group
 ):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable browser notifications for favorite source comments
@@ -273,23 +274,23 @@ def test_spectra_on_favorite_source_triggers_notification(
 
     # Add spectrum to public_source
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': public_source.id,
-            'observed_at': str(datetime.now(timezone.utc)),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id],
+            "obj_id": public_source.id,
+            "observed_at": str(datetime.now(timezone.utc)),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -300,22 +301,22 @@ def test_new_classification_on_source_triggers_notification(
     driver, user, public_source, public_group, taxonomy_token, classification_token
 ):
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable notifications for sources when a specific classification is added
@@ -342,21 +343,21 @@ def test_new_classification_on_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "Sources classifications updated")]')
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': public_source.id,
-            'classification': 'AGN',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": public_source.id,
+            "classification": "AGN",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token,
     )
     assert status == 200
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -367,7 +368,7 @@ def test_new_classification_on_source_triggers_notification(
 def test_new_spectra_on_source_triggers_notification(
     driver, user, public_source, lris, upload_data_token, public_group
 ):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable notifications for sources when a specific classification is added
@@ -399,23 +400,23 @@ def test_new_spectra_on_source_triggers_notification(
 
     # Add spectrum to public_source
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': public_source.id,
-            'observed_at': str(datetime.now(timezone.utc)),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id],
+            "obj_id": public_source.id,
+            "observed_at": str(datetime.now(timezone.utc)),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -424,7 +425,7 @@ def test_new_spectra_on_source_triggers_notification(
 
 @pytest.mark.flaky(reruns=1)
 def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable notifications for sources when a specific classification is added
@@ -440,7 +441,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     driver.click_xpath(new_notif_profile)
 
     gcn_events_name = driver.wait_for_xpath('//*[@id="GcnNotificationNameInput"]')
-    gcn_events_name.send_keys('test')
+    gcn_events_name.send_keys("test")
 
     gcn_events_notice_types = driver.wait_for_xpath(
         '//*[@aria-labelledby="selectGcns"]'
@@ -463,17 +464,17 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
     driver.wait_for_xpath('//*[contains(text(), "Gcn notice preferences updated")]')
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    data = {"xml": payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    status, data = api("POST", "gcn_event", data=data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
@@ -481,7 +482,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
 
 def test_notification_setting_select(driver, user):
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     # Enable notifications for new mentions
@@ -565,7 +566,7 @@ def test_notification_setting_select(driver, user):
     )
 
     # reload profile to see if the settings were saved
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
 
     driver.wait_for_xpath(

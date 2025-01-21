@@ -5,12 +5,12 @@ Revises: 831be4c27aef
 Create Date: 2022-09-15 00:12:44.308601
 
 """
+
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '8e0f15cb11af'
-down_revision = '831be4c27aef'
+revision = "8e0f15cb11af"
+down_revision = "831be4c27aef"
 branch_labels = None
 depends_on = None
 

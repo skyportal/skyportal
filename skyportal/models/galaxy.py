@@ -1,9 +1,9 @@
-__all__ = ['GalaxyCatalog', 'Galaxy']
+__all__ = ["GalaxyCatalog", "Galaxy"]
 
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 import conesearch_alchemy as ca
 import healpix_alchemy
+import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
 
@@ -69,7 +69,7 @@ class Galaxy(Base, ca.Point):
         back_populates="host",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Objects that are associated with this Galaxy.',
+        doc="Objects that are associated with this Galaxy.",
     )
 
 

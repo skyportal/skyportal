@@ -5,13 +5,14 @@ Revises: d67d42b06b11
 Create Date: 2020-11-12 16:34:25.642126
 
 """
-from alembic import op
+
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'fbf89710dead'
-down_revision = '73ca57416d1c'
+revision = "fbf89710dead"
+down_revision = "73ca57416d1c"
 branch_labels = None
 depends_on = None
 
@@ -65,18 +66,18 @@ def upgrade():
         .values(uploader_id=1)
     )
     op.create_foreign_key(
-        None, 'candidates', 'users', ['uploader_id'], ['id'], ondelete='CASCADE'
+        None, "candidates", "users", ["uploader_id"], ["id"], ondelete="CASCADE"
     )
     op.alter_column("candidates", "uploader_id", nullable=False)
     op.create_index(
-        op.f('ix_candidates_filter_id'), 'candidates', ['filter_id'], unique=False
+        op.f("ix_candidates_filter_id"), "candidates", ["filter_id"], unique=False
     )
     op.create_index(
-        op.f('ix_candidates_obj_id'), 'candidates', ['obj_id'], unique=False
+        op.f("ix_candidates_obj_id"), "candidates", ["obj_id"], unique=False
     )
-    op.drop_index('candidates_pkey', table_name='candidates')
-    op.drop_index('candidates_reverse_ind', table_name='candidates')
-    op.drop_index('ix_candidates_id', table_name='candidates')
+    op.drop_index("candidates_pkey", table_name="candidates")
+    op.drop_index("candidates_reverse_ind", table_name="candidates")
+    op.drop_index("ix_candidates_id", table_name="candidates")
 
 
 def downgrade():
@@ -93,10 +94,10 @@ def downgrade():
         ["obj_id", "filter_id"],
         unique=True,
     )
-    op.create_index('ix_candidates_id', 'candidates', ['id'], unique=False)
+    op.create_index("ix_candidates_id", "candidates", ["id"], unique=False)
     op.create_index(
-        'candidates_reverse_ind', 'candidates', ['obj_id', 'filter_id'], unique=False
+        "candidates_reverse_ind", "candidates", ["obj_id", "filter_id"], unique=False
     )
-    op.create_index('candidates_pkey', 'candidates', ['id'], unique=True)
-    op.drop_index(op.f('ix_candidates_obj_id'), table_name='candidates')
-    op.drop_index(op.f('ix_candidates_filter_id'), table_name='candidates')
+    op.create_index("candidates_pkey", "candidates", ["id"], unique=True)
+    op.drop_index(op.f("ix_candidates_obj_id"), table_name="candidates")
+    op.drop_index(op.f("ix_candidates_filter_id"), table_name="candidates")

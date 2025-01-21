@@ -1,8 +1,8 @@
 __all__ = [
-    'Localization',
-    'LocalizationTag',
-    'LocalizationProperty',
-    'LocalizationTile',
+    "Localization",
+    "LocalizationTag",
+    "LocalizationProperty",
+    "LocalizationTile",
 ]
 
 import datetime
@@ -10,9 +10,9 @@ import datetime
 import dustmaps.sfd
 import healpix_alchemy
 import healpy
+import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.distance
 import ligo.skymap.moc
-import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.postprocess
 import numpy as np
 import sqlalchemy as sa
@@ -29,12 +29,12 @@ from baselayer.app.env import load_env
 from baselayer.app.models import AccessibleIfUserMatches, Base
 from baselayer.log import make_log
 
-from ..utils.files import save_file_data, delete_file_data
+from ..utils.files import delete_file_data, save_file_data
 
 _, cfg = load_env()
-config['data_dir'] = cfg['misc.dustmap_folder']
+config["data_dir"] = cfg["misc.dustmap_folder"]
 
-log = make_log('models/localizations')
+log = make_log("models/localizations")
 
 utcnow = func.timezone("UTC", func.current_timestamp())
 
@@ -48,10 +48,10 @@ class Localization(Base):
     area tiles each with a unique index, convenient for decomposing
     the sphere into subdivisions."""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this Localization.",
@@ -68,19 +68,19 @@ class Localization(Base):
     # HEALPix resolution used for flat (non-multiresolution) operations.
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc='UTC event timestamp',
+        doc="UTC event timestamp",
     )
 
-    localization_name = sa.Column(sa.String, doc='Localization name', index=True)
+    localization_name = sa.Column(sa.String, doc="Localization name", index=True)
 
     uniq = deferred(
         sa.Column(
             sa.ARRAY(sa.BigInteger),
             nullable=False,
-            doc='Multiresolution HEALPix UNIQ pixel index array',
+            doc="Multiresolution HEALPix UNIQ pixel index array",
         )
     )
 
@@ -88,69 +88,69 @@ class Localization(Base):
         sa.Column(
             sa.ARRAY(sa.Float),
             nullable=False,
-            doc='Multiresolution HEALPix probability density array',
+            doc="Multiresolution HEALPix probability density array",
         )
     )
 
     distmu = deferred(
-        sa.Column(sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance mu array')
+        sa.Column(sa.ARRAY(sa.Float), doc="Multiresolution HEALPix distance mu array")
     )
 
     distsigma = deferred(
         sa.Column(
-            sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance sigma array'
+            sa.ARRAY(sa.Float), doc="Multiresolution HEALPix distance sigma array"
         )
     )
 
     distnorm = deferred(
         sa.Column(
             sa.ARRAY(sa.Float),
-            doc='Multiresolution HEALPix distance normalization array',
+            doc="Multiresolution HEALPix distance normalization array",
         )
     )
 
-    contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
+    contour = deferred(sa.Column(JSONB, doc="GeoJSON contours"))
 
     _localization_path = sa.Column(
         sa.String,
         nullable=True,
-        doc='file path where the data of the localization is saved.',
+        doc="file path where the data of the localization is saved.",
     )
 
     observationplan_requests = relationship(
-        'ObservationPlanRequest',
-        back_populates='localization',
-        cascade='delete',
+        "ObservationPlanRequest",
+        back_populates="localization",
+        cascade="delete",
         passive_deletes=True,
         doc="Observation plan requests of the localization.",
     )
 
     survey_efficiency_analyses = relationship(
-        'SurveyEfficiencyForObservations',
-        back_populates='localization',
-        cascade='delete',
+        "SurveyEfficiencyForObservations",
+        back_populates="localization",
+        cascade="delete",
         passive_deletes=True,
         doc="Survey efficiency analyses of the event.",
     )
 
     properties = relationship(
-        'LocalizationProperty',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "LocalizationProperty",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="LocalizationProperty.created_at",
         doc="Properties associated with this Localization.",
     )
 
     tags = relationship(
-        'LocalizationTag',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "LocalizationTag",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="LocalizationTag.created_at",
         doc="Tags associated with this Localization.",
     )
 
     notice_id = sa.Column(
-        sa.ForeignKey('gcnnotices.id', ondelete='CASCADE'),
+        sa.ForeignKey("gcnnotices.id", ondelete="CASCADE"),
         nullable=True,
         doc="The ID of the Notice that this Localization is associated with, if any.",
     )
@@ -176,7 +176,7 @@ class Localization(Base):
         """Get multiresolution HEALPix dataset, probability density only."""
         return Table(
             [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
-            names=['UNIQ', 'PROBDENSITY'],
+            names=["UNIQ", "PROBDENSITY"],
         )
 
     @property
@@ -192,7 +192,7 @@ class Localization(Base):
                     self.distsigma,
                     self.distnorm,
                 ],
-                names=['UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'],
+                names=["UNIQ", "PROBDENSITY", "DISTMU", "DISTSIGMA", "DISTNORM"],
             )
         else:
             return self.table_2d
@@ -201,8 +201,8 @@ class Localization(Base):
     def flat_2d(self):
         """Get flat resolution HEALPix dataset, probability density only."""
         order = healpy.nside2order(Localization.nside)
-        result = ligo_bayestar.rasterize(self.table_2d, order)['PROB']
-        return healpy.reorder(result, 'NESTED', 'RING')
+        result = ligo_bayestar.rasterize(self.table_2d, order)["PROB"]
+        return healpy.reorder(result, "NESTED", "RING")
 
     @property
     def flat(self):
@@ -211,8 +211,8 @@ class Localization(Base):
         if self.is_3d:
             order = healpy.nside2order(Localization.nside)
             t = ligo_bayestar.rasterize(self.table, order)
-            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
-            return healpy.reorder(result, 'NESTED', 'RING')
+            result = t["PROB"], t["DISTMU"], t["DISTSIGMA"], t["DISTNORM"]
+            return healpy.reorder(result, "NESTED", "RING")
         else:
             return (self.flat_2d,)
 
@@ -244,10 +244,10 @@ class Localization(Base):
             sky_map = self.table
             # Calculate the cumulative area in deg2 and the
             # cumulative probability.
-            dA = ligo.skymap.moc.uniq2pixarea(sky_map['UNIQ'])
-            dP = sky_map['PROBDENSITY'] * dA
-            mu = sky_map['DISTMU']
-            sigma = sky_map['DISTSIGMA']
+            dA = ligo.skymap.moc.uniq2pixarea(sky_map["UNIQ"])
+            dP = sky_map["PROBDENSITY"] * dA
+            mu = sky_map["DISTMU"]
+            sigma = sky_map["DISTSIGMA"]
 
             distmean, distsigma = ligo.skymap.distance.parameters_to_marginal_moments(
                 dP, mu, sigma
@@ -268,7 +268,7 @@ class Localization(Base):
         """
 
         # there's a default value but it is best to provide a full path in the config
-        root_folder = cfg.get('localizations_folder', 'localizations_data')
+        root_folder = cfg.get("localizations_folder", "localizations_data")
 
         full_path = save_file_data(root_folder, str(self.id), filename, file_data)
 
@@ -296,9 +296,9 @@ class LocalizationTileMixin:
     Each tile has an associated healpix id and probability density."""
 
     localization_id = sa.Column(
-        sa.ForeignKey('localizations.id', ondelete='CASCADE'),
+        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
         primary_key=True,
-        doc='localization ID',
+        doc="localization ID",
     )
 
     probdensity = sa.Column(
@@ -329,34 +329,34 @@ class LocalizationTile(
         doc="UTC time of insertion of object's row into the database.",
     )
 
-    __tablename__ = 'localizationtiles'
+    __tablename__ = "localizationtiles"
     __table_args__ = (
         sa.Index(
-            'localizationtiles_id_dateobs_healpix_idx',
-            'id',
-            'dateobs',
-            'healpix',
+            "localizationtiles_id_dateobs_healpix_idx",
+            "id",
+            "dateobs",
+            "healpix",
             unique=True,
         ),
         sa.Index(
-            'localizationtiles_localization_id_idx',
-            'localization_id',
+            "localizationtiles_localization_id_idx",
+            "localization_id",
             unique=False,
         ),
         sa.Index(
-            'localizationtiles_probdensity_idx',
-            'probdensity',
+            "localizationtiles_probdensity_idx",
+            "probdensity",
             unique=False,
         ),
         sa.Index(
-            'localizationtiles_healpix_idx',
-            'healpix',
+            "localizationtiles_healpix_idx",
+            "healpix",
             unique=False,
             postgresql_using="spgist",
         ),
         sa.Index(
-            'localizationtiles_created_at_idx',
-            'created_at',
+            "localizationtiles_created_at_idx",
+            "created_at",
             unique=False,
         ),
         {"postgresql_partition_by": "RANGE (dateobs)"},
@@ -375,14 +375,14 @@ class LocalizationTile(
                 default=utcnow,
                 doc="UTC time of insertion of object's row into the database.",
             )
-            __name__ = f'{cls.__name__}_{name}'
-            __qualname__ = f'{cls.__qualname__}_{name}'
-            __tablename__ = f'{cls.__tablename__}_{name}'
+            __name__ = f"{cls.__name__}_{name}"
+            __qualname__ = f"{cls.__qualname__}_{name}"
+            __tablename__ = f"{cls.__tablename__}_{name}"
             __table_args__ = table_args
 
         event.listen(
             Partition.__table__,
-            'after_create',
+            "after_create",
             DDL(
                 f"""
                     ALTER TABLE {cls.__tablename__}
@@ -401,31 +401,31 @@ LocalizationTile.create_partition(
     partition_stmt="DEFAULT",
     table_args=(
         sa.Index(
-            'localizationtiles_def_id_dateobs_healpix_idx',
-            'id',
-            'dateobs',
-            'healpix',
+            "localizationtiles_def_id_dateobs_healpix_idx",
+            "id",
+            "dateobs",
+            "healpix",
             unique=True,
         ),
         sa.Index(
-            'localizationtiles_def_localization_id_idx',
-            'localization_id',
+            "localizationtiles_def_localization_id_idx",
+            "localization_id",
             unique=False,
         ),
         sa.Index(
-            'localizationtiles_def_probdensity_idx',
-            'probdensity',
+            "localizationtiles_def_probdensity_idx",
+            "probdensity",
             unique=False,
         ),
         sa.Index(
-            'localizationtiles_def_healpix_idx',
-            'healpix',
+            "localizationtiles_def_healpix_idx",
+            "healpix",
             unique=False,
             postgresql_using="spgist",
         ),
         sa.Index(
-            'localizationtiles_def_created_at_idx',
-            'created_at',
+            "localizationtiles_def_created_at_idx",
+            "created_at",
             unique=False,
         ),
     ),
@@ -437,31 +437,31 @@ for year in range(2023, 2026):
         date = datetime.date(year, month, 1)
         table_args = (
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_id_dateobs_healpix_idx',
-                'id',
-                'dateobs',
-                'healpix',
+                f"localizationtiles_{date.strftime('%Y_%m')}_id_dateobs_healpix_idx",
+                "id",
+                "dateobs",
+                "healpix",
                 unique=True,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_idx',
-                'localization_id',
+                f"localizationtiles_{date.strftime('%Y_%m')}_localization_id_idx",
+                "localization_id",
                 unique=False,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_probdensity_idx',
-                'probdensity',
+                f"localizationtiles_{date.strftime('%Y_%m')}_probdensity_idx",
+                "probdensity",
                 unique=False,
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_healpix_idx',
-                'healpix',
+                f"localizationtiles_{date.strftime('%Y_%m')}_healpix_idx",
+                "healpix",
                 unique=False,
                 postgresql_using="spgist",
             ),
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
-                'created_at',
+                f"localizationtiles_{date.strftime('%Y_%m')}_created_at_idx",
+                "created_at",
                 unique=False,
             ),
         )
@@ -479,10 +479,10 @@ for year in range(2023, 2026):
 class LocalizationProperty(Base):
     """Store properties for localizations."""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this LocalizationProperty.",
@@ -496,10 +496,10 @@ class LocalizationProperty(Base):
     )
 
     localization_id = sa.Column(
-        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
         primary_key=True,
         index=True,
-        doc='localization ID',
+        doc="localization ID",
     )
 
     data = sa.Column(JSONB, doc="Localization properties in JSON format.", index=True)
@@ -508,10 +508,10 @@ class LocalizationProperty(Base):
 class LocalizationTag(Base):
     """Store qualitative tags for localizations."""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this LocalizationTag.",
@@ -525,16 +525,16 @@ class LocalizationTag(Base):
     )
 
     localization_id = sa.Column(
-        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
         primary_key=True,
         index=True,
-        doc='localization ID',
+        doc="localization ID",
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
 
 
-@event.listens_for(Localization, 'after_delete')
+@event.listens_for(Localization, "after_delete")
 def delete_localization_data_from_disk(mapper, connection, target):
-    log(f'Deleting localization data for localization id={target.id}')
+    log(f"Deleting localization data for localization id={target.id}")
     target.delete_data()

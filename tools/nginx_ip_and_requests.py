@@ -3,19 +3,20 @@
 # Return IP statistics
 #
 
-import pandas as pd
+import urllib
+
+import fire
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import fire
-import urllib
+import pandas as pd
 
-font = {'family': 'normal', 'weight': 'bold', 'size': 24}
-matplotlib.rc('font', **font)
+font = {"family": "normal", "weight": "bold", "size": 24}
+matplotlib.rc("font", **font)
 matplotlib.use("Agg")
 
 
-def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
+def create_ip_chart(filenames, outfile="requests.pdf", verb_to_report="ALL"):
     """Read nginx-access.log(s) and plot the IP addresses as pie chart.
     filenames: str
         Comma delimited list of files
@@ -27,26 +28,26 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         df = pd.read_csv(
             fn,
             sep=r'\s(?=(?:[^"]*"[^"]*")*[^"]*$)(?![^\[]*\])',
-            engine='python',
+            engine="python",
             usecols=[0, 4, 5, 6, 7, 8, 9, 10],
             names=[
-                'ip',
-                'time',
-                'request',
-                'status',
-                'size',
-                'request_length',
-                'referer',
-                'user_agent',
+                "ip",
+                "time",
+                "request",
+                "status",
+                "size",
+                "request_length",
+                "referer",
+                "user_agent",
             ],
-            na_values='-',
+            na_values="-",
             header=None,
         )
 
         request_parsed = []
         indices = []
         for index, row in df.iterrows():
-            request = row['request'].replace('"', '').replace('HTTP/1.1', '')
+            request = row["request"].replace('"', "").replace("HTTP/1.1", "")
             requestSplit = list(filter(None, request.split(" ")))
             verb = requestSplit[0]
             if verb_to_report != "ALL":
@@ -63,7 +64,7 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
             request_parsed.append(f"{verb} {path}")
 
         df = df.iloc[indices]
-        df['request_parsed'] = request_parsed
+        df["request_parsed"] = request_parsed
 
         if ii == 0:
             df_all = df
@@ -77,20 +78,20 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
                 val = 0
             else:
                 val = int(round(pct * total / 100.0))
-            return f'{pct:.0f}%  ({val:d} {label})'
+            return f"{pct:.0f}%  ({val:d} {label})"
 
         return my_autopct
 
-    df_group = df_all.groupby(['ip'])
+    df_group = df_all.groupby(["ip"])
     labels = []
     values = []
     bytes_sent = []
     requests = []
     for name, group in df_group:
         labels.append(name)
-        values.append(group.count()['ip'])
-        bytes_sent.append(group['size'])
-        requests.append(group['request_length'])
+        values.append(group.count()["ip"])
+        bytes_sent.append(group["size"])
+        requests.append(group["request_length"])
 
     labels = [
         x
@@ -118,8 +119,8 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         startangle=90,
         autopct=make_autopct(values, label="Requests"),
     )
-    ax1.axis('equal')
-    ax1.set_title('IP Addresses')
+    ax1.axis("equal")
+    ax1.set_title("IP Addresses")
 
     bins = np.logspace(-6, 3, 20)
     largest_request = -1
@@ -143,12 +144,12 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
         hist = hist / np.sum(hist)
         ax3.step(bin_centers, hist, label=name)
-    ax3.set_xscale('log')
-    ax3.set_yscale('log')
-    ax3.set_xlabel('Request Size [MB]', fontsize=36)
-    ax3.legend(loc='upper right')
+    ax3.set_xscale("log")
+    ax3.set_yscale("log")
+    ax3.set_xlabel("Request Size [MB]", fontsize=36)
+    ax3.legend(loc="upper right")
 
-    print(f'Largest request length by {largest_request_ip} of {largest_request} MB')
+    print(f"Largest request length by {largest_request_ip} of {largest_request} MB")
 
     largest_bytes_sent = -1
     largest_bytes_sent_ip = ""
@@ -171,19 +172,19 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
         hist = hist / np.sum(hist)
         ax4.step(bin_centers, hist, label=name)
-    ax4.set_xscale('log')
-    ax4.set_yscale('log')
-    ax4.set_xlabel('Bytes Sent [MB]', fontsize=36)
-    ax4.legend(loc='upper right')
+    ax4.set_xscale("log")
+    ax4.set_yscale("log")
+    ax4.set_xlabel("Bytes Sent [MB]", fontsize=36)
+    ax4.legend(loc="upper right")
 
-    print(f'Largest bytes sent by {largest_bytes_sent_ip} of {largest_bytes_sent} MB')
+    print(f"Largest bytes sent by {largest_bytes_sent_ip} of {largest_bytes_sent} MB")
 
-    df_group = df_all.groupby(['request_parsed'])
+    df_group = df_all.groupby(["request_parsed"])
     labels = []
     values = []
     for name, group in df_group:
         labels.append(name)
-        values.append(group.count()['request_parsed'])
+        values.append(group.count()["request_parsed"])
 
     labels = [x for _, x in sorted(zip(values, labels), key=lambda pair: pair[0])]
     values = sorted(values)
@@ -195,12 +196,12 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         startangle=90,
         autopct=make_autopct(values, label="Requests"),
     )
-    ax2.axis('equal')
-    ax2.set_title('Requests')
+    ax2.axis("equal")
+    ax2.set_title("Requests")
 
     plt.savefig(outfile)
     plt.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     fire.Fire(create_ip_chart)

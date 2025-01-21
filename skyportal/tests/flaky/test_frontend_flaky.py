@@ -1,35 +1,36 @@
 import datetime
 import os
-import uuid
-import pandas as pd
 import time
-from regions import Regions
-from tdtax import taxonomy, __version__
+import uuid
 
+import pandas as pd
 import pytest
-from skyportal.tests import api
+from regions import Regions
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from tdtax import __version__, taxonomy
+
+from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
 def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver):
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 1.0,
-            'lon': 1.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 1.0,
+            "lon": 1.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -51,10 +52,10 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_nickname"]').send_keys(name2)
-    driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
-    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('10.0')
-    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
-    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
+    driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys("2.0")
+    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys("10.0")
+    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys("10.0")
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys("50.0")
 
     for row in driver.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
@@ -75,20 +76,20 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
 def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     # resize screen to fit mobile width defined in the frontend
     driver.set_window_position(0, 0)
     driver.set_window_size(550, 1000)
@@ -104,10 +105,10 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_nickname"]').send_keys(name2)
-    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('5.0')
-    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('5.0')
-    driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
-    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
+    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys("5.0")
+    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys("5.0")
+    driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys("2.0")
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys("50.0")
 
     for row in driver.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
@@ -127,38 +128,38 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['f110w'],
-            'telescope_id': telescope_id,
-            'api_classname': 'ZTFAPI',
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -173,7 +174,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
-    driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
+    driver.wait_for_xpath('//*[@id="root_band"]').send_keys("Optical")
     driver.click_xpath('//*[@id="root_telescope_id"]')
 
     driver.click_xpath(
@@ -197,7 +198,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
-    driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
+    driver.wait_for_xpath('//*[@id="root_band"]').send_keys("Optical")
     driver.click_xpath('//*[@id="root_telescope_id"]')
     driver.click_xpath(
         f'//li[contains(text(), "{telescope_name}")]', scroll_parent=True
@@ -221,75 +222,75 @@ def test_super_user_post_allocation(
 ):
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['f110w'],
-            'telescope_id': telescope_id,
-            'api_classname': 'ZTFAPI',
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
     instrument_name2 = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name2,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['f110w'],
-            'telescope_id': telescope_id,
-            'api_classname': 'ZTFAPI',
+            "name": instrument_name2,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     request_data = {
-        'group_id': public_group.id,
-        'instrument_id': instrument_id,
-        'pi': 'Shri Kulkarni',
-        'hours_allocated': 200,
-        'start_date': '3021-02-27T00:00:00',
-        'end_date': '3021-07-20T00:00:00',
-        'proposal_id': 'COO-2020A-P01',
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "start_date": "3021-02-27T00:00:00",
+        "end_date": "3021-07-20T00:00:00",
+        "proposal_id": "COO-2020A-P01",
     }
 
-    status, data = api('POST', 'allocation', data=request_data, token=super_admin_token)
+    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
-    id = data['data']['id']
+    assert data["status"] == "success"
+    id = data["data"]["id"]
 
-    status, data = api('GET', f'allocation/{id}', token=super_admin_token)
+    status, data = api("GET", f"allocation/{id}", token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -300,8 +301,8 @@ def test_super_user_post_allocation(
     driver.wait_for_xpath(f'//div[text()[contains(.,"{instrument_name}")]]', timeout=20)
     driver.click_xpath('//*[@id="addGroup"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
-    driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
-    driver.wait_for_xpath('//*[@id="root_hours_allocated"]').send_keys('100')
+    driver.wait_for_xpath('//*[@id="root_pi"]').send_keys("Shri")
+    driver.wait_for_xpath('//*[@id="root_hours_allocated"]').send_keys("100")
     driver.click_xpath('//*[@id="root_instrument_id"]')
     driver.click_xpath(f'//li[contains(text(), "{instrument_name2}")]')
     driver.click_xpath('//*[@id="addGroup"]')
@@ -318,62 +319,62 @@ def test_super_user_post_allocation(
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
+    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'Optical',
-            'filters': ['ztfr'],
-            'telescope_id': telescope_id,
-            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
-            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            "name": instrument_name,
+            "type": "imager",
+            "band": "Optical",
+            "filters": ["ztfr"],
+            "telescope_id": telescope_id,
+            "field_data": pd.read_csv(fielddatafile)[:5].to_dict(orient="list"),
+            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
-    params = {'includeGeoJSON': True}
+    params = {"includeGeoJSON": True}
 
     # wait for the fields to populate
     nretries = 0
@@ -381,32 +382,32 @@ def test_gcnevents_observations(
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET',
-                f'instrument/{instrument_id}',
+                "GET",
+                f"instrument/{instrument_id}",
                 params=params,
                 token=super_admin_token,
             )
             assert status == 200
-            assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
+            assert data["status"] == "success"
+            assert data["data"]["band"] == "NIR"
 
-            assert len(data['data']['fields']) == 5
+            assert len(data["data"]["fields"]) == 5
             fields_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
+    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
     data = {
-        'telescopeName': telescope_name,
-        'instrumentName': instrument_name,
-        'observationData': pd.read_csv(datafile).to_dict(orient='list'),
+        "telescopeName": telescope_name,
+        "instrumentName": instrument_name,
+        "observationData": pd.read_csv(datafile).to_dict(orient="list"),
     }
 
-    status, data = api('POST', 'observation', data=data, token=super_admin_token)
+    status, data = api("POST", "observation", data=data, token=super_admin_token)
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # wait for the executed observations to populate
     nretries = 0
@@ -414,24 +415,24 @@ def test_gcnevents_observations(
     while not observations_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET',
-                'observation',
+                "GET",
+                "observation",
                 params={
-                    'startDate': '2019-04-25T08:18:05',
-                    'endDate': '2019-04-27T08:18:05',
+                    "startDate": "2019-04-25T08:18:05",
+                    "endDate": "2019-04-27T08:18:05",
                 },
                 token=super_admin_token,
             )
             assert status == 200
             data = data["data"]
-            assert len(data['observations']) == 10
+            assert len(data["observations"]) == 10
             observations_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/gcn_events/2019-04-25T08:18:05')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/gcn_events/2019-04-25T08:18:05")
 
     driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
     driver.wait_for_xpath('//*[text()="LVC"]')
@@ -439,13 +440,13 @@ def test_gcnevents_observations(
 
     # test modify sources form
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').clear()
-    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys('1.00')
+    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys("1.00")
 
     driver.click_xpath('//div[@id="root_queryList"]')
     driver.wait_for_xpath('//li[contains(text(), "observations")]')
     driver.click_xpath('//li[contains(text(), "observations")]')
 
-    driver.click_xpath('//body')
+    driver.click_xpath("//body")
 
     submit_button_xpath = (
         '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
@@ -468,21 +469,21 @@ def test_followup_request_frontend(
     driver,
 ):
     request_data = {
-        'allocation_id': public_group_sedm_allocation.id,
-        'obj_id': public_source.id,
-        'payload': {
-            'priority': 5,
-            'start_date': '3020-09-01',
-            'end_date': '3022-09-01',
-            'observation_type': 'IFU',
+        "allocation_id": public_group_sedm_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "priority": 5,
+            "start_date": "3020-09-01",
+            "end_date": "3022-09-01",
+            "observation_type": "IFU",
         },
     }
 
     status, data = api(
-        'POST', 'followup_request', data=request_data, token=upload_data_token
+        "POST", "followup_request", data=request_data, token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -500,25 +501,25 @@ def test_followup_request_frontend(
         f'//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]'''
+        f"""//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]"""
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
+        f"""//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
-    driver.wait_for_xpath('//*[@id="root_sourceID"]').send_keys('not_the_source')
+    driver.wait_for_xpath('//*[@id="root_sourceID"]').send_keys("not_the_source")
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath_to_disappear(
-        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]'''
+        f"""//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]'''
+        f"""//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
+        f"""//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -526,63 +527,63 @@ def test_followup_request_frontend(
 def test_observationplan_request(
     driver, super_admin_user, super_admin_token, public_group
 ):
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
+    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['ztfg', 'ztfr'],
-            'telescope_id': telescope_id,
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["ztfg", "ztfr"],
+            "telescope_id": telescope_id,
             "api_classname_obsplan": "ZTFMMAAPI",
-            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
-            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            "field_data": pd.read_csv(fielddatafile)[:5].to_dict(orient="list"),
+            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
-    params = {'includeGeoJSON': True}
+    params = {"includeGeoJSON": True}
 
     # wait for the fields to populate
     nretries = 0
@@ -590,16 +591,16 @@ def test_observationplan_request(
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET',
-                f'instrument/{instrument_id}',
+                "GET",
+                f"instrument/{instrument_id}",
                 token=super_admin_token,
                 params=params,
             )
             assert status == 200
-            assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
+            assert data["status"] == "success"
+            assert data["data"]["band"] == "NIR"
 
-            assert len(data['data']['fields']) == 5
+            assert len(data["data"]["fields"]) == 5
             fields_loaded = True
         except AssertionError:
             nretries = nretries + 1
@@ -614,7 +615,7 @@ def test_observationplan_request(
             "hours_allocated": 100,
             "pi": "Ed Hubble",
             "types": ["triggered", "forced_photometry", "observation_plan"],
-            '_altdata': '{"access_token": "testtoken"}',
+            "_altdata": '{"access_token": "testtoken"}',
         },
         token=super_admin_token,
     )
@@ -623,15 +624,15 @@ def test_observationplan_request(
     catalog_name = str(uuid.uuid4())
     galaxy_name = str(uuid.uuid4())
     data = {
-        'catalog_name': catalog_name,
-        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
+        "catalog_name": catalog_name,
+        "catalog_data": {"name": [galaxy_name], "ra": [228.5], "dec": [35.5]},
     }
-    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    status, data = api("POST", "galaxy_catalog", data=data, token=super_admin_token)
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/gcn_events/2019-04-25T08:18:05')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/gcn_events/2019-04-25T08:18:05")
 
     nretries = 0
     while nretries < 5:
@@ -683,15 +684,15 @@ def test_observationplan_request(
         timeout=15,
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]''',
+        f"""//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]""",
         timeout=15,
     )
 
     status, data = api("GET", "observation_plan", token=super_admin_token)
     assert status == 200
 
-    observation_plan_request_id = data['data']['requests'][-1]['observation_plans'][0][
-        'observation_plan_request_id'
+    observation_plan_request_id = data["data"]["requests"][-1]["observation_plans"][0][
+        "observation_plan_request_id"
     ]
     driver.click_xpath(
         f'//a[contains(@data-testid, "gcnRequest_{observation_plan_request_id}")]',
@@ -728,63 +729,63 @@ def test_observationplan_request(
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(driver, user, super_admin_token, public_group):
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
+    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
 
     if status == 404:
         status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
+            "POST", "gcn_event", data=event_data, token=super_admin_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'telescope',
+        "POST",
+        "telescope",
         data={
-            'name': telescope_name,
-            'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
+    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'instrument',
+        "POST",
+        "instrument",
         data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['ztfr'],
-            'telescope_id': telescope_id,
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["ztfr"],
+            "telescope_id": telescope_id,
             "api_classname_obsplan": "ZTFMMAAPI",
-            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
-            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            "field_data": pd.read_csv(fielddatafile)[:5].to_dict(orient="list"),
+            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
         },
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
 
-    params = {'includeGeoJSON': True}
+    params = {"includeGeoJSON": True}
 
     # wait for the fields to populate
     nretries = 0
@@ -792,42 +793,42 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET',
-                f'instrument/{instrument_id}',
+                "GET",
+                f"instrument/{instrument_id}",
                 params=params,
                 token=super_admin_token,
             )
             assert status == 200
-            assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
+            assert data["status"] == "success"
+            assert data["data"]["band"] == "NIR"
 
-            assert len(data['data']['fields']) == 5
+            assert len(data["data"]["fields"]) == 5
             fields_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
+    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
     data = {
-        'telescopeName': telescope_name,
-        'instrumentName': instrument_name,
-        'observationData': pd.read_csv(datafile).to_dict(orient='list'),
+        "telescopeName": telescope_name,
+        "instrumentName": instrument_name,
+        "observationData": pd.read_csv(datafile).to_dict(orient="list"),
     }
 
-    status, data = api('POST', 'observation', data=data, token=super_admin_token)
+    status, data = api("POST", "observation", data=data, token=super_admin_token)
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     params = {
-        'telescopeName': telescope_name,
-        'instrumentName': instrument_name,
-        'startDate': "2019-04-25 08:18:05",
-        'endDate': "2019-04-28 08:18:05",
-        'localizationDateobs': "2019-04-25T08:18:05",
-        'localizationName': "bayestar.fits.gz",
-        'localizationCumprob': 1.01,
-        'returnStatistics': True,
+        "telescopeName": telescope_name,
+        "instrumentName": instrument_name,
+        "startDate": "2019-04-25 08:18:05",
+        "endDate": "2019-04-28 08:18:05",
+        "localizationDateobs": "2019-04-25T08:18:05",
+        "localizationName": "bayestar.fits.gz",
+        "localizationCumprob": 1.01,
+        "returnStatistics": True,
     }
 
     # wait for the executed observations to populate
@@ -836,18 +837,18 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     while not observations_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', 'observation', params=params, token=super_admin_token
+                "GET", "observation", params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
-            assert len(data['observations']) == 10
+            assert len(data["observations"]) == 10
             observations_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/gcn_events/2019-04-25T08:18:05')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/gcn_events/2019-04-25T08:18:05")
     nretries = 0
     while nretries < 5:
         try:
@@ -1018,8 +1019,8 @@ def test_user_expiration(
     user,
     super_admin_user,
 ):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
 
     # Set expiration date to today
@@ -1034,7 +1035,7 @@ def test_user_expiration(
     driver.click_xpath('//*[text()="Submit"]')
 
     # Check that user deactivated
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
 
@@ -1048,15 +1049,15 @@ def test_slider_classifications(
 ):
     test_taxonomy = "test taxonomy" + str(uuid.uuid4())
     status, _ = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': test_taxonomy,
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": test_taxonomy,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )

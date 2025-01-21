@@ -1,5 +1,5 @@
 def test_foldable_sidebar(driver):
-    driver.get('/')
+    driver.get("/")
 
     # on desktop, we should see a minimized sidebar only, meaning we can find the text
     # but it is not visible until we clicking the menu button
@@ -34,5 +34,5 @@ def test_foldable_sidebar(driver):
         raise e
     finally:
         driver.set_window_size(
-            current_window_size['width'], current_window_size['height']
+            current_window_size["width"], current_window_size["height"]
         )

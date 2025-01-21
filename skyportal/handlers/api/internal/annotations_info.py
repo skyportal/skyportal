@@ -20,7 +20,7 @@ cache = Cache(
     * 60,  # defaults to 6 hours
 )
 
-log = make_log('api/annotations_info')
+log = make_log("api/annotations_info")
 
 
 class AnnotationsInfoHandler(BaseHandler):

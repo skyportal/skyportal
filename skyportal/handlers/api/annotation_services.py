@@ -1,7 +1,6 @@
-import requests
-
 import astropy.io.ascii
 import astropy.units as u
+import requests
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
@@ -14,30 +13,30 @@ except Exception:
             return ""
 
 
-import pandas as pd
 from io import StringIO
+
+import numpy as np
+import pandas as pd
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
 from astroquery.gaia import GaiaClass
 from astroquery.irsa import Irsa
-import numpy as np
 from astroquery.vizier import Vizier
+from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from skyportal.utils.calculations import great_circle_distance
 
-from ..base import BaseHandler
 from ...models import (
     Annotation,
     Group,
     Obj,
 )
-
-from skyportal.utils.calculations import great_circle_distance
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
-PS1_URL = cfg['app.ps1_endpoint']
+PS1_URL = cfg["app.ps1_endpoint"]
 
 
 class GaiaQueryHandler(BaseHandler):
@@ -122,10 +121,10 @@ class GaiaQueryHandler(BaseHandler):
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "gaiadr3.gaia_source")
-            radius_arcsec = data.pop('crossmatchRadius', cfg['cross_match.gaia.radius'])
-            limmag = data.pop('crossmatchLimmag', cfg['cross_match.gaia.limmag'])
-            num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'])
+            catalog = data.pop("catalog", "gaiadr3.gaia_source")
+            radius_arcsec = data.pop("crossmatchRadius", cfg["cross_match.gaia.radius"])
+            limmag = data.pop("crossmatchLimmag", cfg["cross_match.gaia.limmag"])
+            num_matches = data.pop("crossmatchNumber", cfg["cross_match.gaia.number"])
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             gc = GaiaClass()
@@ -155,52 +154,52 @@ class GaiaQueryHandler(BaseHandler):
 
             # first remove rows that have faint magnitudes
             if limmag:  # do not remove if limmag is None or zero
-                df = df[df['phot_g_mean_mag'] < limmag]
+                df = df[df["phot_g_mean_mag"] < limmag]
 
             # propagate the stars using Gaia proper motion
             # then choose the closest match
             if len(df) > 1:
-                df['adjusted_dist'] = np.nan  # new column
+                df["adjusted_dist"] = np.nan  # new column
                 for index, row in df.iterrows():
                     c = SkyCoord(
-                        ra=row['ra'] * u.deg,
-                        dec=row['dec'] * u.deg,
-                        pm_ra_cosdec=row['pmra'] * u.mas / u.yr,
-                        pm_dec=row['pmdec'] * u.mas / u.yr,
-                        frame='icrs',
-                        distance=min(abs(1 / row['parallax']), 10) * u.kpc,
-                        obstime=Time(row['ref_epoch'], format='jyear'),
+                        ra=row["ra"] * u.deg,
+                        dec=row["dec"] * u.deg,
+                        pm_ra_cosdec=row["pmra"] * u.mas / u.yr,
+                        pm_dec=row["pmdec"] * u.mas / u.yr,
+                        frame="icrs",
+                        distance=min(abs(1 / row["parallax"]), 10) * u.kpc,
+                        obstime=Time(row["ref_epoch"], format="jyear"),
                     )
                     new_dist = c.separation(candidate_coord).deg
-                    df.at[index, 'adjusted_dist'] = new_dist
+                    df.at[index, "adjusted_dist"] = new_dist
 
-                df.sort_values(by=['adjusted_dist'], inplace=True)
+                df.sort_values(by=["adjusted_dist"], inplace=True)
                 df = df.head(num_matches)
 
             columns = {
-                'ra': 'ra',
-                'dec': 'dec',
-                'pm': 'pm',
-                'pm_ra': 'pmra',
-                'pm_ra_err': 'pmra_error',
-                'pm_dec': 'pmdec',
-                'pm_dec_err': 'pmdec_error',
-                'Mag_G': 'phot_g_mean_mag',
-                'Mag_BP': 'phot_bp_mean_mag',
-                'Mag_RP': 'phot_rp_mean_mag',
-                'Plx': 'parallax',
-                'Plx_err': 'parallax_error',
-                'Plx_over_err': 'parallax_over_error',
-                'A_G': 'a_g_val',
-                'RUWE': 'ruwe',
+                "ra": "ra",
+                "dec": "dec",
+                "pm": "pm",
+                "pm_ra": "pmra",
+                "pm_ra_err": "pmra_error",
+                "pm_dec": "pmdec",
+                "pm_dec_err": "pmdec_error",
+                "Mag_G": "phot_g_mean_mag",
+                "Mag_BP": "phot_bp_mean_mag",
+                "Mag_RP": "phot_rp_mean_mag",
+                "Plx": "parallax",
+                "Plx_err": "parallax_error",
+                "Plx_over_err": "parallax_over_error",
+                "A_G": "a_g_val",
+                "RUWE": "ruwe",
             }
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             if not group_ids:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -215,7 +214,7 @@ class GaiaQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
                 )
 
             annotations = []
@@ -250,8 +249,8 @@ class GaiaQueryHandler(BaseHandler):
                 return self.error("Annotation already posted.")
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success()
 
@@ -324,12 +323,12 @@ class IRSAQueryWISEHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             if not group_ids:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -343,13 +342,13 @@ class IRSAQueryWISEHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
                 )
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "allwise_p3as_psd")
-            radius_arcsec = data.pop('crossmatchRadius', 2.0)
+            catalog = data.pop("catalog", "allwise_p3as_psd")
+            radius_arcsec = data.pop("crossmatchRadius", 2.0)
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             df = Irsa.query_region(
@@ -360,16 +359,16 @@ class IRSAQueryWISEHandler(BaseHandler):
             ).to_pandas()
 
             keys = [
-                'ra',
-                'dec',
-                'w1mpro',
-                'w1sigmpro',
-                'w2mpro',
-                'w2sigmpro',
-                'w3mpro',
-                'w3sigmpro',
-                'w4mpro',
-                'w4sigmpro',
+                "ra",
+                "dec",
+                "w1mpro",
+                "w1sigmpro",
+                "w2mpro",
+                "w2sigmpro",
+                "w3mpro",
+                "w3sigmpro",
+                "w4mpro",
+                "w4sigmpro",
             ]
             annotations = []
             for index, row in df.iterrows():
@@ -399,8 +398,8 @@ class IRSAQueryWISEHandler(BaseHandler):
                 return self.error("Annotation already posted.")
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success()
 
@@ -474,12 +473,12 @@ class VizierQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             if not group_ids:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -493,13 +492,13 @@ class VizierQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
                 )
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "VII/290")
-            radius_arcsec = data.pop('crossmatchRadius', 2.0)
+            catalog = data.pop("catalog", "VII/290")
+            radius_arcsec = data.pop("crossmatchRadius", 2.0)
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             tl = Vizier.query_region(
@@ -517,11 +516,11 @@ class VizierQueryHandler(BaseHandler):
 
             if catalog == "VII/290":
                 keys = [
-                    'Qpct',
-                    'z',
+                    "Qpct",
+                    "z",
                 ]
             elif catalog == "II/335/galex_ais":
-                keys = ['FUVmag', 'e_FUVmag', 'NUVmag', 'e_NUVmag']
+                keys = ["FUVmag", "e_FUVmag", "NUVmag", "e_NUVmag"]
             else:
                 keys = df.columns
 
@@ -530,7 +529,7 @@ class VizierQueryHandler(BaseHandler):
                 annotation_data = {
                     k: row.to_dict().get(k, None)
                     for k in keys
-                    if not row.to_dict().get(k, None) == -99
+                    if row.to_dict().get(k, None) != -99
                 }
                 origin = f"{catalog}-{row['Name']}"
                 annotation = Annotation(
@@ -552,8 +551,8 @@ class VizierQueryHandler(BaseHandler):
                 return self.error("Annotation already posted.")
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success()
 
@@ -625,12 +624,12 @@ class DatalabQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             if not group_ids:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -644,13 +643,13 @@ class DatalabQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
                 )
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "ls_dr9")
-            radius_arcsec = data.pop('crossmatchRadius', 2.0)
+            catalog = data.pop("catalog", "ls_dr9")
+            radius_arcsec = data.pop("crossmatchRadius", 2.0)
             radius_deg = radius_arcsec / 3600.0
 
             sql_query = f"""SELECT {catalog}.photo_z.ls_id, z_phot_median, z_phot_std, ra, dec, type, z_phot_l95, flux_z from {catalog}.photo_z
@@ -660,14 +659,14 @@ class DatalabQueryHandler(BaseHandler):
             try:
                 query = qc.query(sql=sql_query)
             except qc.queryClientError as e:
-                return self.error(f'Error initializing query: {str(e)}')
+                return self.error(f"Error initializing query: {str(e)}")
 
             df = pd.read_table(StringIO(query), sep=",")
             annotations = []
             for index, row in df.iterrows():
-                ls_id = row['ls_id']
+                ls_id = row["ls_id"]
                 origin = f"{catalog}-{ls_id}"
-                row.drop(index=['ls_id'], inplace=True)
+                row.drop(index=["ls_id"], inplace=True)
                 annotation_data = row.to_dict()
                 annotation = Annotation(
                     data=annotation_data,
@@ -688,8 +687,8 @@ class DatalabQueryHandler(BaseHandler):
                 return self.error("Annotation already posted.")
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success()
 
@@ -774,10 +773,10 @@ class PS1QueryHandler(BaseHandler):
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "ps1.dr2")
-            radius_arcsec = data.pop('crossmatchRadius', 2.0)
-            min_detections = data.pop('crossmatchMinDetections', 1)
-            num_matches = data.pop('crossmatchNumber', 5)
+            catalog = data.pop("catalog", "ps1.dr2")
+            radius_arcsec = data.pop("crossmatchRadius", 2.0)
+            min_detections = data.pop("crossmatchMinDetections", 1)
+            num_matches = data.pop("crossmatchNumber", 5)
 
             # we enforce some limits to these numbers
             if radius_arcsec > 5.0 or radius_arcsec < 0:
@@ -794,20 +793,20 @@ class PS1QueryHandler(BaseHandler):
             crossmatch_radius_deg = radius_arcsec / 3600.0
 
             params = {
-                'ra': obj.ra,
-                'dec': obj.dec,
-                'radius': float(crossmatch_radius_deg),
-                'nDetections.gt': int(min_detections),
-                'columns': [
-                    'objID',
-                    'raMean',
-                    'decMean',
-                    'nDetections',
-                    'gMeanPSFMag',
-                    'rMeanPSFMag',
-                    'iMeanPSFMag',
-                    'zMeanPSFMag',
-                    'yMeanPSFMag',
+                "ra": obj.ra,
+                "dec": obj.dec,
+                "radius": float(crossmatch_radius_deg),
+                "nDetections.gt": int(min_detections),
+                "columns": [
+                    "objID",
+                    "raMean",
+                    "decMean",
+                    "nDetections",
+                    "gMeanPSFMag",
+                    "rMeanPSFMag",
+                    "iMeanPSFMag",
+                    "zMeanPSFMag",
+                    "yMeanPSFMag",
                 ],
             }
 
@@ -828,24 +827,24 @@ class PS1QueryHandler(BaseHandler):
 
             df = tab.to_pandas()
             # for each, calculate the distance to the candidate
-            df['dist'] = pd.NA
+            df["dist"] = pd.NA
             for index, row in df.iterrows():
                 dist = great_circle_distance(
-                    obj.ra, obj.dec, float(row['raMean']), float(row['decMean'])
+                    obj.ra, obj.dec, float(row["raMean"]), float(row["decMean"])
                 )
-                df.at[index, 'dist'] = dist * 3600.0  # convert to arcsec
+                df.at[index, "dist"] = dist * 3600.0  # convert to arcsec
 
             # order by distance (smallest first)
-            df.sort_values(by=['dist'], inplace=True)
+            df.sort_values(by=["dist"], inplace=True)
 
             df = df.head(num_matches)
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             if not group_ids:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -859,24 +858,24 @@ class PS1QueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
                 )
 
             annotations = []
 
             # convert the dataframe to a list of dicts
-            entries = df.to_dict('records')
+            entries = df.to_dict("records")
             for entry in entries:
                 annotation_data = {}
                 for local_key, ps1_key in {
-                    'ra': 'raMean',
-                    'dec': 'decMean',
-                    'gMeanPSFMag': 'gMeanPSFMag',
-                    'rMeanPSFMag': 'rMeanPSFMag',
-                    'iMeanPSFMag': 'iMeanPSFMag',
-                    'zMeanPSFMag': 'zMeanPSFMag',
-                    'yMeanPSFMag': 'yMeanPSFMag',
-                    'distance_arcsec': 'dist',
+                    "ra": "raMean",
+                    "dec": "decMean",
+                    "gMeanPSFMag": "gMeanPSFMag",
+                    "rMeanPSFMag": "rMeanPSFMag",
+                    "iMeanPSFMag": "iMeanPSFMag",
+                    "zMeanPSFMag": "zMeanPSFMag",
+                    "yMeanPSFMag": "yMeanPSFMag",
+                    "distance_arcsec": "dist",
                 }.items():
                     value = entry.get(ps1_key, np.nan)
                     if not np.isnan(value):
@@ -902,7 +901,7 @@ class PS1QueryHandler(BaseHandler):
                 return self.error("Annotation already posted.")
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success()

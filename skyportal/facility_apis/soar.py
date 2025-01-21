@@ -1,23 +1,23 @@
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+
 import requests
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
 
-log = make_log('facility_apis/soar')
+log = make_log("facility_apis/soar")
 
 
 class SOAR_GHTS_IMAGER_Request:
-
     """A JSON structure for SOAR GHTS IMAGER requests."""
 
     def __init__(self, request):
@@ -50,20 +50,20 @@ class SOAR_GHTS_IMAGER_Request:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'proper_motion_ra': 0,
-            'proper_motion_dec': 0,
-            'parallax': 0,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "proper_motion_ra": 0,
+            "proper_motion_dec": 0,
+            "parallax": 0,
+            "epoch": 2000,
         }
 
         exp_time = request.payload["exposure_time"]
@@ -75,31 +75,31 @@ class SOAR_GHTS_IMAGER_Request:
             instrument_mode = "GHTS_R_Image_2x2"
 
         configurations = []
-        for filt in request.payload['observation_choices']:
+        for filt in request.payload["observation_choices"]:
             configurations.append(
                 {
-                    'type': 'EXPOSE',
-                    'instrument_type': request.payload["instrument_type"],
-                    'constraints': constraints,
-                    'target': target,
-                    'acquisition_config': {"mode": "MANUAL", "extra_params": {}},
-                    'guiding_config': {
+                    "type": "EXPOSE",
+                    "instrument_type": request.payload["instrument_type"],
+                    "constraints": constraints,
+                    "target": target,
+                    "acquisition_config": {"mode": "MANUAL", "extra_params": {}},
+                    "guiding_config": {
                         "mode": "ON",
                         "optional": True,
                         "extra_params": {},
                     },
-                    'instrument_configs': [
+                    "instrument_configs": [
                         {
-                            'exposure_time': exp_time,
-                            'exposure_count': exp_count,
-                            'mode': instrument_mode,
+                            "exposure_time": exp_time,
+                            "exposure_count": exp_count,
+                            "mode": instrument_mode,
                             "extra_params": {
                                 "offset_ra": 0,
                                 "offset_dec": 0,
                                 "defocus": 0,
                                 "rotator_angle": 0,
                             },
-                            'optical_elements': {'filter': '%s' % filt},
+                            "optical_elements": {"filter": f"{filt}"},
                         }
                     ],
                 }
@@ -108,25 +108,25 @@ class SOAR_GHTS_IMAGER_Request:
         tstart = request.payload["start_date"]
         tend = request.payload["end_date"]
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '4m0'}
+        location = {"telescope_class": "4m0"}
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -135,7 +135,6 @@ class SOAR_GHTS_IMAGER_Request:
 
 
 class SOAR_GHTS_Request:
-
     """A JSON structure for SOAR GHTS requests."""
 
     def __init__(self, request):
@@ -168,29 +167,29 @@ class SOAR_GHTS_Request:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         arc_constraints = {
-            'max_airmass': 2 * request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": 2 * request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'proper_motion_ra': 0,
-            'proper_motion_dec': 0,
-            'parallax': 0,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "proper_motion_ra": 0,
+            "proper_motion_dec": 0,
+            "parallax": 0,
+            "epoch": 2000,
         }
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '4m0'}
+        location = {"telescope_class": "4m0"}
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
@@ -207,16 +206,16 @@ class SOAR_GHTS_Request:
         configurations = []
         configurations = configurations + [
             {
-                'type': 'SPECTRUM',
-                'instrument_type': request.payload["instrument_type"],
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {'mode': 'MANUAL'},
-                'guiding_config': {'mode': 'ON', 'optional': False},
-                'instrument_configs': [
+                "type": "SPECTRUM",
+                "instrument_type": request.payload["instrument_type"],
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {"mode": "MANUAL"},
+                "guiding_config": {"mode": "ON", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': exp_time,
-                        'exposure_count': exp_count,
+                        "exposure_time": exp_time,
+                        "exposure_count": exp_count,
                         "mode": request.payload["instrument_mode"],
                         "rotator_mode": "SKY",
                         "extra_params": {
@@ -260,22 +259,22 @@ class SOAR_GHTS_Request:
         tstart = request.payload["start_date"]
         tend = request.payload["end_date"]
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -284,7 +283,6 @@ class SOAR_GHTS_Request:
 
 
 class SOAR_TripleSpec_Request:
-
     """A JSON structure for SOAR TripleSpec requests."""
 
     def __init__(self, request):
@@ -317,40 +315,40 @@ class SOAR_TripleSpec_Request:
 
         # Constraints used for scheduling this observation
         constraints = {
-            'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+            "max_airmass": request.payload["maximum_airmass"],
+            "min_lunar_distance": request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
         target = {
-            'name': request.obj.id,
-            'type': 'ICRS',
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'proper_motion_ra': 0,
-            'proper_motion_dec': 0,
-            'parallax': 0,
-            'epoch': 2000,
+            "name": request.obj.id,
+            "type": "ICRS",
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "proper_motion_ra": 0,
+            "proper_motion_dec": 0,
+            "parallax": 0,
+            "epoch": 2000,
         }
 
         # The telescope class that should be used for this observation
-        location = {'telescope_class': '4m0'}
+        location = {"telescope_class": "4m0"}
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
         configurations = [
             {
-                'type': 'SPECTRUM',
-                'instrument_type': 'SOAR_TRIPLESPEC',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {'mode': 'MANUAL'},
-                'guiding_config': {'mode': 'ON', 'optional': False},
-                'instrument_configs': [
+                "type": "SPECTRUM",
+                "instrument_type": "SOAR_TRIPLESPEC",
+                "constraints": constraints,
+                "target": target,
+                "acquisition_config": {"mode": "MANUAL"},
+                "guiding_config": {"mode": "ON", "optional": False},
+                "instrument_configs": [
                     {
-                        'exposure_time': exp_time,
-                        'exposure_count': exp_count,
+                        "exposure_time": exp_time,
+                        "exposure_count": exp_count,
                         "mode": request.payload["instrument_mode"],
                         "rotator_mode": "SKY",
                         "extra_params": {
@@ -367,22 +365,22 @@ class SOAR_TripleSpec_Request:
         tstart = request.payload["start_date"]
         tend = request.payload["end_date"]
 
-        windows = [{'start': tstart, 'end': tend}]
+        windows = [{"start": tstart, "end": tend}]
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-            'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"],
-            'ipp_value': request.payload["priority"],
-            'operator': 'SINGLE',
-            'observation_type': request.payload["observation_mode"],
-            'requests': [
+            "name": f"{request.obj.id}",  # The title
+            "proposal": altdata["PROPOSAL_ID"],
+            "ipp_value": request.payload["priority"],
+            "operator": "SINGLE",
+            "observation_type": request.payload["observation_mode"],
+            "requests": [
                 {
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
+                    "configurations": configurations,
+                    "windows": windows,
+                    "location": location,
                 }
             ],
         }
@@ -391,7 +389,6 @@ class SOAR_TripleSpec_Request:
 
 
 class SOARAPI(FollowUpAPI):
-
     """An interface to SOAR operations."""
 
     @staticmethod
@@ -420,7 +417,7 @@ class SOARAPI(FollowUpAPI):
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             content = request.transactions[0].response["content"]
             content = json.loads(content)
@@ -430,7 +427,7 @@ class SOARAPI(FollowUpAPI):
 
                 r = requests.post(
                     f"{requestpath}{uid}/cancel/",
-                    headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+                    headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
                 )
 
                 r.raise_for_status()
@@ -452,18 +449,18 @@ class SOARAPI(FollowUpAPI):
                 ).delete()
                 session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema_altdata = {
@@ -483,7 +480,6 @@ class SOARAPI(FollowUpAPI):
 
 
 class SOARGHTSIMAGERAPI(SOARAPI):
-
     """An interface to SOAR GHTS IMAGER operations."""
 
     # subclasses *must* implement the method below
@@ -503,19 +499,19 @@ class SOARGHTSIMAGERAPI(SOARAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         soarreq = SOAR_GHTS_IMAGER_Request(request)
         requestgroup = soarreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -529,18 +525,18 @@ class SOARGHTSIMAGERAPI(SOARAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -652,7 +648,6 @@ class SOARGHTSIMAGERAPI(SOARAPI):
 
 
 class SOARGHTSAPI(SOARAPI):
-
     """An interface to SOAR's GHTS operations."""
 
     # subclasses *must* implement the method below
@@ -672,19 +667,19 @@ class SOARGHTSAPI(SOARAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         soarreq = SOAR_GHTS_Request(request)
         requestgroup = soarreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -698,18 +693,18 @@ class SOARGHTSAPI(SOARAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {
@@ -825,7 +820,6 @@ class SOARGHTSAPI(SOARAPI):
 
 
 class SOARTSPECAPI(SOARAPI):
-
     """An interface to SOAR's TripleSpec operations."""
 
     # subclasses *must* implement the method below
@@ -845,19 +839,19 @@ class SOARTSPECAPI(SOARAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         soarreq = SOAR_TripleSpec_Request(request)
         requestgroup = soarreq.requestgroup
 
         r = requests.post(
             requestpath,
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
         else:
             request.status = r.content.decode()
 
@@ -871,18 +865,18 @@ class SOARTSPECAPI(SOARAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {

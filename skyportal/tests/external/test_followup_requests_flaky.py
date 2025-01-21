@@ -2,19 +2,18 @@ import glob
 import os
 import uuid
 
-import pytest
 import pandas as pd
+import pytest
 import requests
 from regions import Regions
-
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+
 from baselayer.app.env import load_config
 from skyportal.tests import api
 
-
 cfg = load_config(config_files=["test_config.yaml"])
-endpoint = cfg['app.sedm_endpoint']
+endpoint = cfg["app.sedm_endpoint"]
 
 sedm_isonline = False
 try:
@@ -24,7 +23,7 @@ except requests.exceptions.ConnectTimeout:
 else:
     sedm_isonline = True
 
-if cfg['app.atlas.port'] is None:
+if cfg["app.atlas.port"] is None:
     ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
 else:
     ATLAS_URL = (
@@ -39,7 +38,7 @@ except requests.exceptions.ConnectTimeout:
 else:
     atlas_isonline = True
 
-PS1_URL = cfg['app.ps1_endpoint']
+PS1_URL = cfg["app.ps1_endpoint"]
 
 ps1_isonline = False
 try:
@@ -68,7 +67,7 @@ except requests.exceptions.ConnectTimeout:
 else:
     lco_isonline = True
 
-if cfg['app.ztf.port'] is None:
+if cfg["app.ztf.port"] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
@@ -81,7 +80,7 @@ except requests.exceptions.ConnectTimeout:
 else:
     ztf_isonline = True
 
-if cfg['app.kait.port'] is None:
+if cfg["app.kait.port"] is None:
     KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
 else:
     KAIT_URL = (
@@ -110,17 +109,17 @@ def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
     if len(data["data"]) == 1:
         if instrument_name == "ZTF":
-            fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+            fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
             regionsdatafile = (
-                f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+                f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
             )
 
             fields = pd.read_csv(fielddatafile)
-            fields = fields[698:701].to_dict(orient='list')
+            fields = fields[698:701].to_dict(orient="list")
 
             field_data = {
                 "field_data": fields,
-                "field_region": Regions.read(regionsdatafile).serialize(format='ds9'),
+                "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
             }
 
             status, updated_data = api(
@@ -162,16 +161,16 @@ def add_telescope_and_instrument(instrument_name, token):
     }
 
     if instrument_name == "ZTF":
-        fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-        regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+        fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
+        regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
 
         fields = pd.read_csv(fielddatafile)
-        fields = fields[698:701].to_dict(orient='list')
+        fields = fields[698:701].to_dict(orient="list")
 
         data = {
             **data,
             "field_data": fields,
-            "field_region": Regions.read(regionsdatafile).serialize(format='ds9'),
+            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
         }
 
     status, data = api(
@@ -262,7 +261,7 @@ def add_allocation_slack(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            '_altdata': '{"slack_workspace": "test_workspace", "slack_channel": "test_channel", "slack_token": "test_token"}',
+            "_altdata": '{"slack_workspace": "test_workspace", "slack_channel": "test_channel", "slack_token": "test_token"}',
         },
         token=token,
     )
@@ -296,7 +295,7 @@ def add_allocation_ztf(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            '_altdata': '{"access_token": "testtoken"}',
+            "_altdata": '{"access_token": "testtoken"}',
             "types": ["triggered", "forced_photometry"],
         },
         token=token,
@@ -314,7 +313,7 @@ def add_allocation_sedmv2(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            '_altdata': '{"access_token": "testtoken"}',
+            "_altdata": '{"access_token": "testtoken"}',
         },
         token=token,
     )
@@ -331,7 +330,7 @@ def add_allocation_uvotxrt(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            '_altdata': '{"username": "anonymous", "secret": "anonymous"}',
+            "_altdata": '{"username": "anonymous", "secret": "anonymous"}',
         },
         token=token,
     )
@@ -362,7 +361,7 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("SEDMv2", super_admin_token)
-    add_allocation_sedmv2(idata['id'], public_group.id, super_admin_token)
+    add_allocation_sedmv2(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -380,7 +379,6 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -424,10 +422,10 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
         '//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]'''
+        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -436,7 +434,7 @@ def add_followup_request_using_frontend_and_verify_KAIT(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("KAIT", super_admin_token)
-    add_allocation_kait(idata['id'], public_group.id, super_admin_token)
+    add_allocation_kait(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -454,7 +452,6 @@ def add_followup_request_using_frontend_and_verify_KAIT(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -492,7 +489,7 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     )
     # it should fail, as we don't provide real allocation info
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "failed to submit")]'''
+        """//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "failed to submit")]"""
     )
 
 
@@ -501,7 +498,7 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("UVOTXRT", super_admin_token)
-    add_allocation_uvotxrt(idata['id'], public_group.id, super_admin_token)
+    add_allocation_uvotxrt(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -519,7 +516,6 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -557,7 +553,7 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     driver.click_xpath("//div[@data-testid='UVOTXRT-requests-header']")
 
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -570,10 +566,10 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
         '//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Light Curve")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "4000")]'''
+        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "4000")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Optical fast transient")]'''
+        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
     )
 
 
@@ -582,7 +578,7 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("ZTF", super_admin_token)
-    add_allocation_ztf(idata['id'], public_group.id, super_admin_token)
+    add_allocation_ztf(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -600,7 +596,6 @@ def add_followup_request_using_frontend_and_verify_ZTF(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -628,7 +623,7 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     driver.click_xpath("//div[@data-testid='ZTF-requests-header']")
 
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -640,10 +635,10 @@ def add_followup_request_using_frontend_and_verify_ZTF(
         '//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]"""
     )
 
 
@@ -653,7 +648,7 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("Floyds", super_admin_token)
-    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -671,7 +666,6 @@ def add_followup_request_using_frontend_and_verify_Floyds(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -720,7 +714,7 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("MUSCAT", super_admin_token)
-    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -738,7 +732,6 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -784,7 +777,7 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("ATLAS", super_admin_token)
-    add_allocation_atlas(idata['id'], public_group.id, super_admin_token)
+    add_allocation_atlas(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -802,7 +795,6 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
         )
     except TimeoutException:
         assert False
-        pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
     header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
@@ -845,7 +837,7 @@ def add_followup_request_using_frontend_and_verify_PS1(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("PS1", super_admin_token)
-    add_allocation_ps1(idata['id'], public_group.id, super_admin_token)
+    add_allocation_ps1(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -863,7 +855,6 @@ def add_followup_request_using_frontend_and_verify_PS1(
         )
     except TimeoutException:
         assert False
-        pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
     header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
@@ -905,7 +896,7 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("Spectral", super_admin_token)
-    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -979,7 +970,7 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("Sinistro", super_admin_token)
-    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -997,7 +988,6 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1056,7 +1046,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation_sedm(idata['id'], public_group.id, super_admin_token)
+    add_allocation_sedm(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1074,7 +1064,6 @@ def add_followup_request_using_frontend_and_verify_SEDM(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1101,7 +1090,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="5"]''')
+    driver.click_xpath("""//li[@data-value="5"]""")
 
     # u band option
     driver.click_xpath(
@@ -1121,13 +1110,13 @@ def add_followup_request_using_frontend_and_verify_SEDM(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1137,7 +1126,7 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("SPRAT", super_admin_token)
-    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1155,7 +1144,6 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1185,7 +1173,7 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     driver.click_xpath("//div[@data-testid='SPRAT-requests-header']", timeout=30)
 
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]''',
+        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]""",
         timeout=20,
     )
 
@@ -1199,7 +1187,7 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]''',
+        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]""",
         timeout=20,
     )
 
@@ -1210,7 +1198,7 @@ def add_followup_request_using_frontend_and_verify_IOI(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("IOI", super_admin_token)
-    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1228,7 +1216,6 @@ def add_followup_request_using_frontend_and_verify_IOI(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1262,7 +1249,7 @@ def add_followup_request_using_frontend_and_verify_IOI(
     driver.click_xpath("//div[@data-testid='IOI-requests-header']", timeout=30)
 
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]''',
+        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]""",
         timeout=20,
     )
 
@@ -1276,7 +1263,7 @@ def add_followup_request_using_frontend_and_verify_IOI(
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]''',
+        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]""",
         timeout=20,
     )
 
@@ -1286,7 +1273,7 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("SLACK", super_admin_token)
-    add_allocation_slack(idata['id'], public_group.id, super_admin_token)
+    add_allocation_slack(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1304,7 +1291,6 @@ def add_followup_request_using_frontend_and_verify_SLACK(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1338,11 +1324,11 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     # we are not pointing to a real slack channel, so it should fail
     driver.wait_for_xpath(
-        '''//div[contains(text(), "failed to submit")]''',
+        """//div[contains(text(), "failed to submit")]""",
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//div[contains(text(), "ztfg")]''',
+        """//div[contains(text(), "ztfg")]""",
         timeout=20,
     )
 
@@ -1353,7 +1339,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("IOO", super_admin_token)
-    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1371,7 +1357,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1411,7 +1396,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.click_xpath("//div[@data-testid='IOO-requests-header']", timeout=30)
 
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]''',
+        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]""",
         timeout=20,
     )
 
@@ -1425,7 +1410,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]''',
+        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]""",
         timeout=20,
     )
 
@@ -1595,7 +1580,7 @@ def test_edit_existing_followup_request(
     )
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
-    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="2"]''')
+    mix_n_match_option = driver.wait_for_xpath("""//li[@data-value="2"]""")
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     submit_button = driver.wait_for_xpath(
@@ -1609,10 +1594,10 @@ def test_edit_existing_followup_request(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1628,18 +1613,18 @@ def test_delete_followup_request_SEDMv2(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'''
+        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]'''
+        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
+@pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1652,18 +1637,18 @@ def test_delete_followup_request_ZTF(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
+@pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1676,13 +1661,13 @@ def test_delete_followup_request_SEDM(
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1703,10 +1688,10 @@ def test_delete_followup_request_IOO(
         '//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]'''
+        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1727,10 +1712,10 @@ def test_delete_followup_request_IOI(
         '//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]'''
+        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1751,10 +1736,10 @@ def test_delete_followup_request_SPRAT(
         '//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]'''
+        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1775,10 +1760,10 @@ def test_delete_followup_request_Sinistro(
         '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "gp,Y")]'''
+        """//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "gp,Y")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1799,10 +1784,10 @@ def test_delete_followup_request_Spectral(
         '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "gp,Y")]'''
+        """//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "gp,Y")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1823,10 +1808,10 @@ def test_delete_followup_request_MUSCAT(
         '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "30")]'''
+        """//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "30")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1847,10 +1832,10 @@ def test_delete_followup_request_Floyds(
         '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "30")]'''
+        """//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "30")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        '''//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
@@ -1866,7 +1851,7 @@ def test_submit_new_followup_request_two_groups(
     view_only_token_group2,
 ):
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation_sedm(idata['id'], public_group.id, super_admin_token)
+    add_allocation_sedm(idata["id"], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1884,7 +1869,6 @@ def test_submit_new_followup_request_two_groups(
         )
     except TimeoutException:
         assert False
-        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1926,7 +1910,7 @@ def test_submit_new_followup_request_two_groups(
     driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="5"]''', scroll_parent=True)
+    driver.click_xpath("""//li[@data-value="5"]""", scroll_parent=True)
 
     # u band option
     driver.click_xpath(
@@ -1944,48 +1928,48 @@ def test_submit_new_followup_request_two_groups(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     filename = glob.glob(
-        f'{os.path.dirname(__file__)}/../data/ZTF20abwdwoa_20200902_P60_v1.ascii'
+        f"{os.path.dirname(__file__)}/../data/ZTF20abwdwoa_20200902_P60_v1.ascii"
     )[0]
     with open(filename) as f:
         ascii = f.read()
 
     status, data = api(
-        'GET', f'sources/{public_source_two_groups.id}', token=super_admin_token
+        "GET", f"sources/{public_source_two_groups.id}", token=super_admin_token
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
         "POST",
-        'spectrum/ascii',
+        "spectrum/ascii",
         data={
-            'obj_id': str(public_source_two_groups.id),
-            'observed_at': '2020-01-01T00:00:00',
-            'instrument_id': idata['id'],
-            'fluxerr_column': 2,
-            'followup_request_id': data['data']['followup_requests'][0]['id'],
-            'ascii': ascii,
-            'filename': os.path.basename(filename),
+            "obj_id": str(public_source_two_groups.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": idata["id"],
+            "fluxerr_column": 2,
+            "followup_request_id": data["data"]["followup_requests"][0]["id"],
+            "ascii": ascii,
+            "filename": os.path.basename(filename),
         },
         token=super_admin_token,
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
-    sid = data['data']['id']
-    status, data = api('GET', f'spectrum/{sid}', token=view_only_token_group2)
+    sid = data["data"]["id"]
+    status, data = api("GET", f"spectrum/{sid}", token=view_only_token_group2)
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"

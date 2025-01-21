@@ -1,4 +1,5 @@
 import asyncio
+
 import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
@@ -6,7 +7,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from ..base import BaseHandler
 
 from ...models import (
     GcnEvent,
@@ -16,8 +16,9 @@ from ...models import (
     TNSRobotSubmission,
 )
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ..base import BaseHandler
 
-log = make_log('api/sources_confirmed_in_gcn')
+log = make_log("api/sources_confirmed_in_gcn")
 
 
 class Validator(Schema):
@@ -27,8 +28,8 @@ class Validator(Schema):
     start_date = UTCTZnaiveDateTime(required=False, missing=None)
     end_date = UTCTZnaiveDateTime(required=False, missing=None)
     confirmed = fields.Boolean(
-        truthy=['true', 'True', 'confirmed', True],
-        falsy=['false', 'False', 'rejected', False],
+        truthy=["true", "True", "confirmed", True],
+        falsy=["false", "False", "rejected", False],
         required=False,
     )
     explanation = fields.String(required=False)
@@ -39,39 +40,39 @@ class Validator(Schema):
 
     @validates_schema
     def validate_requires(self, data, **kwargs):
-        if 'method' not in data:
-            raise ValidationError('method is required')
-        if data['method'] not in ['POST', 'GET', 'PATCH', 'DELETE']:
-            raise ValidationError('method must be one of POST, GET, PATCH or DELETE')
-        if data['method'] == 'GET':
-            if 'sources_id_list' not in data:
-                raise ValidationError('Missing required fields')
-            if data['sources_id_list'] is None:
-                raise ValidationError('Missing required fields')
-        if data['method'] == 'POST':
+        if "method" not in data:
+            raise ValidationError("method is required")
+        if data["method"] not in ["POST", "GET", "PATCH", "DELETE"]:
+            raise ValidationError("method must be one of POST, GET, PATCH or DELETE")
+        if data["method"] == "GET":
+            if "sources_id_list" not in data:
+                raise ValidationError("Missing required fields")
+            if data["sources_id_list"] is None:
+                raise ValidationError("Missing required fields")
+        if data["method"] == "POST":
             if (
-                'start_date' not in data
-                or 'end_date' not in data
-                or 'localization_name' not in data
-                or 'localization_cumprob' not in data
+                "start_date" not in data
+                or "end_date" not in data
+                or "localization_name" not in data
+                or "localization_cumprob" not in data
             ):
-                raise ValidationError('Missing required fields')
+                raise ValidationError("Missing required fields")
             if (
-                data['start_date'] is None
-                or data['end_date'] is None
-                or data['localization_name'] is None
-                or data['localization_cumprob'] is None
+                data["start_date"] is None
+                or data["end_date"] is None
+                or data["localization_name"] is None
+                or data["localization_cumprob"] is None
             ):
-                raise ValidationError('Missing required fields')
+                raise ValidationError("Missing required fields")
         if (
-            data['method'] == 'PATCH'
-            or data['method'] == 'DELETE'
-            or data['method'] == 'POST'
+            data["method"] == "PATCH"
+            or data["method"] == "DELETE"
+            or data["method"] == "POST"
         ):
-            if 'source_id' not in data:
-                raise ValidationError('Missing required fields')
-            if data['source_id'] is None:
-                raise ValidationError('Missing required fields')
+            if "source_id" not in data:
+                raise ValidationError("Missing required fields")
+            if data["source_id"] is None:
+                raise ValidationError("Missing required fields")
 
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
@@ -178,26 +179,26 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        sources_id_list = self.get_query_argument('sourcesIDList', '')
+        sources_id_list = self.get_query_argument("sourcesIDList", "")
         if source_id is not None:
             sources_id_list = source_id
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'GET',
-            'sources_id_list': sources_id_list,
-            'dateobs': dateobs,
+            "method": "GET",
+            "sources_id_list": sources_id_list,
+            "dateobs": dateobs,
         }
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
-        dateobs = validated['dateobs']
-        sources_id_list = validated['sources_id_list']
+            return self.error(f"Error parsing query params: {e.args[0]}.")
+        dateobs = validated["dateobs"]
+        sources_id_list = validated["sources_id_list"]
 
-        if sources_id_list != '':
+        if sources_id_list != "":
             try:
                 sources_id_list = [
-                    source_id.strip() for source_id in sources_id_list.split(',')
+                    source_id.strip() for source_id in sources_id_list.split(",")
                 ]
             except ValueError:
                 return self.error(
@@ -228,7 +229,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         return self.success(data=sources_in_gcn)
 
-    @permissions(['Manage GCNs'])
+    @permissions(["Manage GCNs"])
     async def post(self, dateobs, source_id=None):
         """
         ---
@@ -298,36 +299,36 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         """
         data = self.get_json()
 
-        localization_name = data.get('localization_name')
-        localization_cumprob = data.get('localization_cumprob')
-        source_id = data.get('source_id')
-        confirmed = data.get('confirmed')
-        explanation = data.get('explanation')
-        notes = data.get('notes')
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
+        localization_name = data.get("localization_name")
+        localization_cumprob = data.get("localization_cumprob")
+        source_id = data.get("source_id")
+        confirmed = data.get("confirmed")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'POST',
-            'source_id': source_id,
-            'dateobs': dateobs,
-            'start_date': start_date,
-            'end_date': end_date,
-            'localization_name': localization_name,
-            'localization_cumprob': localization_cumprob,
+            "method": "POST",
+            "source_id": source_id,
+            "dateobs": dateobs,
+            "start_date": start_date,
+            "end_date": end_date,
+            "localization_name": localization_name,
+            "localization_cumprob": localization_cumprob,
         }
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        source_id = validated['source_id']
-        dateobs = validated['dateobs']
-        start_date = validated['start_date']
-        end_date = validated['end_date']
-        localization_name = validated['localization_name']
-        localization_cumprob = validated['localization_cumprob']
+        source_id = validated["source_id"]
+        dateobs = validated["dateobs"]
+        start_date = validated["start_date"]
+        end_date = validated["end_date"]
+        localization_name = validated["localization_name"]
+        localization_cumprob = validated["localization_cumprob"]
 
         source_in_gcn_id = None
         obj_internal_key = None
@@ -374,7 +375,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                                 crossmatches = [dateobs]
                             elif dateobs not in crossmatches:
                                 crossmatches.append(dateobs)
-                            setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                            setattr(source_in_gcn.obj, "gcn_crossmatch", crossmatches)
                             session.commit()
                         else:
                             crossmatches = source_in_gcn.obj.gcn_crossmatch
@@ -387,11 +388,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                                     dateobs.strftime("%Y-%m-%d %H:%M:%S")
                                 )
                                 if len(crossmatches) == 0:
-                                    setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                                    setattr(source_in_gcn.obj, "gcn_crossmatch", None)
                                 else:
                                     setattr(
                                         source_in_gcn.obj,
-                                        'gcn_crossmatch',
+                                        "gcn_crossmatch",
                                         crossmatches,
                                     )
                                 session.commit()
@@ -416,7 +417,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                             crossmatches = [dateobs]
                         elif dateobs not in crossmatches:
                             crossmatches.append(dateobs)
-                        setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                        setattr(source_in_gcn.obj, "gcn_crossmatch", crossmatches)
                         session.commit()
                     else:
                         crossmatches = source_in_gcn.obj.gcn_crossmatch
@@ -426,10 +427,10 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                         ):
                             crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
                             if len(crossmatches) == 0:
-                                setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                                setattr(source_in_gcn.obj, "gcn_crossmatch", None)
                             else:
                                 setattr(
-                                    source_in_gcn.obj, 'gcn_crossmatch', crossmatches
+                                    source_in_gcn.obj, "gcn_crossmatch", crossmatches
                                 )
                             session.commit()
 
@@ -440,12 +441,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         if obj_internal_key is not None:
             flow = Flow()
             flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
             )
 
-        return self.success(data={'id': source_in_gcn_id})
+        return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(['Manage GCNs'])
+    @permissions(["Manage GCNs"])
     def patch(self, dateobs, source_id):
         """
         ---
@@ -498,25 +499,25 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        confirmed = data.get('confirmed')
-        explanation = data.get('explanation')
-        notes = data.get('notes')
+        confirmed = data.get("confirmed")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'PATCH',
-            'source_id': source_id,
-            'dateobs': dateobs,
+            "method": "PATCH",
+            "source_id": source_id,
+            "dateobs": dateobs,
         }
         if explanation is not None:
             params_to_be_validated["explanation"] = explanation
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        source_id = validated['source_id'].strip()
-        dateobs = validated['dateobs']
+        source_id = validated["source_id"].strip()
+        dateobs = validated["dateobs"]
 
         source_in_gcn_id = None
         obj_internal_key = None
@@ -554,7 +555,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                         crossmatches = [dateobs]
                     elif dateobs not in crossmatches:
                         crossmatches.append(dateobs)
-                    setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                    setattr(source_in_gcn.obj, "gcn_crossmatch", crossmatches)
                     session.commit()
                 else:
                     crossmatches = source_in_gcn.obj.gcn_crossmatch
@@ -564,9 +565,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     ):
                         crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
                         if len(crossmatches) == 0:
-                            setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                            setattr(source_in_gcn.obj, "gcn_crossmatch", None)
                         else:
-                            setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                            setattr(source_in_gcn.obj, "gcn_crossmatch", crossmatches)
                         session.commit()
             except Exception as e:
                 session.rollback()
@@ -575,12 +576,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         if obj_internal_key is not None:
             flow = Flow()
             flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
             )
 
-        return self.success(data={'id': source_in_gcn_id})
+        return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(['Manage GCNs'])
+    @permissions(["Manage GCNs"])
     def delete(self, dateobs, source_id):
         """
         ---
@@ -625,17 +626,17 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         validator_instance = Validator()
         params_to_be_validated = {
-            'method': 'DELETE',
-            'source_id': source_id,
-            'dateobs': dateobs,
+            "method": "DELETE",
+            "source_id": source_id,
+            "dateobs": dateobs,
         }
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        source_id = validated['source_id'].strip()
-        dateobs = validated['dateobs']
+        source_id = validated["source_id"].strip()
+        dateobs = validated["dateobs"]
 
         source_in_gcn_id = None
         obj_internal_key = None
@@ -664,9 +665,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 ):
                     crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
                     if len(crossmatches) == 0:
-                        setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                        setattr(source_in_gcn.obj, "gcn_crossmatch", None)
                     else:
-                        setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                        setattr(source_in_gcn.obj, "gcn_crossmatch", crossmatches)
                     session.commit()
                 source_in_gcn_id = source_in_gcn.id
                 obj_internal_key = source_in_gcn.obj.internal_key
@@ -679,9 +680,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         if obj_internal_key is not None:
             flow = Flow()
             flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
             )
-        return self.success(data={'id': source_in_gcn_id})
+        return self.success(data={"id": source_in_gcn_id})
 
 
 class SourcesConfirmedInGCNTNSHandler(BaseHandler):
@@ -749,23 +750,23 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
         """
 
         data = self.get_json()
-        sources_id_list = data.get('sourcesIDList', '')
-        confirmed = data.get('confirmed', True)
-        tnsrobotID = data.get('tnsrobotID')
-        reporters = data.get('reporters', '')
-        remarks = data.get('remarks', '')
-        archival = data.get('archival', False)
-        archival_comment = data.get('archivalComment', '')
+        sources_id_list = data.get("sourcesIDList", "")
+        confirmed = data.get("confirmed", True)
+        tnsrobotID = data.get("tnsrobotID")
+        reporters = data.get("reporters", "")
+        remarks = data.get("remarks", "")
+        archival = data.get("archival", False)
+        archival_comment = data.get("archivalComment", "")
 
         if tnsrobotID is None:
-            return self.error('tnsrobotID is required')
-        if reporters == '' or not isinstance(reporters, str):
-            return self.error('reporters is required and must be a non-empty string')
+            return self.error("tnsrobotID is required")
+        if reporters == "" or not isinstance(reporters, str):
+            return self.error("reporters is required and must be a non-empty string")
 
-        if sources_id_list != '':
+        if sources_id_list != "":
             try:
                 sources_id_list = [
-                    source_id.strip() for source_id in sources_id_list.split(',')
+                    source_id.strip() for source_id in sources_id_list.split(",")
                 ]
             except ValueError:
                 return self.error(
@@ -800,19 +801,19 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     )
                 ).first()
                 if tnsrobot is None:
-                    return self.error(f'No TNSRobot available with ID {tnsrobotID}')
+                    return self.error(f"No TNSRobot available with ID {tnsrobotID}")
 
                 if archival is True:
                     if len(archival_comment) == 0:
                         return self.error(
-                            'If source flagged as archival, archival_comment is required'
+                            "If source flagged as archival, archival_comment is required"
                         )
 
                 altdata = tnsrobot.altdata
                 if not altdata:
-                    return self.error('Missing TNS information.')
-                if 'api_key' not in altdata:
-                    return self.error('Missing TNS API key.')
+                    return self.error("Missing TNS information.")
+                if "api_key" not in altdata:
+                    return self.error("Missing TNS API key.")
 
                 try:
                     loop = asyncio.get_event_loop()
@@ -863,7 +864,7 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     obj_with_requests.append(obj.obj_id)
                 session.commit()
 
-                return self.success(data={'obj_ids': obj_with_requests})
+                return self.success(data={"obj_ids": obj_with_requests})
 
             except Exception as e:
                 return self.error(str(e))
