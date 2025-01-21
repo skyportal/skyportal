@@ -130,7 +130,6 @@ class SourceGroupsHandler(BaseHandler):
                 source.unsaved_at = datetime.datetime.utcnow()
 
             if len(unsave_group_ids) > 0:
-                # Delete all this source auto-published pages, link to a release and sharing no groups with this source
                 from .public_pages.public_source_page import delete_auto_published_page
 
                 all_saved_groups = session.scalars(
