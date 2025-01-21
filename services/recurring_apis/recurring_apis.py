@@ -1,20 +1,15 @@
 import json
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 
 from astropy.time import Time
 
-from baselayer.log import make_log
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
-
-from skyportal.models import (
-    DBSession,
-    RecurringAPI,
-    User,
-    UserNotification,
-)
+from baselayer.app.models import init_db
+from baselayer.log import make_log
+from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
-from skyportal.utils.services import check_loaded, HOST
+from skyportal.utils.services import HOST, check_loaded
 
 env, cfg = load_env()
 
@@ -26,7 +21,8 @@ MAX_RETRIES = 10
 
 
 def perform_api_calls():
-    now = datetime.utcnow()
+    sleep_time = 60
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     with DBSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()
@@ -94,6 +90,29 @@ def perform_api_calls():
                 )
             )
             session.commit()
+
+        next_recurring_api = session.scalars(
+            RecurringAPI.select(user)
+            .where(
+                RecurringAPI.next_call > now,
+                RecurringAPI.next_call <= now + timedelta(seconds=sleep_time),
+                RecurringAPI.active.is_(True),
+            )
+            .order_by(RecurringAPI.next_call)
+            .limit(1)
+        ).first()
+        if next_recurring_api is not None:
+            dt = (
+                next_recurring_api.next_call
+                - datetime.now(timezone.utc).replace(tzinfo=None)
+            ).total_seconds()
+            if dt < 0:
+                dt = 0
+            elif dt < sleep_time:
+                sleep_time = dt
+
+    if sleep_time > 0:
+        time.sleep(sleep_time)
 
 
 @check_loaded(logger=log)

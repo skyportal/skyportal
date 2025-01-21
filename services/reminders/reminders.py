@@ -1,21 +1,21 @@
+import time
+import traceback
 from datetime import datetime, timedelta, timezone
 
-from baselayer.log import make_log
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import User, init_db
+from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
     Reminder,
-    ReminderOnSpectrum,
     ReminderOnGCN,
     ReminderOnShift,
+    ReminderOnSpectrum,
     UserNotification,
 )
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
-from baselayer.app.models import User
-
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -26,43 +26,31 @@ log = make_log('reminders')
 
 
 def send_reminders():
+    sleep_time = 60
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     reminders = []
     with DBSession() as session:
+        user = session.query(User).where(User.id == 1).first()
         try:
-            user = session.query(User).where(User.id == 1).first()
+            reminder_classes = [
+                Reminder,
+                ReminderOnSpectrum,
+                ReminderOnGCN,
+                ReminderOnShift,
+            ]
             reminders = (
-                (
-                    session.scalars(
-                        Reminder.select(user)
-                        .where(Reminder.number_of_reminders > 0)
-                        .where(Reminder.next_reminder <= now)
-                    ).all()
-                )
-                + (
-                    session.scalars(
-                        ReminderOnSpectrum.select(user)
-                        .where(ReminderOnSpectrum.number_of_reminders > 0)
-                        .where(ReminderOnSpectrum.next_reminder <= now)
-                    ).all()
-                )
-                + (
-                    session.scalars(
-                        ReminderOnGCN.select(user)
-                        .where(ReminderOnGCN.number_of_reminders > 0)
-                        .where(ReminderOnGCN.next_reminder <= now)
-                    ).all()
-                )
-                + (
-                    session.scalars(
-                        ReminderOnShift.select(user)
-                        .where(ReminderOnShift.number_of_reminders > 0)
-                        .where(ReminderOnShift.next_reminder <= now)
-                    ).all()
-                )
+                session.scalars(
+                    reminder_class.select(user)
+                    .where(reminder_class.number_of_reminders > 0)
+                    .where(reminder_class.next_reminder <= now)
+                ).all()
+                for reminder_class in reminder_classes
             )
+            reminders = [reminder for sublist in reminders for reminder in sublist]
         except Exception as e:
             log(e)
+            traceback.print_exc()
+
         ws_flow = Flow()
         for reminder in reminders:
             reminder_type = reminder.__class__
@@ -92,6 +80,8 @@ def send_reminders():
                 text_to_send = f"Reminder of shift *{shift.name}*: {reminder.text}"
                 url_endpoint = f"/shifts/{shift.id}"
                 notification_type = "reminder_on_shift"
+            else:
+                raise ValueError(f"Unknown reminder type: {reminder_type}")
 
             session.add(
                 UserNotification(
@@ -111,6 +101,43 @@ def send_reminders():
 
             ws_flow.push(reminder.user.id, "skyportal/FETCH_NOTIFICATIONS")
 
+        next_reminders = []
+        try:
+            next_reminders = [
+                session.scalars(
+                    reminder_class.select(user)
+                    .where(reminder_class.number_of_reminders > 0)
+                    .where(reminder_class.next_reminder > now)
+                    .where(
+                        reminder_class.next_reminder
+                        <= now + timedelta(seconds=sleep_time)
+                    )
+                    .order_by(reminder_class.next_reminder)
+                    .limit(1)
+                ).first()
+                for reminder_class in reminder_classes
+            ]
+            next_reminders = [
+                reminder for reminder in next_reminders if reminder is not None
+            ]
+        except Exception as e:
+            log(e)
+            traceback.print_exc()
+
+        if len(next_reminders) > 0:
+            next_reminder = min(next_reminders, key=lambda x: x.next_reminder)
+            dt = (
+                next_reminder.next_reminder
+                - datetime.now(timezone.utc).replace(tzinfo=None)
+            ).total_seconds()
+            if dt < 0:
+                dt = 0
+            elif dt < sleep_time:
+                sleep_time = dt
+
+    if sleep_time > 0:
+        time.sleep(sleep_time)
+
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
@@ -119,6 +146,7 @@ def service(*args, **kwargs):
             send_reminders()
         except Exception as e:
             log(e)
+            traceback.print_exc()
 
 
 if __name__ == "__main__":
