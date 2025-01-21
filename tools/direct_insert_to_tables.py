@@ -30,8 +30,8 @@ Each row is added sequentially and referential integrity issues are caught.
 
 """
 
-import pandas as pd
 import fire
+import pandas as pd
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
@@ -56,7 +56,7 @@ def insert_data(filename, tablename, delete_id=True, new_data_dir="./", verbose=
 
     print(f"Length of {tablename} file = {len(opd)}.")
 
-    if delete_id and tablename != 'objs':
+    if delete_id and tablename != "objs":
         del opd["id"]
     else:
         if verbose:
@@ -80,5 +80,5 @@ def insert_data(filename, tablename, delete_id=True, new_data_dir="./", verbose=
     print(f"Added {total} rows to {tablename}.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     fire.Fire(insert_data)

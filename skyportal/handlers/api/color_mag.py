@@ -1,16 +1,17 @@
 import numpy as np
+
 from baselayer.app.access import auth_or_token
-from ..base import BaseHandler
 
 from ...models import (
-    Obj,
     Annotation,
+    Obj,
 )
+from ..base import BaseHandler
 
 
 def normalize_key(str):
     # convert the string to lowercase and remove underscores
-    return str.lower().replace('_', '')
+    return str.lower().replace("_", "")
 
 
 def get_color_mag(annotations, **kwargs):
@@ -19,14 +20,14 @@ def get_color_mag(annotations, **kwargs):
     # ignore None inputs from e.g., query arguments
     inputs = {k: v for k, v in kwargs.items() if v is not None}
 
-    catalog = inputs.get('catalog', 'gaia')
-    mag_key = inputs.get('apparentMagKey', 'Mag_G')
-    parallax_key = inputs.get('parallaxKey', 'Plx')
-    absorption_key = inputs.get('absorptionKey', 'A_G')
-    abs_mag_key = inputs.get('absoluteMagKey', None)
-    blue_mag_key = inputs.get('blueMagKey', 'Mag_Bp')
-    red_mag_key = inputs.get('redMagKey', 'Mag_Rp')
-    color_key = inputs.get('colorKey', None)
+    catalog = inputs.get("catalog", "gaia")
+    mag_key = inputs.get("apparentMagKey", "Mag_G")
+    parallax_key = inputs.get("parallaxKey", "Plx")
+    absorption_key = inputs.get("absorptionKey", "A_G")
+    abs_mag_key = inputs.get("absoluteMagKey", None)
+    blue_mag_key = inputs.get("blueMagKey", "Mag_Bp")
+    red_mag_key = inputs.get("redMagKey", "Mag_Rp")
+    color_key = inputs.get("colorKey", None)
 
     output = []
 
@@ -39,13 +40,13 @@ def get_color_mag(annotations, **kwargs):
 
             # get the absolute magnitude
             if abs_mag_key is not None:  # get the absolute magnitude directly
-                for k in an.data.keys():
+                for k in an.data:
                     if normalize_key(abs_mag_key) == normalize_key(k):
                         abs_mag = an.data[k]  # found it!
             else:  # we need to look for the apparent magnitude and parallax
                 mag = None
                 plx = None
-                for k in an.data.keys():
+                for k in an.data:
                     if normalize_key(mag_key) == normalize_key(k):
                         mag = an.data[k]
                     if normalize_key(parallax_key) == normalize_key(k):
@@ -58,13 +59,13 @@ def get_color_mag(annotations, **kwargs):
 
             # get the color data
             if color_key is not None:  # get the color value directly
-                for k in an.data.keys():
+                for k in an.data:
                     if normalize_key(color_key) == normalize_key(k):
                         color = float(an.data[k])  # found it!
             else:
                 blue = None
                 red = None
-                for k in an.data.keys():
+                for k in an.data:
                     if normalize_key(blue_mag_key) == normalize_key(k):
                         blue = an.data[k]
                     if normalize_key(red_mag_key) == normalize_key(k):
@@ -75,7 +76,7 @@ def get_color_mag(annotations, **kwargs):
 
             # only check this if given an absorption term
             if absorption_key is not None:
-                for k in an.data.keys():
+                for k in an.data:
                     if normalize_key(absorption_key) == normalize_key(k):
                         absorption = an.data[k]
 
@@ -83,7 +84,7 @@ def get_color_mag(annotations, **kwargs):
             if absorption is not None and not np.isnan(absorption):
                 abs_mag = abs_mag + absorption  # apply the absorption term
 
-            output.append({'origin': an.origin, 'abs_mag': abs_mag, 'color': color})
+            output.append({"origin": an.origin, "abs_mag": abs_mag, "color": color})
 
     return output
 
@@ -219,7 +220,7 @@ class ObjColorMagHandler(BaseHandler):
 
         obj = Obj.query.get(obj_id)
         if obj is None:
-            return self.error('Invalid object id.')
+            return self.error("Invalid object id.")
 
         annotations = (
             Annotation.query_records_accessible_by(self.current_user)
@@ -227,14 +228,14 @@ class ObjColorMagHandler(BaseHandler):
             .all()
         )
 
-        catalog = self.get_query_argument('catalog', None)  # "GAIA"
-        mag_key = self.get_query_argument('apparentMagKey', None)  # "Mag_G"
-        parallax_key = self.get_query_argument('parallaxKey', None)  # "Plx"
-        absorption_key = self.get_query_argument('absorptionKey', None)  # "A_G"
-        abs_mag_key = self.get_query_argument('absoluteMagKey', None)  # None
-        blue_mag_key = self.get_query_argument('blueMagKey', None)  # "Mag_Bp"
-        red_mag_key = self.get_query_argument('redMagKey', None)  # "Mag_Rp"
-        color_key = self.get_query_argument('colorKey', None)  # None
+        catalog = self.get_query_argument("catalog", None)  # "GAIA"
+        mag_key = self.get_query_argument("apparentMagKey", None)  # "Mag_G"
+        parallax_key = self.get_query_argument("parallaxKey", None)  # "Plx"
+        absorption_key = self.get_query_argument("absorptionKey", None)  # "A_G"
+        abs_mag_key = self.get_query_argument("absoluteMagKey", None)  # None
+        blue_mag_key = self.get_query_argument("blueMagKey", None)  # "Mag_Bp"
+        red_mag_key = self.get_query_argument("redMagKey", None)  # "Mag_Rp"
+        color_key = self.get_query_argument("colorKey", None)  # None
 
         output = get_color_mag(
             annotations,

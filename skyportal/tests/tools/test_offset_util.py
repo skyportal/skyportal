@@ -1,19 +1,19 @@
 import uuid
 
-import pytest
 import numpy as np
 import numpy.testing as npt
+import pytest
 import requests
-from requests.exceptions import HTTPError, Timeout, ConnectionError, MissingSchema
+from requests.exceptions import ConnectionError, HTTPError, MissingSchema, Timeout
 
+from skyportal.models import Photometry
 from skyportal.tests import api
 from skyportal.utils.offset import (
-    get_nearby_offset_stars,
-    get_finding_chart,
-    get_ztfref_url,
     _calculate_best_position_for_offset_stars,
+    get_finding_chart,
+    get_nearby_offset_stars,
+    get_ztfref_url,
 )
-from skyportal.models import Photometry
 
 
 def test_calculate_best_position_no_photometry():
@@ -31,19 +31,19 @@ def test_calculate_position_with_evil_inputs(
     ra, dec = 10.5, -20.8
     obj_id = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'sources',
-        data={'id': obj_id, 'ra': ra, 'dec': dec, 'group_ids': [public_group.id]},
+        "POST",
+        "sources",
+        data={"id": obj_id, "ra": ra, "dec": dec, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
     n_phot = 10
     mjd = 58000.0 + np.arange(n_phot)
     flux = np.zeros_like(mjd)
     fluxerr = 1e-6 + np.random.random(n_phot)
-    filters = ['ztfg'] * n_phot
+    filters = ["ztfg"] * n_phot
     ras = ra + np.cos(np.radians(dec)) * np.random.randn(n_phot) / (10 * 3600)
     decs = dec + np.random.randn(n_phot) / (10 * 3600)
     dec_unc = np.zeros_like(mjd)
@@ -52,41 +52,41 @@ def test_calculate_position_with_evil_inputs(
 
     # valid request with zero-flux sources and astrometry with zero uncertainty
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': list(mjd),
-            'instrument_id': ztf_camera.id,
-            'flux': list(flux),
-            'fluxerr': list(fluxerr),
-            'filter': list(filters),
-            'ra': list(ras),
-            'dec': list(decs),
-            'magsys': 'ab',
-            'zp': 25.0,
-            'dec_unc': list(dec_unc),
-            'ra_unc': 0.2,
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "mjd": list(mjd),
+            "instrument_id": ztf_camera.id,
+            "flux": list(flux),
+            "fluxerr": list(fluxerr),
+            "filter": list(filters),
+            "ra": list(ras),
+            "dec": list(decs),
+            "magsys": "ab",
+            "zp": 25.0,
+            "dec_unc": list(dec_unc),
+            "ra_unc": 0.2,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['ids']) == n_phot
+    assert data["status"] == "success"
+    assert len(data["data"]["ids"]) == n_phot
 
     removed_kwargs = ["instrument_name", "groups", "magsys", "zp", "snr"]
     phot_list = []
-    for photometry_id in data['data']['ids']:
+    for photometry_id in data["data"]["ids"]:
         status, data = api(
-            'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
         for key in removed_kwargs:
-            data['data'].pop(key)
+            data["data"].pop(key)
 
-        phot_list.append(Photometry(**data['data']))
+        phot_list.append(Photometry(**data["data"]))
 
     ra_calc_snr, dec_calc_snr = _calculate_best_position_for_offset_stars(
         phot_list, fallback=(ra, dec), how="snr2", max_offset=0.5, sigma_clip=4.0
@@ -110,59 +110,59 @@ def test_calculate_best_position_with_photometry(
     ra, dec = 10.5, -20.8
     obj_id = str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'sources',
-        data={'id': obj_id, 'ra': ra, 'dec': dec, 'group_ids': [public_group.id]},
+        "POST",
+        "sources",
+        data={"id": obj_id, "ra": ra, "dec": dec, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
     n_phot = 10
     mjd = 58000.0 + np.arange(n_phot)
     flux = float(n_phot) + np.random.random(n_phot) * 100
     fluxerr = 1e-6 + np.random.random(n_phot)
-    filters = ['ztfg'] * n_phot
+    filters = ["ztfg"] * n_phot
     ras = ra + np.cos(np.radians(dec)) * np.random.randn(n_phot) / (10 * 3600)
     decs = dec + np.random.randn(n_phot) / (10 * 3600)
 
     # valid request
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': obj_id,
-            'mjd': list(mjd),
-            'instrument_id': ztf_camera.id,
-            'flux': list(flux),
-            'fluxerr': list(fluxerr),
-            'filter': list(filters),
-            'ra': list(ras),
-            'dec': list(decs),
-            'magsys': 'ab',
-            'zp': 25.0,
-            'dec_unc': 0.2,
-            'ra_unc': 0.2,
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "mjd": list(mjd),
+            "instrument_id": ztf_camera.id,
+            "flux": list(flux),
+            "fluxerr": list(fluxerr),
+            "filter": list(filters),
+            "ra": list(ras),
+            "dec": list(decs),
+            "magsys": "ab",
+            "zp": 25.0,
+            "dec_unc": 0.2,
+            "ra_unc": 0.2,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']['ids']) == n_phot
+    assert data["status"] == "success"
+    assert len(data["data"]["ids"]) == n_phot
 
     removed_kwargs = ["instrument_name", "groups", "magsys", "zp", "snr"]
     phot_list = []
-    for photometry_id in data['data']['ids']:
+    for photometry_id in data["data"]["ids"]:
         status, data = api(
-            'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+            "GET", f"photometry/{photometry_id}?format=flux", token=upload_data_token
         )
         assert status == 200
-        assert data['status'] == 'success'
+        assert data["status"] == "success"
         for key in removed_kwargs:
-            data['data'].pop(key)
+            data["data"].pop(key)
 
-        phot_list.append(Photometry(**data['data']))
+        phot_list.append(Photometry(**data["data"]))
 
     ra_calc_snr, dec_calc_snr = _calculate_best_position_for_offset_stars(
         phot_list, fallback=(ra, dec), how="snr2", max_offset=0.5, sigma_clip=4.0
@@ -200,7 +200,7 @@ except (HTTPError, TimeoutError, ConnectionError, MissingSchema) as e:
     print(e)
 
 
-@pytest.mark.skipif(not run_ztfref_test, reason='IRSA server down')
+@pytest.mark.skipif(not run_ztfref_test, reason="IRSA server down")
 def test_get_ztfref_url():
     url = get_ztfref_url(123.0, 33.3, 2)
 
@@ -253,20 +253,20 @@ except (HTTPError, Timeout, ConnectionError) as e:
 @pytest.mark.skipif(not run_desi_test, reason="DESI server down")
 def test_get_desi_finding_chart():
     rez = get_finding_chart(
-        123.0, 33.3, "testSource", image_source='desi', output_format='pdf'
+        123.0, 33.3, "testSource", image_source="desi", output_format="pdf"
     )
 
     assert isinstance(rez, dict)
     assert rez["success"]
     assert rez["name"].find("testSource") != -1
-    assert rez["data"].find(bytes("PDF", encoding='utf8')) != -1
+    assert rez["data"].find(bytes("PDF", encoding="utf8")) != -1
 
 
 # test for failure on a too-small image size
 def test_get_finding_chart():
-    rez = get_finding_chart(123.0, 33.3, "testSource", imsize=1.0, image_source='dss')
+    rez = get_finding_chart(123.0, 33.3, "testSource", imsize=1.0, image_source="dss")
     assert not rez["success"]
 
-    rez = get_finding_chart(123.0, 33.3, "testSource", image_source='zomg_telescope')
+    rez = get_finding_chart(123.0, 33.3, "testSource", image_source="zomg_telescope")
     assert isinstance(rez, dict)
     assert not rez["success"]

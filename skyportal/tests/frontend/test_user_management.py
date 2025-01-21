@@ -16,8 +16,8 @@ def filter_for_user(driver, username):
 
 
 def test_delete_user_role(driver, super_admin_user, user):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.click_xpath(
         f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]",
@@ -30,8 +30,8 @@ def test_delete_user_role(driver, super_admin_user, user):
 
 def test_add_and_delete_user_affiliations(driver, super_admin_user, user):
     affiliation = "Test affiliation"
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.click_xpath(f'//*[@data-testid="addUserAffiliationsButton{user.id}"]')
     driver.click_xpath('//*[@data-testid="addUserAffiliationsSelect"]')
@@ -43,12 +43,12 @@ def test_add_and_delete_user_affiliations(driver, super_admin_user, user):
     driver.wait_for_xpath(affiliations_entry_xpath).send_keys(Keys.ENTER)
 
     driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath('''//*[text()="Successfully updated user's affiliations."]''')
+    driver.wait_for_xpath("""//*[text()="Successfully updated user's affiliations."]""")
     driver.click_xpath(
         f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
     )
     driver.wait_for_xpath(
-        '''//div[text()="Successfully deleted user's affiliation."]'''
+        """//div[text()="Successfully deleted user's affiliation."]"""
     )
     driver.wait_for_xpath_to_disappear(
         f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
@@ -57,8 +57,8 @@ def test_add_and_delete_user_affiliations(driver, super_admin_user, user):
 
 def test_grant_and_delete_user_acl(driver, super_admin_user, user):
     acl = "Post taxonomy"
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.click_xpath(f'//*[@data-testid="addUserACLsButton{user.id}"]')
     driver.click_xpath('//*[@data-testid="addUserACLsSelect"]')
@@ -77,8 +77,8 @@ def test_grant_and_delete_user_acl(driver, super_admin_user, user):
 
 
 def test_add_user_role(driver, super_admin_user, user):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.click_xpath(f'//*[@data-testid="addUserRolesButton{user.id}"]')
     driver.click_xpath('//*[@data-testid="addUserRolesSelect"]')
@@ -91,8 +91,8 @@ def test_add_user_role(driver, super_admin_user, user):
 
 
 def test_delete_group_user(driver, super_admin_user, user, public_group):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
@@ -108,8 +108,8 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
 @pytest.mark.flaky(reruns=2)
 def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     stream = stream_with_users
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']"
@@ -121,8 +121,8 @@ def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
 
 
 def test_add_user_to_group(driver, user, super_admin_user, public_group, public_group2):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
@@ -142,8 +142,8 @@ def test_add_user_to_group(driver, user, super_admin_user, public_group, public_
 def test_add_user_to_stream(
     driver, user, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get("/user_management")
     filter_for_user(driver, user.username)
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"

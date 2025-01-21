@@ -1,13 +1,14 @@
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.access import permissions, auth_or_token
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token, permissions
+
 from ...models import Telescope
+from ..base import BaseHandler
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Manage telescopes'])
+    @permissions(["Manage telescopes"])
     def post(self):
         """
         ---
@@ -44,39 +45,39 @@ class TelescopeHandler(BaseHandler):
         with self.Session() as session:
             schema = Telescope.__schema__()
             # check if the telescope has a fixed location
-            if 'fixed_location' in data:
-                if data['fixed_location']:
+            if "fixed_location" in data:
+                if data["fixed_location"]:
                     if (
-                        'lat' not in data
-                        or 'lon' not in data
-                        or 'elevation' not in data
+                        "lat" not in data
+                        or "lon" not in data
+                        or "elevation" not in data
                     ):
                         return self.error(
-                            'Missing latitude, longitude, or elevation; required if the telescope is fixed'
+                            "Missing latitude, longitude, or elevation; required if the telescope is fixed"
                         )
                     elif (
-                        not isinstance(data['lat'], (int, float))
-                        or not isinstance(data['lon'], (int, float))
-                        or not isinstance(data['elevation'], (int, float))
+                        not isinstance(data["lat"], int | float)
+                        or not isinstance(data["lon"], int | float)
+                        or not isinstance(data["elevation"], int | float)
                     ):
                         return self.error(
-                            'Latitude, longitude, and elevation must all be numbers'
+                            "Latitude, longitude, and elevation must all be numbers"
                         )
                     elif (
-                        data['lat'] < -90
-                        or data['lat'] > 90
-                        or data['lon'] < -180
-                        or data['lon'] > 180
-                        or data['elevation'] < 0
+                        data["lat"] < -90
+                        or data["lat"] > 90
+                        or data["lon"] < -180
+                        or data["lon"] > 180
+                        or data["elevation"] < 0
                     ):
                         return self.error(
-                            'Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive'
+                            "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
                         )
             try:
                 telescope = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(telescope)
             session.commit()
@@ -176,8 +177,8 @@ class TelescopeHandler(BaseHandler):
                     )
                 data = {
                     **t.to_dict(),
-                    'instruments': instruments,
-                    'allocations': allocations,
+                    "instruments": instruments,
+                    "allocations": allocations,
                 }
                 return self.success(data=data)
 
@@ -211,16 +212,16 @@ class TelescopeHandler(BaseHandler):
                 for instrument in telescope.instruments:
                     for allocation in instrument.allocations:
                         allocation_data = allocation.to_dict()
-                        allocation_data['allocation_users'] = [
+                        allocation_data["allocation_users"] = [
                             user.user.to_dict() for user in allocation.allocation_users
                         ]
                         allocations.append(allocation_data)
-                temp['allocations'] = allocations
+                temp["allocations"] = allocations
                 telescopes.append(temp)
 
             return self.success(data=telescopes)
 
-    @permissions(['Manage telescopes'])
+    @permissions(["Manage telescopes"])
     def put(self, telescope_id):
         """
         ---
@@ -256,48 +257,48 @@ class TelescopeHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error('Invalid telescope ID.')
+                return self.error("Invalid telescope ID.")
             data = self.get_json()
-            data['id'] = int(telescope_id)
+            data["id"] = int(telescope_id)
 
             schema = Telescope.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            if 'name' in data:
-                t.name = data['name']
-            if 'nickname' in data:
-                t.nickname = data['nickname']
-            if 'elevation' in data:
-                t.elevation = data['elevation']
-            if 'lat' in data:
-                t.lat = data['lat']
-            if 'lon' in data:
-                t.lon = data['lon']
-            if 'diameter' in data:
-                t.diameter = data['diameter']
-            if 'robotic' in data:
-                t.robotic = data['robotic']
-            if 'fixed_location' in data:
-                t.fixed_location = data['fixed_location']
-            if 'skycam_link' in data:
-                t.skycam_link = data['skycam_link']
-            if 'weather_link' in data:
-                t.weather_link = data['weather_link']
+            if "name" in data:
+                t.name = data["name"]
+            if "nickname" in data:
+                t.nickname = data["nickname"]
+            if "elevation" in data:
+                t.elevation = data["elevation"]
+            if "lat" in data:
+                t.lat = data["lat"]
+            if "lon" in data:
+                t.lon = data["lon"]
+            if "diameter" in data:
+                t.diameter = data["diameter"]
+            if "robotic" in data:
+                t.robotic = data["robotic"]
+            if "fixed_location" in data:
+                t.fixed_location = data["fixed_location"]
+            if "skycam_link" in data:
+                t.skycam_link = data["skycam_link"]
+            if "weather_link" in data:
+                t.weather_link = data["weather_link"]
 
             session.commit()
 
-            if any([k in data for k in ['lat', 'lon', 'elevation']]):
+            if any(k in data for k in ["lat", "lon", "elevation"]):
                 t.current_time(refresh=True)
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()
 
-    @permissions(['Delete telescope'])
+    @permissions(["Delete telescope"])
     def delete(self, telescope_id):
         """
         ---
@@ -329,7 +330,7 @@ class TelescopeHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error('Invalid telescope ID.')
+                return self.error("Invalid telescope ID.")
             session.delete(t)
             session.commit()
             self.push_all(action="skyportal/REFRESH_TELESCOPES")

@@ -1,21 +1,19 @@
-__all__ = ['Shift', 'ShiftUser']
+__all__ = ["Shift", "ShiftUser"]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy import func, select
-from sqlalchemy.orm import column_property
+from sqlalchemy.orm import column_property, relationship
 
-
+from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
-    join_model,
-    User,
     CustomUserAccessControl,
-    UserAccessControl,
     DBSession,
+    User,
+    UserAccessControl,
+    join_model,
     safe_aliased,
 )
-from baselayer.app.env import load_env
 
 from .group import GroupUser, accessible_by_group_members
 
@@ -92,10 +90,10 @@ class Shift(Base):
     create = read = accessible_by_group_members
     update = delete = CustomUserAccessControl(manage_shift_access_logic)
 
-    name = sa.Column(sa.String, nullable=True, index=True, doc='Name of the shift.')
+    name = sa.Column(sa.String, nullable=True, index=True, doc="Name of the shift.")
 
     description = sa.Column(
-        sa.Text, nullable=True, doc='Longer description of the shift.'
+        sa.Text, nullable=True, doc="Longer description of the shift."
     )
 
     start_date = sa.Column(
@@ -120,35 +118,35 @@ class Shift(Base):
     )
 
     users = relationship(
-        'User',
-        secondary='shift_users',
-        back_populates='shifts',
+        "User",
+        secondary="shift_users",
+        back_populates="shifts",
         passive_deletes=True,
-        doc='The members of this shift.',
+        doc="The members of this shift.",
     )
 
     shift_users = relationship(
-        'ShiftUser',
-        back_populates='shift',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "ShiftUser",
+        back_populates="shift",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Elements of a join table mapping Users to Shifts.',
-        overlaps='shifts, users',
+        doc="Elements of a join table mapping Users to Shifts.",
+        overlaps="shifts, users",
     )
 
     comments = relationship(
-        'CommentOnShift',
-        back_populates='shift',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "CommentOnShift",
+        back_populates="shift",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="CommentOnShift.created_at",
         doc="Comments posted about this Shift.",
     )
 
     reminders = relationship(
-        'ReminderOnShift',
-        back_populates='shift',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "ReminderOnShift",
+        back_populates="shift",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="ReminderOnShift.created_at",
         doc="Reminders about this Shift.",
@@ -157,11 +155,11 @@ class Shift(Base):
     required_users_number = sa.Column(
         sa.Integer,
         nullable=True,
-        doc='The number of users required to join this shift for it to be considered full',
+        doc="The number of users required to join this shift for it to be considered full",
     )
 
 
-ShiftUser = join_model('shift_users', Shift, User)
+ShiftUser = join_model("shift_users", Shift, User)
 ShiftUser.__doc__ = "Join table mapping `Shift`s to `User`s."
 ShiftUser.admin = sa.Column(
     sa.Boolean,

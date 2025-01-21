@@ -1,24 +1,22 @@
 import arrow
 from arrow import ParserError
-
-from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
-
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
+
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 
-from .spectrum import parse_id_list
-from ..base import BaseHandler
-from ...models import MMADetector, MMADetectorSpectrum, MMADetectorTimeInterval, Group
-
+from ...models import Group, MMADetector, MMADetectorSpectrum, MMADetectorTimeInterval
 from ...models.schema import (
     MMADetectorSpectrumPost,
 )
+from ..base import BaseHandler
+from .spectrum import parse_id_list
 
 
 class MMADetectorHandler(BaseHandler):
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def post(self):
         """
         ---
@@ -58,17 +56,17 @@ class MMADetectorHandler(BaseHandler):
                 mmadetector = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
-            if data['fixed_location']:
+            if data["fixed_location"]:
                 if (
-                    data['lat'] < -90
-                    or data['lat'] > 90
-                    or data['lon'] < -180
-                    or data['lon'] > 180
+                    data["lat"] < -90
+                    or data["lat"] > 90
+                    or data["lon"] < -180
+                    or data["lon"] > 180
                 ):
                     return self.error(
-                        'Latitude must be between -90 and 90, longitude between -180 and 180'
+                        "Latitude must be between -90 and 90, longitude between -180 and 180"
                     )
             session.add(mmadetector)
             session.commit()
@@ -143,7 +141,7 @@ class MMADetectorHandler(BaseHandler):
             data = session.scalars(stmt).all()
             return self.success(data=data)
 
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def patch(self, mmadetector_id):
         """
         ---
@@ -179,41 +177,41 @@ class MMADetectorHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error('Invalid MMA Detector ID.')
+                return self.error("Invalid MMA Detector ID.")
             data = self.get_json()
-            data['id'] = int(mmadetector_id)
+            data["id"] = int(mmadetector_id)
 
             schema = MMADetector.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            if 'name' in data:
-                t.name = data['name']
-            if 'nickname' in data:
-                t.nickname = data['nickname']
-            if 'lat' in data:
-                if data['lat'] < -90 or data['lat'] > 90:
-                    return self.error('Latitude must be between -90 and 90')
-                t.lat = data['lat']
-            if 'lon' in data:
-                if data['lon'] < -180 or data['lon'] > 180:
-                    return self.error('Longitude between -180 and 180')
-                t.lon = data['lon']
-            if 'fixed_location' in data:
-                t.fixed_location = data['fixed_location']
-            if 'type' in data:
-                t.type = data['type']
+            if "name" in data:
+                t.name = data["name"]
+            if "nickname" in data:
+                t.nickname = data["nickname"]
+            if "lat" in data:
+                if data["lat"] < -90 or data["lat"] > 90:
+                    return self.error("Latitude must be between -90 and 90")
+                t.lat = data["lat"]
+            if "lon" in data:
+                if data["lon"] < -180 or data["lon"] > 180:
+                    return self.error("Longitude between -180 and 180")
+                t.lon = data["lon"]
+            if "fixed_location" in data:
+                t.fixed_location = data["fixed_location"]
+            if "type" in data:
+                t.type = data["type"]
 
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(["Manage allocations"])
     def delete(self, mmadetector_id):
         """
         ---
@@ -245,7 +243,7 @@ class MMADetectorHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error('Invalid MMA Detector ID.')
+                return self.error("Invalid MMA Detector ID.")
             session.delete(t)
             session.commit()
             self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
@@ -253,7 +251,7 @@ class MMADetectorHandler(BaseHandler):
 
 
 class MMADetectorSpectrumHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -290,17 +288,17 @@ class MMADetectorSpectrumHandler(BaseHandler):
             data = MMADetectorSpectrumPost.load(json)
         except ValidationError as e:
             return self.error(
-                f'Invalid / missing parameters; {e.normalized_messages()}'
+                f"Invalid / missing parameters; {e.normalized_messages()}"
             )
 
         with self.Session() as session:
             stmt = MMADetector.select(self.current_user).where(
-                MMADetector.id == data['detector_id']
+                MMADetector.id == data["detector_id"]
             )
             mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
-                    f'Cannot find mmadetector with ID: {data["detector_id"]}'
+                    f"Cannot find mmadetector with ID: {data['detector_id']}"
                 )
 
             owner_id = self.associated_user_object.id
@@ -326,7 +324,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             spec = MMADetectorSpectrum(**data)
@@ -338,13 +336,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': spec.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR",
+                payload={"detector_id": spec.detector.id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR_SPECTRA',
-                payload={'detector_id': spec.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR_SPECTRA",
+                payload={"detector_id": spec.detector.id},
             )
 
             return self.success(data={"id": spec.id})
@@ -423,15 +421,15 @@ class MMADetectorSpectrumHandler(BaseHandler):
                 ).first()
                 if spectrum is None:
                     return self.error(
-                        f'Could not access spectrum {spectrum_id}.', status=403
+                        f"Could not access spectrum {spectrum_id}.", status=403
                     )
                 return self.success(data=spectrum)
 
         # multiple spectra
-        observed_before = self.get_query_argument('observedBefore', None)
-        observed_after = self.get_query_argument('observedAfter', None)
-        detector_ids = self.get_query_argument('detectorIDs', None)
-        group_ids = self.get_query_argument('groupIDs', None)
+        observed_before = self.get_query_argument("observedBefore", None)
+        observed_after = self.get_query_argument("observedAfter", None)
+        detector_ids = self.get_query_argument("detectorIDs", None)
+        group_ids = self.get_query_argument("groupIDs", None)
 
         # validate inputs
         try:
@@ -486,7 +484,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
             return self.success(data=spectra)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, spectrum_id):
         """
         ---
@@ -518,19 +516,17 @@ class MMADetectorSpectrumHandler(BaseHandler):
         try:
             spectrum_id = int(spectrum_id)
         except TypeError:
-            return self.error('Could not convert spectrum id to int.')
+            return self.error("Could not convert spectrum id to int.")
 
         data = self.get_json()
 
         try:
             data = MMADetectorSpectrumPost.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
         group_ids = data.pop("group_ids", None)
-        if group_ids == 'all':
+        if group_ids == "all":
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
         with self.Session() as session:
@@ -549,7 +545,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
                 )
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 if groups:
@@ -561,18 +557,18 @@ class MMADetectorSpectrumHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': spectrum.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR",
+                payload={"detector_id": spectrum.detector.id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR_SPECTRA',
-                payload={'detector_id': spectrum.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR_SPECTRA",
+                payload={"detector_id": spectrum.detector.id},
             )
 
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, spectrum_id):
         """
         ---
@@ -603,27 +599,27 @@ class MMADetectorSpectrumHandler(BaseHandler):
                 )
             ).first()
             if spectrum is None:
-                return self.error(f'Cannot find spectrum with ID {spectrum_id}')
+                return self.error(f"Cannot find spectrum with ID {spectrum_id}")
 
             detector_id = spectrum.detector.id
             session.delete(spectrum)
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': detector_id},
+                action="skyportal/REFRESH_MMADETECTOR",
+                payload={"detector_id": detector_id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR_SPECTRA',
-                payload={'detector_id': detector_id},
+                action="skyportal/REFRESH_MMADETECTOR_SPECTRA",
+                payload={"detector_id": detector_id},
             )
 
             return self.success()
 
 
 class MMADetectorTimeIntervalHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -657,24 +653,24 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         """
         json = self.get_json()
 
-        if 'time_intervals' in json:
-            time_intervals = json['time_intervals']
-        elif 'time_interval' in json:
-            time_intervals = [json['time_interval']]
+        if "time_intervals" in json:
+            time_intervals = json["time_intervals"]
+        elif "time_interval" in json:
+            time_intervals = [json["time_interval"]]
         else:
-            return self.error('time_interval or time_intervals required in json')
+            return self.error("time_interval or time_intervals required in json")
 
-        if 'detector_id' not in json:
-            return self.error('detector_id required in json')
+        if "detector_id" not in json:
+            return self.error("detector_id required in json")
 
         with self.Session() as session:
             stmt = MMADetector.select(self.current_user).where(
-                MMADetector.id == json['detector_id']
+                MMADetector.id == json["detector_id"]
             )
             mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
-                    f'Cannot find mmadetector with ID: {json["detector_id"]}'
+                    f"Cannot find mmadetector with ID: {json['detector_id']}"
                 )
 
             owner_id = self.associated_user_object.id
@@ -700,14 +696,14 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             time_interval_list = []
             for time_interval in time_intervals:
                 data = {
-                    'time_interval': time_interval,
-                    'detector_id': json['detector_id'],
+                    "time_interval": time_interval,
+                    "detector_id": json["detector_id"],
                 }
 
                 time_interval = MMADetectorTimeInterval(**data)
@@ -720,13 +716,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMASEGMENT',
-                payload={'detector_id': time_interval.detector.id},
+                action="skyportal/REFRESH_MMASEGMENT",
+                payload={"detector_id": time_interval.detector.id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMASEGMENT_SEGMENTS',
-                payload={'detector_id': time_interval.detector.id},
+                action="skyportal/REFRESH_MMASEGMENT_SEGMENTS",
+                payload={"detector_id": time_interval.detector.id},
             )
 
             return self.success(
@@ -805,24 +801,24 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 ).first()
                 if time_interval is None:
                     return self.error(
-                        f'Could not access time_interval {time_interval_id}.',
+                        f"Could not access time_interval {time_interval_id}.",
                         status=403,
                     )
                 seg = time_interval.time_interval
                 data = {
-                    'id': time_interval.id,
-                    'time_interval': [seg.lower, seg.upper],
-                    'owner': time_interval.owner,
-                    'groups': time_interval.groups,
-                    'detector': time_interval.detector,
+                    "id": time_interval.id,
+                    "time_interval": [seg.lower, seg.upper],
+                    "owner": time_interval.owner,
+                    "groups": time_interval.groups,
+                    "detector": time_interval.detector,
                 }
                 return self.success(data=data)
 
         # multiple time_interval
-        observed_before = self.get_query_argument('observedBefore', None)
-        observed_after = self.get_query_argument('observedAfter', None)
-        detector_ids = self.get_query_argument('detectorIDs', None)
-        group_ids = self.get_query_argument('groupIDs', None)
+        observed_before = self.get_query_argument("observedBefore", None)
+        observed_after = self.get_query_argument("observedAfter", None)
+        detector_ids = self.get_query_argument("detectorIDs", None)
+        group_ids = self.get_query_argument("groupIDs", None)
 
         # validate inputs
         try:
@@ -879,16 +875,16 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 seg = time_interval.time_interval
                 data.append(
                     {
-                        'id': time_interval.id,
-                        'time_interval': [seg.lower, seg.upper],
-                        'owner': time_interval.owner,
-                        'groups': time_interval.groups,
-                        'detector': time_interval.detector,
+                        "id": time_interval.id,
+                        "time_interval": [seg.lower, seg.upper],
+                        "owner": time_interval.owner,
+                        "groups": time_interval.groups,
+                        "detector": time_interval.detector,
                     }
                 )
             return self.success(data=data)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, time_interval_id):
         """
         ---
@@ -920,11 +916,11 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         try:
             time_interval_id = int(time_interval_id)
         except TypeError:
-            return self.error('Could not convert time_interval id to int.')
+            return self.error("Could not convert time_interval id to int.")
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
-        if group_ids == 'all':
+        if group_ids == "all":
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
         with self.Session() as session:
@@ -943,30 +939,30 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 )
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 if groups:
                     time_interval.groups = time_interval.groups + groups
 
-            if 'time_interval' in data:
-                time_interval.time_interval = data['time_interval']
+            if "time_interval" in data:
+                time_interval.time_interval = data["time_interval"]
 
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': time_interval.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR",
+                payload={"detector_id": time_interval.detector.id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR_SEGMENT',
-                payload={'detector_id': time_interval.detector.id},
+                action="skyportal/REFRESH_MMADETECTOR_SEGMENT",
+                payload={"detector_id": time_interval.detector.id},
             )
 
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, time_interval_id):
         """
         ---
@@ -998,7 +994,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             ).first()
             if time_interval is None:
                 return self.error(
-                    f'Cannot find time_interval with ID {time_interval_id}'
+                    f"Cannot find time_interval with ID {time_interval_id}"
                 )
 
             detector_id = time_interval.detector.id
@@ -1006,13 +1002,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': detector_id},
+                action="skyportal/REFRESH_MMADETECTOR",
+                payload={"detector_id": detector_id},
             )
 
             self.push_all(
-                action='skyportal/REFRESH_MMADETECTOR_SEGMENTS',
-                payload={'detector_id': detector_id},
+                action="skyportal/REFRESH_MMADETECTOR_SEGMENTS",
+                payload={"detector_id": detector_id},
             )
 
             return self.success()

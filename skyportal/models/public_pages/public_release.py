@@ -1,9 +1,10 @@
-__all__ = ['PublicRelease']
+__all__ = ["PublicRelease"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
+
 from ..group import accessible_by_groups_members
 
 

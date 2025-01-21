@@ -4,24 +4,25 @@ import sqlalchemy as sa
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
-from ...utils.asynchronous import run_async
-from ..base import BaseHandler
+
 from ...models import (
+    GroupUser,
     Obj,
+    PublicRelease,
     Source,
     Thumbnail,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
-    GroupUser,
-    PublicRelease,
 )
+from ...utils.asynchronous import run_async
+from ..base import BaseHandler
 
-log = make_log('api/source_groups')
+log = make_log("api/source_groups")
 
 
 class SourceGroupsHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -231,7 +232,7 @@ class SourceGroupsHandler(BaseHandler):
                             Thumbnail.obj_id == obj_id,
                         )
                     ).all()
-                    dict_obj['thumbnails'] = [
+                    dict_obj["thumbnails"] = [
                         thumbnail.to_dict() for thumbnail in thumbnails
                     ]
                     for release in releases:
@@ -248,7 +249,7 @@ class SourceGroupsHandler(BaseHandler):
             )
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, obj_id, *ignored_args):
         """
         ---

@@ -1,8 +1,9 @@
 from jsonschema.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
-from ...base import BaseHandler
+
 from ....models import UserNotification
+from ...base import BaseHandler
 
 
 class NotificationHandler(BaseHandler):
@@ -19,7 +20,7 @@ class NotificationHandler(BaseHandler):
                 ).first()
                 if notification is None:
                     return self.error(
-                        f'Cannot find UserNotification with ID: {notification_id}'
+                        f"Cannot find UserNotification with ID: {notification_id}"
                     )
                 return self.success(data=notification)
             notifications = session.scalars(
@@ -44,14 +45,14 @@ class NotificationHandler(BaseHandler):
             ).first()
             if notification is None:
                 return self.error(
-                    f'Cannot find UserNotification with ID: {notification_id}'
+                    f"Cannot find UserNotification with ID: {notification_id}"
                 )
             schema = UserNotification.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
@@ -74,7 +75,7 @@ class NotificationHandler(BaseHandler):
             ).first()
             if notification is None:
                 return self.error(
-                    f'Cannot find UserNotification with ID: {notification_id}'
+                    f"Cannot find UserNotification with ID: {notification_id}"
                 )
 
             session.delete(notification)

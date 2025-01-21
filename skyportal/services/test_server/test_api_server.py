@@ -1,15 +1,15 @@
+import datetime
 import glob
 import json
-import datetime
-import re
 import os
+import re
 
-import vcr
-import tornado.ioloop
-import tornado.httpserver
-import tornado.web
-from suds import Client
 import requests
+import tornado.httpserver
+import tornado.ioloop
+import tornado.web
+import vcr
+from suds import Client
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -284,7 +284,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
         else:
             cache = get_cache_file()
 
-        match_on = ['uri', 'method', 'body']
+        match_on = ["uri", "method", "body"]
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
         elif "/api/requestgroups/" in self.request.uri:
@@ -300,7 +300,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on=match_on,
         ) as cass:
             real_host = None
-            for route in cfg["test_server.redirects"].keys():
+            for route in cfg["test_server.redirects"]:
                 if re.match(route, self.request.uri):
                     real_host = cfg["test_server.redirects"][route]
 
@@ -323,7 +323,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     headers[k] = v
 
                 if "/api/requestgroups/" in self.request.uri:
-                    header = {'Authorization': headers['Authorization']}
+                    header = {"Authorization": headers["Authorization"]}
                     json_body = (
                         json.loads(self.request.body.decode())
                         if len(self.request.body) > 0
@@ -338,7 +338,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     log(f"Forwarding DELETE call: {url}")
                     s = requests.Session()
                     req = requests.Request(
-                        'DELETE', url, data=self.request.body, headers=headers
+                        "DELETE", url, data=self.request.body, headers=headers
                     )
                     prepped = req.prepare()
                     s.send(prepped)
@@ -369,7 +369,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
-        match_on = ['uri', 'method', 'body']
+        match_on = ["uri", "method", "body"]
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
         elif "/api/requestgroups/" in self.request.uri:
@@ -385,7 +385,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on=match_on,
         ) as cass:
             real_host = None
-            for route in cfg["test_server.redirects"].keys():
+            for route in cfg["test_server.redirects"]:
                 if re.match(route, self.request.uri):
                     real_host = cfg["test_server.redirects"][route]
 
@@ -408,7 +408,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     headers[k] = v
 
                 if "/api/requestgroups/" in self.request.uri:
-                    header = {'Authorization': headers['Authorization']}
+                    header = {"Authorization": headers["Authorization"]}
                     json_body = (
                         json.loads(self.request.body.decode())
                         if len(self.request.body) > 0
@@ -423,7 +423,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     log(f"Forwarding PUT call: {url}")
                     s = requests.Session()
                     req = requests.Request(
-                        'PUT', url, data=self.request.body, headers=headers
+                        "PUT", url, data=self.request.body, headers=headers
                     )
                     prepped = req.prepare()
                     s.send(prepped)
@@ -447,7 +447,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def get(self):
-        is_wsdl = self.get_query_argument('wsdl', None)
+        is_wsdl = self.get_query_argument("wsdl", None)
         is_ps1 = re.match("/api/v0.1/panstarrs", self.request.uri)
         cached_urls = [
             "/api/requestgroups/",
@@ -465,7 +465,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             base_route = self.request.uri.split("?")[0]
 
             real_host = None
-            for route in cfg["test_server.redirects"].keys():
+            for route in cfg["test_server.redirects"]:
                 if re.match(route, base_route):
                     real_host = cfg["test_server.redirects"][route]
 
@@ -541,7 +541,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
-        match_on = ['uri', 'method', 'body']
+        match_on = ["uri", "method", "body"]
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
         elif self.request.uri == "/forcedphot/queue/":
@@ -563,7 +563,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on=match_on,
         ) as cass:
             real_host = None
-            for route in cfg["test_server.redirects"].keys():
+            for route in cfg["test_server.redirects"]:
                 if re.match(route, self.request.uri):
                     real_host = cfg["test_server.redirects"][route]
 
@@ -581,7 +581,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     headers[k] = v
 
                 if "/api/requestgroups/" in self.request.uri:
-                    header = {'Authorization': headers['Authorization']}
+                    header = {"Authorization": headers["Authorization"]}
                     json_body = (
                         json.loads(self.request.body.decode())
                         if len(self.request.body) > 0
@@ -594,11 +594,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     )
                 elif "/forcedphot/queue/" in self.request.uri:
                     header = {
-                        'Authorization': headers['Authorization'],
-                        'Accept': 'application/json',
+                        "Authorization": headers["Authorization"],
+                        "Accept": "application/json",
                     }
-                    from urllib.parse import urlparse
-                    from urllib.parse import parse_qs
+                    from urllib.parse import parse_qs, urlparse
 
                     url = f"{url}?{self.request.body.decode()}"
                     json_body = parse_qs(urlparse(url).query)

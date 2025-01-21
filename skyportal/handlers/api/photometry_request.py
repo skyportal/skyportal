@@ -1,11 +1,12 @@
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 from baselayer.app.access import auth_or_token
 
-from ..base import BaseHandler
 from ...models import (
-    FollowupRequest,
     DBSession,
+    FollowupRequest,
 )
+from ..base import BaseHandler
 
 
 class PhotometryRequestHandler(BaseHandler):
@@ -42,8 +43,8 @@ class PhotometryRequestHandler(BaseHandler):
             followup_request = session.query(FollowupRequest).get(request_id)
 
             api = followup_request.instrument.api_class
-            if not api.implements()['get']:
-                return self.error('Cannot retrieve requests on this instrument.')
+            if not api.implements()["get"]:
+                return self.error("Cannot retrieve requests on this instrument.")
 
             followup_request.last_modified_by_id = self.associated_user_object.id
             internal_key = followup_request.obj.internal_key
@@ -63,4 +64,4 @@ class PhotometryRequestHandler(BaseHandler):
             return self.success()
         except Exception as e:
             # Remove this catch-all once we identify a more specific cause of uncaught errors
-            return self.error(f'Error retrieving photometry request: {e}')
+            return self.error(f"Error retrieving photometry request: {e}")

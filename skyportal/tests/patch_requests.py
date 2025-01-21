@@ -7,7 +7,7 @@ True)
 
 def remove_allow_nan_kwarg(f):
     def wrapped(*args, **kwargs):
-        kwargs.pop('allow_nan', None)
+        kwargs.pop("allow_nan", None)
         return f(*args, **kwargs)
 
     return wrapped

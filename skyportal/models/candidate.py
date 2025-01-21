@@ -1,15 +1,16 @@
-__all__ = ['Candidate']
+__all__ = ["Candidate"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, AccessibleIfUserMatches
+from baselayer.app.models import AccessibleIfUserMatches, Base
 
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
+
     create = read = update = delete = AccessibleIfUserMatches(
-        'filter.group.group_users.user'
+        "filter.group.group_users.user"
     )
 
     obj_id = sa.Column(

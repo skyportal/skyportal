@@ -1,12 +1,12 @@
 import uuid
-import pytest
-from skyportal.tests import api
-from tdtax import taxonomy, __version__
-
 from datetime import datetime, timedelta
 
-from baselayer.app.config import load_config
+import pytest
 from dateutil import parser
+from tdtax import __version__, taxonomy
+
+from baselayer.app.config import load_config
+from skyportal.tests import api
 
 cfg = load_config()
 
@@ -26,28 +26,28 @@ def test_add_sources_two_groups(
 
     # upload a new source, saved to the public group
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
 
     driver.get(
         f"/become_user/{super_admin_user_two_groups.id}"
     )  # TODO decorator/context manager?
-    assert 'localhost' in driver.current_url
-    driver.get('/sources')
+    assert "localhost" in driver.current_url
+    driver.get("/sources")
 
     # filter on the object id
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
@@ -83,30 +83,30 @@ def test_add_sources_two_groups(
 
     # post a taxonomy and classification
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id, public_group2.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id, public_group2.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token_two_groups,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': obj_id,
-            'classification': 'Algol',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token_two_groups,
     )
@@ -133,33 +133,33 @@ def test_add_sources_two_groups(
     # add this source to another group
     t2 = datetime.utcnow()
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group2.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group2.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # post another classification, by another group
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': obj_id,
-            'classification': 'RS CVn',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group2.id],
+            "obj_id": obj_id,
+            "classification": "RS CVn",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group2.id],
         },
         token=classification_token_two_groups,
     )
@@ -218,30 +218,30 @@ def test_filter_by_classification(
 
     taxonomy_name = "test taxonomy" + str(uuid.uuid4())
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': taxonomy_name,
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': source_id,
-            'classification': 'Algol',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": source_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token,
     )
@@ -316,39 +316,39 @@ def test_filter_by_spectrum_time(
 
     # Add spectrum to source 1
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': obj_id1,
-            'observed_at': str(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id],
+            "obj_id": obj_id1,
+            "observed_at": str(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")),
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Add spectrum to source 2
     status, data = api(
-        'POST',
-        'spectrum',
+        "POST",
+        "spectrum",
         data={
-            'obj_id': obj_id2,
-            'observed_at': str(
+            "obj_id": obj_id2,
+            "observed_at": str(
                 (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
             ),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id],
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
@@ -419,12 +419,12 @@ def test_hr_diagram(
     driver.get(f"/become_user/{user.id}")
 
     status, data = api(
-        'POST',
-        f'sources/{source_id}/annotations',
+        "POST",
+        f"sources/{source_id}/annotations",
         data={
-            'obj_id': source_id,
-            'origin': 'gaiadr3.gaia_source',
-            'data': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
+            "obj_id": source_id,
+            "origin": "gaiadr3.gaia_source",
+            "data": {"Mag_G": 11.3, "Mag_Bp": 11.8, "Mag_Rp": 11.0, "Plx": 20},
         },
         token=annotation_token,
     )

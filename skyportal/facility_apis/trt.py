@@ -20,7 +20,7 @@ from . import FollowUpAPI
 
 env, cfg = load_env()
 
-log = make_log('facility_apis/trt')
+log = make_log("facility_apis/trt")
 
 
 def validate_request_to_trt(request):
@@ -41,36 +41,36 @@ def validate_request_to_trt(request):
         "end_date",
     ]:
         if param not in request.payload:
-            raise ValueError(f'Parameter {param} required.')
+            raise ValueError(f"Parameter {param} required.")
 
     if any(
         filt not in ["B", "V", "R", "I", "Rc", "Ic"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
-            f'Filter configuration {request.payload["observation_choices"]} unknown.'
+            f"Filter configuration {request.payload['observation_choices']} unknown."
         )
 
     if request.payload["station_name"] not in ["SRO", "GAO", "SBO"]:
-        raise ValueError('observation_type must be SRO, GAO, or SBO')
+        raise ValueError("observation_type must be SRO, GAO, or SBO")
 
     if request.payload["exposure_time"] < 0:
-        raise ValueError('exposure_time must be positive.')
+        raise ValueError("exposure_time must be positive.")
 
     if request.payload["maximum_airmass"] < 1:
-        raise ValueError('maximum_airmass must be at least 1.')
+        raise ValueError("maximum_airmass must be at least 1.")
 
     coord = SkyCoord(request.obj.ra, request.obj.dec, unit="deg")
-    ra_str = coord.ra.to_string(unit='hour', sep=':', precision=2, pad=True)
-    dec_str = coord.dec.to_string(unit='degree', sep=':', precision=2, pad=True)
+    ra_str = coord.ra.to_string(unit="hour", sep=":", precision=2, pad=True)
+    dec_str = coord.dec.to_string(unit="degree", sep=":", precision=2, pad=True)
 
-    tstart = Time(request.payload["start_date"] + 'T00:00:00', format="isot")
-    tend = Time(request.payload["end_date"] + 'T00:00:00', format="isot")
+    tstart = Time(request.payload["start_date"] + "T00:00:00", format="isot")
+    tend = Time(request.payload["end_date"] + "T00:00:00", format="isot")
     expired = tend + TimeDelta(1 * u.day)
 
     requestgroup = {
         "ObjectName": request.obj.id,
-        "StationName": request.payload['station_name'],
+        "StationName": request.payload["station_name"],
         "RA": ra_str,
         "DEC": dec_str,
         "Subframe": "1",
@@ -125,7 +125,7 @@ def download_observations(request_id, urls):
                     with urllib.request.urlopen(url) as f:
                         attachment_bytes = base64.b64encode(f.read())
                     comment = Comment(
-                        text=f'TRT: {attachment_name}',
+                        text=f"TRT: {attachment_name}",
                         obj_id=req.obj.id,
                         attachment_bytes=attachment_bytes,
                         attachment_name=attachment_name,
@@ -138,14 +138,14 @@ def download_observations(request_id, urls):
                         f"TRT API Retrieve: unable to download data for {request_id}: {e}"
                     )
                     comment = Comment(
-                        text=f'TRT: {attachment_name}, **failed to download** data [at this url]({url})',
+                        text=f"TRT: {attachment_name}, **failed to download** data [at this url]({url})",
                         obj_id=req.obj.id,
                         author=req.requester,
                         groups=groups,
                         bot=True,
                     )
                 session.add(comment)
-            req.status = f'{len(urls)} images posted as comment'
+            req.status = f"{len(urls)} images posted as comment"
             session.commit()
         except Exception as e:
             session.rollback()
@@ -171,15 +171,15 @@ class TRTAPI(FollowUpAPI):
 
         requestgroup = validate_request_to_trt(request)
 
-        if cfg['app.trt_endpoint'] is not None:
+        if cfg["app.trt_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             headers = {
-                'Content-Type': 'application/json',
-                'TRT': altdata['token'],
+                "Content-Type": "application/json",
+                "TRT": altdata["token"],
             }
             payload = json.dumps({"script": [requestgroup]})
             url = f"{cfg['app.trt_endpoint']}/newobservation"
@@ -191,14 +191,14 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200 and 'token expired' in str(r.text):
+            if r.status_code == 200 and "token expired" in str(r.text):
                 request.status = (
-                    'rejected: API token specified in the allocation is expired.'
+                    "rejected: API token specified in the allocation is expired."
                 )
             elif r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.text}'
+                request.status = f"rejected: {r.text}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -207,7 +207,7 @@ class TRTAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -220,29 +220,28 @@ class TRTAPI(FollowUpAPI):
 
         try:
             flow = Flow()
-            if kwargs.get('refresh_source', False):
+            if kwargs.get("refresh_source", False):
                 flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': request.obj.internal_key},
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
                 )
-            if kwargs.get('refresh_requests', False):
+            if kwargs.get("refresh_requests", False):
                 flow.push(
                     request.last_modified_by_id,
-                    'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
-            if str(request.status) != 'submitted':
+            if str(request.status) != "submitted":
                 flow.push(
                     request.last_modified_by_id,
-                    'baselayer/SHOW_NOTIFICATION',
+                    "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        'note': f'Failed to submit TRT request: "{request.status}"',
-                        'type': 'error',
+                        "note": f'Failed to submit TRT request: "{request.status}"',
+                        "type": "error",
                     },
                 )
         except Exception as e:
-            log(f'Failed to send notification: {e}')
-            pass
+            log(f"Failed to send notification: {e}")
 
     @staticmethod
     def get(request, session, **kwargs):
@@ -259,11 +258,11 @@ class TRTAPI(FollowUpAPI):
         from ..models import FacilityTransaction, FollowupRequest
         from ..utils.asynchronous import run_async
 
-        if cfg['app.trt_endpoint'] is not None:
+        if cfg["app.trt_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             req = session.scalar(
                 sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
@@ -273,27 +272,27 @@ class TRTAPI(FollowUpAPI):
 
             content = str(req.transactions[-1].response["content"])
 
-            if 'token expired' in content:
+            if "token expired" in content:
                 raise ValueError(
-                    'Token expired, the request might have not been submitted correctly, or cannot be retrieved.'
+                    "Token expired, the request might have not been submitted correctly, or cannot be retrieved."
                 )
 
             try:
                 content = json.loads(content)
             except json.JSONDecodeError:
                 raise ValueError(
-                    f'Unable to parse submission response from TRT: {content}'
+                    f"Unable to parse submission response from TRT: {content}"
                 )
 
             uid = content[0]
             if not uid:
-                raise ValueError('Unable to find observation ID in response from TRT.')
+                raise ValueError("Unable to find observation ID in response from TRT.")
 
             payload = json.dumps({"obs_id": uid})
 
             headers = {
-                'Content-Type': 'application/json',
-                'TRT': altdata['token'],
+                "Content-Type": "application/json",
+                "TRT": altdata["token"],
             }
             r = requests.request("POST", url, headers=headers, data=payload)
 
@@ -304,18 +303,18 @@ class TRTAPI(FollowUpAPI):
                     data = r.json()
                 except json.JSONDecodeError:
                     raise ValueError(
-                        f'Unable to parse retrieval response from TRT: {r.content}'
+                        f"Unable to parse retrieval response from TRT: {r.content}"
                     )
 
                 urls = []
 
-                if not isinstance(data.get('file_path', []), list):
+                if not isinstance(data.get("file_path", []), list):
                     raise ValueError(
-                        f'Unexpected response from TRT, expected list of file paths, got {data.get("file_path", [])}'
+                        f"Unexpected response from TRT, expected list of file paths, got {data.get('file_path', [])}"
                     )
-                for file_path in data.get('file_path', []):
-                    for key in file_path.keys():
-                        calibrated = file_path[key].get('calibrated', '')
+                for file_path in data.get("file_path", []):
+                    for key in file_path:
+                        calibrated = file_path[key].get("calibrated", "")
                         if calibrated:
                             urls.append(calibrated)
 
@@ -325,7 +324,7 @@ class TRTAPI(FollowUpAPI):
                 else:
                     request.status = "pending"
             else:
-                request.status = f'failed to retrieve: {r.content.decode()}'
+                request.status = f"failed to retrieve: {r.content.decode()}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -339,47 +338,46 @@ class TRTAPI(FollowUpAPI):
 
         try:
             flow = Flow()
-            if kwargs.get('refresh_source', False):
+            if kwargs.get("refresh_source", False):
                 flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': request.obj.internal_key},
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
                 )
-            if kwargs.get('refresh_requests', False):
+            if kwargs.get("refresh_requests", False):
                 flow.push(
                     request.last_modified_by_id,
-                    'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
-            if str(request.status) == 'pending':
+            if str(request.status) == "pending":
                 flow.push(
                     request.last_modified_by_id,
-                    'baselayer/SHOW_NOTIFICATION',
+                    "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        'note': 'TRT request is still pending.',
-                        'type': 'warning',
+                        "note": "TRT request is still pending.",
+                        "type": "warning",
                     },
                 )
-            elif str(request.status).startswith('complete'):
+            elif str(request.status).startswith("complete"):
                 flow.push(
                     request.last_modified_by_id,
-                    'baselayer/SHOW_NOTIFICATION',
+                    "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        'note': 'TRT request is complete, observations will be downloaded shortly.',
-                        'type': 'info',
+                        "note": "TRT request is complete, observations will be downloaded shortly.",
+                        "type": "info",
                     },
                 )
             else:
                 flow.push(
                     request.last_modified_by_id,
-                    'baselayer/SHOW_NOTIFICATION',
+                    "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        'note': f'Failed to retrieve TRT request: "{request.status}"',
-                        'type': 'error',
+                        "note": f'Failed to retrieve TRT request: "{request.status}"',
+                        "type": "error",
                     },
                 )
         except Exception as e:
-            log(f'Failed to send notification: {e}')
-            pass
+            log(f"Failed to send notification: {e}")
 
     @staticmethod
     def delete(request, session, **kwargs):
@@ -398,11 +396,11 @@ class TRTAPI(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if cfg['app.trt_endpoint'] is not None:
+        if cfg["app.trt_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             req = session.scalar(
                 sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
@@ -411,28 +409,28 @@ class TRTAPI(FollowUpAPI):
             url = f"{cfg['app.trt_endpoint']}/cancelobservation"
 
             content = str(req.transactions[-1].response["content"])
-            if 'token expired' in content:
-                request.status = 'failed to delete: API token specified in the allocation is expired.'
+            if "token expired" in content:
+                request.status = "failed to delete: API token specified in the allocation is expired."
                 session.commit()
             else:
                 try:
                     content = json.loads(content)
                 except json.JSONDecodeError:
                     raise ValueError(
-                        f'Unable to parse submission response from TRT: {content}'
+                        f"Unable to parse submission response from TRT: {content}"
                     )
 
                 uid = content[0]
                 if not uid:
                     raise ValueError(
-                        'Unable to find observation ID in response from TRT.'
+                        "Unable to find observation ID in response from TRT."
                     )
 
                 payload = json.dumps({"obs_id": [uid]})
 
                 headers = {
-                    'Content-Type': 'application/json',
-                    'TRT': altdata['token'],
+                    "Content-Type": "application/json",
+                    "TRT": altdata["token"],
                 }
                 r = requests.request("POST", url, headers=headers, data=payload)
 
@@ -446,7 +444,7 @@ class TRTAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
         else:
-            request.status = 'deleted'
+            request.status = "deleted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -457,18 +455,18 @@ class TRTAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema = {

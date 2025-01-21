@@ -34,29 +34,29 @@ def validate_request(request, filters):
         "end_date",
     ]:
         if param not in request.payload:
-            raise ValueError(f'Parameter {param} required.')
+            raise ValueError(f"Parameter {param} required.")
 
     for filt in request.payload["observation_choices"]:
         if filt not in filters:
-            raise ValueError(f'Filter configuration {filt} unknown.')
+            raise ValueError(f"Filter configuration {filt} unknown.")
 
     if request.payload["exposure_time"] < 0:
-        raise ValueError('exposure_time must be positive.')
+        raise ValueError("exposure_time must be positive.")
 
     if request.payload["exposure_counts"] < 1:
-        raise ValueError('exposure_counts must be at least 1.')
+        raise ValueError("exposure_counts must be at least 1.")
 
     if request.payload["maximum_airmass"] < 1:
-        raise ValueError('maximum_airmass must be at least 1.')
+        raise ValueError("maximum_airmass must be at least 1.")
 
     if (
         request.payload["minimum_lunar_distance"] < 0
         or request.payload["minimum_lunar_distance"] > 180
     ):
-        raise ValueError('minimum lunar distance must be within 0-180.')
+        raise ValueError("minimum lunar distance must be within 0-180.")
 
     if request.payload["priority"] < 1 or request.payload["priority"] > 5:
-        raise ValueError('priority must be within 1-5.')
+        raise ValueError("priority must be within 1-5.")
 
 
 class GENERICAPI(FollowUpAPI):
@@ -77,13 +77,13 @@ class GENERICAPI(FollowUpAPI):
         from ..models import Allocation, FacilityTransaction
 
         if (
-            getattr(request, 'allocation', None) is None
-            and getattr(request, 'allocation_id', None) is None
+            getattr(request, "allocation", None) is None
+            and getattr(request, "allocation_id", None) is None
         ):
-            raise ValueError('No allocation associated with this request.')
+            raise ValueError("No allocation associated with this request.")
         elif (
-            getattr(request, 'allocation', None) is None
-            and getattr(request, 'allocation_id', None) is not None
+            getattr(request, "allocation", None) is None
+            and getattr(request, "allocation_id", None) is not None
         ):
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
@@ -96,33 +96,33 @@ class GENERICAPI(FollowUpAPI):
 
         altdata = (
             request.allocation.altdata
-            if getattr(request.allocation, 'altdata', None) not in [None, {}]
+            if getattr(request.allocation, "altdata", None) not in [None, {}]
             else None
         )
 
         transaction = None
         if altdata is not None:
-            if altdata.get('notification_type') == 'API':
-                if altdata.get('endpoint') is None or altdata.get('api_token') is None:
+            if altdata.get("notification_type") == "API":
+                if altdata.get("endpoint") is None or altdata.get("api_token") is None:
                     raise ValueError(
-                        'API endpoint and API token required for API notification type.'
+                        "API endpoint and API token required for API notification type."
                     )
                 payload = {
-                    'obj_id': request.obj_id,
-                    'allocation_id': request.allocation.id,
-                    'payload': request.payload,
+                    "obj_id": request.obj_id,
+                    "allocation_id": request.allocation.id,
+                    "payload": request.payload,
                 }
 
                 r = requests.post(
-                    altdata['endpoint'],
+                    altdata["endpoint"],
                     json=payload,
                     headers={"Authorization": f"token {altdata['api_token']}"},
                 )
 
                 if r.status_code == 200:
-                    request.status = 'submitted'
+                    request.status = "submitted"
                 else:
-                    request.status = f'rejected: {r.content}'
+                    request.status = f"rejected: {r.content}"
 
                 transaction = FacilityTransaction(
                     request=http.serialize_requests_request(r.request),
@@ -131,12 +131,12 @@ class GENERICAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
 
-            elif altdata.get('notification_type') == 'slack':
+            elif altdata.get("notification_type") == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
                 request_notify_by_slack(request, session)
 
-                request.status = 'submitted'
+                request.status = "submitted"
 
                 transaction = FacilityTransaction(
                     request=None,
@@ -145,12 +145,12 @@ class GENERICAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
 
-            elif altdata.get('notification_type') == 'email':
+            elif altdata.get("notification_type") == "email":
                 from ..utils.notifications import request_notify_by_email
 
                 request_notify_by_email(request, session)
 
-                request.status = 'submitted'
+                request.status = "submitted"
 
                 transaction = FacilityTransaction(
                     request=None,
@@ -160,9 +160,9 @@ class GENERICAPI(FollowUpAPI):
                 )
 
             else:
-                request.status = 'rejected: no valid altdata configuration found.'
+                request.status = "rejected: no valid altdata configuration found."
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -174,18 +174,18 @@ class GENERICAPI(FollowUpAPI):
         if transaction is not None:
             session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -215,9 +215,9 @@ class GENERICAPI(FollowUpAPI):
                 .one()
             )
             if (
-                getattr(req, 'transactions', None) is not None
-                and getattr(req, 'transactions', None) != []
-                and getattr(req.transactions[0], 'response', None) is not None
+                getattr(req, "transactions", None) is not None
+                and getattr(req, "transactions", None) != []
+                and getattr(req.transactions[0], "response", None) is not None
             ):
                 content = req.transactions[0].response["content"]
                 content = json.loads(content)
@@ -240,7 +240,7 @@ class GENERICAPI(FollowUpAPI):
                 has_valid_transaction = True
 
         if not has_valid_transaction:
-            request.status = 'deleted'
+            request.status = "deleted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -251,18 +251,18 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -285,21 +285,21 @@ class GENERICAPI(FollowUpAPI):
 
         if altdata:
             payload = {
-                'obj_id': request.obj_id,
-                'allocation_id': request.allocation.id,
-                'payload': request.payload,
+                "obj_id": request.obj_id,
+                "allocation_id": request.allocation.id,
+                "payload": request.payload,
             }
 
             r = requests.post(
-                altdata['endpoint'],
+                altdata["endpoint"],
                 json=payload,
                 headers={"Authorization": f"token {altdata['api_token']}"},
             )
 
             if r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -308,7 +308,7 @@ class GENERICAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -319,18 +319,18 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     def custom_json_schema(instrument, user, **kwargs):
@@ -410,11 +410,11 @@ class GENERICAPI(FollowUpAPI):
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {
-        'observation_choices': "Request",
-        'start_date': "Start Date",
-        'end_date': "End Date",
-        'priority': "Priority",
-        'observation_type': 'Mode',
+        "observation_choices": "Request",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "priority": "Priority",
+        "observation_type": "Mode",
     }
 
     form_json_schema_altdata = {

@@ -1,15 +1,15 @@
 import uuid
-from selenium.webdriver import ActionChains
 
-import pytest
 import numpy as np
+import pytest
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver import ActionChains
 
 
 @pytest.mark.flaky(reruns=2)
 def test_new_source(driver, user, super_admin_token, view_only_token, public_group):
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/sources')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
 
     driver.wait_for_xpath('//button[@name="new_source"]')
     driver.click_xpath('//button[@name="new_source"]')
@@ -38,5 +38,5 @@ def test_new_source(driver, user, super_admin_token, view_only_token, public_gro
     except TimeoutException:
         pass
 
-    driver.get('/')
+    driver.get("/")
     driver.wait_for_xpath(f'//*[text()="{source_name}"]')

@@ -1,14 +1,15 @@
 import sqlalchemy as sa
 
-from ....models import Instrument, GalaxyCatalog
 from baselayer.app.access import auth_or_token
+
+from ....models import GalaxyCatalog, Instrument
 from ...base import BaseHandler
 
 
 class RoboticInstrumentsHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        apitype = self.get_query_argument('apiType', 'api_classname')
+        apitype = self.get_query_argument("apiType", "api_classname")
         with self.Session() as session:
             if apitype is not None:
                 if apitype == "api_classname":

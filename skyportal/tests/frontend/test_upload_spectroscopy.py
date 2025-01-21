@@ -1,8 +1,9 @@
 import os
-from selenium.webdriver import ActionChains
 import uuid
 
 import pytest
+from selenium.webdriver import ActionChains
+
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
 
@@ -19,7 +20,7 @@ def test_upload_spectroscopy(
     attachment_file.send_keys(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'data',
+            "data",
             filename,
         ),
     )
@@ -28,7 +29,7 @@ def test_upload_spectroscopy(
 
     mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
-    mjd_element.send_keys('51232.0')
+    mjd_element.send_keys("51232.0")
 
     # Click somewhere outside to remove focus from MJD input
     header = driver.wait_for_xpath("//header")

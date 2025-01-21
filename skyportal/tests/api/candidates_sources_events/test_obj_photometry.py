@@ -21,6 +21,6 @@ def test_obj_photometry(upload_data_token, public_source):
     )
     assert status == 403
     assert (
-        data['message']
-        == f'Insufficient permissions for User {upload_data_token} to read Obj {obj_id}'
+        data["message"]
+        == f"Insufficient permissions for User {upload_data_token} to read Obj {obj_id}"
     )

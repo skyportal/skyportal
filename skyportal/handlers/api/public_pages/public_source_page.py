@@ -1,33 +1,33 @@
-import operator  # noqa: F401
 import json
+import operator  # noqa: F401
 
 import joblib
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import or_, not_
+from sqlalchemy import not_, or_
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.models import DBSession
 from baselayer.log import make_log
-from ..source import get_source
-from ...base import BaseHandler
-from ....enum_types import THUMBNAIL_TYPES
 
+from ....enum_types import THUMBNAIL_TYPES
 from ....models import (
-    PublicSourcePage,
-    PublicRelease,
-    Photometry,
-    Spectrum,
-    Instrument,
     Classification,
     Group,
+    Instrument,
+    Photometry,
+    PublicRelease,
+    PublicSourcePage,
+    Spectrum,
     Stream,
     User,
 )
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
+from ...base import BaseHandler
+from ..source import get_source
 
-log = make_log('api/public_source_page')
+log = make_log("api/public_source_page")
 
 
 def calculate_hash(data):
@@ -58,11 +58,11 @@ def process_thumbnails(thumbnails, ra, dec):
 
 def get_redshift_to_display(source):
     redshift_display = "..."
-    if source.get('redshift') and source.get('redshift_error'):
-        z_round = int(np.ceil(abs(np.log10(source['redshift_error']))))
+    if source.get("redshift") and source.get("redshift_error"):
+        z_round = int(np.ceil(abs(np.log10(source["redshift_error"]))))
         redshift_display = f"{round(source['redshift'], z_round)} ± {round(source['redshift_error'], z_round)}"
-    elif source.get('redshift'):
-        redshift_display = round(source['redshift'], 4)
+    elif source.get("redshift"):
+        redshift_display = round(source["redshift"], 4)
     return redshift_display
 
 
@@ -102,7 +102,7 @@ def get_classifications(source_id, group_ids, session):
 
 
 def safe_round(number, precision):
-    return round(number, precision) if isinstance(number, (int, float)) else None
+    return round(number, precision) if isinstance(number, int | float) else None
 
 
 def async_post_public_source_page(options, source, release, user_id):
@@ -195,7 +195,7 @@ def post_public_source_page(options, source, release, auto_publish, session):
 
     flow = Flow()
     flow.push(
-        '*', "skyportal/REFRESH_PUBLIC_SOURCE_PAGES", payload={'source_id': source_id}
+        "*", "skyportal/REFRESH_PUBLIC_SOURCE_PAGES", payload={"source_id": source_id}
     )
     return public_source_page.id
 
@@ -224,16 +224,16 @@ def delete_auto_published_page(source_id, remaining_group_ids):
             public_source_page.remove_from_cache()
             session.delete(public_source_page)
             flow.push(
-                '*',
+                "*",
                 "skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-                payload={'source_id': public_source_page.source_id},
+                payload={"source_id": public_source_page.source_id},
             )
 
         session.commit()
 
 
 class PublicSourcePageHandler(BaseHandler):
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     async def post(self, source_id):
         """
         ---
@@ -363,7 +363,7 @@ class PublicSourcePageHandler(BaseHandler):
             ).all()
             return self.success(data=public_source_pages)
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, page_id):
         """
         ---
@@ -408,6 +408,6 @@ class PublicSourcePageHandler(BaseHandler):
 
             self.push_all(
                 action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-                payload={'source_id': public_source_page.source_id},
+                payload={"source_id": public_source_page.source_id},
             )
             return self.success()

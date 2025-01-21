@@ -60,7 +60,7 @@ const SourcePublishRelease = ({
         anyOf: [
           {
             enum: [null],
-            title: "no release",
+            title: "- - Select a release - -",
           },
           ...releases.map((item) => ({
             enum: [item.id],
@@ -68,6 +68,7 @@ const SourcePublishRelease = ({
             title: item.name,
           })),
         ],
+        default: null,
       },
     },
   };
@@ -110,7 +111,7 @@ const SourcePublishRelease = ({
               {isLoading ? (
                 <CircularProgress size={24} />
               ) : (
-                <div>No releases available yet. Create the first one here.</div>
+                <div>No releases available yet! Create the first one here.</div>
               )}
             </div>
           )}

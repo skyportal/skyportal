@@ -2,25 +2,26 @@ from datetime import datetime, timezone
 
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import joinedload
 
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from baselayer.app.flow import Flow
-from ..base import BaseHandler
+
 from ...models import (
-    ObservingRun,
     ClassicalAssignment,
-    Obj,
     Instrument,
+    Obj,
+    ObservingRun,
     Source,
     User,
 )
-from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
+from ...models.schema import ObservingRunGetWithAssignments, ObservingRunPost
+from ..base import BaseHandler
 
-log = make_log('api/observing_run')
+log = make_log("api/observing_run")
 
 
 def post_observing_run(data, user_id, session):
@@ -52,7 +53,7 @@ def post_observing_run(data, user_id, session):
     session.commit()
 
     flow = Flow()
-    flow.push('*', "skyportal/FETCH_OBSERVING_RUNS")
+    flow.push("*", "skyportal/FETCH_OBSERVING_RUNS")
 
     return run.id
 
@@ -157,7 +158,7 @@ class ObservingRunHandler(BaseHandler):
                     )
                 ).first()
                 if run is None:
-                    return self.error(f'Cannot find ObservingRun with ID {run_id}')
+                    return self.error(f"Cannot find ObservingRun with ID {run_id}")
 
                 # order the assignments by ra
                 assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
@@ -166,7 +167,7 @@ class ObservingRunHandler(BaseHandler):
                 data["assignments"] = [a.to_dict() for a in assignments]
 
                 for a in data["assignments"]:
-                    a['accessible_group_names'] = [
+                    a["accessible_group_names"] = [
                         (
                             s.group.nickname
                             if s.group.nickname is not None
@@ -178,13 +179,13 @@ class ObservingRunHandler(BaseHandler):
                             )
                         ).all()
                     ]
-                    del a['obj'].sources
-                    del a['obj'].users
+                    del a["obj"].sources
+                    del a["obj"].users
 
                 # vectorized calculation of ephemerides
 
                 if len(data["assignments"]) > 0:
-                    targets = [a['obj'].target for a in data["assignments"]]
+                    targets = [a["obj"].target for a in data["assignments"]]
 
                     rise_times = run.rise_time(targets).isot
                     set_times = run.set_time(targets).isot
@@ -199,27 +200,27 @@ class ObservingRunHandler(BaseHandler):
                                 rt.item()  # 0-dimensional array (basically a scalar)
                                 if not (
                                     isinstance(
-                                        rt, (np.ma.core.MaskedArray, MaskedNDArray)
+                                        rt, np.ma.core.MaskedArray | MaskedNDArray
                                     )
                                     and rt.mask.any()
                                 )  # check that the value isn't masked (not rising at date)
-                                else ''
+                                else ""
                             )
                         except AttributeError:
-                            d["rise_time_utc"] = ''
+                            d["rise_time_utc"] = ""
                         try:
                             d["set_time_utc"] = (
                                 st.item()
                                 if not (
                                     isinstance(
-                                        st, (np.ma.core.MaskedArray, MaskedNDArray)
+                                        st, np.ma.core.MaskedArray | MaskedNDArray
                                     )
                                     and st.mask.any()
                                 )  # check that the value isn't masked (not setting at date)
-                                else ''
+                                else ""
                             )
                         except AttributeError:
-                            d["set_time_utc"] = ''
+                            d["set_time_utc"] = ""
 
                 data = recursive_to_dict(data)
                 return self.success(data=data)
@@ -405,13 +406,13 @@ class ObservingRunBulkEditHandler(BaseHandler):
         data = self.get_json()
         run_id = int(run_id)
 
-        current_status = data.get('current_status')
+        current_status = data.get("current_status")
         if current_status is None:
-            return self.error('Require current status to filter')
+            return self.error("Require current status to filter")
 
-        new_status = data.get('new_status')
+        new_status = data.get("new_status")
         if new_status is None:
-            return self.error('Require new status to apply')
+            return self.error("Require new status to apply")
 
         with self.Session() as session:
             options = [joinedload(ObservingRun.assignments)]
@@ -422,7 +423,7 @@ class ObservingRunBulkEditHandler(BaseHandler):
                 )
             ).first()
             if run is None:
-                return self.error(f'Cannot find ObservingRun with ID {run_id}')
+                return self.error(f"Cannot find ObservingRun with ID {run_id}")
 
             assignments = run.assignments
             for a in assignments:
@@ -432,7 +433,7 @@ class ObservingRunBulkEditHandler(BaseHandler):
                     ).where(ClassicalAssignment.id == int(a.id))
                 ).first()
                 if assignment is None:
-                    return self.error(f'Could not find assigment with ID {a.id}.')
+                    return self.error(f"Could not find assigment with ID {a.id}.")
                 if assignment.status == current_status:
                     assignment.status = new_status
 

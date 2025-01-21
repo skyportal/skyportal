@@ -1,60 +1,58 @@
-import io
-import os
-import math
 import datetime
+import io
+import math
+import os
+import re
+import time
 import urllib
 import warnings
 from functools import wraps
-import re
-import time
 
-import pandas as pd
-import requests
-from requests.exceptions import HTTPError
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-import numpy.ma as ma
-from scipy.ndimage import gaussian_filter
-from joblib import Memory
-
+import pandas as pd
+import pyvo as vo
+import requests
+import seaborn as sns
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astroquery.gaia import Gaia
-from astropy.time import Time
+from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 from astropy.utils.exceptions import AstropyWarning
-
-from astropy.wcs.wcs import FITSFixedWarning
+from astropy.visualization import ImageNormalize, ZScaleInterval
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
-from astropy.io import fits
-from astropy.visualization import ImageNormalize, ZScaleInterval
-from reproject import reproject_adaptive
-import pyvo as vo
+from astropy.wcs.wcs import FITSFixedWarning
+from astroquery.gaia import Gaia
+from joblib import Memory
+from numpy import ma
 from pyvo.dal.exceptions import DALQueryError, DALServiceError
+from reproject import reproject_adaptive
+from requests.exceptions import HTTPError
+from scipy.ndimage import gaussian_filter
+
+from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from .cache import Cache
 
-from baselayer.log import make_log
-from baselayer.app.env import load_env
-
-log = make_log('finder-chart')
+log = make_log("finder-chart")
 
 _, cfg = load_env()
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
 
-HOST = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+HOST = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
+    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
 NGPS_TARGET_BANDS_TO_SNCOSMO = {
-    'G': ['ztfg', 'sdssg', 'lsstg'],
-    'R': ['ztfr', 'sdssr', 'bessellr', 'standard::r', 'lsstr'],
-    'I': ['ztfi', 'sdssi', 'besselli', 'standard::i', 'lssti'],
-    'U': ['sdssu', 'bessellux', 'standard::u', 'lsstu'],
+    "G": ["ztfg", "sdssg", "lsstg"],
+    "R": ["ztfr", "sdssr", "bessellr", "standard::r", "lsstr"],
+    "I": ["ztfi", "sdssi", "besselli", "standard::i", "lssti"],
+    "U": ["sdssu", "bessellux", "standard::u", "lsstu"],
 }
 
 # we inverse the dictionnary
@@ -69,23 +67,23 @@ for v in NGPS_TARGET_BANDS_TO_SNCOSMO.values():
 
 
 class GaiaQuery:
-    alt_tap = 'https://gaia.aip.de/tap'
-    alt_main_db = 'gaiadr3'
+    alt_tap = "https://gaia.aip.de/tap"
+    alt_main_db = "gaiadr3"
 
     # conversion for units in VO tables to astropy units
     unit_conversion = {
-        'Dimensionless': None,
-        'Angle[deg]': u.deg,
-        'Time[Julian Years]': u.yr,
-        'Magnitude[mag]': u.mag,
-        'Angular Velocity[mas/year]': u.mas / u.yr,
-        'Angle[mas]': u.mas,
-        'yr': u.yr,
-        'mas.yr**-1': u.mas / u.yr,
-        'mas': u.mas,
-        'mag': u.mag,
-        'deg': u.deg,
-        'Angle[rad], Angle[rad]': u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
+        "Dimensionless": None,
+        "Angle[deg]": u.deg,
+        "Time[Julian Years]": u.yr,
+        "Magnitude[mag]": u.mag,
+        "Angular Velocity[mas/year]": u.mas / u.yr,
+        "Angle[mas]": u.mas,
+        "yr": u.yr,
+        "mas.yr**-1": u.mas / u.yr,
+        "mas": u.mas,
+        "mag": u.mag,
+        "deg": u.deg,
+        "Angle[rad], Angle[rad]": u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
     }
 
     def __init__(self, main_db="gaiadr3"):
@@ -113,7 +111,7 @@ class GaiaQuery:
             self.is_backup = True
         except Exception as e:  # noqa: E722
             log("Warning: main Gaia TAP+ server failed in a way we didn't expect.")
-            log(f'Exception type={type(e).__name__}. Exception message={e}')
+            log(f"Exception type={type(e).__name__}. Exception message={e}")
             self.is_backup = True
 
         if self.is_backup:
@@ -152,15 +150,15 @@ class GaiaQuery:
     def _standardize_table(self, tab):
         new_tab = tab.copy()
         for col in tab.columns:
-            if tab[col].name == 'source_id':
+            if tab[col].name == "source_id":
                 new_tab[col] = tab[col].astype(np.int64)
             if tab[col].unit is not None:
                 colunit = new_tab[col].unit.to_string()
                 new_tab[col].unit = GaiaQuery.unit_conversion.get(colunit)
-            if tab[col].name == 'pos':
+            if tab[col].name == "pos":
                 ma.set_fill_value(new_tab[col], 180.0)
                 new_tab[col] = new_tab[col].astype(np.float64)
-                new_tab[col].name = 'dist'
+                new_tab[col].name = "dist"
 
         return new_tab
 
@@ -183,43 +181,43 @@ def warningfilter(action="ignore", category=RuntimeWarning):
 def format_hmsdms(skycoord, coord_sep, col_sep):
     """Format a SkyCoord object as a string in HMSDMS format"""
     hmsdms = skycoord.to_string(
-        'hmsdms', sep=':', decimal=False, precision=2, alwayssign=True
+        "hmsdms", sep=":", decimal=False, precision=2, alwayssign=True
     )
 
     if isinstance(hmsdms, list) and len(hmsdms) > 1:
         output = []
         for x in hmsdms:
-            ra, dec = x.split(' ')
+            ra, dec = x.split(" ")
             output.append(
-                ra.replace(':', coord_sep) + col_sep + dec.replace(':', coord_sep)
+                ra.replace(":", coord_sep) + col_sep + dec.replace(":", coord_sep)
             )
         return output
 
-    ra, dec = hmsdms[1:].split(' ')
-    output = ra.replace(':', coord_sep) + col_sep + dec.replace(':', coord_sep)
+    ra, dec = hmsdms[1:].split(" ")
+    output = ra.replace(":", coord_sep) + col_sep + dec.replace(":", coord_sep)
     return output
 
 
 facility_parameters = {
-    'Keck': {
+    "Keck": {
         "radius_degrees": 2.0 / 60,
         "mag_limit": 18.5,
         "mag_min": 11.0,
         "min_sep_arcsec": 4.0,
     },
-    'P200': {
+    "P200": {
         "radius_degrees": 2.0 / 60,
         "mag_limit": 18.0,
         "mag_min": 10.0,
         "min_sep_arcsec": 5.0,
     },
-    'P200-NGPS': {
+    "P200-NGPS": {
         "radius_degrees": 2.0 / 60,
         "mag_limit": 18.0,
         "mag_min": 10.0,
         "min_sep_arcsec": 5.0,
     },
-    'Shane': {
+    "Shane": {
         "radius_degrees": 2.5 / 60,
         "mag_limit": 17.0,
         "mag_min": 10.0,
@@ -235,33 +233,33 @@ irsa = {
 
 
 starlist_formats = {
-    'Keck': {
-        "coord_sep": ' ',
-        "col_sep": ' ',
+    "Keck": {
+        "coord_sep": " ",
+        "col_sep": " ",
         "commentstr": "#",
         "giveoffsets": True,
         "maxname_size": 15,
         "first_line": None,
     },
-    'P200': {
-        "coord_sep": ' ',
-        "col_sep": '  ',
+    "P200": {
+        "coord_sep": " ",
+        "col_sep": "  ",
         "commentstr": "!",
         "giveoffsets": False,
         "maxname_size": 18,
         "first_line": None,
     },
-    'P200-NGPS': {
-        "coord_sep": ' ',
-        "col_sep": 'XXX',
+    "P200-NGPS": {
+        "coord_sep": " ",
+        "col_sep": "XXX",
         "commentstr": "!",
         "giveoffsets": False,
         "maxname_size": 18,
         "first_line": None,
     },
-    'Shane': {
-        "coord_sep": ' ',
-        "col_sep": ' ',
+    "Shane": {
+        "coord_sep": " ",
+        "col_sep": " ",
         "commentstr": "#",
         "giveoffsets": True,
         "maxname_size": 15,
@@ -285,7 +283,7 @@ def memcache(f):
 
 def get_url(*args, **kwargs):
     # Connect and read timeouts
-    kwargs['timeout'] = (6.05, 20)
+    kwargs["timeout"] = (6.05, 20)
     try:
         return requests.get(*args, **kwargs)
     except requests.exceptions.RequestException:
@@ -333,7 +331,7 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
         if match is None:
             log(f"PS1 image not found for {ra} {dec}")
             return ""
-        url = match.group().replace('src="', 'http:').replace('"', '')
+        url = match.group().replace('src="', "http:").replace('"', "")
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
     except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout) as e:
         log(f"Error getting PS1 image URL {str(e)}")
@@ -392,77 +390,77 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     imsize_deg = imsize / 60
 
     url_ref_meta = os.path.join(
-        irsa['url_search'], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
+        irsa["url_search"], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
     r = get_url(url_ref_meta)
     if r is None:
-        return ''
+        return ""
     s = r.content
-    c = pd.read_csv(io.StringIO(s.decode('utf-8')))
+    c = pd.read_csv(io.StringIO(s.decode("utf-8")))
 
     try:
         field = f"{c.loc[0, 'field']:06d}"
-        filt = c.loc[0, 'filtercode']
+        filt = c.loc[0, "filtercode"]
         quad = f"{c.loc[0, 'qid']}"
         ccd = f"{c.loc[0, 'ccdid']:02d}"
     except KeyError:
         log(f"Note: ZTF does not have a reference image at the position {ra} {dec}")
-        return ''
+        return ""
 
     path_ursa_ref = os.path.join(
-        irsa['url_data'],
-        'ref',
+        irsa["url_data"],
+        "ref",
         field[:3],
-        f'field{field}',
+        f"field{field}",
         filt,
-        f'ccd{ccd}',
-        f'q{quad}',
-        f'ztf_{field}_{filt}_c{ccd}_q{quad}_refimg.fits',
+        f"ccd{ccd}",
+        f"q{quad}",
+        f"ztf_{field}_{filt}_c{ccd}_q{quad}_refimg.fits",
     )
     return path_ursa_ref
 
 
 # helper dict for seaching for FITS images from various surveys
 source_image_parameters = {
-    'desi': {
-        'url': (
-            'http://legacysurvey.org/viewer/fits-cutout/'
-            '?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r'
+    "desi": {
+        "url": (
+            "http://legacysurvey.org/viewer/fits-cutout/"
+            "?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r"
         ),
-        'npixels': 256,
-        'smooth': None,
-        'str': 'DESI DR8 R-band',
+        "npixels": 256,
+        "smooth": None,
+        "str": "DESI DR8 R-band",
     },
-    'dss': {
-        'url': (
-            'http://archive.stsci.edu/cgi-bin/dss_search'
-            '?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000'
+    "dss": {
+        "url": (
+            "http://archive.stsci.edu/cgi-bin/dss_search"
+            "?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000"
         ),
-        'smooth': None,
-        'reproject': True,
-        'npixels': 500,
-        'str': 'DSS-2 Red',
+        "smooth": None,
+        "reproject": True,
+        "npixels": 500,
+        "str": "DSS-2 Red",
     },
-    'ztfref': {
-        'url': get_ztfref_url,
-        'reproject': True,
-        'npixels': 500,
-        'smooth': None,
-        'str': 'ZTF Ref',
+    "ztfref": {
+        "url": get_ztfref_url,
+        "reproject": True,
+        "npixels": 500,
+        "smooth": None,
+        "str": "ZTF Ref",
     },
-    'ps1': {
-        'url': get_ps1_url,
-        'reproject': True,
-        'npixels': 500,
-        'smooth': None,
-        'str': 'PS1 r-band',
+    "ps1": {
+        "url": get_ps1_url,
+        "reproject": True,
+        "npixels": 500,
+        "smooth": None,
+        "str": "PS1 r-band",
     },
-    'ps1_cds': {
-        'url': get_ps1_cds_url,
-        'reproject': True,
-        'npixels': 500,
-        'smooth': None,
-        'str': 'PS1 r-band (CDS)',
+    "ps1_cds": {
+        "url": get_ps1_cds_url,
+        "reproject": True,
+        "npixels": 500,
+        "smooth": None,
+        "str": "PS1 r-band (CDS)",
     },
 }
 
@@ -501,13 +499,13 @@ def get_astrometry_backup_from_ztf(
     if len(ztf_astrometry) == 0:
         return ztf_astrometry
 
-    ztf_astrometry.rename_column('sourceid', 'source_id')
-    ztf_astrometry.rename_column('mag', 'phot_rp_mean_mag')
+    ztf_astrometry.rename_column("sourceid", "source_id")
+    ztf_astrometry.rename_column("mag", "phot_rp_mean_mag")
     ztf_astrometry["phot_rp_mean_mag"].fill_value = 20.0
     ztf_astrometry["phot_rp_mean_mag"].unit = u.mag
 
     ztf_astrometry.remove_columns(
-        ['xpos', 'ypos', 'flux', 'sigflux', 'sigmag', 'snr', 'chi', 'sharp', 'flags']
+        ["xpos", "ypos", "flux", "sigflux", "sigmag", "snr", "chi", "sharp", "flags"]
     )
 
     catalog = SkyCoord.guess_from_table(ztf_astrometry)
@@ -517,11 +515,11 @@ def get_astrometry_backup_from_ztf(
         unit=(u.degree, u.degree),
         pm_ra_cosdec=0 * u.mas / u.yr,
         pm_dec=0 * u.mas / u.yr,
-        frame='icrs',
+        frame="icrs",
         distance=10 * u.kpc,
         obstime=Time(
             extra_backup_ztf_columns.get("ref_epoch", (2015.5,))[0],
-            format='decimalyear',
+            format="decimalyear",
         ),
     )
     ztf_astrometry["dist"] = center.separation(catalog).degree
@@ -568,7 +566,7 @@ def get_ztfcatalog(
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     refurl = get_ztfref_url(ra, dec, imsize=5)
-    if refurl is None or refurl == '':
+    if refurl is None or refurl == "":
         log("Empty ZTF reference image URL. Returning empty table.")
         return Table()
 
@@ -633,9 +631,7 @@ def _calculate_best_position_for_offset_stars(
         Remove positions that are this number of std away from the median
     """
     if not isinstance(photometry, list):
-        log(
-            "Warning: No photometry given. Falling back to" " original source position."
-        )
+        log("Warning: No photometry given. Falling back to original source position.")
         return fallback
 
     # convert the photometry into a dataframe
@@ -682,8 +678,8 @@ def _calculate_best_position_for_offset_stars(
     # check to make sure that the median isn't too far away from the
     # discovery position
     if fallback != (None, None):
-        c1 = SkyCoord(med_ra * u.deg, med_dec * u.deg, frame='icrs')
-        c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame='icrs')
+        c1 = SkyCoord(med_ra * u.deg, med_dec * u.deg, frame="icrs")
+        c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame="icrs")
         sep = c1.separation(c2)
         if np.abs(sep) > max_offset * u.arcsec:
             log(
@@ -729,8 +725,8 @@ def _calculate_best_position_for_offset_stars(
 
 
 def get_formatted_standards_list(
-    starlist_type='Keck',
-    standard_type='ESO',
+    starlist_type="Keck",
+    standard_type="ESO",
     dec_filter_range=(-90, 90),
     ra_filter_range=(0, 360),
     magnitude_range=(np.inf, -np.inf),
@@ -788,7 +784,7 @@ def get_formatted_standards_list(
         starlist.append(starlist_format["first_line"])
 
     df = pd.read_csv(standard_file, comment="#")
-    if not {'name', 'ra', 'dec', 'epoch', 'comment'}.issubset(set(df.columns.values)):
+    if not {"name", "ra", "dec", "epoch", "comment"}.issubset(set(df.columns.values)):
         log("Error: Standard star CSV file is missing necessary headers.")
         return result
 
@@ -831,10 +827,10 @@ def get_formatted_standards_list(
     elif starlist_type == "P200-NGPS":
         # special format for NGPS, CSV-like with additional columns
         for _, row in df.iterrows():
-            if 'mag' in df.columns:
-                mag, magfilter = row['mag'], 'V'
+            if "mag" in df.columns:
+                mag, magfilter = row["mag"], "V"
             else:
-                mag, magfilter = '', ''
+                mag, magfilter = "", ""
             starlist.append(
                 {
                     "str": (
@@ -858,7 +854,7 @@ def get_formatted_standards_list(
             starlist.append(
                 {
                     "str": (
-                        f"{row['name'].replace(' ',''):{space}<{maxname_size}}"
+                        f"{row['name'].replace(' ', ''):{space}<{maxname_size}}"
                         + col_sep
                         + f"{row.skycoord}"
                         + col_sep
@@ -883,7 +879,7 @@ def get_nearby_offset_stars(
     mag_limit=18.0,
     mag_min=10.0,
     min_sep_arcsec=2,
-    starlist_type='Keck',
+    starlist_type="Keck",
     obstime=None,
     use_source_pos_in_starlist=True,
     allowed_queries=2,
@@ -958,7 +954,7 @@ def get_nearby_offset_stars(
         and whether the ZTFref catalog was used for source positions or not.
     """
     if queries_issued >= allowed_queries:
-        raise Exception('Number of offsets queries needed exceeds what is allowed')
+        raise Exception("Number of offsets queries needed exceeds what is allowed")
 
     if not obstime:
         source_obstime = Time(datetime.datetime.utcnow().isoformat())
@@ -970,7 +966,7 @@ def get_nearby_offset_stars(
         source_ra,
         source_dec,
         unit=(u.degree, u.degree),
-        frame='icrs',
+        frame="icrs",
         obstime=source_obstime,
     )
     # get three times as many stars as requested for now
@@ -1007,7 +1003,7 @@ def get_nearby_offset_stars(
             r = g.query(query_string)
             break
         except Exception as e:
-            log(f'Gaia query failed: {e}]')
+            log(f"Gaia query failed: {e}]")
             time.sleep(1 + 2**retry)
 
     # ...otherwise fall back to ZTFref public sources or return
@@ -1060,8 +1056,8 @@ def get_nearby_offset_stars(
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None or len(ztfcatalog) == 0:
             log(
-                'Warning: Could not find the ZTF reference catalog'
-                f' at position {source_ra} {source_dec}'
+                "Warning: Could not find the ZTF reference catalog"
+                f" at position {source_ra} {source_dec}"
             )
         else:
             if (
@@ -1073,9 +1069,9 @@ def get_nearby_offset_stars(
             ):
                 ztfcatalog = None
                 log(
-                    'Warning: The ZTF reference catalog is empty near'
-                    f' position {source_ra} {source_dec}. This probably means'
-                    ' that the source is at the edge of the ref catalog.'
+                    "Warning: The ZTF reference catalog is empty near"
+                    f" position {source_ra} {source_dec}. This probably means"
+                    " that the source is at the edge of the ref catalog."
                 )
                 use_ztfref = False
 
@@ -1088,11 +1084,11 @@ def get_nearby_offset_stars(
             ra=source["ra"],
             dec=source["dec"],
             unit=(u.degree, u.degree),
-            pm_ra_cosdec=source['pmra'] * u.mas / u.yr,
+            pm_ra_cosdec=source["pmra"] * u.mas / u.yr,
             pm_dec=source["pmdec"] * u.mas / u.yr,
-            frame='icrs',
+            frame="icrs",
             distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
-            obstime=Time(source['ref_epoch'], format='jyear'),
+            obstime=Time(source["ref_epoch"], format="jyear"),
         )
 
         d2d = c.separation(catalog)  # match it to the catalog
@@ -1112,7 +1108,7 @@ def get_nearby_offset_stars(
                             ra=ztfcatalog[idx].ra.value,
                             dec=ztfcatalog[idx].dec.value,
                             unit=(u.degree, u.degree),
-                            frame='icrs',
+                            frame="icrs",
                             obstime=source_obstime,
                         )
 
@@ -1134,9 +1130,9 @@ def get_nearby_offset_stars(
                         use_original = False
                 except Exception as e:
                     log(
-                        f'Warning: ZTF catalog matching failed... '
-                        f'Error: str{e} '
-                        f'Failed catalog: {str(ztfcatalog)}'
+                        f"Warning: ZTF catalog matching failed... "
+                        f"Error: str{e} "
+                        f"Failed catalog: {str(ztfcatalog)}"
                     )
 
             if use_original:
@@ -1257,9 +1253,9 @@ def get_nearby_offset_stars(
         )
 
     for i, (dist, c, source, dra, ddec, pa) in enumerate(good_list[:how_many]):
-        dras = f"{dra.value:<0.03f}\" E" if dra > 0 else f"{abs(dra.value):<0.03f}\" W"
+        dras = f'{dra.value:<0.03f}" E' if dra > 0 else f'{abs(dra.value):<0.03f}" W'
         ddecs = (
-            f"{ddec.value:<0.03f}\" N" if ddec > 0 else f"{abs(ddec.value):<0.03f}\" S"
+            f'{ddec.value:<0.03f}" N' if ddec > 0 else f'{abs(ddec.value):<0.03f}" S'
         )
 
         if giveoffsets:
@@ -1268,16 +1264,16 @@ def get_nearby_offset_stars(
             offsets = ""
 
         if starlist_type == "P200-NGPS":
-            name = f"{abrev_basename}_o{i+1}"
+            name = f"{abrev_basename}_o{i + 1}"
         else:
-            name = f"{abrev_basename}_{starlist_type.lower()[0]}{i+1}"
+            name = f"{abrev_basename}_{starlist_type.lower()[0]}{i + 1}"
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
         # the id_col isn't necessarily source_id, it might be SOURCE_ID, so figure out which one it is:
-        id_col = 'source_id'
+        id_col = "source_id"
         for k in list(source.keys()):
-            if 'source_id' in str(k).lower().strip():
+            if "source_id" in str(k).lower().strip():
                 id_col = k
                 break
 
@@ -1305,7 +1301,7 @@ def get_nearby_offset_stars(
                 + col_sep
                 + f"{offsets}"
                 + f"{col_sep if giveoffsets else ''}"
-                + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
+                + f'{commentstr} dist={3600 * dist:<0.02f}"; {source["phot_rp_mean_mag"]:<0.02f} mag'
                 + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
                 + f" ID={source[id_col]}"
             )
@@ -1391,7 +1387,7 @@ def fits_image(
 
     def get_hdu(url):
         """Try to get HDU from cache, otherwise fetch."""
-        hash_name = f'{center_ra}{center_dec}{imsize}{image_source}'
+        hash_name = f"{center_ra}{center_dec}{imsize}{image_source}"
         hdu_fn = cache[hash_name]
 
         # Found entry in cache, return that
@@ -1425,12 +1421,12 @@ def get_finding_chart(
     source_ra,
     source_dec,
     source_name,
-    image_source='ps1',
-    output_format='pdf',
+    image_source="ps1",
+    output_format="pdf",
     imsize=3.0,
     tick_offset=0.02,
     tick_length=0.03,
-    fallback_image_source='ps1_cds',
+    fallback_image_source="ps1_cds",
     zscale_contrast=0.045,
     zscale_krej=2.5,
     extra_display_string="",
@@ -1485,18 +1481,18 @@ def get_finding_chart(
     """
     if (imsize < 2.0) or (imsize > 15):
         return {
-            'success': False,
-            'reason': 'Requested `imsize` out of range',
-            'data': '',
-            'name': '',
+            "success": False,
+            "reason": "Requested `imsize` out of range",
+            "data": "",
+            "name": "",
         }
 
     if image_source not in source_image_parameters:
         return {
-            'success': False,
-            'reason': f'image source {image_source} not in list',
-            'data': '',
-            'name': '',
+            "success": False,
+            "reason": f"image source {image_source} not in list",
+            "data": "",
+            "name": "",
         }
 
     matplotlib.use("Agg")
@@ -1542,9 +1538,9 @@ def get_finding_chart(
 
         # Fix the header keyword for the input system, if needed
         hdr = hdu.header
-        if 'RADECSYS' in hdr:
-            hdr.set('RADESYSa', hdr['RADECSYS'], before='RADECSYS')
-            del hdr['RADECSYS']
+        if "RADECSYS" in hdr:
+            hdr.set("RADESYSa", hdr["RADECSYS"], before="RADECSYS")
+            del hdr["RADECSYS"]
 
         if source_image_parameters[image_source].get("reproject", False):
             # project image to the skeleton WCS solution
@@ -1606,20 +1602,20 @@ def get_finding_chart(
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
     ax_text = fig.add_subplot(spec[0, 1])
-    ax_text.axis('off')
+    ax_text.axis("off")
     ax_starlist = fig.add_subplot(spec[1, 0:])
-    ax_starlist.axis('off')
+    ax_starlist.axis("off")
 
-    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
+    ax.imshow(im, origin="lower", norm=norm, cmap="gray_r")
     ax.set_autoscale_on(False)
-    ax.grid(color='white', ls='dotted')
-    ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
-    ax.set_ylabel(r'$\delta$ (J2000)', fontsize='large')
+    ax.grid(color="white", ls="dotted")
+    ax.set_xlabel(r"$\alpha$ (J2000)", fontsize="large")
+    ax.set_ylabel(r"$\delta$ (J2000)", fontsize="large")
     obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     ax.set_title(
-        f'{source_name} Finder (for {obstime.split("T")[0]})',
-        fontsize='large',
-        fontweight='bold',
+        f"{source_name} Finder (for {obstime.split('T')[0]})",
+        fontsize="large",
+        fontweight="bold",
     )
 
     star_list, _, _, _, used_ztfref = get_nearby_offset_stars(
@@ -1628,19 +1624,19 @@ def get_finding_chart(
 
     if not isinstance(star_list, list) or len(star_list) == 0:
         return {
-            'success': False,
-            'reason': 'failure to get star list',
-            'data': '',
-            'name': '',
+            "success": False,
+            "reason": "failure to get star list",
+            "data": "",
+            "name": "",
         }
 
     first_line = None
-    if offset_star_kwargs.get('starlist_type', 'Keck') == 'P200-NGPS':
+    if offset_star_kwargs.get("starlist_type", "Keck") == "P200-NGPS":
         # add a first line with the column names for P200-NGPS (csv format)
         first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME"
 
     ncolors = len(star_list)
-    if star_list[0]['str'].startswith("!Data"):
+    if star_list[0]["str"].startswith("!Data"):
         ncolors -= 1
     colors = sns.color_palette("colorblind", ncolors)
 
@@ -1666,45 +1662,45 @@ def get_finding_chart(
         0.50,
         starlist_str,
         fontsize="x-small",
-        family='monospace',
+        family="monospace",
         transform=ax_starlist.transAxes,
     )
 
     # add the watermark for the survey
-    props = dict(boxstyle='round', facecolor='gray', alpha=0.7)
+    props = {"boxstyle": "round", "facecolor": "gray", "alpha": 0.7}
 
     if watermark is not None:
         ax.text(
             0.035,
             0.035,
             watermark,
-            horizontalalignment='left',
-            verticalalignment='center',
+            horizontalalignment="left",
+            verticalalignment="center",
             transform=ax.transAxes,
-            fontsize='medium',
-            fontweight='bold',
+            fontsize="medium",
+            fontweight="bold",
             color="yellow",
             alpha=0.5,
             bbox=props,
         )
 
-    date_obs = hdr.get('DATE-OBS')
+    date_obs = hdr.get("DATE-OBS")
     if not date_obs:
-        mjd_obs = hdr.get('MJD-OBS')
+        mjd_obs = hdr.get("MJD-OBS")
         if mjd_obs:
-            date_obs = Time(f"{mjd_obs}", format='mjd').to_value(
-                'fits', subfmt='date_hms'
+            date_obs = Time(f"{mjd_obs}", format="mjd").to_value(
+                "fits", subfmt="date_hms"
             )
 
     if date_obs:
         ax.text(
             0.95,
             0.95,
-            f'image date {date_obs.split("T")[0]}',
-            horizontalalignment='right',
-            verticalalignment='center',
+            f"image date {date_obs.split('T')[0]}",
+            horizontalalignment="right",
+            verticalalignment="center",
             transform=ax.transAxes,
-            fontsize='small',
+            fontsize="small",
             color="yellow",
             alpha=0.5,
             bbox=props,
@@ -1713,12 +1709,12 @@ def get_finding_chart(
     ax.text(
         0.95,
         0.035,
-        f"{imsize}\u2032 \u00D7 {imsize}\u2032",  # size'x size'
-        horizontalalignment='right',
-        verticalalignment='center',
+        f"{imsize}\u2032 \u00d7 {imsize}\u2032",  # size'x size'
+        horizontalalignment="right",
+        verticalalignment="center",
         transform=ax.transAxes,
-        fontsize='medium',
-        fontweight='bold',
+        fontsize="medium",
+        fontweight="bold",
         color="yellow",
         alpha=0.5,
         bbox=props,
@@ -1727,7 +1723,7 @@ def get_finding_chart(
     # compass rose
     # rose_center_pixel = ax.transAxes.transform((0.04, 0.95))
     rose_center = pixel_to_skycoord(int(npixels * 0.1), int(npixels * 0.9), wcs)
-    props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
+    props = {"boxstyle": "round", "facecolor": "gray", "alpha": 0.5}
 
     for ang, label, off in [(0, "N", 0.01), (90, "E", 0.03)]:
         position_angle = ang * u.deg
@@ -1736,7 +1732,7 @@ def get_finding_chart(
         ax.plot(
             [rose_center.ra.value, p2.ra.value],
             [rose_center.dec.value, p2.dec.value],
-            transform=ax.get_transform('world'),
+            transform=ax.get_transform("world"),
             color="gold",
             linewidth=2,
         )
@@ -1750,17 +1746,17 @@ def get_finding_chart(
             p2.dec.value,
             label,
             color="gold",
-            transform=ax.get_transform('world'),
-            fontsize='large',
-            fontweight='bold',
+            transform=ax.get_transform("world"),
+            fontsize="large",
+            fontweight="bold",
         )
 
     # account for Shane header
-    if star_list[0]['str'].startswith("!Data"):
+    if star_list[0]["str"].startswith("!Data"):
         star_list = star_list[1:]
 
     for i, star in enumerate(star_list):
-        c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame='icrs')
+        c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame="icrs")
 
         # mark up the right side of the page with position and offset info
         name_title = star["name"]
@@ -1770,10 +1766,10 @@ def get_finding_chart(
             start_text[0],
             start_text[1] - (i * 1.1) / ncolors,
             name_title,
-            ha='left',
-            va='top',
-            fontsize='large',
-            fontweight='bold',
+            ha="left",
+            va="top",
+            fontsize="large",
+            fontweight="bold",
             transform=ax_text.transAxes,
             color=colors[i],
         )
@@ -1786,14 +1782,14 @@ def get_finding_chart(
             and (star.get("ddecs") is not None)
             and (star.get("pa") is not None)
         ):
-            source_text += f'  {star.get("dras")} {star.get("ddecs")} (PA={star.get("pa"):<0.02f}°)'
+            source_text += f"  {star.get('dras')} {star.get('ddecs')} (PA={star.get('pa'):<0.02f}°)"
         ax_text.text(
             start_text[0],
             start_text[1] - (i * 1.1) / ncolors - 0.06,
             source_text,
-            ha='left',
-            va='top',
-            fontsize='large',
+            ha="left",
+            va="top",
+            fontsize="large",
             transform=ax_text.transAxes,
             color=colors[i],
         )
@@ -1810,7 +1806,7 @@ def get_finding_chart(
             ax.plot(
                 [p1.ra.value, p2.ra.value],
                 [p1.dec.value, p2.dec.value],
-                transform=ax.get_transform('world'),
+                transform=ax.get_transform("world"),
                 color=colors[i],
                 linewidth=3 if imsize <= 4 else 2,
                 alpha=0.8,
@@ -1826,9 +1822,9 @@ def get_finding_chart(
                 p1.dec.value,
                 text,
                 color=colors[i],
-                transform=ax.get_transform('world'),
-                fontsize='large',
-                fontweight='bold',
+                transform=ax.get_transform("world"),
+                fontsize="large",
+                fontweight="bold",
             )
 
     buf = io.BytesIO()

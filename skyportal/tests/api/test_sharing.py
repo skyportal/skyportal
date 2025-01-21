@@ -53,7 +53,7 @@ def test_sharing_photometry(
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
         "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token
@@ -115,7 +115,7 @@ def test_sharing_photometry_with_foreign_group(
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
         "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token2
@@ -169,8 +169,8 @@ def test_cannot_share_unowned_photometry(
     )
 
     assert status == 400
-    assert data['status'] == 'error'
-    assert 'owner' in data['message'].lower()
+    assert data["status"] == "error"
+    assert "owner" in data["message"].lower()
 
 
 def test_system_admin_can_share_unowned_photometry(
@@ -216,7 +216,7 @@ def test_system_admin_can_share_unowned_photometry(
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     status, data = api(
         "GET", f"photometry/{photometry_id}?format=flux", token=view_only_token_group2

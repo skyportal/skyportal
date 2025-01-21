@@ -21,7 +21,7 @@ from . import FollowUpAPI
 
 env, cfg = load_env()
 
-log = make_log('facility_apis/sedmv2')
+log = make_log("facility_apis/sedmv2")
 
 
 def validate_request_to_sedmv2(request):
@@ -45,38 +45,38 @@ def validate_request_to_sedmv2(request):
         "too",
     ]:
         if param not in request.payload:
-            raise ValueError(f'Parameter {param} required.')
+            raise ValueError(f"Parameter {param} required.")
 
     if request.payload["observation_choice"] not in ["IFU", "g", "r", "i", "z"]:
         raise ValueError(
-            f'Filter configuration {request.payload["observation_choice"]} unknown.'
+            f"Filter configuration {request.payload['observation_choice']} unknown."
         )
 
     if request.payload["observation_type"] not in ["transient", "variable"]:
-        raise ValueError('observation_type must be either transient or variable')
+        raise ValueError("observation_type must be either transient or variable")
 
     if request.payload["exposure_time"] < 0:
-        raise ValueError('exposure_time must be positive.')
+        raise ValueError("exposure_time must be positive.")
 
     if request.payload["maximum_airmass"] < 1:
-        raise ValueError('maximum_airmass must be at least 1.')
+        raise ValueError("maximum_airmass must be at least 1.")
 
     if (
         request.payload["minimum_lunar_distance"] < 0
         or request.payload["minimum_lunar_distance"] > 180
     ):
-        raise ValueError('minimum lunar distance must be within 0-180.')
+        raise ValueError("minimum lunar distance must be within 0-180.")
 
     if request.payload["priority"] < 0 or request.payload["priority"] > 5:
-        raise ValueError('priority must be within 0-5.')
+        raise ValueError("priority must be within 0-5.")
 
     if request.payload["too"] not in ["Y", "N"]:
-        raise ValueError('too must be Y or N')
+        raise ValueError("too must be Y or N")
 
     if (request.payload["observation_type"] == "variable") and (
         request.payload["frame_exposure_time"] not in [1, 2, 3, 5, 10, 15, 20, 25, 30]
     ):
-        raise ValueError('frame_exposure_time must be [1, 2, 3, 5, 10, 15, 20, 25, 30]')
+        raise ValueError("frame_exposure_time must be [1, 2, 3, 5, 10, 15, 20, 25, 30]")
 
 
 class SEDMV2API(FollowUpAPI):
@@ -98,28 +98,28 @@ class SEDMV2API(FollowUpAPI):
 
         validate_request_to_sedmv2(request)
 
-        if cfg['app.sedmv2_endpoint'] is not None:
+        if cfg["app.sedmv2_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             payload = {
-                'obj_id': request.obj_id,
-                'allocation_id': request.allocation.id,
-                'payload': request.payload,
+                "obj_id": request.obj_id,
+                "allocation_id": request.allocation.id,
+                "payload": request.payload,
             }
 
             r = requests.post(
-                cfg['app.sedmv2_endpoint'],
+                cfg["app.sedmv2_endpoint"],
                 json=payload,
                 headers={"Authorization": f"token {altdata['api_token']}"},
             )
 
             if r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -128,7 +128,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -139,18 +139,18 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -170,7 +170,7 @@ class SEDMV2API(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if cfg['app.sedmv2_endpoint'] is not None:
+        if cfg["app.sedmv2_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             req = (
@@ -183,7 +183,7 @@ class SEDMV2API(FollowUpAPI):
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             content = req.transactions[0].response["content"]
             content = json.loads(content)
@@ -204,7 +204,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'deleted'
+            request.status = "deleted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -215,18 +215,18 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -245,28 +245,28 @@ class SEDMV2API(FollowUpAPI):
 
         validate_request_to_sedmv2(request)
 
-        if cfg['app.sedmv2_endpoint'] is not None:
+        if cfg["app.sedmv2_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             payload = {
-                'obj_id': request.obj_id,
-                'allocation_id': request.allocation.id,
-                'payload': request.payload,
+                "obj_id": request.obj_id,
+                "allocation_id": request.allocation.id,
+                "payload": request.payload,
             }
 
             r = requests.post(
-                cfg['app.sedmv2_endpoint'],
+                cfg["app.sedmv2_endpoint"],
                 json=payload,
                 headers={"Authorization": f"token {altdata['api_token']}"},
             )
 
             if r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -275,7 +275,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
         else:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=None,
@@ -286,18 +286,18 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -316,10 +316,10 @@ class SEDMV2API(FollowUpAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
-        request_start = Time(start_date, format='datetime')
-        request_end = Time(end_date, format='datetime')
+        request_start = Time(start_date, format="datetime")
+        request_end = Time(end_date, format="datetime")
 
         fetch_logs = functools.partial(
             fetch_nightly_logs,
@@ -338,16 +338,16 @@ class SEDMV2API(FollowUpAPI):
 
         altdata = allocation.altdata
 
-        if altdata.get('ssh_host') is None:
+        if altdata.get("ssh_host") is None:
             log(f"Host not specified for instrument with ID {instrument.id}")
             return
-        if altdata.get('ssh_port', 22) is None:
+        if altdata.get("ssh_port", 22) is None:
             log(f"Port not specified for instrument with ID {instrument.id}")
             return
-        if altdata.get('ssh_username') is None:
+        if altdata.get("ssh_username") is None:
             log(f"Username not specified for instrument with ID {instrument.id}")
             return
-        if altdata.get('ssh_password') is None:
+        if altdata.get("ssh_password") is None:
             log(f"Password not specified for instrument with ID {instrument.id}")
             return
 
@@ -356,18 +356,18 @@ class SEDMV2API(FollowUpAPI):
             ssh.load_system_host_keys()
             ssh.set_missing_host_key_policy(AutoAddPolicy())
             ssh.connect(
-                hostname=altdata['ssh_host'],
-                port=altdata['ssh_port'],
-                username=altdata['ssh_username'],
-                password=altdata['ssh_password'],
+                hostname=altdata["ssh_host"],
+                port=altdata["ssh_port"],
+                username=altdata["ssh_username"],
+                password=altdata["ssh_password"],
             )
             stdin, stdout, stderr = ssh.exec_command(
-                'cd /home/sedm/Queue/sedmv2; python read_config'
+                "cd /home/sedm/Queue/sedmv2; python read_config"
             )
 
-            status = stdout.read().decode('utf-8')
+            status = stdout.read().decode("utf-8")
             status = ast.literal_eval(status)
-            status = {k: v for k, v in status.items() if v not in [None, '', {}, []]}
+            status = {k: v for k, v in status.items() if v not in [None, "", {}, []]}
 
             instrument.status = status
             instrument.last_status_update = datetime.utcnow()
@@ -421,7 +421,7 @@ class SEDMV2API(FollowUpAPI):
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (Time.now() + TimeDelta(7, format='jd')).isot,
+                "default": (Time.now() + TimeDelta(7, format="jd")).isot,
             },
             "too": {
                 "title": "Is this a Target of Opportunity observation?",
@@ -527,11 +527,11 @@ class SEDMV2API(FollowUpAPI):
 
     ui_json_schema = {}
     alias_lookup = {
-        'observation_choice': "Request",
-        'start_date': "Start Date",
-        'end_date': "End Date",
-        'priority': "Priority",
-        'observation_type': 'Mode',
+        "observation_choice": "Request",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "priority": "Priority",
+        "observation_type": "Mode",
     }
 
 
@@ -558,33 +558,33 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
     try:
         days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)
         for day in days:
-            day = Time(day, format='mjd').strftime('%Y%m%d')
+            day = Time(day, format="mjd").strftime("%Y%m%d")
             r = requests.get(
                 f"{altdata['url']}/Archive/{day}/robo_test.{day}.log",
-                auth=HTTPBasicAuth(altdata['user'], altdata['password']),
+                auth=HTTPBasicAuth(altdata["user"], altdata["password"]),
             )
             logs = read_logs(r.text)
 
-            if not logs['logs']:
-                log(f'Log for {day} unavailable for instrument with ID {instrument_id}')
+            if not logs["logs"]:
+                log(f"Log for {day} unavailable for instrument with ID {instrument_id}")
                 continue
 
             start_date = None
             end_date = None
 
-            for log_dict in logs['logs']:
+            for log_dict in logs["logs"]:
                 if start_date is None:
-                    start_date = log_dict['mjd']
+                    start_date = log_dict["mjd"]
                 else:
-                    start_date = np.min([start_date, log_dict['mjd']])
+                    start_date = np.min([start_date, log_dict["mjd"]])
 
                 if end_date is None:
-                    end_date = log_dict['mjd']
+                    end_date = log_dict["mjd"]
                 else:
-                    end_date = np.max([end_date, log_dict['mjd']])
+                    end_date = np.max([end_date, log_dict["mjd"]])
 
-            start_date = Time(start_date, format='mjd').datetime
-            end_date = Time(end_date, format='mjd').datetime
+            start_date = Time(start_date, format="mjd").datetime
+            end_date = Time(end_date, format="mjd").datetime
 
             instrument_log = InstrumentLog(
                 log=logs,

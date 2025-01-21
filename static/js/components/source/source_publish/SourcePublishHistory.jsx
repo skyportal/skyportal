@@ -6,12 +6,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import Link from "@mui/material/Link";
+import Button from "@mui/material/Button";
+import Tooltip from "@mui/material/Tooltip";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
 import moment from "moment";
 import {
   deletePublicSourcePage,
   fetchPublicSourcePages,
 } from "../../../ducks/public_pages/public_source_page";
-import Button from "@mui/material/Button";
 
 const useStyles = makeStyles(() => ({
   versionHistory: {
@@ -31,6 +33,14 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexDirection: "column",
   },
+  date: {
+    display: "flex",
+    gap: "1rem",
+  },
+  infoIcon: {
+    display: "flex",
+    alignItems: "center",
+  },
   release: {
     fontSize: "0.8rem",
   },
@@ -42,7 +52,6 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     padding: "1rem 0",
     color: "gray",
-    fontWeight: "bold",
   },
 }));
 
@@ -73,8 +82,22 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
               key={`version_${version.id}}`}
             >
               <div className={styles.dateAndRelease}>
-                <div>
+                <div className={styles.date}>
                   {moment(version.created_at).format("MM/DD/YY HH:mm")} UTC
+                  <Tooltip
+                    title={
+                      <>
+                        Photometry: {version.options.photometry} <br />
+                        Spectroscopy: {version.options.spectroscopy} <br />
+                        Classifications: {version.options.classifications}
+                      </>
+                    }
+                    placement="right"
+                  >
+                    <div className={styles.infoIcon}>
+                      <InfoIcon fontSize="small" color="primary" />
+                    </div>
+                  </Tooltip>
                 </div>
                 {version.release_link_name ? (
                   <Link
@@ -114,7 +137,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
           {isLoading ? (
             <CircularProgress size={24} />
           ) : (
-            <div>NO PUBLIC PAGE AVAILABLE!</div>
+            <div>No public page available yet!</div>
           )}
         </div>
       )}

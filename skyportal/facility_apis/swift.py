@@ -30,33 +30,32 @@ env, cfg = load_env()
 API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_api.php"
 XRT_URL = f"{cfg['app.swift_xrt_endpoint']}/run_userobject.php"
 
-log = make_log('facility_apis/swift')
+log = make_log("facility_apis/swift")
 
 
 modes = {
-    '0x9999': '0x9999 - Default (Filter of the day)',
-    '0x30ed': '0x30ed - U+B+V+All UV',
-    '0x223f': '0x223f - U+B+V+All UV (UV weighted, SN Mode)',
-    '0x0270': '0x0270 - U+B+V+All UV (ToO Upload Mode)',
-    '0x209a': '0x209a - U+B+V',
-    '0x308f': '0x308f - All UV',
-    '0x2019': '0x2019 - White',
-    '0x018c': '0x018c - UVW1',
-    '0x011e': '0x011e - UVW2',
-    '0x015a': '0x015a - UVM2',
-    '0x01aa': '0x01aa - U band',
-    '0x2016': '0x2016 - B band',
-    '0x2005': '0x2005 - V band',
-    '0x122f': '0x122f - Grism 1 (UV)',
-    '0x1230': '0x1230 - Grism 2 (Visible)',
-    '0x0ff3': '0x0ff3 - Blocked (in case of too bright star)',
+    "0x9999": "0x9999 - Default (Filter of the day)",
+    "0x30ed": "0x30ed - U+B+V+All UV",
+    "0x223f": "0x223f - U+B+V+All UV (UV weighted, SN Mode)",
+    "0x0270": "0x0270 - U+B+V+All UV (ToO Upload Mode)",
+    "0x209a": "0x209a - U+B+V",
+    "0x308f": "0x308f - All UV",
+    "0x2019": "0x2019 - White",
+    "0x018c": "0x018c - UVW1",
+    "0x011e": "0x011e - UVW2",
+    "0x015a": "0x015a - UVM2",
+    "0x01aa": "0x01aa - U band",
+    "0x2016": "0x2016 - B band",
+    "0x2005": "0x2005 - V band",
+    "0x122f": "0x122f - Grism 1 (UV)",
+    "0x1230": "0x1230 - Grism 2 (Visible)",
+    "0x0ff3": "0x0ff3 - Blocked (in case of too bright star)",
 }
 
 modes_keys, modes_values = zip(*modes.items())
 
 
 class UVOTXRTMMAAPI(MMAAPI):
-
     """An interface to Swift MMA operations."""
 
     @staticmethod
@@ -75,13 +74,13 @@ class UVOTXRTMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
-        request_start = Time(start_date, format='datetime')
-        request_end = Time(end_date, format='datetime')
+        request_start = Time(start_date, format="datetime")
+        request_end = Time(end_date, format="datetime")
 
         if request_start > request_end:
-            raise ValueError('start_date must be before end_date.')
+            raise ValueError("start_date must be before end_date.")
 
         fetch_obs = functools.partial(
             fetch_observations,
@@ -124,7 +123,7 @@ def fetch_observations(instrument_id, request_start, request_end):
         # individual source page
         if (row.ra_object is None) or (row.dec_object is None):
             continue
-        filt = f'uvot::{mode.entries[0].filter_name}'
+        filt = f"uvot::{mode.entries[0].filter_name}"
         observation = {
             "observation_id": int(row.obsid),
             "obstime": row.begin,
@@ -147,7 +146,6 @@ def fetch_observations(instrument_id, request_start, request_end):
 
 
 class UVOTXRTRequest:
-
     """A JSON structure for Swift UVOT/XRT requests."""
 
     def __init__(self, request):
@@ -188,7 +186,7 @@ class UVOTXRTRequest:
         too.source_type = request.payload["source_type"]
 
         too.exp_time_per_visit = request.payload["exposure_time"]
-        too.monitoring_freq = "%d days" % request.payload["monitoring_freq"]
+        too.monitoring_freq = f"{request.payload['monitoring_freq']:d} days"
         too.num_of_visits = int(request.payload["exposure_counts"])
 
         too.opt_mag = request.payload.get("opt_mag", None)
@@ -211,24 +209,23 @@ class UVOTXRTRequest:
             "Position",
             "Timing",
         ]:
-            raise ValueError('obs_type not an allowed value.')
+            raise ValueError("obs_type not an allowed value.")
         too.obs_type = request.payload["obs_type"]
 
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
-        if too.uvot_mode != '0x9999':
+        if too.uvot_mode != "0x9999":
             too.uvot_just = request.payload.get("uvot_just", None)
             if not too.uvot_just:
                 raise ValueError(
-                    'uvot_just is required when the UVOT mode select is 0x0270 (ToO Upload Mode).'
+                    "uvot_just is required when the UVOT mode select is 0x0270 (ToO Upload Mode)."
                 )
 
         return too
 
 
 class XRTAPIRequest:
-
     """A JSON structure for Swift XRT API requests."""
 
     def __init__(self, request):
@@ -259,8 +256,8 @@ class XRTAPIRequest:
 
         altdata = request.allocation.altdata
 
-        T0 = Time(request.payload["T0"], format='iso')
-        MET = Time('2001-01-01 00:00:00', format='iso')
+        T0 = Time(request.payload["T0"], format="iso")
+        MET = Time("2001-01-01 00:00:00", format="iso")
         Tdiff = (T0 - MET).jd * 86400
 
         centroid = bool(request.payload.get("detornot", False))
@@ -278,7 +275,7 @@ class XRTAPIRequest:
             T0=Tdiff,
             posErr=request.payload["poserr"],
         )
-        myReq.addLightCurve(binMeth='counts', pcCounts=20, wtCounts=30, dynamic=True)
+        myReq.addLightCurve(binMeth="counts", pcCounts=20, wtCounts=30, dynamic=True)
         myReq.addSpectrum(hasRedshift=False)
         myReq.addStandardPos()
         myReq.addEnhancedPos()
@@ -288,7 +285,6 @@ class XRTAPIRequest:
 
 
 class UVOTXRTBATDataRequest:
-
     """A JSON structure for Swift UVOT/XRT/BAT Data requests."""
 
     def __init__(self, request):
@@ -383,15 +379,15 @@ def download_observations(request_id, oq):
                     for dfile in data.entries:
                         if not dfile.download(outdir=data.outdir):
                             raise ValueError(f"Error downloading {dfile.filename}")
-                    filename = os.path.join(tmpdirname, f'{obsid}.tar.gz')
+                    filename = os.path.join(tmpdirname, f"{obsid}.tar.gz")
                     with tarfile.open(filename, "w:gz") as tar:
                         tar.add(topdir, arcname=os.path.basename(topdir))
 
                     attachment_name = filename.split("/")[-1]
-                    with open(filename, 'rb') as f:
+                    with open(filename, "rb") as f:
                         attachment_bytes = base64.b64encode(f.read())
                     comment = Comment(
-                        text=f'Swift Data: {obsid}',
+                        text=f"Swift Data: {obsid}",
                         obj_id=req.obj.id,
                         attachment_bytes=attachment_bytes,
                         attachment_name=attachment_name,
@@ -400,7 +396,7 @@ def download_observations(request_id, oq):
                         bot=True,
                     )
                     session.add(comment)
-        req.status = 'Result posted as comment'
+        req.status = "Result posted as comment"
         session.commit()
 
     except Exception as e:
@@ -412,7 +408,6 @@ def download_observations(request_id, oq):
 
 
 class UVOTXRTAPI(FollowUpAPI):
-
     """An interface to Swift operations."""
 
     @staticmethod
@@ -438,7 +433,7 @@ class UVOTXRTAPI(FollowUpAPI):
         altdata = request.allocation.altdata
 
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         if request.payload["request_type"] == "XRT API":
             content = req.transactions[-1].response["content"]
@@ -452,7 +447,7 @@ class UVOTXRTAPI(FollowUpAPI):
             swiftreq.requestgroup._retData["jobPars"] = content["jobPars"]
 
             if not swiftreq.requestgroup.complete:
-                raise ValueError('Result not yet available. Please try again later.')
+                raise ValueError("Result not yet available. Please try again later.")
             else:
                 group_ids = [g.id for g in request.requester.accessible_groups]
                 groups = session.scalars(
@@ -463,10 +458,10 @@ class UVOTXRTAPI(FollowUpAPI):
                     for key in retDict:
                         filename = retDict[key]
                         attachment_name = filename.split("/")[-1]
-                        with open(filename, 'rb') as f:
+                        with open(filename, "rb") as f:
                             attachment_bytes = base64.b64encode(f.read())
                         comment = Comment(
-                            text=f'Swift XRT: {key}',
+                            text=f"Swift XRT: {key}",
                             obj_id=request.obj.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
@@ -475,7 +470,7 @@ class UVOTXRTAPI(FollowUpAPI):
                             bot=False,
                         )
                         session.add(comment)
-                    req.status = 'Result posted as comment'
+                    req.status = "Result posted as comment"
                     session.commit()
         elif request.payload["request_type"] == "XRT/UVOT/BAT Data":
             swiftreq = UVOTXRTBATDataRequest(request)
@@ -488,18 +483,18 @@ class UVOTXRTAPI(FollowUpAPI):
 
             IOLoop.current().run_in_executor(None, download_obs)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     # subclasses *must* implement the method below
@@ -519,36 +514,35 @@ class UVOTXRTAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         if request.payload["request_type"] == "XRT/UVOT ToO":
             swiftreq = UVOTXRTRequest(request)
             swiftreq.requestgroup.validate()
 
             r = requests.post(
-                url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
+                url=API_URL, verify=True, data={"jwt": swiftreq.requestgroup.jwt}
             )
 
             if r.status_code == 200:
-                request.status = 'submitted'
+                request.status = "submitted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
                 log(
-                    f'Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}'
+                    f"Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}"
                 )
                 try:
                     flow = Flow()
                     flow.push(
                         request.last_modified_by_id,
-                        'baselayer/SHOW_NOTIFICATION',
+                        "baselayer/SHOW_NOTIFICATION",
                         payload={
-                            'note': f'Failed to submit Swift request: {r.content}',
-                            'type': 'error',
+                            "note": f"Failed to submit Swift request: {r.content}",
+                            "type": "error",
                         },
                     )
                 except Exception as e:
-                    log(f'Failed to send notification: {e}')
-                    pass
+                    log(f"Failed to send notification: {e}")
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -564,14 +558,14 @@ class UVOTXRTAPI(FollowUpAPI):
             r = requests.post(url=XRT_URL, json=swiftreq.requestgroup.getJSONDict())
             returnedData = json.loads(r.text)
             if r.status_code != 200:
-                request.status = f'rejected: {r.reason}'
+                request.status = f"rejected: {r.reason}"
             else:
                 if returnedData["OK"] == 0:
                     request.status = (
-                        f'rejected: {returnedData["ERROR"], returnedData["listErr"]}'
+                        f"rejected: {returnedData['ERROR'], returnedData['listErr']}"
                     )
                 else:
-                    request.status = 'submitted'
+                    request.status = "submitted"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -584,29 +578,29 @@ class UVOTXRTAPI(FollowUpAPI):
 
         elif request.payload["request_type"] == "XRT/UVOT/BAT Data":
             swiftreq = UVOTXRTBATDataRequest(request)
-            request.status = f'Number of observations: {len(swiftreq.requestgroup)}'
+            request.status = f"Number of observations: {len(swiftreq.requestgroup)}"
         else:
-            raise ValueError('Invalid request type.')
+            raise ValueError("Invalid request type.")
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
         try:
             notification_type = request.allocation.altdata.get(
-                'notification_type', 'none'
+                "notification_type", "none"
             )
-            if notification_type == 'slack':
+            if notification_type == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
                 request_notify_by_slack(
@@ -614,7 +608,7 @@ class UVOTXRTAPI(FollowUpAPI):
                     session,
                     is_update=False,
                 )
-            elif notification_type == 'email':
+            elif notification_type == "email":
                 from ..utils.notifications import request_notify_by_email
 
                 request_notify_by_email(

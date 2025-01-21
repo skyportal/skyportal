@@ -5,11 +5,12 @@ Revises: 5f8328a76607
 Create Date: 2022-02-19 14:50:54.172754
 
 """
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '33ef976ca10f'
-down_revision = '5f8328a76607'
+revision = "33ef976ca10f"
+down_revision = "5f8328a76607"
 branch_labels = None
 depends_on = None
 

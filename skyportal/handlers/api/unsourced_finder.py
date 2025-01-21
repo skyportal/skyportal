@@ -1,27 +1,26 @@
-import io
 import datetime
 import functools
+import io
 
-import numpy.ma as ma
-from dateutil.parser import isoparse
 from astropy.time import Time
+from dateutil.parser import isoparse
+from numpy import ma
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..base import BaseHandler
-
 from ...utils.offset import (
     GaiaQuery,
     facility_parameters,
-    source_image_parameters,
     get_finding_chart,
+    source_image_parameters,
 )
+from ..base import BaseHandler
 
 _, cfg = load_env()
-log = make_log('api/unsourced_finder')
+log = make_log("api/unsourced_finder")
 
 
 class UnsourcedFinderHandler(BaseHandler):
@@ -143,22 +142,22 @@ class UnsourcedFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        location_type = self.get_query_argument('location_type')
+        location_type = self.get_query_argument("location_type")
         if location_type not in ["gaia_dr3", "gaia_dr2", "pos"]:
-            return self.error(f'Invalid argument for `location_type`: {location_type}')
+            return self.error(f"Invalid argument for `location_type`: {location_type}")
 
         obstime = self.get_query_argument(
-            'obstime', datetime.datetime.utcnow().isoformat()
+            "obstime", datetime.datetime.utcnow().isoformat()
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
-            return self.error('obstime is not valid isoformat')
+            return self.error("obstime is not valid isoformat")
 
-        catalog_id = self.get_query_argument('catalog_id', 'unknown')
+        catalog_id = self.get_query_argument("catalog_id", "unknown")
 
         if location_type != "pos":
             # a Gaia source must be all integer characters
             if not catalog_id.isnumeric():
-                return self.error('`catalog_id` must be a number')
+                return self.error("`catalog_id` must be a number")
 
             # database name should be something like gaiadr3
             db_name = "".join(location_type.split("_"))
@@ -175,75 +174,75 @@ class UnsourcedFinderHandler(BaseHandler):
             response = gaia_query.query(query_string)
             if len(response) != 1:
                 return self.error(
-                    f'Cannot get position information for `catalog_id` = {catalog_id}'
+                    f"Cannot get position information for `catalog_id` = {catalog_id}"
                 )
             ra = response["ra_obs"].data[0]
             dec = response["dec_obs"].data[0]
-            obj_id = f'{location_type.split("_")[-1]} {catalog_id}'
+            obj_id = f"{location_type.split('_')[-1]} {catalog_id}"
             pmra, pmdec = (
                 ma.getdata(response["pmra"])[0],
                 ma.getdata(response["pmdec"])[0],
             )
-            extra_display_string = f'{pmra:0.4} E \u2033/yr {pmdec:0.4} N \u2033/yr'
+            extra_display_string = f"{pmra:0.4} E \u2033/yr {pmdec:0.4} N \u2033/yr"
         else:
-            ra = self.get_query_argument('ra')
+            ra = self.get_query_argument("ra")
             try:
                 ra = float(ra)
             except ValueError:
                 # could not handle inputs
-                return self.error('Invalid argument for `ra`')
+                return self.error("Invalid argument for `ra`")
             if not 0 <= ra < 360.0:
                 return self.error("Invalid value for `ra`: must be 0 <= ra < 360.0")
-            dec = self.get_query_argument('dec')
+            dec = self.get_query_argument("dec")
             try:
                 dec = float(dec)
             except ValueError:
                 # could not handle inputs
-                return self.error('Invalid argument for `dec`')
+                return self.error("Invalid argument for `dec`")
             if not -90 <= dec <= 90.0:
                 return self.error(
                     "Invalid value for `dec`: must be in the range [-90,90]"
                 )
-            obj_id = f'{ra:0.6g}{dec:+0.6g}'
+            obj_id = f"{ra:0.6g}{dec:+0.6g}"
             extra_display_string = ""
 
-        output_type = self.get_query_argument('type', 'pdf')
+        output_type = self.get_query_argument("type", "pdf")
         if output_type not in ["png", "pdf"]:
-            return self.error(f'Invalid argument for `type`: {output_type}')
+            return self.error(f"Invalid argument for `type`: {output_type}")
 
-        imsize = self.get_query_argument('imsize', '4.0')
+        imsize = self.get_query_argument("imsize", "4.0")
         try:
             imsize = float(imsize)
         except ValueError:
             # could not handle inputs
-            return self.error('Invalid argument for `imsize`')
+            return self.error("Invalid argument for `imsize`")
 
         if imsize < 2.0 or imsize > 15.0:
-            return self.error('The value for `imsize` is outside the allowed range')
+            return self.error("The value for `imsize` is outside the allowed range")
 
-        facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ps1')
-        use_ztfref = self.get_query_argument('use_ztfref', True)
+        facility = self.get_query_argument("facility", "Keck")
+        image_source = self.get_query_argument("image_source", "ps1")
+        use_ztfref = self.get_query_argument("use_ztfref", True)
         if isinstance(use_ztfref, str):
-            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
+            use_ztfref = use_ztfref in ["t", "True", "true", "yes", "y"]
 
-        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+        num_offset_stars = self.get_query_argument("num_offset_stars", "3")
         try:
             num_offset_stars = int(num_offset_stars)
         except ValueError:
             # could not handle inputs
-            return self.error('Invalid argument for `num_offset_stars`')
+            return self.error("Invalid argument for `num_offset_stars`")
 
         if not 0 <= num_offset_stars <= 4:
             return self.error(
-                'The value for `num_offset_stars` is outside the allowed range [0, 4]'
+                "The value for `num_offset_stars` is outside the allowed range [0, 4]"
             )
 
         if facility not in facility_parameters:
-            return self.error('Invalid facility')
+            return self.error("Invalid facility")
 
         if image_source not in source_image_parameters:
-            return self.error('Invalid source image')
+            return self.error("Invalid source image")
 
         radius_degrees = facility_parameters[facility]["radius_degrees"]
         mag_limit = facility_parameters[facility]["mag_limit"]
@@ -273,7 +272,7 @@ class UnsourcedFinderHandler(BaseHandler):
         )
 
         self.push_notification(
-            'Finding chart generation in progress. Download will start soon.'
+            "Finding chart generation in progress. Download will start soon."
         )
         rez = await IOLoop.current().run_in_executor(None, finder)
 

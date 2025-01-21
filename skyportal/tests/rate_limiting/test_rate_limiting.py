@@ -1,9 +1,10 @@
-import time
 import socket
+import time
+
 import requests
+
 from baselayer.app.env import load_env
 from skyportal.tests import api
-
 
 _, cfg = load_env()
 
@@ -19,8 +20,8 @@ def test_api_rate_limiting(view_only_token):
     time.sleep(1)
     for n_successful_requests in range(100):
         r = requests.get(
-            f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
-            headers={'Authorization': f'token {view_only_token}'},
+            f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
+            headers={"Authorization": f"token {view_only_token}"},
         )
         if r.status_code != 200:
             break
@@ -28,8 +29,8 @@ def test_api_rate_limiting(view_only_token):
     # See https://www.nginx.com/blog/rate-limiting-nginx/#bursts
     assert 11 <= n_successful_requests <= 20
     r = requests.get(
-        f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
-        headers={'Authorization': f'token {view_only_token}'},
+        f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
+        headers={"Authorization": f"token {view_only_token}"},
     )
     assert r.status_code == 429
 
@@ -38,8 +39,8 @@ def test_api_rate_limiting(view_only_token):
 
     # Ensure request is now successful
     r = requests.get(
-        f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
-        headers={'Authorization': f'token {view_only_token}'},
+        f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
+        headers={"Authorization": f"token {view_only_token}"},
     )
     assert r.status_code == 200
 
@@ -48,8 +49,8 @@ def test_rate_limited_requests_ok(view_only_token):
     # This is above the 15/s (regular + burst) threshold, but throttled down:
     for i in range(30):
         r = requests.get(
-            f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
-            headers={'Authorization': f'token {view_only_token}'},
+            f"http://{localhost_external_ip}:{cfg['ports.app']}/api/sysinfo",
+            headers={"Authorization": f"token {view_only_token}"},
         )
         assert r.status_code == 200
         # Bring down to ~ default rate limit of 5r/s -- should never hit limit
@@ -60,5 +61,5 @@ def test_localhost_unlimited(view_only_token):
     for i in range(30):
         # Here we're using regular localhost, not the "external"-appearing IP,
         # which is exempted by default in baselayer's nginx config
-        status, _ = api('GET', 'sysinfo', token=view_only_token)
+        status, _ = api("GET", "sysinfo", token=view_only_token)
         assert status == 200

@@ -73,30 +73,30 @@ class InstrumentLogHandler(BaseHandler):
         """
 
         data = self.get_json()
-        start_date = data.get('start_date')
+        start_date = data.get("start_date")
         if start_date is None:
-            return self.error('date is required')
+            return self.error("date is required")
         try:
             start_date = arrow.get(start_date).datetime
         except Exception as e:
-            return self.error(f'Invalid start_date: {str(e)}')
+            return self.error(f"Invalid start_date: {str(e)}")
 
-        end_date = data.get('end_date')
+        end_date = data.get("end_date")
         if end_date is None:
-            return self.error('date is required')
+            return self.error("date is required")
         try:
             end_date = arrow.get(end_date).datetime
         except Exception as e:
-            return self.error(f'Invalid end_date: {str(e)}')
+            return self.error(f"Invalid end_date: {str(e)}")
 
-        logs = data.get('log')
+        logs = data.get("log")
         if logs is None:
-            return self.error('log is required')
+            return self.error("log is required")
 
         if isinstance(logs, str):
             logs = read_logs(logs)
         elif not isinstance(logs, dict):
-            return self.error('log must be either dictionary or parsable string')
+            return self.error("log must be either dictionary or parsable string")
 
         with self.Session() as session:
             stmt = Instrument.select(session.user_or_token, mode="update").where(
@@ -104,7 +104,7 @@ class InstrumentLogHandler(BaseHandler):
             )
             instrument = session.scalars(stmt).first()
             if instrument is None:
-                return self.error(f'Missing instrument with ID {instrument_id}')
+                return self.error(f"Missing instrument with ID {instrument_id}")
 
             instrument_log = InstrumentLog(
                 log=logs,
@@ -116,24 +116,24 @@ class InstrumentLogHandler(BaseHandler):
             session.add(instrument_log)
             session.commit()
 
-            return self.success(data={'id': instrument_log.id})
+            return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
     def get(self, instrument_id):
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
 
         if start_date is not None:
             try:
                 start_date = arrow.get(start_date.strip()).datetime
             except Exception as e:
-                return self.error(f'Invalid start_date: {str(e)}')
+                return self.error(f"Invalid start_date: {str(e)}")
 
         if end_date is not None:
             try:
                 end_date = arrow.get(end_date.strip()).datetime
             except Exception as e:
-                return self.error(f'Invalid end_date: {str(e)}')
+                return self.error(f"Invalid end_date: {str(e)}")
 
         with self.Session() as session:
             try:
@@ -153,12 +153,12 @@ class InstrumentLogHandler(BaseHandler):
                 return self.success(data=instrument_logs)
             except Exception as e:
                 return self.error(
-                    f'Error occured while retrieving instrument logs: {str(e)}'
+                    f"Error occured while retrieving instrument logs: {str(e)}"
                 )
 
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def get(self, allocation_id):
         """
         ---
@@ -204,10 +204,10 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         data = {}
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data['allocation_id'] = int(allocation_id)
+        data["allocation_id"] = int(allocation_id)
 
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
+        start_date = self.get_query_argument("startDate")
+        end_date = self.get_query_argument("endDate")
 
         if start_date is not None:
             start_date = arrow.get(start_date.strip()).datetime
@@ -221,7 +221,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
-                    Allocation.id == data['allocation_id']
+                    Allocation.id == data["allocation_id"]
                 )
             ).first()
             if allocation is None:
@@ -232,11 +232,11 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
             instrument = allocation.instrument
 
             if instrument.api_classname is None:
-                return self.error('Instrument has no remote observation plan API.')
+                return self.error("Instrument has no remote observation plan API.")
 
-            if not instrument.api_class.implements()['retrieve_log']:
+            if not instrument.api_class.implements()["retrieve_log"]:
                 return self.error(
-                    'Submitting executed observation plan requests to this Instrument is not available.'
+                    "Submitting executed observation plan requests to this Instrument is not available."
                 )
 
             try:
@@ -253,7 +253,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 
 class InstrumentStatusHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def put(self, instrument_id):
         """
         ---
@@ -292,22 +292,22 @@ class InstrumentStatusHandler(BaseHandler):
         """
 
         data = self.get_json()
-        status = data.get('status', None)
-        if status in [None, '', {}, []]:
+        status = data.get("status", None)
+        if status in [None, "", {}, []]:
             with self.Session() as session:
                 stmt = Instrument.select(session.user_or_token, mode="update").where(
                     Instrument.id == int(instrument_id)
                 )
                 instrument = session.scalars(stmt).first()
                 if instrument is None:
-                    return self.error(f'Missing instrument with ID {instrument_id}')
+                    return self.error(f"Missing instrument with ID {instrument_id}")
 
                 if instrument.api_classname is None:
-                    return self.error('Instrument has no remote observation plan API.')
+                    return self.error("Instrument has no remote observation plan API.")
 
-                if not instrument.api_class.implements()['update_status']:
+                if not instrument.api_class.implements()["update_status"]:
                     return self.error(
-                        'Updating status of this Instrument is not available.'
+                        "Updating status of this Instrument is not available."
                     )
 
                 allocations = session.scalars(
@@ -322,7 +322,7 @@ class InstrumentStatusHandler(BaseHandler):
                 allocation = None
                 for alloc in allocations:
                     if alloc.altdata is not None:
-                        if set(list(alloc.altdata.keys())).issuperset(
+                        if set(alloc.altdata.keys()).issuperset(
                             ["ssh_host", "ssh_username", "ssh_password"]
                         ):
                             allocation = alloc
@@ -338,8 +338,8 @@ class InstrumentStatusHandler(BaseHandler):
                         session,
                     )
                     self.push_all(
-                        action='skyportal/REFRESH_INSTRUMENT',
-                        payload={'instrument_id': instrument_id},
+                        action="skyportal/REFRESH_INSTRUMENT",
+                        payload={"instrument_id": instrument_id},
                     )
                     return self.success()
                 except Exception as e:
@@ -349,17 +349,17 @@ class InstrumentStatusHandler(BaseHandler):
                 try:
                     status = json.loads(status)
                 except Exception:
-                    return self.error('Invalid status (must be non-empty JSON)')
+                    return self.error("Invalid status (must be non-empty JSON)")
             if not isinstance(status, dict):
-                return self.error('Invalid status (must be non-empty JSON)')
+                return self.error("Invalid status (must be non-empty JSON)")
 
             status = {
                 k: v
                 for k, v in status.items()
-                if v is not None and v not in [None, '', {}, []]
+                if v is not None and v not in [None, "", {}, []]
             }
             if len(status) == 0:
-                return self.error('Invalid status (must be non-empty JSON)')
+                return self.error("Invalid status (must be non-empty JSON)")
 
             with self.Session() as session:
                 try:
@@ -369,16 +369,16 @@ class InstrumentStatusHandler(BaseHandler):
                         )
                     ).first()
                     if instrument is None:
-                        return self.error(f'Missing instrument with ID {instrument_id}')
+                        return self.error(f"Missing instrument with ID {instrument_id}")
 
                     if instrument.api_classname is None:
                         return self.error(
-                            'Instrument has no remote observation plan API.'
+                            "Instrument has no remote observation plan API."
                         )
 
-                    if not instrument.api_class.implements()['update_status']:
+                    if not instrument.api_class.implements()["update_status"]:
                         return self.error(
-                            'Updating status of this Instrument is not available.'
+                            "Updating status of this Instrument is not available."
                         )
 
                     instrument.status = status
@@ -386,8 +386,8 @@ class InstrumentStatusHandler(BaseHandler):
                     session.commit()
 
                     self.push_all(
-                        action='skyportal/REFRESH_INSTRUMENT',
-                        payload={'instrument_id': instrument_id},
+                        action="skyportal/REFRESH_INSTRUMENT",
+                        payload={"instrument_id": instrument_id},
                     )
                     return self.success()
                 except Exception as e:

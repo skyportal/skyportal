@@ -1,20 +1,22 @@
 import sqlalchemy as sa
-from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import auth_or_token, permissions, AccessError
+from sqlalchemy import or_
+
+from baselayer.app.access import AccessError, auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from ..base import BaseHandler
+
 from ...models import (
     Group,
     GroupStream,
     GroupUser,
     Obj,
     Source,
-    User,
     Token,
+    User,
     UserNotification,
 )
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -32,7 +34,7 @@ def has_admin_access_for_group(user, group_id, session):
     ) > 0 or (groupuser is not None and groupuser.admin)
 
 
-log = make_log('api/group')
+log = make_log("api/group")
 
 
 class GroupHandler(BaseHandler):
@@ -143,7 +145,7 @@ class GroupHandler(BaseHandler):
                     Group.select(session.user_or_token).where(Group.id == group_id)
                 ).first()
                 if group is None:
-                    return self.error(f'Cannot find Group with id {group_id}')
+                    return self.error(f"Cannot find Group with id {group_id}")
                 include_group_users = self.get_query_argument("includeGroupUsers", True)
 
                 # Do not include User.groups to avoid circular reference
@@ -172,19 +174,19 @@ class GroupHandler(BaseHandler):
                 group = group.to_dict()
 
                 if users is not None:
-                    group['users'] = users
+                    group["users"] = users
 
                 # grab streams:
-                group['streams'] = streams
+                group["streams"] = streams
 
-                group['filters'] = filters
+                group["filters"] = filters
                 try:
                     # grab filters:
                     # this is in a try-except in case of deletions
                     session.commit()
-                    group['filters'] = filters
+                    group["filters"] = filters
                 except AccessError as e:
-                    log(f'Insufficient filter permissions: {e}.')
+                    log(f"Insufficient filter permissions: {e}.")
 
                 return self.success(data=group)
 
@@ -199,10 +201,10 @@ class GroupHandler(BaseHandler):
                 "includeSingleUserGroups", False
             )
             info = {}
-            info['user_groups'] = sorted(
-                list(self.current_user.groups), key=lambda g: g.name.lower()
+            info["user_groups"] = sorted(
+                self.current_user.groups, key=lambda g: g.name.lower()
             )
-            info['user_accessible_groups'] = sorted(
+            info["user_accessible_groups"] = sorted(
                 (
                     g
                     for g in self.current_user.accessible_groups
@@ -268,7 +270,7 @@ class GroupHandler(BaseHandler):
             return self.error("Missing required parameter: `name`")
 
         try:
-            group_admin_ids = [int(e) for e in data.get('group_admins', [])]
+            group_admin_ids = [int(e) for e in data.get("group_admins", [])]
         except ValueError:
             return self.error(
                 "Invalid group_admins field; unable to parse all items to int"
@@ -288,7 +290,7 @@ class GroupHandler(BaseHandler):
             ).first()
             if existing_group is not None:
                 return self.error(
-                    f'Group with name {data["name"]} already exists. Please select a new one.'
+                    f"Group with name {data['name']} already exists. Please select a new one."
                 )
 
             g = Group(
@@ -338,31 +340,31 @@ class GroupHandler(BaseHandler):
         """
 
         data = self.get_json()
-        data['id'] = group_id
+        data["id"] = group_id
 
         with self.Session() as session:
             # permission check
             group = session.scalars(
-                Group.select(session.user_or_token, mode='update').where(
+                Group.select(session.user_or_token, mode="update").where(
                     Group.id == group_id
                 )
             ).first()
             if group is None:
-                return self.error(f'Cannot find Group with id {group_id}')
+                return self.error(f"Cannot find Group with id {group_id}")
             schema = Group.__schema__()
 
             try:
                 schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
                 setattr(group, k, data[k])
 
             session.commit()
-            return self.success(action='skyportal/FETCH_GROUPS')
+            return self.success(action="skyportal/FETCH_GROUPS")
 
     @permissions(["Upload data"])
     def delete(self, group_id):
@@ -388,20 +390,20 @@ class GroupHandler(BaseHandler):
         with self.Session() as session:
             # permission check
             group = session.scalars(
-                Group.select(session.user_or_token, mode='delete').where(
+                Group.select(session.user_or_token, mode="delete").where(
                     Group.id == group_id
                 )
             ).first()
             if group is None:
                 return self.error(
-                    f'Cannot find Group with id {group_id}',
+                    f"Cannot find Group with id {group_id}",
                     status=403,
                 )
 
             session.delete(group)
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+                action="skyportal/REFRESH_GROUP", payload={"group_id": int(group_id)}
             )
             return self.success()
 
@@ -490,23 +492,23 @@ class GroupUserHandler(BaseHandler):
                 )
             ).first()
             if group is None:
-                return self.error(f'Group with ID {group_id} not accessible')
+                return self.error(f"Group with ID {group_id} not accessible")
             if group.single_user_group:
                 return self.error(
-                    f'Cannot add users to group {group_id}. It is a single user group.'
+                    f"Cannot add users to group {group_id}. It is a single user group."
                 )
 
             user = session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)
             ).first()
             if user is None:
-                return self.error(f'User with ID {user_id} not accessible')
+                return self.error(f"User with ID {user_id} not accessible")
 
             user_streams = [stream.id for stream in user.streams]
             for stream in group.streams:
                 if stream.id not in user_streams:
                     return self.error(
-                        f'User with ID {user_id} ({user.username}) does not have stream access with ID {stream.id} ({stream.name}). Please contact a super-admin to grant access.',
+                        f"User with ID {user_id} ({user.username}) does not have stream access with ID {stream.id} ({stream.name}). Please contact a super-admin to grant access.",
                         status=403,
                     )
 
@@ -537,10 +539,10 @@ class GroupUserHandler(BaseHandler):
             self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
             self.push_all(
-                action='skyportal/REFRESH_GROUP', payload={'group_id': group_id}
+                action="skyportal/REFRESH_GROUP", payload={"group_id": group_id}
             )
             return self.success(
-                data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
+                data={"group_id": group_id, "user_id": user_id, "admin": admin}
             )
 
     @permissions(["Upload data"])
@@ -598,7 +600,7 @@ class GroupUserHandler(BaseHandler):
 
         with self.Session() as session:
             groupuser = session.scalars(
-                GroupUser.select(session.user_or_token, mode='update')
+                GroupUser.select(session.user_or_token, mode="update")
                 .where(GroupUser.group_id == group_id)
                 .where(GroupUser.user_id == user_id)
             ).first()
@@ -661,7 +663,7 @@ class GroupUserHandler(BaseHandler):
 
         with self.Session() as session:
             gu = session.scalars(
-                GroupUser.select(session.user_or_token, mode='delete')
+                GroupUser.select(session.user_or_token, mode="delete")
                 .where(GroupUser.group_id == group_id)
                 .where(GroupUser.user_id == user_id)
             ).first()
@@ -673,12 +675,12 @@ class GroupUserHandler(BaseHandler):
             try:
                 session.commit()
             except AccessError as e:
-                return self.error(f'Insufficient group permissions: {e}.', status=403)
+                return self.error(f"Insufficient group permissions: {e}.", status=403)
 
-            self.flow.push(user_id, 'skyportal/FETCH_GROUPS')
-            self.flow.push(user_id, 'skyportal/FETCH_SOURCES')
+            self.flow.push(user_id, "skyportal/FETCH_GROUPS")
+            self.flow.push(user_id, "skyportal/FETCH_SOURCES")
             self.push_all(
-                action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+                action="skyportal/REFRESH_GROUP", payload={"group_id": int(group_id)}
             )
             return self.success()
 
@@ -728,7 +730,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         from_group_ids = data.get("fromGroupIDs")
         if from_group_ids is None:
             return self.error("Missing required parameter: fromGroupIDs")
-        if not isinstance(from_group_ids, (list, tuple)):
+        if not isinstance(from_group_ids, list | tuple):
             return self.error(
                 "Improperly formatted fromGroupIDs parameter; "
                 "must be an array of integers."
@@ -779,7 +781,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
             session.commit()
 
-        self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
+        self.push_all(action="skyportal/REFRESH_GROUP", payload={"group_id": group_id})
         for user_id in user_ids:
             self.flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
@@ -832,7 +834,7 @@ class GroupStreamHandler(BaseHandler):
         """
         data = self.get_json()
         group_id = int(group_id)
-        stream_id = data.get('stream_id')
+        stream_id = data.get("stream_id")
 
         with self.Session() as session:
             group = session.scalars(
@@ -841,17 +843,17 @@ class GroupStreamHandler(BaseHandler):
                 )
             ).first()
             if group is None:
-                return self.error(f'Group with ID {group_id} not accessible')
+                return self.error(f"Group with ID {group_id} not accessible")
             if group.single_user_group:
                 return self.error(
-                    f'Cannot add users to group {group_id}. It is a single user group.'
+                    f"Cannot add users to group {group_id}. It is a single user group."
                 )
 
             for user in group.users:
                 user_streams = [stream.id for stream in user.streams]
                 if stream_id not in user_streams:
                     return self.error(
-                        f'Not all users have stream access with ID {stream_id}',
+                        f"Not all users have stream access with ID {stream_id}",
                         status=403,
                     )
 
@@ -870,9 +872,9 @@ class GroupStreamHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_GROUP', payload={'group_id': group_id}
+                action="skyportal/REFRESH_GROUP", payload={"group_id": group_id}
             )
-            return self.success(data={'group_id': group_id, 'stream_id': stream_id})
+            return self.success(data={"group_id": group_id, "stream_id": stream_id})
 
     @permissions(["Upload data"])
     def delete(self, group_id, stream_id):
@@ -908,13 +910,13 @@ class GroupStreamHandler(BaseHandler):
                 .where(GroupStream.stream_id == stream_id)
             ).all()
             if len(groupstreams) == 0:
-                return self.error(f'No stream IDs with ID {stream_id} accessible')
+                return self.error(f"No stream IDs with ID {stream_id} accessible")
             for gs in groupstreams:
                 session.delete(gs)
 
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+                action="skyportal/REFRESH_GROUP", payload={"group_id": int(group_id)}
             )
             return self.success()
 

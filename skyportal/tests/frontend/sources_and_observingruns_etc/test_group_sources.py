@@ -1,9 +1,10 @@
 import uuid
-import pytest
-from skyportal.tests import api
-
-from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
+
+import pytest
+from tdtax import __version__, taxonomy
+
+from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
@@ -30,22 +31,22 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # upload a new source, saved to the public group
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id, public_group2.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id, public_group2.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
 
     # need to reload the page to see changes!
     driver.get(f"/group_sources/{public_group.id}")
@@ -69,30 +70,30 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # post a taxonomy and classification
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id, public_group2.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id, public_group2.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token_two_groups,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': obj_id,
-            'classification': 'Algol',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": obj_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token_two_groups,
     )
@@ -102,14 +103,14 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': obj_id,
-            'classification': 'RS CVn',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group2.id],
+            "obj_id": obj_id,
+            "classification": "RS CVn",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group2.id],
         },
         token=classification_token_two_groups,
     )
@@ -141,22 +142,22 @@ def test_request_source(
 
     # upload a new source, saved to public_group2
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token_two_groups,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
 
     # reload the group sources page
     driver.get(f"/group_sources/{public_group2.id}")
@@ -168,9 +169,9 @@ def test_request_source(
 
     # request this source to be added to group2
     status, data = api(
-        'POST',
-        'source_groups',
-        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group2.id]},
+        "POST",
+        "source_groups",
+        data={"objId": f"{obj_id}", "inviteGroupIds": [public_group2.id]},
         token=upload_data_token,
     )
     assert status == 200
@@ -200,39 +201,39 @@ def test_sources_sorting(
 
     # upload two new sources, saved to the public group
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.0,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.0,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id}'
+    assert data["data"]["id"] == f"{obj_id}"
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': f'{obj_id2}',
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 0.153,
-            'altdata': {'simbad': {'class': 'RRLyr'}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "id": f"{obj_id2}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0.153,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == f'{obj_id2}'
+    assert data["data"]["id"] == f"{obj_id2}"
 
     driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
 

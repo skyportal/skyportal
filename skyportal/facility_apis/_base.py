@@ -9,27 +9,27 @@ class _ListenerBase:
         frontend, (e.g., followup_request_id) are included in the Listener's
         JSONSchema. If the fields are missing, this function adds them."""
         base = deepcopy(cls.schema)
-        if 'type' not in base:
-            base['type'] = 'object'
-        if 'properties' not in base:
-            base['properties'] = {}
-        if 'followup_request_id' not in base['properties']:
-            base['properties']['followup_request_id'] = {'type': 'integer'}
+        if "type" not in base:
+            base["type"] = "object"
+        if "properties" not in base:
+            base["properties"] = {}
+        if "followup_request_id" not in base["properties"]:
+            base["properties"]["followup_request_id"] = {"type": "integer"}
 
-        if 'required' not in base:
-            base['required'] = ['followup_request_id']
+        if "required" not in base:
+            base["required"] = ["followup_request_id"]
         else:
-            base['required'].append('followup_request_id')
+            base["required"].append("followup_request_id")
 
-        base['title'] = cls.__name__
-        base['additionalProperties'] = False
+        base["title"] = cls.__name__
+        base["additionalProperties"] = False
         return base
 
     @classmethod
     def get_acl_id(cls):
         """Return the ID of the ACL that a User must have in order to use
         this API."""
-        return f'Post from {cls.__name__}'
+        return f"Post from {cls.__name__}"
 
 
 class _Base:
@@ -50,22 +50,22 @@ class _Base:
     @classmethod
     def implements(cls):
         return {
-            "update": cls._isimplemented('update'),
-            "delete": cls._isimplemented('delete'),
-            "get": cls._isimplemented('get'),
-            "submit": cls._isimplemented('submit'),
-            "send": cls._isimplemented('send'),
-            "remove": cls._isimplemented('remove'),
-            "retrieve": cls._isimplemented('retrieve'),
-            "queued": cls._isimplemented('queued'),
-            "remove_queue": cls._isimplemented('remove_queue'),
-            "prepare_payload": cls._isimplemented('prepare_payload'),
-            "send_skymap": cls._isimplemented('send_skymap'),
-            "queued_skymap": cls._isimplemented('queued_skymap'),
-            "remove_skymap": cls._isimplemented('remove_skymap'),
-            "retrieve_log": cls._isimplemented('retrieve_log'),
-            "update_status": cls._isimplemented('update_status'),
-            "validate_altdata": cls._isimplemented('validate_altdata'),
+            "update": cls._isimplemented("update"),
+            "delete": cls._isimplemented("delete"),
+            "get": cls._isimplemented("get"),
+            "submit": cls._isimplemented("submit"),
+            "send": cls._isimplemented("send"),
+            "remove": cls._isimplemented("remove"),
+            "retrieve": cls._isimplemented("retrieve"),
+            "queued": cls._isimplemented("queued"),
+            "remove_queue": cls._isimplemented("remove_queue"),
+            "prepare_payload": cls._isimplemented("prepare_payload"),
+            "send_skymap": cls._isimplemented("send_skymap"),
+            "queued_skymap": cls._isimplemented("queued_skymap"),
+            "remove_skymap": cls._isimplemented("remove_skymap"),
+            "retrieve_log": cls._isimplemented("retrieve_log"),
+            "update_status": cls._isimplemented("update_status"),
+            "validate_altdata": cls._isimplemented("validate_altdata"),
         }
 
     # subclasses should not modify this
@@ -88,11 +88,11 @@ class _Base:
         except AttributeError:
             priority_order = None
         return {
-            'methodsImplemented': cls.implements(),
-            'formSchema': formSchema,
-            'formSchemaForcedPhotometry': formSchemaForcedPhotometry,
-            'formSchemaAltdata': formSchemaAltdata,
-            'uiSchema': cls.ui_json_schema,
-            'aliasLookup': cls.alias_lookup,
-            'priorityOrder': priority_order,
+            "methodsImplemented": cls.implements(),
+            "formSchema": formSchema,
+            "formSchemaForcedPhotometry": formSchemaForcedPhotometry,
+            "formSchemaAltdata": formSchemaAltdata,
+            "uiSchema": cls.ui_json_schema,
+            "aliasLookup": cls.alias_lookup,
+            "priorityOrder": priority_order,
         }

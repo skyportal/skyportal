@@ -1,11 +1,12 @@
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
-from ..base import BaseHandler
+
 from ...models import (
     Stream,
     StreamUser,
 )
+from ..base import BaseHandler
 
 
 class StreamHandler(BaseHandler):
@@ -102,7 +103,7 @@ class StreamHandler(BaseHandler):
                 stream = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(stream)
             session.commit()
@@ -159,7 +160,7 @@ class StreamHandler(BaseHandler):
                 schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             for k in data:
                 setattr(s, k, data[k])
@@ -265,7 +266,7 @@ class StreamUserHandler(BaseHandler):
                 return self.error("Specified user already has access to this stream.")
             session.commit()
 
-            return self.success(data={'stream_id': stream_id, 'user_id': user_id})
+            return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
     def delete(self, stream_id, user_id):

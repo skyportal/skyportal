@@ -1,19 +1,19 @@
-import sqlalchemy as sa
 import datetime
+
+import sqlalchemy as sa
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...utils.offset import get_url
-
-from ..base import BaseHandler
 from ...models import Telescope, Weather
+from ...utils.offset import get_url
+from ..base import BaseHandler
 
 _, cfg = load_env()
 weather_refresh = cfg.get("weather.refresh_time")
 openweather_api_key = cfg.get("weather.openweather_api_key")
 
-default_prefs = {'telescopeID': 1}
+default_prefs = {"telescopeID": 1}
 
 
 class WeatherHandler(BaseHandler):
@@ -68,8 +68,8 @@ class WeatherHandler(BaseHandler):
                               description: Weather fetching error message
         """
         with self.Session() as session:
-            user_prefs = getattr(self.associated_user_object, 'preferences', None) or {}
-            weather_prefs = user_prefs.get('weather', {})
+            user_prefs = getattr(self.associated_user_object, "preferences", None) or {}
+            weather_prefs = user_prefs.get("weather", {})
             weather_prefs = {**default_prefs, **weather_prefs}
 
             try:
