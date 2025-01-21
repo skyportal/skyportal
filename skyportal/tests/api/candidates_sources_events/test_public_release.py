@@ -83,7 +83,7 @@ def test_create_release(
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400)
-    assert not data["message"] == error_validation_link_name
+    assert data["message"] != error_validation_link_name
     assert data["message"] == "Invalid groups"
 
     status, data = api(
@@ -103,7 +103,7 @@ def test_create_release(
     assert_api(status, data)
     release = next(r for r in data["data"] if r["id"] == release_id)
     assert release["is_visible"] is True
-    assert release["automatically_publish"] is False
+    assert release["auto_publish_enabled"] is False
     assert release["group_ids"] == [public_group.id]
 
     status, data = api(
@@ -188,7 +188,7 @@ def test_update_release(
     assert_api(status, data)
     release = next(r for r in data["data"] if r["id"] == release_id)
     assert release["is_visible"] is True
-    assert release["automatically_publish"] is False
+    assert release["auto_publish_enabled"] is False
 
     status, data = api(
         "PATCH",
@@ -197,7 +197,7 @@ def test_update_release(
             "name": "Name",
             "group_ids": [public_group.id],
             "is_visible": False,
-            "automatically_publish": True,
+            "auto_publish_enabled": True,
         },
         token=manage_sources_token,
     )
@@ -207,7 +207,7 @@ def test_update_release(
     assert_api(status, data)
     release = next(r for r in data["data"] if r["id"] == release_id)
     assert release["is_visible"] is False
-    assert release["automatically_publish"] is True
+    assert release["auto_publish_enabled"] is True
     assert release["link_name"] == link_name
 
     status, data = api(
@@ -225,11 +225,11 @@ def test_update_release(
     status, data = api("GET", "public_pages/release", token=manage_sources_token)
     assert_api(status, data)
     release = next(r for r in data["data"] if r["id"] == release_id)
-    assert not release["link_name"] == "new_link_name"
+    assert release["link_name"] != "new_link_name"
     assert release["link_name"] == link_name
 
 
-def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_update_source(
+def test_auto_publish_enabled_and_delete_sources_in_same_group_when_create_or_update_source(
     super_admin_token,
     view_only_token,
     upload_data_token,
@@ -238,7 +238,7 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_u
     public_group,
 ):
     link_name = str(uuid.uuid4())
-    # create a release with automatically_publish to false
+    # create a release with auto_publish_enabled to false
     status, data = api(
         "POST",
         "public_pages/release",
@@ -246,7 +246,7 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_u
             "name": "Name",
             "link_name": link_name,
             "group_ids": [public_group.id],
-            "automatically_publish": False,
+            "auto_publish_enabled": False,
         },
         token=manage_sources_token,
     )
@@ -278,14 +278,14 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_u
     assert_api(status, data)
     assert len(data["data"]) == 0
 
-    # update the release to automatically_publish to true
+    # update the release to auto_publish_enabled to true
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
         data={
             "name": "Name",
             "group_ids": [public_group.id],
-            "automatically_publish": True,
+            "auto_publish_enabled": True,
         },
         token=manage_sources_token,
     )
@@ -389,7 +389,7 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_u
     assert_api(status, data)
 
 
-def test_automatically_publish_and_delete_sources_in_same_group_when_update_source_with_photometry(
+def test_auto_publish_enabled_and_delete_sources_in_same_group_when_update_source_with_photometry(
     super_admin_token,
     view_only_token,
     upload_data_token,
@@ -398,7 +398,7 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_update_sour
     public_group,
 ):
     link_name = str(uuid.uuid4())
-    # create a release with automatically_publish to true
+    # create a release with auto_publish_enabled to true
     status, data = api(
         "POST",
         "public_pages/release",
@@ -406,7 +406,7 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_update_sour
             "name": "Name",
             "link_name": link_name,
             "group_ids": [public_group.id],
-            "automatically_publish": True,
+            "auto_publish_enabled": True,
         },
         token=manage_sources_token,
     )

@@ -41,7 +41,7 @@ class PublicRelease(Base):
         doc="Whether the public release is visible to the public",
     )
 
-    automatically_publish = sa.Column(
+    auto_publish_enabled = sa.Column(
         sa.Boolean,
         nullable=False,
         default=False,

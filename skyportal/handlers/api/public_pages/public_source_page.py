@@ -118,12 +118,12 @@ def async_post_public_source_page(options, source, release, user_id):
         post_public_source_page(options, source, release, True, session)
 
 
-def post_public_source_page(options, source, release, auto_publish, session):
+def post_public_source_page(options, source, release, is_auto_published, session):
     """Create a public page for a source.
     options: The options for managing data to display publicly.
     source: The source data to publish.
     release: The release where the public source page belongs.
-    auto_publish: Whether the page has been auto-published.
+    is_auto_published: Whether the page has been auto-published.
     session: The session used to interact with the database.
     """
     group_ids = options.get("groups")
@@ -176,7 +176,7 @@ def post_public_source_page(options, source, release, auto_publish, session):
         source_id=source_id,
         hash=new_page_hash,
         data=data_to_publish,
-        auto_publish=auto_publish,
+        is_auto_published=is_auto_published,
         is_visible=True,
         release_id=release.id if release is not None else None,
     )
@@ -215,7 +215,7 @@ def delete_auto_published_page(source_id, remaining_group_ids):
             .where(
                 not_(PublicRelease.groups.any(Group.id.in_(remaining_group_ids))),
                 PublicSourcePage.source_id == source_id,
-                PublicSourcePage.auto_publish,
+                PublicSourcePage.is_auto_published,
             )
         ).all()
 
@@ -314,7 +314,7 @@ class PublicSourcePageHandler(BaseHandler):
                     options=options,
                     source=source,
                     release=release,
-                    auto_publish=False,
+                    is_auto_published=False,
                     session=session,
                 )
                 return self.success(data={"id": public_source_page_id})
