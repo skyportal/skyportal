@@ -44,6 +44,11 @@ const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
         default: [],
         title: "Groups that can manage this release",
       },
+      auto_publish_enabled: {
+        type: "boolean",
+        title: "Automatically publish source in this group",
+        default: false,
+      },
       is_visible: {
         type: "boolean",
         title: "Visible",

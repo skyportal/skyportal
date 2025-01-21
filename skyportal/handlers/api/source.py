@@ -61,6 +61,7 @@ from ...models import (
     ObservingRun,
     PhotometricSeries,
     Photometry,
+    PublicRelease,
     Source,
     SourceLabel,
     SourceNotification,
@@ -937,6 +938,32 @@ def post_source(data, user_id, session, refresh_source=True):
                 )
                 break
 
+        # if there is releases with auto_publish_enabled and one of the source groups,
+        # a public page is published
+        releases = session.scalars(
+            PublicRelease.select(session.user_or_token).where(
+                PublicRelease.groups.any(id=group.id),
+                PublicRelease.auto_publish_enabled,
+            )
+        ).all()
+        if releases is not None and len(releases) > 0:
+            from .public_pages.public_source_page import async_post_public_source_page
+
+            dict_obj = obj.to_dict()
+            dict_obj["thumbnails"] = [
+                thumbnail.to_dict()
+                for thumbnail in session.scalars(
+                    sa.select(Thumbnail).where(Thumbnail.obj_id == obj.id)
+                ).all()
+            ]
+            for release in releases:
+                run_async(
+                    async_post_public_source_page,
+                    options=release.options,
+                    source=dict_obj,
+                    release=release,
+                    user_id=user.id,
+                )
     else:
         if refresh_source:
             flow = Flow()
