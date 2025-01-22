@@ -78,6 +78,7 @@ class ReleaseHandler(BaseHandler):
                     PublicSourcePage.is_visible,
                     PublicSourcePage.release_id == release.id,
                 )
+                .options(sa.orm.undefer(PublicSourcePage.data))
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
             versions_by_source = {}
