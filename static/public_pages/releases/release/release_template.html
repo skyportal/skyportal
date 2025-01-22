@@ -96,6 +96,7 @@
               {% if versions[0].data.get('photometry') %}
                 <div>
                   {{ versions[0].data['photometry'][0]['limiting_mag'] }}
+                  ({{ versions[0].data['photometry'][0]['filter'] }})
                 </div>
                 <div>
                   {{ versions[0].data['photometry'][0]['mjd'] }}
