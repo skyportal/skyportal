@@ -95,14 +95,17 @@
               </div>
               {% if versions[0].data.get('photometry') %}
                 <div>
+                  {{ versions[0].data['photometry'][0]['limiting_mag'] }}
+                </div>
+                <div>
+                  {{ versions[0].data['photometry'][0]['mjd'] }}
+                </div>
+              {% else %}
+                <div>
                   ...
                 </div>
                 <div>
                   ...
-                </div>
-              {% else %}
-                <div class="noPhotometry">
-                  no photometry
                 </div>
               {% end %}
               <div>
