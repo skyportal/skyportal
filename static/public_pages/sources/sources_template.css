@@ -71,10 +71,6 @@
           padding: 0 0.5rem;
         }
       }
-      a {
-        color: rgb(29, 53, 87);
-        text-decoration: none;
-      }
     }
     .versions {
       margin-bottom: 1rem;

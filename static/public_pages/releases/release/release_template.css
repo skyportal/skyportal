@@ -91,10 +91,6 @@ header {
           flex: 1;
         }
       }
-      a {
-        color: rgb(29, 53, 87);
-        text-decoration: none;
-      }
     }
     .versions {
       margin-bottom: 1rem;
