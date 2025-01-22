@@ -37,7 +37,7 @@ header {
       }
 
       .sourceAndTimeAgo {
-        flex: 3;
+        flex: 2;
         display: flex;
         flex-wrap: wrap;
         gap: 0.2rem 1rem;
@@ -87,8 +87,13 @@ header {
       .sourceInfo {
         flex: 4;
         display: flex;
+        align-items: center;
+        text-align: center;
         div {
           flex: 1;
+        }
+        .viewAllVersionsButton {
+          text-align: right;
         }
       }
     }

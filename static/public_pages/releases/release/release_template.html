@@ -70,10 +70,12 @@
               <div>
                 {{ versions[0].data.get('dec') }}
               </div>
+              <div class="viewAllVersionsButton">
+                <button type="button" onclick="displayVersions('{{ source_id }}')">
+                  view all...
+                </button>
+              </div>
             </div>
-            <button type="button" onclick="displayVersions('{{ source_id }}')">
-                view all...
-            </button>
           </div>
           <div
             class="versions"
