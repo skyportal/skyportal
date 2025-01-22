@@ -112,6 +112,9 @@ header {
         div {
           flex: 1;
         }
+        .noPhotometry {
+          flex: 2;
+        }
         .viewAllVersionsButton {
           text-align: right;
         }

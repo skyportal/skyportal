@@ -93,6 +93,21 @@
               <div>
                 {{ versions[0].data.get('dec') }}
               </div>
+              {% if versions[0].data.get('photometry') %}
+                <div>
+                  ...
+                </div>
+                <div>
+                  ...
+                </div>
+              {% else %}
+                <div class="noPhotometry">
+                  no photometry
+                </div>
+              {% end %}
+              <div>
+                ...
+              </div>
               <div class="viewAllVersionsButton">
                 <button type="button" onclick="displayVersions('{{ source_id }}')">
                   view all...
