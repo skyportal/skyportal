@@ -23,6 +23,26 @@ header {
     padding: 1.5rem;
   }
 
+  .sourceFields {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    padding: 1rem 1rem;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.4);
+    margin-bottom: 1rem;
+    .nameField {
+      flex: 2;
+    }
+    .infoFields {
+      flex: 4;
+      display: flex;
+      text-align: center;
+      div {
+        flex: 1;
+      }
+    }
+  }
+
   .sourceAndVersions {
     border-bottom: 1px solid lightgray;
     margin-bottom: 1rem;
