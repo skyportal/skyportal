@@ -37,6 +37,20 @@
       <div class="description">
         <p>{{ release.description }}</p>
       </div>
+      <div class="sourceFields">
+        <div class="nameField">
+          Source name
+        </div>
+        <div class="infoFields">
+          <div>
+            Ra
+          </div>
+          <div>
+            Dec
+          </div>
+          <div></div>
+        </div>
+      </div>
       {% for source_id, versions in versions_by_source.items() %}
         <div class="sourceAndVersions" id="{{ source_id }}">
           <div class="source">
