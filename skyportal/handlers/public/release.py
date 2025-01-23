@@ -2,7 +2,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import DBSession
 
-from ...models import PhotStat
+from ...models import PhotStat, Source
 from ...models.public_pages.public_release import PublicRelease
 from ...models.public_pages.public_source_page import PublicSourcePage
 from ..base import BaseHandler
@@ -73,6 +73,7 @@ class ReleaseHandler(BaseHandler):
             if release is None:
                 return self.error("Page not found", status=404)
 
+            # Get all versions of all sources for this release
             versions = session.scalars(
                 sa.select(PublicSourcePage)
                 .where(
@@ -82,13 +83,22 @@ class ReleaseHandler(BaseHandler):
                 .options(sa.orm.undefer(PublicSourcePage.data))
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
+
             versions_by_source = {}
             phot_stat_by_source = {}
+            saved_date_by_source = {}
             for version in versions:
                 if version.source_id not in versions_by_source:
-                    phot_stat_by_source[version.source_id] = session.scalars(
+                    # Get photometry statistics for the last version of each source
+                    phot_stat_by_source[version.source_id] = session.scalar(
                         sa.select(PhotStat).where(PhotStat.obj_id == version.source_id)
-                    ).first()
+                    )
+                    # Get the saved to group date for the last version of each source
+                    saved_date_by_source[version.source_id] = session.scalar(
+                        sa.select(Source.saved_at).where(
+                            Source.obj_id == version.source_id
+                        )
+                    )
                     versions_by_source[version.source_id] = []
                 versions_by_source[version.source_id].append(version)
 
@@ -97,4 +107,5 @@ class ReleaseHandler(BaseHandler):
                 release=release,
                 versions_by_source=versions_by_source,
                 phot_stat_by_source=phot_stat_by_source,
+                saved_date_by_source=saved_date_by_source,
             )

@@ -111,7 +111,7 @@
                 </div>
               {% end %}
               <div>
-                ...
+                {{ saved_date_by_source[source_id].strftime('%m/%d/%Y %H:%M:%S') }} UTC
               </div>
               <div class="viewAllVersionsButton">
                 <button type="button" onclick="displayVersions('{{ source_id }}')">
