@@ -2,6 +2,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import DBSession
 
+from ...models import PhotStat
 from ...models.public_pages.public_release import PublicRelease
 from ...models.public_pages.public_source_page import PublicSourcePage
 from ..base import BaseHandler
@@ -82,8 +83,12 @@ class ReleaseHandler(BaseHandler):
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
             versions_by_source = {}
+            phot_stat_by_source = {}
             for version in versions:
                 if version.source_id not in versions_by_source:
+                    phot_stat_by_source[version.source_id] = session.scalars(
+                        sa.select(PhotStat).where(PhotStat.obj_id == version.source_id)
+                    ).first()
                     versions_by_source[version.source_id] = []
                 versions_by_source[version.source_id].append(version)
 
@@ -91,4 +96,5 @@ class ReleaseHandler(BaseHandler):
                 "public_pages/releases/release/release_template.html",
                 release=release,
                 versions_by_source=versions_by_source,
+                phot_stat_by_source=phot_stat_by_source,
             )

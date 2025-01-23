@@ -93,13 +93,14 @@
               <div>
                 {{ versions[0].data.get('dec') }}
               </div>
-              {% if versions[0].data.get('photometry') %}
+              {% if versions[0].data.get('photometry') and source_id in phot_stat_by_source %}
                 <div>
-                  {{ versions[0].data['photometry'][0]['limiting_mag'] }}
-                  ({{ versions[0].data['photometry'][0]['filter'] }})
+                  {% for filter in phot_stat_by_source[source_id].peak_mag_per_filter %}
+                    {{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})<br>
+                  {% end %}
                 </div>
                 <div>
-                  {{ versions[0].data['photometry'][0]['mjd'] }}
+                  {{ "{:.4f}".format(phot_stat_by_source[source_id].first_detected_mjd) }}
                 </div>
               {% else %}
                 <div>
