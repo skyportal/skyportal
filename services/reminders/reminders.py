@@ -24,9 +24,11 @@ init_db(**cfg["database"])
 
 log = make_log("reminders")
 
+MAX_SLEEP = cfg.get("misc", {}).get("max_seconds_to_sleep_reminders_service", 60)
+
 
 def send_reminders():
-    sleep_time = 60
+    sleep_time = MAX_SLEEP
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     reminders = []
     with DBSession() as session:
@@ -126,17 +128,11 @@ def send_reminders():
 
         if len(next_reminders) > 0:
             next_reminder = min(next_reminders, key=lambda x: x.next_reminder)
-            dt = (
-                next_reminder.next_reminder
-                - datetime.now(timezone.utc).replace(tzinfo=None)
-            ).total_seconds()
-            if dt < 0:
-                dt = 0
-            elif dt < sleep_time:
+            dt = (next_reminder.next_reminder - now).total_seconds()
+            if dt < sleep_time:
                 sleep_time = dt
 
-    if sleep_time > 0:
-        time.sleep(sleep_time)
+    time.sleep(sleep_time)
 
 
 @check_loaded(logger=log)

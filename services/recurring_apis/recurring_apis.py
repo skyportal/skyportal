@@ -7,12 +7,7 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.models import (
-    DBSession,
-    RecurringAPI,
-    User,
-    UserNotification,
-)
+from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
 from skyportal.utils.services import HOST, check_loaded
 
@@ -22,11 +17,12 @@ init_db(**cfg["database"])
 
 log = make_log("recurring_apis")
 
+MAX_SLEEP = cfg.get("misc", {}).get("max_seconds_to_sleep_recurring_apis_service", 60)
 MAX_RETRIES = 10
 
 
 def perform_api_calls():
-    sleep_time = 60
+    sleep_time = MAX_SLEEP
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     with DBSession() as session:
         try:
@@ -107,17 +103,11 @@ def perform_api_calls():
             .limit(1)
         ).first()
         if next_recurring_api is not None:
-            dt = (
-                next_recurring_api.next_call
-                - datetime.now(timezone.utc).replace(tzinfo=None)
-            ).total_seconds()
-            if dt < 0:
-                dt = 0
-            elif dt < sleep_time:
+            dt = (next_recurring_api.next_call - now).total_seconds()
+            if dt < sleep_time:
                 sleep_time = dt
 
-    if sleep_time > 0:
-        time.sleep(sleep_time)
+    time.sleep(sleep_time)
 
 
 @check_loaded(logger=log)
