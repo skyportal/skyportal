@@ -48,7 +48,7 @@ def post_and_verify_reminder(endpoint, token):
     )
 
     n_retries = 0
-    while n_retries < 30:
+    while n_retries < 5:
         status, data = api(
             "GET",
             endpoint,
