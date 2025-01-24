@@ -38,7 +38,7 @@ const UpdateSourceT0 = ({ source }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (clear = false) => {
+  const handleSubmit = async (clear) => {
     setIsSubmitting(true);
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
@@ -47,6 +47,9 @@ const UpdateSourceT0 = ({ source }) => {
     );
     setIsSubmitting(false);
     if (result.status === "success") {
+      if (clear) {
+        setT0("");
+      }
       dispatch(showNotification("Source t0 successfully updated."));
       setDialogOpen(false);
     }
@@ -89,7 +92,7 @@ const UpdateSourceT0 = ({ source }) => {
           <div className={classes.saveButton}>
             <Button
               secondary
-              onClick={handleSubmit}
+              onClick={() => handleSubmit(false)}
               endIcon={<SaveIcon />}
               size="large"
               data-testid="updateT0SubmitButton"
