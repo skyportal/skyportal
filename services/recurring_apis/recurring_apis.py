@@ -104,8 +104,7 @@ def perform_api_calls():
         ).first()
         if next_recurring_api is not None:
             dt = (next_recurring_api.next_call - now).total_seconds()
-            if dt < sleep_time:
-                sleep_time = dt
+            sleep_time = min(sleep_time, dt)
 
     time.sleep(sleep_time)
 

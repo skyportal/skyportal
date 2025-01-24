@@ -129,8 +129,7 @@ def send_reminders():
         if len(next_reminders) > 0:
             next_reminder = min(next_reminders, key=lambda x: x.next_reminder)
             dt = (next_reminder.next_reminder - now).total_seconds()
-            if dt < sleep_time:
-                sleep_time = dt
+            sleep_time = min(sleep_time, dt)
 
     time.sleep(sleep_time)
 
