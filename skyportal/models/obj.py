@@ -205,6 +205,7 @@ class Obj(Base, conesearch_alchemy.Point):
     offset = sa.Column(
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
+    t0 = sa.Column(sa.Float, nullable=True, index=True, doc="Time of first detection.")
     redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_origin = sa.Column(sa.String, nullable=True, doc="Redshift source.")
