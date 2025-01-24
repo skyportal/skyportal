@@ -45,7 +45,7 @@ def test_candidate_group_filtering(
         data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
         token=super_admin_token,
     )
-    new_group_id = data['data']['id']
+    new_group_id = data["data"]["id"]
     assert status == 200
 
     driver.get(f"/become_user/{user.id}")
@@ -365,30 +365,30 @@ def test_candidate_classifications_filtering(
     )
     assert status == 200
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
+    taxonomy_id = data["data"]["taxonomy_id"]
 
     status, data = api(
-        'POST',
-        'classification',
+        "POST",
+        "classification",
         data={
-            'obj_id': candidate_id,
-            'classification': 'Algol',
-            'taxonomy_id': taxonomy_id,
-            'probability': 1.0,
-            'group_ids': [public_group.id],
+            "obj_id": candidate_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
         },
         token=classification_token,
     )
@@ -543,13 +543,13 @@ def test_add_scanning_profile(
 ):
     # Post an annotation to the test source, to test setting annotation sorting
     status, _ = api(
-        'POST',
-        f'sources/{public_source.id}/annotations',
+        "POST",
+        f"sources/{public_source.id}/annotations",
         data={
-            'obj_id': public_source.id,
-            'origin': 'kowalski',
-            'data': {'offset_from_host_galaxy': 1.5},
-            'group_ids': [public_group.id],
+            "obj_id": public_source.id,
+            "origin": "kowalski",
+            "data": {"offset_from_host_galaxy": 1.5},
+            "group_ids": [public_group.id],
         },
         token=annotation_token,
     )

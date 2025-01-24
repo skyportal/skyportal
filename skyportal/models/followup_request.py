@@ -1,46 +1,45 @@
 __all__ = [
-    'DefaultFollowupRequest',
-    'FollowupRequest',
-    'FollowupRequestTargetGroup',
-    'FollowupRequestUser',
+    "DefaultFollowupRequest",
+    "FollowupRequest",
+    "FollowupRequestTargetGroup",
+    "FollowupRequestUser",
 ]
 
-from astropy import coordinates as ap_coord
-from astropy import time as ap_time
-from astropy import units as u
 import operator  # noqa: F401
 
 import sqlalchemy as sa
-from sqlalchemy import event, inspect, func
-from sqlalchemy.orm import relationship
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+from sqlalchemy import event, func, inspect
 from sqlalchemy.dialects import postgresql as psql
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import cast
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
-    Base,
-    DBSession,
-    join_model,
-    User,
-    public,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    Base,
     CustomUserAccessControl,
+    DBSession,
+    User,
+    join_model,
+    public,
 )
+from baselayer.log import make_log
 
-from .group import Group
-from .instrument import Instrument
 from .allocation import Allocation
 from .classification import Classification
+from .group import Group
+from .instrument import Instrument
 from .source import Source
-
-from baselayer.app.env import load_env
-from baselayer.log import make_log
 
 _, cfg = load_env()
 
-log = make_log('model/followup_request')
+log = make_log("model/followup_request")
 
-EQ_OP = getattr(operator, 'eq')
+EQ_OP = getattr(operator, "eq")
 
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
@@ -80,14 +79,14 @@ class DefaultFollowupRequest(Base):
     create = read = AccessibleIfRelatedRowsAreAccessible(allocation="read")
     update = delete = (
         (
-            AccessibleIfUserMatches('allocation.group.users')
-            | AccessibleIfUserMatches('requester')
+            AccessibleIfUserMatches("allocation.group.users")
+            | AccessibleIfUserMatches("requester")
         )
         & read
     ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
 
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         doc="ID of the User who requested the default follow-up.",
@@ -95,7 +94,7 @@ class DefaultFollowupRequest(Base):
 
     requester = relationship(
         User,
-        back_populates='default_followup_requests',
+        back_populates="default_followup_requests",
         doc="The User who requested the default follow-up.",
         foreign_keys=[requester_id],
     )
@@ -107,20 +106,20 @@ class DefaultFollowupRequest(Base):
     )
 
     allocation_id = sa.Column(
-        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey("allocations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    allocation = relationship('Allocation', back_populates='default_requests')
+    allocation = relationship("Allocation", back_populates="default_requests")
 
     target_groups = relationship(
-        'Group',
-        secondary='default_followup_groups',
+        "Group",
+        secondary="default_followup_groups",
         passive_deletes=True,
-        doc='Groups to share the resulting data from this default followup request with.',
-        overlaps='groups',
+        doc="Groups to share the resulting data from this default followup request with.",
+        overlaps="groups",
     )
 
     default_followup_name = sa.Column(
-        sa.String, unique=True, nullable=False, doc='Default followup name'
+        sa.String, unique=True, nullable=False, doc="Default followup name"
     )
 
     source_filter = sa.Column(
@@ -131,16 +130,16 @@ class DefaultFollowupRequest(Base):
 
 
 DefaultFollowupRequestTargetGroup = join_model(
-    'default_followup_groups',
+    "default_followup_groups",
     DefaultFollowupRequest,
     Group,
-    new_name='DefaultFollowupRequestTargetGroup',
-    overlaps='target_groups',
+    new_name="DefaultFollowupRequestTargetGroup",
+    overlaps="target_groups",
 )
-DefaultFollowupRequestTargetGroup.create = (
-    DefaultFollowupRequestTargetGroup.update
-) = DefaultFollowupRequestTargetGroup.delete = (
-    AccessibleIfUserMatches('defaultfollowuprequest.requester')
+DefaultFollowupRequestTargetGroup.create = DefaultFollowupRequestTargetGroup.update = (
+    DefaultFollowupRequestTargetGroup.delete
+) = (
+    AccessibleIfUserMatches("defaultfollowuprequest.requester")
     & DefaultFollowupRequestTargetGroup.read
 )
 
@@ -153,14 +152,14 @@ class FollowupRequest(Base):
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
     update = delete = (
         (
-            AccessibleIfUserMatches('allocation.group.users')
-            | AccessibleIfUserMatches('requester')
+            AccessibleIfUserMatches("allocation.group.users")
+            | AccessibleIfUserMatches("requester")
         )
         & read
     ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
 
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         doc="ID of the User who requested the follow-up.",
@@ -168,13 +167,13 @@ class FollowupRequest(Base):
 
     requester = relationship(
         User,
-        back_populates='followup_requests',
+        back_populates="followup_requests",
         doc="The User who requested the follow-up.",
         foreign_keys=[requester_id],
     )
 
     last_modified_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         doc="The ID of the User who last modified the request.",
     )
@@ -185,9 +184,9 @@ class FollowupRequest(Base):
         foreign_keys=[last_modified_by_id],
     )
 
-    obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
+    obj = relationship("Obj", back_populates="followup_requests", doc="The target Obj.")
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the target Obj.",
@@ -206,7 +205,7 @@ class FollowupRequest(Base):
     )
 
     allocation_id = sa.Column(
-        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey("allocations.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     comment = sa.Column(
@@ -215,43 +214,43 @@ class FollowupRequest(Base):
         doc="Comment on the follow-up request.",
     )
 
-    allocation = relationship('Allocation', back_populates='requests')
+    allocation = relationship("Allocation", back_populates="requests")
 
     transactions = relationship(
-        'FacilityTransaction',
-        back_populates='followup_request',
+        "FacilityTransaction",
+        back_populates="followup_request",
         passive_deletes=True,
         order_by="FacilityTransaction.created_at.desc()",
     )
 
     transaction_requests = relationship(
-        'FacilityTransactionRequest',
-        back_populates='followup_request',
+        "FacilityTransactionRequest",
+        back_populates="followup_request",
         passive_deletes=True,
         order_by="FacilityTransactionRequest.created_at.desc()",
     )
 
     target_groups = relationship(
-        'Group',
-        secondary='request_groups',
+        "Group",
+        secondary="request_groups",
         passive_deletes=True,
-        doc='Groups to share the resulting data from this request with.',
-        overlaps='groups',
+        doc="Groups to share the resulting data from this request with.",
+        overlaps="groups",
     )
 
-    photometry = relationship('Photometry', back_populates='followup_request')
+    photometry = relationship("Photometry", back_populates="followup_request")
     photometric_series = relationship(
-        'PhotometricSeries', back_populates='followup_request'
+        "PhotometricSeries", back_populates="followup_request"
     )
-    spectra = relationship('Spectrum', back_populates='followup_request')
+    spectra = relationship("Spectrum", back_populates="followup_request")
 
     watchers = relationship(
-        'FollowupRequestUser',
-        back_populates='followuprequest',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "FollowupRequestUser",
+        back_populates="followuprequest",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Elements of a join table mapping Users to FollowupRequestss.',
-        overlaps='followup_requests, users',
+        doc="Elements of a join table mapping Users to FollowupRequestss.",
+        overlaps="followup_requests, users",
     )
 
     @property
@@ -271,10 +270,10 @@ class FollowupRequest(Base):
             ap_time.Time.now()
         ).reshape((1,))
 
-        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit='deg')
+        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit="deg")
 
         next_rise = observer.target_rise_time(
-            sunset, coord, which='next', horizon=altitude
+            sunset, coord, which="next", horizon=altitude
         )
 
         # if next rise time is after next sunrise, the target rises before
@@ -284,7 +283,7 @@ class FollowupRequest(Base):
         recalc = next_rise > sunrise
         if recalc.any():
             next_rise = observer.target_rise_time(
-                sunset, coord, which='previous', horizon=altitude
+                sunset, coord, which="previous", horizon=altitude
             )
 
         return next_rise
@@ -296,31 +295,31 @@ class FollowupRequest(Base):
             return None
 
         sunset = self.allocation.instrument.telescope.next_sunset(ap_time.Time.now())
-        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit='deg')
-        return observer.target_set_time(sunset, coord, which='next', horizon=altitude)
+        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit="deg")
+        return observer.target_set_time(sunset, coord, which="next", horizon=altitude)
 
 
 FollowupRequestTargetGroup = join_model(
-    'request_groups', FollowupRequest, Group, overlaps='target_groups'
+    "request_groups", FollowupRequest, Group, overlaps="target_groups"
 )
-FollowupRequestTargetGroup.create = (
-    FollowupRequestTargetGroup.update
-) = FollowupRequestTargetGroup.delete = (
-    AccessibleIfUserMatches('followuprequest.requester')
+FollowupRequestTargetGroup.create = FollowupRequestTargetGroup.update = (
+    FollowupRequestTargetGroup.delete
+) = (
+    AccessibleIfUserMatches("followuprequest.requester")
     & FollowupRequestTargetGroup.read
 )
 
 
-FollowupRequestUser = join_model('followup_request_users', FollowupRequest, User)
+FollowupRequestUser = join_model("followup_request_users", FollowupRequest, User)
 FollowupRequestUser.__doc__ = "Join table mapping `FollowupRequest`s to `User`s."
 FollowupRequestUser.create = FollowupRequestUser.read
 FollowupRequestUser.update = FollowupRequestUser.delete = AccessibleIfUserMatches(
-    'user'
+    "user"
 )
 
 
-@event.listens_for(Source, 'after_insert')
-@event.listens_for(Classification, 'after_insert')
+@event.listens_for(Source, "after_insert")
+@event.listens_for(Classification, "after_insert")
 def add_followup(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_flush", once=True)
@@ -332,50 +331,50 @@ def add_followup(mapper, connection, target):
         target_class_name = target.__class__.__name__
         obj_origin = None
         try:
-            obj_origin = target.obj.origin if target_class_name == 'GroupObj' else None
+            obj_origin = target.obj.origin if target_class_name == "GroupObj" else None
         except Exception:
             pass
-        target_data = {**target.to_dict(), 'obj_origin': obj_origin}
+        target_data = {**target.to_dict(), "obj_origin": obj_origin}
 
         requests_query = sa.select(DefaultFollowupRequest)
 
         # GroupObj is the classname for the Source table,
         # since it's a join table between Obj and Group
-        if target_class_name == 'GroupObj':
+        if target_class_name == "GroupObj":
             # match by obj id/name
             # match by group id of the source
             requests_query = requests_query.where(
-                DefaultFollowupRequest.source_filter['name'].astext.isnot(None),
+                DefaultFollowupRequest.source_filter["name"].astext.isnot(None),
                 func.regexp_match(
-                    target_data['obj_id'],
-                    DefaultFollowupRequest.source_filter['name'].astext,
+                    target_data["obj_id"],
+                    DefaultFollowupRequest.source_filter["name"].astext,
                 ).isnot(None),
                 EQ_OP(
-                    DefaultFollowupRequest.source_filter['group_id'],
-                    cast(target_data['group_id'], psql.JSONB),
+                    DefaultFollowupRequest.source_filter["group_id"],
+                    cast(target_data["group_id"], psql.JSONB),
                 ),
             )
             # match by the object's origin, if an origin is provided in the DefaultFollowupRequest
             requests_query = requests_query.where(
                 sa.or_(
-                    DefaultFollowupRequest.source_filter['origin'].is_(None),
+                    DefaultFollowupRequest.source_filter["origin"].is_(None),
                     EQ_OP(
-                        DefaultFollowupRequest.source_filter['origin'],
-                        cast(target_data['obj_origin'], psql.JSONB),
+                        DefaultFollowupRequest.source_filter["origin"],
+                        cast(target_data["obj_origin"], psql.JSONB),
                     ),
                 )
             )
-            user_id = target_data.get('saved_by_id', None)
-        if target_class_name == 'Classification':
+            user_id = target_data.get("saved_by_id", None)
+        if target_class_name == "Classification":
             # match by classification
             requests_query = requests_query.where(
                 EQ_OP(
-                    DefaultFollowupRequest.source_filter['classification'],
-                    cast(target_data['classification'], psql.JSONB),
+                    DefaultFollowupRequest.source_filter["classification"],
+                    cast(target_data["classification"], psql.JSONB),
                 )
             )
-            user_id = target_data.get('author_id', None)
-        elif target_class_name not in ['Source', 'GroupObj']:
+            user_id = target_data.get("author_id", None)
+        elif target_class_name not in ["Source", "GroupObj"]:
             print(f"Unknown target class name: {target_class_name}")
             return
 
@@ -384,14 +383,14 @@ def add_followup(mapper, connection, target):
         if len(default_followup_requests) == 0:
             return
 
-        from skyportal.utils.asynchronous import run_async
         from skyportal.handlers.api.followup_request import (
             post_default_followup_requests,
         )
+        from skyportal.utils.asynchronous import run_async
 
         run_async(
             post_default_followup_requests,
-            target_data['obj_id'],
+            target_data["obj_id"],
             default_followup_requests,
             user_id,
         )

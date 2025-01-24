@@ -1,6 +1,6 @@
 import uuid
-import pytest
 
+import pytest
 from selenium.common.exceptions import TimeoutException
 
 

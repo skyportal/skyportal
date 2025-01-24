@@ -1,18 +1,19 @@
 import sqlalchemy as sa
 from sqlalchemy import func
 
-from ..base import BaseHandler
+from baselayer.app.access import permissions
+
 from ...models import (
     Comment,
 )
-from baselayer.app.access import permissions
+from ..base import BaseHandler
 
 DEFAULT_COMMENTS_PER_PAGE = 100
 MAX_COMMENTS_PER_PAGE = 500
 
 
 class CommentAttachmentUpdateHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def get(self):
         """
         ---
@@ -53,12 +54,12 @@ class CommentAttachmentUpdateHandler(BaseHandler):
             total_with = session.execute(count_stmt).scalar()
 
         results = {
-            'totalWithoutAttachmentBytes': total_missing,
-            'totalWithAttachmentBytes': total_with,
+            "totalWithoutAttachmentBytes": total_missing,
+            "totalWithAttachmentBytes": total_with,
         }
         return self.success(data=results)
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def post(self):
         """
         ---
@@ -105,15 +106,15 @@ class CommentAttachmentUpdateHandler(BaseHandler):
         """
 
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             num_per_page = min(
                 int(self.get_query_argument("numPerPage", DEFAULT_COMMENTS_PER_PAGE)),
                 MAX_COMMENTS_PER_PAGE,
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({num_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({num_per_page}) as an integers."
             )
 
         with self.Session() as session:
@@ -135,12 +136,12 @@ class CommentAttachmentUpdateHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(
-                    f'Error updating comments with attachment_bytes: {str(e)}'
+                    f"Error updating comments with attachment_bytes: {str(e)}"
                 )
 
         results = {
-            'totalMatches': total_matches,
-            'numPerPage': num_per_page,
-            'pageNumber': page_number,
+            "totalMatches": total_matches,
+            "numPerPage": num_per_page,
+            "pageNumber": page_number,
         }
         return self.success(data=results)

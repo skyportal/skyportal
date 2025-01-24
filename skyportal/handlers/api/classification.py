@@ -1,21 +1,22 @@
 import arrow
 import sqlalchemy as sa
-from sqlalchemy import func
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from sqlalchemy import func
+
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
-from ..base import BaseHandler
 from ...models import (
-    Group,
     Classification,
     ClassificationVote,
+    Group,
+    Obj,
     SourceLabel,
     Taxonomy,
-    Obj,
     User,
 )
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -34,12 +35,18 @@ def post_classification(data, user_id, session):
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
-    obj_id = data['obj_id']
+    obj_id = data["obj_id"]
+
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
+    if obj is None:
+        raise ValueError(f"Cannot find object with ID {obj_id}.")
 
     group_ids = data.pop("group_ids", [])
     if not isinstance(group_ids, list) or len(group_ids) == 0:
         public_group = session.scalar(
-            sa.select(Group.id).where(Group.name == cfg['misc.public_group_name'])
+            sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
         )
         if public_group is None:
             raise ValueError(
@@ -47,9 +54,9 @@ def post_classification(data, user_id, session):
             )
         group_ids = [public_group]
 
-    origin = data.get('origin')
+    origin = data.get("origin")
 
-    ml = data.get('ml', False)
+    ml = data.get("ml", False)
     if ml in [True, "True", "t", "true"]:
         ml = True
     elif ml in [False, "False", "f", "false"]:
@@ -65,7 +72,7 @@ def post_classification(data, user_id, session):
         Taxonomy.select(session.user_or_token).where(Taxonomy.id == taxonomy_id)
     ).first()
     if taxonomy is None:
-        raise ValueError(f'Cannot find a taxonomy with ID: {taxonomy_id}.')
+        raise ValueError(f"Cannot find a taxonomy with ID: {taxonomy_id}.")
 
     def allowed_classes(hierarchy):
         if "class" in hierarchy:
@@ -75,14 +82,14 @@ def post_classification(data, user_id, session):
             for item in hierarchy.get("subclasses", []):
                 yield from allowed_classes(item)
 
-    if data['classification'] not in allowed_classes(taxonomy.hierarchy):
+    if data["classification"] not in allowed_classes(taxonomy.hierarchy):
         raise ValueError(
             f"That classification ({data['classification']}) "
-            'is not in the allowed classes for the chosen '
-            f'taxonomy (id={taxonomy_id}'
+            "is not in the allowed classes for the chosen "
+            f"taxonomy (id={taxonomy_id}"
         )
 
-    probability = data.get('probability')
+    probability = data.get("probability")
     if probability is not None:
         if probability < 0 or probability > 1:
             raise ValueError(
@@ -92,10 +99,10 @@ def post_classification(data, user_id, session):
 
     groups = session.scalars(Group.select(user).where(Group.id.in_(group_ids))).all()
     if {g.id for g in groups} != set(group_ids):
-        raise ValueError(f'Cannot find one or more groups with IDs: {group_ids}.')
+        raise ValueError(f"Cannot find one or more groups with IDs: {group_ids}.")
 
     classification = Classification(
-        classification=data['classification'],
+        classification=data["classification"],
         obj_id=obj_id,
         origin=origin,
         probability=probability,
@@ -109,8 +116,8 @@ def post_classification(data, user_id, session):
 
     # voting
     add_vote = True
-    if 'vote' in data:
-        if data['vote'] is False:
+    if "vote" in data:
+        if data["vote"] is False:
             add_vote = False
 
     if add_vote:
@@ -121,8 +128,8 @@ def post_classification(data, user_id, session):
 
     # labelling
     add_label = True
-    if 'label' in data:
-        if data['label'] is False:
+    if "label" in data:
+        if data["label"] is False:
             add_label = False
 
     if add_label:
@@ -145,9 +152,9 @@ def post_classification(data, user_id, session):
 
     flow = Flow()
     flow.push(
-        '*',
-        'skyportal/REFRESH_SOURCE',
-        payload={'obj_key': classification.obj.internal_key},
+        "*",
+        "skyportal/REFRESH_SOURCE",
+        payload={"obj_key": classification.obj.internal_key},
     )
     # flow.push(
     #    '*',
@@ -258,7 +265,7 @@ class ClassificationHandler(BaseHandler):
         """
 
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             n_per_page = min(
                 int(
                     self.get_query_argument(
@@ -269,13 +276,13 @@ class ClassificationHandler(BaseHandler):
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({n_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({n_per_page}) as an integers."
             )
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
-        include_taxonomy = self.get_query_argument('includeTaxonomy', False)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        include_taxonomy = self.get_query_argument("includeTaxonomy", False)
 
         with self.Session() as session:
             if classification_id is not None:
@@ -286,11 +293,11 @@ class ClassificationHandler(BaseHandler):
                 ).first()
                 if classification is None:
                     return self.error(
-                        f'Cannot find classification with ID: {classification_id}.'
+                        f"Cannot find classification with ID: {classification_id}."
                     )
                 data_out = classification.to_dict()
                 if include_taxonomy:
-                    data_out['taxonomy'] = classification.taxonomy.to_dict()
+                    data_out["taxonomy"] = classification.taxonomy.to_dict()
                 return self.success(data=data_out)
 
             # get owned
@@ -318,7 +325,7 @@ class ClassificationHandler(BaseHandler):
             for classification in classifications:
                 req = classification.to_dict()
                 if include_taxonomy:
-                    req['taxonomy'] = req.taxonomy.to_dict()
+                    req["taxonomy"] = req.taxonomy.to_dict()
                 data_out.append(req)
 
             info = {}
@@ -326,7 +333,7 @@ class ClassificationHandler(BaseHandler):
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 
-    @permissions(['Classify'])
+    @permissions(["Classify"])
     def post(self):
         """
         ---
@@ -401,27 +408,27 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            if 'classifications' in data:
+            if "classifications" in data:
                 classification_ids = []
-                for classification in data['classifications']:
+                for classification in data["classifications"]:
                     try:
                         classification_id = post_classification(
                             classification, self.associated_user_object.id, session
                         )
                     except Exception as e:
-                        return self.error(f'Error posting classification: {str(e)}')
+                        return self.error(f"Error posting classification: {str(e)}")
                     classification_ids.append(classification_id)
-                return self.success(data={'classification_ids': classification_ids})
+                return self.success(data={"classification_ids": classification_ids})
             else:
                 try:
                     classification_id = post_classification(
                         data, self.associated_user_object.id, session
                     )
                 except Exception as e:
-                    return self.error(f'Error posting classification: {str(e)}')
+                    return self.error(f"Error posting classification: {str(e)}")
                 return self.success(data={"classification_id": classification_id})
 
-    @permissions(['Classify'])
+    @permissions(["Classify"])
     def put(self, classification_id):
         """
         ---
@@ -469,14 +476,14 @@ class ClassificationHandler(BaseHandler):
             ).first()
             if c is None:
                 return self.error(
-                    f'Cannot find a classification with ID: {classification_id}.'
+                    f"Cannot find a classification with ID: {classification_id}."
                 )
 
             data = self.get_json()
             group_ids = data.pop("group_ids", None)
-            data['id'] = classification_id
+            data["id"] = classification_id
 
-            ml = data.get('ml', False)
+            ml = data.get("ml", False)
             if ml in [True, "True", "t", "true"]:
                 ml = True
             elif ml in [False, "False", "f", "false"]:
@@ -485,14 +492,14 @@ class ClassificationHandler(BaseHandler):
                 raise ValueError(
                     f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
                 )
-            data['ml'] = ml
+            data["ml"] = ml
 
             schema = Classification.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
@@ -504,23 +511,23 @@ class ClassificationHandler(BaseHandler):
                 ).all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 c.groups = groups
 
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': c.obj.internal_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": c.obj.internal_key},
             )
             self.push_all(
-                action='skyportal/REFRESH_CANDIDATE',
-                payload={'id': c.obj.internal_key},
+                action="skyportal/REFRESH_CANDIDATE",
+                payload={"id": c.obj.internal_key},
             )
             return self.success()
 
-    @permissions(['Classify'])
+    @permissions(["Classify"])
     def delete(self, classification_id):
         """
         ---
@@ -560,11 +567,11 @@ class ClassificationHandler(BaseHandler):
             ).first()
             if c is None:
                 return self.error(
-                    f'Cannot find a classification with ID: {classification_id}.'
+                    f"Cannot find a classification with ID: {classification_id}."
                 )
 
             data = self.get_json()
-            add_label = data.get('label', True)
+            add_label = data.get("label", True)
 
             obj_key = c.obj.internal_key
             obj_id = c.obj.id
@@ -590,12 +597,12 @@ class ClassificationHandler(BaseHandler):
                         session.add(label)
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_key},
             )
             self.push_all(
-                action='skyportal/REFRESH_CANDIDATE',
-                payload={'id': obj_key},
+                action="skyportal/REFRESH_CANDIDATE",
+                payload={"id": obj_key},
             )
 
             session.commit()
@@ -644,7 +651,7 @@ class ObjClassificationHandler(BaseHandler):
             classifications_json = []
             for classification in classifications:
                 classification_dict = classification.to_dict()
-                classification_dict['votes'] = [
+                classification_dict["votes"] = [
                     v.to_dict() for v in classification.votes
                 ]
                 classifications_json.append(classification_dict)
@@ -696,7 +703,7 @@ class ObjClassificationHandler(BaseHandler):
             )
 
             data = self.get_json()
-            add_label = data.get('label', True)
+            add_label = data.get("label", True)
 
             for c in classifications:
                 obj_key = c.obj.internal_key
@@ -726,12 +733,12 @@ class ObjClassificationHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_key},
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_key},
             )
             self.push_all(
-                action='skyportal/REFRESH_CANDIDATE',
-                payload={'id': obj_key},
+                action="skyportal/REFRESH_CANDIDATE",
+                payload={"id": obj_key},
             )
 
             return self.success()
@@ -784,8 +791,8 @@ class ObjClassificationQueryHandler(BaseHandler):
                   schema: Error
         """
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
 
         with self.Session() as session:
             # get owned

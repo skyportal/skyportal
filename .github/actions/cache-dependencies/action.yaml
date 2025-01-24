@@ -1,0 +1,45 @@
+name: Reusable Cache Workflow
+inputs:
+  key-prefix:
+    description: Cache key prefix
+    default: "pr"
+
+on:
+  workflow_call:
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+        restore-keys: |
+          ${{ inputs.key-prefix }}-${{ runner.os }}-npm-
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ inputs.key-prefix }}-${{ runner.os }}-pip-
+
+    # caching dustmap & sncosmo files is dependent on their corresponding
+    # python package versions, so we use that as the cache key
+    - uses: actions/cache@v4
+      with:
+        path: |
+          persistentdata/dustmap/sfd
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.astropy/cache/sncosmo/bandpasses
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-

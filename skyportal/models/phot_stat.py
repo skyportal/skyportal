@@ -1,29 +1,27 @@
-__all__ = ['PhotStat']
+__all__ = ["PhotStat"]
 
-import json
 import bisect
 import copy
+import json
+from datetime import datetime
+
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import event
-
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 # see this: https://amercader.net/blog/beware-of-json-fields-in-sqlalchemy/
 from sqlalchemy.ext.mutable import MutableDict
-
-from datetime import datetime
+from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
-    DBSession,
     Base,
+    DBSession,
     public,
     restricted,
 )
-
-from skyportal.models.photometry import Photometry, PHOT_ZP
+from skyportal.models.photometry import PHOT_ZP, Photometry
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -86,41 +84,41 @@ class PhotStat(Base):
         sa.DateTime,
         nullable=True,
         index=True,
-        doc='Time when this PhotStat entry underwent an update '
-        'using the most recent photometry point or all points '
-        'in a full update. ',
+        doc="Time when this PhotStat entry underwent an update "
+        "using the most recent photometry point or all points "
+        "in a full update. ",
     )
 
     last_full_update = sa.Column(
         sa.DateTime,
         nullable=True,
         index=True,
-        doc='Time when this PhotStat entry underwent a full update '
-        '(looking at all photometry points of this object). ',
+        doc="Time when this PhotStat entry underwent a full update "
+        "(looking at all photometry points of this object). ",
     )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the PhotStat's Obj.",
     )
-    obj = relationship('Obj', back_populates='photstats', doc="The PhotStat's Obj. ")
+    obj = relationship("Obj", back_populates="photstats", doc="The PhotStat's Obj. ")
 
     num_obs_global = sa.Column(
         sa.Integer,
         nullable=False,
         default=0,
         index=True,
-        doc='Number of observations taken of this object in all filters combined. ',
+        doc="Number of observations taken of this object in all filters combined. ",
     )
 
     num_obs_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Number of observations taken of this object in each filter. '
-        'Will be None if no photometry points have been added to this object. ',
+        doc="Number of observations taken of this object in each filter. "
+        "Will be None if no photometry points have been added to this object. ",
     )
 
     num_det_global = sa.Column(
@@ -128,286 +126,286 @@ class PhotStat(Base):
         nullable=False,
         default=0,
         index=True,
-        doc='Number of detections (measurements above threshold) '
-        'of this object, in all filters combined. ',
+        doc="Number of detections (measurements above threshold) "
+        "of this object, in all filters combined. ",
     )
 
     num_det_no_forced_phot_global = sa.Column(
         sa.Integer,
         nullable=False,
-        server_default='0',
+        server_default="0",
         index=True,
-        doc='Number of detections (measurements above threshold) but ignoring forced photometry '
-        'of this object, in all filters combined. ',
+        doc="Number of detections (measurements above threshold) but ignoring forced photometry "
+        "of this object, in all filters combined. ",
     )
 
     num_det_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Number of detections (measurements above threshold) '
-        'of this object, in each filter. '
-        'Will be None if no points are detections. ',
+        doc="Number of detections (measurements above threshold) "
+        "of this object, in each filter. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Modified Julian date when object was first detected. '
-        'Will be None if no points are detections. ',
+        doc="Modified Julian date when object was first detected. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_mag = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='The apparent magnitude of the first detection. '
-        'Will be None if no points are detections. ',
+        doc="The apparent magnitude of the first detection. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_filter = sa.Column(
         sa.String,
         nullable=True,
         index=True,
-        doc='Which filter was used when making the first detection. '
-        'Will be None if no points are detections. ',
+        doc="Which filter was used when making the first detection. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Modified Julian date when object was last detected. '
-        'Will be None if no points are detections. ',
+        doc="Modified Julian date when object was last detected. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_mag = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='The apparent magnitude of the last detection. '
-        'Will be None if no points are detections. ',
+        doc="The apparent magnitude of the last detection. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_filter = sa.Column(
         sa.String,
         nullable=True,
         index=True,
-        doc='Which filter was used when making the last detection. '
-        'Will be None if no points are detections. ',
+        doc="Which filter was used when making the last detection. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_no_forced_phot_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Modified Julian date when object was first detected but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="Modified Julian date when object was first detected but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_no_forced_phot_mag = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='The apparent magnitude of the first detection but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="The apparent magnitude of the first detection but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     first_detected_no_forced_phot_filter = sa.Column(
         sa.String,
         nullable=True,
         index=True,
-        doc='Which filter was used when making the first detection but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="Which filter was used when making the first detection but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_no_forced_phot_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Modified Julian date when object was last detected but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="Modified Julian date when object was last detected but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_no_forced_phot_mag = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='The apparent magnitude of the last detection but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="The apparent magnitude of the last detection but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     last_detected_no_forced_phot_filter = sa.Column(
         sa.String,
         nullable=True,
         index=True,
-        doc='Which filter was used when making the last detection but ignoring forced photometry. '
-        'Will be None if no points are detections. ',
+        doc="Which filter was used when making the last detection but ignoring forced photometry. "
+        "Will be None if no points are detections. ",
     )
 
     recent_obs_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Latest observation, either detection or limit. '
-        'Will be None if no photometry has been added to this object. ',
+        doc="Latest observation, either detection or limit. "
+        "Will be None if no photometry has been added to this object. ",
     )
 
     predetection_mjds = sa.Column(
         sa.ARRAY(sa.Float),
         nullable=True,
         index=False,
-        doc='List of MJDs of times when the Obj position was reported to have been observed without detection, '
-        'including only the times before the very first detection. ',
+        doc="List of MJDs of times when the Obj position was reported to have been observed without detection, "
+        "including only the times before the very first detection. ",
     )
 
     last_non_detection_mjd = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Latest non-detection that occurred before any detections. '
-        'Will be None if none of the observations are non-detections '
-        'or if the first photometry point is a detection. ',
+        doc="Latest non-detection that occurred before any detections. "
+        "Will be None if none of the observations are non-detections "
+        "or if the first photometry point is a detection. ",
     )
 
     time_to_non_detection = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Amount of time (in days), between the first detection '
-        'and the last upper limit before that detection. '
-        'Will be None if no points are detections. ',
+        doc="Amount of time (in days), between the first detection "
+        "and the last upper limit before that detection. "
+        "Will be None if no points are detections. ",
     )
 
     mean_mag_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Average magnitude across all filters. '
-        'Will be None if no points are detections. ',
+        doc="Average magnitude across all filters. "
+        "Will be None if no points are detections. ",
     )
 
     mean_mag_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Average magnitude in various filters. '
-        'The value is saved in a separate key for'
-        'each filter in this JSONB. '
-        'Will be None if no points are detections. ',
+        doc="Average magnitude in various filters. "
+        "The value is saved in a separate key for"
+        "each filter in this JSONB. "
+        "Will be None if no points are detections. ",
     )
 
     mean_color = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=False,
-        doc='Average magnitude difference in various filters combinations. '
-        'The value is saved in a separate key for each filter combination, '
-        'where the keys are named {filter1}-{filter2}. '
-        'Will be None if there are no detections in multiple filters. ',
+        doc="Average magnitude difference in various filters combinations. "
+        "The value is saved in a separate key for each filter combination, "
+        "where the keys are named {filter1}-{filter2}. "
+        "Will be None if there are no detections in multiple filters. ",
     )
 
     peak_mjd_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Modified Julian date of the brightest recorded observation, '
-        'in any filter. ',
+        doc="Modified Julian date of the brightest recorded observation, "
+        "in any filter. ",
     )
 
     peak_mjd_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Modified Julian date of the brightest recorded observation, '
-        'in each filter. ',
+        doc="Modified Julian date of the brightest recorded observation, "
+        "in each filter. ",
     )
 
     peak_mag_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Brightest recorded apparent magnitude, in any filter. '
-        'Will be None if no points are detections. ',
+        doc="Brightest recorded apparent magnitude, in any filter. "
+        "Will be None if no points are detections. ",
     )
 
     peak_mag_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Brightest recorded apparent magnitude in each filter. '
-        'Will be None if no points are detections. ',
+        doc="Brightest recorded apparent magnitude in each filter. "
+        "Will be None if no points are detections. ",
     )
 
     faintest_mag_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Faintest recorded apparent magnitude (not including non-detections), '
-        'in any filter. Will be None if no points are detections. ',
+        doc="Faintest recorded apparent magnitude (not including non-detections), "
+        "in any filter. Will be None if no points are detections. ",
     )
 
     faintest_mag_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Faintest recorded apparent magnitude (not including non-detections), '
-        'in each filter. ',
+        doc="Faintest recorded apparent magnitude (not including non-detections), "
+        "in each filter. ",
     )
 
     deepest_limit_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Deepest recorded limiting magnitude for non-detections, using any filter. '
-        'Will be None if all photometry points are detections. ',
+        doc="Deepest recorded limiting magnitude for non-detections, using any filter. "
+        "Will be None if all photometry points are detections. ",
     )
 
     deepest_limit_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Deepest recorded limiting magnitude for non-detections in each filter. '
-        'Will be None if all photometry points are detections. ',
+        doc="Deepest recorded limiting magnitude for non-detections in each filter. "
+        "Will be None if all photometry points are detections. ",
     )
 
     rise_rate = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Rate of change in magnitude (in magnitudes per day) '
-        'measured from the first detection to the peak magnitude. '
-        'Peak magnitude is chosen using the same filter as the first detection. '
-        'Will be None if no points are detections or if '
-        'the first detection is also the peak. ',
+        doc="Rate of change in magnitude (in magnitudes per day) "
+        "measured from the first detection to the peak magnitude. "
+        "Peak magnitude is chosen using the same filter as the first detection. "
+        "Will be None if no points are detections or if "
+        "the first detection is also the peak. ",
     )
 
     decay_rate = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Rate of change in magnitude (in magnitudes per day) '
-        'measured from the the peak magnitude to the last detection. '
-        'Peak magnitude is chosen using the same filter as the last detection. '
-        'Will be None if no points are detections or if '
-        'the last detection is also the peak. ',
+        doc="Rate of change in magnitude (in magnitudes per day) "
+        "measured from the the peak magnitude to the last detection. "
+        "Peak magnitude is chosen using the same filter as the last detection. "
+        "Will be None if no points are detections or if "
+        "the last detection is also the peak. ",
     )
 
     mag_rms_global = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc='Average variability of the magnitude measurements for all filters. ',
+        doc="Average variability of the magnitude measurements for all filters. ",
     )
 
     mag_rms_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Average variability of the magnitude, '
-        'keyed to the name of each filter. '
-        'Will be None if no points are detections. ',
+        doc="Average variability of the magnitude, "
+        "keyed to the name of each filter. "
+        "Will be None if no points are detections. ",
     )
 
     __table_args__ = (
@@ -435,34 +433,34 @@ class PhotStat(Base):
         if isinstance(phot, Photometry):
             phot = phot.to_dict()
         elif not isinstance(phot, dict):
-            raise TypeError('phot must be a dict or Photometry object')
+            raise TypeError("phot must be a dict or Photometry object")
 
-        filt = phot['filter']
-        mjd = phot['mjd']
-        origin = phot.get('origin', "")
-        if phot['flux'] > 0:
-            mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
+        filt = phot["filter"]
+        mjd = phot["mjd"]
+        origin = phot.get("origin", "")
+        if phot["flux"] > 0:
+            mag = -2.5 * np.log10(phot["flux"]) + PHOT_ZP
         else:
             mag = np.nan
-        if phot['flux'] and phot['fluxerr']:
-            snr = phot['flux'] / phot['fluxerr']
+        if phot["flux"] and phot["fluxerr"]:
+            snr = phot["flux"] / phot["fluxerr"]
         else:
             snr = np.nan
-        det = phot['flux'] and phot['fluxerr']  # legal, non zero values
+        det = phot["flux"] and phot["fluxerr"]  # legal, non zero values
         det = det and not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
 
         if not det:  # get limiting magnitude for non-detection
             if (
-                'original_user_data' in phot
-                and phot['original_user_data'] is not None
-                and 'limiting_mag' in phot['original_user_data']
+                "original_user_data" in phot
+                and phot["original_user_data"] is not None
+                and "limiting_mag" in phot["original_user_data"]
             ):
-                user_data = phot['original_user_data']
+                user_data = phot["original_user_data"]
                 if isinstance(user_data, str):
                     user_data = json.loads(user_data)
-                lim = user_data['limiting_mag']
+                lim = user_data["limiting_mag"]
             else:
-                fluxerr = phot['fluxerr']
+                fluxerr = phot["fluxerr"]
                 fivesigma = 5 * fluxerr
                 lim = -2.5 * np.log10(fivesigma) + PHOT_ZP
 
@@ -489,7 +487,7 @@ class PhotStat(Base):
                 self.last_detected_mag = mag
                 self.last_detected_filter = filt
 
-            if origin not in ['fp', 'forced photometry', 'forcedphot', 'alert_fp']:
+            if origin not in ["fp", "forced photometry", "forcedphot", "alert_fp"]:
                 if (
                     self.first_detected_no_forced_phot_mjd is None
                     or mjd < self.first_detected_no_forced_phot_mjd
@@ -545,13 +543,13 @@ class PhotStat(Base):
 
             # update colors as differences of mean magnitudes
             mean_mags = self.mean_mag_per_filter  # short hand
-            for k in mean_mags.keys():
+            for k in mean_mags:
                 if k == filt:  # skip this filter
                     continue
 
                 # save both directions of each magnitude difference
-                self.mean_color[f'{k}-{filt}'] = mean_mags[k] - mean_mags[filt]
-                self.mean_color[f'{filt}-{k}'] = mean_mags[filt] - mean_mags[k]
+                self.mean_color[f"{k}-{filt}"] = mean_mags[k] - mean_mags[filt]
+                self.mean_color[f"{filt}-{k}"] = mean_mags[filt] - mean_mags[k]
 
             # find the brightest magnitude (lowest number)
             if self.peak_mag_global is None or self.peak_mag_global > mag:
@@ -613,7 +611,7 @@ class PhotStat(Base):
 
             # update the number of detections
             self.num_det_global += 1
-            if origin not in ['fp', 'forced photometry', 'forcedphot', 'alert_fp']:
+            if origin not in ["fp", "forced photometry", "forcedphot", "alert_fp"]:
                 self.num_det_no_forced_phot_global += 1
 
             if filt in self.num_det_per_filter:
@@ -682,29 +680,29 @@ class PhotStat(Base):
             if isinstance(phot, Photometry):
                 phot = phot.to_dict()
             elif not isinstance(phot, dict):
-                raise TypeError('phot must be a dict or Photometry object')
+                raise TypeError("phot must be a dict or Photometry object")
 
-            filters.append(phot['filter'])
-            mjds.append(phot['mjd'])
+            filters.append(phot["filter"])
+            mjds.append(phot["mjd"])
 
-            if 'mag' in phot:
-                mags.append(phot['mag'])
-            elif phot['flux'] is not None and phot['flux'] > 0:
-                mags.append(-2.5 * np.log10(phot['flux']) + PHOT_ZP)
+            if "mag" in phot:
+                mags.append(phot["mag"])
+            elif phot["flux"] is not None and phot["flux"] > 0:
+                mags.append(-2.5 * np.log10(phot["flux"]) + PHOT_ZP)
             else:
                 mags.append(np.nan)
 
             is_detected = (
-                phot['flux'] is not None
-                and phot['fluxerr'] is not None
-                and phot['fluxerr'] > 0
-                and phot['flux'] / phot['fluxerr'] > PHOT_DETECTION_THRESHOLD
+                phot["flux"] is not None
+                and phot["fluxerr"] is not None
+                and phot["fluxerr"] > 0
+                and phot["flux"] / phot["fluxerr"] > PHOT_DETECTION_THRESHOLD
             )
             dets.append(is_detected)
 
             if (
-                not phot.get('origin')
-                in ['fp', 'forced phot', 'forced photometry', 'alert_fp']
+                not phot.get("origin")
+                in ["fp", "forced phot", "forced photometry", "alert_fp"]
                 and is_detected
             ):
                 dets_no_forced_phot.append(True)
@@ -713,13 +711,13 @@ class PhotStat(Base):
 
             if not is_detected:
                 if (
-                    'original_user_data' in phot
-                    and phot['original_user_data'] is not None
-                    and 'limiting_mag' in phot['original_user_data']
+                    "original_user_data" in phot
+                    and phot["original_user_data"] is not None
+                    and "limiting_mag" in phot["original_user_data"]
                 ):
-                    lims.append(phot['original_user_data']['limiting_mag'])
+                    lims.append(phot["original_user_data"]["limiting_mag"])
                 else:
-                    fivesigma = 5 * phot['fluxerr']
+                    fivesigma = 5 * phot["fluxerr"]
                     if fivesigma > 0:
                         lims.append(-2.5 * np.log10(fivesigma) + PHOT_ZP)
                     else:
@@ -821,7 +819,7 @@ class PhotStat(Base):
             for f1 in set(good_filters):
                 for f2 in set(good_filters):
                     if f1 != f2:
-                        self.mean_color[f'{f1}-{f2}'] = mean_mags[f1] - mean_mags[f2]
+                        self.mean_color[f"{f1}-{f2}"] = mean_mags[f1] - mean_mags[f2]
 
             # update the rise and decay rates
             if (
@@ -907,7 +905,7 @@ class PhotStat(Base):
         return np.sqrt(new_var)
 
 
-@event.listens_for(Photometry, 'after_insert')
+@event.listens_for(Photometry, "after_insert")
 def insert_into_phot_stat(mapper, connection, target):
     # Create or update PhotStat object
     @event.listens_for(DBSession(), "before_flush", once=True)
@@ -927,13 +925,13 @@ def insert_into_phot_stat(mapper, connection, target):
                 Photometry.original_user_data,
             ]
             colnames = [
-                'filter',
-                'mjd',
-                'mag',
-                'flux',
-                'fluxerr',
-                'origin',
-                'original_user_data',
+                "filter",
+                "mjd",
+                "mag",
+                "flux",
+                "fluxerr",
+                "origin",
+                "original_user_data",
             ]
 
             all_phot = session.execute(

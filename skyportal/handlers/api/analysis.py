@@ -1,64 +1,61 @@
 import copy
-import io
-import json
-from urllib.parse import urlparse, urljoin
 import datetime
 import functools
-import yaml
-
+import io
+import json
 import os
+from urllib.parse import urljoin, urlparse
+
 import numpy as np
 import pandas as pd
 import requests
-from requests_oauthlib import OAuth1
-from requests.auth import HTTPBasicAuth, HTTPDigestAuth
-from tornado.ioloop import IOLoop
+import yaml
 from marshmallow.exceptions import ValidationError
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from requests_oauthlib import OAuth1
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import contains_eager
+from tornado.ioloop import IOLoop
 
-from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.model_util import recursive_to_dict
-
-from baselayer.log import make_log
 from baselayer.app.env import load_env
-from ...app_utils import get_app_base_url
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
 
+from ...app_utils import get_app_base_url
 from ...enum_types import (
     ANALYSIS_INPUT_TYPES,
-    AUTHENTICATION_TYPES,
     ANALYSIS_TYPES,
+    AUTHENTICATION_TYPES,
     DEFAULT_ANALYSIS_FILTER_TYPES,
 )
-
-from ..base import BaseHandler
-
 from ...models import (
     AnalysisService,
-    Group,
-    Photometry,
-    Spectrum,
     Annotation,
     Classification,
-    Obj,
-    User,
     Comment,
-    ObjAnalysis,
     DefaultAnalysis,
+    Group,
+    Obj,
+    ObjAnalysis,
+    Photometry,
+    Spectrum,
+    User,
     UserNotification,
 )
+from ..base import BaseHandler
 from .photometry import serialize
 
-log = make_log('app/analysis')
+log = make_log("app/analysis")
 
 _, cfg = load_env()
 
 DEFAULT_ANALYSES_DAILY_LIMIT = 100
 
 # check for API key
-summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
+summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
     # there may be a global API key set in the config file
     openai_api_key = summary_config.pop("api_key")
@@ -85,7 +82,7 @@ def call_external_analysis_service(
     callback_url,
     inputs={},
     analysis_parameters={},
-    authentication_type='none',
+    authentication_type="none",
     authinfo=None,
     callback_method="POST",
     invalid_after=None,
@@ -111,22 +108,22 @@ def call_external_analysis_service(
         "analysis_parameters": analysis_parameters,
     }
 
-    if authentication_type == 'api_key':
-        payload_data.update({authinfo['api_key_name']: authinfo['api_key']})
-    elif authentication_type == 'header_token':
-        headers.update(authinfo['header_token'])
-    elif authentication_type == 'HTTPBasicAuth':
-        auth = HTTPBasicAuth(authinfo['username'], authinfo['password'])
-    elif authentication_type == 'HTTPDigestAuth':
-        auth = HTTPDigestAuth(authinfo['username'], authinfo['password'])
-    elif authentication_type == 'OAuth1':
+    if authentication_type == "api_key":
+        payload_data.update({authinfo["api_key_name"]: authinfo["api_key"]})
+    elif authentication_type == "header_token":
+        headers.update(authinfo["header_token"])
+    elif authentication_type == "HTTPBasicAuth":
+        auth = HTTPBasicAuth(authinfo["username"], authinfo["password"])
+    elif authentication_type == "HTTPDigestAuth":
+        auth = HTTPDigestAuth(authinfo["username"], authinfo["password"])
+    elif authentication_type == "OAuth1":
         auth = OAuth1(
-            authinfo['app_key'],
-            authinfo['app_secret'],
-            authinfo['user_oauth_token'],
-            authinfo['user_oauth_token_secret'],
+            authinfo["app_key"],
+            authinfo["app_secret"],
+            authinfo["user_oauth_token"],
+            authinfo["user_oauth_token_secret"],
         )
-    elif authentication_type == 'none':
+    elif authentication_type == "none":
         pass
     else:
         raise ValueError(f"Invalid authentication_type: {authentication_type}")
@@ -176,7 +173,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "zp",
                 "instrument_name",
             ],
-            "id_attr": 'obj_id',
+            "id_attr": "obj_id",
         },
         "spectra": {
             "class": Spectrum,
@@ -192,12 +189,12 @@ def get_associated_obj_resource(associated_resource_type):
                 "modified",
                 "type",
             ],
-            "id_attr": 'obj_id',
+            "id_attr": "obj_id",
         },
         "annotations": {
             "class": Annotation,
             "allowed_export_columns": ["data", "modified", "origin", "created_at"],
-            "id_attr": 'obj_id',
+            "id_attr": "obj_id",
         },
         "comments": {
             "class": Comment,
@@ -208,7 +205,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "origin",
                 "created_at",
             ],
-            "id_attr": 'obj_id',
+            "id_attr": "obj_id",
         },
         "classifications": {
             "class": Classification,
@@ -218,7 +215,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "modified",
                 "created_at",
             ],
-            "id_attr": 'obj_id',
+            "id_attr": "obj_id",
         },
         "redshift": {
             "class": Obj,
@@ -227,7 +224,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "redshift_error",
                 "redshift_origin",
             ],
-            "id_attr": 'id',
+            "id_attr": "id",
         },
     }
     if associated_resource_type not in associated_resource_types:
@@ -296,22 +293,22 @@ def post_analysis(
     keys_to_delete = []
     for k, v in analysis_parameters.items():
         if isinstance(v, str):
-            if 'data:' in v and ';name=' in v:
+            if "data:" in v and ";name=" in v:
                 keys_to_delete.append(k)
     for k in keys_to_delete:
         try:
             analysis_parameters[k] = (
-                analysis_parameters[k].split(';name=')[1].split(';')[0]
+                analysis_parameters[k].split(";name=")[1].split(";")[0]
             )
         except Exception:
             del analysis_parameters[k]
 
-    if analysis_resource_type.lower() == 'obj':
+    if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
         stmt = Obj.select(current_user).where(Obj.id == obj_id)
         obj = session.scalars(stmt).first()
         if obj is None:
-            raise ValueError(f'Obj {obj_id} not found')
+            raise ValueError(f"Obj {obj_id} not found")
 
         # make sure the user has not exceeded the maximum number of analyses
         # for this object. This will help save space on the disk
@@ -333,51 +330,51 @@ def post_analysis(
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
             stmt = (
-                associated_resource['class']
+                associated_resource["class"]
                 .select(current_user)
                 .where(
                     getattr(
-                        associated_resource['class'],
-                        associated_resource['id_attr'],
+                        associated_resource["class"],
+                        associated_resource["id_attr"],
                     )
                     == obj_id
                 )
             )
             input_data = session.scalars(stmt).all()
-            if input_type == 'photometry':
-                input_data = [serialize(phot, 'ab', 'both') for phot in input_data]
+            if input_type == "photometry":
+                input_data = [serialize(phot, "ab", "both") for phot in input_data]
                 df = pd.DataFrame(input_data)
 
                 if (
                     input_filters is not None
-                    and input_filters.get('photometry') is not None
+                    and input_filters.get("photometry") is not None
                 ):
-                    if len(input_filters.get('photometry').get('filters', [])) > 0:
+                    if len(input_filters.get("photometry").get("filters", [])) > 0:
                         df = df[
-                            df['filter'].isin(
-                                input_filters.get('photometry')['filters']
+                            df["filter"].isin(
+                                input_filters.get("photometry")["filters"]
                             )
                         ]
-                    if len(input_filters.get('photometry').get('instruments', [])) > 0:
+                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
                         # we want to make sure that after this runs, the user can still figure out
                         # what instrument he filtered on, non trivial when only reporting the id used
                         # the instrument could be edited, deleted, ...
                         # so, we grab the name and inject that in the input_filters
                         df = df[
-                            df['instrument_id'].isin(
-                                input_filters.get('photometry')['instruments']
+                            df["instrument_id"].isin(
+                                input_filters.get("photometry")["instruments"]
                             )
                         ]
                         instruments = df["instrument_name"].unique().tolist()
-                        input_filters['photometry']['instruments_by_name'] = instruments
+                        input_filters["photometry"]["instruments_by_name"] = instruments
 
-                df = df[associated_resource['allowed_export_columns']]
+                df = df[associated_resource["allowed_export_columns"]]
                 # drop duplicate mjd/filter points, keeping first
                 df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
             else:
                 input_data = [
                     generic_serialize(
-                        row, associated_resource['allowed_export_columns']
+                        row, associated_resource["allowed_export_columns"]
                     )
                     for row in input_data
                 ]
@@ -397,22 +394,22 @@ def post_analysis(
             show_plots=show_plots,
             show_corner=show_corner,
             analysis_parameters=analysis_parameters,
-            status='queued',
+            status="queued",
             handled_by_url="api/webhook/obj_analysis",
             invalid_after=invalid_after,
             input_filters=input_filters,
         )
     # Add more analysis_resource_types here one day (eg. GCN)
     else:
-        raise ValueError(f'analysis_resource_type must be one of {", ".join(["obj"])}')
+        raise ValueError(f"analysis_resource_type must be one of {', '.join(['obj'])}")
 
     session.add(analysis)
     try:
         session.commit()
     except IntegrityError as e:
-        raise Exception(f'Analysis already exists: {str(e)}')
+        raise Exception(f"Analysis already exists: {str(e)}")
     except Exception as e:
-        raise Exception(f'Unexpected error creating analysis: {str(e)}')
+        raise Exception(f"Unexpected error creating analysis: {str(e)}")
 
     # Now call the analysis service to start the analysis, using the `input` data
     # that we assembled above.
@@ -437,7 +434,7 @@ def post_analysis(
         current_user.id,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.'
+            "note": f"Sending data to analysis service {analysis_service.name} to start the analysis."
             if notification is None
             else notification,
             "type": "info",
@@ -469,14 +466,14 @@ def post_analysis(
         Updates the Analysis object with the results/errors.
         """
         # grab the analysis (only Obj for now)
-        if analysis_resource_type.lower() == 'obj':
+        if analysis_resource_type.lower() == "obj":
             try:
                 analysis = session.query(ObjAnalysis).get(analysis_id)
                 if analysis is None:
-                    logger.error(f'Analysis {analysis_id} not found')
+                    logger.error(f"Analysis {analysis_id} not found")
                     return
             except Exception as e:
-                log(f'Could not access Analysis {analysis_id} {e}.')
+                log(f"Could not access Analysis {analysis_id} {e}.")
                 return
         else:
             log(f"Invalid analysis_resource_type: {analysis_resource_type}")
@@ -485,28 +482,27 @@ def post_analysis(
         analysis.last_activity = datetime.datetime.utcnow()
         try:
             result = future.result()
-            analysis.status = 'pending' if result.status_code == 200 else 'failure'
+            analysis.status = "pending" if result.status_code == 200 else "failure"
             # truncate the return just so we dont have a huge string in the database
             analysis.status_message = result.text[:1024]
         except Exception:
-            analysis.status = 'failure'
+            analysis.status = "failure"
             analysis.status_message = str(future.exception())[:1024]
         finally:
             logger(
                 f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
             )
             session.commit()
-            if analysis_resource_type.lower() == 'obj':
+            if analysis_resource_type.lower() == "obj":
                 try:
                     flow = Flow()
                     flow.push(
-                        '*',
-                        'skyportal/REFRESH_OBJ_ANALYSES',
-                        payload={'obj_key': analysis.obj.internal_key},
+                        "*",
+                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        payload={"obj_key": analysis.obj.internal_key},
                     )
                 except Exception as e:
                     logger(f"Could not refresh analyses: {e}")
-                    pass
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
@@ -569,7 +565,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   _authinfo:
                     type: object
@@ -583,14 +579,14 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
@@ -637,50 +633,50 @@ class AnalysisServiceHandler(BaseHandler):
         """
         data = self.get_json()
 
-        if not data.get('url', None):
-            return self.error('`url` is required to add an Analysis Service.')
+        if not data.get("url", None):
+            return self.error("`url` is required to add an Analysis Service.")
         else:
-            if not valid_url(data.get('url', None)):
+            if not valid_url(data.get("url", None)):
                 return self.error(
-                    'a valid `url` is required to add an Analysis Service.'
+                    "a valid `url` is required to add an Analysis Service."
                 )
         try:
-            _ = json.loads(data.get('optional_analysis_parameters', '{}'))
+            _ = json.loads(data.get("optional_analysis_parameters", "{}"))
         except json.decoder.JSONDecodeError:
             return self.error(
-                'Could not parse `optional_analysis_parameters` as JSON.', status=400
+                "Could not parse `optional_analysis_parameters` as JSON.", status=400
             )
 
-        authentication_type = data.get('authentication_type', None)
+        authentication_type = data.get("authentication_type", None)
         if not authentication_type:
             return self.error(
-                '`authentication_type` is required to add an Analysis Service.'
+                "`authentication_type` is required to add an Analysis Service."
             )
 
         if authentication_type not in AUTHENTICATION_TYPES:
             return self.error(
-                f'`authentication_type` must be one of: {", ".join([t for t in AUTHENTICATION_TYPES])}.'
+                f"`authentication_type` must be one of: {', '.join(list(AUTHENTICATION_TYPES))}."
             )
         else:
-            if authentication_type != 'none':
-                _authinfo = data.get('_authinfo', None)
+            if authentication_type != "none":
+                _authinfo = data.get("_authinfo", None)
                 if not _authinfo:
                     return self.error(
-                        '`_authinfo` is required to add an Analysis Service '
+                        "`_authinfo` is required to add an Analysis Service "
                         ' when authentication_type is not "none".'
                     )
                 try:
                     _authinfo = json.loads(_authinfo)
                 except json.JSONDecodeError:
                     return self.error(
-                        '`_authinfo` must be parseable to a valid JSON object.'
+                        "`_authinfo` must be parseable to a valid JSON object."
                     )
                 if authentication_type not in _authinfo:
                     return self.error(
                         f'`_authinfo` must contain a key for "{authentication_type}".'
                     )
 
-        group_ids = data.pop('group_ids', None)
+        group_ids = data.pop("group_ids", None)
         with self.Session() as session:
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -694,7 +690,7 @@ class AnalysisServiceHandler(BaseHandler):
             )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.',
+                    f"Cannot find one or more groups with IDs: {group_ids}.",
                     status=403,
                 )
 
@@ -703,7 +699,7 @@ class AnalysisServiceHandler(BaseHandler):
                 analysis_service = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             session.add(analysis_service)
@@ -713,12 +709,12 @@ class AnalysisServiceHandler(BaseHandler):
                 session.commit()
             except IntegrityError as e:
                 return self.error(
-                    f'Analysis Service with that name already exists: {str(e)}'
+                    f"Analysis Service with that name already exists: {str(e)}"
                 )
             except Exception as e:
-                return self.error(f'Unexpected Error adding Analysis Service: {str(e)}')
+                return self.error(f"Unexpected Error adding Analysis Service: {str(e)}")
 
-            self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
+            self.push_all(action="skyportal/REFRESH_ANALYSIS_SERVICES")
             return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
@@ -769,7 +765,7 @@ class AnalysisServiceHandler(BaseHandler):
                 ).first()
                 if s is None:
                     return self.error(
-                        'Cannot access this Analysis Service.', status=403
+                        "Cannot access this Analysis Service.", status=403
                     )
 
                 analysis_dict = recursive_to_dict(s)
@@ -790,12 +786,12 @@ class AnalysisServiceHandler(BaseHandler):
                         a.optional_analysis_parameters
                     )
                 elif isinstance(a.optional_analysis_parameters, dict):
-                    analysis_dict[
-                        "optional_analysis_parameters"
-                    ] = a.optional_analysis_parameters
+                    analysis_dict["optional_analysis_parameters"] = (
+                        a.optional_analysis_parameters
+                    )
                 else:
                     return self.error(
-                        message='optional_analysis_parameters must be dictionary or string'
+                        message="optional_analysis_parameters must be dictionary or string"
                     )
                 ret_array.append(analysis_dict)
 
@@ -858,7 +854,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   authinfo:
                     type: object
@@ -868,14 +864,14 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
@@ -911,7 +907,7 @@ class AnalysisServiceHandler(BaseHandler):
         try:
             analysis_service_id = int(analysis_service_id)
         except ValueError:
-            return self.error('analysis_service_id must be an int.')
+            return self.error("analysis_service_id must be an int.")
 
         with self.Session() as session:
             s = session.scalars(
@@ -920,17 +916,17 @@ class AnalysisServiceHandler(BaseHandler):
                 )
             ).first()
             if s is None:
-                return self.error('Cannot access this Analysis Service.', status=403)
+                return self.error("Cannot access this Analysis Service.", status=403)
 
             data = self.get_json()
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
 
             schema = AnalysisService.__schema__()
             try:
                 new_analysis_service = schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             new_analysis_service.id = analysis_service_id
@@ -946,11 +942,11 @@ class AnalysisServiceHandler(BaseHandler):
                 )
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 if not all(
-                    [group in self.current_user.accessible_groups for group in groups]
+                    group in self.current_user.accessible_groups for group in groups
                 ):
                     return self.error(
                         "Cannot change groups for Analysis Services that you are not a member of."
@@ -988,16 +984,16 @@ class AnalysisServiceHandler(BaseHandler):
                 )
             ).first()
             if analysis_service is None:
-                return self.error('Cannot delete this Analysis Service.', status=403)
+                return self.error("Cannot delete this Analysis Service.", status=403)
             session.delete(analysis_service)
             session.commit()
 
-            self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
+            self.push_all(action="skyportal/REFRESH_ANALYSIS_SERVICES")
             return self.success()
 
 
 class AnalysisHandler(BaseHandler):
-    @permissions(['Run Analyses'])
+    @permissions(["Run Analyses"])
     async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
@@ -1078,7 +1074,7 @@ class AnalysisHandler(BaseHandler):
         try:
             data = self.get_json()
         except Exception as e:
-            return self.error(f'Error parsing JSON: {e}')
+            return self.error(f"Error parsing JSON: {e}")
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
@@ -1087,20 +1083,20 @@ class AnalysisHandler(BaseHandler):
             analysis_service = session.scalars(stmt).first()
             if analysis_service is None:
                 return self.error(
-                    message=f'Could not access Analysis Service ID: {analysis_service_id}.',
+                    message=f"Could not access Analysis Service ID: {analysis_service_id}.",
                     status=403,
                 )
 
             if analysis_service.upload_only:
                 return self.error(
                     message=(
-                        f'Analysis Service ID: {analysis_service_id} is of type upload_only.'
-                        ' Please use the analysis_upload endpoint.'
+                        f"Analysis Service ID: {analysis_service_id} is of type upload_only."
+                        " Please use the analysis_upload endpoint."
                     ),
                     status=403,
                 )
 
-            analysis_parameters = data.get('analysis_parameters', {})
+            analysis_parameters = data.get("analysis_parameters", {})
 
             if isinstance(analysis_service.optional_analysis_parameters, str):
                 optional_analysis_parameters = json.loads(
@@ -1115,7 +1111,7 @@ class AnalysisHandler(BaseHandler):
                 set(optional_analysis_parameters.keys())
             ):
                 return self.error(
-                    f'Invalid analysis_parameters: {analysis_parameters}.', status=400
+                    f"Invalid analysis_parameters: {analysis_parameters}.", status=400
                 )
 
             if analysis_service.is_summary:
@@ -1126,12 +1122,12 @@ class AnalysisHandler(BaseHandler):
                     )
                 ).first()
                 if user is None:
-                    return self.error('Cannot find user.', status=400)
+                    return self.error("Cannot find user.", status=400)
 
                 if (
                     user.preferences.get("summary", {})
                     .get("OpenAI", {})
-                    .get('active', False)
+                    .get("active", False)
                 ):
                     user_pref_openai = user.preferences["summary"]["OpenAI"].copy()
                     analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
@@ -1142,7 +1138,7 @@ class AnalysisHandler(BaseHandler):
                     analysis_parameters["openai_api_key"] = openai_api_key
                     analysis_parameters["summary_parameters"] = summary_config
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -1151,30 +1147,30 @@ class AnalysisHandler(BaseHandler):
             ).all()
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             author = self.associated_user_object
-            input_filters = data.get('input_filters', {})
+            input_filters = data.get("input_filters", {})
             if input_filters is not None:
                 if (
                     "photometry" in analysis_service.input_data_types
                     and "photometry" in input_filters
                 ):
-                    filters = input_filters.get('photometry', {}).get('filters', [])
-                    instruments = input_filters.get('photometry', {}).get(
-                        'instruments', []
+                    filters = input_filters.get("photometry", {}).get("filters", [])
+                    instruments = input_filters.get("photometry", {}).get(
+                        "instruments", []
                     )
                     if filters is not None:
                         filters = [f.strip() for f in filters if f.strip() != ""]
                         if len(filters) > 0:
-                            input_filters['photometry']['filters'] = filters
+                            input_filters["photometry"]["filters"] = filters
                     if instruments is not None:
                         instruments = [
                             int(i.strip()) for i in instruments if isinstance(i, str)
                         ]
                         if len(instruments) > 0:
-                            input_filters['photometry']['instruments'] = instruments
+                            input_filters["photometry"]["instruments"] = instruments
 
             try:
                 analysis_id = post_analysis(
@@ -1184,19 +1180,19 @@ class AnalysisHandler(BaseHandler):
                     author,
                     groups,
                     analysis_service,
-                    analysis_parameters=data.get('analysis_parameters', {}),
-                    show_parameters=data.get('show_parameters', False),
-                    show_plots=data.get('show_plots', False),
-                    show_corner=data.get('show_corner', False),
+                    analysis_parameters=data.get("analysis_parameters", {}),
+                    show_parameters=data.get("show_parameters", False),
+                    show_plots=data.get("show_plots", False),
+                    show_corner=data.get("show_corner", False),
                     input_filters=input_filters,
                     session=session,
                 )
                 return self.success(data={"id": analysis_id})
             except Exception as e:
-                if 'not found' in str(e).lower():
-                    return self.error(f'Error posting analysis: {e}', status=404)
+                if "not found" in str(e).lower():
+                    return self.error(f"Error posting analysis: {e}", status=404)
                 else:
-                    return self.error(f'Error posting analysis: {e}')
+                    return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
     def get(self, analysis_resource_type, analysis_id=None):
@@ -1294,17 +1290,17 @@ class AnalysisHandler(BaseHandler):
         include_filename = self.get_query_argument("includeFilename", False)
         summary_only = self.get_query_argument("summaryOnly", False)
 
-        obj_id = self.get_query_argument('objID', None)
-        analysis_service_id = self.get_query_argument('analysisServiceID', None)
+        obj_id = self.get_query_argument("objID", None)
+        analysis_service_id = self.get_query_argument("analysisServiceID", None)
 
         with self.Session() as session:
             if obj_id is not None:
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
                 obj = session.scalars(stmt).first()
                 if obj is None:
-                    return self.error(f'Obj {obj_id} not found', status=404)
+                    return self.error(f"Obj {obj_id} not found", status=404)
 
-            if analysis_resource_type.lower() == 'obj':
+            if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
@@ -1314,7 +1310,7 @@ class AnalysisHandler(BaseHandler):
 
                     analysis = session.scalars(stmt).first()
                     if analysis is None:
-                        return self.error('Cannot access this Analysis.', status=403)
+                        return self.error("Cannot access this Analysis.", status=403)
 
                     analysis_dict = recursive_to_dict(analysis)
 
@@ -1326,12 +1322,12 @@ class AnalysisHandler(BaseHandler):
                         AnalysisService.id == analysis.analysis_service_id
                     )
                     analysis_service = session.scalars(stmt).first()
-                    analysis_dict[
-                        "analysis_service_name"
-                    ] = analysis_service.display_name
-                    analysis_dict[
-                        "analysis_service_description"
-                    ] = analysis_service.description
+                    analysis_dict["analysis_service_name"] = (
+                        analysis_service.display_name
+                    )
+                    analysis_dict["analysis_service_description"] = (
+                        analysis_service.description
+                    )
                     analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
                     if include_filename:
@@ -1359,7 +1355,7 @@ class AnalysisHandler(BaseHandler):
                     if "analysis_parameters" in analysis_dict:
                         analysis_dict["analysis_parameters"].pop("openai_api_key", None)
 
-                    if a.analysis_service_id not in analysis_services_dict.keys():
+                    if a.analysis_service_id not in analysis_services_dict:
                         stmt = AnalysisService.select(self.current_user).where(
                             AnalysisService.id == a.analysis_service_id
                         )
@@ -1375,7 +1371,7 @@ class AnalysisHandler(BaseHandler):
                                 }
                             )
 
-                    if a.analysis_service_id in analysis_services_dict.keys():
+                    if a.analysis_service_id in analysis_services_dict:
                         service_info = analysis_services_dict[a.analysis_service_id]
                         analysis_dict["analysis_service_name"] = service_info[
                             "analysis_service_name"
@@ -1396,7 +1392,7 @@ class AnalysisHandler(BaseHandler):
                     ret_array.append(analysis_dict)
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
             return self.success(data=ret_array)
@@ -1423,7 +1419,7 @@ class AnalysisHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            if analysis_resource_type.lower() == 'obj':
+            if analysis_resource_type.lower() == "obj":
                 stmt = (
                     ObjAnalysis.select(self.current_user)
                     .join(ObjAnalysis.obj)
@@ -1434,7 +1430,7 @@ class AnalysisHandler(BaseHandler):
                 )
                 analysis = session.scalars(stmt).first()
                 if analysis is None:
-                    return self.error('Cannot access this Analysis.', status=403)
+                    return self.error("Cannot access this Analysis.", status=403)
 
                 if analysis.obj.summary_history is not None:
                     analysis.obj.summary_history = [
@@ -1449,15 +1445,15 @@ class AnalysisHandler(BaseHandler):
                     flow = Flow()
                     if analysis.analysis_service.is_summary:
                         flow.push(
-                            '*',
-                            'skyportal/REFRESH_SOURCE',
-                            payload={'obj_key': analysis.obj.internal_key},
+                            "*",
+                            "skyportal/REFRESH_SOURCE",
+                            payload={"obj_key": analysis.obj.internal_key},
                         )
-                    elif analysis_resource_type == 'obj':
+                    elif analysis_resource_type == "obj":
                         flow.push(
-                            '*',
-                            'skyportal/REFRESH_OBJ_ANALYSES',
-                            payload={'obj_key': analysis.obj.internal_key},
+                            "*",
+                            "skyportal/REFRESH_OBJ_ANALYSES",
+                            payload={"obj_key": analysis.obj.internal_key},
                         )
                 except Exception as e:
                     log(f"Error pushing updates to source: {e}")
@@ -1465,7 +1461,7 @@ class AnalysisHandler(BaseHandler):
                 return self.success()
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
 
@@ -1543,14 +1539,14 @@ class AnalysisProductsHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            if analysis_resource_type.lower() == 'obj':
+            if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
                     analysis = session.scalars(stmt).first()
                     if analysis is None:
-                        return self.error('Cannot access this Analysis.', status=403)
+                        return self.error("Cannot access this Analysis.", status=403)
 
                     if analysis.data in [None, {}]:
                         return self.error(
@@ -1585,10 +1581,10 @@ class AnalysisProductsHandler(BaseHandler):
                             if download:
                                 filename = f"analysis_{analysis.obj_id}.json"
                                 buf = io.BytesIO()
-                                buf.write(json.dumps(result).encode('utf-8'))
+                                buf.write(json.dumps(result).encode("utf-8"))
                                 buf.seek(0)
 
-                                await self.send_file(buf, filename, output_type='json')
+                                await self.send_file(buf, filename, output_type="json")
                                 return
                             else:
                                 return self.success(data=result)
@@ -1632,7 +1628,7 @@ class AnalysisProductsHandler(BaseHandler):
                         )
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
 
@@ -1640,7 +1636,7 @@ class AnalysisProductsHandler(BaseHandler):
 
 
 class AnalysisUploadOnlyHandler(BaseHandler):
-    @permissions(['Run Analyses'])
+    @permissions(["Run Analyses"])
     def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
@@ -1714,13 +1710,13 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                               description: New analysis ID
         """
         # allowable resources now are [obj]. Can be extended in the future.
-        if analysis_resource_type.lower() not in ['obj']:
+        if analysis_resource_type.lower() not in ["obj"]:
             return self.error("Invalid analysis resource type", status=403)
 
         try:
             data = self.get_json()
         except Exception as e:
-            return self.error(f'Error parsing JSON: {e}')
+            return self.error(f"Error parsing JSON: {e}")
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
@@ -1729,16 +1725,16 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             analysis_service = session.scalars(stmt).first()
             if analysis_service is None:
                 return self.error(
-                    message=f'Could not access Analysis Service ID: {analysis_service_id}.',
+                    message=f"Could not access Analysis Service ID: {analysis_service_id}.",
                     status=403,
                 )
             if not analysis_service.upload_only:
                 return self.error(
-                    message=f'Analysis Service ID: {analysis_service_id} is not of type upload_only.',
+                    message=f"Analysis Service ID: {analysis_service_id} is not of type upload_only.",
                     status=403,
                 )
 
-            group_ids = data.pop('group_ids', None)
+            group_ids = data.pop("group_ids", None)
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -1747,18 +1743,18 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             ).all()
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             author = self.associated_user_object
             status_message = data.get("message", "")
 
-            if analysis_resource_type.lower() == 'obj':
+            if analysis_resource_type.lower() == "obj":
                 obj_id = resource_id
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
                 obj = session.scalars(stmt).first()
                 if obj is None:
-                    return self.error(f'Obj {obj_id} not found', status=404)
+                    return self.error(f"Obj {obj_id} not found", status=404)
 
                 # make sure the user has not exceeded the maximum number of analyses
                 # for this object. This will help save space on the disk
@@ -1779,8 +1775,8 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                 ):
                     return self.error(
                         (
-                            'You have reached the maximum number of analyses for this object.'
-                            ' Please delete some analyses before uploading more.'
+                            "You have reached the maximum number of analyses for this object."
+                            " Please delete some analyses before uploading more."
                         ),
                         status=403,
                     )
@@ -1792,11 +1788,11 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     author=author,
                     groups=groups,
                     analysis_service=analysis_service,
-                    show_parameters=data.get('show_parameters', True),
-                    show_plots=data.get('show_plots', True),
-                    show_corner=data.get('show_corner', True),
+                    show_parameters=data.get("show_parameters", True),
+                    show_plots=data.get("show_plots", True),
+                    show_corner=data.get("show_corner", True),
                     analysis_parameters={},
-                    status='completed',
+                    status="completed",
                     status_message=status_message,
                     handled_by_url="/",
                     invalid_after=invalid_after,
@@ -1804,16 +1800,16 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                 )
             else:
                 return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
             session.add(analysis)
             try:
                 session.commit()
             except IntegrityError as e:
-                return self.error(f'Analysis already exists: {str(e)}')
+                return self.error(f"Analysis already exists: {str(e)}")
             except Exception as e:
-                return self.error(f'Unexpected error creating analysis: {str(e)}')
+                return self.error(f"Unexpected error creating analysis: {str(e)}")
 
             results = data.get("analysis", {})
             if len(results.keys()) > 0:
@@ -1906,7 +1902,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     return self.success(data=default_analysis)
             except Exception as e:
                 return self.error(
-                    f'Unexpected error loading default analysis: {str(e)}'
+                    f"Unexpected error loading default analysis: {str(e)}"
                 )
 
     @auth_or_token
@@ -1980,7 +1976,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 ).first()
                 if analysis_service is None:
                     return self.error(
-                        f'Analysis service {analysis_service_id} not found', status=404
+                        f"Analysis service {analysis_service_id} not found", status=404
                     )
 
                 stmt = DefaultAnalysis.select(self.current_user).where(
@@ -1990,33 +1986,33 @@ class DefaultAnalysisHandler(BaseHandler):
                 default_analysis = session.scalars(stmt).first()
                 if default_analysis is not None:
                     return self.error(
-                        'You already have a default analysis for this analysis service. Delete it first, or update it.',
+                        "You already have a default analysis for this analysis service. Delete it first, or update it.",
                         status=400,
                     )
 
                 default_analysis_parameters = data.get(
-                    'default_analysis_parameters', {}
+                    "default_analysis_parameters", {}
                 )
-                source_filter = data.get('source_filter', {})
-                daily_limit = data.get('daily_limit', 10)
+                source_filter = data.get("source_filter", {})
+                daily_limit = data.get("daily_limit", 10)
                 if not isinstance(daily_limit, int):
                     try:
                         daily_limit = int(daily_limit)
                     except Exception:
                         return self.error(
-                            f'Invalid daily_limit: {daily_limit}.', status=400
+                            f"Invalid daily_limit: {daily_limit}.", status=400
                         )
 
                 if daily_limit > DEFAULT_ANALYSES_DAILY_LIMIT or daily_limit <= 0:
                     return self.error(
-                        f'Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}',
+                        f"Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}",
                         status=400,
                     )
 
                 stats = {
-                    'daily_limit': daily_limit,
-                    'daily_count': 0,
-                    'last_run': datetime.datetime.utcnow().strftime(
+                    "daily_limit": daily_limit,
+                    "daily_count": 0,
+                    "last_run": datetime.datetime.utcnow().strftime(
                         "%Y-%m-%dT%H:%M:%S.%f"
                     ),
                 }
@@ -2026,7 +2022,7 @@ class DefaultAnalysisHandler(BaseHandler):
                         source_filter = json.loads(source_filter)
                     except Exception:
                         return self.error(
-                            f'Invalid source_filter: {source_filter}.',
+                            f"Invalid source_filter: {source_filter}.",
                             status=400,
                         )
 
@@ -2037,7 +2033,7 @@ class DefaultAnalysisHandler(BaseHandler):
                         )
                     except Exception:
                         return self.error(
-                            f'Invalid analysis_parameters: {default_analysis_parameters}.',
+                            f"Invalid analysis_parameters: {default_analysis_parameters}.",
                             status=400,
                         )
 
@@ -2054,11 +2050,11 @@ class DefaultAnalysisHandler(BaseHandler):
                     set(optional_analysis_parameters.keys())
                 ):
                     return self.error(
-                        f'Invalid default_analysis_parameters: {default_analysis_parameters}.',
+                        f"Invalid default_analysis_parameters: {default_analysis_parameters}.",
                         status=400,
                     )
 
-                group_ids = data.pop('group_ids', None)
+                group_ids = data.pop("group_ids", None)
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
 
@@ -2067,14 +2063,14 @@ class DefaultAnalysisHandler(BaseHandler):
                 ).all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                        f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 # # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
                 if not set(source_filter.keys()).issubset(
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                 ):
-                    return self.error(f'Invalid source_filter: {source_filter}.')
+                    return self.error(f"Invalid source_filter: {source_filter}.")
 
                 for key, value in source_filter.items():
                     if isinstance(value, list):
@@ -2084,15 +2080,15 @@ class DefaultAnalysisHandler(BaseHandler):
                                     set(DEFAULT_ANALYSIS_FILTER_TYPES[key])
                                 ):
                                     return self.error(
-                                        f'Invalid source_filter. Key {key} must be a list of dicts with keys {str(DEFAULT_ANALYSIS_FILTER_TYPES[key])}.'
+                                        f"Invalid source_filter. Key {key} must be a list of dicts with keys {str(DEFAULT_ANALYSIS_FILTER_TYPES[key])}."
                                     )
                             else:
                                 return self.error(
-                                    f'Invalid source_filter. Key {key} must be a list of dicts.'
+                                    f"Invalid source_filter. Key {key} must be a list of dicts."
                                 )
                     else:
                         return self.error(
-                            f'Invalid source_filter with key {key}. Value must be a list.'
+                            f"Invalid source_filter with key {key}. Value must be a list."
                         )
 
                 author = self.associated_user_object
@@ -2102,9 +2098,9 @@ class DefaultAnalysisHandler(BaseHandler):
                     default_analysis_parameters=default_analysis_parameters,
                     source_filter=source_filter,
                     stats=stats,
-                    show_parameters=data.get('show_parameters', True),
-                    show_plots=data.get('show_plots', True),
-                    show_corner=data.get('show_corner', True),
+                    show_parameters=data.get("show_parameters", True),
+                    show_plots=data.get("show_plots", True),
+                    show_corner=data.get("show_corner", True),
                     author=author,
                     groups=groups,
                 )
@@ -2114,7 +2110,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 return self.success(data={"id": default_analysis.id})
             except Exception as e:
                 return self.error(
-                    f'Unexpected error posting default analysis: {str(e)}'
+                    f"Unexpected error posting default analysis: {str(e)}"
                 )
 
     @auth_or_token
@@ -2169,5 +2165,5 @@ class DefaultAnalysisHandler(BaseHandler):
                 return self.success()
             except Exception as e:
                 return self.error(
-                    f'Unexpected error deleting default analysis: {str(e)}'
+                    f"Unexpected error deleting default analysis: {str(e)}"
                 )

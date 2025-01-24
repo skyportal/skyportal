@@ -4,21 +4,22 @@ import sqlalchemy as sa
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
-from ..base import BaseHandler
+
 from ...models import (
+    GroupUser,
     Obj,
     Source,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
-    GroupUser,
 )
+from ..base import BaseHandler
 
-log = make_log('api/source_groups')
+log = make_log("api/source_groups")
 
 
 class SourceGroupsHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -197,7 +198,7 @@ class SourceGroupsHandler(BaseHandler):
             # )
             return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, obj_id, *ignored_args):
         """
         ---

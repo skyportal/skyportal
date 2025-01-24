@@ -1,5 +1,5 @@
-import uuid
 import datetime
+import uuid
 
 import pytest
 from selenium.common.exceptions import TimeoutException
@@ -13,25 +13,25 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     ra = 50.1
     redshift = 2.5
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': obj_id,
-            'ra': ra,
-            'dec': 22.33,
-            'redshift': redshift,
+            "id": obj_id,
+            "ra": ra,
+            "dec": 22.33,
+            "redshift": redshift,
             "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
 
     # Wait for just added source to show up in added sources
     recent_source_dataid = "recentSourceItem"
@@ -46,25 +46,25 @@ def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_
     ra = 50.1
     redshift = 2.5
     status, data = api(
-        'POST',
-        'sources',
+        "POST",
+        "sources",
         data={
-            'id': obj_id,
-            'ra': ra,
-            'dec': 22.33,
-            'redshift': redshift,
+            "id": obj_id,
+            "ra": ra,
+            "dec": 22.33,
+            "redshift": redshift,
             "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
+    assert data["data"]["id"] == obj_id
 
-    driver.get(f'/become_user/{user_no_groups.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user_no_groups.id}")
+    driver.get("/")
 
     # Make sure just added source doesn't show up
     with pytest.raises(TimeoutException):
@@ -80,17 +80,17 @@ def test_recently_saved_candidate(
     obj_id = str(uuid.uuid4())
 
     status, data = api(
-        'POST',
-        'candidates',
+        "POST",
+        "candidates",
         data={
-            'id': obj_id,
-            'ra': 50.1,
-            'dec': 22.33,
-            'redshift': 2.5,
+            "id": obj_id,
+            "ra": 50.1,
+            "dec": 22.33,
+            "redshift": 2.5,
             "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'filter_ids': [public_filter.id],
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
             "passed_at": str(datetime.datetime.utcnow()),
         },
         token=upload_data_token,
@@ -98,15 +98,15 @@ def test_recently_saved_candidate(
     assert status == 200
 
     status, data = api(
-        'POST',
-        'sources',
-        data={'id': obj_id, 'group_ids': [public_group.id]},
+        "POST",
+        "sources",
+        data={"id": obj_id, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
 
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/")
     driver.wait_for_xpath(
         f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[text()="a few seconds ago"]][.//span[contains(text(), "{obj_id}")]]'
     )

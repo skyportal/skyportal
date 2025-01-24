@@ -1,13 +1,13 @@
 import datetime
 import functools
 import io
+import json
 import operator  # noqa: F401
+import re
 import time
 import traceback
-import json
 from json.decoder import JSONDecodeError
 
-import re
 import astropy
 import astropy.units as u
 import conesearch_alchemy as ca
@@ -31,7 +31,7 @@ from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
-from sqlalchemy.sql import text, bindparam
+from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
 
@@ -41,15 +41,14 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ...utils.asynchronous import run_async
 from ...models import (
-    DBSession,
     Allocation,
     Annotation,
     Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
+    DBSession,
     FacilityTransaction,
     FollowupRequest,
     Galaxy,
@@ -70,13 +69,16 @@ from ...models import (
     Spectrum,
     Telescope,
     Thumbnail,
-    TNSRobotGroupAutoreporter,
     TNSRobotGroup,
+    TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
     Token,
     User,
 )
+from ...utils.asynchronous import run_async
+from ...utils.calculations import great_circle_distance
 from ...utils.offset import (
+    ALL_NGPS_SNCOSMO_BANDS,
     _calculate_best_position_for_offset_stars,
     facility_parameters,
     get_finding_chart,
@@ -85,7 +87,6 @@ from ...utils.offset import (
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ...utils.calculations import great_circle_distance
 from ..base import BaseHandler
 from .candidate import (
     update_healpix_if_relevant,
@@ -100,7 +101,7 @@ DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
-log = make_log('api/source')
+log = make_log("api/source")
 
 MAX_LOCALIZATION_SOURCES = 50000
 
@@ -123,7 +124,7 @@ def remove_obj_thumbnails(obj_id):
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
                 Thumbnail.obj_id == obj_id,
-                Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+                Thumbnail.type.in_(["ps1", "sdss", "ls"]),
             )
         )
         for thumbnail in existing_thumbnails:
@@ -328,22 +329,22 @@ async def get_source(
     # sort by separation ascending (closest first)
     source_info["duplicates"] = sorted(duplicates, key=lambda x: x["separation"])
 
-    if 'photstats' in source_info:
+    if "photstats" in source_info:
         photstats = source_info["photstats"]
         for photstat in photstats:
             if (
-                hasattr(photstat, 'first_detected_mjd')
+                hasattr(photstat, "first_detected_mjd")
                 and photstat.first_detected_mjd is not None
             ):
                 source_info["first_detected"] = Time(
-                    photstat.first_detected_mjd, format='mjd'
+                    photstat.first_detected_mjd, format="mjd"
                 ).isot
             if (
-                hasattr(photstat, 'last_detected_mjd')
+                hasattr(photstat, "last_detected_mjd")
                 and photstat.last_detected_mjd is not None
             ):
                 source_info["last_detected"] = Time(
-                    photstat.last_detected_mjd, format='mjd'
+                    photstat.last_detected_mjd, format="mjd"
                 ).isot
 
     if s.host_id:
@@ -406,13 +407,11 @@ async def get_source(
         annotations = session.scalars(
             Annotation.select(user).where(Annotation.obj_id == obj_id)
         ).all()
-        period_str_options = ['period', 'Period', 'PERIOD']
+        period_str_options = ["period", "Period", "PERIOD"]
         source_info["period_exists"] = any(
-            [
-                isinstance(an.data, dict) and period_str in an.data
-                for an in annotations
-                for period_str in period_str_options
-            ]
+            isinstance(an.data, dict) and period_str in an.data
+            for an in annotations
+            for period_str in period_str_options
         )
     if include_labellers:
         labels_subquery = (
@@ -444,7 +443,7 @@ async def get_source(
         key=lambda x: x.origin,
     )
     source_info["annotations"] = [
-        {**annotation.to_dict(), 'type': 'source'} for annotation in annotations
+        {**annotation.to_dict(), "type": "source"} for annotation in annotations
     ]
     readable_classifications = (
         session.scalars(
@@ -457,8 +456,8 @@ async def get_source(
     readable_classifications_json = []
     for classification in readable_classifications:
         classification_dict = classification.to_dict()
-        classification_dict['groups'] = [g.to_dict() for g in classification.groups]
-        classification_dict['votes'] = [g.to_dict() for g in classification.votes]
+        classification_dict["groups"] = [g.to_dict() for g in classification.groups]
+        classification_dict["votes"] = [g.to_dict() for g in classification.votes]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
@@ -485,7 +484,7 @@ async def get_source(
             .all()
         )
         source_info["photometry"] = [
-            serialize(phot, 'ab', 'both') for phot in photometry
+            serialize(phot, "ab", "both") for phot in photometry
         ]
         if deduplicate_photometry and len(source_info["photometry"]) > 0:
             df_phot = pd.DataFrame.from_records(source_info["photometry"])
@@ -494,7 +493,7 @@ async def get_source(
                 df_phot.sort_values(by="created_at", ascending=False)
                 .drop_duplicates(["mjd", "filter"])
                 .reset_index(drop=True)
-                .to_dict(orient='records')
+                .to_dict(orient="records")
             )
 
     if include_photometry_exists:
@@ -569,10 +568,10 @@ async def get_source(
             source_info["gcn_notes"].extend(
                 [
                     {
-                        'dateobs': gcn.dateobs,
-                        'explanation': gcn.explanation,
-                        'notes': gcn.notes,
-                        'status': confirmed_in_gcn_status_to_str(gcn.confirmed),
+                        "dateobs": gcn.dateobs,
+                        "explanation": gcn.explanation,
+                        "notes": gcn.notes,
+                        "status": confirmed_in_gcn_status_to_str(gcn.confirmed),
                     }
                     for gcn in confirmed_in_gcn
                 ]
@@ -663,7 +662,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    if ' ' in data["id"]:
+    if " " in data["id"]:
         raise AttributeError("No spaces allowed in source ID")
 
     # only allow letters, numbers, underscores, dashes, semicolons, and colons
@@ -680,8 +679,8 @@ def post_source(data, user_id, session, refresh_source=True):
         obj_already_exists = True
     schema = Obj.__schema__()
 
-    ra = data.get('ra', None)
-    dec = data.get('dec', None)
+    ra = data.get("ra", None)
+    dec = data.get("dec", None)
 
     if ((ra is None) or (dec is None)) and not obj_already_exists:
         raise AttributeError("RA/Declination must not be null for a new Obj")
@@ -693,7 +692,7 @@ def post_source(data, user_id, session, refresh_source=True):
             "You must belong to one or more groups before you can add sources."
         )
 
-    group_ids = data.pop('group_ids', None)
+    group_ids = data.pop("group_ids", None)
     if group_ids is None:
         group_ids = user_group_ids
     else:
@@ -703,7 +702,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 group_ids_tmp.append(int(id))
             else:
                 raise ValueError(
-                    f'Cannot find group_id {id}. Please remove and try again.'
+                    f"Cannot find group_id {id}. Please remove and try again."
                 )
         group_ids = group_ids_tmp
 
@@ -716,16 +715,16 @@ def post_source(data, user_id, session, refresh_source=True):
     # saved to one of the ignore_if_in_group_ids
     # ignore_if_in_group_ids is a dict, where each keys are the group_ids for which we want to specify groups to avoid
     ignore_if_in_group_ids = {}
-    if 'ignore_if_in_group_ids' in data:
-        if not isinstance(data['ignore_if_in_group_ids'], dict):
+    if "ignore_if_in_group_ids" in data:
+        if not isinstance(data["ignore_if_in_group_ids"], dict):
             raise AttributeError(
                 "Invalid ignore_if_in_group_ids field. Please specify a dict "
                 "of group_ids to ignore."
             )
         try:
             ignore_if_in_group_ids = {
-                int(id): [int(gid) for gid in data['ignore_if_in_group_ids'][id]]
-                for id in data['ignore_if_in_group_ids']
+                int(id): [int(gid) for gid in data["ignore_if_in_group_ids"][id]]
+                for id in data["ignore_if_in_group_ids"]
             }
         except KeyError:
             raise AttributeError(
@@ -744,19 +743,19 @@ def post_source(data, user_id, session, refresh_source=True):
     # we want to allow admins to save sources as another user(s).
     # it's optional, and we default to saving to the current user unless specified otherwise.
     saver_per_group_id = {gid: user for gid in group_ids}
-    if 'saver_per_group_id' in data:
+    if "saver_per_group_id" in data:
         if not user.is_admin:
             raise AttributeError(
                 "You must be an admin to specify a saver_per_group_id field."
             )
-        if not isinstance(data['saver_per_group_id'], dict):
+        if not isinstance(data["saver_per_group_id"], dict):
             raise AttributeError(
                 "Invalid saver_per_group_id field. Please specify a dict"
             )
         try:
             saver_id_per_group_id = {
                 int(gid): int(user_id)
-                for gid, user_id in data['saver_per_group_id'].items()
+                for gid, user_id in data["saver_per_group_id"].items()
             }
         except Exception:
             raise AttributeError(
@@ -782,14 +781,14 @@ def post_source(data, user_id, session, refresh_source=True):
         except Exception as e:
             raise AttributeError(f"Invalid saver_per_group_id field. {e}")
 
-    data.pop('saver_per_group_id', None)
+    data.pop("saver_per_group_id", None)
 
     if not obj_already_exists:
         try:
             obj = schema.load(data)
         except ValidationError as e:
             raise ValidationError(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                f"Invalid/missing parameters: {e.normalized_messages()}"
             )
         session.add(obj)
 
@@ -808,7 +807,7 @@ def post_source(data, user_id, session, refresh_source=True):
         )
     group_ids_loaded = [g.id for g in groups]
     if not set(group_ids_loaded) == set(group_ids):
-        raise AttributeError('Not all group_ids could be loaded.')
+        raise AttributeError("Not all group_ids could be loaded.")
 
     update_redshift_history_if_relevant(data, obj, user)
 
@@ -845,11 +844,11 @@ def post_source(data, user_id, session, refresh_source=True):
             ).first()
             if group_user is None:
                 raise AttributeError(
-                    f'User is not a member of the group with ID {group.id}.'
+                    f"User is not a member of the group with ID {group.id}."
                 )
             if not group_user.can_save:
                 raise AttributeError(
-                    f'User does not have power to save to group with ID {group.id}.'
+                    f"User does not have power to save to group with ID {group.id}."
                 )
         if source is not None:
             # only edit the saver if the existing source is not currently active
@@ -942,10 +941,10 @@ def post_source(data, user_id, session, refresh_source=True):
         if refresh_source:
             flow = Flow()
             flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
             flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+                "*", "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
 
     return obj.id, list(set(group_ids) - set(not_saved_to_group_ids)), warnings
@@ -999,12 +998,12 @@ class SourceHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            query_params = [bindparam('objID', value=obj_id, type_=sa.String)]
+            query_params = [bindparam("objID", value=obj_id, type_=sa.String)]
             stmt = "SELECT id FROM sources WHERE obj_id = :objID"
             if not self.associated_user_object.is_admin:
                 query_params.append(
                     bindparam(
-                        'userID', value=self.associated_user_object.id, type_=sa.Integer
+                        "userID", value=self.associated_user_object.id, type_=sa.Integer
                     )
                 )
                 stmt = (
@@ -1711,28 +1710,28 @@ class SourceHandler(BaseHandler):
 
         start = time.time()
 
-        page_number = self.get_query_argument('pageNumber', 1)
+        page_number = self.get_query_argument("pageNumber", 1)
         num_per_page = min(
             int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
             MAX_SOURCES_PER_PAGE,
         )
-        ra = self.get_query_argument('ra', None)
-        dec = self.get_query_argument('dec', None)
-        radius = self.get_query_argument('radius', None)
-        first_detected_date = self.get_query_argument('startDate', None)
-        last_detected_date = self.get_query_argument('endDate', None)
-        list_name = self.get_query_argument('listName', None)
-        sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
-        rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
+        ra = self.get_query_argument("ra", None)
+        dec = self.get_query_argument("dec", None)
+        radius = self.get_query_argument("radius", None)
+        first_detected_date = self.get_query_argument("startDate", None)
+        last_detected_date = self.get_query_argument("endDate", None)
+        list_name = self.get_query_argument("listName", None)
+        sourceID = self.get_query_argument("sourceID", None)  # Partial ID to match
+        rejectedSourceIDs = self.get_query_argument("rejectedSourceIDs", None)
         include_photometry = self.get_query_argument("includePhotometry", False)
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
         include_thumbnails = self.get_query_argument("includeThumbnails", False)
         requested_only = self.get_query_argument("pendingOnly", False)
-        saved_after = self.get_query_argument('savedAfter', None)
-        saved_before = self.get_query_argument('savedBefore', None)
-        save_summary = self.get_query_argument('saveSummary', False)
+        saved_after = self.get_query_argument("savedAfter", None)
+        saved_before = self.get_query_argument("savedBefore", None)
+        save_summary = self.get_query_argument("saveSummary", False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "desc")
         include_comments = self.get_query_argument("includeComments", False)
@@ -1769,15 +1768,15 @@ class SourceHandler(BaseHandler):
             "annotationsFilterOrigin", None
         )
         annotations_filter_after = self.get_query_argument(
-            'annotationsFilterAfter', None
+            "annotationsFilterAfter", None
         )
         annotations_filter_before = self.get_query_argument(
-            'annotationsFilterBefore', None
+            "annotationsFilterBefore", None
         )
         comments_filter = self.get_query_argument("commentsFilter", None)
         comments_filter_author = self.get_query_argument("commentsFilterAuthor", None)
-        comments_filter_after = self.get_query_argument('commentsFilterAfter', None)
-        comments_filter_before = self.get_query_argument('commentsFilterBefore', None)
+        comments_filter_after = self.get_query_argument("commentsFilterAfter", None)
+        comments_filter_before = self.get_query_argument("commentsFilterBefore", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
@@ -1829,43 +1828,43 @@ class SourceHandler(BaseHandler):
         validator_instance = Validator()
         params_to_be_validated = {}
         if saved_after is not None:
-            params_to_be_validated['saved_after'] = saved_after
+            params_to_be_validated["saved_after"] = saved_after
         if saved_before is not None:
-            params_to_be_validated['saved_before'] = saved_before
+            params_to_be_validated["saved_before"] = saved_before
         if save_summary is not None:
-            params_to_be_validated['save_summary'] = save_summary
+            params_to_be_validated["save_summary"] = save_summary
         if include_thumbnails is not None:
-            params_to_be_validated['include_thumbnails'] = include_thumbnails
+            params_to_be_validated["include_thumbnails"] = include_thumbnails
         if remove_nested is not None:
-            params_to_be_validated['remove_nested'] = remove_nested
+            params_to_be_validated["remove_nested"] = remove_nested
         if first_detected_date is not None:
-            params_to_be_validated['first_detected_date'] = first_detected_date
+            params_to_be_validated["first_detected_date"] = first_detected_date
         if last_detected_date is not None:
-            params_to_be_validated['last_detected_date'] = last_detected_date
+            params_to_be_validated["last_detected_date"] = last_detected_date
         if has_spectrum_after is not None:
-            params_to_be_validated['has_spectrum_after'] = has_spectrum_after
+            params_to_be_validated["has_spectrum_after"] = has_spectrum_after
         if has_spectrum_before is not None:
-            params_to_be_validated['has_spectrum_before'] = has_spectrum_before
+            params_to_be_validated["has_spectrum_before"] = has_spectrum_before
         if created_or_modified_after is not None:
-            params_to_be_validated[
-                'created_or_modified_after'
-            ] = created_or_modified_after
+            params_to_be_validated["created_or_modified_after"] = (
+                created_or_modified_after
+            )
 
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
-            return self.error(f'Error parsing query params: {e.args[0]}.')
+            return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        saved_after = validated['saved_after']
-        saved_before = validated['saved_before']
-        save_summary = validated['save_summary']
-        remove_nested = validated['remove_nested']
-        include_thumbnails = validated['include_thumbnails']
-        first_detected_date = validated['first_detected_date']
-        last_detected_date = validated['last_detected_date']
-        has_spectrum_after = validated['has_spectrum_after']
-        has_spectrum_before = validated['has_spectrum_before']
-        created_or_modified_after = validated['created_or_modified_after']
+        saved_after = validated["saved_after"]
+        saved_before = validated["saved_before"]
+        save_summary = validated["save_summary"]
+        remove_nested = validated["remove_nested"]
+        include_thumbnails = validated["include_thumbnails"]
+        first_detected_date = validated["first_detected_date"]
+        last_detected_date = validated["last_detected_date"]
+        has_spectrum_after = validated["has_spectrum_after"]
+        has_spectrum_before = validated["has_spectrum_before"]
+        created_or_modified_after = validated["created_or_modified_after"]
 
         if (
             localization_dateobs is not None
@@ -1874,7 +1873,7 @@ class SourceHandler(BaseHandler):
         ):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
-                    'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
+                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
                 )
             if first_detected_date > last_detected_date:
                 return self.error(
@@ -1890,34 +1889,34 @@ class SourceHandler(BaseHandler):
         if spatial_catalog_name is not None:
             if spatial_catalog_entry_name is None:
                 return self.error(
-                    'spatialCatalogEntryName must be defined if spatialCatalogName is as well'
+                    "spatialCatalogEntryName must be defined if spatialCatalogName is as well"
                 )
 
         if rejectedSourceIDs:
             rejectedSourceIDs = rejectedSourceIDs.split(",")
 
         # parse the group ids:
-        group_ids = self.get_query_argument('group_ids', None)
+        group_ids = self.get_query_argument("group_ids", None)
         if group_ids is not None:
             try:
-                group_ids = [int(gid) for gid in group_ids.split(',')]
+                group_ids = [int(gid) for gid in group_ids.split(",")]
             except ValueError:
                 return self.error(
-                    f'Invalid group ids field ({group_ids}; Could not parse all elements to integers'
+                    f"Invalid group ids field ({group_ids}; Could not parse all elements to integers"
                 )
 
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
 
-        simbad_class = self.get_query_argument('simbadClass', None)
-        alias = self.get_query_argument('alias', None)
-        origin = self.get_query_argument('origin', None)
-        tns_name = self.get_query_argument('TNSname', None)
-        has_tns_name = self.get_query_argument('hasTNSname', None)
-        has_no_tns_name = self.get_query_argument('hasNoTNSname', None)
-        has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
-        has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
-        current_user_labeller = self.get_query_argument('currentUserLabeller', False)
-        total_matches = self.get_query_argument('totalMatches', None)
+        simbad_class = self.get_query_argument("simbadClass", None)
+        alias = self.get_query_argument("alias", None)
+        origin = self.get_query_argument("origin", None)
+        tns_name = self.get_query_argument("TNSname", None)
+        has_tns_name = self.get_query_argument("hasTNSname", None)
+        has_no_tns_name = self.get_query_argument("hasNoTNSname", None)
+        has_been_labelled = self.get_query_argument("hasBeenLabelled", False)
+        has_not_been_labelled = self.get_query_argument("hasNotBeenLabelled", False)
+        current_user_labeller = self.get_query_argument("currentUserLabeller", False)
+        total_matches = self.get_query_argument("totalMatches", None)
         is_token_request = isinstance(self.current_user, Token)
 
         if obj_id is not None:
@@ -1949,14 +1948,14 @@ class SourceHandler(BaseHandler):
                     )
                 except Exception as e:
                     traceback.print_exc()
-                    return self.error(f'Cannot retrieve source: {str(e)}')
+                    return self.error(f"Cannot retrieve source: {str(e)}")
 
                 query_size = sizeof(source_info)
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
                     duration = end - start
                     log(
-                        f'User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds'
+                        f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
                     )
 
                 return self.success(data=source_info)
@@ -2049,18 +2048,18 @@ class SourceHandler(BaseHandler):
                 )
             except Exception as e:
                 traceback.print_exc()
-                return self.error(f'Cannot retrieve sources: {str(e)}')
+                return self.error(f"Cannot retrieve sources: {str(e)}")
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
                 log(
-                    f'User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds'
+                    f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
                 )
             return self.success(data=query_results)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -2111,7 +2110,7 @@ class SourceHandler(BaseHandler):
         # existence).
 
         data = self.get_json()
-        refresh_source = data.pop('refresh_source', True)
+        refresh_source = data.pop("refresh_source", True)
 
         with self.Session() as session:
             try:
@@ -2129,9 +2128,9 @@ class SourceHandler(BaseHandler):
                     response_data["warnings"] = warnings
                 return self.success(data=response_data)
             except Exception as e:
-                return self.error(f'Failed to post source: {str(e)}')
+                return self.error(f"Failed to post source: {str(e)}")
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def patch(self, obj_id):
         """
         ---
@@ -2161,28 +2160,28 @@ class SourceHandler(BaseHandler):
                   schema: Error
         """
         data = self.get_json()
-        data['id'] = obj_id
+        data["id"] = obj_id
 
         with self.Session() as session:
             # verify that there are no candidates for this object,
             # in which case we do not allow updating the position
             updated_coordinates = False
-            if data.get('ra', None) is not None or data.get('dec', None) is not None:
+            if data.get("ra", None) is not None or data.get("dec", None) is not None:
                 existing_candidates = session.scalars(
                     sa.select(Candidate).where(Candidate.obj_id == obj_id)
                 ).all()
                 if len(existing_candidates) > 0:
                     return self.error(
-                        'Cannot update the position of an object with candidates/alerts'
+                        "Cannot update the position of an object with candidates/alerts"
                     )
 
                 source = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
                 if source is None:
-                    return self.error(f'Cannot find the object with name {obj_id}')
+                    return self.error(f"Cannot find the object with name {obj_id}")
 
                 if not (
-                    np.isclose(data.get('ra', source.ra), source.ra)
-                    and np.isclose(data.get('dec', source.dec), source.dec)
+                    np.isclose(data.get("ra", source.ra), source.ra)
+                    and np.isclose(data.get("dec", source.dec), source.dec)
                 ):
                     run_async(remove_obj_thumbnails, obj_id)
                     updated_coordinates = True
@@ -2192,7 +2191,7 @@ class SourceHandler(BaseHandler):
                 obj = schema.load(data)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
             update_summary_history_if_relevant(data, obj, self.associated_user_object)
@@ -2215,8 +2214,8 @@ class SourceHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['Manage sources'])
-    def delete(self, obj_id, group_id):
+    @permissions(["Manage sources"])
+    def delete(self, obj_id):
         """
         ---
         summary: Delete a source
@@ -2229,7 +2228,7 @@ class SourceHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
+          - in: query
             name: group_id
             required: true
             schema:
@@ -2241,6 +2240,13 @@ class SourceHandler(BaseHandler):
                 schema: Success
         """
 
+        data = self.get_json()
+
+        if data.get("group_id") is None:
+            return self.error("Missing required parameter `group_id`")
+
+        group_id = data.get("group_id")
+
         with self.Session() as session:
             if group_id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error("Inadequate permissions.")
@@ -2249,8 +2255,12 @@ class SourceHandler(BaseHandler):
                 .where(Source.obj_id == obj_id)
                 .where(Source.group_id == group_id)
             ).first()
+
+            if s is None:
+                return self.error(f"No such source {obj_id} in group {group_id}.")
+
             s.active = False
-            s.unsaved_by = self.current_user
+            s.unsaved_by = self.associated_user_object
             session.commit()
             return self.success()
 
@@ -2275,7 +2285,7 @@ class SourceOffsetsHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: num_offset_stars
@@ -2315,7 +2325,7 @@ class SourceOffsetsHandler(BaseHandler):
                           properties:
                             facility:
                               type: string
-                              enum: [Keck, Shane, P200]
+                              enum: [Keck, Shane, P200, P200-NGPS]
                               description: Facility queried for starlist
                             starlist_str:
                               type: string
@@ -2385,39 +2395,20 @@ class SourceOffsetsHandler(BaseHandler):
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
             if source is None:
-                return self.error('Source not found', status=404)
+                return self.error("Source not found", status=404)
 
-            initial_pos = (source.ra, source.dec)
-
-            try:
-                best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                    session.scalars(
-                        Photometry.select(session.user_or_token).where(
-                            Photometry.obj_id == source.id
-                        )
-                    ).all(),
-                    fallback=(initial_pos[0], initial_pos[1]),
-                    how="snr2",
-                )
-            except JSONDecodeError:
-                self.push_notification(
-                    'Source position using photometry points failed.'
-                    ' Reverting to discovery position.'
-                )
-                best_ra, best_dec = initial_pos[0], initial_pos[1]
-
-            facility = self.get_query_argument('facility', 'Keck')
-            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
-            use_ztfref = self.get_query_argument('use_ztfref', True)
+            facility = self.get_query_argument("facility", "Keck")
+            num_offset_stars = self.get_query_argument("num_offset_stars", "3")
+            use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument(
-                'obstime', datetime.datetime.utcnow().isoformat()
+                "obstime", datetime.datetime.utcnow().isoformat()
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
-                return self.error('obstime is not valid isoformat')
+                return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
-                return self.error('Invalid facility')
+                return self.error("Invalid facility")
 
             radius_degrees = facility_parameters[facility]["radius_degrees"]
             mag_limit = facility_parameters[facility]["mag_limit"]
@@ -2428,12 +2419,96 @@ class SourceOffsetsHandler(BaseHandler):
                 num_offset_stars = int(num_offset_stars)
             except ValueError:
                 # could not handle inputs
-                return self.error('Invalid argument for `num_offset_stars`')
+                return self.error("Invalid argument for `num_offset_stars`")
+
+            photometry = (
+                session.scalars(
+                    sa.select(Photometry).where(
+                        sa.and_(
+                            Photometry.obj_id == source.id,
+                            ~Photometry.origin.ilike("%fp%"),
+                        )
+                    )
+                )
+            ).all()
+
+            photometry = [
+                p
+                for p in photometry
+                if not np.isnan(p.flux)
+                and not np.isnan(p.fluxerr)
+                and p.ra is not None
+                and not np.isnan(p.ra)
+                and p.dec is not None
+                and not np.isnan(p.dec)
+                and p.flux / p.fluxerr > 3.0
+            ]
+
+            ra, dec = source.ra, source.dec
+            try:
+                ra, dec = _calculate_best_position_for_offset_stars(
+                    photometry,
+                    fallback=(source.ra, source.dec),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    "Source position using photometry points failed."
+                    " Reverting to discovery position."
+                )
+
+            (
+                source_mag,
+                source_magfilter,
+            ) = (
+                None,
+                None,
+            )
+            priority, comment = 1, "science"
+            if facility in ["P200-NGPS"]:
+                # look for the latest photometry point
+                # in the filters supported by NGPS
+                latest_photometry = session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.flux.isnot(None),
+                        Photometry.flux > 0,
+                        Photometry.fluxerr.isnot(None),
+                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                    )
+                    .order_by(Photometry.mjd.desc())
+                ).first()
+                if latest_photometry is not None:
+                    source_mag = latest_photometry.mag
+                    source_magfilter = latest_photometry.filter
+
+                # optionally, the source can be associated with an observing run
+                # in which case we retrieve the assignment's priority and comment
+                observing_run = self.get_query_argument("observing_run_id", None)
+                if observing_run is not None:
+                    try:
+                        observing_run = int(observing_run)
+                    except ValueError:
+                        return self.error("Invalid argument for `observing_run_id`")
+
+                    assignment = session.scalars(
+                        ClassicalAssignment.select(session.user_or_token).where(
+                            ClassicalAssignment.obj_id == obj_id,
+                            ClassicalAssignment.run_id == observing_run,
+                        )
+                    ).first()
+                    if assignment is None:
+                        return self.error(
+                            f"No target found with obj_id {obj_id} and observing run ID {observing_run}"
+                        )
+
+                    priority, comment = assignment.priority, assignment.comment
 
             offset_func = functools.partial(
                 get_nearby_offset_stars,
-                best_ra,
-                best_dec,
+                ra,
+                dec,
                 obj_id,
                 how_many=num_offset_stars,
                 radius_degrees=radius_degrees,
@@ -2444,6 +2519,10 @@ class SourceOffsetsHandler(BaseHandler):
                 obstime=obstime,
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
+                assignment_priority=priority,
+                assignment_comment=comment,
+                source_mag=source_mag,
+                source_magfilter=source_magfilter,
             )
 
             try:
@@ -2464,15 +2543,15 @@ class SourceOffsetsHandler(BaseHandler):
             session.commit()
             return self.success(
                 data={
-                    'facility': facility,
-                    'starlist_str': starlist_str,
-                    'starlist_info': starlist_info,
-                    'ra': source.ra,
-                    'dec': source.dec,
-                    'noffsets': noffsets,
-                    'queries_issued': queries_issued,
-                    'query': query_string,
-                    'used_ztfref': used_ztfref,
+                    "facility": facility,
+                    "starlist_str": starlist_str,
+                    "starlist_info": starlist_info,
+                    "ra": source.ra,
+                    "dec": source.dec,
+                    "noffsets": noffsets,
+                    "queries_issued": queries_issued,
+                    "query": query_string,
+                    "used_ztfref": used_ztfref,
                 }
             )
 
@@ -2505,7 +2584,7 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
         - in: query
           name: image_source
           nullable: true
@@ -2567,79 +2646,97 @@ class SourceFinderHandler(BaseHandler):
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
             if source is None:
-                return self.error('Source not found', status=404)
+                return self.error("Source not found", status=404)
 
-            output_type = self.get_query_argument('type', 'pdf')
+            output_type = self.get_query_argument("type", "pdf")
             if output_type not in ["png", "pdf"]:
-                return self.error(f'Invalid argument for `type`: {output_type}')
+                return self.error(f"Invalid argument for `type`: {output_type}")
 
-            imsize = self.get_query_argument('imsize', 4.0)
+            imsize = self.get_query_argument("imsize", 4.0)
             try:
                 imsize = float(imsize)
             except ValueError:
                 # could not handle inputs
-                return self.error('Invalid argument for `imsize`')
+                return self.error("Invalid argument for `imsize`")
 
             if imsize < 2.0 or imsize > 15.0:
                 return self.error(
-                    'The value for `imsize` is outside the allowed range (2.0-15.0)'
+                    "The value for `imsize` is outside the allowed range (2.0-15.0)"
                 )
 
-            initial_pos = (source.ra, source.dec)
-            try:
-                best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                    session.scalars(
-                        Photometry.select(session.user_or_token).where(
-                            Photometry.obj_id == source.id
-                        )
-                    ).all(),
-                    fallback=(initial_pos[0], initial_pos[1]),
-                    how="snr2",
-                )
-            except JSONDecodeError:
-                self.push_notification(
-                    'Source position using photometry points failed.'
-                    ' Reverting to discovery position.'
-                )
-                best_ra, best_dec = initial_pos[0], initial_pos[1]
+            facility = self.get_query_argument("facility", "Keck")
+            image_source = self.get_query_argument("image_source", "ps1")
+            use_ztfref = self.get_query_argument("use_ztfref", True)
 
-            facility = self.get_query_argument('facility', 'Keck')
-            image_source = self.get_query_argument('image_source', 'ps1')
-            use_ztfref = self.get_query_argument('use_ztfref', True)
-
-            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+            num_offset_stars = self.get_query_argument("num_offset_stars", "3")
             try:
                 num_offset_stars = int(num_offset_stars)
             except ValueError:
                 # could not handle inputs
-                return self.error('Invalid argument for `num_offset_stars`')
+                return self.error("Invalid argument for `num_offset_stars`")
 
             if not 0 <= num_offset_stars <= 4:
                 return self.error(
-                    'The value for `num_offset_stars` is outside the allowed range (0-4)'
+                    "The value for `num_offset_stars` is outside the allowed range (0-4)"
                 )
 
             obstime = self.get_query_argument(
-                'obstime', datetime.datetime.utcnow().isoformat()
+                "obstime", datetime.datetime.utcnow().isoformat()
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
-                return self.error('obstime is not valid isoformat')
+                return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
-                return self.error('Invalid facility')
+                return self.error("Invalid facility")
 
             if image_source not in source_image_parameters:
-                return self.error('Invalid source image')
+                return self.error("Invalid source image")
 
             radius_degrees = facility_parameters[facility]["radius_degrees"]
             mag_limit = facility_parameters[facility]["mag_limit"]
             min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
             mag_min = facility_parameters[facility]["mag_min"]
 
+            photometry = (
+                session.scalars(
+                    sa.select(Photometry).where(
+                        sa.and_(
+                            Photometry.obj_id == source.id,
+                            ~Photometry.origin.ilike("%fp%"),
+                        )
+                    )
+                )
+            ).all()
+
+            photometry = [
+                p
+                for p in photometry
+                if not np.isnan(p.flux)
+                and not np.isnan(p.fluxerr)
+                and p.ra is not None
+                and not np.isnan(p.ra)
+                and p.dec is not None
+                and not np.isnan(p.dec)
+                and p.flux / p.fluxerr > 3.0
+            ]
+
+            ra, dec = source.ra, source.dec
+            try:
+                ra, dec = _calculate_best_position_for_offset_stars(
+                    photometry,
+                    fallback=(source.ra, source.dec),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    "Source position using photometry points failed."
+                    " Reverting to discovery position."
+                )
+
             finder = functools.partial(
                 get_finding_chart,
-                best_ra,
-                best_dec,
+                ra,
+                dec,
                 obj_id,
                 image_source=image_source,
                 output_format=output_type,
@@ -2658,7 +2755,7 @@ class SourceFinderHandler(BaseHandler):
             )
 
             self.push_notification(
-                'Finding chart generation in progress. Download will start soon.'
+                "Finding chart generation in progress. Download will start soon."
             )
             rez = await IOLoop.current().run_in_executor(None, finder)
 
@@ -2752,18 +2849,17 @@ class SourceNotificationHandler(BaseHandler):
                 Obj.select(session.user_or_token).where(Obj.id == data["sourceId"])
             ).first()
             if source is None:
-                return self.error('Source not found', status=404)
+                return self.error("Source not found", status=404)
 
             source_id = data["sourceId"]
 
-            source_group_ids = [
-                row
-                for row in session.scalars(
+            source_group_ids = list(
+                session.scalars(
                     Source.select(
                         session.user_or_token, columns=[Source.group_id]
                     ).where(Source.obj_id == source_id)
                 ).all()
-            ]
+            )
 
             if bool(set(group_ids).difference(set(source_group_ids))):
                 forbidden_groups = list(set(group_ids) - set(source_group_ids))
@@ -2785,7 +2881,7 @@ class SourceNotificationHandler(BaseHandler):
             ).all()
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             new_notification = SourceNotification(
@@ -2811,7 +2907,7 @@ class SourceNotificationHandler(BaseHandler):
                     "per their setup docs."
                 )
 
-            return self.success(data={'id': new_notification.id})
+            return self.success(data={"id": new_notification.id})
 
 
 class SurveyThumbnailHandler(BaseHandler):
@@ -2869,7 +2965,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
             for obj in objs:
                 try:
-                    obj.add_linked_thumbnails(['sdss', 'ps1', 'ls'], session)
+                    obj.add_linked_thumbnails(["sdss", "ps1", "ls"], session)
                 except Exception:
                     session.rollback()
                     return self.error(f"Error adding thumbnails for {obj.id}")
@@ -2924,7 +3020,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
             stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
             source = session.scalars(stmt).first()
-            coords = astropy.coordinates.SkyCoord(source.ra, source.dec, unit='deg')
+            coords = astropy.coordinates.SkyCoord(source.ra, source.dec, unit="deg")
 
             trigger_time = Time.now()
             times = trigger_time + np.linspace(0, 1) * u.day
@@ -2943,28 +3039,28 @@ class SourceObservabilityPlotHandler(BaseHandler):
             observers = list(reversed(observers))
 
             constraints = [
-                getattr(AtNightConstraint, f'twilight_{twilight}')(),
+                getattr(AtNightConstraint, f"twilight_{twilight}")(),
                 AirmassConstraint(max_airmass),
             ]
 
-            output_format = 'pdf'
+            output_format = "pdf"
             fig = plt.figure(figsize=(14, 10))
             width, height = fig.get_size_inches()
             fig.set_size_inches(width, (len(observers) + 1) / 16 * width)
             ax = plt.axes()
             locator = dates.AutoDateLocator()
-            formatter = dates.DateFormatter('%H:%M')
+            formatter = dates.DateFormatter("%H:%M")
             ax.set_xlim([times[0].plot_date, times[-1].plot_date])
             ax.xaxis.set_major_formatter(formatter)
             ax.xaxis.set_major_locator(locator)
             ax.set_xlabel(f"Time from {min(times).datetime.date()} [UTC]")
-            plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+            plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
             ax.set_yticks(np.arange(len(observers)))
             ax.set_yticklabels([observer.name for observer in observers])
             ax.yaxis.set_tick_params(left=False)
-            ax.grid(axis='x')
-            ax.spines['bottom'].set_visible(False)
-            ax.spines['top'].set_visible(False)
+            ax.grid(axis="x")
+            ax.spines["bottom"].set_visible(False)
+            ax.spines["top"].set_visible(False)
 
             for i, observer in enumerate(observers):
                 observable = 100 * np.dot(
@@ -2979,7 +3075,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
                 )
 
             buf = io.BytesIO()
-            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            fig.savefig(buf, format=output_format, bbox_inches="tight")
             plt.close(fig)
             buf.seek(0)
 
@@ -3074,7 +3170,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
             )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
             data = session.scalars(
@@ -3088,7 +3184,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
             query_result = []
             for p in data:
                 instrument = p.instrument
-                result = serialize(p, 'ab', 'both', groups=False, annotations=False)
+                result = serialize(p, "ab", "both", groups=False, annotations=False)
                 query_result.append(result)
 
             df = pd.DataFrame.from_dict(query_result)
@@ -3097,20 +3193,20 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
             drop_columns = list(
                 set(df.columns.values)
-                - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+                - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
             )
 
             df.drop(
                 columns=drop_columns,
                 inplace=True,
             )
-            df['magsys'] = 'ab'
+            df["magsys"] = "ab"
 
             data_out = {
-                'obj_id': target_id,
-                'instrument_id': instrument.id,
-                'group_ids': [g.id for g in groups],
-                **df.to_dict(orient='list'),
+                "obj_id": target_id,
+                "instrument_id": instrument.id,
+                "group_ids": [g.id for g in groups],
+                **df.to_dict(orient="list"),
             }
 
             add_external_photometry(data_out, self.associated_user_object, refresh=True)

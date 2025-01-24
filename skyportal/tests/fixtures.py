@@ -9,51 +9,50 @@ from tempfile import mkdtemp
 
 import factory
 import numpy as np
+import pandas as pd
 import sqlalchemy as sa
+import tdtax
 from sqlalchemy import inspect
 from sqlalchemy.orm.exc import ObjectDeletedError
-import pandas as pd
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
 from baselayer.app.test_util import set_server_url
 from skyportal.models import (
-    init_db,
+    Allocation,
+    Annotation,
+    ClassicalAssignment,
+    Classification,
+    Comment,
+    CommentOnGCN,
+    CommentOnSpectrum,
     DBSession,
-    User,
-    Group,
-    Photometry,
-    Spectrum,
-    Stream,
-    Instrument,
-    Telescope,
-    Obj,
+    Filter,
+    FollowupRequest,
     GcnEvent,
     GcnNotice,
     GcnProperty,
     GcnTag,
+    Group,
+    Instrument,
+    Invitation,
     Localization,
     LocalizationProperty,
-    LocalizationTile,
     LocalizationTag,
-    Comment,
-    CommentOnSpectrum,
-    CommentOnGCN,
-    Annotation,
-    Thumbnail,
-    Filter,
+    LocalizationTile,
+    Obj,
     ObservingRun,
-    ClassicalAssignment,
-    Taxonomy,
-    Classification,
-    FollowupRequest,
-    Allocation,
-    Invitation,
+    Photometry,
     SourceNotification,
+    Spectrum,
+    Stream,
+    Taxonomy,
+    Telescope,
+    Thumbnail,
+    User,
     UserNotification,
+    init_db,
 )
-
-import tdtax
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
@@ -61,7 +60,7 @@ env, cfg = load_env()
 print("Loading test configuration from _test_config.yaml")
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f'http://localhost:{cfg["ports.app"]}')
+set_server_url(f"http://localhost:{cfg['ports.app']}")
 print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
@@ -82,13 +81,13 @@ def load_localization_data(path):
     """
     df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
 
-    uniq = df['uniq'].values[0]
-    probdensity = df['probdensity'].values[0]
-    contour = df['contour'].values[0]
+    uniq = df["uniq"].values[0]
+    probdensity = df["probdensity"].values[0]
+    contour = df["contour"].values[0]
 
     # Convert string representations of lists to actual lists and dicts
-    uniq = np.array([int(x) for x in uniq[1:-1].split(',')]).tolist()
-    probdensity = np.array([float(x) for x in probdensity[1:-1].split(',')]).tolist()
+    uniq = np.array([int(x) for x in uniq[1:-1].split(",")]).tolist()
+    probdensity = np.array([float(x) for x in probdensity[1:-1].split(",")]).tolist()
     contour = json.loads(contour)
 
     return uniq, probdensity, contour
@@ -110,7 +109,7 @@ def load_localization_tiles_data(path):
     """
     df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
 
-    return df['probdensity'].values, df['healpix'].values
+    return df["probdensity"].values, df["healpix"].values
 
 
 def is_already_deleted(instance, table):
@@ -146,15 +145,15 @@ def is_already_deleted(instance, table):
 
 class BaseMeta:
     sqlalchemy_session = DBSession()
-    sqlalchemy_session_persistence = 'commit'
+    sqlalchemy_session_persistence = "commit"
 
 
 class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = factory.LazyFunction(lambda: f'Palomar 48 inch_{uuid.uuid4().hex}')
-    nickname = factory.LazyFunction(lambda: f'P48_{uuid.uuid4().hex}')
+    name = factory.LazyFunction(lambda: f"Palomar 48 inch_{uuid.uuid4().hex}")
+    nickname = factory.LazyFunction(lambda: f"P48_{uuid.uuid4().hex}")
     lat = 33.3563
     lon = -116.8650
     elevation = 1712.0
@@ -179,9 +178,9 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = User
 
     username = factory.LazyFunction(lambda: uuid.uuid4().hex)
-    contact_email = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:10]}@gmail.com')
-    first_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
-    last_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
+    contact_email = factory.LazyFunction(lambda: f"{uuid.uuid4().hex[:10]}@gmail.com")
+    first_name = factory.LazyFunction(lambda: f"{uuid.uuid4().hex[:4]}")
+    last_name = factory.LazyFunction(lambda: f"{uuid.uuid4().hex[:4]}")
 
     @factory.post_generation
     def roles(obj, create, extracted, **kwargs):
@@ -219,7 +218,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         sitewide_group = (
             DBSession()
             .execute(
-                sa.select(Group).filter(Group.name == cfg['misc']['public_group_name'])
+                sa.select(Group).filter(Group.name == cfg["misc"]["public_group_name"])
             )
             .scalars()
             .first()
@@ -247,7 +246,7 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
 
-    data = {'unique_id': uuid.uuid4().hex}
+    data = {"unique_id": uuid.uuid4().hex}
     author = factory.SubFactory(UserFactory)
     origin = factory.LazyFunction(lambda: uuid.uuid4().hex[:10])
 
@@ -277,11 +276,11 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = factory.LazyFunction(lambda: f'ZTF_{uuid.uuid4().hex}')
-    type = 'imager'
-    band = 'Optical'
+    name = factory.LazyFunction(lambda: f"ZTF_{uuid.uuid4().hex}")
+    type = "imager"
+    band = "Optical"
     telescope = factory.SubFactory(TelescopeFactory)
-    filters = ['ztfg', 'ztfr', 'ztfi']
+    filters = ["ztfg", "ztfr", "ztfi"]
 
     @staticmethod
     def teardown(instrument):
@@ -431,7 +430,7 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Comment
 
-    text = f'Test comment {uuid.uuid4().hex}'
+    text = f"Test comment {uuid.uuid4().hex}"
 
     author = factory.SubFactory(UserFactory)
 
@@ -460,7 +459,7 @@ class CommentOnSpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = CommentOnSpectrum
 
-    text = f'Test comment {uuid.uuid4().hex}'
+    text = f"Test comment {uuid.uuid4().hex}"
 
     author = factory.SubFactory(UserFactory)
 
@@ -489,7 +488,7 @@ class CommentOnGCNFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = CommentOnGCN
 
-    text = f'Test GCN comment {uuid.uuid4().hex}'
+    text = f"Test GCN comment {uuid.uuid4().hex}"
 
     author = factory.SubFactory(UserFactory)
 
@@ -533,7 +532,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         instruments = [InstrumentFactory(), InstrumentFactory()]
         # Save the generated instruments so they can be cleaned up later
         obj.instruments = instruments
-        filters = ['ztfg', 'ztfr', 'ztfi']
+        filters = ["ztfg", "ztfr", "ztfi"]
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             np.random.seed()
             phot1 = PhotometryFactory(
@@ -572,7 +571,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             return
 
         instruments = obj.instruments
-        comment_authors = list(map(lambda x: x.author.id, obj.comments))
+        comment_authors = [x.author.id for x in obj.comments]
         for author in comment_authors:
             UserFactory.teardown(author)
         spectra = (
@@ -594,9 +593,9 @@ class GcnNoticeFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = GcnNotice
 
     sent_by = factory.SubFactory(UserFactory)
-    ivorn = factory.LazyFunction(lambda: f'ivo://gwnet/LVC/{uuid.uuid4().hex}')
-    notice_type = 'test'
-    notice_format = 'voevent'
+    ivorn = factory.LazyFunction(lambda: f"ivo://gwnet/LVC/{uuid.uuid4().hex}")
+    notice_type = "test"
+    notice_format = "voevent"
     stream = factory.LazyFunction(lambda: uuid.uuid4().hex)
     date = datetime.datetime.now()
     dateobs = datetime.datetime.now()
@@ -636,7 +635,7 @@ class GcnTagFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     sent_by = factory.SubFactory(UserFactory)
     dateobs = datetime.datetime.now()
-    text = 'TestTag'
+    text = "TestTag"
 
     @staticmethod
     def teardown(gcn):
@@ -670,7 +669,7 @@ class LocalizationTagFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     sent_by = factory.SubFactory(UserFactory)
     localization_id = 1
-    text = 'TestTag'
+    text = "TestTag"
 
     @staticmethod
     def teardown(localization):
@@ -779,15 +778,15 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
                 new_notice = GcnNoticeFactory(
                     dateobs=self.dateobs,
                     sent_by=self.sent_by,
-                    ivorn=notice_dict.get('ivorn', f'ivo://test/{uuid.uuid4().hex}'),
-                    notice_type=notice_dict.get('notice_type', 'Test'),
-                    notice_format=notice_dict.get('notice_format', 'voevent'),
-                    stream=notice_dict.get('stream', str(uuid.uuid4().hex)),
-                    date=notice_dict.get('date', datetime.datetime.now()),
-                    content=notice_dict.get('content', bytes(1024)),
-                    has_localization=notice_dict.get('has_localization', False),
+                    ivorn=notice_dict.get("ivorn", f"ivo://test/{uuid.uuid4().hex}"),
+                    notice_type=notice_dict.get("notice_type", "Test"),
+                    notice_format=notice_dict.get("notice_format", "voevent"),
+                    stream=notice_dict.get("stream", str(uuid.uuid4().hex)),
+                    date=notice_dict.get("date", datetime.datetime.now()),
+                    content=notice_dict.get("content", bytes(1024)),
+                    has_localization=notice_dict.get("has_localization", False),
                     localization_ingested=notice_dict.get(
-                        'localization_ingested', False
+                        "localization_ingested", False
                     ),
                 )
                 new_notices.append(new_notice)
@@ -817,14 +816,14 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
                     dateobs=self.dateobs,
                     sent_by=self.sent_by,
                     notice_id=self.gcn_notices[0].id,
-                    properties=localization_dict.get('properties'),
-                    tags=localization_dict.get('tags'),
+                    properties=localization_dict.get("properties"),
+                    tags=localization_dict.get("tags"),
                     localization_name=localization_dict.get(
-                        'localization_name', f'Localization {uuid.uuid4().hex}'
+                        "localization_name", f"Localization {uuid.uuid4().hex}"
                     ),
-                    load_localization=localization_dict.get('localization_data_path'),
+                    load_localization=localization_dict.get("localization_data_path"),
                     load_localization_tiles=localization_dict.get(
-                        'localization_tiles_data_path'
+                        "localization_tiles_data_path"
                     ),
                 )
                 new_localizations.append(new_loc)
@@ -858,26 +857,26 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     instrument = factory.SubFactory(
         InstrumentFactory,
-        name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4().hex}'),
-        type='spectrograph',
-        band='Optical',
+        name=factory.LazyFunction(lambda: f"DBSP_{uuid.uuid4().hex}"),
+        type="spectrograph",
+        band="Optical",
         filters=[],
         telescope=factory.SubFactory(
             TelescopeFactory,
             name=factory.LazyFunction(
-                lambda: f'Palomar 200-inch Telescope_{uuid.uuid4().hex}'
+                lambda: f"Palomar 200-inch Telescope_{uuid.uuid4().hex}"
             ),
-            nickname=factory.LazyFunction(lambda: f'P200_{uuid.uuid4().hex}'),
+            nickname=factory.LazyFunction(lambda: f"P200_{uuid.uuid4().hex}"),
             robotic=False,
-            skycam_link='/static/images/palomar.jpg',
+            skycam_link="/static/images/palomar.jpg",
         ),
     )
 
     group = factory.SubFactory(GroupFactory)
-    pi = 'Danny Goldstein'
-    observers = 'D. Goldstein, S. Dhawan'
-    calendar_date = '3021-02-27'
-    run_end_utc = '3021-02-27 14:20:24.972000'
+    pi = "Danny Goldstein"
+    observers = "D. Goldstein, S. Dhawan"
+    calendar_date = "3021-02-27"
+    run_end_utc = "3021-02-27 14:20:24.972000"
     owner = factory.SubFactory(UserFactory)
 
     @staticmethod
@@ -1025,10 +1024,10 @@ class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
     allocation = (factory.SubFactory(AllocationFactory),)
     payload = (
         {
-            'priority': "5",
-            'start_date': '3020-09-01',
-            'end_date': '3022-09-01',
-            'observation_type': 'IFU',
+            "priority": "5",
+            "start_date": "3020-09-01",
+            "end_date": "3022-09-01",
+            "observation_type": "IFU",
         },
     )
     requester = factory.SubFactory(UserFactory)
@@ -1065,7 +1064,7 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     token = factory.LazyFunction(lambda: uuid.uuid4().hex)
     admin_for_groups = []
-    user_email = 'user@email.com'
+    user_email = "user@email.com"
     invited_by = factory.SubFactory(UserFactory)
     used = False
 
@@ -1110,8 +1109,8 @@ class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     sent_by = factory.SubFactory(UserFactory)
     source = factory.SubFactory(ObjFactory)
-    additional_notes = 'abcd'
-    level = 'hard'
+    additional_notes = "abcd"
+    level = "hard"
 
     @factory.post_generation
     def groups(obj, create, extracted, **kwargs):
@@ -1144,7 +1143,7 @@ class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = UserNotification
 
     user = factory.SubFactory(UserFactory)
-    text = 'abcd1234'
+    text = "abcd1234"
     viewed = False
 
     @staticmethod

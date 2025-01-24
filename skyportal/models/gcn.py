@@ -1,13 +1,13 @@
 __all__ = [
-    'GcnNotice',
-    'GcnTag',
-    'GcnEvent',
-    'GcnEventUser',
-    'GcnProperty',
-    'GcnReport',
-    'GcnSummary',
-    'GcnTrigger',
-    'DefaultGcnTag',
+    "GcnNotice",
+    "GcnTag",
+    "GcnEvent",
+    "GcnEventUser",
+    "GcnProperty",
+    "GcnReport",
+    "GcnSummary",
+    "GcnTrigger",
+    "DefaultGcnTag",
 ]
 import io
 import json
@@ -15,18 +15,20 @@ import random
 
 import astropy.units as u
 import jinja2
-from ligo.skymap import plot  # noqa: F401 F811
-from ligo.skymap import postprocess
 import lxml
 import matplotlib
 import matplotlib.pyplot as plt
-from mocpy import MOC
 import numpy as np
 import sqlalchemy as sa
+from ligo.skymap import (
+    plot,  # noqa: F401 F811
+    postprocess,
+)
+from mocpy import MOC
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import deferred, relationship, column_property
+from sqlalchemy.orm import column_property, deferred, relationship
 
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
@@ -50,8 +52,8 @@ from .localization import Localization
 
 env, cfg = load_env()
 
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+host = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
+    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
 cache_dir = "cache/public_pages/reports"
@@ -70,7 +72,7 @@ def gcn_update_delete_logic(cls, user_or_token):
     accessible to that user under this policy .
     """
 
-    if len({'Manage GCNs', 'System admin'} & set(user_or_token.permissions)) == 0:
+    if len({"Manage GCNs", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
         return restricted.query_accessible_rows(cls, user_or_token)
 
@@ -80,13 +82,13 @@ def gcn_update_delete_logic(cls, user_or_token):
 class DefaultGcnTag(Base):
     """A default set of criteria to apply a GcnTag."""
 
-    __tablename__ = 'default_gcntags'
+    __tablename__ = "default_gcntags"
 
     # TODO: Make read-accessible via target groups
-    update = delete = AccessibleIfUserMatches('requester')
+    update = delete = AccessibleIfUserMatches("requester")
 
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         doc="ID of the User who requested the default gcn tag.",
@@ -94,7 +96,7 @@ class DefaultGcnTag(Base):
 
     requester = relationship(
         "User",
-        back_populates='default_gcntags',
+        back_populates="default_gcntags",
         doc="The User who requested the default gcn tag.",
         foreign_keys=[requester_id],
     )
@@ -105,7 +107,7 @@ class DefaultGcnTag(Base):
     )
 
     default_tag_name = sa.Column(
-        sa.String, unique=True, nullable=False, doc='Default tag name'
+        sa.String, unique=True, nullable=False, doc="Default tag name"
     )
 
 
@@ -114,12 +116,12 @@ class GcnReport(Base):
 
     create = read = accessible_by_group_members
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnReport.",
@@ -133,14 +135,14 @@ class GcnReport(Base):
     )
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     # have a relationship to a group
     group_id = sa.Column(
-        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the Group that this GcnReport is associated with.",
@@ -160,11 +162,11 @@ class GcnReport(Base):
     published = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
-        doc='Whether GcnReport should be published',
+        server_default="false",
+        doc="Whether GcnReport should be published",
     )
 
-    def get_plot(self, figsize=(10, 5), output_format='png'):
+    def get_plot(self, figsize=(10, 5), output_format="png"):
         """GcnReport plot.
         Parameters
         ----------
@@ -203,9 +205,9 @@ class GcnReport(Base):
 
         matplotlib.use("Agg")
         fig = plt.figure(figsize=figsize, constrained_layout=False)
-        ax = plt.axes(projection='astro globe', center=center)
+        ax = plt.axes(projection="astro globe", center=center)
         ax.grid()
-        ax.imshow_hpx(localization.flat_2d, cmap='cylon')
+        ax.imshow_hpx(localization.flat_2d, cmap="cylon")
 
         if "observations" in data and len(data["observations"]) > 0:
             surveyColors = {
@@ -224,8 +226,8 @@ class GcnReport(Base):
             for filt in filters:
                 if filt in surveyColors:
                     continue
-                surveyColors[filt] = "#" + ''.join(
-                    [random.choice('0123456789ABCDEF') for i in range(6)]
+                surveyColors[filt] = "#" + "".join(
+                    [random.choice("0123456789ABCDEF") for i in range(6)]
                 )
 
             for i, obs in enumerate(observations):
@@ -247,19 +249,19 @@ class GcnReport(Base):
         if "sources" in data and len(data["sources"]) > 0:
             for source in data["sources"]:
                 ax.scatter(
-                    source['ra'],
-                    source['dec'],
-                    transform=ax.get_transform('world'),
-                    color='w',
+                    source["ra"],
+                    source["dec"],
+                    transform=ax.get_transform("world"),
+                    color="w",
                     zorder=2,
                     s=30,
                 )
                 ax.text(
-                    source['ra'] + 5.5,
-                    source['dec'] + 5.5,
-                    source['id'],
-                    transform=ax.get_transform('world'),
-                    color='k',
+                    source["ra"] + 5.5,
+                    source["dec"] + 5.5,
+                    source["id"],
+                    transform=ax.get_transform("world"),
+                    color="k",
                     fontsize=8,
                     zorder=3,
                 )
@@ -289,7 +291,7 @@ class GcnReport(Base):
             autoescape=True,
             loader=jinja2.FileSystemLoader("./static/public_pages/reports/report"),
         )
-        env.policies['json.dumps_function'] = to_json
+        env.policies["json.dumps_function"] = to_json
 
         template = env.get_template("gcn_report_template.html")
         html = template.render(
@@ -349,12 +351,12 @@ class GcnSummary(Base):
 
     create = read = accessible_by_group_members
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnSummary.",
@@ -368,14 +370,14 @@ class GcnSummary(Base):
     )
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     # have a relationship to a group
     group_id = sa.Column(
-        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the Group that this GcnSummary is associated with.",
@@ -396,12 +398,12 @@ class GcnSummary(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnNotice.",
@@ -415,13 +417,13 @@ class GcnNotice(Base):
     )
 
     ivorn = sa.Column(
-        sa.String, unique=True, index=True, doc='Unique identifier of VOEvent'
+        sa.String, unique=True, index=True, doc="Unique identifier of VOEvent"
     )
 
     notice_type = sa.Column(
         sa.String,
         nullable=True,
-        doc='GCN Notice type',
+        doc="GCN Notice type",
     )
 
     notice_format = sa.Column(
@@ -434,42 +436,42 @@ class GcnNotice(Base):
         sa.String, nullable=False, doc='Event stream or mission (i.e., "Fermi")'
     )
 
-    date = sa.Column(sa.DateTime, nullable=False, doc='UTC message timestamp')
+    date = sa.Column(sa.DateTime, nullable=False, doc="UTC message timestamp")
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
-        doc='UTC event timestamp',
+        doc="UTC event timestamp",
     )
 
     content = deferred(
-        sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
+        sa.Column(sa.LargeBinary, nullable=False, doc="Raw VOEvent content")
     )
 
     has_localization = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='true',
-        doc='Whether event notice has localization',
+        server_default="true",
+        doc="Whether event notice has localization",
     )
 
     localization_ingested = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
-        doc='Whether localization has been ingested',
+        server_default="false",
+        doc="Whether localization has been ingested",
     )
 
 
 class GcnProperty(Base):
     """Store properties for events."""
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnProperty.",
@@ -483,7 +485,7 @@ class GcnProperty(Base):
     )
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -494,12 +496,12 @@ class GcnProperty(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnTag.",
@@ -513,7 +515,7 @@ class GcnTag(Base):
     )
 
     dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -524,12 +526,12 @@ class GcnTag(Base):
 class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
     )
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnEvent.",
@@ -542,33 +544,33 @@ class GcnEvent(Base):
         doc="The user that saved this GcnEvent",
     )
 
-    dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
+    dateobs = sa.Column(sa.DateTime, doc="Event time", unique=True, nullable=False)
 
     trigger_id = sa.Column(
-        sa.String, unique=True, doc='Trigger ID supplied by instrument'
+        sa.String, unique=True, doc="Trigger ID supplied by instrument"
     )
 
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
 
     properties = relationship(
-        'GcnProperty',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "GcnProperty",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
     )
 
     reports = relationship(
-        'GcnReport',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "GcnReport",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnReport.created_at",
         doc="Reports associated with this GCN event.",
     )
 
     summaries = relationship(
-        'GcnSummary',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "GcnSummary",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnSummary.created_at",
         doc="Summaries associated with this GCN event.",
@@ -577,34 +579,34 @@ class GcnEvent(Base):
     _tags = relationship(
         "GcnTag",
         order_by=(
-            sa.func.lower(GcnTag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
-            sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
-            sa.func.lower(GcnTag.text).notin_({'grb', 'gw', 'transient'}),
+            sa.func.lower(GcnTag.text).notin_({"fermi", "swift", "amon", "lvc"}),
+            sa.func.lower(GcnTag.text).notin_({"long", "short"}),
+            sa.func.lower(GcnTag.text).notin_({"grb", "gw", "transient"}),
         ),
     )
 
     localizations = relationship("Localization")
 
     observationplan_requests = relationship(
-        'ObservationPlanRequest',
-        back_populates='gcnevent',
-        cascade='delete',
+        "ObservationPlanRequest",
+        back_populates="gcnevent",
+        cascade="delete",
         passive_deletes=True,
         doc="Observation plan requests of the event.",
     )
 
     survey_efficiency_analyses = relationship(
-        'SurveyEfficiencyForObservations',
-        back_populates='gcnevent',
-        cascade='delete',
+        "SurveyEfficiencyForObservations",
+        back_populates="gcnevent",
+        cascade="delete",
         passive_deletes=True,
         doc="Survey efficiency analyses of the event.",
     )
 
     comments = relationship(
-        'CommentOnGCN',
-        back_populates='gcn',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "CommentOnGCN",
+        back_populates="gcn",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="CommentOnGCN.created_at",
         doc="Comments posted about this GCN event.",
@@ -613,7 +615,7 @@ class GcnEvent(Base):
     aliases = sa.Column(
         sa.ARRAY(sa.String),
         nullable=False,
-        server_default='{}',
+        server_default="{}",
         doc="List of different names for this event, parsed from different GCN notices.",
     )
 
@@ -627,7 +629,7 @@ class GcnEvent(Base):
         sa.Column(
             JSONB,
             nullable=False,
-            server_default='{}',
+            server_default="{}",
             doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
         )
     )
@@ -636,7 +638,7 @@ class GcnEvent(Base):
         sa.Column(
             JSONB,
             nullable=False,
-            server_default='{}',
+            server_default="{}",
             doc="List of GraceDB logs associated with a GW event.",
         )
     )
@@ -645,15 +647,15 @@ class GcnEvent(Base):
         sa.Column(
             JSONB,
             nullable=False,
-            server_default='{}',
+            server_default="{}",
             doc="List of GraceDB labels associated with a GW event.",
         )
     )
 
     reminders = relationship(
-        'ReminderOnGCN',
-        back_populates='gcn',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "ReminderOnGCN",
+        back_populates="gcn",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="ReminderOnGCN.created_at",
         doc="Reminders about this GCN event.",
@@ -677,20 +679,20 @@ class GcnEvent(Base):
     )
 
     users = relationship(
-        'User',
-        secondary='gcnevent_users',
-        back_populates='gcnevents',
+        "User",
+        secondary="gcnevent_users",
+        back_populates="gcnevents",
         passive_deletes=True,
-        doc='The members of this event.',
+        doc="The members of this event.",
     )
 
     gcnevent_users = relationship(
-        'GcnEventUser',
-        back_populates='gcnevent',
-        cascade='save-update, merge, refresh-expire, expunge',
+        "GcnEventUser",
+        back_populates="gcnevent",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='Elements of a join table mapping Users to GcnEvents.',
-        overlaps='gcnevents, users',
+        doc="Elements of a join table mapping Users to GcnEvents.",
+        overlaps="gcnevents, users",
     )
 
     @hybrid_property
@@ -711,12 +713,12 @@ class GcnEvent(Base):
     @hybrid_property
     def retracted(self):
         """Check if event is retracted."""
-        return 'retracted' in self.tags
+        return "retracted" in self.tags
 
     @retracted.expression
     def retracted(cls):
         """Check if event is retracted."""
-        return sa.literal('retracted').in_(cls.tags)
+        return sa.literal("retracted").in_(cls.tags)
 
     @property
     def lightcurve(self):
@@ -725,7 +727,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -737,7 +739,7 @@ class GcnEvent(Base):
             return None
         else:
             try:
-                return elem.attrib.get('value', '').replace('http://', 'https://')
+                return elem.attrib.get("value", "").replace("http://", "https://")
             except Exception:
                 return None
 
@@ -748,7 +750,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -760,7 +762,7 @@ class GcnEvent(Base):
             return None
         else:
             try:
-                return elem.attrib.get('value', '')
+                return elem.attrib.get("value", "")
             except Exception:
                 return None
 
@@ -770,7 +772,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -781,7 +783,7 @@ class GcnEvent(Base):
         if elem is None:
             return None
         else:
-            return elem.attrib.get('value', '')
+            return elem.attrib.get("value", "")
 
     @property
     def ned_gwf(self):
@@ -795,7 +797,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -807,7 +809,7 @@ class GcnEvent(Base):
             return None
         else:
             try:
-                return 'HasNS: ' + elem.attrib.get('value', '')
+                return "HasNS: " + elem.attrib.get("value", "")
             except Exception:
                 return None
 
@@ -818,7 +820,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -830,7 +832,7 @@ class GcnEvent(Base):
             return None
         else:
             try:
-                return 'HasRemnant: ' + elem.attrib.get('value', '')
+                return "HasRemnant: " + elem.attrib.get("value", "")
             except Exception:
                 return None
 
@@ -841,7 +843,7 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        if notice.notice_format == 'json':
+        if notice.notice_format == "json":
             return None
         try:
             root = lxml.etree.fromstring(notice.content)
@@ -853,7 +855,7 @@ class GcnEvent(Base):
             return None
         else:
             try:
-                return 'FAR: ' + elem.attrib.get('value', '')
+                return "FAR: " + elem.attrib.get("value", "")
             except Exception:
                 return None
 
@@ -880,14 +882,14 @@ def gcntrigger_allocationuser_access_logic(cls, user_or_token):
 
 
 GcnTrigger = join_model(
-    'gcntriggers',
+    "gcntriggers",
     GcnEvent,
     Allocation,
     "dateobs",
     "allocation_id",
     "dateobs",
     "id",
-    new_name='GcnTrigger',
+    new_name="GcnTrigger",
 )
 
 GcnTrigger.triggered = sa.Column(
@@ -911,10 +913,10 @@ def gcnevent_user_access_logic(cls, user_or_token):
     return query
 
 
-GcnEventUser = join_model('gcnevent_users', GcnEvent, User)
+GcnEventUser = join_model("gcnevent_users", GcnEvent, User)
 GcnEventUser.__doc__ = "Join table mapping `GcnEvent`s to `User`s."
 GcnEventUser.create = GcnEventUser.read = public
-GcnEventUser.update = GcnEventUser.delete = AccessibleIfUserMatches('user')
+GcnEventUser.update = GcnEventUser.delete = AccessibleIfUserMatches("user")
 
 GcnEvent.event_users_ids = column_property(
     select(func.array_agg(GcnEventUser.user_id))

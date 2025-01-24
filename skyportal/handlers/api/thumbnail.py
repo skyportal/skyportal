@@ -1,17 +1,19 @@
-import os
-import io
 import base64
 import hashlib
+import io
+import os
 from pathlib import Path
-from marshmallow.exceptions import ValidationError
+
 import sqlalchemy as sa
+from marshmallow.exceptions import ValidationError
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func
 from sqlalchemy.exc import StatementError
-from PIL import Image, UnidentifiedImageError
 
-from baselayer.app.access import permissions, auth_or_token
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token, permissions
+
 from ...models import Obj, Thumbnail, User
+from ..base import BaseHandler
 
 
 def post_thumbnail(data, user_id, session):
@@ -31,45 +33,45 @@ def post_thumbnail(data, user_id, session):
     if obj is None:
         raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
 
-    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
-    hash = hashlib.sha256(data['obj_id'].encode('utf-8')).hexdigest()
+    basedir = Path(os.path.dirname(__file__)) / ".." / ".."
+    hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
 
     # can someday make this a configurable parameter
     required_depth = 2
     subfolders = []
     for i in range(required_depth):
         subfolders.append(hash[i * 2 : (i + 1) * 2])
-    subfolders = '/'.join(subfolders)
+    subfolders = "/".join(subfolders)
 
-    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir / '..'
+    if os.path.abspath(basedir).endswith("skyportal/skyportal"):
+        basedir = basedir / ".."
     file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png'
+        basedir / f"static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
     )
     if not os.path.exists(os.path.dirname(file_uri)):
         Path(os.path.dirname(file_uri)).mkdir(parents=True)
 
-    file_bytes = base64.b64decode(data['data'])
+    file_bytes = base64.b64decode(data["data"])
     try:
         im = Image.open(io.BytesIO(file_bytes))
     except UnidentifiedImageError as e:
         raise UnidentifiedImageError(f"Invalid file type: {e}")
 
-    if im.format != 'PNG':
-        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
+    if im.format != "PNG":
+        raise ValueError("Invalid thumbnail image type. Only PNG are supported.")
     if not all(16 <= x <= 500 for x in im.size):
         raise ValueError(
-            'Invalid thumbnail size. Only thumbnails '
-            'between (16, 16) and (500, 500) allowed.'
+            "Invalid thumbnail size. Only thumbnails "
+            "between (16, 16) and (500, 500) allowed."
         )
     try:
         t = Thumbnail(
             obj_id=data["obj_id"],
             type=data["ttype"],
             file_uri=file_uri,
-            public_url=f'/static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png',
+            public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
         )
-        with open(file_uri, 'wb') as f:
+        with open(file_uri, "wb") as f:
             f.write(file_bytes)
 
         session.add(t)
@@ -84,7 +86,7 @@ def post_thumbnail(data, user_id, session):
 
 
 class ThumbnailHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -132,14 +134,14 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'obj_id' not in data:
+        if "obj_id" not in data:
             return self.error("Missing required parameter: obj_id")
 
         with self.Session() as session:
             try:
                 obj_id = post_thumbnail(data, self.associated_user_object.id, session)
             except Exception as e:
-                return self.error(f'Thumbnail failed to post: {str(e)}')
+                return self.error(f"Thumbnail failed to post: {str(e)}")
             return self.success(data={"id": obj_id})
 
     @auth_or_token
@@ -173,10 +175,10 @@ class ThumbnailHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+                return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
             return self.success(data=t)
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def put(self, thumbnail_id):
         """
         ---
@@ -211,17 +213,17 @@ class ThumbnailHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+                return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
             data = self.get_json()
-            data['id'] = thumbnail_id
+            data["id"] = thumbnail_id
 
             schema = Thumbnail.__schema__()
             try:
                 schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
             for k in data:
@@ -230,7 +232,7 @@ class ThumbnailHandler(BaseHandler):
             session.commit()
             return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, thumbnail_id):
         """
         ---
@@ -262,7 +264,7 @@ class ThumbnailHandler(BaseHandler):
                 )
             ).first()
             if t is None:
-                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+                return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
             session.delete(t)
             session.commit()
@@ -271,7 +273,7 @@ class ThumbnailHandler(BaseHandler):
 
 
 class ThumbnailPathHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def get(self):
         """
         ---
@@ -329,15 +331,15 @@ class ThumbnailPathHandler(BaseHandler):
                               type: integer
 
         """
-        types = self.get_query_argument('types', ['new', 'ref', 'sub'])
-        required_depth = self.get_query_argument('requiredDepth', 2)
+        types = self.get_query_argument("types", ["new", "ref", "sub"])
+        required_depth = self.get_query_argument("requiredDepth", 2)
         try:
             required_depth = int(required_depth)
         except ValueError:
-            return self.error('requiredDepth must be an integer')
+            return self.error("requiredDepth must be an integer")
 
         if required_depth < 0 or required_depth > 32:
-            return self.error('requiredDepth must be between 0 and 32')
+            return self.error("requiredDepth must be between 0 and 32")
 
         # a string glob to match the required depth:
         # e.g., if required_depth is 2, then a good match is:
@@ -355,13 +357,13 @@ class ThumbnailPathHandler(BaseHandler):
 
         return self.success(
             data={
-                'totalMatches': total_matches,
-                'inCorrectFolder': good_matches,
-                'inWrongFolder': bad_matches,
+                "totalMatches": total_matches,
+                "inCorrectFolder": good_matches,
+                "inWrongFolder": bad_matches,
             }
         )
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def patch(self):
         """
         ---
@@ -435,25 +437,25 @@ class ThumbnailPathHandler(BaseHandler):
         # need to import this here because alert.py might import this file
         from .alert import alert_available
 
-        types = self.get_query_argument('types', ['new', 'ref', 'sub'])
-        required_depth = self.get_query_argument('requiredDepth', 2)
+        types = self.get_query_argument("types", ["new", "ref", "sub"])
+        required_depth = self.get_query_argument("requiredDepth", 2)
         try:
             required_depth = int(required_depth)
         except ValueError:
-            return self.error('requiredDepth must be an integer')
+            return self.error("requiredDepth must be an integer")
 
         if required_depth <= 0 or required_depth > 32:
-            return self.error('requiredDepth must be at least 0 and no bigger than 31.')
+            return self.error("requiredDepth must be at least 0 and no bigger than 31.")
         try:
-            page_number = int(self.get_query_argument('pageNumber', 1))
+            page_number = int(self.get_query_argument("pageNumber", 1))
             num_per_page = min(
                 int(self.get_query_argument("numPerPage", 100)),
                 1000,
             )
         except ValueError:
             return self.error(
-                f'Cannot parse inputs pageNumber ({page_number}) '
-                f'or numPerPage ({num_per_page}) as an integers.'
+                f"Cannot parse inputs pageNumber ({page_number}) "
+                f"or numPerPage ({num_per_page}) as an integers."
             )
 
         # a string glob to match the required depth:
@@ -490,19 +492,19 @@ class ThumbnailPathHandler(BaseHandler):
                     if not ok:
                         # the delete is committed in check_thumbnail_file
                         continue
-                hash = hashlib.sha256(t.obj_id.encode('utf-8')).hexdigest()
+                hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
                 subfolders = []
                 for i in range(required_depth):
                     subfolders.append(hash[i * 2 : (i + 1) * 2])
-                subfolders = '/'.join(subfolders)
+                subfolders = "/".join(subfolders)
                 path = (
-                    'thumbnails'.join(t.file_uri.split('thumbnails')[:-1])
-                    + 'thumbnails'
+                    "thumbnails".join(t.file_uri.split("thumbnails")[:-1])
+                    + "thumbnails"
                 )
                 filename = os.path.basename(t.file_uri)
                 new_file_uri = os.path.join(path, subfolders, filename)
                 new_public_url = os.path.join(
-                    '/static/thumbnails', subfolders, filename
+                    "/static/thumbnails", subfolders, filename
                 )
                 old_file_uri = t.file_uri
 
@@ -512,12 +514,12 @@ class ThumbnailPathHandler(BaseHandler):
                         os.rename(old_file_uri, new_file_uri)
                 except Exception as e:
                     return self.error(
-                        f'Could not move {old_file_uri} to {new_file_uri}: {e}'
+                        f"Could not move {old_file_uri} to {new_file_uri}: {e}"
                     )
 
                 # in case the old file is missing but also the new...
                 if not os.path.isfile(new_file_uri):
-                    return self.error(f'File {new_file_uri} does not exist!')
+                    return self.error(f"File {new_file_uri} does not exist!")
 
                 # only if the move was successful
                 # (or the file already existed)
@@ -531,7 +533,7 @@ class ThumbnailPathHandler(BaseHandler):
                     session.rollback()
                     # make sure to move the files back as well
                     os.rename(new_file_uri, old_file_uri)
-                    return self.error(f'Could not update database row: {e}')
+                    return self.error(f"Could not update database row: {e}")
 
                 num_moved += 1
 
@@ -541,10 +543,10 @@ class ThumbnailPathHandler(BaseHandler):
 
         return self.success(
             data={
-                'totalMatches': total_matches,
-                'inCorrectFolder': good_matches,
-                'inWrongFolder': bad_matches,
-                'numMoved': num_moved,
+                "totalMatches": total_matches,
+                "inCorrectFolder": good_matches,
+                "inWrongFolder": bad_matches,
+                "numMoved": num_moved,
             }
         )
 
@@ -552,7 +554,7 @@ class ThumbnailPathHandler(BaseHandler):
     # for missing or empty files, outside of the context
     # of moving them to the correct folder
 
-    @permissions(['System admin'])
+    @permissions(["System admin"])
     def delete(self):
         """
         ---
@@ -571,7 +573,7 @@ class ThumbnailPathHandler(BaseHandler):
                 schema: Success
         """
         basepath = os.path.join(
-            os.path.dirname(__file__), '../../../', 'static', 'thumbnails'
+            os.path.dirname(__file__), "../../../", "static", "thumbnails"
         )
         basepath = os.path.abspath(basepath)
         for root, dirs, files in os.walk(basepath, topdown=False):
@@ -655,10 +657,10 @@ def check_thumbnail_file(thumbnail, user_id, session):
 
     """
     # need to import this here because alert.py might import this file
-    from .alert import post_alert, alert_available
+    from .alert import alert_available, post_alert
 
     if not alert_available:
-        raise RuntimeError('Cannot recreate thumbnails without alerts!')
+        raise RuntimeError("Cannot recreate thumbnails without alerts!")
 
     if (
         not os.path.isfile(thumbnail.file_uri)
@@ -677,7 +679,7 @@ def check_thumbnail_file(thumbnail, user_id, session):
         post_alert(
             object_id=thumbnail.obj_id,
             candid=None,
-            group_ids='all',
+            group_ids="all",
             user_id=user_id,
             session=session,
             thumbnails_only=True,

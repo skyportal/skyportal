@@ -1,13 +1,13 @@
+import sqlalchemy as sa
 import yaml
 from jsonschema.exceptions import ValidationError as JSONValidationError
-
-import sqlalchemy as sa
 from tdtax import schema, validate
 
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
+
+from ...models import Group, Taxonomy
 from ..base import BaseHandler
-from ...models import Taxonomy, Group
 
 _, cfg = load_env()
 
@@ -62,7 +62,7 @@ class TaxonomyHandler(BaseHandler):
                 )
                 if taxonomy is None or len(taxonomy) == 0:
                     return self.error(
-                        'Taxonomy does not exist or is not available to user.'
+                        "Taxonomy does not exist or is not available to user."
                     )
 
                 return self.success(data=taxonomy[0])
@@ -80,13 +80,13 @@ class TaxonomyHandler(BaseHandler):
             taxonomies = [
                 {
                     **taxonomy.to_dict(),
-                    'groups': [group.to_dict() for group in taxonomy.groups],
+                    "groups": [group.to_dict() for group in taxonomy.groups],
                 }
                 for taxonomy in taxonomies
             ]
             return self.success(data=taxonomies)
 
-    @permissions(['Post taxonomy'])
+    @permissions(["Post taxonomy"])
     def post(self):
         """
         ---
@@ -156,18 +156,18 @@ class TaxonomyHandler(BaseHandler):
                               description: New taxonomy ID
         """
         data = self.get_json()
-        name = data.get('name', None)
+        name = data.get("name", None)
         if name is None:
             return self.error("A name must be provided for a taxonomy")
 
-        version = data.get('version', None)
+        version = data.get("version", None)
         if version is None:
             return self.error("A version string must be provided for a taxonomy")
 
-        hierarchy_file = data.get('hierarchy_file', None)
+        hierarchy_file = data.get("hierarchy_file", None)
         if hierarchy_file is not None:
-            data['hierarchy'] = yaml.safe_load(hierarchy_file)[0]
-            del data['hierarchy_file']
+            data["hierarchy"] = yaml.safe_load(hierarchy_file)[0]
+            del data["hierarchy_file"]
 
         with self.Session() as session:
             existing_matches = session.scalars(
@@ -183,7 +183,7 @@ class TaxonomyHandler(BaseHandler):
                 )
 
             # Ensure a valid taxonomy
-            hierarchy = data.get('hierarchy', None)
+            hierarchy = data.get("hierarchy", None)
             if hierarchy is None:
                 return self.error("A JSON of the taxonomy must be given")
 
@@ -201,7 +201,7 @@ class TaxonomyHandler(BaseHandler):
             if not isinstance(group_ids, list) or len(group_ids) == 0:
                 public_group = session.scalar(
                     sa.select(Group.id).where(
-                        Group.name == cfg['misc.public_group_name']
+                        Group.name == cfg["misc.public_group_name"]
                     )
                 )
                 if public_group is None:
@@ -220,11 +220,11 @@ class TaxonomyHandler(BaseHandler):
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
             ).all()
 
-            provenance = data.get('provenance', None)
+            provenance = data.get("provenance", None)
 
             # update others with this name
             # TODO: deal with the same name but different groups?
-            isLatest = data.get('isLatest', True)
+            isLatest = data.get("isLatest", True)
             if isLatest:
                 taxonomies_to_update = session.scalars(
                     Taxonomy.select(session.user_or_token).where(
@@ -250,9 +250,9 @@ class TaxonomyHandler(BaseHandler):
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
 
-            return self.success(data={'taxonomy_id': taxonomy.id})
+            return self.success(data={"taxonomy_id": taxonomy.id})
 
-    @permissions(['Post taxonomy'])
+    @permissions(["Post taxonomy"])
     def put(self, taxonomy_id):
         """
         ---
@@ -282,9 +282,9 @@ class TaxonomyHandler(BaseHandler):
         """
 
         data = self.get_json()
-        data['id'] = int(taxonomy_id)
+        data["id"] = int(taxonomy_id)
 
-        hierarchy = data.get('hierarchy', None)
+        hierarchy = data.get("hierarchy", None)
         if hierarchy is not None:
             return self.error(
                 "Editing the hierarchy not allowed, upload a new taxonomy if this change is desired."
@@ -297,7 +297,7 @@ class TaxonomyHandler(BaseHandler):
             )
             taxonomy = session.scalars(stmt).first()
             if taxonomy is None:
-                return self.error(f'Missing taxonomy with ID {taxonomy_id}')
+                return self.error(f"Missing taxonomy with ID {taxonomy_id}")
 
             group_ids = data.pop("group_ids", None)
             if group_ids:
@@ -320,7 +320,7 @@ class TaxonomyHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
             return self.success()
 
-    @permissions(['Delete taxonomy'])
+    @permissions(["Delete taxonomy"])
     def delete(self, taxonomy_id):
         """
         ---
@@ -343,13 +343,13 @@ class TaxonomyHandler(BaseHandler):
 
         with self.Session() as session:
             taxonomy = session.scalars(
-                Taxonomy.select(session.user_or_token, mode='delete').where(
+                Taxonomy.select(session.user_or_token, mode="delete").where(
                     Taxonomy.id == taxonomy_id
                 )
             ).first()
             if taxonomy is None:
                 return self.error(
-                    'Taxonomy does not exist or is not available to user.'
+                    "Taxonomy does not exist or is not available to user."
                 )
 
             session.delete(taxonomy)

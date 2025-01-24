@@ -20,9 +20,9 @@ from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
-init_db(**cfg['database'])
+init_db(**cfg["database"])
 
-log = make_log('reminders')
+log = make_log("reminders")
 
 
 def send_reminders():

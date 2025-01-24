@@ -1,9 +1,10 @@
-from skyportal.handlers import BaseHandler
-from baselayer.app.access import auth_or_token
 import jsonschema
 
-from ...models import FollowupRequest, Instrument, Allocation
-from ... import facility_apis, enum_types
+from baselayer.app.access import auth_or_token
+from skyportal.handlers import BaseHandler
+
+from ... import enum_types, facility_apis
+from ...models import Allocation, FollowupRequest, Instrument
 
 
 class FacilityMessageHandler(BaseHandler):
@@ -13,13 +14,13 @@ class FacilityMessageHandler(BaseHandler):
         user = self.current_user
         data = self.get_json()
 
-        if 'followup_request_id' not in data:
+        if "followup_request_id" not in data:
             return self.error('Missing required key "followup_request_id".')
 
         with self.Session() as session:
             request = session.scalars(
-                FollowupRequest.select(session.user_or_token, mode='update').where(
-                    FollowupRequest.id == int(data['followup_request_id'])
+                FollowupRequest.select(session.user_or_token, mode="update").where(
+                    FollowupRequest.id == int(data["followup_request_id"])
                 )
             ).first()
             if request is None:
@@ -36,13 +37,13 @@ class FacilityMessageHandler(BaseHandler):
 
             if instrument.listener_classname is None:
                 return self.error(
-                    'The instrument associated with this request does not have a Listener API.'
+                    "The instrument associated with this request does not have a Listener API."
                 )
 
             acl_id = instrument.listener_class.get_acl_id()
 
             if acl_id not in user.permissions and acl_id is not None:
-                return self.error('Insufficient permissions.')
+                return self.error("Insufficient permissions.")
 
             jsonschema.validate(data, instrument.listener_class.complete_schema())
             instrument.listener_class.process_message(self, session)

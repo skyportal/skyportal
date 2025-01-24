@@ -1,21 +1,22 @@
 import astropy
-import requests
 import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
+import requests
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
-from . import FollowUpAPI
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import great_circle_distance
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
-PS1_URL = cfg['app.ps1_endpoint']
+PS1_URL = cfg["app.ps1_endpoint"]
 
-log = make_log('facility_apis/ps1')
+log = make_log("facility_apis/ps1")
 
 
 def commit_photometry(text_response, request_id, instrument_id, user_id):
@@ -34,11 +35,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
@@ -55,16 +52,16 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
         tab = astropy.io.ascii.read(text_response)
         # good data only
-        tab = tab[tab['psfQfPerfect'] > 0.9]
-        id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
-        tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
+        tab = tab[tab["psfQfPerfect"] > 0.9]
+        id2filter = np.array(["ps1::g", "ps1::r", "ps1::i", "ps1::z", "ps1::y"])
+        tab["filter"] = id2filter[(tab["filterID"] - 1).data.astype(int)]
         df = tab.to_pandas()
 
         df.rename(
             columns={
-                'obsTime': 'mjd',
-                'psfFlux': 'flux',
-                'psfFluxerr': 'fluxerr',
+                "obsTime": "mjd",
+                "psfFlux": "flux",
+                "psfFluxerr": "fluxerr",
             },
             inplace=True,
         )
@@ -72,21 +69,21 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
         df.drop(
             columns=[
-                'detectID',
-                'filterID',
-                'psfQfPerfect',
+                "detectID",
+                "filterID",
+                "psfQfPerfect",
             ],
             inplace=True,
         )
-        df['magsys'] = 'ab'
-        df['zp'] = 8.90
+        df["magsys"] = "ab"
+        df["zp"] = 8.90
 
         # data is visible to the group attached to the allocation
         # as well as to any of the allocation's default share groups
         data_out = {
-            'obj_id': request.obj_id,
-            'instrument_id': instrument.id,
-            'group_ids': list(
+            "obj_id": request.obj_id,
+            "instrument_id": instrument.id,
+            "group_ids": list(
                 set(
                     [allocation.group_id]
                     + (
@@ -96,7 +93,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
                     )
                 )
             ),
-            **df.to_dict(orient='list'),
+            **df.to_dict(orient="list"),
         }
 
         from skyportal.handlers.api.photometry import add_external_photometry
@@ -106,7 +103,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
                 data_out, request.requester, duplicates="update", refresh=True
             )
             if ids is None:
-                raise ValueError('Failed to commit photometry')
+                raise ValueError("Failed to commit photometry")
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"
@@ -116,7 +113,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": request.obj.internal_key},
         )
@@ -130,7 +127,6 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
 
 class PS1API(FollowUpAPI):
-
     """An interface to PS1 forced photometry."""
 
     @staticmethod
@@ -146,14 +142,14 @@ class PS1API(FollowUpAPI):
         """
 
         from ..models import (
-            FollowupRequest,
-            FacilityTransaction,
             Allocation,
+            FacilityTransaction,
+            FollowupRequest,
             Instrument,
         )
 
         if request.status == "Photometry committed to database":
-            raise ValueError('Photometry already in database')
+            raise ValueError("Photometry already in database")
 
         instrument = (
             Instrument.query_records_accessible_by(request.requester)
@@ -170,23 +166,23 @@ class PS1API(FollowUpAPI):
         closest_row_index, closest_row_distance = 0, 1e10
         for i in range(len(tab)):
             row = tab[i]
-            dist = great_circle_distance(ra, dec, row['raMean'], row['decMean'])
+            dist = great_circle_distance(ra, dec, row["raMean"], row["decMean"])
             if dist < closest_row_distance:
                 closest_row_index, closest_row_distance = i, dist
 
-        objid = tab['objID'][closest_row_index]
+        objid = tab["objID"][closest_row_index]
 
         params = {
-            'objID': objid,
-            'columns': [
-                'detectID',
-                'filterID',
-                'obsTime',
-                'ra',
-                'dec',
-                'psfFlux',
-                'psfFluxerr',
-                'psfQfPerfect',
+            "objID": objid,
+            "columns": [
+                "detectID",
+                "filterID",
+                "obsTime",
+                "ra",
+                "dec",
+                "psfFlux",
+                "psfFluxerr",
+                "psfQfPerfect",
             ],
         }
 
@@ -194,13 +190,13 @@ class PS1API(FollowUpAPI):
         try:
             r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
         except TimeoutError:
-            request.status = 'error: timeout'
+            request.status = "error: timeout"
 
         if r.status_code == 200:
             try:
                 text_response = r.text
             except Exception:
-                raise ValueError('No text data returned in request')
+                raise ValueError("No text data returned in request")
 
             IOLoop.current().run_in_executor(
                 None,
@@ -210,7 +206,7 @@ class PS1API(FollowUpAPI):
             )
             request.status = "Committing photometry to database"
         else:
-            request.status = f'error: {r.content}'
+            request.status = f"error: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -222,18 +218,18 @@ class PS1API(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     # subclasses *must* implement the method below
@@ -252,20 +248,20 @@ class PS1API(FollowUpAPI):
         from ..models import FacilityTransaction
 
         params = {
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'radius': request.payload["radius"] / 3600.0,
-            'nDetections.gt': request.payload["min_detections"],
-            'columns': [
-                'objID',
-                'raMean',
-                'decMean',
-                'nDetections',
-                'gMeanPSFMag',
-                'rMeanPSFMag',
-                'iMeanPSFMag',
-                'zMeanPSFMag',
-                'yMeanPSFMag',
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "radius": request.payload["radius"] / 3600.0,
+            "nDetections.gt": request.payload["min_detections"],
+            "columns": [
+                "objID",
+                "raMean",
+                "decMean",
+                "nDetections",
+                "gMeanPSFMag",
+                "rMeanPSFMag",
+                "iMeanPSFMag",
+                "zMeanPSFMag",
+                "yMeanPSFMag",
             ],
         }
 
@@ -274,16 +270,16 @@ class PS1API(FollowUpAPI):
         if r.status_code == 200:
             try:
                 if len(r.text) == 0:
-                    raise ValueError('No data returned in request')
+                    raise ValueError("No data returned in request")
                 tab = astropy.io.ascii.read(r.text)
                 if len(tab) == 0:
-                    raise ValueError('No data returned in request')
-                request.status = 'submitted'
+                    raise ValueError("No data returned in request")
+                request.status = "submitted"
             except Exception as e:
                 log(str(e))
-                request.status = 'No DR2 source'
+                request.status = "No DR2 source"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -294,18 +290,18 @@ class PS1API(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -325,32 +321,32 @@ class PS1API(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if request.status.lower() != 'photometry committed to database':
+        if request.status.lower() != "photometry committed to database":
             if len(request.transactions) == 0:
                 session.query(FollowupRequest).filter(
                     FollowupRequest.id == request.id
                 ).delete()
                 session.commit()
             else:
-                request.status = 'deleted'
+                request.status = "deleted"
                 session.add(request)
         else:
             raise ValueError(
                 "Can't delete PS1 requests which photometry has been committed to the database."
             )
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema_forced_photometry = {

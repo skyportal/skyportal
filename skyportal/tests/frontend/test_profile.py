@@ -160,15 +160,15 @@ def test_profile_dropdown(driver, user):
 @pytest.mark.flaky(reruns=2)
 def test_add_classification_shortcut(driver, user, public_group, taxonomy_token):
     status, data = api(
-        'POST',
-        'taxonomy',
+        "POST",
+        "taxonomy",
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
-            'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
-            'provenance': f"tdtax_{__version__}",
-            'version': __version__,
-            'isLatest': True,
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
         },
         token=taxonomy_token,
     )
@@ -228,11 +228,11 @@ def test_set_automatically_visible_photometry(
     driver, user, upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59408, 59409, 59410],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -242,14 +242,14 @@ def test_set_automatically_visible_photometry(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "Muphoten", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
         },
         token=upload_data_token,
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     ids = data["data"]["ids"]
     assert len(ids) == 3
 
@@ -275,10 +275,10 @@ def test_set_automatically_visible_photometry(
     muphoten_option.click()
     ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
-    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
-    assert data['data']['preferences']['automaticallyVisibleFilters'] == ['2massh']
-    assert data['data']['preferences']['automaticallyVisibleOrigins'] == ['Muphoten']
+    assert data["data"]["preferences"]["automaticallyVisibleFilters"] == ["2massh"]
+    assert data["data"]["preferences"]["automaticallyVisibleOrigins"] == ["Muphoten"]
 
 
 @pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
@@ -286,11 +286,11 @@ def test_photometry_buttons_form(
     driver, user, upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
-        'POST',
-        'photometry',
+        "POST",
+        "photometry",
         data={
-            'obj_id': str(public_source.id),
-            'instrument_id': ztf_camera.id,
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
             "mjd": [59408, 59409, 59410],
             "mag": [19.2, 19.3, np.random.uniform(19, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
@@ -300,14 +300,14 @@ def test_photometry_buttons_form(
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
             "origin": [None, "Muphoten", "lol"],
-            'group_ids': [public_group.id],
+            "group_ids": [public_group.id],
             "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
         },
         token=upload_data_token,
     )
 
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     ids = data["data"]["ids"]
     assert len(ids) == 3
 
@@ -346,9 +346,9 @@ def test_photometry_buttons_form(
     driver.scroll_to_element_and_click(add_photometry_button_button)
     driver.wait_for_xpath(f'//span[contains(text(), "{photometry_button_name}")]')
 
-    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
-    assert data['data']['preferences']['photometryButtons'][photometry_button_name] == {
-        'filters': ['2massh'],
-        'origins': ['Muphoten'],
+    assert data["data"]["preferences"]["photometryButtons"][photometry_button_name] == {
+        "filters": ["2massh"],
+        "origins": ["Muphoten"],
     }

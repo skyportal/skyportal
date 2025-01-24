@@ -1,45 +1,45 @@
-import astropy
-from astropy.io import ascii
+import functools
 import json
+import urllib
+from datetime import datetime, timedelta
+
+import astropy
+import numpy as np
+import pandas as pd
 import requests
+import sqlalchemy as sa
+from astropy.io import ascii
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
 from requests import Request, Session
 from requests.auth import HTTPBasicAuth
-from datetime import datetime, timedelta
-from astropy.time import Time
-import functools
-from marshmallow.exceptions import ValidationError
-import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
-import pandas as pd
-import sqlalchemy as sa
-import urllib
 
-from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
 
 
-if cfg['app.ztf.port'] is None:
+if cfg["app.ztf.port"] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 
-ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
+ZTF_FORCED_URL = cfg["app.ztf_forced_endpoint"]
 
-bands = {'g': 1, 'ztfg': 1, 'r': 2, 'ztfr': 2, 'i': 3, 'ztfi': 3}
-inv_bands = {1: 'ztfg', 2: 'ztfr', 3: 'ztfi'}
+bands = {"g": 1, "ztfg": 1, "r": 2, "ztfr": 2, "i": 3, "ztfi": 3}
+inv_bands = {1: "ztfg", 2: "ztfr", 3: "ztfi"}
 
-log = make_log('facility_apis/ztf')
+log = make_log("facility_apis/ztf")
 
 
 class ZTFRequest:
-
     """A dictionary structure for ZTF ToO requests."""
 
     def _build_triggered_payload(self, request, session):
@@ -68,12 +68,12 @@ class ZTFRequest:
         ).first()
         instrument = allocation.instrument
 
-        start_mjd = Time(request.payload["start_date"], format='iso').mjd
-        end_mjd = Time(request.payload["end_date"], format='iso').mjd
+        start_mjd = Time(request.payload["start_date"], format="iso").mjd
+        end_mjd = Time(request.payload["end_date"], format="iso").mjd
 
         json_data = {
-            'queue_name': "ToO_" + request.payload["queue_name"],
-            'validity_window_mjd': [start_mjd, end_mjd],
+            "queue_name": "ToO_" + request.payload["queue_name"],
+            "validity_window_mjd": [start_mjd, end_mjd],
         }
 
         if request.payload["program_id"] == "Partnership":
@@ -81,7 +81,7 @@ class ZTFRequest:
         elif request.payload["program_id"] == "Caltech":
             program_id = 3
         else:
-            raise ValueError('Unknown program.')
+            raise ValueError("Unknown program.")
 
         targets = []
         cnt = 1
@@ -101,20 +101,20 @@ class ZTFRequest:
                     raise ValueError(f"Could not find field {field_id} in instrument.")
 
                 target = {
-                    'request_id': cnt,
-                    'program_id': program_id,
-                    'field_id': field_id,
-                    'ra': field.ra,
-                    'dec': field.dec,
-                    'filter_id': filter_id,
-                    'exposure_time': float(request.payload["exposure_time"]),
-                    'program_pi': 'Kulkarni' + '/' + request.requester.username,
-                    'subprogram_name': "ToO_" + request.payload["subprogram_name"],
+                    "request_id": cnt,
+                    "program_id": program_id,
+                    "field_id": field_id,
+                    "ra": field.ra,
+                    "dec": field.dec,
+                    "filter_id": filter_id,
+                    "exposure_time": float(request.payload["exposure_time"]),
+                    "program_pi": "Kulkarni" + "/" + request.requester.username,
+                    "subprogram_name": "ToO_" + request.payload["subprogram_name"],
                 }
                 targets.append(target)
                 cnt = cnt + 1
 
-        json_data['targets'] = targets
+        json_data["targets"] = targets
         return json_data
 
     def _build_forced_payload(self, request):
@@ -133,18 +133,18 @@ class ZTFRequest:
         error : str
             error message if the request is invalid.
         """
-        from ..models import Instrument, Photometry, DBSession
+        from ..models import DBSession, Instrument, Photometry
 
         error = None
 
-        start_jd = Time(request.payload["start_date"], format='iso').jd
-        end_jd = Time(request.payload["end_date"], format='iso').jd
+        start_jd = Time(request.payload["start_date"], format="iso").jd
+        end_jd = Time(request.payload["end_date"], format="iso").jd
 
         target = {
-            'jdstart': start_jd,
-            'jdend': end_jd,
-            'ra': None,
-            'dec': None,
+            "jdstart": start_jd,
+            "jdend": end_jd,
+            "ra": None,
+            "dec": None,
         }
 
         ra, dec = None, None
@@ -163,7 +163,7 @@ class ZTFRequest:
                         sa.select(Photometry).where(
                             sa.and_(
                                 Photometry.obj_id == request.obj.id,
-                                ~Photometry.origin.ilike('%fp%'),
+                                ~Photometry.origin.ilike("%fp%"),
                             )
                         )
                     )
@@ -216,9 +216,10 @@ class ZTFRequest:
                         fluxerr[snr_cut_indices],
                         snr[snr_cut_indices],
                     )
-                    ra, dec = np.sum(ras * snr) / np.sum(snr), np.sum(
-                        decs * snr
-                    ) / np.sum(snr)
+                    ra, dec = (
+                        np.sum(ras * snr) / np.sum(snr),
+                        np.sum(decs * snr) / np.sum(snr),
+                    )
 
                     if np.isnan(ra) or np.isnan(dec):
                         error = "Could not compute the flux weighted centroid for the object."
@@ -233,8 +234,8 @@ class ZTFRequest:
             error = "Unknown position type."
             return target, error
 
-        target['ra'] = ra
-        target['dec'] = dec
+        target["ra"] = ra
+        target["dec"] = dec
 
         return target, error
 
@@ -253,12 +254,12 @@ class ZTFRequest:
             payload for requests.
         """
 
-        start_mjd = Time(request.payload["start_date"], format='iso').mjd
-        end_mjd = Time(request.payload["end_date"], format='iso').mjd
+        start_mjd = Time(request.payload["start_date"], format="iso").mjd
+        end_mjd = Time(request.payload["end_date"], format="iso").mjd
 
         json_data = {
-            'queue_name': "ToO_" + request.payload["queue_name"],
-            'validity_window_mjd': [start_mjd, end_mjd],
+            "queue_name": "ToO_" + request.payload["queue_name"],
+            "validity_window_mjd": [start_mjd, end_mjd],
         }
 
         if request.payload["program_id"] == "Partnership":
@@ -266,37 +267,37 @@ class ZTFRequest:
         elif request.payload["program_id"] == "Caltech":
             program_id = 3
         else:
-            raise ValueError('Unknown program.')
+            raise ValueError("Unknown program.")
 
         # One observation plan per request
         if not len(request.observation_plans) == 1:
-            raise ValueError('Should be one observation plan for this request.')
+            raise ValueError("Should be one observation plan for this request.")
 
         observation_plan = request.observation_plans[0]
         planned_observations = observation_plan.planned_observations
 
         if len(planned_observations) == 0:
-            raise ValueError('Cannot submit observing plan with no observations.')
+            raise ValueError("Cannot submit observing plan with no observations.")
 
         targets = []
         cnt = 1
         for obs in planned_observations:
             filter_id = bands[obs.filt]
             target = {
-                'request_id': cnt,
-                'program_id': program_id,
-                'field_id': obs.field.field_id,
-                'ra': obs.field.ra,
-                'dec': obs.field.dec,
-                'filter_id': filter_id,
-                'exposure_time': obs.exposure_time,
-                'program_pi': 'Kulkarni' + '/' + request.requester.username,
-                'subprogram_name': "ToO_" + request.payload["subprogram_name"],
+                "request_id": cnt,
+                "program_id": program_id,
+                "field_id": obs.field.field_id,
+                "ra": obs.field.ra,
+                "dec": obs.field.dec,
+                "filter_id": filter_id,
+                "exposure_time": obs.exposure_time,
+                "program_pi": "Kulkarni" + "/" + request.requester.username,
+                "subprogram_name": "ToO_" + request.payload["subprogram_name"],
             }
             targets.append(target)
             cnt = cnt + 1
 
-        json_data['targets'] = targets
+        json_data["targets"] = targets
 
         return json_data
 
@@ -329,11 +330,7 @@ def commit_photometry(
         SQLAlchemy session object. If None, a new session is created.
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     if parent_session is None:
         Session = scoped_session(sessionmaker())
@@ -354,78 +351,78 @@ def commit_photometry(
         r = requests.get(
             url,
             auth=HTTPBasicAuth(
-                altdata['ipac_http_user'], altdata['ipac_http_password']
+                altdata["ipac_http_user"], altdata["ipac_http_password"]
             ),
         )
         df = ascii.read(
-            r.content.decode(), header_start=0, data_start=1, comment='#'
+            r.content.decode(), header_start=0, data_start=1, comment="#"
         ).to_pandas()
 
-        df.columns = df.columns.str.replace(',', '')
+        df.columns = df.columns.str.replace(",", "")
         desired_columns = {
-            'jd',
-            'forcediffimflux',
-            'forcediffimfluxunc',
-            'diffmaglim',
-            'zpdiff',
-            'filter',
-            'procstatus',
+            "jd",
+            "forcediffimflux",
+            "forcediffimfluxunc",
+            "diffmaglim",
+            "zpdiff",
+            "filter",
+            "procstatus",
         }
         if not desired_columns.issubset(set(df.columns)):
-            raise ValueError('Missing expected column')
+            raise ValueError("Missing expected column")
 
         # filter on the procstatus, only keeping data where procstatus = 0
         valid_index = [
-            i for i, x in enumerate(df['procstatus']) if str(x).strip() == '0'
+            i for i, x in enumerate(df["procstatus"]) if str(x).strip() == "0"
         ]
         df = df.iloc[valid_index]
-        df.drop(columns=['procstatus'], inplace=True)
+        df.drop(columns=["procstatus"], inplace=True)
 
         df.rename(
-            columns={'diffmaglim': 'limiting_mag'},
+            columns={"diffmaglim": "limiting_mag"},
             inplace=True,
         )
         df = df.replace({"null": np.nan})
-        df['mjd'] = astropy.time.Time(df['jd'], format='jd').mjd
-        df['filter'] = df['filter'].str.replace('_', '')
-        df['filter'] = df['filter'].str.lower()
-        df = df.astype({'forcediffimflux': 'float64', 'forcediffimfluxunc': 'float64'})
+        df["mjd"] = astropy.time.Time(df["jd"], format="jd").mjd
+        df["filter"] = df["filter"].str.replace("_", "")
+        df["filter"] = df["filter"].str.lower()
+        df = df.astype({"forcediffimflux": "float64", "forcediffimfluxunc": "float64"})
 
-        df['mag'] = df['zpdiff'] - 2.5 * np.log10(df['forcediffimflux'])
-        df['magerr'] = 1.0857 * df['forcediffimfluxunc'] / df['forcediffimflux']
+        df["mag"] = df["zpdiff"] - 2.5 * np.log10(df["forcediffimflux"])
+        df["magerr"] = 1.0857 * df["forcediffimfluxunc"] / df["forcediffimflux"]
 
-        snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 3
-        df.loc[snr, 'mag'] = None
-        df.loc[snr, 'magerr'] = None
+        snr = df["forcediffimflux"] / df["forcediffimfluxunc"] < 3
+        df.loc[snr, "mag"] = None
+        df.loc[snr, "magerr"] = None
 
-        iszero = df['forcediffimfluxunc'] == 0.0
-        df.loc[iszero, 'mag'] = None
-        df.loc[iszero, 'magerr'] = None
+        iszero = df["forcediffimfluxunc"] == 0.0
+        df.loc[iszero, "mag"] = None
+        df.loc[iszero, "magerr"] = None
 
-        isnan = np.isnan(df['forcediffimflux'])
-        df.loc[isnan, 'mag'] = None
-        df.loc[isnan, 'magerr'] = None
+        isnan = np.isnan(df["forcediffimflux"])
+        df.loc[isnan, "mag"] = None
+        df.loc[isnan, "magerr"] = None
 
         df = df.replace({np.nan: None})
 
         drop_columns = list(
             set(df.columns.values)
-            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+            - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
         )
 
         df.drop(
             columns=drop_columns,
             inplace=True,
         )
-        df['magsys'] = 'ab'
-        df['origin'] = 'fp'
+        df["magsys"] = "ab"
+        df["origin"] = "fp"
 
         # data is visible to the group attached to the allocation
         # as well as to any of the allocation's default share groups
         data_out = {
-            'obj_id': request.obj_id,
-            'instrument_id': instrument.id,
-            'group_ids': list(
+            "obj_id": request.obj_id,
+            "instrument_id": instrument.id,
+            "group_ids": list(
                 set(
                     [allocation.group_id]
                     + (
@@ -435,7 +432,7 @@ def commit_photometry(
                     )
                 )
             ),
-            **df.to_dict(orient='list'),
+            **df.to_dict(orient="list"),
         }
 
         from skyportal.handlers.api.photometry import add_external_photometry
@@ -445,7 +442,7 @@ def commit_photometry(
                 data_out, request.requester, duplicates=duplicates, refresh=True
             )
             if ids is None:
-                raise ValueError('Failed to commit photometry')
+                raise ValueError("Failed to commit photometry")
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"
@@ -455,7 +452,7 @@ def commit_photometry(
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": request.obj.internal_key},
         )
@@ -469,7 +466,6 @@ def commit_photometry(
 
 
 class ZTFAPI(FollowUpAPI):
-
     """An interface to ZTF operations."""
 
     @staticmethod
@@ -485,9 +481,9 @@ class ZTFAPI(FollowUpAPI):
         """
 
         from ..models import (
-            FollowupRequest,
             FacilityTransaction,
             FacilityTransactionRequest,
+            FollowupRequest,
         )
 
         last_modified_by_id = request.last_modified_by_id
@@ -503,23 +499,23 @@ class ZTFAPI(FollowUpAPI):
         elif request.payload["request_type"] == "triggered":
             altdata = request.allocation.altdata
             if not altdata:
-                raise ValueError('Missing allocation information.')
+                raise ValueError("Missing allocation information.")
 
             queue_name = "ToO_" + request.payload["queue_name"]
 
             headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-            payload = {'queue_name': queue_name, 'user': request.requester.username}
+            payload = {"queue_name": queue_name, "user": request.requester.username}
 
-            url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+            url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
             s = Session()
-            req = Request('DELETE', url, json=payload, headers=headers)
+            req = Request("DELETE", url, json=payload, headers=headers)
             prepped = req.prepare()
             r = s.send(prepped)
             if r.status_code == 200:
                 request.status = "deleted"
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f"rejected: {r.content}"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -536,26 +532,26 @@ class ZTFAPI(FollowUpAPI):
             )
             if transaction is not None:
                 if transaction.status == "complete":
-                    raise ValueError('Request already complete. Cannot delete.')
+                    raise ValueError("Request already complete. Cannot delete.")
                 session.delete(transaction)
             session.delete(request)
             session.commit()
             log(f"Deleted request {request.id} from ZTF queue.")
         else:
-            raise ValueError('Unknown request type.')
+            raise ValueError("Unknown request type.")
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     # subclasses *must* implement the method below
@@ -577,11 +573,11 @@ class ZTFAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         if request.payload["request_type"] == "triggered":
             requestgroup = req._build_triggered_payload(request, session)
-            url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+            url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         elif request.payload["request_type"] == "forced_photometry":
             requestgroup, error = req._build_forced_payload(request)
             if error:
@@ -595,28 +591,28 @@ class ZTFAPI(FollowUpAPI):
             headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
             payload = {
-                'targets': requestgroup["targets"],
-                'queue_name': requestgroup["queue_name"],
-                'validity_window_mjd': requestgroup["validity_window_mjd"],
-                'queue_type': 'list',
-                'user': request.requester.username,
+                "targets": requestgroup["targets"],
+                "queue_name": requestgroup["queue_name"],
+                "validity_window_mjd": requestgroup["validity_window_mjd"],
+                "queue_type": "list",
+                "user": request.requester.username,
             }
 
-            url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+            url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
             s = Session()
-            req = Request('PUT', url, json=payload, headers=headers)
+            req = Request("PUT", url, json=payload, headers=headers)
             prepped = req.prepare()
             r = s.send(prepped)
         elif request.payload["request_type"] == "forced_photometry":
             r = requests.get(
                 url,
                 auth=HTTPBasicAuth(
-                    altdata['ipac_http_user'], altdata['ipac_http_password']
+                    altdata["ipac_http_user"], altdata["ipac_http_password"]
                 ),
             )
 
         if r.status_code == 200:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             if request.payload["request_type"] == "forced_photometry":
                 params = urllib.parse.urlencode(
@@ -632,35 +628,35 @@ class ZTFAPI(FollowUpAPI):
                 )
 
                 request_body = {
-                    'method': 'GET',
-                    'endpoint': url,
-                    'data': requestgroup,
-                    'followup_request_id': request.id,
-                    'initiator_id': request.last_modified_by_id,
+                    "method": "GET",
+                    "endpoint": url,
+                    "data": requestgroup,
+                    "followup_request_id": request.id,
+                    "initiator_id": request.last_modified_by_id,
                 }
                 try:
                     req = FacilityTransactionRequest(**request_body)
                 except ValidationError as e:
                     raise ValidationError(
-                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
                 session.add(req)
                 session.commit()
 
                 facility_microservice_url = (
-                    f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+                    f"http://127.0.0.1:{cfg['ports.facility_queue']}"
                 )
                 requests.post(
                     facility_microservice_url,
                     json={
-                        'request_id': req.id,
-                        'followup_request_id': req.followup_request_id,
+                        "request_id": req.id,
+                        "followup_request_id": req.followup_request_id,
                     },
                 )
 
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -671,18 +667,18 @@ class ZTFAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     # split the form above (that has triggered, and forced_photometry) into two forms
@@ -798,7 +794,6 @@ class ZTFAPI(FollowUpAPI):
 
 
 class ZTFMMAAPI(MMAAPI):
-
     """An interface to ZTF MMA operations."""
 
     # subclasses *must* implement the method below
@@ -819,31 +814,31 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
-        if 'access_token' not in altdata:
-            raise ValueError('Missing access token in allocation information.')
+        if "access_token" not in altdata:
+            raise ValueError("Missing access token in allocation information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
         payload = {
-            'targets': requestgroup["targets"],
-            'queue_name': requestgroup["queue_name"],
-            'validity_window_mjd': requestgroup["validity_window_mjd"],
-            'queue_type': 'list',
-            'user': request.requester.username,
+            "targets": requestgroup["targets"],
+            "queue_name": requestgroup["queue_name"],
+            "validity_window_mjd": requestgroup["validity_window_mjd"],
+            "queue_type": "list",
+            "user": request.requester.username,
         }
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         s = Session()
-        ztfreq = Request('PUT', url, json=payload, headers=headers)
+        ztfreq = Request("PUT", url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
         if r.status_code == 200:
-            request.status = 'submitted to telescope queue'
+            request.status = "submitted to telescope queue"
         else:
-            request.status = f'rejected from telescope queue: {r.content}'
+            request.status = f"rejected from telescope queue: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -864,7 +859,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, ObservationPlanRequest, FacilityTransaction
+        from ..models import DBSession, FacilityTransaction, ObservationPlanRequest
 
         req = (
             DBSession()
@@ -884,22 +879,22 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         queue_name = "ToO_" + request.payload["queue_name"]
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        payload = {'queue_name': queue_name, 'user': request.requester.username}
+        payload = {"queue_name": queue_name, "user": request.requester.username}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         s = Session()
-        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        ztfreq = Request("DELETE", url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
         if r.status_code == 200:
             request.status = "deleted from telescope queue"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -928,19 +923,19 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         s = Session()
-        ztfreq = Request('GET', url, headers=headers, json={})
+        ztfreq = Request("GET", url, headers=headers, json={})
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
         if r.status_code == 200:
-            df = pd.DataFrame(r.json()['data'])
-            queue_names = sorted(list(set(df['queue_name'])))
+            df = pd.DataFrame(r.json()["data"])
+            queue_names = sorted(set(df["queue_name"]))
 
             if not queues_only:
                 fetch_obs = functools.partial(
@@ -953,7 +948,7 @@ class ZTFMMAAPI(MMAAPI):
                 IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
-            return ValueError(f'Error querying for queued observations: {r.text}')
+            return ValueError(f"Error querying for queued observations: {r.text}")
 
     @staticmethod
     def remove_queue(allocation, queue_name, username):
@@ -972,19 +967,19 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
-        payload = {'queue_name': queue_name, 'user': username}
+        payload = {"queue_name": queue_name, "user": username}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         s = Session()
-        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        ztfreq = Request("DELETE", url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
 
         r = s.send(prepped)
-        if not r.status_code == 200:
-            return ValueError(f'Error deleting queue: {r.text}')
+        if r.status_code != 200:
+            return ValueError(f"Error deleting queue: {r.text}")
 
         # check if there is an observation plan request associated with this queue (same queue name)
         # if so, mark it as removed from queue
@@ -992,21 +987,21 @@ class ZTFMMAAPI(MMAAPI):
             with DBSession() as session:
                 observation_plan_request = session.scalar(
                     session.query(ObservationPlanRequest).filter(
-                        ObservationPlanRequest.payload['queue_name'] == queue_name,
+                        ObservationPlanRequest.payload["queue_name"] == queue_name,
                         ObservationPlanRequest.allocation_id == allocation.id,
                     )
                 )
                 if (
                     observation_plan_request
                     and observation_plan_request.status
-                    == 'submitted to telescope queue'
+                    == "submitted to telescope queue"
                 ):
-                    observation_plan_request.status = 'deleted from telescope queue'
+                    observation_plan_request.status = "deleted from telescope queue"
                     session.commit()
 
                     flow = Flow()
                     flow.push(
-                        '*',
+                        "*",
                         "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                         payload={
                             "gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs
@@ -1014,7 +1009,7 @@ class ZTFMMAAPI(MMAAPI):
                     )
         except Exception as e:
             log(
-                f'Error marking observation plan request (with same queue name) status as deleted from queue: {e}'
+                f"Error marking observation plan request (with same queue name) status as deleted from queue: {e}"
             )
 
     @staticmethod
@@ -1033,22 +1028,22 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
-        jd_start = Time(start_date, format='datetime').jd
-        jd_end = Time(end_date, format='datetime').jd
+        jd_start = Time(start_date, format="datetime").jd
+        jd_end = Time(end_date, format="datetime").jd
 
         if jd_start > jd_end:
-            raise ValueError('start_date must be before end_date.')
+            raise ValueError("start_date must be before end_date.")
 
         s = Session()
-        s.auth = (altdata['depot_username'], altdata['depot_password'])
+        s.auth = (altdata["depot_username"], altdata["depot_password"])
 
         fetch_obs = functools.partial(
             fetch_depot_observations,
             allocation.instrument.id,
             s,
-            altdata['depot'],
+            altdata["depot"],
             jd_start,
             jd_end,
         )
@@ -1069,19 +1064,19 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztfmma")
 
         s = Session()
-        ztfreq = Request('PUT', url, json=payload, headers=headers)
+        ztfreq = Request("PUT", url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
         if r.status_code != 200:
-            raise ValueError(f'rejected from skymap queue: {r.content}')
+            raise ValueError(f"rejected from skymap queue: {r.content}")
 
     @staticmethod
     def queued_skymap(allocation):
@@ -1089,48 +1084,48 @@ class ZTFMMAAPI(MMAAPI):
 
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztfmma")
 
         s = Session()
-        ztfreq = Request('GET', url, headers=headers, json={})
+        ztfreq = Request("GET", url, headers=headers, json={})
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
         if r.status_code == 200:
-            return [d['trigger_name'] for d in r.json()['data']]
+            return [d["trigger_name"] for d in r.json()["data"]]
         else:
-            raise ValueError(f'Error querying for queued skymaps: {r.text}')
+            raise ValueError(f"Error querying for queued skymaps: {r.text}")
 
     @staticmethod
     def remove_skymap(allocation, trigger_name, username=None):
         """Delete a skymap trigger by trigger_name."""
         altdata = allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         if trigger_name is None:
-            raise ValueError('Missing trigger name.')
+            raise ValueError("Missing trigger name.")
 
         if username is None:
-            raise ValueError('Missing user information.')
+            raise ValueError("Missing user information.")
 
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztfmma")
 
-        payload = {'trigger_name': trigger_name, 'user': username}
+        payload = {"trigger_name": trigger_name, "user": username}
 
         s = Session()
-        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        ztfreq = Request("DELETE", url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
         if r.status_code != 200:
-            raise ValueError(f'Error deleting skymap: {r.text}')
+            raise ValueError(f"Error deleting skymap: {r.text}")
 
     def custom_json_schema(instrument, user, **kwargs):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user, **kwargs)
@@ -1199,13 +1194,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
 
     jds = np.arange(np.floor(jd_start), np.ceil(jd_end))
     for jd in jds:
-        date = Time(jd, format='jd').datetime.strftime("%Y%m%d")
-        url = f'{depot_url}/{date}/ztf_recentproc_{date}.json'
+        date = Time(jd, format="jd").datetime.strftime("%Y%m%d")
+        url = f"{depot_url}/{date}/ztf_recentproc_{date}.json"
         r = session.head(url)
 
         if r.status_code == 401:
             log(
-                f'Unauthorized access to depot for instrument ID {instrument_id} for JD: {jd}'
+                f"Unauthorized access to depot for instrument ID {instrument_id} for JD: {jd}"
             )
             continue
 
@@ -1215,21 +1210,21 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
             obstable = pd.DataFrame(r.json())
 
             if obstable.empty:
-                log(f'No observations for instrument ID {instrument_id} for JD: {jd}')
+                log(f"No observations for instrument ID {instrument_id} for JD: {jd}")
                 continue
             # only want successfully reduced images
-            obstable = obstable[obstable['status'] == 0]
+            obstable = obstable[obstable["status"] == 0]
 
-            obs_grouped_by_exp = obstable.groupby('exposure_id')
+            obs_grouped_by_exp = obstable.groupby("exposure_id")
             for expid, df_group in obs_grouped_by_exp:
                 df_group_median = df_group.median()
-                df_group_median['observation_id'] = int(expid)
-                df_group_median['processed_fraction'] = len(df_group["field_id"]) / 64.0
-                df_group_median['filter'] = inv_bands[int(df_group_median["filter_id"])]
+                df_group_median["observation_id"] = int(expid)
+                df_group_median["processed_fraction"] = len(df_group["field_id"]) / 64.0
+                df_group_median["filter"] = inv_bands[int(df_group_median["filter_id"])]
                 dfs.append(df_group_median)
         else:
             # look for another similar file generated at the end of the night: goodsubs_YYYYMMDD.txt
-            url = f'{depot_url}/{date}/goodsubs_{date}.txt'
+            url = f"{depot_url}/{date}/goodsubs_{date}.txt"
             r = session.head(url)
             if r.status_code == 200:
                 r = session.get(url)
@@ -1238,80 +1233,80 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 obstable = pd.read_fwf(  # fwf is fixed width format
                     StringIO(r.text),
                     skiprows=[1],
-                    delimiter='|',
+                    delimiter="|",
                 )
                 # remove spaces around the column names and str values if any
                 obstable.columns = [col.strip() for col in obstable.columns]
                 for col in obstable.columns:
-                    if obstable[col].dtype == 'object':
+                    if obstable[col].dtype == "object":
                         obstable[col] = obstable[col].str.strip()
 
                 if obstable.empty:
                     log(
-                        f'No observations for instrument ID {instrument_id} for JD: {jd}'
+                        f"No observations for instrument ID {instrument_id} for JD: {jd}"
                     )
                     continue
 
                 # remove the columns we do not need:
                 obstable = obstable[
                     [
-                        'jd',
-                        'field',
-                        'fid',
-                        'expid',
-                        'diffmaglim',
-                        'difffwhm',
-                        'exptime',
-                        'subtractionstatus',
+                        "jd",
+                        "field",
+                        "fid",
+                        "expid",
+                        "diffmaglim",
+                        "difffwhm",
+                        "exptime",
+                        "subtractionstatus",
                     ]
                 ]
 
                 # move rows with NaN values in any of the columns
                 obstable = obstable.dropna()
 
-                obstable['jd'] = obstable['jd'].astype(float)
-                obstable['field'] = obstable['field'].astype(int)
-                obstable['diffmaglim'] = obstable['diffmaglim'].astype(float)
-                obstable['difffwhm'] = obstable['difffwhm'].astype(float)
-                obstable['fid'] = obstable['fid'].astype(int)
-                obstable['expid'] = obstable['expid'].astype(int)
-                obstable['exptime'] = obstable['exptime'].astype(float)
-                obstable['subtractionstatus'] = obstable['subtractionstatus'].astype(
+                obstable["jd"] = obstable["jd"].astype(float)
+                obstable["field"] = obstable["field"].astype(int)
+                obstable["diffmaglim"] = obstable["diffmaglim"].astype(float)
+                obstable["difffwhm"] = obstable["difffwhm"].astype(float)
+                obstable["fid"] = obstable["fid"].astype(int)
+                obstable["expid"] = obstable["expid"].astype(int)
+                obstable["exptime"] = obstable["exptime"].astype(float)
+                obstable["subtractionstatus"] = obstable["subtractionstatus"].astype(
                     int
                 )
 
                 if obstable.empty:
                     log(
-                        f'No observations for instrument ID {instrument_id} for JD: {jd}'
+                        f"No observations for instrument ID {instrument_id} for JD: {jd}"
                     )
                     continue
 
                 # only want successfully reduced images, the column in that file is called subtractionstatus, and 1 means success
-                obstable = obstable[obstable['subtractionstatus'] == 1]
+                obstable = obstable[obstable["subtractionstatus"] == 1]
 
                 # rename the relevant columns to have the same names as the other file
                 # and/or the name expected by the add_observation function
                 obstable.rename(
                     columns={
-                        'jd': 'obsjd',
-                        'diffmaglim': 'maglim',
-                        'difffwhm': 'fwhm',
-                        'fid': 'filter_id',
-                        'field': 'field_id',
-                        'expid': 'exposure_id',
-                        'exptime': 'exposure_time',
+                        "jd": "obsjd",
+                        "diffmaglim": "maglim",
+                        "difffwhm": "fwhm",
+                        "fid": "filter_id",
+                        "field": "field_id",
+                        "expid": "exposure_id",
+                        "exptime": "exposure_time",
                     },
                     inplace=True,
                 )
 
-                obs_grouped_by_exp = obstable.groupby('exposure_id')
+                obs_grouped_by_exp = obstable.groupby("exposure_id")
                 for expid, df_group in obs_grouped_by_exp:
                     df_group_median = df_group.median()
-                    df_group_median['observation_id'] = int(expid)
-                    df_group_median['processed_fraction'] = (
+                    df_group_median["observation_id"] = int(expid)
+                    df_group_median["processed_fraction"] = (
                         len(df_group["field_id"]) / 64.0
                     )
-                    df_group_median['filter'] = inv_bands[
+                    df_group_median["filter"] = inv_bands[
                         int(df_group_median["filter_id"])
                     ]
                     dfs.append(df_group_median)
@@ -1320,13 +1315,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         obstable = pd.concat(dfs, axis=1).T
         obstable.rename(
             columns={
-                'obsjd': 'obstime',
-                'maglim': 'limmag',
-                'fwhm': 'seeing',  # equivalent as plate scale is 1"/pixel
+                "obsjd": "obstime",
+                "maglim": "limmag",
+                "fwhm": "seeing",  # equivalent as plate scale is 1"/pixel
             },
             inplace=True,
         )
-        obstable['target_name'] = None
+        obstable["target_name"] = None
 
         from skyportal.handlers.api.observation import add_observations
 
@@ -1352,32 +1347,32 @@ def fetch_tap_observations(instrument_id, client, request_str):
     obstable = obstable.filled().to_pandas()
     if obstable.empty:
         log(
-            f'No observations for instrument ID {instrument_id} for request: {request_str}'
+            f"No observations for instrument ID {instrument_id} for request: {request_str}"
         )
         return
 
-    obs_grouped_by_exp = obstable.groupby('expid')
+    obs_grouped_by_exp = obstable.groupby("expid")
     dfs = []
     for expid, df_group in obs_grouped_by_exp:
         df_group_median = df_group.median()
-        df_group_median['observation_id'] = int(expid)
-        df_group_median['processed_fraction'] = len(df_group["field"]) / 64.0
-        df_group_median['filter'] = inv_bands[int(df_group_median["fid"])]
+        df_group_median["observation_id"] = int(expid)
+        df_group_median["processed_fraction"] = len(df_group["field"]) / 64.0
+        df_group_median["filter"] = inv_bands[int(df_group_median["fid"])]
         dfs.append(df_group_median)
     obstable = pd.concat(dfs, axis=1).T
     obstable.rename(
         columns={
-            'obsjd': 'obstime',
-            'field': 'field_id',
-            'maglimit': 'limmag',
-            'exptime': 'exposure_time',
+            "obsjd": "obstime",
+            "field": "field_id",
+            "maglimit": "limmag",
+            "exptime": "exposure_time",
         },
         inplace=True,
     )
-    obstable['target_name'] = None
+    obstable["target_name"] = None
 
     # engineering data is ipac_gid = -1 and we do not want to save that
-    obstable = obstable[obstable['ipac_gid'] >= 1.0]
+    obstable = obstable[obstable["ipac_gid"] >= 1.0]
 
     from skyportal.handlers.api.observation import add_observations
 
@@ -1398,46 +1393,46 @@ def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
 
     observations = []
     for _, queue in obstable.iterrows():
-        validity_window_mjd = queue['validity_window_mjd']
+        validity_window_mjd = queue["validity_window_mjd"]
         if validity_window_mjd is not None:
             validity_window_start = Time(
-                validity_window_mjd[0], format='mjd', scale='utc'
+                validity_window_mjd[0], format="mjd", scale="utc"
             ).datetime
             validity_window_end = Time(
-                validity_window_mjd[1], format='mjd', scale='utc'
+                validity_window_mjd[1], format="mjd", scale="utc"
             ).datetime
         else:
             continue
 
-        res = json.loads(queue['queue'])
+        res = json.loads(queue["queue"])
         for row in res:
             field_id = int(row["field_id"])
             if "slot_start_time" in row:
-                slot_start_time = Time(row["slot_start_time"], format='iso').datetime
+                slot_start_time = Time(row["slot_start_time"], format="iso").datetime
             else:
                 slot_start_time = validity_window_start
 
-            if (slot_start_time < Time(start_date, format='datetime').datetime) or (
-                slot_start_time > Time(end_date, format='datetime').datetime
+            if (slot_start_time < Time(start_date, format="datetime").datetime) or (
+                slot_start_time > Time(end_date, format="datetime").datetime
             ):
                 continue
 
-            if not row['filter_id'] is None:
-                filt = inv_bands[row['filter_id']]
-            elif row['subprogram_name'] == 'i_band':
-                filt = 'ztfi'
+            if not row["filter_id"] is None:
+                filt = inv_bands[row["filter_id"]]
+            elif row["subprogram_name"] == "i_band":
+                filt = "ztfi"
             else:
                 filt = None
             observations.append(
                 {
-                    'queue_name': queue['queue_name'],
-                    'instrument_id': instrument_id,
-                    'field_id': field_id,
-                    'obstime': slot_start_time,
-                    'validity_window_start': validity_window_start,
-                    'validity_window_end': validity_window_end,
-                    'exposure_time': row["exposure_time"],
-                    'filter': filt,
+                    "queue_name": queue["queue_name"],
+                    "instrument_id": instrument_id,
+                    "field_id": field_id,
+                    "obstime": slot_start_time,
+                    "validity_window_start": validity_window_start,
+                    "validity_window_end": validity_window_end,
+                    "exposure_time": row["exposure_time"],
+                    "filter": filt,
                 }
             )
 

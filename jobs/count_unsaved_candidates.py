@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import datetime
-from skyportal.models import init_db, Candidate, Source, Obj, DBSession
-from baselayer.app.env import load_env
 
+from baselayer.app.env import load_env
+from skyportal.models import Candidate, DBSession, Obj, Source, init_db
 
 env, cfg = load_env()
 init_db(**cfg["database"])

@@ -1,21 +1,19 @@
 __all__ = [
-    'EarthquakeEvent',
-    'EarthquakeMeasured',
-    'EarthquakeNotice',
-    'EarthquakePrediction',
+    "EarthquakeEvent",
+    "EarthquakeMeasured",
+    "EarthquakeNotice",
+    "EarthquakePrediction",
 ]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, relationship
 from sqlalchemy_utils import URLType
 
-from baselayer.app.models import (
-    Base,
-    AccessibleIfUserMatches,
-)
-
 from baselayer.app.env import load_env
+from baselayer.app.models import (
+    AccessibleIfUserMatches,
+    Base,
+)
 
 _, cfg = load_env()
 
@@ -23,10 +21,10 @@ _, cfg = load_env()
 class EarthquakeNotice(Base):
     """Earthquake notice information"""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this EarthquakeEvent.",
@@ -40,35 +38,35 @@ class EarthquakeNotice(Base):
     )
 
     content = deferred(
-        sa.Column(sa.LargeBinary, nullable=True, doc='Raw QuakeML content')
+        sa.Column(sa.LargeBinary, nullable=True, doc="Raw QuakeML content")
     )
 
     event_id = sa.Column(
         sa.String,
         sa.ForeignKey("earthquakeevents.event_id", ondelete="CASCADE"),
         nullable=False,
-        comment='Earthquake ID',
+        comment="Earthquake ID",
     )
 
-    lat = sa.Column(sa.Float, nullable=False, comment='Latitude')
+    lat = sa.Column(sa.Float, nullable=False, comment="Latitude")
 
-    lon = sa.Column(sa.Float, nullable=False, comment='Longitude')
+    lon = sa.Column(sa.Float, nullable=False, comment="Longitude")
 
     depth = sa.Column(
         sa.Float,
         nullable=False,
-        comment='Depth relative to sea level (positive values as depth increases) [m]',
+        comment="Depth relative to sea level (positive values as depth increases) [m]",
     )
 
     magnitude = sa.Column(
-        sa.Float, nullable=False, comment='Earthquake (Moment) Magnitude', index=True
+        sa.Float, nullable=False, comment="Earthquake (Moment) Magnitude", index=True
     )
 
     date = sa.Column(
-        sa.DateTime, nullable=False, comment='UTC event timestamp', index=True
+        sa.DateTime, nullable=False, comment="UTC event timestamp", index=True
     )
 
-    country = sa.Column(sa.String, nullable=True, comment='Country')
+    country = sa.Column(sa.String, nullable=True, comment="Country")
 
 
 class EarthquakePrediction(Base):
@@ -76,38 +74,38 @@ class EarthquakePrediction(Base):
 
     event_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey("earthquakeevents.id", ondelete='CASCADE'),
+        sa.ForeignKey("earthquakeevents.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Earthquake ID',
+        comment="Earthquake ID",
     )
 
     detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        sa.ForeignKey("mmadetectors.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Multimessenger Astronomical Detector id',
+        comment="Multimessenger Astronomical Detector id",
     )
 
-    d = sa.Column(sa.Float, nullable=False, comment='Distance [km]')
+    d = sa.Column(sa.Float, nullable=False, comment="Distance [km]")
 
-    p = sa.Column(sa.DateTime, nullable=False, comment='P-wave time')
+    p = sa.Column(sa.DateTime, nullable=False, comment="P-wave time")
 
-    s = sa.Column(sa.DateTime, nullable=False, comment='S-wave time')
+    s = sa.Column(sa.DateTime, nullable=False, comment="S-wave time")
 
-    r2p0 = sa.Column(sa.DateTime, nullable=False, comment='R-2.0 km/s-wave time')
+    r2p0 = sa.Column(sa.DateTime, nullable=False, comment="R-2.0 km/s-wave time")
 
-    r3p5 = sa.Column(sa.DateTime, nullable=False, comment='R-3.5 km/s-wave time')
+    r3p5 = sa.Column(sa.DateTime, nullable=False, comment="R-3.5 km/s-wave time")
 
-    r5p0 = sa.Column(sa.DateTime, nullable=False, comment='R-5.0 km/s-wave time')
+    r5p0 = sa.Column(sa.DateTime, nullable=False, comment="R-5.0 km/s-wave time")
 
     rfamp = sa.Column(
-        sa.Float, nullable=False, comment='Earthquake amplitude predictions [m/s]'
+        sa.Float, nullable=False, comment="Earthquake amplitude predictions [m/s]"
     )
 
     lockloss = sa.Column(
         sa.Float,
         nullable=False,
-        comment='Earthquake lockloss prediction, between 0 (no lockloss) and 1 (lockloss)',
+        comment="Earthquake lockloss prediction, between 0 (no lockloss) and 1 (lockloss)",
     )
 
 
@@ -116,36 +114,36 @@ class EarthquakeMeasured(Base):
 
     event_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey("earthquakeevents.id", ondelete='CASCADE'),
+        sa.ForeignKey("earthquakeevents.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Earthquake ID',
+        comment="Earthquake ID",
     )
 
     detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        sa.ForeignKey("mmadetectors.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Multimessenger Astronomical Detector id',
+        comment="Multimessenger Astronomical Detector id",
     )
 
     rfamp = sa.Column(
-        sa.Float, nullable=True, comment='Earthquake amplitude measured [m/s]'
+        sa.Float, nullable=True, comment="Earthquake amplitude measured [m/s]"
     )
 
     lockloss = sa.Column(
         sa.INT,
         nullable=True,
-        comment='Earthquake lockloss measured, should be 0 (no lockloss) or 1 (lockloss)',
+        comment="Earthquake lockloss measured, should be 0 (no lockloss) or 1 (lockloss)",
     )
 
 
 class EarthquakeEvent(Base):
     """Earthquake information"""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches("sent_by")
 
     sent_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this GcnTag.",
@@ -159,10 +157,10 @@ class EarthquakeEvent(Base):
     )
 
     event_id = sa.Column(
-        sa.String, unique=True, nullable=False, comment='Earthquake ID'
+        sa.String, unique=True, nullable=False, comment="Earthquake ID"
     )
 
-    event_uri = sa.Column(URLType, nullable=True, comment='Earthquake URI')
+    event_uri = sa.Column(URLType, nullable=True, comment="Earthquake URI")
 
     status = sa.Column(
         sa.String(),
@@ -174,7 +172,7 @@ class EarthquakeEvent(Base):
 
     notices = relationship(
         "EarthquakeNotice",
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by=EarthquakeNotice.created_at,
         doc="Notices associated with this Earthquake event.",
@@ -182,7 +180,7 @@ class EarthquakeEvent(Base):
 
     predictions = relationship(
         "EarthquakePrediction",
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by=EarthquakePrediction.created_at,
         doc="Notices associated with this Earthquake event.",
@@ -190,25 +188,25 @@ class EarthquakeEvent(Base):
 
     measurements = relationship(
         "EarthquakeMeasured",
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by=EarthquakeMeasured.created_at,
         doc="Notices associated with this Earthquake event.",
     )
 
     comments = relationship(
-        'CommentOnEarthquake',
-        back_populates='earthquake',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "CommentOnEarthquake",
+        back_populates="earthquake",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="CommentOnEarthquake.created_at",
         doc="Comments posted about this Earthquake event.",
     )
 
     reminders = relationship(
-        'ReminderOnEarthquake',
-        back_populates='earthquake',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        "ReminderOnEarthquake",
+        back_populates="earthquake",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="ReminderOnEarthquake.created_at",
         doc="Reminders about this Earthquake event.",

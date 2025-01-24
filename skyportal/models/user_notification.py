@@ -1,27 +1,27 @@
-__all__ = ['UserNotification']
+__all__ = ["UserNotification"]
 
 import asyncio
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 
+import sqlalchemy as sa
 from sqlalchemy import event, inspect
+from sqlalchemy.orm import relationship
 from tornado.ioloop import IOLoop
 
-from baselayer.app.models import Base, AccessibleIfUserMatches
+from baselayer.app.models import AccessibleIfUserMatches, Base
 
 from ..utils.notifications import post_notification
 from .analysis import ObjAnalysis
 from .classification import Classification
-from .spectrum import Spectrum
 from .comment import Comment
 from .facility_transaction import FacilityTransaction
 from .followup_request import FollowupRequest
-from .observation_plan import EventObservationPlan
 from .group import GroupAdmissionRequest
+from .observation_plan import EventObservationPlan
+from .spectrum import Spectrum
 
 
 class UserNotification(Base):
-    read = update = delete = AccessibleIfUserMatches('user')
+    read = update = delete = AccessibleIfUserMatches("user")
 
     user_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -59,14 +59,14 @@ class UserNotification(Base):
     )
 
 
-@event.listens_for(Classification, 'after_insert')
-@event.listens_for(Spectrum, 'after_insert')
-@event.listens_for(Comment, 'after_insert')
-@event.listens_for(FacilityTransaction, 'after_insert')
-@event.listens_for(GroupAdmissionRequest, 'after_insert')
-@event.listens_for(ObjAnalysis, 'after_update')
-@event.listens_for(EventObservationPlan, 'after_insert')
-@event.listens_for(FollowupRequest, 'after_update')
+@event.listens_for(Classification, "after_insert")
+@event.listens_for(Spectrum, "after_insert")
+@event.listens_for(Comment, "after_insert")
+@event.listens_for(FacilityTransaction, "after_insert")
+@event.listens_for(GroupAdmissionRequest, "after_insert")
+@event.listens_for(ObjAnalysis, "after_update")
+@event.listens_for(EventObservationPlan, "after_insert")
+@event.listens_for(FollowupRequest, "after_update")
 def add_user_notifications(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_commit", once=True)
@@ -81,8 +81,8 @@ def add_user_notifications(mapper, connection, target):
             return
 
         request_body = {
-            'target_class_name': target_class_name,
-            'target_id': target_id,
+            "target_class_name": target_class_name,
+            "target_id": target_id,
         }
 
         try:

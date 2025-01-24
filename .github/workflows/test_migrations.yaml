@@ -15,6 +15,9 @@ on:
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
       - "requirements.txt"
+      - ".github/workflows/test_migrations.yaml"
+      - ".github/actions/cache-dependencies/action.yaml"
+      - ".github/actions/cache-dependencies-save/action.yaml"
     types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
@@ -50,14 +53,6 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -65,43 +60,18 @@ jobs:
           ref: main
           submodules: true
 
-      - uses: actions/cache@v4
+      - name: Cache main dependencies
+        uses: ./.github/actions/cache-dependencies
         with:
-          path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+          key-prefix: main
 
-      - uses: actions/cache@v4
+      - uses: actions/setup-python@v5
         with:
-          path: |
-            ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-pip-
+          python-version: "3.10"
 
-      # caching dustmap & sncosmo files is dependent on their corresponding
-      # python package versions, so we use that as the cache key
-      - uses: actions/cache@v4
+      - uses: actions/setup-node@v4
         with:
-          path: |
-            persistentdata/dustmap/sfd
-          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-dustmap-
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.astropy/cache/sncosmo/bandpasses
-          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-sncosmo-
+          node-version: 20
 
       - name: Install system dependencies
         run: |
@@ -149,6 +119,11 @@ jobs:
           current_head=${tokens[2]}
           echo ${current_head}
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
+
+      - name: Save main branch cache
+        uses: ./.github/actions/cache-dependencies-save
+        with:
+          key-prefix: main
 
       - name: Checkout migration reference commit
         uses: actions/checkout@v4
@@ -199,12 +174,15 @@ jobs:
           sleep 180 && make load_demo_data
           kill %1
 
-      - name: Checkout PR branch
+      - name: Checkout branch being tested
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
           clean: false
+
+      - name: Cache dependencies
+        uses: ./.github/actions/cache-dependencies
 
       - name: Check for migration branching
         run: |

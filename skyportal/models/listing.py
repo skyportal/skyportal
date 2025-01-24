@@ -1,17 +1,17 @@
-__all__ = ['Listing']
+__all__ = ["Listing"]
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, AccessibleIfUserMatches
+from baselayer.app.models import AccessibleIfUserMatches, Base
 
 
 class Listing(Base):
     create = read = update = delete = AccessibleIfUserMatches("user")
 
     user_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the User who created this Listing.",
@@ -25,7 +25,7 @@ class Listing(Base):
     )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="The ID of the object that is on this Listing",
@@ -46,7 +46,7 @@ class Listing(Base):
     params = sa.Column(
         JSONB,
         nullable=True,
-        doc='''Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.''',
+        doc="""Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.""",
     )
 
 

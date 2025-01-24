@@ -5,14 +5,15 @@ Revises: 2ed67629cdb3
 Create Date: 2021-02-22 12:46:46.137261
 
 """
-from alembic import op
+
 from sqlalchemy.engine.reflection import Inspector
+
+from alembic import op
 from baselayer.app.models import JoinModel
 
-
 # revision identifiers, used by Alembic.
-revision = '5365c004a923'
-down_revision = '2ed67629cdb3'
+revision = "5365c004a923"
+down_revision = "2ed67629cdb3"
 branch_labels = None
 depends_on = None
 

@@ -1,33 +1,33 @@
-import requests
 from datetime import datetime, timedelta
-from astropy.time import Time
-from marshmallow.exceptions import ValidationError
+from io import StringIO
+
 import numpy as np
 import pandas as pd
-from io import StringIO
-from sqlalchemy.orm import sessionmaker, scoped_session
+import requests
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import scoped_session, sessionmaker
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
-if cfg.get('app.atlas.port') is None:
+if cfg.get("app.atlas.port") is None:
     ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
 else:
     ATLAS_URL = (
         f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}:{cfg['app.atlas.port']}"
     )
 
-log = make_log('facility_apis/atlas')
+log = make_log("facility_apis/atlas")
 
 
 class ATLASRequest:
-
     """A dictionary structure for ATLAS forced photometry requests."""
 
     def _build_payload(self, request):
@@ -46,22 +46,22 @@ class ATLASRequest:
         """
 
         if "start_date" not in request.payload:
-            raise ValueError('start_date is a required parameter')
+            raise ValueError("start_date is a required parameter")
         if "end_date" not in request.payload:
-            raise ValueError('end_date is a required parameter')
+            raise ValueError("end_date is a required parameter")
 
-        mjd_min = Time(request.payload["start_date"], format='iso').mjd
-        mjd_max = Time(request.payload["end_date"], format='iso').mjd
+        mjd_min = Time(request.payload["start_date"], format="iso").mjd
+        mjd_max = Time(request.payload["end_date"], format="iso").mjd
 
         if mjd_max < mjd_min:
-            raise ValueError('mjd_min must be smaller than mjd_max')
+            raise ValueError("mjd_min must be smaller than mjd_max")
 
         target = {
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
-            'mjd_min': mjd_min,
-            'mjd_max': mjd_max,
-            'send_email': False,
+            "ra": request.obj.ra,
+            "dec": request.obj.dec,
+            "mjd_min": mjd_min,
+            "mjd_max": mjd_max,
+            "send_email": False,
         }
 
         return target
@@ -95,11 +95,7 @@ def commit_photometry(
         Session to use for database transactions. If None, a new session will be created.
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     if parent_session is None:
         Session = scoped_session(sessionmaker())
@@ -117,14 +113,14 @@ def commit_photometry(
         if not allocation:
             raise ValueError("Missing request's allocation information.")
 
-        result_url = json_response['result_url']
+        result_url = json_response["result_url"]
         request.status = f"Task is complete with results available at {result_url}"
 
         s = requests.get(
             result_url,
             headers={
-                'Authorization': f"Token {altdata['api_token']}",
-                'Accept': 'application/json',
+                "Authorization": f"Token {altdata['api_token']}",
+                "Accept": "application/json",
             },
         )
         s.raise_for_status()
@@ -144,61 +140,61 @@ def commit_photometry(
                 StringIO(s.text.replace("###MJD", "mjd")), delim_whitespace=True
             )
         except Exception as e:
-            raise ValueError(f'Format of response not understood: {e.message}')
+            raise ValueError(f"Format of response not understood: {e.message}")
 
-        desired_columns = {'mjd', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F'}
+        desired_columns = {"mjd", "RA", "Dec", "m", "dm", "mag5sig", "F"}
         if not desired_columns.issubset(set(df.columns)):
-            raise ValueError('Missing expected column')
+            raise ValueError("Missing expected column")
 
         df.rename(
             columns={
-                'RA': 'ra',
-                'Dec': 'dec',
-                'm': 'mag',
-                'dm': 'magerr',
-                'mag5sig': 'limiting_mag',
-                'F': 'filter',
+                "RA": "ra",
+                "Dec": "dec",
+                "m": "mag",
+                "dm": "magerr",
+                "mag5sig": "limiting_mag",
+                "F": "filter",
             },
             inplace=True,
         )
-        cyan = df['filter'] == 'c'
-        orange = df['filter'] == 'o'
+        cyan = df["filter"] == "c"
+        orange = df["filter"] == "o"
 
-        snr = df['uJy'] / df['duJy'] < 3
+        snr = df["uJy"] / df["duJy"] < 3
 
-        df.loc[cyan, 'filter'] = 'atlasc'
-        df.loc[orange, 'filter'] = 'atlaso'
-        df.loc[snr, 'mag'] = None
-        df.loc[snr, 'magerr'] = None
+        df.loc[cyan, "filter"] = "atlasc"
+        df.loc[orange, "filter"] = "atlaso"
+        df.loc[snr, "mag"] = None
+        df.loc[snr, "magerr"] = None
 
-        iszero = df['duJy'] == 0.0
-        df.loc[iszero, 'mag'] = None
-        df.loc[iszero, 'magerr'] = None
+        iszero = df["duJy"] == 0.0
+        df.loc[iszero, "mag"] = None
+        df.loc[iszero, "magerr"] = None
 
-        isnan = np.isnan(df['uJy'])
-        df.loc[isnan, 'mag'] = None
-        df.loc[isnan, 'magerr'] = None
+        isnan = np.isnan(df["uJy"])
+        df.loc[isnan, "mag"] = None
+        df.loc[isnan, "magerr"] = None
 
         df = df.replace({np.nan: None})
 
         drop_columns = list(
             set(df.columns.values)
-            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+            - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
         )
 
         df.drop(
             columns=drop_columns,
             inplace=True,
         )
-        df['magsys'] = 'ab'
-        df['origin'] = 'fp'
+        df["magsys"] = "ab"
+        df["origin"] = "fp"
 
         # data is visible to the group attached to the allocation
         # as well as to any of the allocation's default share groups
         data_out = {
-            'obj_id': request.obj_id,
-            'instrument_id': instrument.id,
-            'group_ids': list(
+            "obj_id": request.obj_id,
+            "instrument_id": instrument.id,
+            "group_ids": list(
                 set(
                     [allocation.group_id]
                     + (
@@ -208,7 +204,7 @@ def commit_photometry(
                     )
                 )
             ),
-            **df.to_dict(orient='list'),
+            **df.to_dict(orient="list"),
         }
 
         from skyportal.handlers.api.photometry import add_external_photometry
@@ -218,7 +214,7 @@ def commit_photometry(
                 data_out, request.requester, duplicates=duplicates, refresh=True
             )
             if ids is None:
-                raise ValueError('Failed to commit photometry')
+                raise ValueError("Failed to commit photometry")
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"
@@ -228,7 +224,7 @@ def commit_photometry(
 
         flow = Flow()
         flow.push(
-            '*',
+            "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": request.obj.internal_key},
         )
@@ -244,7 +240,6 @@ def commit_photometry(
 
 
 class ATLASAPI(FollowUpAPI):
-
     """An interface to ATLAS forced photometry."""
 
     # subclasses *must* implement the method below
@@ -267,56 +262,56 @@ class ATLASAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError('Missing allocation information.')
+            raise ValueError("Missing allocation information.")
 
         r = requests.post(
             f"{ATLAS_URL}/forcedphot/queue/",
             headers={
-                'Authorization': f"Token {altdata['api_token']}",
-                'Accept': 'application/json',
+                "Authorization": f"Token {altdata['api_token']}",
+                "Accept": "application/json",
             },
             data=requestgroup,
         )
         content = r.json()
 
         if r.status_code == 201:
-            request.status = 'submitted'
+            request.status = "submitted"
 
             request_body = {
-                'method': 'GET',
-                'endpoint': content["url"],
-                'headers': {
-                    'Authorization': f"Token {altdata['api_token']}",
-                    'Accept': 'application/json',
+                "method": "GET",
+                "endpoint": content["url"],
+                "headers": {
+                    "Authorization": f"Token {altdata['api_token']}",
+                    "Accept": "application/json",
                 },
-                'followup_request_id': request.id,
-                'initiator_id': request.last_modified_by_id,
+                "followup_request_id": request.id,
+                "initiator_id": request.last_modified_by_id,
             }
 
             try:
                 req = FacilityTransactionRequest(**request_body)
             except ValidationError as e:
                 raise ValidationError(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(req)
             session.commit()
 
             facility_microservice_url = (
-                f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+                f"http://127.0.0.1:{cfg['ports.facility_queue']}"
             )
             requests.post(
                 facility_microservice_url,
                 json={
-                    'request_id': req.id,
-                    'followup_request_id': req.followup_request_id,
+                    "request_id": req.id,
+                    "followup_request_id": req.followup_request_id,
                 },
             )
 
         elif r.status_code == 429:
-            request.status = f'throttled: {r.content}'
+            request.status = f"throttled: {r.content}"
         else:
-            request.status = f'rejected: {r.content}'
+            request.status = f"rejected: {r.content}"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -327,18 +322,18 @@ class ATLASAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     @staticmethod
@@ -365,23 +360,23 @@ class ATLASAPI(FollowUpAPI):
         )
         if transaction is not None:
             if transaction.status == "complete":
-                raise ValueError('Request already complete. Cannot delete.')
+                raise ValueError("Request already complete. Cannot delete.")
             session.delete(transaction)
         session.delete(request)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_internal_key},
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
             )
-        if kwargs.get('refresh_requests', False):
+        if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
                 last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
     form_json_schema_forced_photometry = {

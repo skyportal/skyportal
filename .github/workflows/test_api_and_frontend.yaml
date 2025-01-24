@@ -42,6 +42,16 @@ jobs:
           ]
 
     steps:
+      - name: Checkout branch being tested
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+          clean: false
+
+      - name: Cache dependencies
+        uses: ./.github/actions/cache-dependencies
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -49,51 +59,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-          submodules: true
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-pip-
-
-      # caching dustmap & sncosmo files is dependent on their corresponding
-      # python package versions, so we use that as the cache key
-      - uses: actions/cache@v4
-        with:
-          path: |
-            persistentdata/dustmap/sfd
-          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-dustmap-
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.astropy/cache/sncosmo/bandpasses
-          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
-            ${{ runner.os }}-sncosmo-
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
@@ -110,19 +75,6 @@ jobs:
               password: anything
           EOF
 
-          cat << EOF > test_config.yaml
-            database:
-              database: skyportal_test
-              user: skyportal
-              host: localhost
-              port: 5432
-              password: anything
-
-            server:
-              auth:
-                debug_login: True
-          EOF
-
       - name: Install system dependencies
         run: |
           sudo apt update -y
@@ -135,16 +87,12 @@ jobs:
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
 
           # if nginx is already installed, remove it
-          sudo apt remove -y nginx nginx-common nginx-core nginx-full
           sudo apt purge -y nginx nginx-common nginx-core nginx-full
 
           # add the PPA repository with brotli support for nginx
           sudo add-apt-repository ppa:ondrej/nginx -y
           sudo apt update -y
           sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
-
-          pip install pip==24.0
-          pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -157,13 +105,6 @@ jobs:
           echo node $(node --version)
           nginx -v
           firefox --version
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Initialize SkyPortal
         run: |
@@ -181,6 +122,8 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+
+          # Install dependencies, and initialize the database
           make db_init
 
           pip list --format=columns
@@ -193,12 +136,6 @@ jobs:
         run: |
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
-
-      - name: Refresh SkyPortal dependencies for tested version
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make dependencies
 
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'

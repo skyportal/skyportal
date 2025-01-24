@@ -4,8 +4,8 @@ from skyportal.tests import api
 
 
 def test_openai_prefs(driver, user, upload_data_token):
-    driver.get(f'/become_user/{user.id}')
-    driver.get('/profile')
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
     openai_toggle = driver.wait_for_xpath('//*[@data-testid="OpenAI_toggle"]')
 
     if not openai_toggle.is_selected():
@@ -30,15 +30,15 @@ def test_openai_prefs(driver, user, upload_data_token):
         "//form[@class='rjsf']/div/button[text()='Submit']", scroll_parent=True
     )
 
-    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
-    assert data['data']['preferences']['summary']["OpenAI"]["model"] == dummy_gpt_model
-    assert data['data']['preferences']['summary']["OpenAI"]["apikey"] == dummy_api_key
-    assert data['data']['preferences']['summary']["OpenAI"]["active"]
+    assert data["data"]["preferences"]["summary"]["OpenAI"]["model"] == dummy_gpt_model
+    assert data["data"]["preferences"]["summary"]["OpenAI"]["apikey"] == dummy_api_key
+    assert data["data"]["preferences"]["summary"]["OpenAI"]["active"]
 
     # uncheck the toggle
     openai_toggle.click()
 
-    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
-    assert not data['data']['preferences']['summary']["OpenAI"]["active"]
+    assert not data["data"]["preferences"]["summary"]["OpenAI"]["active"]

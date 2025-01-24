@@ -5,9 +5,8 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ....email_utils import send_email
-from ...base import BaseHandler
-
 from ....models import User
+from ...base import BaseHandler
 
 env, cfg = load_env()
 
@@ -61,8 +60,8 @@ class NotificationTestHandler(BaseHandler):
 
         data = self.get_json()
 
-        user_id = data.get('user_id', None)
-        notification_type = data.get('notification_type', None)
+        user_id = data.get("user_id", None)
+        notification_type = data.get("notification_type", None)
 
         if user_id is None:
             user_id = self.associated_user_object.id

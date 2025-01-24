@@ -1,25 +1,27 @@
 import arrow
 from marshmallow.exceptions import ValidationError
+
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.flow import Flow
 from skyportal.models.source import Source
-from ..base import BaseHandler
+
 from ...models import (
-    Reminder,
-    ReminderOnSpectrum,
-    ReminderOnGCN,
-    ReminderOnEarthquake,
-    ReminderOnShift,
     EarthquakeEvent,
-    Spectrum,
     GcnEvent,
-    Shift,
     Group,
+    Reminder,
+    ReminderOnEarthquake,
+    ReminderOnGCN,
+    ReminderOnShift,
+    ReminderOnSpectrum,
+    Shift,
+    Spectrum,
+    Token,
     User,
     UserNotification,
-    Token,
 )
+from ..base import BaseHandler
 
 
 def post_reminder(
@@ -88,7 +90,7 @@ def post_reminder(
             Spectrum.select(session.user_or_token).where(Spectrum.id == resource_id)
         ).first()
         if not spectrum:
-            raise ValueError(f'Could not find spectrum {resource_id}.')
+            raise ValueError(f"Could not find spectrum {resource_id}.")
         for user in users:
             reminders.append(
                 ReminderOnSpectrum(
@@ -109,7 +111,7 @@ def post_reminder(
             GcnEvent.select(session.user_or_token).where(GcnEvent.id == resource_id)
         ).first()
         if not gcn_event:
-            raise ValueError(f'Could not find GcnEvent {resource_id}.')
+            raise ValueError(f"Could not find GcnEvent {resource_id}.")
         for user in users:
             reminders.append(
                 ReminderOnGCN(
@@ -131,7 +133,7 @@ def post_reminder(
             )
         ).first()
         if not earthquake:
-            raise ValueError(f'Could not find EarthquakeEvent {resource_id}.')
+            raise ValueError(f"Could not find EarthquakeEvent {resource_id}.")
         for user in users:
             reminders.append(
                 ReminderOnEarthquake(
@@ -151,7 +153,7 @@ def post_reminder(
             Shift.select(session.user_or_token).where(Shift.id == resource_id)
         ).first()
         if not shift:
-            raise ValueError(f'Could not find Shift {resource_id}.')
+            raise ValueError(f"Could not find Shift {resource_id}.")
         for user in users:
             reminders.append(
                 ReminderOnShift(
@@ -288,9 +290,9 @@ class ReminderHandler(BaseHandler):
                     session.commit()
                     return self.success(
                         data={
-                            'resourceId': resource_id,
-                            'resourceType': associated_resource_type.lower(),
-                            'reminders': reminders,
+                            "resourceId": resource_id,
+                            "resourceType": associated_resource_type.lower(),
+                            "reminders": reminders,
                         }
                     )
                 else:
@@ -332,7 +334,7 @@ class ReminderHandler(BaseHandler):
                     reminder = session.scalar(stmt).first()
 
                     if reminder is None:
-                        return self.error(f'Could not find reminder {reminder_id}.')
+                        return self.error(f"Could not find reminder {reminder_id}.")
 
                     if associated_resource_type.lower() in ["source", "spectra"]:
                         reminder_resource_id_str = str(reminder.obj_id)
@@ -345,14 +347,14 @@ class ReminderHandler(BaseHandler):
 
                     if reminder_resource_id_str != resource_id:
                         return self.error(
-                            f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                            f"Reminder resource ID does not match resource ID given in path ({resource_id})"
                         )
 
                     return self.success(data=reminder)
         except Exception as e:
             return self.error(str(e))
 
-    @permissions(['Reminder'])
+    @permissions(["Reminder"])
     def post(self, associated_resource_type, resource_id, *ignored_args):
         """
         ---
@@ -423,20 +425,20 @@ class ReminderHandler(BaseHandler):
         number_of_reminders = data.get("number_of_reminders", 1)
         with self.Session() as session:
             try:
-                group_ids = data.pop('group_ids', None)
+                group_ids = data.pop("group_ids", None)
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
                 elif not set(group_ids).issubset(
                     {g.id for g in self.current_user.accessible_groups}
                 ):
                     return self.error(
-                        'cannot find some of the requested groups', status=403
+                        "cannot find some of the requested groups", status=403
                     )
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
 
-                user_ids = data.pop('user_ids', None)
+                user_ids = data.pop("user_ids", None)
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
@@ -446,7 +448,7 @@ class ReminderHandler(BaseHandler):
                     accessible_user_ids = [u.id for u in accessible_users]
                     if not set(user_ids).issubset(set(accessible_user_ids)):
                         return self.error(
-                            'cannot find some of the requested users', status=403
+                            "cannot find some of the requested users", status=403
                         )
                 users = session.scalars(
                     User.select(session.user_or_token).where(User.id.in_(user_ids))
@@ -476,33 +478,33 @@ class ReminderHandler(BaseHandler):
                 if associated_resource_type.lower() == "source":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on source *{resource_name}*"
                     url_endpoint = f"/source/{resource_name}"
-                    action = 'skyportal/REFRESH_REMINDER_SOURCE'
-                    payload = {'id': resource_id}
-                    notification_type = 'reminder_source'
+                    action = "skyportal/REFRESH_REMINDER_SOURCE"
+                    payload = {"id": resource_id}
+                    notification_type = "reminder_source"
                 elif associated_resource_type.lower() == "spectra":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on spectrum *{resource_name}*"
                     url_endpoint = f"/source/{resource_name}"
-                    action = 'skyportal/REFRESH_REMINDER_SOURCE_SPECTRA'
-                    payload = {'id': resource_id}
-                    notification_type = 'reminder_spectra'
+                    action = "skyportal/REFRESH_REMINDER_SOURCE_SPECTRA"
+                    payload = {"id": resource_id}
+                    notification_type = "reminder_spectra"
                 elif associated_resource_type.lower() == "gcn_event":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on GCN event *{resource_name}*"
                     url_endpoint = f"/gcn_events/{resource_name}"
-                    action = 'skyportal/REFRESH_REMINDER_GCNEVENT'
-                    payload = {'id': resource_id}
-                    notification_type = 'reminder_gcn'
+                    action = "skyportal/REFRESH_REMINDER_GCNEVENT"
+                    payload = {"id": resource_id}
+                    notification_type = "reminder_gcn"
                 elif associated_resource_type.lower() == "shift":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on shift *{resource_name}*"
                     url_endpoint = f"/shifts/{resource_name}"
-                    action = 'skyportal/REFRESH_REMINDER_SHIFT'
-                    payload = {'id': resource_id}
-                    notification_type = 'reminder_shift'
+                    action = "skyportal/REFRESH_REMINDER_SHIFT"
+                    payload = {"id": resource_id}
+                    notification_type = "reminder_shift"
                 elif associated_resource_type.lower() == "earthquake":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on earthquake *{resource_name}*"
                     url_endpoint = f"/earthquakes/{resource_name}"
-                    action = 'skyportal/REFRESH_REMINDER_EARTHQUAKE'
-                    payload = {'id': resource_id}
-                    notification_type = 'reminder_earthquake'
+                    action = "skyportal/REFRESH_REMINDER_EARTHQUAKE"
+                    payload = {"id": resource_id}
+                    notification_type = "reminder_earthquake"
                 else:
                     return self.error(
                         f'Unknown resource type "{associated_resource_type}".'
@@ -523,13 +525,13 @@ class ReminderHandler(BaseHandler):
                 session.commit()
                 self.push_all(action, payload)
                 return self.success(
-                    data={'reminder_ids': [reminder.id for reminder in reminders]}
+                    data={"reminder_ids": [reminder.id for reminder in reminders]}
                 )
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
 
-    @permissions(['Reminder'])
+    @permissions(["Reminder"])
     def patch(self, associated_resource_type, resource_id, reminder_id):
         """
         ---
@@ -594,24 +596,24 @@ class ReminderHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) reminder ID. ")
 
         data = self.get_json()
-        group_ids = data.pop('group_ids', None)
+        group_ids = data.pop("group_ids", None)
         with self.Session() as session:
             try:
-                group_ids = data.pop('group_ids', None)
+                group_ids = data.pop("group_ids", None)
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
                 elif not set(group_ids).issubset(
                     {g.id for g in self.current_user.accessible_groups}
                 ):
                     return self.error(
-                        'cannot find some of the requested groups', status=403
+                        "cannot find some of the requested groups", status=403
                     )
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
                 data["groups"] = groups
 
-                user_ids = data.pop('user_ids', None)
+                user_ids = data.pop("user_ids", None)
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
@@ -621,13 +623,13 @@ class ReminderHandler(BaseHandler):
                     accessible_user_ids = [u.id for u in accessible_users]
                     if not set(user_ids).issubset(set(accessible_user_ids)):
                         return self.error(
-                            'cannot find some of the requested users', status=403
+                            "cannot find some of the requested users", status=403
                         )
                 users = session.scalars(
                     User.select(session.user_or_token).where(User.id.in_(user_ids))
                 ).all()
                 data["users"] = users
-                data['id'] = reminder_id
+                data["id"] = reminder_id
 
                 if associated_resource_type.lower() == "source":
                     source = session.scalars(
@@ -721,49 +723,49 @@ class ReminderHandler(BaseHandler):
 
                 if reminder_resource_id_str != resource_id:
                     return self.error(
-                        f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                        f"Reminder resource ID does not match resource ID given in path ({resource_id})"
                     )
 
                 try:
                     schema.load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                        f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
                 session.commit()
 
                 if isinstance(reminder, Reminder):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SOURCE',
-                        payload={'id': reminder.obj_id},
+                        action="skyportal/REFRESH_REMINDER_SOURCE",
+                        payload={"id": reminder.obj_id},
                     )
                 elif isinstance(reminder, ReminderOnSpectrum):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
-                        payload={'id': reminder.obj_id},
+                        action="skyportal/REFRESH_REMINDER_SOURCE_SPECTRA",
+                        payload={"id": reminder.obj_id},
                     )
                 elif isinstance(reminder, ReminderOnGCN):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_GCNEVENT',
-                        payload={'id': reminder.gcn_id},
+                        action="skyportal/REFRESH_REMINDER_GCNEVENT",
+                        payload={"id": reminder.gcn_id},
                     )
                 elif isinstance(reminder, ReminderOnEarthquake):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_EARTHQUAKE',
-                        payload={'id': reminder.earthquake_id},
+                        action="skyportal/REFRESH_REMINDER_EARTHQUAKE",
+                        payload={"id": reminder.earthquake_id},
                     )
                 elif isinstance(reminder, ReminderOnShift):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SHIFT',
-                        payload={'id': reminder.shift_id},
+                        action="skyportal/REFRESH_REMINDER_SHIFT",
+                        payload={"id": reminder.shift_id},
                     )
 
                 return self.success()
             except Exception as e:
                 return self.error(str(e))
 
-    @permissions(['Reminder'])
+    @permissions(["Reminder"])
     def delete(self, associated_resource_type, resource_id, reminder_id):
         """
         ---
@@ -899,7 +901,7 @@ class ReminderHandler(BaseHandler):
 
                 if reminder_resource_id_str != resource_id:
                     return self.error(
-                        f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                        f"Reminder resource ID does not match resource ID given in path ({resource_id})"
                     )
 
                 session.delete(reminder)
@@ -907,28 +909,28 @@ class ReminderHandler(BaseHandler):
 
                 if isinstance(reminder, Reminder):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SOURCE',
-                        payload={'id': reminder.obj_id},
+                        action="skyportal/REFRESH_REMINDER_SOURCE",
+                        payload={"id": reminder.obj_id},
                     )
                 elif isinstance(reminder, ReminderOnSpectrum):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
-                        payload={'id': reminder.obj_id},
+                        action="skyportal/REFRESH_REMINDER_SOURCE_SPECTRA",
+                        payload={"id": reminder.obj_id},
                     )
                 elif isinstance(reminder, ReminderOnGCN):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_GCNEVENT',
-                        payload={'id': reminder.gcn_id},
+                        action="skyportal/REFRESH_REMINDER_GCNEVENT",
+                        payload={"id": reminder.gcn_id},
                     )
                 elif isinstance(reminder, ReminderOnShift):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_SHIFT',
-                        payload={'id': reminder.shift_id},
+                        action="skyportal/REFRESH_REMINDER_SHIFT",
+                        payload={"id": reminder.shift_id},
                     )
                 elif isinstance(reminder, ReminderOnEarthquake):
                     self.push_all(
-                        action='skyportal/REFRESH_REMINDER_EARTHQUAKE',
-                        payload={'id': reminder.earthquake_id},
+                        action="skyportal/REFRESH_REMINDER_EARTHQUAKE",
+                        payload={"id": reminder.earthquake_id},
                     )
 
                 return self.success()

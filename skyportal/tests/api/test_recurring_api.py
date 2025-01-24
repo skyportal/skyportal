@@ -1,8 +1,9 @@
-from skyportal.tests import api
-from datetime import timedelta, datetime
-import uuid
-import time
 import json
+import time
+import uuid
+from datetime import datetime, timedelta
+
+from skyportal.tests import api
 
 
 def test_post_and_verify_recurring_api(
@@ -20,7 +21,7 @@ def test_post_and_verify_recurring_api(
     }
 
     status, data = api(
-        'POST',
+        "POST",
         "recurring_api",
         data=request_data,
         token=super_admin_token,
@@ -40,33 +41,33 @@ def test_post_and_verify_recurring_api(
 
     endpoint = "recurring_api"
     status, data = api(
-        'POST',
+        "POST",
         endpoint,
         data=request_data,
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
     recurring_api_id = data["data"]["id"]
 
     endpoint = f"recurring_api/{recurring_api_id}"
     status, data = api(
-        'GET',
+        "GET",
         endpoint,
         token=super_admin_token,
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     endpoint = f"sources/{obj_id}"
     n_retries = 0
     while n_retries < 10:
         status, data = api(
-            'GET',
+            "GET",
             endpoint,
             token=view_only_token,
         )
-        if data['status'] == 'success':
+        if data["status"] == "success":
             break
         time.sleep(15)
         n_retries += 1
