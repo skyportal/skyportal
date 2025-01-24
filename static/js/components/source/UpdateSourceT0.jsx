@@ -35,7 +35,7 @@ const UpdateSourceT0 = ({ source }) => {
   const dispatch = useDispatch();
   const [t0, setT0] = useState(source.t0 ? String(source.t0) : "");
 
-  const [dialogOpen, setDialogOpen] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (clear = false) => {
