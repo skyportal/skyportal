@@ -113,12 +113,13 @@ class SharingHandler(BaseHandler):
                 for group in groups:
                     spec.groups.append(group)
                 # Grab obj_id for use in websocket message below
-                spec_obj_ids.append(spec.obj_id)
+                spec_obj_ids.append(spec.obj.internal_key)
 
         self.verify_and_commit()
 
-        spec_obj_ids = set(spec_obj_ids)
         phot_obj_ids = set(phot_obj_ids)
+        spec_obj_ids = set(spec_obj_ids)
+
         for obj_id in phot_obj_ids:
             self.push(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
@@ -126,7 +127,8 @@ class SharingHandler(BaseHandler):
 
         for obj_id in spec_obj_ids:
             self.push(
-                action="skyportal/REFRESH_SOURCE_SPECTRA", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                payload={"obj_internal_key": obj_id},
             )
 
         return self.success()
