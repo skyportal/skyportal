@@ -57,7 +57,8 @@ header {
 
   .sourceAndVersions {
     border-bottom: 1px solid lightgray;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
     .source {
       display: flex;
       align-items: center;
