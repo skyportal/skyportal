@@ -111,6 +111,9 @@ header {
         text-align: center;
         div {
           flex: 1;
+          .peakMag {
+            margin-bottom: 0.3rem;
+          }
         }
         .viewAllVersionsButton {
           text-align: right;

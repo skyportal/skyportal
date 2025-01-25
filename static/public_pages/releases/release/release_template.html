@@ -54,9 +54,6 @@
           <div>
             T0
           </div>
-          <div>
-            Time save to group
-          </div>
           <div></div>
         </div>
       </div>
@@ -93,20 +90,21 @@
               <div>
                 {{ versions[0].data.get('dec') }}
               </div>
-              {% if versions[0].data.get('photometry') and source_id in phot_stat_by_source %}
-                <div>
-                  {% for filter in phot_stat_by_source[source_id].peak_mag_per_filter %}
-                    {{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})<br>
-                  {% end %}
-                </div>
-                <div>
-                  {{ "{:.4f}".format(phot_stat_by_source[source_id].first_detected_mjd) }}
-                </div>
-              {% else %}
-                <div>...</div><div>...</div>
-              {% end %}
               <div>
-                {{ saved_date_by_source[source_id].strftime('%m/%d/%Y %H:%M:%S') }} UTC
+                {% if source_id in phot_stat_by_source and phot_stat_by_source[source_id].peak_mag_per_filter %}
+                  {% for filter in phot_stat_by_source[source_id].peak_mag_per_filter %}
+                    <div class="peakMag">{{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})</div>
+                  {% end %}
+                {% else %}
+                  ...
+                {% end %}
+              </div>
+              <div>
+                {% if source_id in phot_stat_by_source and phot_stat_by_source[source_id].first_detected_mjd %}
+                  {{ "{:.4f}".format(phot_stat_by_source[source_id].first_detected_mjd) }}
+                {% else %}
+                  ...
+                {% end %}
               </div>
               <div class="viewAllVersionsButton">
                 <button type="button" onclick="displayVersions('{{ source_id }}')">
