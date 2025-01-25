@@ -1,13 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 
-from ...models import (
-    Group,
-    GroupAdmissionRequest,
-    GroupUser,
-    User,
-    UserNotification,
-)
+from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
 
 
@@ -200,13 +194,16 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 )
             # Ensure user has sufficient stream access for target group
             if group.streams:
-                if not all(
-                    stream in requesting_user.accessible_streams
+                missing_streams = [
+                    stream
                     for stream in group.streams
-                ):
+                    if stream not in requesting_user.accessible_streams
+                ]
+                if missing_streams:
+                    stream_names = ", ".join(missing_streams)
                     return self.error(
-                        f"User {user_id} does not have sufficient stream access "
-                        f"to be added to group {group_id}."
+                        f"User {user_id} does not have access to the following streams: {stream_names},"
+                        f"required to be added to group {group_id}."
                     )
             admission_request = GroupAdmissionRequest(
                 user_id=user_id, group_id=group_id, status="pending"
