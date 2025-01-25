@@ -83,7 +83,7 @@ const UpdateSourceT0 = ({ source }) => {
               className={classes.formInput}
               data-testid="updateT0Textfield"
               size="small"
-              label="First detection time (mjd)"
+              label="Reference time (mjd)"
               value={t0}
               name="t0"
               onChange={(event) => setT0(event.target.value)}
