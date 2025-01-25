@@ -26,6 +26,7 @@ header {
         @media screen and (max-width: 600px) {
           font-size: 0.55rem;
         }
+        text-align: right;
         font-weight: bold;
         font-size: 0.9rem;
         color: gray;
@@ -51,15 +52,11 @@ header {
     }
 
     .subtitle {
-      h3 {
+      .subtitleText {
         display: flex;
         flex-wrap: wrap;
-        gap: 0 0.5rem;
+        gap: 0 0.8rem;
         margin-bottom: 0.5rem;
-        span {
-          font-weight: normal;
-          white-space: nowrap;
-        }
       }
     }
 
