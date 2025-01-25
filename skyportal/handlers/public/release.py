@@ -86,18 +86,11 @@ class ReleaseHandler(BaseHandler):
 
             versions_by_source = {}
             phot_stat_by_source = {}
-            saved_date_by_source = {}
             for version in versions:
                 if version.source_id not in versions_by_source:
                     # Get photometry statistics for the last version of each source
                     phot_stat_by_source[version.source_id] = session.scalar(
                         sa.select(PhotStat).where(PhotStat.obj_id == version.source_id)
-                    )
-                    # Get the saved to group date for the last version of each source
-                    saved_date_by_source[version.source_id] = session.scalar(
-                        sa.select(Source.saved_at).where(
-                            Source.obj_id == version.source_id
-                        )
                     )
                     versions_by_source[version.source_id] = []
                 versions_by_source[version.source_id].append(version)
@@ -107,5 +100,4 @@ class ReleaseHandler(BaseHandler):
                 release=release,
                 versions_by_source=versions_by_source,
                 phot_stat_by_source=phot_stat_by_source,
-                saved_date_by_source=saved_date_by_source,
             )
