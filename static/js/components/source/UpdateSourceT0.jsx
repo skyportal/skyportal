@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import EditIcon from "@mui/icons-material/Edit";
@@ -38,6 +38,10 @@ const UpdateSourceT0 = ({ source }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    setT0(source.t0 ? String(source.t0) : "");
+  }, [source]);
+
   const handleSubmit = async (clear) => {
     setIsSubmitting(true);
     const result = await dispatch(
@@ -47,9 +51,6 @@ const UpdateSourceT0 = ({ source }) => {
     );
     setIsSubmitting(false);
     if (result.status === "success") {
-      if (clear) {
-        setT0("");
-      }
       dispatch(showNotification("Source t0 successfully updated."));
       setDialogOpen(false);
     }
