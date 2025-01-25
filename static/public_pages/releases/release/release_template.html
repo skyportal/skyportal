@@ -90,10 +90,10 @@
               <div>
                 {{ versions[0].data.get('dec') }}
               </div>
-              <div>
+              <div class="peakMagList">
                 {% if source_id in phot_stat_by_source and phot_stat_by_source[source_id].peak_mag_per_filter %}
                   {% for filter in phot_stat_by_source[source_id].peak_mag_per_filter %}
-                    <div class="peakMag">{{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})</div>
+                    <div>{{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})</div>
                   {% end %}
                 {% else %}
                   ...

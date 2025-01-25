@@ -123,9 +123,13 @@ header {
         text-align: center;
         div {
           flex: 1;
-          .peakMag {
-            margin-bottom: 0.3rem;
-          }
+        }
+        .peakMagList {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          row-gap: 0.4rem;
         }
         .viewAllVersionsButton {
           text-align: right;
