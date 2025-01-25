@@ -984,7 +984,14 @@ const PhotometryPlot = ({
       setLayouts(newLayouts);
       setInitialized(true);
     }
-  }, [photometry, selectedDuplicates, defaultVisibleFilters, filter2color, dm]);
+  }, [
+    photometry,
+    selectedDuplicates,
+    defaultVisibleFilters,
+    filter2color,
+    dm,
+    t0,
+  ]);
 
   useEffect(() => {
     if (initialized && filter2color) {
