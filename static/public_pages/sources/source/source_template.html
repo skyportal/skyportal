@@ -108,6 +108,9 @@
             <b><i>D</i><sub>L</sub>:</b>
             <span> {{ data['dl'] | e }} Mpc </span>
             {% endif %}
+            {% if data.get('t0') %}
+              <span><b>T0:</b> {{ data['t0'] | e }} mjd </span>
+            {% endif %}
           </h3>
           {% if data.get('summary') %}
             <p>
