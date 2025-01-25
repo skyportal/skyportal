@@ -233,6 +233,7 @@ const PhotometryPlot = ({
   mode,
   plotStyle,
   magsys,
+  t0,
 }) => {
   const theme = useTheme();
   const classes = useStyles(theme);
@@ -391,9 +392,13 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
+    // Set the range of the plot to be 2% larger than values or if t0 is set, start the range from t0
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
-    stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
+    stats.mjd.range = [t0 ? t0 : stats.mjd.min - 1, stats.mjd.max + 1];
+    stats.days_ago.range = [
+      t0 ? now - t0 : stats.days_ago.max + 1,
+      stats.days_ago.min - 1,
+    ];
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
     return [newPhotometryData, stats];
@@ -1634,6 +1639,7 @@ PhotometryPlot.propTypes = {
     height: PropTypes.string,
   }),
   magsys: PropTypes.string,
+  t0: PropTypes.number,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1647,6 +1653,7 @@ PhotometryPlot.defaultProps = {
     height: "65vh",
   },
   magsys: "ab",
+  t0: null,
 };
 
 export default PhotometryPlot;
