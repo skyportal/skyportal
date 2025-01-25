@@ -200,7 +200,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     if stream not in requesting_user.accessible_streams
                 ]
                 if missing_streams:
-                    stream_names = ", ".join(missing_streams)
+                    stream_names = ", ".join(
+                        [stream.name for stream in missing_streams]
+                    )
                     return self.error(
                         f"User {user_id} does not have access to the following streams: {stream_names},"
                         f"required to be added to group {group_id}."
