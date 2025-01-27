@@ -5,7 +5,6 @@ header {
   padding: 0 1rem;
   a {
     color: white;
-    font-size: 0.8rem;
     font-weight: bold;
   }
 }
@@ -20,17 +19,49 @@ header {
     }
   }
   .description {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     text-align: center;
     padding: 1.5rem;
+    p {
+      width: 60%;
+      @media screen and (max-width: 1100px) {
+        width: 80%;
+      }
+      @media screen and (max-width: 800px) {
+        width: 100%;
+      }
+    }
+  }
+
+  .fieldsTitle {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    padding: 1rem 1rem;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.4);
+    margin-bottom: 1rem;
+    .nameTitle {
+      flex: 2;
+    }
+    .infoTitles {
+      flex: 4;
+      display: flex;
+      text-align: center;
+      div {
+        flex: 1;
+      }
+    }
   }
 
   .sourceAndVersions {
     border-bottom: 1px solid lightgray;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
     .source {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       padding: 0.5rem 1rem;
       flex-wrap: wrap;
       column-gap: 1rem;
@@ -39,13 +70,38 @@ header {
       }
 
       .sourceAndTimeAgo {
+        flex: 2;
         display: flex;
         flex-wrap: wrap;
         gap: 0.2rem 1rem;
         align-items: baseline;
-        h2 {
+        .sourceId {
+          position: relative;
+          color: rgb(29, 53, 87);
           margin: 0;
           font-weight: bold;
+
+          &::after {
+            content: " ";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 3px;
+            width: 0;
+            background-image: linear-gradient(
+              to right,
+              rgb(29, 53, 87),
+              rgb(50, 91, 167)
+            );
+            transition: width 0.3s;
+          }
+
+          &:hover {
+            &::after {
+              width: 100%;
+            }
+          }
         }
         span {
           font-size: 0.9rem;
@@ -61,9 +117,24 @@ header {
           padding: 0 0.5rem;
         }
       }
-      a {
-        color: rgb(29, 53, 87);
-        text-decoration: none;
+      .sourceInfo {
+        flex: 4;
+        display: flex;
+        align-items: center;
+        text-align: center;
+        div {
+          flex: 1;
+        }
+        .peakMagList {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          row-gap: 0.4rem;
+        }
+        .viewAllVersionsButton {
+          text-align: right;
+        }
       }
     }
     .versions {

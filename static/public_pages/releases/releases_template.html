@@ -46,11 +46,11 @@
       {% for release in releases %}
       <div class="release">
         <div class="nameAndTimeAgo">
-          <h2 class="releaseName">
-            <a href="/public/releases/{{ release.link_name }}">
+          <a href="/public/releases/{{ release.link_name }}">
+            <h2 class="releaseName">
               {{ release.name }}
-            </a>
-          </h2>
+            </h2>
+          </a>
           {% set time_difference = datetime.datetime.utcnow() - release.created_at %}
           {% set days = time_difference.days %}
           {% set hours = time_difference.seconds // 3600 %}

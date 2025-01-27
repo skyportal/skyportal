@@ -28,7 +28,8 @@
       flex-wrap: wrap;
       gap: 0.2rem 1rem;
       align-items: baseline;
-      h2 {
+      .releaseName {
+        color: rgb(29, 53, 87);
         position: relative;
         margin: 0;
         font-weight: bold;
@@ -38,9 +39,13 @@
           bottom: 0;
           left: 50%;
           transform: translateX(-50%);
-          height: 2px;
+          height: 3px;
           width: 0;
-          background-color: black;
+          background-image: linear-gradient(
+            to right,
+            rgb(29, 53, 87),
+            rgb(50, 91, 167)
+          );
           transition: width 0.3s;
         }
         &:hover {
