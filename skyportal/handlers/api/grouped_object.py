@@ -1,10 +1,10 @@
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
-from ...models import GroupedObject, Obj
+from ...models import GroupedObject, Obj, Group
 
 
 class GroupedObjectHandler(BaseHandler):
-    @permissions(['Upload'])
+    @permissions(['Upload data'])
     def post(self):
         """
         ---
@@ -91,8 +91,14 @@ class GroupedObjectHandler(BaseHandler):
                 # Add the objects to the group
                 grouped_obj.objs = objs
 
+                group_ids = data.get('group_ids', [])
+                groups = session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                ).all()
+                grouped_obj.groups = groups
+
                 session.add(grouped_obj)
-                session.commit()
+                self.verify_and_commit()
 
                 return self.success(data={'id': grouped_obj.id})
 
@@ -152,7 +158,7 @@ class GroupedObjectHandler(BaseHandler):
 
             return self.success(data=results)
 
-    @permissions(['Upload'])
+    @permissions(['Upload data'])
     def delete(self, grouped_object_id):
         """
         ---
@@ -182,6 +188,6 @@ class GroupedObjectHandler(BaseHandler):
                 return self.error('Invalid grouped object ID')
 
             session.delete(grouped_obj)
-            session.commit()
+            self.verify_and_commit()
 
             return self.success()
