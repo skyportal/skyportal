@@ -1,6 +1,6 @@
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
-from ...models import GroupedObject, Obj, Group
+from ...models import GroupedObject, Obj
 
 
 class GroupedObjectHandler(BaseHandler):
@@ -56,7 +56,6 @@ class GroupedObjectHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            # required fields
             name = data.get('name')
             type = data.get('type')
             obj_ids = data.get('obj_ids', [])
@@ -84,21 +83,14 @@ class GroupedObjectHandler(BaseHandler):
                     type=type,
                     description=data.get('description'),
                     properties=data.get('properties'),
-                    created_by_id=self.current_user.id,
+                    created_by_id=self.associated_user_object.id,
                     origin=data.get('origin'),
                 )
 
-                # Add the objects to the group
-                grouped_obj.objs = objs
-
-                group_ids = data.get('group_ids', [])
-                groups = session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                ).all()
-                grouped_obj.groups = groups
+                print(grouped_obj)
 
                 session.add(grouped_obj)
-                self.verify_and_commit()
+                session.commit()
 
                 return self.success(data={'id': grouped_obj.id})
 
@@ -168,7 +160,7 @@ class GroupedObjectHandler(BaseHandler):
             name: grouped_object_id
             required: true
             schema:
-              type: integer
+              type: string
         responses:
           200:
             content:
@@ -181,7 +173,7 @@ class GroupedObjectHandler(BaseHandler):
         """
         with self.Session() as session:
             stmt = GroupedObject.select(self.current_user, mode='delete').where(
-                GroupedObject.id == int(grouped_object_id)
+                GroupedObject.id == grouped_object_id
             )
             grouped_obj = session.scalars(stmt).first()
             if grouped_obj is None:

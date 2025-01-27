@@ -16,8 +16,7 @@ class GroupedObject(Base):
     - Any other collection of objects that are physically related
     """
 
-    id = sa.Column(sa.Integer, primary_key=True)
-
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     name = sa.Column(
         sa.String, nullable=False, doc="Name/identifier for this grouped object"
     )
