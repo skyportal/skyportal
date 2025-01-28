@@ -53,9 +53,9 @@ const NewPhotometryForm = ({ obj_id }) => {
   const [selectedFormData, setSelectedFormData] = useState({
     group_ids: [groups[0]?.id],
     obsdate: "",
-    mag: null,
-    magerr: null,
-    limiting_mag: null,
+    mag: "",
+    magerr: "",
+    limiting_mag: "",
     magsys: "AB",
     origin: "",
     altdata: "",
@@ -262,10 +262,15 @@ const NewPhotometryForm = ({ obj_id }) => {
       );
     }
     if (!formData.mag && !formData.limiting_mag) {
-      errors.mag.addError("Please enter a magnitude or a limiting magnitude");
+      errors.mag.addError("Enter a magnitude and/or a limiting magnitude");
+      errors.limiting_mag.addError(
+        "Enter a magnitude and/or a limiting magnitude",
+      );
     }
     if (formData.mag && !formData.magerr) {
-      errors.magerr.addError("Please enter a magnitude error");
+      errors.magerr.addError(
+        "Enter a magnitude error when entering a magnitude",
+      );
     }
     if (formData.mag && !validNumber(formData.mag)) {
       errors.mag.addError("Magnitude must be a number");
@@ -353,13 +358,13 @@ const NewPhotometryForm = ({ obj_id }) => {
       altdata: altdata_json,
     };
 
-    if (!Number.isNaN(mag)) {
+    if (!Number.isNaN(mag) || mag !== "") {
       payload.mag = mag;
     }
-    if (!Number.isNaN(magerr)) {
+    if (!Number.isNaN(magerr) || magerr !== "") {
       payload.magerr = magerr;
     }
-    if (!Number.isNaN(limiting_mag)) {
+    if (!Number.isNaN(limiting_mag) || limiting_mag !== "") {
       payload.limiting_mag = limiting_mag;
     }
     if (
@@ -380,7 +385,7 @@ const NewPhotometryForm = ({ obj_id }) => {
       payload.dec = dec;
     }
 
-    if (origin) {
+    if (origin?.length > 0) {
       payload.origin = origin;
     }
 
