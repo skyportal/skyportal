@@ -263,6 +263,7 @@ const PhotometryPlot = ({
 
   const [layoutReset, setLayoutReset] = useState(false);
 
+  const [t0AsOrigin, setT0AsOrigin] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
@@ -394,9 +395,12 @@ const PhotometryPlot = ({
 
     // Set the range of the plot to be 2% larger than values or if t0 is set, start the range from t0
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range = [t0 ? t0 : stats.mjd.min - 1, stats.mjd.max + 1];
+    stats.mjd.range = [
+      t0AsOrigin && t0 ? t0 : stats.mjd.min - 1,
+      stats.mjd.max + 1,
+    ];
     stats.days_ago.range = [
-      t0 ? now - t0 : stats.days_ago.max + 1,
+      t0AsOrigin && t0 ? now - t0 : stats.days_ago.max + 1,
       stats.days_ago.min - 1,
     ];
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
@@ -990,7 +994,7 @@ const PhotometryPlot = ({
     defaultVisibleFilters,
     filter2color,
     dm,
-    t0,
+    t0AsOrigin,
   ]);
 
   useEffect(() => {
@@ -1367,6 +1371,23 @@ const PhotometryPlot = ({
           className={classes.gridItem}
           style={{ gridColumn: "span 2", columnGap: 0 }}
         >
+          {t0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                T0 as Origin
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  disabled={t0 < 0 || t0 > 100000}
+                  checked={t0AsOrigin}
+                  onChange={() => setT0AsOrigin(!t0AsOrigin)}
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
