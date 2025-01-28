@@ -97,17 +97,17 @@
                 {{ versions[0].data.get('dec') }}
               </div>
               <div class="peakMagList">
-                {% if source_id in phot_stat_by_source and phot_stat_by_source[source_id].peak_mag_per_filter %}
-                  {% for filter in phot_stat_by_source[source_id].peak_mag_per_filter %}
-                    <div>{{ "{:.4f}".format(phot_stat_by_source[source_id].peak_mag_per_filter[filter]) }} ({{ filter }})</div>
+                {% if 'peak_mag_per_filter' in versions[0].data and versions[0].data.get('peak_mag_per_filter') %}
+                  {% for filter in versions[0].data.get('peak_mag_per_filter') %}
+                    <div>{{  "{:.4f}".format(versions[0].data.get('peak_mag_per_filter')[filter]) }} ({{ filter }})</div>
                   {% end %}
                 {% else %}
                   ...
                 {% end %}
               </div>
               <div>
-                {% if source_id in phot_stat_by_source and phot_stat_by_source[source_id].first_detected_mjd %}
-                  {{ "{:.4f}".format(phot_stat_by_source[source_id].first_detected_mjd) }}
+                {% if 'first_detected_mjd' in versions[0].data and versions[0].data.get('first_detected_mjd') %}
+                  {{ versions[0].data.get('first_detected_mjd') }}
                 {% else %}
                   ...
                 {% end %}
