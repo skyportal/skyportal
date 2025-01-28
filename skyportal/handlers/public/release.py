@@ -2,7 +2,6 @@ import sqlalchemy as sa
 
 from baselayer.app.models import DBSession
 
-from ...models import PhotStat, Source
 from ...models.public_pages.public_release import PublicRelease
 from ...models.public_pages.public_source_page import PublicSourcePage
 from ..base import BaseHandler
