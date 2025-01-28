@@ -16,6 +16,8 @@ session.trust_env = (
     False  # Otherwise pre-existing netrc config will override auth headers
 )
 
+cfg = load_config(config_files=["test_config.yaml"])
+
 
 def api(
     method, endpoint, data=None, params=None, host=None, token=None, raw_response=False
@@ -50,7 +52,6 @@ def api(
         Response JSON, if `raw_response` is False.
     """
     if host is None:
-        cfg = load_config(config_files=["test_config.yaml"])
         host = f"http://localhost:{cfg['ports.app']}"
     url = urllib.parse.urljoin(host, f"/api/{endpoint}")
     headers = {"Authorization": f"token {token}"} if token else None
