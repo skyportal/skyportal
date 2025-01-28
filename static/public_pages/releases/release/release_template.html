@@ -67,21 +67,27 @@
                 </a>
               </h2>
               {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
-              {% set days = time_difference.days %}
-              {% set hours = time_difference.seconds // 3600 %}
-              {% set minutes = (time_difference.seconds % 3600) // 60 %}
-              {% set seconds = time_difference.seconds % 60 %}
-              <span class="timeAgo {% if days < 1 %}new{% end %}">
-                {% if time_difference.seconds < 60 %}
-                  {{ seconds }} seconds ago
-                {% elif time_difference.seconds < 3600 %}
-                  {{ minutes }} minutes and {{ seconds }} seconds ago
-                {% elif days == 0 %}
-                  {{ hours }} hours and {{ minutes }} minutes ago
-                {% else %}
-                  {{ days }} days and {{ hours }} hours ago
-                {% end %}
-              </span>
+              {% if time_difference.days > 30 %}
+                <span class="timeAgo">
+                    {{ versions[0].created_at.strftime('%m/%d/%Y') }}
+                </span>
+              {% else %}
+                {% set days = time_difference.days %}
+                {% set hours = time_difference.seconds // 3600 %}
+                {% set minutes = (time_difference.seconds % 3600) // 60 %}
+                {% set seconds = time_difference.seconds % 60 %}
+                <span class="timeAgo {% if days < 1 %}new{% end %}">
+                  {% if time_difference.seconds < 60 %}
+                    {{ seconds }} seconds ago
+                  {% elif time_difference.seconds < 3600 %}
+                    {{ minutes }} minutes ago
+                  {% elif days == 0 %}
+                    {{ hours }} hours and {{ minutes }}min ago
+                  {% else %}
+                    {{ days }} days and {{ hours }}hours ago
+                  {% end %}
+                </span>
+              {% end %}
             </div>
             <div class="sourceInfo">
               <div>
