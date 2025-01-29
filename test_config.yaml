@@ -5,7 +5,11 @@ database:
   port: 5432
   password:
 
+ports:
+  app: 5000 # internal facing port, edit this if you want to run the app on a different port
+
 server:
+  port: 5000 # external facing port, edit this if you want to expose the app on a different port
   auth:
     debug_login: True
     google_oauth2_key:
@@ -16,6 +20,8 @@ misc:
   minutes_to_keep_candidate_query_cache: 0.033333 # 2 seconds
   minutes_to_keep_annotations_info_query_cache: 0.033333 # 2 seconds
   allow_nonadmins_delete_objs: True
+  max_seconds_to_sleep_reminders_service: 5
+  max_seconds_to_sleep_recurring_apis_service: 5
 
 twilio:
   # Twilio Sendgrid API configs
@@ -63,7 +69,11 @@ services:
     - gcnserver
     - slack
     - dask
-
+    - spectral_cube_analysis_service
+    - tns_retrieval_queue
+    - tns_submission_queue
+    - watch_list
+    - ngsf_analysis_service
 test_server:
   port: 64502
   smtp_port: 64503
