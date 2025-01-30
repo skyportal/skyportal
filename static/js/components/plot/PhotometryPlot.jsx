@@ -265,6 +265,8 @@ const PhotometryPlot = ({
 
   const [t0Max, setT0Max] = useState(mjdnow());
   const [t0AsOrigin, setT0AsOrigin] = useState(false);
+  const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
+  const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
@@ -302,7 +304,11 @@ const PhotometryPlot = ({
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
-      newPoint.days_ago = now - newPoint.mjd;
+      if (t0 && displayXAxisSinceT0) {
+        newPoint.days_ago = newPoint.mjd - t0;
+      } else {
+        newPoint.days_ago = now - newPoint.mjd;
+      }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
         newPoint.fluxerr =
@@ -399,14 +405,19 @@ const PhotometryPlot = ({
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range = [
-      t0 && t0AsOrigin ? t0 : stats.mjd.min - 1,
-      stats.mjd.max + 1,
-    ];
-    stats.days_ago.range = [
-      t0 && t0AsOrigin ? now - t0 : stats.days_ago.max + 1,
-      stats.days_ago.min - 1,
-    ];
+
+    if (t0 && t0AsOrigin) {
+      stats.mjd.range = [t0, stats.mjd.max + 1];
+      stats.days_ago.range = displayXAxisSinceT0
+        ? [0, stats.days_ago.min + 1]
+        : [now - t0, stats.days_ago.min - 1];
+    } else {
+      stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
+      stats.days_ago.range = displayXAxisSinceT0
+        ? [stats.days_ago.min - 1, stats.days_ago.max + 1]
+        : [stats.days_ago.max + 1, stats.days_ago.min - 1];
+    }
+
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
     return [newPhotometryData, stats];
@@ -841,7 +852,7 @@ const PhotometryPlot = ({
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
-        title: "Days Ago",
+        title: t0 && displayXAxisSinceT0 ? "Days Since T0" : "Days Ago",
         range: [...photStats_value.days_ago.range],
         overlaying: "x",
         side: "bottom",
@@ -894,6 +905,7 @@ const PhotometryPlot = ({
   useEffect(() => {
     if (t0 >= t0Max) {
       setT0AsOrigin(false);
+      setDisplayXAxisSinceT0(false);
     }
   }, [t0, t0Max]);
 
@@ -1006,6 +1018,8 @@ const PhotometryPlot = ({
     dm,
     t0AsOrigin,
     t0,
+    displayXAxisSinceT0,
+    displayXAxisInlog,
   ]);
 
   useEffect(() => {
@@ -1378,10 +1392,7 @@ const PhotometryPlot = ({
         />
       </div>
       <div className={classes.gridContainer}>
-        <div
-          className={classes.gridItem}
-          style={{ gridColumn: "span 2", columnGap: 0 }}
-        >
+        <div className={classes.gridItem} style={{ columnGap: 0 }}>
           {t0 && (
             <div
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
@@ -1426,10 +1437,44 @@ const PhotometryPlot = ({
             </div>
           </div>
         </div>
+        <div className={classes.gridItem}>
+          {t0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                X axis since T0
+              </Typography>
+              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    disabled={t0 >= t0Max}
+                    checked={displayXAxisSinceT0}
+                    onChange={() =>
+                      setDisplayXAxisSinceT0(!displayXAxisSinceT0)
+                    }
+                    inputProps={{ "aria-label": "controlled" }}
+                  />
+                </div>
+              </Tooltip>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <Typography id="T0-start-range" noWrap>
+              X axis in log
+            </Typography>
+            <div className={classes.switchContainer}>
+              <Switch
+                checked={displayXAxisInlog}
+                onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                inputProps={{ "aria-label": "controlled" }}
+              />
+            </div>
+          </div>
+        </div>
         <div
           className={classes.gridItem}
           style={{
-            gridColumn: "span 1",
             alignItems: "end",
           }}
         >
