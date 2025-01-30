@@ -233,6 +233,7 @@ const PhotometryPlot = ({
   mode,
   plotStyle,
   magsys,
+  t0,
 }) => {
   const theme = useTheme();
   const classes = useStyles(theme);
@@ -262,6 +263,8 @@ const PhotometryPlot = ({
 
   const [layoutReset, setLayoutReset] = useState(false);
 
+  const [t0Max, setT0Max] = useState(mjdnow());
+  const [t0AsOrigin, setT0AsOrigin] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
@@ -391,9 +394,19 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
+    // Set the range of the plot to be 2% larger than values or if t0 is set, start the range from t0
+    setT0Max(
+      !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
+    );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
-    stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
+    stats.mjd.range = [
+      t0 && t0AsOrigin ? t0 : stats.mjd.min - 1,
+      stats.mjd.max + 1,
+    ];
+    stats.days_ago.range = [
+      t0 && t0AsOrigin ? now - t0 : stats.days_ago.max + 1,
+      stats.days_ago.min - 1,
+    ];
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
     return [newPhotometryData, stats];
@@ -879,6 +892,12 @@ const PhotometryPlot = ({
   };
 
   useEffect(() => {
+    if (t0 >= t0Max) {
+      setT0AsOrigin(false);
+    }
+  }, [t0, t0Max]);
+
+  useEffect(() => {
     if (!filter2color && config?.bandpassesColors) {
       setFilter2Color(config?.bandpassesColors);
     }
@@ -979,7 +998,15 @@ const PhotometryPlot = ({
       setLayouts(newLayouts);
       setInitialized(true);
     }
-  }, [photometry, selectedDuplicates, defaultVisibleFilters, filter2color, dm]);
+  }, [
+    photometry,
+    selectedDuplicates,
+    defaultVisibleFilters,
+    filter2color,
+    dm,
+    t0AsOrigin,
+    t0,
+  ]);
 
   useEffect(() => {
     if (initialized && filter2color) {
@@ -1355,6 +1382,25 @@ const PhotometryPlot = ({
           className={classes.gridItem}
           style={{ gridColumn: "span 2", columnGap: 0 }}
         >
+          {t0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                T0 as Origin
+              </Typography>
+              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    disabled={t0 >= t0Max}
+                    checked={t0AsOrigin}
+                    onChange={() => setT0AsOrigin(!t0AsOrigin)}
+                    inputProps={{ "aria-label": "controlled" }}
+                  />
+                </div>
+              </Tooltip>
+            </div>
+          )}
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
@@ -1634,6 +1680,7 @@ PhotometryPlot.propTypes = {
     height: PropTypes.string,
   }),
   magsys: PropTypes.string,
+  t0: PropTypes.number,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1647,6 +1694,7 @@ PhotometryPlot.defaultProps = {
     height: "65vh",
   },
   magsys: "ab",
+  t0: null,
 };
 
 export default PhotometryPlot;
