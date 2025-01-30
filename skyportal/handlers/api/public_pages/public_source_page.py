@@ -184,7 +184,7 @@ class PublicSourcePageHandler(BaseHandler):
                 "ra": safe_round(source.get("ra"), 6),
                 "dec": safe_round(source.get("dec"), 6),
                 "peak_mag_per_filter": source.get("photstats")[0].get(
-                    "first_detected_mjd"
+                    "peak_mag_per_filter"
                 )
                 if source.get("photstats")
                 else None,
