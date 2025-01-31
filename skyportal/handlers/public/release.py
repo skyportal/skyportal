@@ -87,6 +87,13 @@ class ReleaseHandler(BaseHandler):
             for version in versions:
                 if version.source_id not in versions_by_source:
                     versions_by_source[version.source_id] = []
+                # Only include the fields needed for the public release page
+                version.data = {
+                    "ra": version.data["ra"],
+                    "dec": version.data["dec"],
+                    "peak_mag_per_filter": version.data["peak_mag_per_filter"],
+                    "first_detected_mjd": version.data["first_detected_mjd"],
+                }
                 versions_by_source[version.source_id].append(version)
 
             return self.render(
