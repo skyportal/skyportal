@@ -288,7 +288,8 @@ const PhotometryPlot = ({
         max: 0,
         range: [0, 100],
       },
-      days_ago: {
+      days: {
+        is_days_ago: !t0 || !displayXAxisSinceT0,
         min: 100000,
         max: 0,
         extra: [100000, 0],
@@ -304,10 +305,10 @@ const PhotometryPlot = ({
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
-      if (t0 && displayXAxisSinceT0) {
-        newPoint.days_ago = newPoint.mjd - t0;
+      if (stats.days.is_days_ago) {
+        newPoint.days = now - newPoint.mjd;
       } else {
-        newPoint.days_ago = now - newPoint.mjd;
+        newPoint.days = newPoint.mjd - t0;
       }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
@@ -386,8 +387,8 @@ const PhotometryPlot = ({
       );
       stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
       stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
-      stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
-      stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      stats.days.min = Math.min(stats.days.min, newPoint.days);
+      stats.days.max = Math.max(stats.days.max, newPoint.days);
       stats.flux.min = Math.min(
         stats.flux.min,
         newPoint.flux || newPoint.fluxerr,
@@ -408,14 +409,14 @@ const PhotometryPlot = ({
 
     if (t0 && t0AsOrigin) {
       stats.mjd.range = [t0, stats.mjd.max + 1];
-      stats.days_ago.range = displayXAxisSinceT0
-        ? [0, stats.days_ago.min + 1]
-        : [now - t0, stats.days_ago.min - 1];
+      stats.days.range = stats.days.is_days_ago
+        ? [now - t0, stats.days.min - 1]
+        : [0, stats.days.max + 1];
     } else {
       stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
-      stats.days_ago.range = displayXAxisSinceT0
-        ? [stats.days_ago.min - 1, stats.days_ago.max + 1]
-        : [stats.days_ago.max + 1, stats.days_ago.min - 1];
+      stats.days.range = stats.days.is_days_ago
+        ? [stats.days.max + 1, stats.days.min - 1]
+        : [stats.days.min - 1, stats.days.max + 1];
     }
 
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
@@ -424,7 +425,7 @@ const PhotometryPlot = ({
   };
 
   const groupPhotometry = (photometryData, usingDuplicates = false) => {
-    // before grouping, we compute the max and min for mag, flux, and days_ago
+    // before grouping, we compute the max and min for mag, flux, and days
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc, point) => {
@@ -600,7 +601,9 @@ const PhotometryPlot = ({
           };
 
           const secondaryAxisX = {
-            x: [photometryStats.days_ago.max, photometryStats.days_ago.min],
+            x: photometryStats.days.is_days_ago
+              ? [photometryStats.days.max, photometryStats.days.min]
+              : [photometryStats.days.min, photometryStats.days.max],
             y: [photometryStats.mag.max, photometryStats.mag.min],
             mode: "markers",
             type: "scatter",
@@ -853,7 +856,7 @@ const PhotometryPlot = ({
       };
       newLayouts.xaxis2 = {
         title: t0 && displayXAxisSinceT0 ? "Days Since T0" : "Days Ago",
-        range: [...photStats_value.days_ago.range],
+        range: [...photStats_value.days.range],
         overlaying: "x",
         side: "bottom",
         showgrid: false,
