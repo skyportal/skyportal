@@ -850,14 +850,18 @@ const PhotometryPlot = ({
         title: "MJD",
         side: "top",
         type: displayXAxisInlog ? "log" : "linear",
-        range: [...photStats_value.mjd.range],
+        range: photStats_value.mjd.range.map(
+          displayXAxisInlog ? Math.log10 : (x) => x,
+        ),
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
         title: t0 && displayXAxisSinceT0 ? "Days Since T0" : "Days Ago",
-        range: [...photStats_value.days.range],
+        range: photStats_value.days.range.map(
+          displayXAxisInlog ? Math.log10 : (x) => x,
+        ),
         overlaying: "x",
         side: "bottom",
         type: displayXAxisInlog ? "log" : "linear",
