@@ -859,6 +859,10 @@ const PhotometryPlot = ({
         range: [...photStats_value.days.range],
         overlaying: "x",
         side: "bottom",
+        type:
+          t0AsOrigin && displayXAxisSinceT0 && displayXAxisInlog
+            ? "log"
+            : "linear",
         showgrid: false,
         zeroline: false,
         tickformat: ".6~f",
