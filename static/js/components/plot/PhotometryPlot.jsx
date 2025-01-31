@@ -849,6 +849,7 @@ const PhotometryPlot = ({
       newLayouts.xaxis = {
         title: "MJD",
         side: "top",
+        type: displayXAxisInlog ? "log" : "linear",
         range: [...photStats_value.mjd.range],
         tickformat: ".6~f",
         zeroline: false,
@@ -859,10 +860,7 @@ const PhotometryPlot = ({
         range: [...photStats_value.days.range],
         overlaying: "x",
         side: "bottom",
-        type:
-          t0AsOrigin && displayXAxisSinceT0 && displayXAxisInlog
-            ? "log"
-            : "linear",
+        type: displayXAxisInlog ? "log" : "linear",
         showgrid: false,
         zeroline: false,
         tickformat: ".6~f",
