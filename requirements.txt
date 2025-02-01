@@ -74,7 +74,7 @@ click==8.1.7
 arviz==0.19.0
 corner==2.2.2
 penquins==2.4.2
-selenium==4.8.3
+selenium==4.28.1
 selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
