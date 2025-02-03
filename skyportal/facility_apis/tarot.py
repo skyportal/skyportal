@@ -10,6 +10,7 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+from baselayer.tools.status import status
 
 from ..utils import http
 from . import FollowUpAPI
@@ -277,6 +278,64 @@ def login_to_tarot(altdata):
         raise ValueError("Malformed hash user from TAROT")
 
     return hash_user
+
+
+def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_ids):
+    """Check the request status on the TAROT manager.
+
+    Parameters
+    ----------
+    altdata: dict
+        The altdata dictionary with credentials and request id.
+
+    station_name: str
+        The station name. (e.g., "Tarot_Calern", "Tarot_Chili", "Tarot_Reunion")
+
+    obj_id: str
+        The source id.
+
+    insert_scene_ids: list
+        The list of scene ids to check.
+
+    Returns
+    -------
+    scene_status: str
+        The status of each scene in the TAROT manager.
+    """
+    url_dict = {
+        "Tarot_Calern": 1,
+        "Tarot_Chili": 2,
+        "Tarot_Reunion": 8,
+    }
+    response = requests.get(
+        f"{cfg['app.tarot_endpoint']}/rejected{url_dict[station_name]}.txt",
+        auth=(altdata["browser_username"], altdata["browser_password"]),
+    )
+
+    if response.status_code != 200:
+        raise ValueError(
+            f"Error trying to check request on TAROT manager: {response.status_code}"
+        )
+
+    status_dict = {
+        1: "End observation before range",
+        4: "Over quota",
+        5: "Planified",
+        6: "Planified over",
+    }
+    scene_status = ""
+    for scene_id in insert_scene_ids:
+        if scene_id in response.text:
+            pattern = rf"{scene_id}.*?{obj_id}.*?\((\d+)\)"
+            observation_status_number = re.search(pattern, response.text).group(1)
+            if observation_status_number in status_dict:
+                scene_status += ("\n\r" if scene_status != "" else "") + status_dict[
+                    observation_status_number
+                ]
+
+    return "Request status: " + (
+        scene_status if scene_status != "" else "Not planified"
+    )
 
 
 class TAROTAPI(FollowUpAPI):
