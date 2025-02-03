@@ -761,6 +761,7 @@ Obj.grouped_objects = relationship(
     "GroupedObject",
     secondary="grouped_object_objs",
     back_populates="objs",
+    overlaps="grouped_objects,objs",
     doc="Groups this object belongs to",
 )
 # See source.py for Obj.sources relationship

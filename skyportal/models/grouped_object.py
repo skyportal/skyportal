@@ -6,6 +6,8 @@ from sqlalchemy.dialects import postgresql
 from baselayer.app.models import Base, join_model
 from skyportal.models import Obj
 
+from baselayer.app.models import public, AccessibleIfUserMatches
+
 
 class GroupedObject(Base):
     """A collection of related astronomical objects.
@@ -15,6 +17,11 @@ class GroupedObject(Base):
     - Multiple detections of the same static object
     - Any other collection of objects that are physically related
     """
+
+    create = read = public  # Anyone can create and read
+    update = delete = AccessibleIfUserMatches(
+        'created_by'
+    )  # Changed from 'user' to 'created_by'
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     name = sa.Column(
@@ -58,6 +65,11 @@ class GroupedObject(Base):
         doc="Additional properties or metadata about this grouped object",
     )
 
+    def to_dict(self):
+        d = super().to_dict()
+        d['obj_ids'] = [obj.id for obj in self.objs]
+        return d
+
 
 # Create the many-to-many relationship (creates linking table)
 GroupedObjectObj = join_model("grouped_object_objs", GroupedObject, Obj)
@@ -66,5 +78,6 @@ GroupedObject.objs = relationship(
     "Obj",
     secondary="grouped_object_objs",
     back_populates="grouped_objects",
+    overlaps="grouped_objects,objs",
     doc="Objects that are part of this grouped object",
 )

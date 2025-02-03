@@ -1,6 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import GroupedObject, Obj
+import sqlalchemy as sa
 
 
 class GroupedObjectHandler(BaseHandler):
@@ -128,8 +129,10 @@ class GroupedObjectHandler(BaseHandler):
         """
         with self.Session() as session:
             if grouped_object_id is not None:
-                stmt = GroupedObject.select(self.current_user).where(
-                    GroupedObject.id == int(grouped_object_id)
+                stmt = (
+                    GroupedObject.select(self.current_user)
+                    .where(GroupedObject.id == int(grouped_object_id))
+                    .options(sa.orm.joinedload(GroupedObject.objs))
                 )
                 grouped_obj = session.scalars(stmt).first()
                 if grouped_obj is None:
@@ -183,3 +186,95 @@ class GroupedObjectHandler(BaseHandler):
             self.verify_and_commit()
 
             return self.success()
+
+    @permissions(['Upload data'])
+    def patch(self, grouped_object_id):
+        """
+        ---
+        summary: Update a grouped object
+        tags:
+          - grouped_objects
+        parameters:
+          - in: path
+            name: grouped_object_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: Name/identifier for the grouped object
+                  type:
+                    type: string
+                    description: Type of grouped object
+                  description:
+                    type: string
+                    description: Optional description
+                  obj_ids:
+                    type: array
+                    items:
+                      type: string
+                    description: List of Obj IDs to include in this group
+                  properties:
+                    type: object
+                    description: Additional metadata about this grouped object
+                  origin:
+                    type: string
+                    description: Source/origin of the grouped object
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+
+        with self.Session() as session:
+            stmt = GroupedObject.select(self.current_user, mode='update').where(
+                GroupedObject.id == int(grouped_object_id)
+            )
+            # stmt = sa.select(GroupedObject).where(GroupedObject.id == int(grouped_object_id))
+            grouped_obj = session.scalars(stmt).first()
+            if grouped_obj is None:
+                return self.error(
+                    'Invalid grouped object ID or you do not have permission to update this grouped object'
+                )
+
+            if 'obj_ids' in data:
+                obj_ids = data['obj_ids']
+                # Verify objects exist and are accessible
+                objs = session.scalars(
+                    Obj.select(self.current_user).where(Obj.id.in_(obj_ids))
+                ).all()
+                found_ids = {obj.id for obj in objs}
+                missing_ids = set(obj_ids) - found_ids
+                if missing_ids:
+                    return self.error(f'Invalid/inaccessible object IDs: {missing_ids}')
+                grouped_obj.objs = objs
+
+            # Update other fields if provided
+            if 'name' in data:
+                grouped_obj.name = data['name']
+            if 'type' in data:
+                grouped_obj.type = data['type']
+            if 'description' in data:
+                grouped_obj.description = data['description']
+            if 'properties' in data:
+                grouped_obj.properties = data['properties']
+            if 'origin' in data:
+                grouped_obj.origin = data['origin']
+
+            try:
+                session.commit()
+                return self.success()
+            except Exception as e:
+                return self.error(f'Error updating grouped object: {str(e)}')
