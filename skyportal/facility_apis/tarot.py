@@ -256,46 +256,39 @@ class TAROTAPI(FollowUpAPI):
 
         observation_strings = validate_request_to_tarot(request)
 
-        if cfg["app.tarot_endpoint"] is not None:
-            altdata = request.allocation.altdata
+        if cfg["app.tarot_endpoint"] is None:
+            raise ValueError("TAROT endpoint not configured")
 
-            if not altdata:
-                raise ValueError("Missing allocation information.")
+        altdata = request.allocation.altdata
 
-            headers = {
-                "Content-Type": "application/json",
-                "TAROT": altdata["token"],
-            }
-            payload = json.dumps({"script": observation_strings})
-            url = f"{cfg['app.tarot_endpoint']}/newobservation"
+        if not altdata:
+            raise ValueError("Missing allocation information.")
 
-            r = requests.request(
-                "POST",
-                url,
-                data=payload,
-                headers=headers,
-            )
+        headers = {
+            "Content-Type": "application/json",
+            "TAROT": altdata["token"],
+        }
+        payload = json.dumps({"script": observation_strings})
+        url = f"{cfg['app.tarot_endpoint']}/newobservation"
 
-            if r.status_code == 200:
-                request.status = "submitted"
-            else:
-                request.status = f"rejected: {r.content}"
+        r = requests.request(
+            "POST",
+            url,
+            data=payload,
+            headers=headers,
+        )
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-        else:
+        if r.status_code == 200:
             request.status = "submitted"
+        else:
+            request.status = f"rejected: {r.content}"
 
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
         session.add(transaction)
 
