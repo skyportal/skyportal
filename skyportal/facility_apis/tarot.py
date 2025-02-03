@@ -361,48 +361,64 @@ class TAROTAPI(FollowUpAPI):
         obj_internal_key = request.obj.internal_key
 
         is_request_submitted = request.status == "submitted"
-        if is_request_submitted:
-            if cfg["app.tarot_endpoint"] is None:
-                raise ValueError("TAROT endpoint not configured")
+        is_error_on_delete = None
 
-            altdata = request.allocation.altdata
-            if not altdata:
-                raise ValueError("Missing allocation information.")
+        # this happens for failed submissions, just go ahead and delete
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            if is_request_submitted:
+                if cfg["app.tarot_endpoint"] is None:
+                    raise ValueError("TAROT endpoint not configured")
 
-            hash_user = login_to_tarot(altdata)
+                altdata = request.allocation.altdata
+                if not altdata:
+                    raise ValueError("Missing allocation information.")
 
-            insert_scene_ids = re.findall(
-                r"insert_id\s*=\s*(\d+)", request.transactions[-1].response["content"]
+                hash_user = login_to_tarot(altdata)
+
+                insert_scene_ids = re.findall(
+                    r"insert_id\s*=\s*(\d+)",
+                    request.transactions[-1].response["content"],
+                )
+
+                data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
+
+                response = requests.post(
+                    f"{cfg['app.tarot_endpoint']}/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                    data=data,
+                    auth=(altdata["browser_username"], altdata["browser_password"]),
+                )
+
+                if response.status_code != 200:
+                    is_error_on_delete = response.content
+                else:
+                    for scene_id in insert_scene_ids:
+                        if f"Scene '{scene_id}' removed" not in response.text:
+                            is_error_on_delete = response.content
+                            break
+
+            request.status = (
+                "deleted"
+                if is_error_on_delete is None
+                else f"rejected: {is_error_on_delete}"
             )
 
-            data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
-
-            response = requests.post(
-                f"{cfg['app.tarot_endpoint']}/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
-                data=data,
-                auth=(altdata["browser_username"], altdata["browser_password"]),
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(response.request)
+                if is_request_submitted
+                else None,
+                response=http.serialize_requests_response(response)
+                if is_request_submitted
+                else None,
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
             )
 
-            for scene_id in insert_scene_ids:
-                if f"Scene '{scene_id}' removed" not in response.text:
-                    raise ValueError("Error removing scene from TAROT")
-
-            response.raise_for_status()
-
-        request.status = "deleted"
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request)
-            if is_request_submitted
-            else None,
-            response=http.serialize_requests_response(response)
-            if is_request_submitted
-            else None,
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
+            session.add(transaction)
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
