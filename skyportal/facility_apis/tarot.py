@@ -10,7 +10,6 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from baselayer.tools.status import status
 
 from ..utils import http
 from . import FollowUpAPI
@@ -318,20 +317,27 @@ def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_i
         )
 
     status_dict = {
-        1: "End observation before range",
-        4: "Over quota",
-        5: "Planified",
-        6: "Planified over",
+        "1": "End observation before range",
+        "4": "Over quota",
+        "5": "Planified",
+        "6": "Planified over",
     }
     scene_status = ""
+
     for scene_id in insert_scene_ids:
-        if scene_id in response.text:
-            pattern = rf"{scene_id}.*?{obj_id}.*?\((\d+)\)"
-            observation_status_number = re.search(pattern, response.text).group(1)
+        manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+        pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{obj_id}.*?\((\d+)\)"
+        match = re.search(pattern, response.text)
+        if match is not None:
+            observation_status_number = match.group(1)
             if observation_status_number in status_dict:
                 scene_status += ("\n\r" if scene_status != "" else "") + status_dict[
                     observation_status_number
                 ]
+        else:
+            raise ValueError(
+                f"Scene {manager_scene_id} for {obj_id} not found on TAROT manager"
+            )
 
     return "Request status: " + (
         scene_status if scene_status != "" else "Not planified"
@@ -352,7 +358,6 @@ class TAROTAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-
         from ..models import FacilityTransaction
 
         observation_strings = validate_request_to_tarot(request)
