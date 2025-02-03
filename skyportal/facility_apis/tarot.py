@@ -1,4 +1,4 @@
-import json
+import re
 from datetime import datetime
 
 import astropy.units as u
@@ -360,51 +360,54 @@ class TAROTAPI(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if cfg["app.tarot_endpoint"] is not None:
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
+        req = (
+            DBSession()
+            .query(FollowupRequest)
+            .filter(FollowupRequest.id == request.id)
+            .one()
+        )
+
+        is_request_submitted = req.status == "submitted"
+        if is_request_submitted:
+            if cfg["app.tarot_endpoint"] is None:
+                raise ValueError("TAROT endpoint not configured")
 
             altdata = request.allocation.altdata
-
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            url = f"{cfg['app.tarot_endpoint']}/cancelobservation"
+            hash_user = login_to_tarot(altdata)
 
-            content = req.transactions[-1].response["content"]
-            content = json.loads(content)
-            uid = content[0]
-
-            payload = json.dumps({"obs_id": [uid]})
-
-            headers = {
-                "Content-Type": "application/json",
-                "TAROT": altdata["token"],
-            }
-            r = requests.request("POST", url, headers=headers, data=payload)
-
-            r.raise_for_status()
-            request.status = "deleted"
-
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
+            insert_scene_ids = re.findall(
+                r"insert_id\s*=\s*(\d+)", req.transactions[-1].response["content"]
             )
-        else:
-            request.status = "deleted"
 
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
+            data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
+
+            response = requests.post(
+                f"{cfg['app.tarot_endpoint']}/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                data=data,
+                auth=(altdata["browser_username"], altdata["browser_password"]),
             )
+
+            for scene_id in insert_scene_ids:
+                if f"Scene '{scene_id}' removed" not in response.text:
+                    raise ValueError("Error removing scene from TAROT")
+
+            response.raise_for_status()
+
+        request.status = "deleted"
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request)
+            if is_request_submitted
+            else None,
+            response=http.serialize_requests_response(response)
+            if is_request_submitted
+            else None,
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
         session.add(transaction)
 
