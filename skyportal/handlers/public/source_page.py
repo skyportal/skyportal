@@ -73,8 +73,8 @@ class SourcePageHandler(BaseHandler):
                     application/json:
                       schema: Error
         multiple:
-            summary: List all public source pages and their versions
-            description: List all public source pages and their versions
+            summary: List all public source pages
+            description: List all public source pages with no release and their versions
             tags:
               - public
               - sources
