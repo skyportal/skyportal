@@ -394,7 +394,7 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
-    // Set the range of the plot to be 2% larger than values or if t0 is set, start the range from t0
+    // If t0 is set and t0AsOrigin is True, start the range from t0
     setT0Max(
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
