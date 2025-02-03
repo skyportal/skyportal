@@ -133,6 +133,14 @@ def post_public_source_page(options, source, release, is_auto_published, session
     data_to_publish = {
         "ra": safe_round(source.get("ra"), 6),
         "dec": safe_round(source.get("dec"), 6),
+        "peak_mag_per_filter": source.get("photstats")[0].get("peak_mag_per_filter")
+        if source.get("photstats")
+        else None,
+        "first_detected_mjd": safe_round(
+            source.get("photstats")[0].get("first_detected_mjd"), 4
+        )
+        if source.get("photstats")
+        else None,
         "redshift_display": get_redshift_to_display(source),
         "gal_lon": safe_round(source.get("gal_lon"), 6),
         "gal_lat": safe_round(source.get("gal_lat"), 6),
@@ -293,6 +301,7 @@ class PublicSourcePageHandler(BaseHandler):
                     user_id=self.associated_user_object.id,
                     session=session,
                     include_thumbnails=True,
+                    include_detection_stats=options.get("include_photometry") is True,
                 )
             except ValueError:
                 return self.error("Source not found", status=404)

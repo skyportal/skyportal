@@ -250,8 +250,8 @@ starlist_formats = {
         "first_line": None,
     },
     "P200-NGPS": {
-        "coord_sep": " ",
-        "col_sep": "XXX",
+        "coord_sep": ":",
+        "col_sep": ",",
         "commentstr": "!",
         "giveoffsets": False,
         "maxname_size": 18,
@@ -836,9 +836,7 @@ def get_formatted_standards_list(
                     "str": (
                         f"{row['name']}"
                         + ","
-                        + f"{row.ra_float}"
-                        + ","
-                        + f"{row.dec_float}"
+                        + f"{row['skycoord']}"
                         + ",,"  # offset ra, dec, empty for standards
                         + ","
                         + "standard"  # comment
@@ -1219,12 +1217,12 @@ def get_nearby_offset_stars(
         star_list_format = (
             f"{basename}"
             + ","
-            + f"{source_ra}"
-            + ","
-            + f"{source_dec}"
+            + f"{hmsdms}"
             + ",,"  # offset ra, dec (empty for target)
             + ","
-            + str(assignment_comment)  # assignment comment, if any
+            + str(assignment_comment).replace(
+                col_sep, " "
+            )  # assignment comment, if any, no col_sep allowed
             + ","
             + str(int(assignment_priority))  # assignment priority, if any
             + ","
@@ -1282,9 +1280,7 @@ def get_nearby_offset_stars(
             star_list_format = (
                 f"{name}"
                 + ","
-                + f"{c.ra.value}"
-                + ","
-                + f"{c.dec.value}"
+                + f"{hmsdms}"
                 + f",{dra.value:<0.03f},{ddec.value:<0.03f},"  # offset ra, dec
                 + "offset"  # comment
                 + ","  # priority (empty for offsets)
