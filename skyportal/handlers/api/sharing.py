@@ -69,7 +69,7 @@ class SharingHandler(BaseHandler):
         groups = valid_groups
 
         phot_obj_ids = []
-        spec_obj_ids = []
+        spec_obj_internal_keys = []
 
         if phot_ids:
             valid_phot = Photometry.query.filter(Photometry.id.in_(phot_ids))
@@ -113,20 +113,22 @@ class SharingHandler(BaseHandler):
                 for group in groups:
                     spec.groups.append(group)
                 # Grab obj_id for use in websocket message below
-                spec_obj_ids.append(spec.obj_id)
+                spec_obj_internal_keys.append(spec.obj.internal_key)
 
         self.verify_and_commit()
 
-        spec_obj_ids = set(spec_obj_ids)
         phot_obj_ids = set(phot_obj_ids)
+        spec_obj_internal_keys = set(spec_obj_internal_keys)
+
         for obj_id in phot_obj_ids:
             self.push(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
             )
 
-        for obj_id in spec_obj_ids:
+        for obj_internal_key in spec_obj_internal_keys:
             self.push(
-                action="skyportal/REFRESH_SOURCE_SPECTRA", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                payload={"obj_internal_key": obj_internal_key},
             )
 
         return self.success()

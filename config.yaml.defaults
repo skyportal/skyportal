@@ -534,6 +534,8 @@ misc:
   max_items_in_localization_instrument_query_cache: 100
   minutes_to_keep_public_source_pages_cache: 1440
   minutes_to_keep_reports_cache: 1440
+  max_seconds_to_sleep_reminders_service: 60
+  max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.

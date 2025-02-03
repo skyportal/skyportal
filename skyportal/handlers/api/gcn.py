@@ -30,9 +30,7 @@ from astropy.table import Table
 from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
-from marshmallow.fields import (
-    Integer,
-)
+from marshmallow.fields import Integer
 from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
@@ -381,6 +379,7 @@ def post_skymap_from_notice(
         gcn_notice.localization_ingested = True
         session.add(gcn_notice)
         session.commit()
+
         try:
             ra, dec, error = (
                 float(val) for val in skymap["localization_name"].split("_")
@@ -389,55 +388,30 @@ def post_skymap_from_notice(
                 log(
                     f"Creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
                 )
-                source = {}
-                name = None
-                if isinstance(root, dict):
-                    name = root.get("name")
-                    tags = get_json_tags(root)
-                else:
-                    name = root.find("./Why/Inference/Name")
-                    tags = get_tags(root)
-                    if name is not None:
-                        name = name.text
-
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    "id": source_name,
+                    "ra": ra,
+                    "dec": dec,
+                    "origin": None,
+                }
                 tags_formatted = [tag.upper().strip() for tag in tags]
-                if name is not None:
-                    source = {
-                        "id": name.replace(" ", ""),
-                        "ra": ra,
-                        "dec": dec,
-                    }
-                elif "GRB" in tags_formatted:
-                    dateobs_txt = Time(dateobs).isot
-                    source_name = f"GRB-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    origin = None
+                if "GRB" in tags_formatted:
+                    source["name"] = f"GRB-{source_name}"
                     if "SWIFT" in tags_formatted:
-                        origin = "Swift"
+                        source["origin"] = "Swift"
                     elif "FERMI" in tags_formatted:
-                        origin = "Fermi"
-                    source = {"id": source_name, "ra": ra, "dec": dec, "origin": origin}
+                        source["origin"] = "Fermi"
                 elif "GW" in tags_formatted:
-                    dateobs_txt = Time(dateobs).isot
-                    source_name = f"GW-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    origin = None
+                    source["name"] = f"GW-{source_name}"
                     if "LVC" in tags_formatted:
-                        origin = "LVC"
-                    source = {"id": source_name, "ra": ra, "dec": dec, "origin": origin}
+                        source["origin"] = "LVC"
                 elif "EINSTEIN PROBE" in tags_formatted:
-                    dateobs_txt = Time(dateobs).isot
-                    source_name = f"EP-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        "id": source_name,
-                        "ra": ra,
-                        "dec": dec,
-                        "origin": "Einstein Probe",
-                    }
+                    source["name"] = f"EP-{source_name}"
+                    source["origin"] = "Einstein Probe"
                 else:
-                    source = {
-                        "id": Time(dateobs).isot.replace(":", "-"),
-                        "ra": ra,
-                        "dec": dec,
-                    }
+                    source["name"] = f"GCN-{source_name}"
 
                 public_group = session.scalar(
                     sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
@@ -458,6 +432,8 @@ def post_skymap_from_notice(
                             log(
                                 f"Posting source for event {dateobs} with Localization {localization_id} with id {source['id']}."
                             )
+                            if source["origin"] is None:
+                                del source["origin"]
                             post_source(source, user_id, session)
 
         except Exception as e:

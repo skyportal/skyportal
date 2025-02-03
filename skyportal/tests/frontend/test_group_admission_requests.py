@@ -44,5 +44,5 @@ def test_group_admission_request_insufficient_stream_access(
     filter_for_value(driver, public_group.name)
     driver.click_xpath(f'//*[@data-testid="requestAdmissionButton{public_group.id}"]')
     driver.wait_for_xpath(
-        f'//*[text()="User {user_no_groups_no_streams.id} does not have sufficient stream access to be added to group {public_group.id}."]'
+        '//*[contains(text(), "does not have access to the following streams")]'
     )
