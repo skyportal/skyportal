@@ -538,11 +538,24 @@ class TAROTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
-            "token": {
+            "browser_username": {
                 "type": "string",
-                "title": "Token",
+                "title": "Browser Username",
+            },
+            "browser_password": {
+                "type": "string",
+                "title": "Browser Password",
+            },
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
             },
         },
+        "required": ["browser_username", "browser_password", "username", "password"],
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
