@@ -291,32 +291,38 @@ class TAROTAPI(FollowUpAPI):
             raise ValueError("TAROT endpoint not configured")
 
         altdata = request.allocation.altdata
-
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        headers = {
-            "Content-Type": "application/json",
-            "TAROT": altdata["token"],
-        }
-        payload = json.dumps({"script": observation_strings})
-        url = f"{cfg['app.tarot_endpoint']}/newobservation"
+        hash_user = login_to_tarot(altdata)
 
-        r = requests.request(
-            "POST",
-            url,
+        payload = {
+            "type": "defaultshort",
+            "mod": "new",
+            "idreq": altdata["request_id"],
+            "idscene": "0",
+            "hashuser": hash_user,
+            "check[type]": "IM",
+            "data": observation_strings,
+            "Submit": "Ok for quick depot",
+        }
+
+        response = requests.post(
+            f"{cfg['app.tarot_endpoint']}/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
-            headers=headers,
+            auth=(altdata["browser_username"], altdata["browser_password"]),
         )
 
-        if r.status_code == 200:
-            request.status = "submitted"
-        else:
-            request.status = f"rejected: {r.content}"
+        if response.status_code != 200 or "New Scene Inserted" not in response.text:
+            request.status = (
+                f"rejected: status code = {response.status_code}\n\r{response.text}"
+            )
+
+        request.status = "submitted"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -562,6 +568,10 @@ class TAROTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
+            "request_id": {
+                "type": "string",
+                "title": "Request ID to add scene",
+            },
             "browser_username": {
                 "type": "string",
                 "title": "Browser Username",
@@ -579,7 +589,13 @@ class TAROTAPI(FollowUpAPI):
                 "title": "Password",
             },
         },
-        "required": ["browser_username", "browser_password", "username", "password"],
+        "required": [
+            "browser_username",
+            "browser_password",
+            "username",
+            "password",
+            "request_id",
+        ],
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
