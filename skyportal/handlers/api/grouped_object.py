@@ -136,7 +136,7 @@ class GroupedObjectHandler(BaseHandler):
                 )
                 grouped_obj = session.scalars(stmt).first()
                 if grouped_obj is None:
-                    return self.error('Invalid grouped object ID')
+                    return self.error('Invalid grouped object ID', status=404)
 
                 result = grouped_obj.to_dict()
                 result['created_by'] = grouped_obj.created_by.to_dict()
@@ -180,10 +180,10 @@ class GroupedObjectHandler(BaseHandler):
             )
             grouped_obj = session.scalars(stmt).first()
             if grouped_obj is None:
-                return self.error('Invalid grouped object ID')
+                return self.error('Invalid grouped object ID', status=404)
 
             session.delete(grouped_obj)
-            self.verify_and_commit()
+            session.commit()
 
             return self.success()
 

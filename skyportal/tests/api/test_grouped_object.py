@@ -131,3 +131,55 @@ def test_patch_grouped_object(
         token=view_only_token,
     )
     assert status == 401  # Unauthorized is the correct response
+
+
+def test_delete_grouped_object(upload_data_token, public_source, view_only_token):
+    """Test deletion of a grouped object."""
+    # First create a grouped object
+    name = str(uuid.uuid4())
+    obj_ids = [public_source.id]
+
+    status, data = api(
+        'POST',
+        'grouped_object',
+        data={
+            'name': name,
+            'type': 'moving_object',
+            'description': 'Test moving object group',
+            'obj_ids': obj_ids,
+            'properties': {'velocity': '10km/s'},
+            'origin': 'test pipeline',
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    grouped_obj_id = data['data']['id']
+
+    # Test that view-only token cannot delete
+    status, data = api(
+        'DELETE',
+        f'grouped_object/{grouped_obj_id}',
+        token=view_only_token,
+    )
+    assert status == 401  # Unauthorized
+
+    # Delete with proper permissions
+    status, data = api(
+        'DELETE',
+        f'grouped_object/{grouped_obj_id}',
+        token=upload_data_token,
+    )
+    print(f"DELETE Status: {status}")
+    print(f"DELETE Response: {data}")
+    assert status == 200
+
+    # Verify the object is deleted by trying to get it
+    status, data = api(
+        'GET',
+        f'grouped_object/{grouped_obj_id}',
+        token=upload_data_token,
+    )
+    print(f"GET Status after delete: {status}")
+    print(f"GET Response after delete: {data}")
+    assert status == 404  # Not Found is the correct response for a missing resource
+    assert "Invalid grouped object ID" in data["message"]
