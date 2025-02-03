@@ -399,6 +399,15 @@ class TAROTAPI(FollowUpAPI):
 
         session.add(transaction)
 
+        if request.status == "submitted":
+            insert_scene_ids = re.findall(r"insert_id\s*=\s*(\d+)", response.content)
+            request.comment = check_request_on_tarot_manager(
+                altdata,
+                request.payload["station_name"],
+                request.obj_id,
+                insert_scene_ids,
+            )
+
         if kwargs.get("refresh_source", False):
             flow = Flow()
             flow.push(
