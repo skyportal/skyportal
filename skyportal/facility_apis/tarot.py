@@ -237,6 +237,37 @@ def validate_request_to_tarot(request):
     return observation_strings
 
 
+def login_to_tarot(altdata):
+    """Login to TAROT and return the hash user."""
+    data = {
+        "login": altdata["username"],
+        "pass": altdata["password"],
+        "Submit": "Entry",
+    }
+
+    login_response = requests.post(
+        f"{cfg['app.tarot_endpoint']}/login.php",
+        data=data,
+        auth=(altdata["browser_username"], altdata["browser_password"]),
+    )
+
+    if login_response.status_code != 200:
+        raise ValueError(
+            f"Error trying to login to TAROT: {login_response.status_code}"
+        )
+
+    if "hashuser" not in login_response.text:
+        raise ValueError(
+            f"Error retrieving hash user from TAROT: {login_response.text}"
+        )
+
+    hash_user = login_response.text.split("hashuser=")[1][:20]
+    if hash_user is None or len(hash_user) != 20:
+        raise ValueError("Malformed hash user from TAROT")
+
+    return hash_user
+
+
 class TAROTAPI(FollowUpAPI):
     """SkyPortal interface to the TAROT"""
 
