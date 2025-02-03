@@ -72,18 +72,28 @@ class ReleaseHandler(BaseHandler):
             if release is None:
                 return self.error("Page not found", status=404)
 
+            # Get all versions of all sources for this release
             versions = session.scalars(
                 sa.select(PublicSourcePage)
                 .where(
                     PublicSourcePage.is_visible,
                     PublicSourcePage.release_id == release.id,
                 )
+                .options(sa.orm.undefer(PublicSourcePage.data))
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
+
             versions_by_source = {}
             for version in versions:
                 if version.source_id not in versions_by_source:
                     versions_by_source[version.source_id] = []
+                # Only include the fields needed for the public release page
+                version.data = {
+                    "ra": version.data["ra"],
+                    "dec": version.data["dec"],
+                    "peak_mag_per_filter": version.data["peak_mag_per_filter"],
+                    "first_detected_mjd": version.data["first_detected_mjd"],
+                }
                 versions_by_source[version.source_id].append(version)
 
             return self.render(
