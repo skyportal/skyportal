@@ -355,19 +355,12 @@ class TAROTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
-
-        is_request_submitted = req.status == "submitted"
+        is_request_submitted = request.status == "submitted"
         if is_request_submitted:
             if cfg["app.tarot_endpoint"] is None:
                 raise ValueError("TAROT endpoint not configured")
@@ -379,7 +372,7 @@ class TAROTAPI(FollowUpAPI):
             hash_user = login_to_tarot(altdata)
 
             insert_scene_ids = re.findall(
-                r"insert_id\s*=\s*(\d+)", req.transactions[-1].response["content"]
+                r"insert_id\s*=\s*(\d+)", request.transactions[-1].response["content"]
             )
 
             data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
