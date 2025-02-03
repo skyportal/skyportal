@@ -444,7 +444,6 @@ class TAROTAPI(FollowUpAPI):
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        is_request_submitted = request.status == "submitted"
         is_error_on_delete = None
 
         # this happens for failed submissions, just go ahead and delete
@@ -454,36 +453,35 @@ class TAROTAPI(FollowUpAPI):
             ).delete()
             session.commit()
         else:
-            if is_request_submitted:
-                if cfg["app.tarot_endpoint"] is None:
-                    raise ValueError("TAROT endpoint not configured")
+            if cfg["app.tarot_endpoint"] is None:
+                raise ValueError("TAROT endpoint not configured")
 
-                altdata = request.allocation.altdata
-                if not altdata:
-                    raise ValueError("Missing allocation information.")
+            altdata = request.allocation.altdata
+            if not altdata:
+                raise ValueError("Missing allocation information.")
 
-                hash_user = login_to_tarot(altdata)
+            hash_user = login_to_tarot(altdata)
 
-                insert_scene_ids = re.findall(
-                    r"insert_id\s*=\s*(\d+)",
-                    request.transactions[-1].response["content"],
-                )
+            insert_scene_ids = re.findall(
+                r"insert_id\s*=\s*(\d+)",
+                request.transactions[-1].response["content"],
+            )
 
-                data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
+            data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
 
-                response = requests.post(
-                    f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
-                    data=data,
-                    auth=(altdata["browser_username"], altdata["browser_password"]),
-                )
+            response = requests.post(
+                f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                data=data,
+                auth=(altdata["browser_username"], altdata["browser_password"]),
+            )
 
-                if response.status_code != 200:
-                    is_error_on_delete = response.content
-                else:
-                    for scene_id in insert_scene_ids:
-                        if f"Scene '{scene_id}' removed" not in response.text:
-                            is_error_on_delete = response.content
-                            break
+            if response.status_code != 200:
+                is_error_on_delete = response.content
+            else:
+                for scene_id in insert_scene_ids:
+                    if f"Scene '{scene_id}' removed" not in response.text:
+                        is_error_on_delete = response.content
+                        break
 
             request.status = (
                 "deleted"
@@ -492,12 +490,8 @@ class TAROTAPI(FollowUpAPI):
             )
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(response.request)
-                if is_request_submitted
-                else None,
-                response=http.serialize_requests_response(response)
-                if is_request_submitted
-                else None,
+                request=http.serialize_requests_request(response.request),
+                response=http.serialize_requests_response(response),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
