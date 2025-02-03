@@ -328,8 +328,8 @@ class TAROTAPI(FollowUpAPI):
             request.status = (
                 f"rejected: status code = {response.status_code}\n\r{response.text}"
             )
-
-        request.status = "submitted"
+        else:
+            request.status = "submitted"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
