@@ -238,7 +238,18 @@ def validate_request_to_tarot(request):
 
 
 def login_to_tarot(altdata):
-    """Login to TAROT and return the hash user."""
+    """Login to TAROT and return the hash user.
+
+    Parameters
+    ----------
+    altdata: dict
+        The altdata dictionary with credentials and request id.
+
+    Returns
+    -------
+    hash_user: str
+        The hash user for the session.
+    """
     data = {
         "login": altdata["username"],
         "pass": altdata["password"],
