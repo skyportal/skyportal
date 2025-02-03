@@ -246,7 +246,7 @@ def login_to_tarot(altdata):
     }
 
     login_response = requests.post(
-        f"{cfg['app.tarot_endpoint']}/login.php",
+        f"{cfg['app.tarot_endpoint']}/manage/manage/login.php",
         data=data,
         auth=(altdata["browser_username"], altdata["browser_password"]),
     )
@@ -308,7 +308,7 @@ class TAROTAPI(FollowUpAPI):
         }
 
         response = requests.post(
-            f"{cfg['app.tarot_endpoint']}/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+            f"{cfg['app.tarot_endpoint']}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
@@ -388,7 +388,7 @@ class TAROTAPI(FollowUpAPI):
                 data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
 
                 response = requests.post(
-                    f"{cfg['app.tarot_endpoint']}/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                    f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
                     data=data,
                     auth=(altdata["browser_username"], altdata["browser_password"]),
                 )
