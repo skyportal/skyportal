@@ -210,7 +210,6 @@ def validate_request_to_tarot(request):
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
     observation_strings = []
-    total_time = 0.0
     number_of_strings, remainder = np.divmod(len(observations), 6)
     for ii in range(number_of_strings + 1):
         if ii == number_of_strings:
