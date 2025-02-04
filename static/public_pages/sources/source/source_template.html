@@ -24,8 +24,8 @@
     />
     <!-- JS for source page -->
     <script type="module">
-      let source_subtitle = document.getElementById('source_subtitle')
-      source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + source_subtitle.innerHTML
+      let subtitle_date = document.getElementById('subtitle_date')
+      subtitle_date.innerHTML = "<b>" + radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + "</b>" + subtitle_date.innerHTML
     </script>
     {% if data.get('photometry') or data.get('spectroscopy') %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
@@ -86,29 +86,31 @@
         </div>
         {% endif %}
         <div class="subtitle">
-          <h3 id="source_subtitle">
+          <div id="subtitle_date" class="subtitleText">
             <span>
-              (&alpha;,&delta;= {{ data['ra'] | e }}, &nbsp{{ data['dec'] | e }})
+              (&alpha;,&delta;={{ data['ra'] | e }}, &nbsp{{ data['dec'] | e }})
             </span>
             <span>
               (<i>l</i>,<i>b</i>={{ data['gal_lon'] | e }}, &nbsp;{{ data['gal_lat'] | e }})
             </span>
             {% if data.get('ebv') %}
-            <span> E(B-V): {{ data['ebv'] | e }} </span>
+              <span> E(B-V): {{ data['ebv'] | e }} </span>
             {% endif %}
-          </h3>
-          <h3>
-            Redshift:
+          </div>
+          <div class="subtitleText">
             <span>
-              {{ data['redshift_display'] | e }}
+              <b>Redshift:</b> {{ data['redshift_display'] | e }}
             </span>
-            {% if data.get('dm') %} DM:
-            <span> {{ data['dm'] | e }} mag </span>
-            {% endif %} {% if data.get('dl') %}
-            <b><i>D</i><sub>L</sub>:</b>
-            <span> {{ data['dl'] | e }} Mpc </span>
+            {% if data.get('dm') %}
+              <span><b>DM:</b> {{ data['dm'] | e }} mag </span>
             {% endif %}
-          </h3>
+            {% if data.get('dl') %}
+              <span><b><i>D</i><sub>L</sub>:</b> {{ data['dl'] | e }} Mpc </span>
+            {% endif %}
+            {% if data.get('t0') %}
+              <span><b>T0:</b> {{ data['t0'] | e }} mjd </span>
+            {% endif %}
+          </div>
           {% if data.get('summary') %}
             <p>
                 {{ data['summary'] | e }}
