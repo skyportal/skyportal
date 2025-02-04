@@ -284,11 +284,17 @@ def login_to_tarot(request, session, altdata):
     raise ValueError(f"Error trying to login to TAROT")
 
 
-def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_ids):
+def check_request_on_tarot_manager(
+    request, session, altdata, station_name, obj_id, insert_scene_ids
+):
     """Check the request status on the TAROT manager.
 
     Parameters
     ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to TAROT.
+    session: sqlalchemy.Session
+        The database session.
     altdata: dict
         The altdata dictionary with credentials and request id.
     station_name: str
@@ -303,6 +309,8 @@ def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_i
     request_status: str
         The status of the request on the TAROT manager.
     """
+    from ..models import FacilityTransaction
+
     url_dict = {
         "Tarot_Calern": 1,
         "Tarot_Chili": 2,
@@ -314,9 +322,14 @@ def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_i
     )
 
     if response.status_code != 200:
-        raise ValueError(
-            f"Error trying to check request on TAROT manager: {response.status_code}"
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
+        session.add(transaction)
+        return None
 
     status_dict = {
         "0": "Not planified",
