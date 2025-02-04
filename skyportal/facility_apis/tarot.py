@@ -422,6 +422,8 @@ class TAROTAPI(FollowUpAPI):
             )
             time.sleep(3)
             request_status = check_request_on_tarot_manager(
+                request,
+                session,
                 altdata,
                 request.payload["station_name"],
                 request.obj_id,
