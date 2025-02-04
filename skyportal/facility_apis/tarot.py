@@ -262,21 +262,19 @@ def login_to_tarot(altdata):
         auth=(altdata["browser_username"], altdata["browser_password"]),
     )
 
-    if login_response.status_code != 200:
-        raise ValueError(
-            f"Error trying to login to TAROT: {login_response.status_code}"
-        )
+    if login_response.status_code == 200 and "hashuser" in login_response.text:
+        hash_user = login_response.text.split("hashuser=")[1][:20]
+        if hash_user is not None and len(hash_user) == 20:
+            return hash_user
 
-    if "hashuser" not in login_response.text:
-        raise ValueError(
-            f"Error retrieving hash user from TAROT: {login_response.text}"
-        )
-
-    hash_user = login_response.text.split("hashuser=")[1][:20]
-    if hash_user is None or len(hash_user) != 20:
-        raise ValueError("Malformed hash user from TAROT")
-
-    return hash_user
+    transaction = FacilityTransaction(
+        request=http.serialize_requests_request(login_response.request),
+        response=http.serialize_requests_response(login_response),
+        followup_request=request,
+        initiator_id=request.last_modified_by_id,
+    )
+    session.add(transaction)
+    raise ValueError(f"Error trying to login to TAROT")
 
 
 def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_ids):
