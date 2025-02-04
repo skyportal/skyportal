@@ -1,4 +1,5 @@
 import re
+import time
 from datetime import datetime
 
 import astropy.units as u
@@ -242,6 +243,10 @@ def login_to_tarot(request, session, altdata):
 
     Parameters
     ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to TAROT.
+    session: sqlalchemy.Session
+        The database session.
     altdata: dict
         The altdata dictionary with credentials and request id.
 
@@ -286,20 +291,17 @@ def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_i
     ----------
     altdata: dict
         The altdata dictionary with credentials and request id.
-
     station_name: str
         The station name. (e.g., "Tarot_Calern", "Tarot_Chili", "Tarot_Reunion")
-
     obj_id: str
         The source id.
-
     insert_scene_ids: list
         The list of scene ids to check.
 
     Returns
     -------
-    scene_status: str
-        The status of each scene in the TAROT manager.
+    request_status: str
+        The status of the request on the TAROT manager.
     """
     url_dict = {
         "Tarot_Calern": 1,
@@ -317,31 +319,28 @@ def check_request_on_tarot_manager(altdata, station_name, obj_id, insert_scene_i
         )
 
     status_dict = {
+        "0": "Not planified",
         "1": "End observation before range",
         "4": "Over quota",
         "5": "Planified",
         "6": "Planified over",
     }
-    scene_status = ""
+    request_status = None
 
     for scene_id in insert_scene_ids:
         manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
         pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{obj_id}.*?\((\d+)\)"
         match = re.search(pattern, response.text)
         if match is not None:
-            observation_status_number = match.group(1)
-            if observation_status_number in status_dict:
-                scene_status += ("\n\r" if scene_status != "" else "") + status_dict[
-                    observation_status_number
-                ]
+            scene_status_index = match.group(1)
+            if scene_status_index != "5" and scene_status_index != "6":
+                request_status = status_dict.get(scene_status_index, "Not planified")
         else:
             raise ValueError(
                 f"Scene {manager_scene_id} for {obj_id} not found on TAROT manager"
             )
 
-    return "Request status: " + (
-        scene_status if scene_status != "" else "Not planified"
-    )
+    return request_status
 
 
 class TAROTAPI(FollowUpAPI):
@@ -405,20 +404,18 @@ class TAROTAPI(FollowUpAPI):
         session.add(transaction)
 
         if request.status == "submitted":
-            try:
-                insert_scene_ids = re.findall(
-                    r"insert_id\s*=\s*(\d+)", response.content.decode()
-                )
-                request.comment = check_request_on_tarot_manager(
-                    altdata,
-                    request.payload["station_name"],
-                    request.obj_id,
-                    insert_scene_ids,
-                )
-            except Exception as e:
-                request.comment = (
-                    f"Error retrieving request status from tarot manager: {e}"
-                )
+            insert_scene_ids = re.findall(
+                r"insert_id\s*=\s*(\d+)", response.content.decode()
+            )
+            time.sleep(3)
+            request_status = check_request_on_tarot_manager(
+                altdata,
+                request.payload["station_name"],
+                request.obj_id,
+                insert_scene_ids,
+            )
+            if request_status is not None:
+                request.status = f"rejected: {request_status}"
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
