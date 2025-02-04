@@ -237,7 +237,7 @@ def validate_request_to_tarot(request):
     return observation_strings
 
 
-def login_to_tarot(altdata):
+def login_to_tarot(request, session, altdata):
     """Login to TAROT and return the hash user.
 
     Parameters
@@ -250,6 +250,8 @@ def login_to_tarot(altdata):
     hash_user: str
         The hash user for the session.
     """
+    from ..models import FacilityTransaction
+
     data = {
         "login": altdata["username"],
         "pass": altdata["password"],
@@ -358,8 +360,6 @@ class TAROTAPI(FollowUpAPI):
         """
         from ..models import FacilityTransaction
 
-        observation_strings = validate_request_to_tarot(request)
-
         if cfg["app.tarot_endpoint"] is None:
             raise ValueError("TAROT endpoint not configured")
 
@@ -367,7 +367,9 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        hash_user = login_to_tarot(altdata)
+        hash_user = login_to_tarot(request, session, altdata)
+
+        observation_strings = validate_request_to_tarot(request)
 
         payload = {
             "type": "defaultshort",
@@ -465,7 +467,7 @@ class TAROTAPI(FollowUpAPI):
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            hash_user = login_to_tarot(altdata)
+            hash_user = login_to_tarot(request, session, altdata)
 
             insert_scene_ids = re.findall(
                 r"insert_id\s*=\s*(\d+)",
