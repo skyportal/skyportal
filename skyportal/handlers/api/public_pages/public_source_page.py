@@ -199,6 +199,7 @@ class PublicSourcePageHandler(BaseHandler):
                 "ebv": safe_round(source.get("ebv"), 2),
                 "dm": safe_round(source.get("dm"), 3),
                 "dl": safe_round(source.get("luminosity_distance"), 2),
+                "t0": safe_round(source.get("t0"), 6),
                 "thumbnails": process_thumbnails(
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
