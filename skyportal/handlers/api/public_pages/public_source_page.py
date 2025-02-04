@@ -17,6 +17,7 @@ from ....models import (
     Group,
     Instrument,
     Photometry,
+    PhotStat,
     PublicRelease,
     PublicSourcePage,
     Spectrum,
@@ -80,6 +81,17 @@ def get_photometry(source_id, group_ids, stream_ids, session):
     return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
 
 
+def get_phot_stats(source_id, phot_stats, session):
+    if phot_stats is not None:
+        return phot_stats[0]
+
+    return session.scalar(
+        PhotStat.select(session.user_or_token, mode="read").where(
+            PhotStat.obj_id == source_id
+        )
+    ).to_dict()
+
+
 def get_spectroscopy(source_id, group_ids, session):
     stmt = (
         Spectrum.select(session.user_or_token, mode="read")
@@ -133,14 +145,8 @@ def post_public_source_page(options, source, release, is_auto_published, session
     data_to_publish = {
         "ra": safe_round(source.get("ra"), 6),
         "dec": safe_round(source.get("dec"), 6),
-        "peak_mag_per_filter": source.get("photstats")[0].get("peak_mag_per_filter")
-        if source.get("photstats")
-        else None,
-        "first_detected_mjd": safe_round(
-            source.get("photstats")[0].get("first_detected_mjd"), 4
-        )
-        if source.get("photstats")
-        else None,
+        "peak_mag_per_filter": None,
+        "first_detected_mjd": None,
         "redshift_display": get_redshift_to_display(source),
         "gal_lon": safe_round(source.get("gal_lon"), 6),
         "gal_lat": safe_round(source.get("gal_lat"), 6),
@@ -158,6 +164,11 @@ def post_public_source_page(options, source, release, is_auto_published, session
     if options.get("include_photometry"):
         data_to_publish["photometry"] = get_photometry(
             source_id, group_ids, stream_ids, session
+        )
+        phot_stats = get_phot_stats(source_id, source.get("photstats"), session)
+        data_to_publish["peak_mag_per_filter"] = phot_stats.get("peak_mag_per_filter")
+        data_to_publish["first_detected_mjd"] = safe_round(
+            phot_stats.get("first_detected_mjd"), 4
         )
     if options.get("include_spectroscopy"):
         data_to_publish["spectroscopy"] = get_spectroscopy(
