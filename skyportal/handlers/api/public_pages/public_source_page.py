@@ -85,11 +85,12 @@ def get_phot_stats(source_id, phot_stats, session):
     if phot_stats is not None:
         return phot_stats[0]
 
-    return session.scalar(
+    fetched_phot_stats = session.scalar(
         PhotStat.select(session.user_or_token, mode="read").where(
             PhotStat.obj_id == source_id
         )
-    ).to_dict()
+    )
+    return fetched_phot_stats.to_dict() if fetched_phot_stats else None
 
 
 def get_spectroscopy(source_id, group_ids, session):
@@ -167,10 +168,11 @@ def post_public_source_page(options, source, release, is_auto_published, session
             source_id, group_ids, stream_ids, session
         )
         phot_stats = get_phot_stats(source_id, source.get("photstats"), session)
-        data_to_publish["peak_mag_per_filter"] = phot_stats.get("peak_mag_per_filter")
-        data_to_publish["first_detected_mjd"] = safe_round(
-            phot_stats.get("first_detected_mjd"), 4
-        )
+        if phot_stats:
+            data_to_publish["peak_mag_per_filter"] = phot_stats.get("peak_mag_per_filter")
+            data_to_publish["first_detected_mjd"] = safe_round(
+                phot_stats.get("first_detected_mjd"), 4
+            )
     if options.get("include_spectroscopy"):
         data_to_publish["spectroscopy"] = get_spectroscopy(
             source_id, group_ids, session
