@@ -539,22 +539,36 @@ class TAROTAPI(FollowUpAPI):
                 "enum": [
                     "Tarot_Calern",
                     "Tarot_Chili",
-                    "Zadko_Australia",
-                    "VIRT_STT",
                     "Tarot_Reunion",
                 ],
                 "default": "Tarot_Calern",
             },
-            "exposure_defaults": {
-                "title": "Do you want to rely on defaults?",
-                "type": "boolean",
-                "default": True,
+            "observation_choices": {
+                "type": "array",
+                "title": "Desired Observations",
+                "items": {
+                    "type": "string",
+                    "enum": ["g", "r", "i", "z"],
+                },
+                "uniqueItems": True,
+                "minItems": 1,
             },
-            "date": {
-                "type": "string",
-                "format": "datetime",
-                "default": datetime.utcnow().date().isoformat(),
-                "title": "Date (UT)",
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 180.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
+            "maximum_airmass": {
+                "title": "Maximum Airmass (1-3)",
+                "type": "number",
+                "default": 2.0,
+                "minimum": 1,
+                "maximum": 3,
             },
             "tolerance": {
                 "type": "number",
@@ -569,49 +583,38 @@ class TAROTAPI(FollowUpAPI):
                 "maximum": 90,
             },
             "minimum_lunar_distance": {
-                "title": "Minimum Lunar Distance [deg.] (0-180)",
+                "title": "Minimum Lunar Distance [deg] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
                 "maximum": 180,
             },
             "priority": {
-                "title": "Priority (-5 - 5)",
                 "type": "number",
                 "default": 0,
-                "minimum": -5,
-                "maximum": 5,
+                "minimum": -5.0,
+                "maximum": 5.0,
+                "title": "Priority (-5 - 5)",
+            },
+            "date": {
+                "type": "string",
+                "format": "date-time",
+                "default": datetime.utcnow().isoformat(),
+                "title": "Date (UT)",
             },
         },
         "required": [
-            "date",
+            "observation_choices",
+            "exposure_time",
+            "exposure_counts",
+            "maximum_airmass",
             "tolerance",
             "minimum_elevation",
+            "minimum_lunar_distance",
             "priority",
-            "station_name",
+            "date",
         ],
         "dependencies": {
-            "exposure_defaults": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "exposure_defaults": {
-                                "enum": [False],
-                            },
-                            "exposure_time": {
-                                "title": "Exposure Time [s] (use -1 if want defaults)",
-                                "type": "number",
-                                "default": 300.0,
-                            },
-                            "exposure_counts": {
-                                "title": "Exposure Counts",
-                                "type": "number",
-                                "default": 1,
-                            },
-                        }
-                    }
-                ]
-            },
             "station_name": {
                 "oneOf": [
                     {
@@ -620,7 +623,6 @@ class TAROTAPI(FollowUpAPI):
                                 "enum": [
                                     "Tarot_Calern",
                                     "Tarot_Chili",
-                                    "Zadko_Australia",
                                 ],
                             },
                             "observation_choices": {
@@ -629,23 +631,6 @@ class TAROTAPI(FollowUpAPI):
                                 "items": {
                                     "type": "string",
                                     "enum": ["g", "r", "i", "z"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["VIRT_STT"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["U", "B", "V", "R", "I"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
