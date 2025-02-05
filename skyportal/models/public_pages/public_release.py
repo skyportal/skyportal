@@ -41,6 +41,13 @@ class PublicRelease(Base):
         doc="Whether the public release is visible to the public",
     )
 
+    auto_publish_enabled = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether the source page from the same group should be automatically published in this release",
+    )
+
     groups = relationship(
         "Group",
         secondary="group_public_releases",

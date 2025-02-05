@@ -93,12 +93,14 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            if set(group_ids).issubset(
+            if not set(group_ids).issubset(
                 [g.id for g in self.current_user.accessible_groups]
             ):
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                return self.error("Invalid groups")
+
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).all()
 
             if not groups:
                 return self.error("Invalid groups")
@@ -108,13 +110,14 @@ class PublicReleaseHandler(BaseHandler):
                 link_name=link_name,
                 description=data.get("description", ""),
                 is_visible=data.get("is_visible", True),
+                auto_publish_enabled=data.get("auto_publish_enabled", False),
                 options=data.get("options", {}),
                 groups=groups,
             )
             session.add(public_release)
             session.commit()
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
-            return self.success()
+            return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
     def patch(self, release_id):
@@ -178,12 +181,14 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            if set(group_ids).issubset(
+            if not set(group_ids).issubset(
                 [g.id for g in self.current_user.accessible_groups]
             ):
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                return self.error("Invalid groups")
+
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).all()
 
             if not groups:
                 return self.error("Invalid groups")
@@ -196,6 +201,9 @@ class PublicReleaseHandler(BaseHandler):
                     source_page.remove_from_cache()
 
             public_release.name = name
+            public_release.auto_publish_enabled = data.get(
+                "auto_publish_enabled", False
+            )
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})

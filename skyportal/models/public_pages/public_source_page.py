@@ -57,6 +57,13 @@ class PublicSourcePage(Base):
         doc="Hash of the source data used to identify the page version",
     )
 
+    is_auto_published = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether the page was automatically published",
+    )
+
     is_visible = sa.Column(
         sa.Boolean,
         nullable=False,
