@@ -169,7 +169,9 @@ def post_public_source_page(options, source, release, is_auto_published, session
         )
         phot_stats = get_phot_stats(source_id, source.get("photstats"), session)
         if phot_stats:
-            data_to_publish["peak_mag_per_filter"] = phot_stats.get("peak_mag_per_filter")
+            data_to_publish["peak_mag_per_filter"] = phot_stats.get(
+                "peak_mag_per_filter"
+            )
             data_to_publish["first_detected_mjd"] = safe_round(
                 phot_stats.get("first_detected_mjd"), 4
             )
