@@ -1,7 +1,7 @@
 """Automatically publish source when created
 
 Revision ID: 1593df0c0979
-Revises: 3eb663b5c3e0
+Revises: 0e29de8df22c
 Create Date: 2025-01-21 17:42:33.178899
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "1593df0c0979"
-down_revision = "3eb663b5c3e0"
+down_revision = "0e29de8df22c"
 branch_labels = None
 depends_on = None
 
