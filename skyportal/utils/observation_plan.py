@@ -1,12 +1,17 @@
 import time
 import traceback
 
+import astropy_healpix as ah
 import healpix_alchemy as ha
+import healpy as hp
 import humanize
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from ligo.skymap.bayestar import derasterize, rasterize
 from regions import Regions
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -389,6 +394,7 @@ def generate_plan(
             "Tobs": [start_time.mjd - event_time.mjd, end_time.mjd - event_time.mjd],
             # geometry
             "geometry": "3d" if request.localization.is_3d else "2d",
+            "do_3d": request.localization.is_3d,
             # gwemopt filter strategy
             # options: block (blocks of single filters), integrated (series of alternating filters)
             "doAlternatingFilters": request.payload["filter_strategy"] == "block",
@@ -579,20 +585,41 @@ def generate_plan(
         else:
             raise AttributeError("scheduling_strategy should be tiling or galaxy")
 
-        # params = gwemopt.utils.params_checker(params)
         params = gwemopt.segments.get_telescope_segments(params)
-
-        map_struct = {"skymap": request.localization.table}
 
         log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
 
-        # Function to read maps
-        params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
+        map_struct = {"skymap": request.localization.table}
 
-        # we pop out the keys we do not need for scheduling (they are used for plotting, or efficiency calculations)
-        map_struct.pop("skymap_raster", None)
-        map_struct.pop("skymap_raster_schedule", None)
-        map_struct.pop("hdu", None)
+        level, ipix = ah.uniq_to_level_ipix(map_struct["skymap"]["UNIQ"])
+        nside = ah.level_to_nside(level)
+        ra, dec = ah.healpix_to_lonlat(ipix, nside, order="nested")
+        map_struct["skymap"]["ra"] = ra.deg
+        map_struct["skymap"]["dec"] = dec.deg
+
+        map_struct["skymap_schedule"] = map_struct["skymap"].copy()
+
+        skymap_raster = rasterize(
+            map_struct["skymap"], order=hp.nside2order(int(params["nside"]))
+        )
+
+        peak = skymap_raster[skymap_raster["PROB"] == np.max(skymap_raster["PROB"])]
+        map_struct["center"] = SkyCoord(peak["ra"][0] * u.deg, peak["dec"][0] * u.deg)
+
+        if params["confidence_level"] < 1.0:
+            prob = skymap_raster["PROB"]
+            ind = np.argsort(prob)[::-1]
+            prob = prob[ind]
+            ii = np.where(np.cumsum(prob) > params["confidence_level"])[0]
+            skymap_raster["PROB"][ind[ii]] = 0.0
+            map_struct["skymap_schedule"] = derasterize(skymap_raster)
+
+        if params["galactic_limit"] > 0.0:
+            coords = SkyCoord(ra=ra, dec=dec)
+            ipix = np.where(np.abs(coords.galactic.b.deg) <= params["galactic_limit"])[
+                0
+            ]
+            map_struct["skymap_schedule"]["PROBDENSITY"][ipix] = 0.0
 
         # get the partition name for the localization tiles using the dateobs
         # that way, we explicitely use the partition that contains the localization tiles we are interested in
