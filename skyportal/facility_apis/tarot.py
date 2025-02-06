@@ -30,17 +30,17 @@ def validate_request_to_tarot(request):
     """
 
     for param in [
-        "observation_choices",
-        "exposure_time",
-        "minimum_elevation",
         "station_name",
         "date",
+        "exposure_time",
+        "exposure_counts",
+        "observation_choices",
     ]:
         if param not in request.payload:
             raise ValueError(f"Parameter {param} required.")
 
     if any(
-        filt not in ["B", "V", "R", "I", "g", "r", "i", "z", "NoFilter"]
+        filt not in ["g", "r", "i", "NoFilter"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
@@ -50,12 +50,10 @@ def validate_request_to_tarot(request):
     if request.payload["station_name"] not in [
         "Tarot_Calern",
         "Tarot_Chili",
-        "Zadko_Australia",
-        "VIRT_STT",
         "Tarot_Reunion",
     ]:
         raise ValueError(
-            "observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion"
+            "observation_type must be Tarot_Calern, Tarot_Chili, Tarot_Reunion"
         )
 
     if (
@@ -64,22 +62,11 @@ def validate_request_to_tarot(request):
     ):
         raise ValueError("exposure_time must be positive or -1.")
 
-    if request.payload["minimum_elevation"] < 10:
-        raise ValueError("minimum_elevation must be at least 10 degrees.")
-
     filts = {
         "NoFilter": 0,
-        "C": 1,
-        "B": 2,
-        "V": 3,
-        "R": 4,
-        "I": 5,
-        "VN": 6,
         "g": 13,
         "r": 14,
         "i": 15,
-        "z": 16,
-        "U": 19,
     }
     tt = Time(request.payload["date"], format="isot")
     observations = []
