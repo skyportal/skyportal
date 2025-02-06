@@ -39,8 +39,8 @@ def create_observation_strings(request):
             raise ValueError(f"Parameter {param} required.")
 
     if any(
-        filt not in ["g", "r", "i", "NoFilter"]
-        for filt in request.payload["observation_choices"]
+        obs_filter not in ["g", "r", "i", "NoFilter"]
+        for obs_filter in request.payload["observation_choices"]
     ):
         raise ValueError(
             f"Filter configuration {request.payload['observation_choices']} unknown."
@@ -61,7 +61,7 @@ def create_observation_strings(request):
     ):
         raise ValueError("exposure_time must be positive or -1.")
 
-    filts = {
+    filters = {
         "NoFilter": 0,
         "g": 13,
         "r": 14,
@@ -82,6 +82,7 @@ def create_observation_strings(request):
 
         phase_angle = np.rad2deg(moon_phase_angle(tt).value)
 
+        sequence = {}
         if last_detected_mag <= 17.0:
             if phase_angle > 60:
                 sequence = {
@@ -187,29 +188,32 @@ def create_observation_strings(request):
             raise ValueError("Default sequence not available for this telescope")
 
         observations = []
-        for filt in seq:
-            exp_count, exposure_time = seq[filt]
-            observations.extend([f"{exposure_time} {filts[filt]}"] * exp_count)
+        for default_filter in seq:
+            exp_count, exposure_time = seq[default_filter]
+            observations.extend(
+                [f"{exposure_time} {filters[default_filter]}"] * exp_count
+            )
 
     else:
-        for filt in request.payload["observation_choices"]:
-            observations.append(f"{request.payload['exposure_time']} {filts[filt]}")
+        for obs_filter in request.payload["observation_choices"]:
+            observations.append(
+                f"{request.payload['exposure_time']} {filters[obs_filter]}"
+            )
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
+    total_time = 0.0
     observation_strings = []
     number_of_strings, remainder = np.divmod(len(observations), 6)
     for ii in range(number_of_strings + 1):
-        if ii == number_of_strings:
-            obs_filler = ["0 0"] * (int(6 - remainder))
-        else:
-            obs_filler = []
+        obs_filler = []
+        if ii == number_of_strings and remainder != 0:
+            obs_filler = ["0 0"] * (6 - int(remainder) - 1) + ["0 0 "]
 
         obs = observations[ii * 6 : (ii + 1) * 6]
 
-        total_time = 0.0
         for o in obs:
-            exposure_time, filt = o.split(" ")
-            total_time = 40 + int(exposure_time) + total_time
+            exposure_time = o.split(" ")[0]
+            total_time += 45 + int(exposure_time)
 
         if ii == 0:
             ttdiff = 0 * u.s
@@ -218,9 +222,10 @@ def create_observation_strings(request):
 
         ttline = tt + ttdiff
 
-        observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
-        observation_strings.append(observation_string)
-
+        if obs:
+            observation_strings.append(
+                f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}'
+            )
     return observation_strings
 
 
