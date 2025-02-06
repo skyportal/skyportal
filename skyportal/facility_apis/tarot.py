@@ -279,6 +279,8 @@ class TAROTAPI(FollowUpAPI):
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TAROT.
+        For TAROT, this means adding a new scene to a request already created.
+        One scene is created for each group of 6 or less exposure_count * filter.
 
         Parameters
         ----------
@@ -300,6 +302,7 @@ class TAROTAPI(FollowUpAPI):
 
         observation_string = create_observation_string(request)
 
+        # Create one or more new scene in a request using an observation string
         payload = {
             "type": "defaultshort",
             "mod": "new",
@@ -379,13 +382,15 @@ class TAROTAPI(FollowUpAPI):
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
 
+        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+        # Each identifier corresponds to a different status, as shown below:
         status_dict = {
-            "0": "not planified",
-            "1": "end observation before range",
-            "2": "start obs after range",
+            "0": "not planned",
+            "1": "observation ended before range",
+            "2": "observation started after range",
             "4": "over quota",
-            "5": "planified",
-            "6": "planified over",
+            "5": "planned",
+            "6": "planned over",
         }
 
         # If request exposure_count * nb_filter > 6, multiple scenes are created
