@@ -377,12 +377,12 @@ class TAROTAPI(FollowUpAPI):
         )
 
         status_dict = {
-            "0": "Not planified",
-            "1": "End observation before range",
-            "2": "Start obs after range",
-            "4": "Over quota",
-            "5": "Planified",
-            "6": "Planified over",
+            "0": "not planified",
+            "1": "end observation before range",
+            "2": "start obs after range",
+            "4": "over quota",
+            "5": "planified",
+            "6": "planified over",
         }
         request_status = None
         for scene_id in insert_scene_ids:
@@ -408,6 +408,7 @@ class TAROTAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
         session.add(transaction)
+        session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
