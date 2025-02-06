@@ -387,22 +387,24 @@ class TAROTAPI(FollowUpAPI):
             "5": "planified",
             "6": "planified over",
         }
-        request_status = None
-        for scene_id in insert_scene_ids:
-            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-            pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
-            match = re.search(pattern, response.text)
-            if match is not None:
-                scene_status_index = match.group(1)
-                if scene_status_index != "5" and scene_status_index != "6":
-                    request_status = status_dict.get(
-                        scene_status_index, "Not planified"
-                    )
-            else:
-                request_status = f"Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
 
-        if request_status is not None:
-            request.status = f"rejected: {request_status}"
+        # If the request exposure count is big enough, multiple scenes are created
+        # But we only check the status of the first scene
+        scene_id = insert_scene_ids[0]
+
+        manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+        pattern = (
+            rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
+        )
+        match = re.search(pattern, response.text)
+        if match is not None:
+            scene_status_index = match.group(1)
+            if scene_status_index != "5" and scene_status_index != "6":
+                request.status = (
+                    f"rejected: {status_dict.get(scene_status_index, 'Not planified')}"
+                )
+        else:
+            request.status = f"rejected: Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
