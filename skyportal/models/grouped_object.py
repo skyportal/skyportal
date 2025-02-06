@@ -19,13 +19,10 @@ class GroupedObject(Base):
     """
 
     create = read = public  # Anyone can create and read
-    update = delete = AccessibleIfUserMatches(
-        'created_by'
-    )  # Changed from 'user' to 'created_by'
+    update = delete = AccessibleIfUserMatches('created_by')
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     name = sa.Column(
-        sa.String, nullable=False, doc="Name/identifier for this grouped object"
+        sa.String, primary_key=True, doc="Name/identifier for this grouped object"
     )
 
     type = sa.Column(

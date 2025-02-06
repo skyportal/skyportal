@@ -88,28 +88,28 @@ class GroupedObjectHandler(BaseHandler):
                     origin=data.get('origin'),
                 )
 
-                print(grouped_obj)
-
                 session.add(grouped_obj)
                 session.commit()
 
-                return self.success(data={'id': grouped_obj.id})
+                result = grouped_obj.to_dict()
+                result['created_by'] = grouped_obj.created_by.to_dict()
+                return self.success(data=result)
 
             except Exception as e:
                 return self.error(f'Error creating grouped object: {str(e)}')
 
     @auth_or_token
-    def get(self, grouped_object_id=None):
+    def get(self, grouped_object_name=None):
         """
         ---
         single:
           summary: Retrieve a grouped object
           parameters:
             - in: path
-              name: grouped_object_id
+              name: grouped_object_name
               required: true
               schema:
-                type: integer
+                type: string
           responses:
             200:
               content:
@@ -128,15 +128,15 @@ class GroupedObjectHandler(BaseHandler):
                   schema: ArrayOfGroupedObjects
         """
         with self.Session() as session:
-            if grouped_object_id is not None:
+            if grouped_object_name is not None:
                 stmt = (
                     GroupedObject.select(self.current_user)
-                    .where(GroupedObject.id == int(grouped_object_id))
+                    .where(GroupedObject.name == grouped_object_name)
                     .options(sa.orm.joinedload(GroupedObject.objs))
                 )
                 grouped_obj = session.scalars(stmt).first()
                 if grouped_obj is None:
-                    return self.error('Invalid grouped object ID', status=404)
+                    return self.error('Invalid grouped object name', status=404)
 
                 result = grouped_obj.to_dict()
                 result['created_by'] = grouped_obj.created_by.to_dict()
@@ -154,13 +154,13 @@ class GroupedObjectHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(['Upload data'])
-    def delete(self, grouped_object_id):
+    def delete(self, grouped_object_name):
         """
         ---
         summary: Delete a grouped object
         parameters:
           - in: path
-            name: grouped_object_id
+            name: grouped_object_name
             required: true
             schema:
               type: string
@@ -176,19 +176,21 @@ class GroupedObjectHandler(BaseHandler):
         """
         with self.Session() as session:
             stmt = GroupedObject.select(self.current_user, mode='delete').where(
-                GroupedObject.id == grouped_object_id
+                GroupedObject.name == grouped_object_name
             )
             grouped_obj = session.scalars(stmt).first()
             if grouped_obj is None:
-                return self.error('Invalid grouped object ID', status=404)
+                return self.error('Invalid grouped object name', status=404)
 
             session.delete(grouped_obj)
             session.commit()
 
-            return self.success()
+            result = grouped_obj.to_dict()
+            result['created_by'] = grouped_obj.created_by.to_dict()
+            return self.success(data=result)
 
     @permissions(['Upload data'])
-    def patch(self, grouped_object_id):
+    def patch(self, grouped_object_name):
         """
         ---
         summary: Update a grouped object
@@ -196,19 +198,16 @@ class GroupedObjectHandler(BaseHandler):
           - grouped_objects
         parameters:
           - in: path
-            name: grouped_object_id
+            name: grouped_object_name
             required: true
             schema:
-              type: integer
+              type: string
         requestBody:
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  name:
-                    type: string
-                    description: Name/identifier for the grouped object
                   type:
                     type: string
                     description: Type of grouped object
@@ -240,13 +239,17 @@ class GroupedObjectHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GroupedObject.select(self.current_user, mode='update').where(
-                GroupedObject.id == int(grouped_object_id)
+                GroupedObject.name == grouped_object_name
             )
-            # stmt = sa.select(GroupedObject).where(GroupedObject.id == int(grouped_object_id))
             grouped_obj = session.scalars(stmt).first()
             if grouped_obj is None:
                 return self.error(
-                    'Invalid grouped object ID or you do not have permission to update this grouped object'
+                    'Invalid grouped object name or you do not have permission to update this grouped object'
+                )
+
+            if 'name' in data:
+                return self.error(
+                    'Cannot modify the name of a grouped object as it is the primary key'
                 )
 
             if 'obj_ids' in data:
@@ -262,8 +265,6 @@ class GroupedObjectHandler(BaseHandler):
                 grouped_obj.objs = objs
 
             # Update other fields if provided
-            if 'name' in data:
-                grouped_obj.name = data['name']
             if 'type' in data:
                 grouped_obj.type = data['type']
             if 'description' in data:
@@ -275,6 +276,8 @@ class GroupedObjectHandler(BaseHandler):
 
             try:
                 session.commit()
-                return self.success()
+                result = grouped_obj.to_dict()
+                result['created_by'] = grouped_obj.created_by.to_dict()
+                return self.success(data=result)
             except Exception as e:
                 return self.error(f'Error updating grouped object: {str(e)}')

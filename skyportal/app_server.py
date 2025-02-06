@@ -382,7 +382,7 @@ skyportal_handlers = [
     (r'/api/localization(/.*)/notice(/.*)?', LocalizationNoticeHandler),
     (r'/api/localizationcrossmatch', LocalizationCrossmatchHandler),
     (r'/api/groups/public', PublicGroupHandler),
-    (r'/api/grouped_object(/[0-9]+)?', GroupedObjectHandler),
+    (r'/api/grouped_object(/[^/]+)?', GroupedObjectHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
     (
