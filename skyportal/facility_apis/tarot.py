@@ -202,7 +202,7 @@ def create_observation_strings(request):
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
     total_time = 0.0
-    observation_strings = []
+    observation_strings = ""
     number_of_strings, remainder = np.divmod(len(observations), 6)
     for ii in range(number_of_strings + 1):
         obs_filler = []
@@ -223,9 +223,7 @@ def create_observation_strings(request):
         ttline = tt + ttdiff
 
         if obs:
-            observation_strings.append(
-                f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}'
-            )
+            observation_strings += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
     return observation_strings
 
 
