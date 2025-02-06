@@ -19,7 +19,7 @@ env, cfg = load_env()
 log = make_log("facility_apis/tarot")
 
 
-def create_observation_strings(request):
+def create_observation_string(request):
     """Create the observation string to send to TAROT.
 
     Parameters
@@ -202,7 +202,7 @@ def create_observation_strings(request):
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
     total_time = 0.0
-    observation_strings = ""
+    observation_string = ""
     number_of_strings, remainder = np.divmod(len(observations), 6)
     for ii in range(number_of_strings + 1):
         obs_filler = []
@@ -223,8 +223,8 @@ def create_observation_strings(request):
         ttline = tt + ttdiff
 
         if obs:
-            observation_strings += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
-    return observation_strings
+            observation_string += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
+    return observation_string
 
 
 def login_to_tarot(request, session, altdata):
@@ -298,7 +298,7 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        observation_strings = create_observation_strings(request)
+        observation_string = create_observation_string(request)
 
         payload = {
             "type": "defaultshort",
@@ -307,7 +307,7 @@ class TAROTAPI(FollowUpAPI):
             "idscene": "0",
             "hashuser": hash_user,
             "check[type]": "IM",
-            "data": observation_strings,
+            "data": observation_string,
             "Submit": "Ok for quick depot",
         }
 
