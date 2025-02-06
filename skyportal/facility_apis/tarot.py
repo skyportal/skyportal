@@ -1,5 +1,4 @@
 import re
-import time
 from datetime import datetime
 
 import astropy.units as u
@@ -403,11 +402,41 @@ class TAROTAPI(FollowUpAPI):
 
         session.add(transaction)
 
+        if kwargs.get("refresh_source", False):
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+            )
+
+    @staticmethod
+    def get(request, session, **kwargs):
+        """Get the status of a follow-up request from TAROT.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to get the status for.
+        """
+        if cfg["app.tarot_endpoint"] is None:
+            raise ValueError("TAROT endpoint not configured")
+
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError("Missing allocation information.")
+
         if request.status == "submitted":
             insert_scene_ids = re.findall(
-                r"insert_id\s*=\s*(\d+)", response.content.decode()
+                r"insert_id\s*=\s*(\d+)",
+                request.transactions[-1].response["content"],
             )
-            time.sleep(3)
+
             request_status = check_request_on_tarot_manager(
                 request,
                 session,
@@ -419,19 +448,18 @@ class TAROTAPI(FollowUpAPI):
             if request_status is not None:
                 request.status = f"rejected: {request_status}"
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+            if kwargs.get("refresh_source", False):
+                flow = Flow()
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
 
     @staticmethod
     def delete(request, session, **kwargs):
