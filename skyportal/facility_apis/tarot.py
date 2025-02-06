@@ -20,13 +20,13 @@ env, cfg = load_env()
 log = make_log("facility_apis/tarot")
 
 
-def validate_request_to_tarot(request):
-    """Validate FollowupRequest contents for TAROT queue.
+def create_observation_string(request):
+    """Create the observation string to send to TAROT.
 
     Parameters
     ----------
     request: skyportal.models.FollowupRequest
-        The request to send to TAROT.
+        The request information to send to TAROT.
     """
 
     for param in [
@@ -368,7 +368,7 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        observation_strings = validate_request_to_tarot(request)
+        observation_strings = create_observation_string(request)
 
         payload = {
             "type": "defaultshort",
