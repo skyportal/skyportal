@@ -211,19 +211,14 @@ def create_observation_string(request):
 
         obs = observations[ii * 6 : (ii + 1) * 6]
 
-        for o in obs:
-            exposure_time = o.split(" ")[0]
-            total_time += 45 + int(exposure_time)
-
-        if ii == 0:
-            ttdiff = 0 * u.s
-        else:
-            ttdiff = total_time * u.s
-
-        ttline = tt + ttdiff
+        ttline = tt + (total_time * u.s)
 
         if obs:
             observation_string += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
+
+        if ii != number_of_strings:
+            total_time += sum(45 + int(o.split(" ")[0]) for o in obs)
+
     return observation_string
 
 
