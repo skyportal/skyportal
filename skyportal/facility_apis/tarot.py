@@ -559,51 +559,10 @@ class TAROTAPI(FollowUpAPI):
                 ],
                 "default": "Tarot_Calern",
             },
-            "observation_choices": {
-                "type": "array",
-                "title": "Desired Observations",
-                "items": {
-                    "type": "string",
-                    "enum": ["g", "r", "i", "z"],
-                },
-                "uniqueItems": True,
-                "minItems": 1,
-            },
-            "exposure_time": {
-                "title": "Exposure Time [s]",
-                "type": "number",
-                "default": 180.0,
-            },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
-            },
-            "maximum_airmass": {
-                "title": "Maximum Airmass (1-3)",
-                "type": "number",
-                "default": 2.0,
-                "minimum": 1,
-                "maximum": 3,
-            },
-            "tolerance": {
-                "type": "number",
-                "title": "Tolerance [min.]",
-                "default": 60,
-            },
-            "minimum_elevation": {
-                "title": "Minimum Elevation [deg.] (0-90)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 10,
-                "maximum": 90,
-            },
-            "minimum_lunar_distance": {
-                "title": "Minimum Lunar Distance [deg] (0-180)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 0,
-                "maximum": 180,
+            "date": {
+                "type": "string",
+                "default": datetime.utcnow().isoformat(),
+                "title": "Date (UT)",
             },
             "priority": {
                 "type": "number",
@@ -612,23 +571,23 @@ class TAROTAPI(FollowUpAPI):
                 "maximum": 5.0,
                 "title": "Priority (-5 - 5)",
             },
-            "date": {
-                "type": "string",
-                "format": "date-time",
-                "default": datetime.utcnow().isoformat(),
-                "title": "Date (UT)",
+            "exposure_time": {
+                "title": "Exposure Time [s] (use -1 if want defaults)",
+                "type": "number",
+                "default": 300.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
             },
         },
         "required": [
-            "observation_choices",
+            "station_name",
+            "date",
             "exposure_time",
             "exposure_counts",
-            "maximum_airmass",
-            "tolerance",
-            "minimum_elevation",
-            "minimum_lunar_distance",
-            "priority",
-            "date",
+            "observation_choices",
         ],
         "dependencies": {
             "station_name": {
@@ -646,7 +605,7 @@ class TAROTAPI(FollowUpAPI):
                                 "title": "Desired Observations",
                                 "items": {
                                     "type": "string",
-                                    "enum": ["g", "r", "i", "z"],
+                                    "enum": ["g", "r", "i", "NoFilter"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
