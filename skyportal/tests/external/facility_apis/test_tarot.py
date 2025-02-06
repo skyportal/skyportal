@@ -98,12 +98,15 @@ def test_create_observation_string(public_source):
     observation_strings = create_observation_string(followup_request)
 
     # The date of the second line should be after the exposure time of all the first exposure plus the time between
-    date_after = datetime.strptime(
+    date_first_scene = datetime.strptime(
         followup_request.payload["date"], "%Y-%m-%dT%H:%M:%S.%f"
-    ) + timedelta(seconds=(followup_request.payload["exposure_time"] + 45) * 9)
+    )
+    date_second_scene = date_first_scene + timedelta(
+        seconds=(followup_request.payload["exposure_time"] + 45) * 6
+    )
 
     assert observation_strings == (
-        f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_first_scene.isoformat(timespec="milliseconds")} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
@@ -112,11 +115,56 @@ def test_create_observation_string(public_source):
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
         f"{followup_request.payload['exposure_time']} {filter_value['i']} "
         f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
-        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_after.isoformat(timespec="milliseconds")} '
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_second_scene.isoformat(timespec="milliseconds")} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
         f"{followup_request.payload['exposure_time']} {filter_value['i']} "
+        f"0 0 "
+        f"0 0 "
+        f"0 0 "
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
+    )
+
+    # Test with 13 exposure counts by filter with 1 filter
+    followup_request.payload["exposure_counts"] = 13
+    followup_request.payload["observation_choices"] = ["g"]
+    observation_strings = create_observation_string(followup_request)
+
+    date_first_scene = datetime.strptime(
+        followup_request.payload["date"], "%Y-%m-%dT%H:%M:%S.%f"
+    )
+    date_second_scene = date_first_scene + timedelta(
+        seconds=(followup_request.payload["exposure_time"] + 45) * 6
+    )
+    date_third_scene = date_second_scene + timedelta(
+        seconds=(followup_request.payload["exposure_time"] + 45) * 6
+    )
+
+    assert observation_strings == (
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_first_scene.isoformat(timespec="milliseconds")} '
+        f"0.004180983 0.00 "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_second_scene.isoformat(timespec="milliseconds")} '
+        f"0.004180983 0.00 "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_third_scene.isoformat(timespec="milliseconds")} '
+        f"0.004180983 0.00 "
+        f"{followup_request.payload['exposure_time']} {filter_value['g']} "
+        f"0 0 "
+        f"0 0 "
         f"0 0 "
         f"0 0 "
         f"0 0 "
