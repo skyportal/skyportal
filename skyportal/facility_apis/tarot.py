@@ -320,6 +320,7 @@ def check_request_on_tarot_manager(
     status_dict = {
         "0": "Not planified",
         "1": "End observation before range",
+        "2": "Start obs after range",
         "4": "Over quota",
         "5": "Planified",
         "6": "Planified over",
