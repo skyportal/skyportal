@@ -34,13 +34,9 @@ def test_create_observation_string(public_source):
     followup_request.obj = public_source
 
     observation_strings = create_observation_strings(followup_request)
-    assert isinstance(observation_strings, list)
-    assert all(
-        isinstance(observation_string, str)
-        for observation_string in observation_strings
-    )
+    assert isinstance(observation_strings, str)
 
-    assert observation_strings[0] == (
+    assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} 0 "
@@ -49,13 +45,13 @@ def test_create_observation_string(public_source):
         f"0 0 "
         f"0 0 "
         f"0 0 "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
     )
 
     # Test with 1 exposure count by filter with 1 filters
     followup_request.payload["observation_choices"] = ["g"]
     observation_strings = create_observation_strings(followup_request)
-    assert observation_strings[0] == (
+    assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
@@ -64,13 +60,13 @@ def test_create_observation_string(public_source):
         f"0 0 "
         f"0 0 "
         f"0 0 "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
     )
 
     # Test with 1 exposure count by filter with all filters
     followup_request.payload["observation_choices"] = ["g", "r", "i"]
     observation_strings = create_observation_strings(followup_request)
-    assert observation_strings[0] == (
+    assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
@@ -79,13 +75,13 @@ def test_create_observation_string(public_source):
         f"0 0 "
         f"0 0 "
         f"0 0 "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
     )
 
     # Test with 2 exposure counts by filter with all filters
     followup_request.payload["exposure_counts"] = 2
     observation_strings = create_observation_strings(followup_request)
-    assert observation_strings[0] == (
+    assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
@@ -94,14 +90,19 @@ def test_create_observation_string(public_source):
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
         f"{followup_request.payload['exposure_time']} {filter_value['i']} "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
     )
 
     # Test with 3 exposure counts by filter with all filters
     followup_request.payload["exposure_counts"] = 3
     observation_strings = create_observation_strings(followup_request)
 
-    assert observation_strings[0] == (
+    # The date of the second line should be after the exposure time of all the first exposure plus the time between
+    date_after = datetime.strptime(
+        followup_request.payload["date"], "%Y-%m-%dT%H:%M:%S.%f"
+    ) + timedelta(seconds=(followup_request.payload["exposure_time"] + 45) * 9)
+
+    assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
@@ -110,12 +111,8 @@ def test_create_observation_string(public_source):
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
         f"{followup_request.payload['exposure_time']} {filter_value['i']} "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
-    )
-    # The date of the second line should be after the exposure time of all the first exposure
-    assert (
-        observation_strings[1]
-        != f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
+        f'"{public_source.id}" {public_source.ra} {public_source.dec} {date_after.isoformat(timespec="milliseconds")} '
         f"0.004180983 0.00 "
         f"{followup_request.payload['exposure_time']} {filter_value['g']} "
         f"{followup_request.payload['exposure_time']} {filter_value['r']} "
@@ -123,5 +120,5 @@ def test_create_observation_string(public_source):
         f"0 0 "
         f"0 0 "
         f"0 0 "
-        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}"
+        f"{followup_request.payload['priority']} {followup_request.payload['station_name']}\n\r"
     )
