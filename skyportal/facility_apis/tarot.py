@@ -270,79 +270,6 @@ def login_to_tarot(request, session, altdata):
     raise ValueError(f"Error trying to login to TAROT")
 
 
-def check_request_on_tarot_manager(
-    request, session, altdata, station_name, obj_id, insert_scene_ids
-):
-    """Check the request status on the TAROT manager.
-
-    Parameters
-    ----------
-    request: skyportal.models.FollowupRequest
-        The request to send to TAROT.
-    session: sqlalchemy.Session
-        The database session.
-    altdata: dict
-        The altdata dictionary with credentials and request id.
-    station_name: str
-        The station name. (e.g., "Tarot_Calern", "Tarot_Chili", "Tarot_Reunion")
-    obj_id: str
-        The source id.
-    insert_scene_ids: list
-        The list of scene ids to check.
-
-    Returns
-    -------
-    request_status: str
-        The status of the request on the TAROT manager.
-    """
-    from ..models import FacilityTransaction
-
-    url_dict = {
-        "Tarot_Calern": 1,
-        "Tarot_Chili": 2,
-        "Tarot_Reunion": 8,
-    }
-    response = requests.get(
-        f"{cfg['app.tarot_endpoint']}/rejected{url_dict[station_name]}.txt",
-        auth=(altdata["browser_username"], altdata["browser_password"]),
-    )
-
-    if response.status_code != 200:
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request),
-            response=http.serialize_requests_response(response),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-        session.add(transaction)
-        return None
-
-    status_dict = {
-        "0": "Not planified",
-        "1": "End observation before range",
-        "2": "Start obs after range",
-        "4": "Over quota",
-        "5": "Planified",
-        "6": "Planified over",
-    }
-    request_status = None
-
-    for scene_id in insert_scene_ids:
-        manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-        pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{obj_id}.*?\((\d+)\)"
-        match = re.search(pattern, response.text)
-        if match is not None:
-            scene_status_index = match.group(1)
-            if scene_status_index != "5" and scene_status_index != "6":
-                request_status = status_dict.get(scene_status_index, "Not planified")
-        else:
-            request_status = (
-                f"Scene {manager_scene_id} for {obj_id} not found on TAROT manager"
-            )
-
-    return request_status
-
-
 class TAROTAPI(FollowUpAPI):
     """SkyPortal interface to the TAROT"""
 
@@ -425,6 +352,8 @@ class TAROTAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to get the status for.
         """
+        from ..models import FacilityTransaction
+
         if cfg["app.tarot_endpoint"] is None:
             raise ValueError("TAROT endpoint not configured")
 
@@ -432,35 +361,66 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        if request.status == "submitted":
-            insert_scene_ids = re.findall(
-                r"insert_id\s*=\s*(\d+)",
-                request.transactions[-1].response["content"],
-            )
+        insert_scene_ids = re.findall(
+            r"insert_id\s*=\s*(\d+)",
+            request.transactions[-1].response["content"],
+        )
 
-            request_status = check_request_on_tarot_manager(
-                request,
-                session,
-                altdata,
-                request.payload["station_name"],
-                request.obj_id,
-                insert_scene_ids,
-            )
-            if request_status is not None:
-                request.status = f"rejected: {request_status}"
+        url_dict = {
+            "Tarot_Calern": 1,
+            "Tarot_Chili": 2,
+            "Tarot_Reunion": 8,
+        }
+        response = requests.get(
+            f"{cfg['app.tarot_endpoint']}/rejected{url_dict[request.payload['station_name']]}.txt",
+            auth=(altdata["browser_username"], altdata["browser_password"]),
+        )
 
-            if kwargs.get("refresh_source", False):
-                flow = Flow()
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": request.obj.internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow = Flow()
-                flow.push(
-                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-                )
+        status_dict = {
+            "0": "Not planified",
+            "1": "End observation before range",
+            "2": "Start obs after range",
+            "4": "Over quota",
+            "5": "Planified",
+            "6": "Planified over",
+        }
+        request_status = None
+        for scene_id in insert_scene_ids:
+            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+            pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
+            match = re.search(pattern, response.text)
+            if match is not None:
+                scene_status_index = match.group(1)
+                if scene_status_index != "5" and scene_status_index != "6":
+                    request_status = status_dict.get(
+                        scene_status_index, "Not planified"
+                    )
+            else:
+                request_status = f"Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
+
+        if request_status is not None:
+            request.status = f"rejected: {request_status}"
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+        session.add(transaction)
+
+        if kwargs.get("refresh_source", False):
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+            )
 
     @staticmethod
     def delete(request, session, **kwargs):
