@@ -19,7 +19,7 @@ env, cfg = load_env()
 log = make_log("facility_apis/tarot")
 
 
-def create_observation_string(request):
+def create_observation_strings(request):
     """Create the observation string to send to TAROT.
 
     Parameters
@@ -295,7 +295,7 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        observation_strings = create_observation_string(request)
+        observation_strings = create_observation_strings(request)
 
         payload = {
             "type": "defaultshort",
