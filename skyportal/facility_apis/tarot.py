@@ -388,7 +388,7 @@ class TAROTAPI(FollowUpAPI):
             "6": "planified over",
         }
 
-        # If the request exposure count is big enough, multiple scenes are created
+        # If request exposure_count * nb_filter > 6, multiple scenes are created
         # But we only check the status of the first scene
         scene_id = insert_scene_ids[0]
 
