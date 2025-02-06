@@ -349,7 +349,7 @@ def check_request_on_tarot_manager(
             if scene_status_index != "5" and scene_status_index != "6":
                 request_status = status_dict.get(scene_status_index, "Not planified")
         else:
-            raise ValueError(
+            request_status = (
                 f"Scene {manager_scene_id} for {obj_id} not found on TAROT manager"
             )
 
