@@ -276,6 +276,8 @@ const PhotometryPlot = ({
   const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
     useState(false);
 
+  const daysToSec = (days) => days * 24 * 60 * 60;
+
   const preparePhotometry = (photometryData, distance_modulus) => {
     const stats = {
       mag: {
@@ -288,27 +290,26 @@ const PhotometryPlot = ({
         max: 0,
         range: [0, 100],
       },
-      days: {
-        is_days_ago: !t0 || !displayXAxisSinceT0,
-        min: 100000,
-        max: 0,
-        extra: [100000, 0],
-      },
       mjd: {
         min: 100000,
         max: 0,
         extra: [100000, 0],
       },
     };
+    stats[!t0 || !displayXAxisSinceT0 ? "days_ago" : "sec_since_t0"] = {
+      min: 100000,
+      max: 0,
+      extra: [100000, 0],
+    };
 
     const now = mjdnow();
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
-      if (stats.days.is_days_ago) {
-        newPoint.days = now - newPoint.mjd;
+      if (stats.days_ago) {
+        newPoint.days_ago = now - newPoint.mjd;
       } else {
-        newPoint.days = newPoint.mjd - t0;
+        newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0);
       }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
@@ -387,8 +388,19 @@ const PhotometryPlot = ({
       );
       stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
       stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
-      stats.days.min = Math.min(stats.days.min, newPoint.days);
-      stats.days.max = Math.max(stats.days.max, newPoint.days);
+      if (newPoint.days_ago) {
+        stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
+        stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      } else {
+        stats.sec_since_t0.min = Math.min(
+          stats.sec_since_t0.min,
+          newPoint.sec_since_t0,
+        );
+        stats.sec_since_t0.max = Math.max(
+          stats.sec_since_t0.max,
+          newPoint.sec_since_t0,
+        );
+      }
       stats.flux.min = Math.min(
         stats.flux.min,
         newPoint.flux || newPoint.fluxerr,
@@ -406,26 +418,31 @@ const PhotometryPlot = ({
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-
-    if (t0 && t0AsOrigin) {
-      stats.mjd.range = [t0, stats.mjd.max + 1];
-      stats.days.range = stats.days.is_days_ago
-        ? [now - t0, stats.days.min - 1]
-        : [0, stats.days.max + 1];
+    stats.mjd.range =
+      t0 && t0AsOrigin
+        ? [t0, stats.mjd.max + 1]
+        : [stats.mjd.min - 1, stats.mjd.max + 1];
+    if (stats.days_ago) {
+      stats.days_ago.range =
+        t0 && t0AsOrigin
+          ? [now - t0, stats.days_ago.min - 1]
+          : [stats.days_ago.max + 1, stats.days_ago.min - 1];
     } else {
-      stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
-      stats.days.range = stats.days.is_days_ago
-        ? [stats.days.max + 1, stats.days.min - 1]
-        : [stats.days.min - 1, stats.days.max + 1];
+      stats.sec_since_t0.range =
+        t0 && t0AsOrigin
+          ? [0, stats.sec_since_t0.max + daysToSec(1)]
+          : [
+              stats.sec_since_t0.min - daysToSec(1),
+              stats.sec_since_t0.max + daysToSec(1),
+            ];
     }
-
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
     return [newPhotometryData, stats];
   };
 
   const groupPhotometry = (photometryData, usingDuplicates = false) => {
-    // before grouping, we compute the max and min for mag, flux, and days
+    // before grouping, we compute the max and min for mag, flux, and days or sec since T0
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc, point) => {
@@ -601,9 +618,12 @@ const PhotometryPlot = ({
           };
 
           const secondaryAxisX = {
-            x: photometryStats.days.is_days_ago
-              ? [photometryStats.days.max, photometryStats.days.min]
-              : [photometryStats.days.min, photometryStats.days.max],
+            x: photometryStats.days_ago
+              ? [photometryStats.days_ago.max, photometryStats.days_ago.min]
+              : [
+                  photometryStats.sec_since_t0.min,
+                  photometryStats.sec_since_t0.max,
+                ],
             y: [photometryStats.mag.max, photometryStats.mag.min],
             mode: "markers",
             type: "scatter",
@@ -858,10 +878,12 @@ const PhotometryPlot = ({
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
-        title: t0 && displayXAxisSinceT0 ? "Days Since T0" : "Days Ago",
-        range: photStats_value.days.range.map(
-          displayXAxisInlog ? Math.log10 : (x) => x,
-        ),
+        title: t0 && displayXAxisSinceT0 ? "T - T0 (s)" : "Days Ago",
+        range: photStats_value.days_ago
+          ? photStats_value.days_ago.range
+          : photStats_value.sec_since_t0.range.map(
+              displayXAxisInlog ? Math.log10 : (x) => x,
+            ),
         overlaying: "x",
         side: "bottom",
         type: displayXAxisInlog ? "log" : "linear",
@@ -915,6 +937,7 @@ const PhotometryPlot = ({
     if (t0 >= t0Max) {
       setT0AsOrigin(false);
       setDisplayXAxisSinceT0(false);
+      setDisplayXAxisInlog(false);
     }
   }, [t0, t0Max]);
 
@@ -1414,7 +1437,13 @@ const PhotometryPlot = ({
                   <Switch
                     disabled={t0 >= t0Max}
                     checked={t0AsOrigin}
-                    onChange={() => setT0AsOrigin(!t0AsOrigin)}
+                    onChange={() => {
+                      if (t0AsOrigin) {
+                        setDisplayXAxisSinceT0(false);
+                        setDisplayXAxisInlog(false);
+                      }
+                      setT0AsOrigin(!t0AsOrigin);
+                    }}
                     inputProps={{ "aria-label": "controlled" }}
                   />
                 </div>
@@ -1447,7 +1476,7 @@ const PhotometryPlot = ({
           </div>
         </div>
         <div className={classes.gridItem}>
-          {t0 && (
+          {t0 && t0AsOrigin && (
             <div
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
@@ -1459,27 +1488,32 @@ const PhotometryPlot = ({
                   <Switch
                     disabled={t0 >= t0Max}
                     checked={displayXAxisSinceT0}
-                    onChange={() =>
-                      setDisplayXAxisSinceT0(!displayXAxisSinceT0)
-                    }
+                    onChange={() => {
+                      setDisplayXAxisInlog(!displayXAxisSinceT0);
+                      setDisplayXAxisSinceT0(!displayXAxisSinceT0);
+                    }}
                     inputProps={{ "aria-label": "controlled" }}
                   />
                 </div>
               </Tooltip>
             </div>
           )}
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <Typography id="T0-start-range" noWrap>
-              X axis in log
-            </Typography>
-            <div className={classes.switchContainer}>
-              <Switch
-                checked={displayXAxisInlog}
-                onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
-                inputProps={{ "aria-label": "controlled" }}
-              />
+          {t0 && t0AsOrigin && displayXAxisSinceT0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                T - T0 in log
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={displayXAxisInlog}
+                  onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div
           className={classes.gridItem}
