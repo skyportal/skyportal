@@ -336,7 +336,9 @@ const PhotometryPlot = ({
         );
         return names.length === 0;
       });
-      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+      newPoint.text = displayXAxisInlog
+        ? `T-T0: ${newPoint.sec_since_t0}`
+        : `MJD: ${newPoint.mjd.toFixed(6)}`;
       if (newPoint.mag) {
         newPoint.text += `
         <br>Mag: ${newPoint.mag.toFixed(3)}
@@ -543,7 +545,9 @@ const PhotometryPlot = ({
           const upperLimitsTrace = {
             dataType: "upperLimits",
             isForcedPhotometry: upperLimitisFP,
-            x: upperLimits.map((point) => point.mjd),
+            x: upperLimits.map((point) =>
+              displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
             ),
@@ -578,7 +582,9 @@ const PhotometryPlot = ({
           const detectionsTrace = {
             dataType: "detections",
             isForcedPhotometry: detectionisFP,
-            x: detections.map((point) => point.mjd),
+            x: detections.map((point) =>
+              displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
             ),
@@ -866,32 +872,43 @@ const PhotometryPlot = ({
   const createLayouts = (plotType, photStats_value, dm_value) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
-      newLayouts.xaxis = {
-        title: "MJD",
-        side: "top",
-        type: displayXAxisInlog ? "log" : "linear",
-        range: photStats_value.mjd.range.map(
-          displayXAxisInlog ? Math.log10 : (x) => x,
-        ),
-        tickformat: ".6~f",
-        zeroline: false,
-        ...BASE_LAYOUT,
-      };
       newLayouts.xaxis2 = {
         title: t0 && displayXAxisSinceT0 ? "T - T0 (s)" : "Days Ago",
-        range: photStats_value.days_ago
-          ? photStats_value.days_ago.range
-          : photStats_value.sec_since_t0.range.map(
-              displayXAxisInlog ? Math.log10 : (x) => x,
-            ),
         overlaying: "x",
         side: "bottom",
-        type: displayXAxisInlog ? "log" : "linear",
         showgrid: false,
         zeroline: false,
-        tickformat: ".6~f",
         ...BASE_LAYOUT,
       };
+      if (displayXAxisInlog) {
+        photStats_value.sec_since_t0.range[0] = 1;
+        newLayouts.xaxis2 = {
+          ...newLayouts.xaxis2,
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          range: photStats_value.sec_since_t0.range.map(Math.log10),
+        };
+      } else {
+        newLayouts.xaxis = {
+          title: "MJD",
+          side: "top",
+          type: "linear",
+          range: photStats_value.mjd.range,
+          tickformat: ".6~f",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+        newLayouts.xaxis2 = {
+          ...newLayouts.xaxis2,
+          type: "linear",
+          tickformat: ".6~f",
+          range: (photStats_value.days_ago
+            ? photStats_value.days_ago
+            : photStats_value.sec_since_t0
+          ).range,
+        };
+      }
     } else if (plotType === "period") {
       newLayouts.xaxis = {
         title: "Phase",
@@ -1438,10 +1455,8 @@ const PhotometryPlot = ({
                     disabled={t0 >= t0Max}
                     checked={t0AsOrigin}
                     onChange={() => {
-                      if (t0AsOrigin) {
-                        setDisplayXAxisSinceT0(false);
-                        setDisplayXAxisInlog(false);
-                      }
+                      setDisplayXAxisSinceT0(!t0AsOrigin);
+                      setDisplayXAxisInlog(!t0AsOrigin);
                       setT0AsOrigin(!t0AsOrigin);
                     }}
                     inputProps={{ "aria-label": "controlled" }}
