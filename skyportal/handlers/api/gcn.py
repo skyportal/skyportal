@@ -396,7 +396,12 @@ def post_skymap_from_notice(
                     "dec": dec,
                     "origin": None,
                 }
-                tags_formatted = [tag.upper().strip() for tag in tags]
+                event_tags = []
+                if isinstance(root, dict):
+                    event_tags = get_json_tags(root)
+                else:
+                    event_tags = get_tags(root)
+                tags_formatted = [tag.upper().strip() for tag in event_tags]
                 if "GRB" in tags_formatted:
                     source["name"] = f"GRB-{source_name}"
                     if "SWIFT" in tags_formatted:
