@@ -394,12 +394,6 @@ def get_skymap(root, notice_type, url_timeout=10):
         skymap, properties, tags = from_url(skymap_metadata["url"])
         return skymap, skymap_metadata["url"], properties, tags
     elif status == "cone":
-        tags = []
-        if isinstance(root, dict):
-            try:
-                tags = get_json_tags(root)
-            except Exception as e:
-                print(f"Could not get tags from JSON: {str(e)}")
         return (
             from_cone(
                 ra=skymap_metadata["ra"],
@@ -408,7 +402,7 @@ def get_skymap(root, notice_type, url_timeout=10):
             ),
             None,
             None,
-            tags,
+            [],
         )
     elif status == "healpix_file":
         skymap, properties, tags = from_bytes(skymap_metadata)
