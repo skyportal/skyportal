@@ -1,4 +1,4 @@
-import json
+import re
 from datetime import datetime
 
 import astropy.units as u
@@ -19,28 +19,28 @@ env, cfg = load_env()
 log = make_log("facility_apis/tarot")
 
 
-def validate_request_to_tarot(request):
-    """Validate FollowupRequest contents for TAROT queue.
+def create_observation_string(request):
+    """Create the observation string to send to TAROT.
 
     Parameters
     ----------
     request: skyportal.models.FollowupRequest
-        The request to send to TAROT.
+        The request information to send to TAROT.
     """
 
     for param in [
-        "observation_choices",
-        "exposure_time",
-        "minimum_elevation",
         "station_name",
         "date",
+        "exposure_time",
+        "exposure_counts",
+        "observation_choices",
     ]:
         if param not in request.payload:
             raise ValueError(f"Parameter {param} required.")
 
     if any(
-        filt not in ["B", "V", "R", "I", "g", "r", "i", "z", "NoFilter"]
-        for filt in request.payload["observation_choices"]
+        obs_filter not in ["g", "r", "i", "NoFilter"]
+        for obs_filter in request.payload["observation_choices"]
     ):
         raise ValueError(
             f"Filter configuration {request.payload['observation_choices']} unknown."
@@ -49,12 +49,10 @@ def validate_request_to_tarot(request):
     if request.payload["station_name"] not in [
         "Tarot_Calern",
         "Tarot_Chili",
-        "Zadko_Australia",
-        "VIRT_STT",
         "Tarot_Reunion",
     ]:
         raise ValueError(
-            "observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion"
+            "observation_type must be Tarot_Calern, Tarot_Chili, Tarot_Reunion"
         )
 
     if (
@@ -63,22 +61,11 @@ def validate_request_to_tarot(request):
     ):
         raise ValueError("exposure_time must be positive or -1.")
 
-    if request.payload["minimum_elevation"] < 10:
-        raise ValueError("minimum_elevation must be at least 10 degrees.")
-
-    filts = {
+    filters = {
         "NoFilter": 0,
-        "C": 1,
-        "B": 2,
-        "V": 3,
-        "R": 4,
-        "I": 5,
-        "VN": 6,
         "g": 13,
         "r": 14,
         "i": 15,
-        "z": 16,
-        "U": 19,
     }
     tt = Time(request.payload["date"], format="isot")
     observations = []
@@ -95,6 +82,7 @@ def validate_request_to_tarot(request):
 
         phase_angle = np.rad2deg(moon_phase_angle(tt).value)
 
+        sequence = {}
         if last_detected_mag <= 17.0:
             if phase_angle > 60:
                 sequence = {
@@ -200,42 +188,84 @@ def validate_request_to_tarot(request):
             raise ValueError("Default sequence not available for this telescope")
 
         observations = []
-        for filt in seq:
-            exp_count, exposure_time = seq[filt]
-            observations.extend([f"{exposure_time} {filts[filt]}"] * exp_count)
+        for default_filter in seq:
+            exp_count, exposure_time = seq[default_filter]
+            observations.extend(
+                [f"{exposure_time} {filters[default_filter]}"] * exp_count
+            )
 
     else:
-        for filt in request.payload["observation_choices"]:
-            observations.append(f"{request.payload['exposure_time']} {filts[filt]}")
+        for obs_filter in request.payload["observation_choices"]:
+            observations.append(
+                f"{request.payload['exposure_time']} {filters[obs_filter]}"
+            )
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
-    observation_strings = []
     total_time = 0.0
+    observation_string = ""
     number_of_strings, remainder = np.divmod(len(observations), 6)
     for ii in range(number_of_strings + 1):
-        if ii == number_of_strings:
-            obs_filler = ["0 0"] * (int(6 - remainder))
-        else:
-            obs_filler = []
+        obs_filler = []
+        if ii == number_of_strings and remainder != 0:
+            obs_filler = ["0 0"] * (6 - int(remainder) - 1) + ["0 0 "]
 
         obs = observations[ii * 6 : (ii + 1) * 6]
 
-        total_time = 0.0
-        for o in obs:
-            exposure_time, filt = o.split(" ")
-            total_time = 40 + int(exposure_time) + total_time
+        ttline = tt + (total_time * u.s)
 
-        if ii == 0:
-            ttdiff = 0 * u.s
-        else:
-            ttdiff = total_time * u.s
+        if obs:
+            observation_string += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
 
-        ttline = tt + ttdiff
+        if ii != number_of_strings:
+            total_time += sum(45 + int(o.split(" ")[0]) for o in obs)
 
-        observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
-        observation_strings.append(observation_string)
+    return observation_string
 
-    return observation_strings
+
+def login_to_tarot(request, session, altdata):
+    """Login to TAROT and return the hash user.
+
+    Parameters
+    ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to TAROT.
+    session: sqlalchemy.Session
+        The database session.
+    altdata: dict
+        The altdata dictionary with credentials and request id.
+
+    Returns
+    -------
+    hash_user: str
+        The hash user for the session.
+    """
+    from ..models import FacilityTransaction
+
+    data = {
+        "login": altdata["username"],
+        "pass": altdata["password"],
+        "Submit": "Entry",
+    }
+
+    login_response = requests.post(
+        f"{cfg['app.tarot_endpoint']}/manage/manage/login.php",
+        data=data,
+        auth=(altdata["browser_username"], altdata["browser_password"]),
+    )
+
+    if login_response.status_code == 200 and "hashuser" in login_response.text:
+        hash_user = login_response.text.split("hashuser=")[1][:20]
+        if hash_user is not None and len(hash_user) == 20:
+            return hash_user
+
+    transaction = FacilityTransaction(
+        request=http.serialize_requests_request(login_response.request),
+        response=http.serialize_requests_response(login_response),
+        followup_request=request,
+        initiator_id=request.last_modified_by_id,
+    )
+    session.add(transaction)
+    raise ValueError(f"Error trying to login to TAROT")
 
 
 class TAROTAPI(FollowUpAPI):
@@ -244,6 +274,8 @@ class TAROTAPI(FollowUpAPI):
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TAROT.
+        For TAROT, this means adding a new scene to a request already created.
+        One scene is created for each group of 6 or less exposure_count * filter.
 
         Parameters
         ----------
@@ -252,51 +284,50 @@ class TAROTAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-
         from ..models import FacilityTransaction
 
-        observation_strings = validate_request_to_tarot(request)
+        if cfg["app.tarot_endpoint"] is None:
+            raise ValueError("TAROT endpoint not configured")
 
-        if cfg["app.tarot_endpoint"] is not None:
-            altdata = request.allocation.altdata
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError("Missing allocation information.")
 
-            if not altdata:
-                raise ValueError("Missing allocation information.")
+        hash_user = login_to_tarot(request, session, altdata)
 
-            headers = {
-                "Content-Type": "application/json",
-                "TAROT": altdata["token"],
-            }
-            payload = json.dumps({"script": observation_strings})
-            url = f"{cfg['app.tarot_endpoint']}/newobservation"
+        observation_string = create_observation_string(request)
 
-            r = requests.request(
-                "POST",
-                url,
-                data=payload,
-                headers=headers,
-            )
+        # Create one or more new scene in a request using an observation string
+        payload = {
+            "type": "defaultshort",
+            "mod": "new",
+            "idreq": altdata["request_id"],
+            "idscene": "0",
+            "hashuser": hash_user,
+            "check[type]": "IM",
+            "data": observation_string,
+            "Submit": "Ok for quick depot",
+        }
 
-            if r.status_code == 200:
-                request.status = "submitted"
-            else:
-                request.status = f"rejected: {r.content}"
+        response = requests.post(
+            f"{cfg['app.tarot_endpoint']}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+            data=payload,
+            auth=(altdata["browser_username"], altdata["browser_password"]),
+        )
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
+        if response.status_code != 200 or "New Scene Inserted" not in response.text:
+            request.status = (
+                f"rejected: status code = {response.status_code}\n\r{response.text}"
             )
         else:
             request.status = "submitted"
 
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
         session.add(transaction)
 
@@ -310,8 +341,91 @@ class TAROTAPI(FollowUpAPI):
         if kwargs.get("refresh_requests", False):
             flow = Flow()
             flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+            )
+
+    @staticmethod
+    def get(request, session, **kwargs):
+        """Get the status of a follow-up request from TAROT.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to get the status for.
+        """
+        from ..models import FacilityTransaction
+
+        if cfg["app.tarot_endpoint"] is None:
+            raise ValueError("TAROT endpoint not configured")
+
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError("Missing allocation information.")
+
+        insert_scene_ids = re.findall(
+            r"insert_id\s*=\s*(\d+)",
+            request.transactions[-1].response["content"],
+        )
+
+        url_dict = {
+            "Tarot_Calern": 1,
+            "Tarot_Chili": 2,
+            "Tarot_Reunion": 8,
+        }
+        response = requests.get(
+            f"{cfg['app.tarot_endpoint']}/rejected{url_dict[request.payload['station_name']]}.txt",
+            auth=(altdata["browser_username"], altdata["browser_password"]),
+        )
+
+        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+        # Each identifier corresponds to a different status, as shown below:
+        status_dict = {
+            "0": "not planned",
+            "1": "observation ended before range",
+            "2": "observation started after range",
+            "4": "over quota",
+            "5": "planned",
+            "6": "planned over",
+        }
+
+        # If request exposure_count * nb_filter > 6, multiple scenes are created
+        # But we only check the status of the first scene
+        scene_id = insert_scene_ids[0]
+
+        manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+        pattern = (
+            rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
+        )
+        match = re.search(pattern, response.text)
+        if match is not None:
+            scene_status_index = match.group(1)
+            if scene_status_index != "5" and scene_status_index != "6":
+                request.status = (
+                    f"rejected: {status_dict.get(scene_status_index, 'Not planified')}"
+                )
+        else:
+            request.status = f"rejected: Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+        session.add(transaction)
+        session.commit()
+
+        if kwargs.get("refresh_source", False):
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
             )
 
     @staticmethod
@@ -326,58 +440,64 @@ class TAROTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if cfg["app.tarot_endpoint"] is not None:
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
+        is_error_on_delete = None
+
+        # this happens for failed submissions, just go ahead and delete
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            if cfg["app.tarot_endpoint"] is None:
+                raise ValueError("TAROT endpoint not configured")
 
             altdata = request.allocation.altdata
-
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            url = f"{cfg['app.tarot_endpoint']}/cancelobservation"
+            hash_user = login_to_tarot(request, session, altdata)
 
-            content = req.transactions[-1].response["content"]
-            content = json.loads(content)
-            uid = content[0]
+            insert_scene_ids = re.findall(
+                r"insert_id\s*=\s*(\d+)",
+                request.transactions[-1].response["content"],
+            )
 
-            payload = json.dumps({"obs_id": [uid]})
+            data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
 
-            headers = {
-                "Content-Type": "application/json",
-                "TAROT": altdata["token"],
-            }
-            r = requests.request("POST", url, headers=headers, data=payload)
+            response = requests.post(
+                f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                data=data,
+                auth=(altdata["browser_username"], altdata["browser_password"]),
+            )
 
-            r.raise_for_status()
-            request.status = "deleted"
+            if response.status_code != 200:
+                is_error_on_delete = response.content
+            else:
+                for scene_id in insert_scene_ids:
+                    if f"Scene '{scene_id}' removed" not in response.text:
+                        is_error_on_delete = response.content
+                        break
+
+            request.status = (
+                "deleted"
+                if is_error_on_delete is None
+                else f"rejected: {is_error_on_delete}"
+            )
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_requests_request(response.request),
+                response=http.serialize_requests_response(response),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
-        else:
-            request.status = "deleted"
 
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-
-        session.add(transaction)
+            session.add(transaction)
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -401,79 +521,41 @@ class TAROTAPI(FollowUpAPI):
                 "enum": [
                     "Tarot_Calern",
                     "Tarot_Chili",
-                    "Zadko_Australia",
-                    "VIRT_STT",
                     "Tarot_Reunion",
                 ],
                 "default": "Tarot_Calern",
             },
-            "exposure_defaults": {
-                "title": "Do you want to rely on defaults?",
-                "type": "boolean",
-                "default": True,
-            },
             "date": {
                 "type": "string",
-                "format": "datetime",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Date (UT)",
             },
-            "tolerance": {
-                "type": "number",
-                "title": "Tolerance [min.]",
-                "default": 60,
-            },
-            "minimum_elevation": {
-                "title": "Minimum Elevation [deg.] (0-90)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 10,
-                "maximum": 90,
-            },
-            "minimum_lunar_distance": {
-                "title": "Minimum Lunar Distance [deg.] (0-180)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 0,
-                "maximum": 180,
-            },
             "priority": {
-                "title": "Priority (-5 - 5)",
                 "type": "number",
                 "default": 0,
-                "minimum": -5,
-                "maximum": 5,
+                "minimum": -5.0,
+                "maximum": 5.0,
+                "title": "Priority (-5 - 5)",
+            },
+            "exposure_time": {
+                "title": "Exposure Time [s] (use -1 if want defaults)",
+                "type": "number",
+                "default": 300.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
             },
         },
         "required": [
-            "date",
-            "tolerance",
-            "minimum_elevation",
-            "priority",
             "station_name",
+            "date",
+            "exposure_time",
+            "exposure_counts",
+            "observation_choices",
         ],
         "dependencies": {
-            "exposure_defaults": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "exposure_defaults": {
-                                "enum": [False],
-                            },
-                            "exposure_time": {
-                                "title": "Exposure Time [s] (use -1 if want defaults)",
-                                "type": "number",
-                                "default": 300.0,
-                            },
-                            "exposure_counts": {
-                                "title": "Exposure Counts",
-                                "type": "number",
-                                "default": 1,
-                            },
-                        }
-                    }
-                ]
-            },
             "station_name": {
                 "oneOf": [
                     {
@@ -482,7 +564,6 @@ class TAROTAPI(FollowUpAPI):
                                 "enum": [
                                     "Tarot_Calern",
                                     "Tarot_Chili",
-                                    "Zadko_Australia",
                                 ],
                             },
                             "observation_choices": {
@@ -490,24 +571,7 @@ class TAROTAPI(FollowUpAPI):
                                 "title": "Desired Observations",
                                 "items": {
                                     "type": "string",
-                                    "enum": ["g", "r", "i", "z"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["VIRT_STT"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["U", "B", "V", "R", "I"],
+                                    "enum": ["g", "r", "i", "NoFilter"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
@@ -539,11 +603,34 @@ class TAROTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
-            "token": {
+            "request_id": {
                 "type": "string",
-                "title": "Token",
+                "title": "Request ID to add scene",
+            },
+            "browser_username": {
+                "type": "string",
+                "title": "Browser Username",
+            },
+            "browser_password": {
+                "type": "string",
+                "title": "Browser Password",
+            },
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
             },
         },
+        "required": [
+            "browser_username",
+            "browser_password",
+            "username",
+            "password",
+            "request_id",
+        ],
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
