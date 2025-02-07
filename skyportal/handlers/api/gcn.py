@@ -322,7 +322,7 @@ def post_skymap_from_notice(
         root = json.loads(gcn_notice.content.decode("utf8"))
         notice_type = None
 
-    skymap, url, properties, tags = None, None, None, None
+    skymap, url, properties, tags = None, None, None, []
     try:
         skymap, url, properties, tags = get_skymap(root, notice_type)
     except Exception as e:
@@ -396,10 +396,13 @@ def post_skymap_from_notice(
                     "dec": dec,
                     "origin": None,
                 }
-                tags_formatted = [tag.upper().strip() for tag in tags]
+                try:
+                    tags_formatted = [tag.upper().strip() for tag in tags]
+                except Exception:
+                    tags_formatted = []
                 if "GRB" in tags_formatted:
                     source["name"] = f"GRB-{source_name}"
-                    if "SWIFT" in tags_formatted:
+                    if "SWIFT" in tags_formatted or "GUANO" in tags_formatted:
                         source["origin"] = "Swift"
                     elif "FERMI" in tags_formatted:
                         source["origin"] = "Fermi"
