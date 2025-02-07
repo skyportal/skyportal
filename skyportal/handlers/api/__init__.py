@@ -20,6 +20,7 @@ from .annotation_services import (
     VizierQueryHandler,
 )
 from .candidate import CandidateFilterHandler, CandidateHandler
+from .candidate_scan_report import CandidateScanReportHandler
 from .catalog_services import (
     CatalogQueryHandler,
     GaiaPhotometricAlertsQueryHandler,
