@@ -12,6 +12,7 @@ import IconButton from "@mui/material/IconButton";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import SummarizeIcon from "@mui/icons-material/Summarize";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -52,6 +53,11 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: "0.5rem",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerTitleAndReportLink: {
+    display: "flex",
+    columnGap: "1rem",
+    alignItems: "center",
   },
   pages: {
     marginTop: "1rem",
@@ -536,9 +542,16 @@ const FilterCandidateList = ({
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.headerRow}>
-          <Typography variant="h5">
-            <b>Scan candidates for sources</b>
-          </Typography>
+          <div className={classes.headerTitleAndReportLink}>
+            <Typography variant="h5">
+              <b>Scan candidates for sources</b>
+            </Typography>
+            <Tooltip title="Access scanning report page">
+              <IconButton href="/candidates/scan_report">
+                <SummarizeIcon fontSize="small" color="primary" />
+              </IconButton>
+            </Tooltip>
+          </div>
           <div
             style={{
               display: "flex",
