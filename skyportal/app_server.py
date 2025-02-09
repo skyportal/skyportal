@@ -259,7 +259,7 @@ skyportal_handlers = [
     ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
     (r"/api/candidates_filter", CandidateFilterHandler),
-    (r"/api/candidates/scan_report", CandidateScanReportHandler),
+    (r"/api/candidates/scan_report/([0-9]+)", CandidateScanReportHandler),
     (r"/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)", CandidateHandler),
     (r"/api/candidates(/.*)?", CandidateHandler),
     (r"/api/catalogs/swift_lsxps", SwiftLSXPSQueryHandler),
