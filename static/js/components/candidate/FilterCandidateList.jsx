@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -12,7 +13,6 @@ import IconButton from "@mui/material/IconButton";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import SummarizeIcon from "@mui/icons-material/Summarize";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -53,11 +53,6 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: "0.5rem",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  headerTitleAndReportLink: {
-    display: "flex",
-    columnGap: "1rem",
-    alignItems: "center",
   },
   pages: {
     marginTop: "1rem",
@@ -542,16 +537,9 @@ const FilterCandidateList = ({
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.headerRow}>
-          <div className={classes.headerTitleAndReportLink}>
-            <Typography variant="h5">
-              <b>Scan candidates for sources</b>
-            </Typography>
-            <Tooltip title="Access scanning report page">
-              <IconButton href="/candidates/scan_report">
-                <SummarizeIcon fontSize="small" color="primary" />
-              </IconButton>
-            </Tooltip>
-          </div>
+          <Typography variant="h5">
+            <b>Scan candidates for sources</b>
+          </Typography>
           <div
             style={{
               display: "flex",
@@ -579,6 +567,11 @@ const FilterCandidateList = ({
               selectedScanningProfile={selectedScanningProfile}
               setSelectedScanningProfile={setSelectedScanningProfile}
             />
+            <Tooltip title="Access the candidates scan report page">
+              <Link to={`/candidates/scan_report`} role="link">
+                <Button secondary>Report page</Button>
+              </Link>
+            </Tooltip>
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
                 <Button primary type="submit" endIcon={<SearchIcon />}>
