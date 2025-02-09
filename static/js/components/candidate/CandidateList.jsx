@@ -36,7 +36,8 @@ import CandidatePlugins from "./CandidatePlugins";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
+import * as candidateScanReportActions from "../../ducks/candidate/candidate_scan_report";
 
 const numPerPage = 50;
 
@@ -45,6 +46,7 @@ const useStyles = makeStyles((theme) => ({
     borderColor: theme.palette.grey[350],
     borderWidth: "2px",
     marginBottom: "1rem",
+    position: "relative",
   },
   listItem: {
     padding: 0,
@@ -460,7 +462,6 @@ const CandidateInfo = ({
                       ?.includes(g.id),
                 ).length),
           ) && (
-            // eslint-disable-next-line react/jsx-indent
             <div className={classes.saveCandidateButton}>
               <SaveCandidateButton
                 candidate={candidateObj}
@@ -666,13 +667,37 @@ CandidateAutoannotations.defaultProps = {
 };
 
 const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
+  const dispatch = useDispatch();
   const classes = useStyles();
+  const [loading, setLoading] = useState(false);
+
+  const saveToReport = () => {
+    setLoading(true);
+    dispatch(
+      candidateScanReportActions.submitCandidateToReport(candidate.id, {}),
+    ).then(() => {
+      setLoading(false);
+    });
+  };
+
   return (
     <Paper
       variant="outlined"
       className={classes.listPaper}
       data-testid={`candidate-${index}`}
     >
+      <div style={{ position: "absolute", left: "0.5rem", top: "0.5rem" }}>
+        <Button
+          primary
+          async
+          loading={loading}
+          variant="outlined"
+          size="small"
+          onClick={saveToReport}
+        >
+          Save to report
+        </Button>
+      </div>
       <div className={classes.candidatePaper}>
         <div style={{ gridArea: "thumbnails" }}>
           <CandidateThumbnails
