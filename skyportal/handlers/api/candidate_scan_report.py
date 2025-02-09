@@ -59,5 +59,19 @@ class CandidateScanReportHandler(BaseHandler):
             return self.success(data=candidates_scan_report)
 
     @auth_or_token
-    def delete(self):
-        return
+    def delete(self, candidate_scan_report_id):
+        if not candidate_scan_report_id:
+            return self.error("Report line not found")
+
+        with self.Session() as session:
+            candidate_scan_report = session.scalar(
+                CandidateScanReport.select(session.user_or_token, mode="read").where(
+                    CandidateScanReport.id == candidate_scan_report_id,
+                )
+            )
+            if candidate_scan_report is None:
+                return self.error("Report line not found")
+
+            session.delete(candidate_scan_report)
+            session.commit()
+        return self.success()
