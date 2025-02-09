@@ -2,35 +2,35 @@ from datetime import datetime
 
 from baselayer.app.access import auth_or_token
 
-from ...models import Candidate
+from ...models import Obj
 from ...models.candidate_scan_report import CandidateScanReport
 from ..base import BaseHandler
 
 
 class CandidateScanReportHandler(BaseHandler):
     @auth_or_token
-    def post(self, candidate_id):
+    async def post(self, candidate_id=None):
         data = self.get_json()
         if not candidate_id:
             return self.error("No candidate to save")
 
         with self.Session() as session:
-            candidate = session.scalar(
-                Candidate.select(session.user_or_token, mode="read").where(
-                    Candidate.id == candidate_id,
+            obj = session.scalar(
+                Obj.select(session.user_or_token, mode="read").where(
+                    Obj.id == candidate_id,
                 )
             )
-            if candidate is None:
-                return self.error("Candidate not found")
+            if obj is None:
+                return self.error("Object not found")
 
             candidate_scan_report = CandidateScanReport(
                 date=datetime.now(),
                 scanner=session.user_or_token.username,
-                obj_id=candidate.obj_id,
+                obj_id=obj.id,
                 comment=data.get("comment"),
                 already_classified=data.get("already_classified"),
-                host_redshift=candidate.obj.redshift,
-                current_mag=candidate.obj.mag_nearest_source,
+                host_redshift=obj.redshift,
+                current_mag=obj.mag_nearest_source,
                 current_age=data.get("current_age"),
                 forced_photometry_requested=data.get("forced_photometry_requested"),
                 photometry_followup=data.get("photometry_followup"),
