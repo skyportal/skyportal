@@ -30,7 +30,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
