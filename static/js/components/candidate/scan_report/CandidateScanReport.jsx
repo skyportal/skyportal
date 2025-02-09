@@ -7,6 +7,7 @@ import Paper from "@mui/material/Paper";
 import { useDispatch } from "react-redux";
 import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
 import CircularProgress from "@mui/material/CircularProgress";
+import { Link } from "react-router-dom";
 
 const List = styled("div")({
   display: "flex",
@@ -16,8 +17,8 @@ const List = styled("div")({
 const Item = styled("div")({
   display: "flex",
   textAlign: "center",
-  paddingBottom: "0.5rem",
-  marginBottom: "0.5rem",
+  paddingBottom: "0.8rem",
+  marginBottom: "0.8rem",
 });
 
 const FieldTitle = styled("div")({
@@ -74,7 +75,7 @@ const CandidateScanReport = () => {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ marginBottom: "0.5rem" }}>
+      <Typography variant="h5" sx={{ marginBottom: "1rem" }}>
         <b>Candidate scan report</b>
       </Typography>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
@@ -87,7 +88,7 @@ const CandidateScanReport = () => {
           >
             <FieldTitle>date</FieldTitle>
             <FieldTitle>scanner</FieldTitle>
-            <FieldTitle sx={{ flex: 2 }}>candidate</FieldTitle>
+            <FieldTitle sx={{ flex: 2 }}>ZTF Name Fritz link</FieldTitle>
             <FieldTitle sx={{ flex: 3 }}>comment</FieldTitle>
             <FieldTitle>already classified</FieldTitle>
             <FieldTitle>host redshift</FieldTitle>
@@ -109,7 +110,15 @@ const CandidateScanReport = () => {
               >
                 <Field>{displayDate(candidateScan.date)}</Field>
                 <Field>{candidateScan.scanner}</Field>
-                <Field sx={{ flex: 2 }}>{candidateScan.obj_id}</Field>
+                <Field sx={{ flex: 2 }}>
+                  <Link
+                    to={`/source/${candidateScan.obj_id}`}
+                    role="link"
+                    target="_blank"
+                  >
+                    {candidateScan.obj_id}
+                  </Link>
+                </Field>
                 <Field sx={{ flex: 3 }}>{candidateScan.comment}</Field>
                 <Field>{boolToStr(candidateScan.already_classified)}</Field>
                 <Field>{candidateScan.host_redshift}</Field>
