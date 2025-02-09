@@ -47,14 +47,19 @@ class CandidateScanReportHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
-        rows = self.get_query_argument("rows", default="10")
-        page = self.get_query_argument("page", default="1")
+        try:
+            rows = int(self.get_query_argument("rows", default="10"))
+            page = int(self.get_query_argument("page", default="1"))
+        except ValueError:
+            rows = 10
+            page = 1
+
         with self.Session() as session:
             candidates_scan_report = session.scalars(
                 CandidateScanReport.select(session.user_or_token, mode="read")
                 .order_by(CandidateScanReport.date.desc())
                 .limit(rows)
-                .offset(rows * (int(page) - 1))
+                .offset(rows * (page - 1))
             ).all()
             return self.success(data=candidates_scan_report)
 
