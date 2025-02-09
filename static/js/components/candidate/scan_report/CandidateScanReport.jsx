@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
+import { useDispatch } from "react-redux";
+import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
+import CircularProgress from "@mui/material/CircularProgress";
 
 const List = styled("div")({
   display: "flex",
@@ -16,7 +19,22 @@ const Item = styled("div")({
 });
 
 const CandidateScanReport = () => {
-  const [scanList, setScanList] = React.useState([]);
+  const dispatch = useDispatch();
+  const [candidatesScan, setCandidatesScan] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    dispatch(
+      fetchCandidatesScanReport({
+        rows: 10,
+        page: 1,
+      }),
+    ).then((res) => {
+      setLoading(false);
+      setCandidatesScan(res.data);
+    });
+  }, [dispatch]);
 
   return (
     <Box sx={{ container: "true", padding: 2 }}>
@@ -38,8 +56,8 @@ const CandidateScanReport = () => {
             <Box sx={{ flex: 1 }}>ztf_name</Box>
             <Box sx={{ flex: 2 }}>comment</Box>
           </Item>
-          {scanList.length > 0 ? (
-            scanList.map((scan) => (
+          {candidatesScan.length > 0 ? (
+            candidatesScan.map((scan) => (
               <Item key={scan.id}>
                 <Box sx={{ flex: 1 }}>{scan.date}</Box>
                 <Box sx={{ flex: 1 }}>{scan.name}</Box>
@@ -55,7 +73,13 @@ const CandidateScanReport = () => {
                 paddingY: "1rem",
               }}
             >
-              <Box sx={{ color: "text.secondary" }}>No scan data</Box>
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Box sx={{ color: "text.secondary" }}>
+                  No candidate saved to the report yet
+                </Box>
+              )}
             </Item>
           )}
         </List>
