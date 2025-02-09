@@ -9,10 +9,6 @@ from ..base import BaseHandler
 
 class CandidateScanReportHandler(BaseHandler):
     @auth_or_token
-    def get(self):
-        return
-
-    @auth_or_token
     def post(self, candidate_id):
         data = self.get_json()
         if not candidate_id:
@@ -48,6 +44,19 @@ class CandidateScanReportHandler(BaseHandler):
 
             session.add(candidate_scan_report)
             session.commit()
+
+    @auth_or_token
+    def get(self):
+        rows_per_page = self.get_query_argument("rowsPerPage", default="10")
+        page_number = self.get_query_argument("pageNumber", default="1")
+        with self.Session() as session:
+            candidates_scan_report = session.scalars(
+                CandidateScanReport.select(session.user_or_token, mode="read")
+                .order_by(CandidateScanReport.date.desc())
+                .limit(rows_per_page)
+                .offset(rows_per_page * (int(page_number) - 1))
+            ).all()
+            return self.success(data=candidates_scan_report)
 
     @auth_or_token
     def delete(self):
