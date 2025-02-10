@@ -1,10 +1,13 @@
 from datetime import datetime
 
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 
 from ...models import Obj
 from ...models.candidate_scan_report import CandidateScanReport
 from ..base import BaseHandler
+
+log = make_log("api/candidate_scan_report")
 
 
 class CandidateScanReportHandler(BaseHandler):
