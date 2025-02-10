@@ -12,15 +12,15 @@ log = make_log("api/candidate_scan_report")
 
 class CandidateScanReportHandler(BaseHandler):
     @auth_or_token
-    def post(self, candidate_obj_id=None):
+    def post(self):
         data = self.get_json()
-        if not candidate_obj_id:
-            return self.error("No candidate to save")
+        if not data.get("obj_id"):
+            return self.error("No object ID provided")
 
         with self.Session() as session:
             obj = session.scalar(
                 Obj.select(session.user_or_token, mode="read").where(
-                    Obj.id == candidate_obj_id,
+                    Obj.id == data.get("obj_id")
                 )
             )
             if obj is None:
@@ -29,11 +29,10 @@ class CandidateScanReportHandler(BaseHandler):
             candidate_scan_report = CandidateScanReport(
                 date=datetime.now(),
                 scanner=session.user_or_token.username,
-                obj_id=candidate_obj_id,
+                obj_id=data.get("obj_id"),
                 comment=data.get("comment"),
                 already_classified=data.get("already_classified"),
                 host_redshift=obj.redshift,
-                # current_mag=None,
                 current_age=data.get("current_age"),
                 forced_photometry_requested=data.get("forced_photometry_requested"),
                 photometry_followup=data.get("photometry_followup"),
@@ -48,6 +47,28 @@ class CandidateScanReportHandler(BaseHandler):
             session.add(candidate_scan_report)
             session.commit()
 
+            return self.success()
+
+    @auth_or_token
+    def patch(self, candidate_scan_report_id=None):
+        data = self.get_json()
+
+        if not candidate_scan_report_id:
+            return self.error("Nothing to update")
+
+        with self.Session() as session:
+            candidate_scan_report = session.scalar(
+                CandidateScanReport.select(session.user_or_token, mode="read").where(
+                    CandidateScanReport.id == candidate_scan_report_id,
+                )
+            )
+            if candidate_scan_report is None:
+                return self.error("Report line not found")
+
+            for key, value in data.items():
+                setattr(candidate_scan_report, key, value)
+
+            session.commit()
             return self.success()
 
     @auth_or_token
