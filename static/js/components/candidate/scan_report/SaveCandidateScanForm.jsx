@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 const SaveCandidateScanForm = ({
   dialogOpen,
   setDialogOpen,
-  objId,
+  candidateObjId,
   candidateScan = {},
 }) => {
   const dispatch = useDispatch();
@@ -55,7 +55,7 @@ const SaveCandidateScanForm = ({
   const saveToReport = () => {
     setLoading(true);
     dispatch(
-      candidateScanReportActions.submitCandidateToReport(objId, {
+      candidateScanReportActions.submitCandidateToReport(candidateObjId, {
         ...saveOptions,
       }),
     ).then((result) => {
@@ -106,7 +106,7 @@ const SaveCandidateScanForm = ({
 SaveCandidateScanForm.propTypes = {
   dialogOpen: PropTypes.bool.isRequired,
   setDialogOpen: PropTypes.func.isRequired,
-  objId: PropTypes.string.isRequired,
+  candidateObjId: PropTypes.string.isRequired,
   candidateScan: PropTypes.shape({
     comment: PropTypes.string,
     already_classified: PropTypes.bool,

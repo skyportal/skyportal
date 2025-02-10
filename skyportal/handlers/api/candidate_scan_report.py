@@ -9,15 +9,15 @@ from ..base import BaseHandler
 
 class CandidateScanReportHandler(BaseHandler):
     @auth_or_token
-    async def post(self, candidate_id=None):
+    def post(self, candidate_obj_id=None):
         data = self.get_json()
-        if not candidate_id:
+        if not candidate_obj_id:
             return self.error("No candidate to save")
 
         with self.Session() as session:
             obj = session.scalar(
                 Obj.select(session.user_or_token, mode="read").where(
-                    Obj.id == candidate_id,
+                    Obj.id == candidate_obj_id,
                 )
             )
             if obj is None:
@@ -26,7 +26,7 @@ class CandidateScanReportHandler(BaseHandler):
             candidate_scan_report = CandidateScanReport(
                 date=datetime.now(),
                 scanner=session.user_or_token.username,
-                obj_id=obj.id,
+                obj_id=candidate_obj_id,
                 comment=data.get("comment"),
                 already_classified=data.get("already_classified"),
                 host_redshift=obj.redshift,
