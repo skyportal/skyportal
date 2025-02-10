@@ -37,7 +37,7 @@ import CandidatePlugins from "./CandidatePlugins";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import * as candidateScanReportActions from "../../ducks/candidate/candidate_scan_report";
+import SaveCandidateScanForm from "./scan_report/SaveCandidateScanForm";
 
 const numPerPage = 50;
 
@@ -669,16 +669,7 @@ CandidateAutoannotations.defaultProps = {
 const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const [loading, setLoading] = useState(false);
-
-  const saveToReport = () => {
-    setLoading(true);
-    dispatch(
-      candidateScanReportActions.submitCandidateToReport(candidate.id, {}),
-    ).then(() => {
-      setLoading(false);
-    });
-  };
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <Paper
@@ -689,14 +680,17 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
       <div style={{ position: "absolute", left: "0.5rem", top: "0.5rem" }}>
         <Button
           primary
-          async
-          loading={loading}
           variant="outlined"
           size="small"
-          onClick={saveToReport}
+          onClick={() => setDialogOpen(true)}
         >
           Save to report
         </Button>
+        <SaveCandidateScanForm
+          dialogOpen={dialogOpen}
+          setDialogOpen={setDialogOpen}
+          objId={candidate.id}
+        />
       </div>
       <div className={classes.candidatePaper}>
         <div style={{ gridArea: "thumbnails" }}>
