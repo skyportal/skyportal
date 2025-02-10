@@ -30,7 +30,7 @@ class CandidateScanReportHandler(BaseHandler):
                 comment=data.get("comment"),
                 already_classified=data.get("already_classified"),
                 host_redshift=obj.redshift,
-                current_mag=obj.mag_nearest_source,
+                # current_mag=None,
                 current_age=data.get("current_age"),
                 forced_photometry_requested=data.get("forced_photometry_requested"),
                 photometry_followup=data.get("photometry_followup"),
@@ -44,6 +44,8 @@ class CandidateScanReportHandler(BaseHandler):
 
             session.add(candidate_scan_report)
             session.commit()
+
+            return self.success()
 
     @auth_or_token
     def get(self):
