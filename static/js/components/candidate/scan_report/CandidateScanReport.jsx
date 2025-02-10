@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import { useDispatch } from "react-redux";
-import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
+import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
+import SaveCandidateScanForm from "./SaveCandidateScanForm";
 
 const List = styled("div")({
   display: "flex",
@@ -46,6 +49,8 @@ const CandidateScanReport = () => {
   const dispatch = useDispatch();
   const [candidatesScan, setCandidatesScan] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [candidateScanToEdit, setCandidateScanToEdit] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -101,6 +106,7 @@ const CandidateScanReport = () => {
             <FieldTitle>spectroscopy requested</FieldTitle>
             <FieldTitle>spectroscopy assigned to</FieldTitle>
             <FieldTitle>priority</FieldTitle>
+            <FieldTitle sx={{ borderRight: "none" }}></FieldTitle>
           </Item>
           {candidatesScan.length > 0 ? (
             candidatesScan.map((candidateScan) => (
@@ -133,6 +139,16 @@ const CandidateScanReport = () => {
                 <Field>{boolToStr(candidateScan.spectroscopy_requested)}</Field>
                 <Field>{candidateScan.spectroscopy_assigned_to}</Field>
                 <Field>{candidateScan.priority}</Field>
+                <Field sx={{ borderRight: "none" }}>
+                  <Button
+                    onClick={() => {
+                      setCandidateScanToEdit(candidateScan);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <EditIcon color="primary" fontSize="small" />
+                  </Button>
+                </Field>
               </Item>
             ))
           ) : (
@@ -154,6 +170,14 @@ const CandidateScanReport = () => {
           )}
         </List>
       </Paper>
+      {candidateScanToEdit && (
+        <SaveCandidateScanForm
+          dialogOpen={dialogOpen}
+          setDialogOpen={setDialogOpen}
+          candidateObjId={candidateScanToEdit.obj_id}
+          candidateScanToEdit={candidateScanToEdit}
+        />
+      )}
     </Box>
   );
 };
