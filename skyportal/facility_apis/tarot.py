@@ -377,34 +377,28 @@ class TAROTAPI(FollowUpAPI):
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
 
-        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
-        # Each identifier corresponds to a different status, as shown below:
-        status_dict = {
-            "0": "not planned",
-            "1": "planned for a future night.",
-            "2": "date is before the current/upcoming night.",
-            "4": "over quota",
-            "5": "planned",
-            "6": "planned over",
-        }
-
         # If request exposure_count * nb_filter > 6, multiple scenes are created
         # But we only check the status of the first scene
         scene_id = insert_scene_ids[0]
-
         manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
         pattern = (
             rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
         )
         match = re.search(pattern, response.text)
-        if match is not None:
-            scene_status_index = match.group(1)
-            if scene_status_index != "5" and scene_status_index != "6":
-                request.status = (
-                    f"rejected: {status_dict.get(scene_status_index, 'Not planified')}"
-                )
-        else:
+
+        if match is None:
             request.status = f"rejected: Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
+        else:
+            # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+            # Each identifier corresponds to a different status, as shown below:
+            status_dict = {
+                "1": "submitted: planned for a future night.",
+                "2": "rejected: date is before the current/upcoming night.",
+                "4": "rejected: over quota",
+                "5": "submitted: planified",
+                "6": "submitted: planified over",
+            }
+            request.status = status_dict.get(match.group(1), "rejected: not planified")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
