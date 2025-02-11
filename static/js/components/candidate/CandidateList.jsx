@@ -689,7 +689,7 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
         <SaveCandidateScanForm
           dialogOpen={dialogOpen}
           setDialogOpen={setDialogOpen}
-          candidateObjId={candidate.id}
+          objId={candidate.id}
         />
       </div>
       <div className={classes.candidatePaper}>

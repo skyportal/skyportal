@@ -5,7 +5,7 @@ const UPDATE_CANDIDATE_FROM_REPORT = "skyportal/UPDATE_CANDIDATE_FROM_REPORT";
 const FETCH_CANDIDATE_SCAN_REPORT = "skyportal/FETCH_CANDIDATE_SCAN_REPORT";
 
 export const submitCandidateToReport = (payload) =>
-  API.POST(`/api/candidates/scan_report/`, SUBMIT_CANDIDATE_TO_REPORT, payload);
+  API.POST(`/api/candidates/scan_report`, SUBMIT_CANDIDATE_TO_REPORT, payload);
 
 export const updateCandidateFromReport = (candidateFromReportId, payload) =>
   API.PATCH(
