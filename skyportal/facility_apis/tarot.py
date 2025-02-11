@@ -392,8 +392,8 @@ class TAROTAPI(FollowUpAPI):
             # To check the request status, an identifier is retrieved from each scene on TAROT manager,
             # Each identifier corresponds to a different status, as shown below:
             status_dict = {
-                "1": "submitted: planned for a future night.",
-                "2": "rejected: date is before the current/upcoming night.",
+                "1": "rejected: date is before the current/upcoming night.",
+                "2": "submitted: planned for a future night.",
                 "4": "rejected: over quota",
                 "5": "submitted: planified",
                 "6": "submitted: planified over",
