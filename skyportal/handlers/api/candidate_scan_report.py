@@ -19,43 +19,43 @@ class CandidateScanReportHandler(BaseHandler):
         tags:
           - report
         requestBody:
-            content:
-                application/json:
-                schema:
-                    type: object
-                    properties:
-                    obj_id:
-                        type: integer
-                    comment:
-                        type: string
-                    already_classified:
-                        type: boolean
-                    host_redshift:
-                        type: number
-                    current_age:
-                        type: string
-                    forced_photometry_requested:
-                        type: boolean
-                    photometry_followup:
-                        type: boolean
-                    photometry_assigned_to:
-                        type: string
-                    is_real:
-                        type: boolean
-                    spectroscopy_requested:
-                        type: boolean
-                    spectroscopy_assigned_to:
-                        type: string
-                    priority:
-                        type: integer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  obj_id:
+                    type: integer
+                  comment:
+                    type: string
+                  already_classified:
+                    type: boolean
+                  host_redshift:
+                    type: number
+                  current_age:
+                    type: string
+                  forced_photometry_requested:
+                    type: boolean
+                  photometry_followup:
+                    type: boolean
+                  photometry_assigned_to:
+                    type: string
+                  is_real:
+                    type: boolean
+                  spectroscopy_requested:
+                    type: boolean
+                  spectroscopy_assigned_to:
+                    type: string
+                  priority:
+                    type: integer
         responses:
             200:
                 content:
-                application/json:
+                  application/json:
                     schema: Success
             400:
                 content:
-                application/json:
+                  application/json:
                     schema: Error
         """
         data = self.get_json()
@@ -176,12 +176,12 @@ class CandidateScanReportHandler(BaseHandler):
           - in: query
             name: rows
             schema:
-            type: integer
+              type: integer
             description: Number of rows to return
           - in: query
             name: page
             schema:
-            type: integer
+              type: integer
             description: Page number to return
         responses:
           200:
