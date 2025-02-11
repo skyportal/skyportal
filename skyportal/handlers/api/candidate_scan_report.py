@@ -13,6 +13,51 @@ log = make_log("api/candidate_scan_report")
 class CandidateScanReportHandler(BaseHandler):
     @auth_or_token
     def post(self):
+        """
+        ---
+        summary: Add a candidate scan to the report
+        tags:
+          - report
+        requestBody:
+            content:
+                application/json:
+                schema:
+                    type: object
+                    properties:
+                    obj_id:
+                        type: integer
+                    comment:
+                        type: string
+                    already_classified:
+                        type: boolean
+                    host_redshift:
+                        type: number
+                    current_age:
+                        type: string
+                    forced_photometry_requested:
+                        type: boolean
+                    photometry_followup:
+                        type: boolean
+                    photometry_assigned_to:
+                        type: string
+                    is_real:
+                        type: boolean
+                    spectroscopy_requested:
+                        type: boolean
+                    spectroscopy_assigned_to:
+                        type: string
+                    priority:
+                        type: integer
+        responses:
+            200:
+                content:
+                application/json:
+                    schema: Success
+            400:
+                content:
+                application/json:
+                    schema: Error
+        """
         data = self.get_json()
         if not data.get("obj_id"):
             return self.error("No object ID provided")
@@ -50,7 +95,56 @@ class CandidateScanReportHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def patch(self, candidate_scan_report_id=None):
+    def patch(self, candidate_scan_report_id):
+        """
+        ---
+        summary: Update a candidate scan from the report
+        tags:
+          - report
+        parameters:
+          - in: path
+            name: candidate_scan_report_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comment:
+                    type: string
+                  already_classified:
+                    type: boolean
+                  host_redshift:
+                    type: number
+                  current_age:
+                    type: string
+                  forced_photometry_requested:
+                    type: boolean
+                  photometry_followup:
+                    type: boolean
+                  photometry_assigned_to:
+                    type: string
+                  is_real:
+                    type: boolean
+                  spectroscopy_requested:
+                    type: boolean
+                  spectroscopy_assigned_to:
+                    type: string
+                  priority:
+                    type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
 
         if not candidate_scan_report_id:
@@ -73,6 +167,32 @@ class CandidateScanReportHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
+        """
+        ---
+        summary: Get all candidate scan in the report
+        tags:
+          - report
+        parameters:
+          - in: query
+            name: rows
+            schema:
+            type: integer
+            description: Number of rows to return
+          - in: query
+            name: page
+            schema:
+            type: integer
+            description: Page number to return
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfCandidateScanReport
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         try:
             rows = int(self.get_query_argument("rows", default="10"))
             page = int(self.get_query_argument("page", default="1"))
@@ -88,21 +208,3 @@ class CandidateScanReportHandler(BaseHandler):
                 .offset(rows * (page - 1))
             ).all()
             return self.success(data=candidates_scan_report)
-
-    @auth_or_token
-    def delete(self, candidate_scan_report_id):
-        if not candidate_scan_report_id:
-            return self.error("Report line not found")
-
-        with self.Session() as session:
-            candidate_scan_report = session.scalar(
-                CandidateScanReport.select(session.user_or_token, mode="read").where(
-                    CandidateScanReport.id == candidate_scan_report_id,
-                )
-            )
-            if candidate_scan_report is None:
-                return self.error("Report line not found")
-
-            session.delete(candidate_scan_report)
-            session.commit()
-        return self.success()
