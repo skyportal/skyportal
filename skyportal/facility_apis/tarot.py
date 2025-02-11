@@ -381,8 +381,8 @@ class TAROTAPI(FollowUpAPI):
         # Each identifier corresponds to a different status, as shown below:
         status_dict = {
             "0": "not planned",
-            "1": "observation ended before range",
-            "2": "observation started after range",
+            "1": "planned for a future night.",
+            "2": "date is before the current/upcoming night.",
             "4": "over quota",
             "5": "planned",
             "6": "planned over",
