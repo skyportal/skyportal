@@ -1068,7 +1068,7 @@ def api(queue):
                                             session.commit()
                                             queue.append(notification.id)
                                 elif is_followup_request:
-                                    if target_data["status"] == "submitted":
+                                    if "submitted" in target_data["status"]:
                                         continue
                                     allocation_id = target_data["allocation_id"]
                                     allocation = session.scalars(

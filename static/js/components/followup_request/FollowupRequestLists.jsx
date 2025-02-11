@@ -332,9 +332,9 @@ const FollowupRequestLists = ({
         const isDone =
           followupRequest.status === "Photometry committed to database";
 
-        const isSubmitted = ["submitted", "pending"].includes(
-          followupRequest.status,
-        );
+        const isSubmitted =
+          followupRequest.status === "pending" ||
+          followupRequest.status.includes("submitted");
 
         const isFailed = followupRequest.status.includes("failed to submit");
 
