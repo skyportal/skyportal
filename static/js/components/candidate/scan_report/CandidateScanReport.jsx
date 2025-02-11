@@ -176,6 +176,7 @@ const CandidateScanReport = () => {
           setDialogOpen={setDialogOpen}
           candidateObjId={candidateScanToEdit.obj_id}
           candidateScanToEdit={candidateScanToEdit}
+          setCandidateScanToEdit={setCandidateScanToEdit}
         />
       )}
     </Box>
