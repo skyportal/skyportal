@@ -18,6 +18,18 @@ env, cfg = load_env()
 
 log = make_log("facility_apis/tarot")
 
+url_by_station_and_page = {
+    "Tarot_Calern": {
+        "request_status": 1,
+        "observation_log": "tca4",
+    },
+    "Tarot_Chili": {"request_status": 2, "observation_log": "tch4"},
+    "Tarot_Reunion": {
+        "request_status": 8,
+        "observation_log": "tre4",
+    },
+}
+
 
 def create_observation_string(request):
     """Create the observation string to send to TAROT.
@@ -367,15 +379,13 @@ class TAROTAPI(FollowUpAPI):
             request.transactions[-1].response["content"],
         )
 
-        url_dict = {
-            "Tarot_Calern": 1,
-            "Tarot_Chili": 2,
-            "Tarot_Reunion": 8,
-        }
         response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/rejected{url_dict[request.payload['station_name']]}.txt",
+            f"{cfg['app.tarot_endpoint']}/rejected{url_by_station_and_page[request.payload['station_name']]['request_status']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
+
+        if response.status_code != 200:
+            raise ValueError("Error trying to get the status of the request")
 
         # If request exposure_count * nb_filter > 6, multiple scenes are created
         # But we only check the status of the first scene
@@ -386,19 +396,44 @@ class TAROTAPI(FollowUpAPI):
         )
         match = re.search(pattern, response.text)
 
-        if match is None:
-            request.status = f"rejected: Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
-        else:
-            # To check the request status, an identifier is retrieved from each scene on TAROT manager,
-            # Each identifier corresponds to a different status, as shown below:
-            status_dict = {
-                "1": "rejected: date is before the current/upcoming night.",
-                "2": "submitted: planned for a future night.",
-                "4": "rejected: over quota",
-                "5": "submitted: planified",
-                "6": "submitted: planified over",
-            }
-            request.status = status_dict.get(match.group(1), "rejected: not planified")
+        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+        # Each identifier corresponds to a different status, as shown below:
+        status_dict = {
+            "1": "rejected: date is before the current/upcoming night.",
+            "2": "submitted: planned for a future night.",
+            "4": "rejected: over quota",
+            "5": "submitted: planified",
+            "6": "submitted: planified over",
+        }
+
+        new_request_status = None
+        if (
+            match is not None
+            and match.group(1) is not None
+            and status_dict.get(match.group(1)) != request.status
+        ):
+            new_request_status = status_dict.get(
+                match.group(1), "rejected: not planified"
+            )
+
+        if "submitted" in request.status:
+            # check if the scene has been observed
+            response = requests.get(
+                f"{cfg['app.tarot_endpoint']}/rejected{url_by_station_and_page[request.payload['station_name']]['observation_log']}.txt"
+            )
+
+            if response.status_code != 200:
+                raise ValueError("Error trying to get the observation log")
+
+            scene_id = insert_scene_ids[0]
+            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+            if manager_scene_id in response.text:
+                new_request_status = "observed"
+
+        if new_request_status is None:
+            return
+
+        request.status = new_request_status
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
