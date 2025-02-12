@@ -18,15 +18,18 @@ env, cfg = load_env()
 
 log = make_log("facility_apis/tarot")
 
-url_by_station_and_page = {
+station_dict = {
     "Tarot_Calern": {
-        "request_status": 1,
-        "observation_log": "tca4",
+        "url_to_request": 1,
+        "endpoint": "calern_endpoint",
     },
-    "Tarot_Chili": {"request_status": 2, "observation_log": "tch4"},
+    "Tarot_Chili": {
+        "url_to_request": 2,
+        "endpoint": "chili_endpoint",
+    },
     "Tarot_Reunion": {
-        "request_status": 8,
-        "observation_log": "tre4",
+        "url_to_request": 8,
+        "endpoint": "reunion_endpoint",
     },
 }
 
@@ -382,7 +385,7 @@ class TAROTAPI(FollowUpAPI):
         )
 
         response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/rejected{url_by_station_and_page[request.payload['station_name']]['request_status']}.txt",
+            f"{cfg['app.tarot_endpoint']}/rejected{station_dict[request.payload['station_name']]['url_to_request']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
 
@@ -421,9 +424,10 @@ class TAROTAPI(FollowUpAPI):
 
         if "submitted" in request.status:
             # check if the scene has been observed
-            response = requests.get(
-                f"{cfg['app.tarot_endpoint']}/rejected{url_by_station_and_page[request.payload['station_name']]['observation_log']}.txt"
-            )
+            station_endpoint = cfg[
+                f"app.{station_dict[request.payload['station_name']]['endpoint']}"
+            ]
+            response = requests.get(f"{station_endpoint}/klotz/")
 
             if response.status_code != 200:
                 raise ValueError("Error trying to get the observation log")
