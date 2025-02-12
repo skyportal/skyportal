@@ -407,10 +407,11 @@ class TAROTAPI(FollowUpAPI):
         }
 
         new_request_status = None
+        nb_observation = None
         if (
             match is not None
             and match.group(1) is not None
-            and status_dict.get(match.group(1)) != request.status
+            and status_dict.get(match.group(1)) not in request.status
         ):
             new_request_status = status_dict.get(
                 match.group(1), "rejected: not planified"
@@ -428,7 +429,8 @@ class TAROTAPI(FollowUpAPI):
             scene_id = insert_scene_ids[0]
             manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
             if manager_scene_id in response.text:
-                new_request_status = "observed"
+                nb_observation = response.text.count(manager_scene_id)
+                new_request_status = f"complete"
 
         if new_request_status is None:
             return
@@ -444,18 +446,29 @@ class TAROTAPI(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+            if "complete" in request.status and nb_observation:
+                flow.push(
+                    request.last_modified_by_id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"TAROT have been observed {nb_observation} times",
+                        "type": "info",
+                    },
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {e}")
 
     @staticmethod
     def delete(request, session, **kwargs):
