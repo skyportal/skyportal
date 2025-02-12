@@ -440,6 +440,18 @@ class TAROTAPI(FollowUpAPI):
                 new_request_status = f"complete"
 
         if new_request_status is None:
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": "TAROT request status has not changed",
+                        "type": "warning",
+                    },
+                )
+            except Exception as e:
+                log(f"Failed to send notification: {e}")
             return
 
         request.status = new_request_status
