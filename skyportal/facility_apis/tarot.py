@@ -330,10 +330,13 @@ class TAROTAPI(FollowUpAPI):
             auth=(altdata["browser_username"], altdata["browser_password"]),
         )
 
-        if response.status_code != 200 or "New Scene Inserted" not in response.text:
-            request.status = (
-                f"rejected: status code = {response.status_code}\n\r{response.text}"
-            )
+        if "New Scene Inserted" not in response.text:
+            error_response = f"rejected: status code = {response.status_code}. "
+            if response.status_code == 200:
+                error_response += "Scene not Inserted" + (
+                    " - Hashuser not valid" if "secu_erreur" in response.text else ""
+                )
+            request.status = error_response
         else:
             request.status = "pending"
 
