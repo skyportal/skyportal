@@ -345,6 +345,7 @@ class TAROTAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+        session.commit()
 
         try:
             flow = Flow()
@@ -422,7 +423,7 @@ class TAROTAPI(FollowUpAPI):
                 match.group(1), "rejected: not planified"
             )
 
-        if "submitted" in request.status:
+        if "rejected" not in request.status:
             # check if the scene has been observed
             station_endpoint = cfg[
                 f"app.{station_dict[request.payload['station_name']]['endpoint']}"
