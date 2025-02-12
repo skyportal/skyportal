@@ -343,18 +343,20 @@ class TAROTAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {e}")
 
     @staticmethod
     def get(request, session, **kwargs):
@@ -540,20 +542,23 @@ class TAROTAPI(FollowUpAPI):
             )
 
             session.add(transaction)
+            session.commit()
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {e}")
 
     form_json_schema = {
         "type": "object",
