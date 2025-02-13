@@ -363,7 +363,7 @@ class TAROTAPI(FollowUpAPI):
                     request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
                 )
         except Exception as e:
-            log(f"Failed to send notification: {e}")
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     def get(request, session, **kwargs):
@@ -454,7 +454,7 @@ class TAROTAPI(FollowUpAPI):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log(f"Failed to send notification: {str(e)}")
             return
 
         request.status = new_request_status
@@ -490,7 +490,7 @@ class TAROTAPI(FollowUpAPI):
                     },
                 )
         except Exception as e:
-            log(f"Failed to send notification: {e}")
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     def delete(request, session, **kwargs):
@@ -578,7 +578,7 @@ class TAROTAPI(FollowUpAPI):
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
         except Exception as e:
-            log(f"Failed to send notification: {e}")
+            log(f"Failed to send notification: {str(e)}")
 
     form_json_schema = {
         "type": "object",
