@@ -551,7 +551,7 @@ class TAROTAPI(FollowUpAPI):
             request.status = (
                 "deleted"
                 if is_error_on_delete is None
-                else f"rejected: {is_error_on_delete}"
+                else f"rejected: deletion failed - {is_error_on_delete}"
             )
 
             transaction = FacilityTransaction(
