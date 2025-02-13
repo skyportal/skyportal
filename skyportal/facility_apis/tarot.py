@@ -338,7 +338,7 @@ class TAROTAPI(FollowUpAPI):
                 )
             request.status = error_response
         else:
-            request.status = "pending"
+            request.status = "submitted: retrieve status..."
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
