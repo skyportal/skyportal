@@ -51,6 +51,7 @@ import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
+import UpdateSourceT0 from "./UpdateSourceT0";
 import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
@@ -683,6 +684,11 @@ const SourceContent = ({ source }) => {
                     &nbsp; Mpc
                   </div>
                 )}
+                <div>
+                  <b>T0: &nbsp;</b>
+                  {source.t0}
+                  <UpdateSourceT0 source={source} />
+                </div>
               </div>
             </div>
             <div
@@ -1227,6 +1233,7 @@ const SourceContent = ({ source }) => {
                         height: rightPanelVisible ? "65vh" : "75vh",
                       }}
                       mode={downMd ? "mobile" : "desktop"}
+                      t0={source.t0}
                     />
                   )}
                 </div>
@@ -1449,6 +1456,7 @@ SourceContent.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
+    t0: PropTypes.number,
     summary_history: PropTypes.arrayOf(
       PropTypes.shape({
         summary: PropTypes.string,

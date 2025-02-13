@@ -4,6 +4,7 @@ function filterReleases() {
     .getElementById("search-bar")
     .value.trim()
     .toLowerCase();
+
   const releases = document.getElementsByClassName("release");
   const includeDescription =
     document.getElementById("includeDescription").checked;
@@ -12,6 +13,14 @@ function filterReleases() {
     const releaseName = release.getElementsByClassName("releaseName")[0];
     const releaseDescription =
       release.getElementsByClassName("releaseDescription")[0];
+
+    if (searchValue === "") {
+      release.style.display = "";
+      releaseName.innerHTML = releaseName.textContent;
+      releaseDescription.innerHTML = releaseDescription.textContent;
+      return;
+    }
+
     if (
       releaseName.textContent.toLowerCase().includes(searchValue) ||
       (includeDescription &&

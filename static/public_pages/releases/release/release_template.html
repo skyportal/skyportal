@@ -27,8 +27,8 @@
   </head>
   <body>
     <header>
-      <h1 class="websiteName">Release {{ release.name }}</h1>
-      <a href="/public/releases">Come back to all the releases -></a>
+      <h1 class="websiteName">Release: {{ release.name }}</h1>
+      <a href="/public/releases">All releases -></a>
     </header>
     <div class="releaseTemplate">
       <div class="name">
@@ -37,34 +37,87 @@
       <div class="description">
         <p>{{ release.description }}</p>
       </div>
+      <div class="fieldsTitle">
+        <div class="nameTitle">
+          Source name
+        </div>
+        <div class="infoTitles">
+          <div>
+            Ra
+          </div>
+          <div>
+            Dec
+          </div>
+          <div>
+            Peak magnitude
+          </div>
+          <div>
+            First detected
+          </div>
+          <div></div>
+        </div>
+      </div>
       {% for source_id, versions in versions_by_source.items() %}
         <div class="sourceAndVersions" id="{{ source_id }}">
           <div class="source">
             <div class="sourceAndTimeAgo">
-              <h2 class="sourceId">{{ source_id }}</h2>
+              <h2 class="sourceId">
+                <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
+                  {{ source_id }}
+                </a>
+              </h2>
               {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
-              {% set days = time_difference.days %}
-              {% set hours = time_difference.seconds // 3600 %}
-              {% set minutes = (time_difference.seconds % 3600) // 60 %}
-              {% set seconds = time_difference.seconds % 60 %}
-              <span class="timeAgo {% if days < 1 %}new{% end %}">
-                {% if time_difference.seconds < 60 %}
-                  {{ seconds }} seconds ago
-                {% elif time_difference.seconds < 3600 %}
-                  {{ minutes }} minutes and {{ seconds }} seconds ago
-                {% elif days == 0 %}
-                  {{ hours }} hours and {{ minutes }} minutes ago
-                {% else %}
-                  {{ days }} days and {{ hours }} hours ago
-                {% end %}
-              </span>
-              <button type="button" onclick="displayVersions('{{ source_id }}')">
-                view all...
-              </button>
+              {% if time_difference.days > 30 %}
+                <span class="timeAgo">
+                    {{ versions[0].created_at.strftime('%m/%d/%Y') }}
+                </span>
+              {% else %}
+                {% set days = time_difference.days %}
+                {% set hours = time_difference.seconds // 3600 %}
+                {% set minutes = (time_difference.seconds % 3600) // 60 %}
+                {% set seconds = time_difference.seconds % 60 %}
+                <span class="timeAgo {% if days < 1 %}new{% end %}">
+                  {% if time_difference.seconds < 60 %}
+                    {{ seconds }} seconds ago
+                  {% elif time_difference.seconds < 3600 %}
+                    {{ minutes }} minutes ago
+                  {% elif days == 0 %}
+                    {{ hours }} hours and {{ minutes }} min ago
+                  {% else %}
+                    {{ days }} days and {{ hours }} hours ago
+                  {% end %}
+                </span>
+              {% end %}
             </div>
-            <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
-              Link to the latest version
-            </a>
+            <div class="sourceInfo">
+              <div>
+                {{ versions[0].data.get('ra') }}
+              </div>
+              <div>
+                {{ versions[0].data.get('dec') }}
+              </div>
+              <div class="peakMagList">
+                {% if 'peak_mag_per_filter' in versions[0].data and versions[0].data.get('peak_mag_per_filter') %}
+                  {% for filter in versions[0].data.get('peak_mag_per_filter') %}
+                    <div>{{  "{:.4f}".format(versions[0].data.get('peak_mag_per_filter')[filter]) }} ({{ filter }})</div>
+                  {% end %}
+                {% else %}
+                  ...
+                {% end %}
+              </div>
+              <div>
+                {% if 'first_detected_mjd' in versions[0].data and versions[0].data.get('first_detected_mjd') %}
+                  {{ versions[0].data.get('first_detected_mjd') }}
+                {% else %}
+                  ...
+                {% end %}
+              </div>
+              <div class="viewAllVersionsButton">
+                <button type="button" onclick="displayVersions('{{ source_id }}')">
+                  view all...
+                </button>
+              </div>
+            </div>
           </div>
           <div
             class="versions"
