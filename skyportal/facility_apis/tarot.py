@@ -373,6 +373,8 @@ class TAROTAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to get the status for.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
         from ..models import FacilityTransaction
 
