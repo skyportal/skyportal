@@ -432,19 +432,33 @@ class TAROTAPI(FollowUpAPI):
 
         if "rejected" not in new_request_status:
             # check if the scene has been observed
-            station_endpoint = cfg[
-                f"app.{station_dict[request.payload['station_name']]['endpoint']}"
-            ]
-            response = requests.get(f"{station_endpoint}/klotz/")
+            if (
+                cfg[f"app.{station_dict[request.payload['station_name']]['endpoint']}"]
+                is not None
+            ):
+                station_endpoint = cfg[
+                    f"app.{station_dict[request.payload['station_name']]['endpoint']}"
+                ]
+                response = requests.get(f"{station_endpoint}/klotz/")
 
-            if response.status_code != 200:
-                raise ValueError("Error trying to get the observation log")
+                if response.status_code != 200:
+                    raise ValueError("Error trying to get the observation log")
 
-            scene_id = insert_scene_ids[0]
-            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-            if manager_scene_id in response.text:
-                nb_observation = response.text.count(manager_scene_id)
-                new_request_status = f"complete"
+                scene_id = insert_scene_ids[0]
+                manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+                if manager_scene_id in response.text:
+                    nb_observation = response.text.count(manager_scene_id)
+                    new_request_status = f"complete"
+            else:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"{request.payload['station_name']} endpoint not configured",
+                        "type": "error",
+                    },
+                )
 
         if new_request_status is None:
             return
