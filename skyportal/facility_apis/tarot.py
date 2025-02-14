@@ -412,10 +412,10 @@ class TAROTAPI(FollowUpAPI):
         status_dict = {
             "1": "rejected: date is before the current/upcoming night.",
             "2": "submitted: planned for a future night.",
-            "3": "rejected: never visible in the range",
-            "4": "rejected: over quota",
-            "5": "submitted: planified",
-            "6": "submitted: planified over",
+            "3": "rejected: never visible within the specified range.",
+            "4": "rejected: over quota.",
+            "5": "submitted: planified.",
+            "6": "submitted: planified over.",
         }
 
         new_request_status = None
