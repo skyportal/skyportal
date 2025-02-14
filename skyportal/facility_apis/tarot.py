@@ -430,7 +430,7 @@ class TAROTAPI(FollowUpAPI):
                 match.group(1), "rejected: not planified"
             )
 
-        if "rejected" not in request.status:
+        if "rejected" not in new_request_status:
             # check if the scene has been observed
             station_endpoint = cfg[
                 f"app.{station_dict[request.payload['station_name']]['endpoint']}"
