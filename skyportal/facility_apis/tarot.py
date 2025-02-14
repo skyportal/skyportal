@@ -412,6 +412,7 @@ class TAROTAPI(FollowUpAPI):
         status_dict = {
             "1": "rejected: date is before the current/upcoming night.",
             "2": "submitted: planned for a future night.",
+            "3": "rejected: never visible in the range",
             "4": "rejected: over quota",
             "5": "submitted: planified",
             "6": "submitted: planified over",
@@ -422,7 +423,8 @@ class TAROTAPI(FollowUpAPI):
         if (
             match is not None
             and match.group(1) is not None
-            and status_dict.get(match.group(1)) not in request.status
+            and status_dict.get(match.group(1), "rejected: not planified")
+            not in request.status
         ):
             new_request_status = status_dict.get(
                 match.group(1), "rejected: not planified"
