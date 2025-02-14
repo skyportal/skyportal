@@ -430,15 +430,13 @@ class TAROTAPI(FollowUpAPI):
                 match.group(1), "rejected: not planified"
             )
 
-        if "rejected" not in new_request_status:
+        if "rejected" not in (new_request_status or request.status):
             # check if the scene has been observed
-            if (
-                cfg[f"app.{station_dict[request.payload['station_name']]['endpoint']}"]
-                is not None
-            ):
+            try:
                 station_endpoint = cfg[
                     f"app.{station_dict[request.payload['station_name']]['endpoint']}"
                 ]
+
                 response = requests.get(f"{station_endpoint}/klotz/")
 
                 if response.status_code != 200:
@@ -449,13 +447,13 @@ class TAROTAPI(FollowUpAPI):
                 if manager_scene_id in response.text:
                     nb_observation = response.text.count(manager_scene_id)
                     new_request_status = f"complete"
-            else:
+            except:
                 flow = Flow()
                 flow.push(
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"{request.payload['station_name']} endpoint not configured",
+                        "note": f"{request.payload['station_name']} endpoint not configured to verify observation",
                         "type": "error",
                     },
                 )
