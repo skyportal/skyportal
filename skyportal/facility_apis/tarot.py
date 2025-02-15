@@ -266,6 +266,7 @@ def login_to_tarot(request, session, altdata):
         f"{cfg['app.tarot_endpoint']}/manage/manage/login.php",
         data=data,
         auth=(altdata["browser_username"], altdata["browser_password"]),
+        timeout=5.0,
     )
 
     if login_response.status_code == 200 and "hashuser" in login_response.text:
@@ -328,6 +329,7 @@ class TAROTAPI(FollowUpAPI):
             f"{cfg['app.tarot_endpoint']}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
             auth=(altdata["browser_username"], altdata["browser_password"]),
+            timeout=5.0,
         )
 
         if "New Scene Inserted" not in response.text:
@@ -393,6 +395,7 @@ class TAROTAPI(FollowUpAPI):
         response = requests.get(
             f"{cfg['app.tarot_endpoint']}/rejected{station_dict[request.payload['station_name']]['url_to_request']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
+            timeout=5.0,
         )
 
         if response.status_code != 200:
@@ -437,7 +440,7 @@ class TAROTAPI(FollowUpAPI):
                     f"app.{station_dict[request.payload['station_name']]['endpoint']}"
                 ]
 
-                response = requests.get(f"{station_endpoint}/klotz/")
+                response = requests.get(f"{station_endpoint}/klotz/", timeout=5.0)
 
                 if response.status_code != 200:
                     raise ValueError("Error trying to get the observation log")
@@ -542,6 +545,7 @@ class TAROTAPI(FollowUpAPI):
                 f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
                 data=data,
                 auth=(altdata["browser_username"], altdata["browser_password"]),
+                timeout=5.0,
             )
 
             if response.status_code != 200:
