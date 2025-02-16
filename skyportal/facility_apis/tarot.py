@@ -1,3 +1,4 @@
+import functools
 import re
 from datetime import datetime
 
@@ -32,6 +33,20 @@ station_dict = {
         "endpoint": "reunion_endpoint",
     },
 }
+
+
+def catch_timeout_and_no_endpoint(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.Timeout:
+            raise ValueError("Unable to reach the TAROT server")
+        except KeyError as e:
+            if "endpoint" in str(e):
+                raise ValueError("TAROT endpoint is missing from configuration")
+
+    return wrapper
 
 
 def create_observation_string(request):
@@ -288,6 +303,7 @@ class TAROTAPI(FollowUpAPI):
     """SkyPortal interface to the TAROT"""
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TAROT.
         For TAROT, this means adding a new scene to a request already created.
@@ -368,6 +384,7 @@ class TAROTAPI(FollowUpAPI):
             log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def get(request, session, **kwargs):
         """Get the status of a follow-up request from TAROT.
 
@@ -435,11 +452,10 @@ class TAROTAPI(FollowUpAPI):
 
         if "rejected" not in (new_request_status or request.status):
             # check if the scene has been observed
-            try:
-                station_endpoint = cfg[
-                    f"app.{station_dict[request.payload['station_name']]['endpoint']}"
-                ]
-
+            station_endpoint = cfg[
+                f"app.{station_dict[request.payload['station_name']]['endpoint']}"
+            ]
+            if station_endpoint:
                 response = requests.get(f"{station_endpoint}/klotz/", timeout=5.0)
 
                 if response.status_code != 200:
@@ -450,13 +466,13 @@ class TAROTAPI(FollowUpAPI):
                 if manager_scene_id in response.text:
                     nb_observation = response.text.count(manager_scene_id)
                     new_request_status = f"complete"
-            except:
+            else:
                 flow = Flow()
                 flow.push(
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"{request.payload['station_name']} endpoint not configured to verify observation",
+                        "note": f"No url provided for endpoint {request.payload['station_name']}.",
                         "type": "error",
                     },
                 )
@@ -500,6 +516,7 @@ class TAROTAPI(FollowUpAPI):
             log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
         """Delete a follow-up request from TAROT queue.
 
