@@ -1,3 +1,4 @@
+import functools
 import re
 from datetime import datetime
 
@@ -17,6 +18,35 @@ from . import FollowUpAPI
 env, cfg = load_env()
 
 log = make_log("facility_apis/tarot")
+
+station_dict = {
+    "Tarot_Calern": {
+        "url_to_request": 1,
+        "endpoint": "calern_endpoint",
+    },
+    "Tarot_Chili": {
+        "url_to_request": 2,
+        "endpoint": "chili_endpoint",
+    },
+    "Tarot_Reunion": {
+        "url_to_request": 8,
+        "endpoint": "reunion_endpoint",
+    },
+}
+
+
+def catch_timeout_and_no_endpoint(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.Timeout:
+            raise ValueError("Unable to reach the TAROT server")
+        except KeyError as e:
+            if "endpoint" in str(e):
+                raise ValueError("TAROT endpoint is missing from configuration")
+
+    return wrapper
 
 
 def create_observation_string(request):
@@ -251,6 +281,7 @@ def login_to_tarot(request, session, altdata):
         f"{cfg['app.tarot_endpoint']}/manage/manage/login.php",
         data=data,
         auth=(altdata["browser_username"], altdata["browser_password"]),
+        timeout=5.0,
     )
 
     if login_response.status_code == 200 and "hashuser" in login_response.text:
@@ -272,6 +303,7 @@ class TAROTAPI(FollowUpAPI):
     """SkyPortal interface to the TAROT"""
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TAROT.
         For TAROT, this means adding a new scene to a request already created.
@@ -313,14 +345,18 @@ class TAROTAPI(FollowUpAPI):
             f"{cfg['app.tarot_endpoint']}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
             auth=(altdata["browser_username"], altdata["browser_password"]),
+            timeout=5.0,
         )
 
-        if response.status_code != 200 or "New Scene Inserted" not in response.text:
-            request.status = (
-                f"rejected: status code = {response.status_code}\n\r{response.text}"
-            )
+        if "New Scene Inserted" not in response.text:
+            error_response = f"rejected: status code = {response.status_code}. "
+            if response.status_code == 200:
+                error_response += "Scene not Inserted" + (
+                    " - Hashuser not valid" if "secu_erreur" in response.text else ""
+                )
+            request.status = error_response
         else:
-            request.status = "submitted"
+            request.status = "submitted: use retrieve to check status"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
@@ -330,21 +366,25 @@ class TAROTAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+        session.commit()
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def get(request, session, **kwargs):
         """Get the status of a follow-up request from TAROT.
 
@@ -352,6 +392,8 @@ class TAROTAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to get the status for.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
         from ..models import FacilityTransaction
 
@@ -367,44 +409,78 @@ class TAROTAPI(FollowUpAPI):
             request.transactions[-1].response["content"],
         )
 
-        url_dict = {
-            "Tarot_Calern": 1,
-            "Tarot_Chili": 2,
-            "Tarot_Reunion": 8,
-        }
         response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/rejected{url_dict[request.payload['station_name']]}.txt",
+            f"{cfg['app.tarot_endpoint']}/rejected{station_dict[request.payload['station_name']]['url_to_request']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
+            timeout=5.0,
         )
 
-        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
-        # Each identifier corresponds to a different status, as shown below:
-        status_dict = {
-            "0": "not planned",
-            "1": "observation ended before range",
-            "2": "observation started after range",
-            "4": "over quota",
-            "5": "planned",
-            "6": "planned over",
-        }
+        if response.status_code != 200:
+            raise ValueError("Error trying to get the status of the request")
 
         # If request exposure_count * nb_filter > 6, multiple scenes are created
         # But we only check the status of the first scene
         scene_id = insert_scene_ids[0]
-
         manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
         pattern = (
             rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
         )
         match = re.search(pattern, response.text)
-        if match is not None:
-            scene_status_index = match.group(1)
-            if scene_status_index != "5" and scene_status_index != "6":
-                request.status = (
-                    f"rejected: {status_dict.get(scene_status_index, 'Not planified')}"
+
+        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+        # Each identifier corresponds to a different status, as shown below:
+        status_dict = {
+            "1": "rejected: date is before the current/upcoming night.",
+            "2": "submitted: planned for a future night.",
+            "3": "rejected: never visible within the specified range.",
+            "4": "rejected: over quota.",
+            "5": "submitted: planified.",
+            "6": "submitted: planified over.",
+        }
+
+        new_request_status = None
+        nb_observation = None
+        if (
+            match is not None
+            and match.group(1) is not None
+            and status_dict.get(match.group(1), "rejected: not planified")
+            not in request.status
+        ):
+            new_request_status = status_dict.get(
+                match.group(1), "rejected: not planified"
+            )
+
+        if "rejected" not in (new_request_status or request.status):
+            # check if the scene has been observed
+            station_endpoint = cfg[
+                f"app.{station_dict[request.payload['station_name']]['endpoint']}"
+            ]
+            if station_endpoint:
+                response = requests.get(f"{station_endpoint}/klotz/", timeout=5.0)
+
+                if response.status_code != 200:
+                    raise ValueError("Error trying to get the observation log")
+
+                scene_id = insert_scene_ids[0]
+                manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+                if manager_scene_id in response.text:
+                    nb_observation = response.text.count(manager_scene_id)
+                    new_request_status = f"complete"
+            else:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"No url provided for endpoint {request.payload['station_name']}.",
+                        "type": "error",
+                    },
                 )
-        else:
-            request.status = f"rejected: Scene {manager_scene_id} for {request.obj.id} not found on TAROT manager"
+
+        if new_request_status is None:
+            return
+
+        request.status = new_request_status
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
@@ -415,20 +491,32 @@ class TAROTAPI(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+            if "complete" in request.status and nb_observation:
+                flow.push(
+                    request.last_modified_by_id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"TAROT have been observed {nb_observation} times",
+                        "type": "info",
+                    },
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
+    @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
         """Delete a follow-up request from TAROT queue.
 
@@ -474,6 +562,7 @@ class TAROTAPI(FollowUpAPI):
                 f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
                 data=data,
                 auth=(altdata["browser_username"], altdata["browser_password"]),
+                timeout=5.0,
             )
 
             if response.status_code != 200:
@@ -487,7 +576,7 @@ class TAROTAPI(FollowUpAPI):
             request.status = (
                 "deleted"
                 if is_error_on_delete is None
-                else f"rejected: {is_error_on_delete}"
+                else f"rejected: deletion failed - {is_error_on_delete}"
             )
 
             transaction = FacilityTransaction(
@@ -498,20 +587,23 @@ class TAROTAPI(FollowUpAPI):
             )
 
             session.add(transaction)
+            session.commit()
 
-        if kwargs.get("refresh_source", False):
+        try:
             flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     form_json_schema = {
         "type": "object",
