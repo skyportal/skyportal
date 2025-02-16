@@ -8,6 +8,7 @@ import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
+import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Tooltip from "@mui/material/Tooltip";
 
@@ -61,19 +62,42 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
         {starList &&
           starList?.length > 0 &&
           starList[0].str !== "Loading starlist..." && (
-            <Tooltip title="Copy to clipboard">
-              <span>
-                <IconButton
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      starList.map((item) => item.str).join("\n"),
-                    );
-                  }}
-                >
-                  <ContentCopyIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
+            <div>
+              <Tooltip title="Copy to clipboard">
+                <span>
+                  <IconButton
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        starList.map((item) => item.str).join("\n"),
+                      );
+                    }}
+                  >
+                    <ContentCopyIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Download">
+                <span>
+                  <IconButton
+                    onClick={() => {
+                      const element = document.createElement("a");
+                      const file = new Blob(
+                        [starList.map((item) => item.str).join("\n")],
+                        { type: "text/plain" },
+                      );
+                      element.href = URL.createObjectURL(file);
+                      element.download = `starlist_${facility.toLowerCase()}${
+                        facility === "P200-NGPS" ? ".csv" : ".txt"
+                      }`;
+                      document.body.appendChild(element);
+                      element.click();
+                    }}
+                  >
+                    <DownloadOutlined />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </div>
           )}
       </div>
       <Paper variant="outlined" className={classes.paper}>
