@@ -105,9 +105,9 @@ const SimpleMenu = ({ request }) => {
         open={Boolean(anchorEl)}
         onClose={handleClose}
       >
-        {(request.status === "submitted" ||
-          request.status === "not observed" ||
-          request.status === "pending") && (
+        {(request.status.startsWith("submitted") ||
+          request.status.startsWith("not observed") ||
+          request.status.startsWith("pending")) && (
           <MenuItem
             onClick={() => updateRequestStatus("complete")}
             variant="contained"
@@ -116,9 +116,9 @@ const SimpleMenu = ({ request }) => {
             Mark Observed
           </MenuItem>
         )}
-        {(request.status === "submitted" ||
-          request.status === "complete" ||
-          request.status === "pending") && (
+        {(request.status.startsWith("submitted") ||
+          request.status.startsWith("complete") ||
+          request.status.startsWith("pending")) && (
           <MenuItem
             onClick={() => updateRequestStatus("not observed")}
             variant="contained"

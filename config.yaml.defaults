@@ -30,7 +30,6 @@ app:
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
   trt_endpoint: https://trt.narit.or.th/hub/api
-  tarot_endpoint: http://cador.tarotnet.org/ros
 
   lt_host: 161.72.57.3
   lt_port: 8080
@@ -40,6 +39,12 @@ app:
   lco_port: 443
 
   lco_archive_endpoint: https://archive-api.lco.global
+
+  # Tarot API endpoints
+  tarot_endpoint: http://cador.tarotnet.org/ros
+  calern_endpoint: http://tca4.tarotnet.org/ros
+  chili_endpoint: http://tch4.tarotnet.org/ros
+  reunion_endpoint: http://tre4.tarotnet.org/ros
 
   ztf:
     protocol: https
