@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
@@ -47,7 +47,7 @@ const Field = styled("div")({
 
 const CandidateScanReport = () => {
   const dispatch = useDispatch();
-  const [candidatesScan, setCandidatesScan] = useState([]);
+  const candidatesScan = useSelector((state) => state.candidatesScanReport);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [candidateScanToEdit, setCandidateScanToEdit] = useState(null);
@@ -59,10 +59,7 @@ const CandidateScanReport = () => {
         rows: 10,
         page: 1,
       }),
-    ).then((res) => {
-      setLoading(false);
-      setCandidatesScan(res.data);
-    });
+    ).then(() => setLoading(false));
   }, [dispatch]);
 
   const displayDate = (date) => {

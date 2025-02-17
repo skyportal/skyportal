@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Obj
@@ -92,6 +93,9 @@ class CandidateScanReportHandler(BaseHandler):
             session.add(candidate_scan_report)
             session.commit()
 
+            flow = Flow()
+            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
+
             return self.success()
 
     @auth_or_token
@@ -161,6 +165,9 @@ class CandidateScanReportHandler(BaseHandler):
 
             for key, value in data.items():
                 setattr(candidate_scan_report, key, value)
+
+            flow = Flow()
+            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
 
             session.commit()
             return self.success()
