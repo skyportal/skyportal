@@ -79,7 +79,11 @@ const SaveCandidateScanForm = ({
       setLoading(false);
       if (result.status === "success") {
         dispatch(
-          showNotification("Candidate scan successfully saved to the report"),
+          showNotification(
+            candidateScanToEdit
+              ? "Candidate scan successfully updated"
+              : "Candidate scan successfully saved to the report",
+          ),
         );
         setDialogOpen(false);
         setSaveOptions({});
