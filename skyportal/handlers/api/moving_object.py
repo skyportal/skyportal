@@ -12,7 +12,6 @@ from ...models import (
 )
 from ...utils.moving_objects import (
     add_instrument_fields,
-    find_obj,
     find_observable_sequence,
     get_ephemeris,
 )
@@ -27,7 +26,7 @@ class MovingObjectFollowupHandler(BaseHandler):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object
-        description: Find a continuous sequence of observations for a moving object in an instrument's field
+        description: Find a continuous sequence of observations for a moving object in an instrument's field. N observations of a given exposure time and filter are scheduled at the optimal times between start_time and end_time.
         tags:
         - moving objects
         - follow-up
@@ -56,17 +55,29 @@ class MovingObjectFollowupHandler(BaseHandler):
                             start_time:
                                 type: string
                                 format: date-time
-                                description: Start time of the observations
+                                description: Start time of the obversations' time window
                             end_time:
                                 type: string
                                 format: date-time
-                                description: End time of the observations
+                                description: End time of the obversations' time window
                             filter:
                                 type: string
                                 description: Filter to use
                             primary_only:
                                 type: boolean
-                                description: Only consider primary observations
+                                description: Only consider an instrument's fields from it's primary grid, if any
+                                required: false
+                            airmass_limit:
+                                type: number
+                                description: Maximum airmass for observations. Default is 2.5
+                                required: false
+                            moon_distance_limit:
+                                type: number
+                                description: Minimum distance from the Moon in degrees. Default is 30
+                                required: false
+                            sun_altitude_limit:
+                                type: number
+                                description: Maximum altitude of the Sun in degrees. Default is -18
                                 required: false
         responses:
             200:
@@ -128,11 +139,6 @@ class MovingObjectFollowupHandler(BaseHandler):
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 
-        try:
-            id = find_obj(obj_name)
-        except Exception as e:
-            return self.error(f"Error retrieving object from JPL Horizons: {e}")
-
         with DBSession() as session:
             try:
                 instrument = session.scalar(
@@ -146,7 +152,7 @@ class MovingObjectFollowupHandler(BaseHandler):
                     return self.error("No observer can be found for this instrument")
 
                 df = get_ephemeris(
-                    id,
+                    obj_name,
                     start_time,
                     end_time,
                     observer,

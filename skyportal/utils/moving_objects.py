@@ -48,7 +48,7 @@ COLUMN_NAMES = [
 ]
 
 
-def find_obj(obj_name: str):
+def find_jplhorizon_obj(obj_name: str):
     """
     Find the object with the given name in the JPL Horizons database.
 
@@ -88,7 +88,7 @@ def find_obj(obj_name: str):
 
 
 def get_ephemeris(
-    obj_id: str,
+    obj_name: str,
     start_date: datetime,
     end_date: datetime,
     observer: AltAz,
@@ -101,8 +101,8 @@ def get_ephemeris(
 
     Parameters
     ----------
-    obj_id : str
-        The object ID to get the ephemeris for.
+    obj_name : str
+        The object name in JPL Horizons.
     start_date : datetime
         The start date of the ephemeris.
     end_date : datetime
@@ -131,7 +131,7 @@ def get_ephemeris(
     start_time_str = start_date.strftime("%Y-%m-%d %H:%M")
     end_time_str = end_date.strftime("%Y-%m-%d %H:%M")
 
-    cache_key = f"{obj_id}_{start_time_str}_{end_time_str}_{lon}_{lat}_{alt}"
+    cache_key = f"{obj_name}_{start_time_str}_{end_time_str}_{lon}_{lat}_{alt}"
     cached_data = cache[cache_key]
     if cached_data is not None:
         try:
@@ -141,6 +141,7 @@ def get_ephemeris(
             data = None
 
     if cached_data is None or data is None:
+        obj_id = find_jplhorizon_obj(obj_name)
         params = {
             "COMMAND": f"'DES={obj_id}'",
             "OBJ_DATA": "'YES'",
