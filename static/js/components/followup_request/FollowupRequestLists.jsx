@@ -134,16 +134,20 @@ const FollowupRequestLists = ({
       params.refreshRequests = true;
     }
     dispatch(Actions.getPhotometryRequest(id, params)).then((response) => {
+      setIsGetting(null);
       if (response.status === "success") {
-        dispatch(
-          showNotification(
-            "Successfully retrieved photometry request, please wait for it to be processed.",
-            "info",
-          ),
-        );
+        if (response.data.request_status?.includes("rejected")) {
+          dispatch(showNotification("Request has been rejected.", "warning"));
+        } else {
+          dispatch(
+            showNotification(
+              "Request successfully submitted, please wait for it to be processed.",
+              "info",
+            ),
+          );
+        }
         setHasRetrieved([...hasRetrieved, id]);
       }
-      setIsGetting(null);
     });
   };
 
