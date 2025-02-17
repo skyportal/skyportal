@@ -251,6 +251,23 @@ const FollowupRequestLists = ({
       instrumentFormParams[instrument_id].methodsImplemented.get;
     const modifiable = implementsEdit || implementsDelete || implementsGet;
 
+    if (
+      instrumentFormParams[instrument_id]?.formSchema?.properties?.station_name
+    ) {
+      const renderStation = (dataIndex) => {
+        const followupRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return <div>{followupRequest?.payload?.station_name}</div>;
+      };
+      columns.push({
+        name: "station",
+        label: "Station",
+        options: {
+          customBodyRenderLite: renderStation,
+        },
+      });
+    }
+
     if (showObject) {
       const renderObj = (dataIndex) => {
         const followupRequest =
