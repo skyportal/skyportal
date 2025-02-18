@@ -134,16 +134,20 @@ const FollowupRequestLists = ({
       params.refreshRequests = true;
     }
     dispatch(Actions.getPhotometryRequest(id, params)).then((response) => {
+      setIsGetting(null);
       if (response.status === "success") {
-        dispatch(
-          showNotification(
-            "Successfully retrieved photometry request, please wait for it to be processed.",
-            "info",
-          ),
-        );
+        if (response.data.request_status?.includes("rejected")) {
+          dispatch(showNotification("Request has been rejected.", "warning"));
+        } else {
+          dispatch(
+            showNotification(
+              "Request successfully submitted, please wait for it to be processed.",
+              "info",
+            ),
+          );
+        }
         setHasRetrieved([...hasRetrieved, id]);
       }
-      setIsGetting(null);
     });
   };
 
@@ -246,6 +250,23 @@ const FollowupRequestLists = ({
     const implementsGet =
       instrumentFormParams[instrument_id].methodsImplemented.get;
     const modifiable = implementsEdit || implementsDelete || implementsGet;
+
+    if (
+      instrumentFormParams[instrument_id]?.formSchema?.properties?.station_name
+    ) {
+      const renderStation = (dataIndex) => {
+        const followupRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return <div>{followupRequest?.payload?.station_name}</div>;
+      };
+      columns.push({
+        name: "station",
+        label: "Station",
+        options: {
+          customBodyRenderLite: renderStation,
+        },
+      });
+    }
 
     if (showObject) {
       const renderObj = (dataIndex) => {

@@ -61,7 +61,12 @@ class PhotometryRequestHandler(BaseHandler):
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": internal_key},
             )
-            return self.success()
+            return self.success(
+                data={
+                    "id": followup_request.id,
+                    "request_status": followup_request.status,
+                }
+            )
         except Exception as e:
             # Remove this catch-all once we identify a more specific cause of uncaught errors
             return self.error(f"Error retrieving photometry request: {e}")
