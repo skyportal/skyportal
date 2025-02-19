@@ -623,8 +623,9 @@ const PhotometryPlot = ({
             hovertemplate: "%{text}<extra></extra>",
           };
 
-          const secondaryAxisX = !displayXAxisInlog
-            ? {
+          const secondaryAxisX = displayXAxisInlog
+            ? null
+            : {
                 x: photometryStats.days_ago
                   ? [photometryStats.days_ago.max, photometryStats.days_ago.min]
                   : [
@@ -646,8 +647,7 @@ const PhotometryPlot = ({
                 showlegend: false,
                 xaxis: "x2",
                 hoverinfo: "skip",
-              }
-            : null;
+              };
 
           const secondaryAxisY = {
             x: [photometryStats.mjd.min, photometryStats.mjd.max],
