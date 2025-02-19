@@ -296,7 +296,7 @@ const PhotometryPlot = ({
         extra: [100000, 0],
       },
     };
-    stats[!t0 || !displayXAxisSinceT0 ? "days_ago" : "sec_since_t0"] = {
+    stats[t0 && displayXAxisSinceT0 ? "sec_since_t0" : "days_ago"] = {
       min: 100000,
       max: 0,
       extra: [100000, 0],
