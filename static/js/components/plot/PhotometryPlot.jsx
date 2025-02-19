@@ -671,16 +671,14 @@ const PhotometryPlot = ({
             ];
           }
 
-          if (photometryStats && plotType === "mag" && dm) {
-            return [
-              detectionsTrace,
-              upperLimitsTrace,
-              secondaryAxisX,
-              secondaryAxisY,
-            ];
-          }
-
-          return [detectionsTrace, upperLimitsTrace, secondaryAxisX];
+          return [
+            detectionsTrace,
+            upperLimitsTrace,
+            ...(secondaryAxisX ? [secondaryAxisX] : []),
+            ...(photometryStats && plotType === "mag" && dm
+              ? [secondaryAxisY]
+              : []),
+          ];
         })
         .flat();
 
