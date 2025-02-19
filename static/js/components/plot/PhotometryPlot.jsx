@@ -336,9 +336,15 @@ const PhotometryPlot = ({
         );
         return names.length === 0;
       });
-      newPoint.text = displayXAxisInlog
-        ? `T-T0: ${newPoint.sec_since_t0}`
-        : `MJD: ${newPoint.mjd.toFixed(6)}`;
+      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+
+      if (displayXAxisSinceT0) {
+        newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
+          "en-US",
+          { maximumFractionDigits: 0 },
+        )}s`;
+      }
+
       if (newPoint.mag) {
         newPoint.text += `
         <br>Mag: ${newPoint.mag.toFixed(3)}
@@ -910,8 +916,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              showexponent: "auto",
-              exponentformat: "power",
+              tickformat: ",.0f",
               ...BASE_LAYOUT,
             };
       }
