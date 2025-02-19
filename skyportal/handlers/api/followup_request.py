@@ -561,7 +561,24 @@ def post_followup_request(
                         raise ValueError(
                             f"A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint)."
                         )
-
+        if constraints.get("not_if_assignment_exists", False):
+            # if any source within the radius is already assigned to an observing run
+            # don't trigger
+            # TODO: do we want to only consider observed targets?
+            # TODO: do we only want to consider recent or future runs?
+            existing_assignments = session.scalars(
+                ClassicalAssignment.select(session.user_or_token).where(
+                    ClassicalAssignment.obj_id.in_(
+                        sa.select(Obj.id).where(
+                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
+                        )
+                    )
+                )
+            ).first()
+            if existing_assignments is not None:
+                raise ValueError(
+                    f"Source within {radius} arcsec is already assigned to an observing run, not submitting request (as per constraint)."
+                )
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data["allocation_id"],
     )
@@ -1184,6 +1201,10 @@ class FollowupRequestHandler(BaseHandler):
             constraints["not_if_tns_reported"] = data.pop("not_if_tns_reported")
         if "ignore_allocation_ids" in data:
             constraints["ignore_allocation_ids"] = data.pop("ignore_allocation_ids")
+        if "not_if_assignment_exists" in data:
+            constraints["not_if_assignment_exists"] = data.pop(
+                "not_if_assignment_exists"
+            )
         if len(list(constraints.keys())) == 0:
             constraints = None
         if constraints is not None:
