@@ -342,7 +342,7 @@ const PhotometryPlot = ({
         newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
           "en-US",
           { maximumFractionDigits: 0 },
-        )}s`;
+        )} s`;
       }
 
       if (newPoint.mag) {
