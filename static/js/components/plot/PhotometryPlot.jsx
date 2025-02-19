@@ -297,9 +297,9 @@ const PhotometryPlot = ({
       },
     };
     stats[t0 && displayXAxisSinceT0 ? "sec_since_t0" : "days_ago"] = {
-      min: 100000,
+      min: t0 && displayXAxisSinceT0 ? 0 : 100000,
       max: 0,
-      extra: [100000, 0],
+      extra: [t0 && displayXAxisSinceT0 ? 0 : 100000, 0],
     };
 
     const now = mjdnow();
