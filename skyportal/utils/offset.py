@@ -1225,7 +1225,7 @@ def get_nearby_offset_stars(
                 if c.isalnum() or c in string.punctuation or c == " "
             ]
         )
-        assignment_comment.replace(col_sep, " ")
+        assignment_comment = assignment_comment.replace(col_sep, " ")
 
         star_list_format = (
             f"{basename}"
