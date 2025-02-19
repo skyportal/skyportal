@@ -905,7 +905,7 @@ const PhotometryPlot = ({
             }
           : {
               title: "T - T0 (s)",
-              range: [photStats_value.sec_since_t0.range],
+              range: [...photStats_value.sec_since_t0.range],
               overlaying: "x",
               side: "bottom",
               showgrid: false,
