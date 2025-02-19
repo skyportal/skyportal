@@ -546,7 +546,7 @@ const PhotometryPlot = ({
             dataType: "upperLimits",
             isForcedPhotometry: upperLimitisFP,
             x: upperLimits.map((point) =>
-              displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
             ),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
@@ -583,7 +583,7 @@ const PhotometryPlot = ({
             dataType: "detections",
             isForcedPhotometry: detectionisFP,
             x: detections.map((point) =>
-              displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
             ),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
