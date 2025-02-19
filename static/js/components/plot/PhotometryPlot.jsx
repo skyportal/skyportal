@@ -338,7 +338,7 @@ const PhotometryPlot = ({
       });
       newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
 
-      if (displayXAxisSinceT0) {
+      if (newPoint.sec_since_t0) {
         newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
           "en-US",
           { maximumFractionDigits: 0 },
@@ -872,26 +872,26 @@ const PhotometryPlot = ({
   const createLayouts = (plotType, photStats_value, dm_value) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
-      newLayouts.xaxis = !displayXAxisInlog
-        ? {
-            title: "MJD",
-            side: "top",
-            range: [...photStats_value.mjd.range],
-            tickformat: ".6~f",
-            zeroline: false,
-            ...BASE_LAYOUT,
-          }
-        : {
-            title: "T - T0 (s)",
-            side: "bottom",
-            range: photStats_value.sec_since_t0.range.map(Math.log10),
-            type: "log",
-            showexponent: "all",
-            exponentformat: "power",
-            zeroline: false,
-            ...BASE_LAYOUT,
-          };
-      if (!displayXAxisInlog) {
+      if (t0 && displayXAxisInlog) {
+        newLayouts.xaxis = {
+          title: "T - T0 (s)",
+          side: "bottom",
+          range: photStats_value.sec_since_t0.range.map(Math.log10),
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+      } else {
+        newLayouts.xaxis = {
+          title: "MJD",
+          side: "top",
+          range: [...photStats_value.mjd.range],
+          tickformat: ".6~f",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
               title: "Days Ago",
