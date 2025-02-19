@@ -436,13 +436,7 @@ const PhotometryPlot = ({
           ? [now - t0, stats.days_ago.min - 1]
           : [stats.days_ago.max + 1, stats.days_ago.min - 1];
     } else {
-      stats.sec_since_t0.range =
-        t0 && t0AsOrigin
-          ? [0, stats.sec_since_t0.max + daysToSec(1)]
-          : [
-              stats.sec_since_t0.min - daysToSec(1),
-              stats.sec_since_t0.max + daysToSec(1),
-            ];
+      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + daysToSec(1)];
     }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
