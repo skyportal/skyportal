@@ -623,29 +623,31 @@ const PhotometryPlot = ({
             hovertemplate: "%{text}<extra></extra>",
           };
 
-          const secondaryAxisX = {
-            x: photometryStats.days_ago
-              ? [photometryStats.days_ago.max, photometryStats.days_ago.min]
-              : [
-                  photometryStats.sec_since_t0.min,
-                  photometryStats.sec_since_t0.max,
-                ],
-            y: [photometryStats.mag.max, photometryStats.mag.min],
-            mode: "markers",
-            type: "scatter",
-            name: "secondaryAxisX",
-            legendgroup: "secondaryAxisX",
-            marker: {
-              line: {
-                width: 1,
-              },
-              opacity: 0,
-            },
-            visible: true,
-            showlegend: false,
-            xaxis: "x2",
-            hoverinfo: "skip",
-          };
+          const secondaryAxisX = !displayXAxisInlog
+            ? {
+                x: photometryStats.days_ago
+                  ? [photometryStats.days_ago.max, photometryStats.days_ago.min]
+                  : [
+                      photometryStats.sec_since_t0.min,
+                      photometryStats.sec_since_t0.max,
+                    ],
+                y: [photometryStats.mag.max, photometryStats.mag.min],
+                mode: "markers",
+                type: "scatter",
+                name: "secondaryAxisX",
+                legendgroup: "secondaryAxisX",
+                marker: {
+                  line: {
+                    width: 1,
+                  },
+                  opacity: 0,
+                },
+                visible: true,
+                showlegend: false,
+                xaxis: "x2",
+                hoverinfo: "skip",
+              }
+            : null;
 
           const secondaryAxisY = {
             x: [photometryStats.mjd.min, photometryStats.mjd.max],
@@ -870,42 +872,48 @@ const PhotometryPlot = ({
   const createLayouts = (plotType, photStats_value, dm_value) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
-      newLayouts.xaxis2 = {
-        title: t0 && displayXAxisSinceT0 ? "T - T0 (s)" : "Days Ago",
-        overlaying: "x",
-        side: "bottom",
-        showgrid: false,
-        zeroline: false,
-        ...BASE_LAYOUT,
-      };
-      if (displayXAxisInlog) {
-        photStats_value.sec_since_t0.range[0] = 1;
-        newLayouts.xaxis2 = {
-          ...newLayouts.xaxis2,
-          type: "log",
-          showexponent: "all",
-          exponentformat: "power",
-          range: photStats_value.sec_since_t0.range.map(Math.log10),
-        };
-      } else {
-        newLayouts.xaxis = {
-          title: "MJD",
-          side: "top",
-          type: "linear",
-          range: photStats_value.mjd.range,
-          tickformat: ".6~f",
-          zeroline: false,
-          ...BASE_LAYOUT,
-        };
-        newLayouts.xaxis2 = {
-          ...newLayouts.xaxis2,
-          type: "linear",
-          tickformat: ".6~f",
-          range: (photStats_value.days_ago
-            ? photStats_value.days_ago
-            : photStats_value.sec_since_t0
-          ).range,
-        };
+      newLayouts.xaxis = !displayXAxisInlog
+        ? {
+            title: "MJD",
+            side: "top",
+            range: [...photStats_value.mjd.range],
+            tickformat: ".6~f",
+            zeroline: false,
+            ...BASE_LAYOUT,
+          }
+        : {
+            title: "T - T0 (s)",
+            side: "bottom",
+            range: photStats_value.sec_since_t0.range.map(Math.log10),
+            type: "log",
+            showexponent: "all",
+            exponentformat: "power",
+            zeroline: false,
+            ...BASE_LAYOUT,
+          };
+      if (!displayXAxisInlog) {
+        newLayouts.xaxis2 = photStats_value.days_ago
+          ? {
+              title: "Days Ago",
+              range: [...photStats_value.days_ago.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              tickformat: ".6~f",
+              ...BASE_LAYOUT,
+            }
+          : {
+              title: "T - T0 (s)",
+              range: [photStats_value.sec_since_t0.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              showexponent: "auto",
+              exponentformat: "power",
+              ...BASE_LAYOUT,
+            };
       }
     } else if (plotType === "period") {
       newLayouts.xaxis = {
