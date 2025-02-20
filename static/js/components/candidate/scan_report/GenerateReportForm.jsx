@@ -13,31 +13,55 @@ import { generateCandidateScanReport } from "../../../ducks/candidate/candidate_
 const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
-  const [saveOptions, setSaveOptions] = useState({});
+
+  const now = new Date();
+  const oneDayAgo = new Date(now);
+  oneDayAgo.setDate(now.getDate() - 1);
+  const twelveHoursAgo = new Date(now);
+  twelveHoursAgo.setHours(now.getHours() - 12);
+  const [saveOptions, setSaveOptions] = useState({
+    start_date: oneDayAgo.toISOString(),
+    end_date: now.toISOString(),
+    start_save_date: twelveHoursAgo.toISOString(),
+    end_save_date: now.toISOString(),
+  });
 
   const generateScanReportOptionsSchema = () => {
     return {
       type: "object",
       properties: {
-        start_date: {
-          title: "Start (Local Time)",
-          format: "date-time",
-          type: "string",
+        candidates_detection_range: {
+          title: "Candidates Detection Time Range",
+          type: "object",
+
+          properties: {
+            start_date: {
+              title: "Start (Local Time)",
+              format: "date-time",
+              type: "string",
+            },
+            end_date: {
+              title: "End (Local Time)",
+              format: "date-time",
+              type: "string",
+            },
+          },
         },
-        end_date: {
-          title: "End (Local Time)",
-          format: "date-time",
-          type: "string",
-        },
-        start_save_date: {
-          title: "Report the saved candidates from (Local Time)",
-          format: "date-time",
-          type: "string",
-        },
-        end_save_date: {
-          title: "to (Local Time)",
-          format: "date-time",
-          type: "string",
+        saved_candidates_range: {
+          title: "Saved Candidates Time Range",
+          type: "object",
+          properties: {
+            start_save_date: {
+              title: "Start (Local Time)",
+              format: "date-time",
+              type: "string",
+            },
+            end_save_date: {
+              title: "End (Local Time)",
+              format: "date-time",
+              type: "string",
+            },
+          },
         },
       },
     };
@@ -68,7 +92,9 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
         onClose={() => closeDialog()}
         PaperProps={{ style: { maxWidth: "800px" } }}
       >
-        <DialogTitle>Generate candidate scan report</DialogTitle>
+        <DialogTitle sx={{ textAlign: "center", fontSize: "1.5em" }}>
+          Generate candidate scan report
+        </DialogTitle>
         <DialogContent>
           <Form
             formData={saveOptions}
@@ -78,12 +104,6 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
             validator={validator}
             onSubmit={generateScanReport}
             disabled={loading}
-            uiSchema={{
-              comment: {
-                "ui:widget": "textarea",
-                "ui:options": { rows: 3 },
-              },
-            }}
           />
         </DialogContent>
       </Dialog>
