@@ -305,6 +305,10 @@ app:
           icon: WallpaperOutlined
           url: /taxonomies
 
+        - name: Scan report
+          icon: Summarize
+          url: /candidates/scan_report
+
     - name: Admin
       icon: AdminPanelSettings
       permissions: ["Manage users", "System admin"]
