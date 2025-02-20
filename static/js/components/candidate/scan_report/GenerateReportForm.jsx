@@ -20,10 +20,14 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
   const twelveHoursAgo = new Date(now);
   twelveHoursAgo.setHours(now.getHours() - 12);
   const [saveOptions, setSaveOptions] = useState({
-    start_date: oneDayAgo.toISOString(),
-    end_date: now.toISOString(),
-    start_save_date: twelveHoursAgo.toISOString(),
-    end_save_date: now.toISOString(),
+    candidates_detection_range: {
+      start_date: oneDayAgo.toISOString(),
+      end_date: now.toISOString(),
+    },
+    saved_candidates_range: {
+      start_save_date: twelveHoursAgo.toISOString(),
+      end_save_date: now.toISOString(),
+    },
   });
 
   const generateScanReportOptionsSchema = () => {
@@ -33,7 +37,6 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
         candidates_detection_range: {
           title: "Candidates Detection Time Range",
           type: "object",
-
           properties: {
             start_date: {
               title: "Start (Local Time)",
