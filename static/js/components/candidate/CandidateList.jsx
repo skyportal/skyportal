@@ -37,7 +37,6 @@ import CandidatePlugins from "./CandidatePlugins";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import SaveCandidateScanForm from "./scan_report/SaveCandidateScanForm";
 
 const numPerPage = 50;
 

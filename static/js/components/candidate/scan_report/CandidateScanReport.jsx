@@ -10,7 +10,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
 import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
-import SaveCandidateScanForm from "./SaveCandidateScanForm";
+import EditReportCandidateForm from "./EditReportCandidateForm";
 
 const List = styled("div")({
   display: "flex",
@@ -44,7 +44,7 @@ const CandidateScanReport = () => {
   const candidatesScan = useSelector((state) => state.candidatesScanReport);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [candidateScanToEdit, setCandidateScanToEdit] = useState(null);
+  const [reportCandidateToEdit, setReportCandidateToEdit] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -121,7 +121,7 @@ const CandidateScanReport = () => {
                 <Field sx={{ borderRight: "none" }}>
                   <Button
                     onClick={() => {
-                      setCandidateScanToEdit(candidateScan);
+                      setReportCandidateToEdit(candidateScan);
                       setDialogOpen(true);
                     }}
                   >
@@ -149,13 +149,12 @@ const CandidateScanReport = () => {
           )}
         </List>
       </Paper>
-      {candidateScanToEdit && (
-        <SaveCandidateScanForm
+      {reportCandidateToEdit && (
+        <EditReportCandidateForm
           dialogOpen={dialogOpen}
           setDialogOpen={setDialogOpen}
-          candidateObjId={candidateScanToEdit.obj_id}
-          candidateScanToEdit={candidateScanToEdit}
-          setCandidateScanToEdit={setCandidateScanToEdit}
+          reportCandidateToEdit={reportCandidateToEdit}
+          setReportCandidateToEdit={setReportCandidateToEdit}
         />
       )}
     </Box>
