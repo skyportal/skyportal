@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from astropy.time import Time
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -7,6 +9,7 @@ from baselayer.log import make_log
 from ...models import Source
 from ...models.candidate_scan_report import CandidateScanReport
 from ..base import BaseHandler
+from .public_pages.public_source_page import safe_round
 
 log = make_log("api/candidate_scan_report")
 
@@ -77,13 +80,25 @@ class CandidateScanReportHandler(BaseHandler):
                 return self.error("No saved candidates found")
 
             for saved_candidate in saved_candidates:
+                if saved_candidate.obj is None:
+                    return self.error("No object found for one saved candidate")
+
+                phot_stats = saved_candidate.obj.photstats
+                current_mag = phot_stats[0].last_detected_mag if phot_stats else None
+                current_age = (
+                    (Time.now().mjd - phot_stats[0].first_detected_mjd)
+                    if phot_stats
+                    else None
+                )
+
                 candidate_scan_report = CandidateScanReport(
                     date=datetime.now(),
                     scanner=session.user_or_token.username,
                     obj_id=saved_candidate.obj_id,
                     already_classified=False,
                     host_redshift=saved_candidate.obj.redshift,
-                    current_age=0,
+                    current_mag=safe_round(current_mag, 3),
+                    current_age=safe_round(current_age, 2),
                     forced_photometry_requested=False,
                     saver_id=session.user_or_token.id,
                 )
