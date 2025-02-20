@@ -339,6 +339,7 @@ const FindingChart = () => {
                       className={classes.button}
                       endIcon={<PrintIcon />}
                       onClick={handlePrint}
+                      disabled={!image}
                     >
                       Print
                     </Button>
