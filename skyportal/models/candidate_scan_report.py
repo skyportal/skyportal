@@ -38,28 +38,6 @@ class CandidateScanReport(Base):
         sa.Boolean, nullable=True, doc="Forced photometry requested"
     )
 
-    photometry_followup = sa.Column(
-        sa.Boolean, nullable=True, doc="Assigned for photometry followup"
-    )
-
-    photometry_assigned_to = sa.Column(
-        sa.String, nullable=True, doc="Photometry followup assigned to"
-    )
-
-    is_real = sa.Column(
-        sa.Boolean, nullable=True, doc="Sure if this is a real transient"
-    )
-
-    spectroscopy_requested = sa.Column(
-        sa.Boolean, nullable=True, doc="Spectroscopy requested"
-    )
-
-    spectroscopy_assigned_to = sa.Column(
-        sa.String, nullable=True, doc="Spectroscopy followup assigned to"
-    )
-
-    priority = sa.Column(sa.Integer, nullable=True, doc="Priority for")
-
     saver_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

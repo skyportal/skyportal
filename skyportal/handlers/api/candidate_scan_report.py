@@ -37,18 +37,6 @@ class CandidateScanReportHandler(BaseHandler):
                     type: string
                   forced_photometry_requested:
                     type: boolean
-                  photometry_followup:
-                    type: boolean
-                  photometry_assigned_to:
-                    type: string
-                  is_real:
-                    type: boolean
-                  spectroscopy_requested:
-                    type: boolean
-                  spectroscopy_assigned_to:
-                    type: string
-                  priority:
-                    type: integer
         responses:
             200:
                 content:
@@ -81,12 +69,6 @@ class CandidateScanReportHandler(BaseHandler):
                 host_redshift=obj.redshift,
                 current_age=data.get("current_age"),
                 forced_photometry_requested=data.get("forced_photometry_requested"),
-                photometry_followup=data.get("photometry_followup"),
-                photometry_assigned_to=data.get("photometry_assigned_to"),
-                is_real=data.get("is_real"),
-                spectroscopy_requested=data.get("spectroscopy_requested"),
-                spectroscopy_assigned_to=data.get("spectroscopy_assigned_to"),
-                priority=data.get("priority"),
                 saver_id=session.user_or_token.id,
             )
 
@@ -127,18 +109,6 @@ class CandidateScanReportHandler(BaseHandler):
                     type: string
                   forced_photometry_requested:
                     type: boolean
-                  photometry_followup:
-                    type: boolean
-                  photometry_assigned_to:
-                    type: string
-                  is_real:
-                    type: boolean
-                  spectroscopy_requested:
-                    type: boolean
-                  spectroscopy_assigned_to:
-                    type: string
-                  priority:
-                    type: integer
         responses:
           200:
             content:

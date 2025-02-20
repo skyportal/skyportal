@@ -27,12 +27,6 @@ const SaveCandidateScanForm = ({
     already_classified: candidateScanToEdit?.already_classified,
     forced_photometry_requested:
       candidateScanToEdit?.forced_photometry_requested,
-    photometry_followup: candidateScanToEdit?.photometry_followup,
-    photometry_assigned_to: candidateScanToEdit?.photometry_assigned_to,
-    is_real: candidateScanToEdit?.is_real,
-    spectroscopy_requested: candidateScanToEdit?.spectroscopy_requested,
-    spectroscopy_assigned_to: candidateScanToEdit?.spectroscopy_assigned_to,
-    priority: candidateScanToEdit?.priority,
   });
 
   const saveCandidateScanOptionsSchema = () => {
@@ -48,24 +42,6 @@ const SaveCandidateScanForm = ({
           type: ["boolean", "null"],
           title: "Forced photometry requested?",
         },
-        photometry_followup: {
-          type: ["boolean", "null"],
-          title: "Photometry follow-up?",
-        },
-        photometry_assigned_to: {
-          type: ["string", "null"],
-          title: "Photometry assigned to",
-        },
-        is_real: { type: ["boolean", "null"], title: "Sure if real?" },
-        spectroscopy_requested: {
-          type: ["boolean", "null"],
-          title: "Spectroscopy requested?",
-        },
-        spectroscopy_assigned_to: {
-          type: ["string", "null"],
-          title: "Spectroscopy assigned to",
-        },
-        priority: { type: ["integer", "null"], title: "priority" },
       },
     };
   };
@@ -137,12 +113,6 @@ SaveCandidateScanForm.propTypes = {
     comment: PropTypes.string,
     already_classified: PropTypes.bool,
     forced_photometry_requested: PropTypes.bool,
-    photometry_followup: PropTypes.bool,
-    photometry_assigned_to: PropTypes.string,
-    is_real: PropTypes.bool,
-    spectroscopy_requested: PropTypes.bool,
-    spectroscopy_assigned_to: PropTypes.string,
-    priority: PropTypes.number,
   }),
   setCandidateScanToEdit: PropTypes.func,
 };

@@ -97,12 +97,6 @@ const CandidateScanReport = () => {
             <FieldTitle>current mag</FieldTitle>
             <FieldTitle>current age</FieldTitle>
             <FieldTitle>forced photometry requested</FieldTitle>
-            <FieldTitle>Assigned for photometry follow-up</FieldTitle>
-            <FieldTitle>photometry assigned to</FieldTitle>
-            <FieldTitle>Sure if real</FieldTitle>
-            <FieldTitle>spectroscopy requested</FieldTitle>
-            <FieldTitle>spectroscopy assigned to</FieldTitle>
-            <FieldTitle>priority</FieldTitle>
             <FieldTitle sx={{ borderRight: "none" }}></FieldTitle>
           </Item>
           {candidatesScan.length > 0 ? (
@@ -130,12 +124,6 @@ const CandidateScanReport = () => {
                 <Field>
                   {boolToStr(candidateScan.forced_photometry_requested)}
                 </Field>
-                <Field>{boolToStr(candidateScan.photometry_followup)}</Field>
-                <Field>{candidateScan.photometry_assigned_to}</Field>
-                <Field>{boolToStr(candidateScan.is_real)}</Field>
-                <Field>{boolToStr(candidateScan.spectroscopy_requested)}</Field>
-                <Field>{candidateScan.spectroscopy_assigned_to}</Field>
-                <Field>{candidateScan.priority}</Field>
                 <Field sx={{ borderRight: "none" }}>
                   <Button
                     onClick={() => {
@@ -193,12 +181,6 @@ CandidateScanReport.propTypes = {
       current_mag: PropTypes.number,
       current_age: PropTypes.number,
       forced_photometry_requested: PropTypes.bool,
-      photometry_followup: PropTypes.bool,
-      photometry_assigned_to: PropTypes.string,
-      is_real: PropTypes.bool,
-      spectroscopy_requested: PropTypes.bool,
-      spectroscopy_assigned_to: PropTypes.string,
-      priority: PropTypes.number,
     }),
   ),
 };
