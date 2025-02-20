@@ -403,20 +403,20 @@ def post_skymap_from_notice(
                     event_tags = get_tags(root)
                 tags_formatted = [tag.upper().strip() for tag in event_tags]
                 if "GRB" in tags_formatted:
-                    source["name"] = f"GRB-{source_name}"
+                    source["id"] = f"GRB-{source_name}"
                     if "SWIFT" in tags_formatted:
                         source["origin"] = "Swift"
                     elif "FERMI" in tags_formatted:
                         source["origin"] = "Fermi"
                 elif "GW" in tags_formatted:
-                    source["name"] = f"GW-{source_name}"
+                    source["id"] = f"GW-{source_name}"
                     if "LVC" in tags_formatted:
                         source["origin"] = "LVC"
                 elif "EINSTEIN PROBE" in tags_formatted:
-                    source["name"] = f"EP-{source_name}"
+                    source["id"] = f"EP-{source_name}"
                     source["origin"] = "Einstein Probe"
                 else:
-                    source["name"] = f"GCN-{source_name}"
+                    source["id"] = f"GCN-{source_name}"
 
                 public_group = session.scalar(
                     sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
