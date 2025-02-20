@@ -264,7 +264,6 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [t0Max, setT0Max] = useState(mjdnow());
-  const [t0AsOrigin, setT0AsOrigin] = useState(false);
   const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
@@ -421,20 +420,13 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
-    // If t0 is set and t0AsOrigin is True, start the range from t0
     setT0Max(
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range =
-      t0 && t0AsOrigin
-        ? [t0, stats.mjd.max + 1]
-        : [stats.mjd.min - 1, stats.mjd.max + 1];
+    stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
     if (stats.days_ago) {
-      stats.days_ago.range =
-        t0 && t0AsOrigin
-          ? [now - t0, stats.days_ago.min - 1]
-          : [stats.days_ago.max + 1, stats.days_ago.min - 1];
+      stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
     } else {
       stats.sec_since_t0.range = [0, stats.sec_since_t0.max + daysToSec(1)];
     }
@@ -623,31 +615,35 @@ const PhotometryPlot = ({
             hovertemplate: "%{text}<extra></extra>",
           };
 
-          const secondaryAxisX = displayXAxisInlog
-            ? null
-            : {
-                x: photometryStats.days_ago
-                  ? [photometryStats.days_ago.max, photometryStats.days_ago.min]
-                  : [
-                      photometryStats.sec_since_t0.min,
-                      photometryStats.sec_since_t0.max,
-                    ],
-                y: [photometryStats.mag.max, photometryStats.mag.min],
-                mode: "markers",
-                type: "scatter",
-                name: "secondaryAxisX",
-                legendgroup: "secondaryAxisX",
-                marker: {
-                  line: {
-                    width: 1,
+          const secondaryAxisX =
+            t0 && displayXAxisInlog
+              ? null
+              : {
+                  x: photometryStats.days_ago
+                    ? [
+                        photometryStats.days_ago.max,
+                        photometryStats.days_ago.min,
+                      ]
+                    : [
+                        photometryStats.sec_since_t0.min,
+                        photometryStats.sec_since_t0.max,
+                      ],
+                  y: [photometryStats.mag.max, photometryStats.mag.min],
+                  mode: "markers",
+                  type: "scatter",
+                  name: "secondaryAxisX",
+                  legendgroup: "secondaryAxisX",
+                  marker: {
+                    line: {
+                      width: 1,
+                    },
+                    opacity: 0,
                   },
-                  opacity: 0,
-                },
-                visible: true,
-                showlegend: false,
-                xaxis: "x2",
-                hoverinfo: "skip",
-              };
+                  visible: true,
+                  showlegend: false,
+                  xaxis: "x2",
+                  hoverinfo: "skip",
+                };
 
           const secondaryAxisY = {
             x: [photometryStats.mjd.min, photometryStats.mjd.max],
@@ -957,7 +953,6 @@ const PhotometryPlot = ({
 
   useEffect(() => {
     if (t0 >= t0Max) {
-      setT0AsOrigin(false);
       setDisplayXAxisSinceT0(false);
       setDisplayXAxisInlog(false);
     }
@@ -1070,7 +1065,6 @@ const PhotometryPlot = ({
     defaultVisibleFilters,
     filter2color,
     dm,
-    t0AsOrigin,
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
@@ -1447,29 +1441,6 @@ const PhotometryPlot = ({
       </div>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ columnGap: 0 }}>
-          {t0 && (
-            <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
-            >
-              <Typography id="T0-start-range" noWrap>
-                T0 as Origin
-              </Typography>
-              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
-                <div className={classes.switchContainer}>
-                  <Switch
-                    disabled={t0 >= t0Max}
-                    checked={t0AsOrigin}
-                    onChange={() => {
-                      setDisplayXAxisSinceT0(!t0AsOrigin);
-                      setDisplayXAxisInlog(!t0AsOrigin);
-                      setT0AsOrigin(!t0AsOrigin);
-                    }}
-                    inputProps={{ "aria-label": "controlled" }}
-                  />
-                </div>
-              </Tooltip>
-            </div>
-          )}
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
@@ -1496,7 +1467,7 @@ const PhotometryPlot = ({
           </div>
         </div>
         <div className={classes.gridItem}>
-          {t0 && t0AsOrigin && (
+          {t0 && (
             <div
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
@@ -1518,7 +1489,7 @@ const PhotometryPlot = ({
               </Tooltip>
             </div>
           )}
-          {t0 && t0AsOrigin && displayXAxisSinceT0 && (
+          {t0 && displayXAxisSinceT0 && (
             <div
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
