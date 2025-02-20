@@ -4,7 +4,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import Obj
+from ...models import Source
 from ...models.candidate_scan_report import CandidateScanReport
 from ..base import BaseHandler
 
@@ -16,7 +16,7 @@ class CandidateScanReportHandler(BaseHandler):
     def post(self):
         """
         ---
-        summary: Add a candidate scan to the report
+        summary: Populate the candidate scan report with all saved candidates in a given range
         tags:
           - report
         requestBody:
@@ -25,18 +25,26 @@ class CandidateScanReportHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  obj_id:
-                    type: integer
-                  comment:
-                    type: string
-                  already_classified:
-                    type: boolean
-                  host_redshift:
-                    type: number
-                  current_age:
-                    type: string
-                  forced_photometry_requested:
-                    type: boolean
+                  candidate_detection_range:
+                    type: object
+                    properties:
+                      start_date:
+                        type: string
+                        format: date-time
+                      end_date:
+                        type: string
+                        format: date-time
+                    saved_candidates_range:
+                      type: object
+                      properties:
+                        start_save_date:
+                          type: string
+                          format: date-time
+                          description: Start date of the saved candidates range
+                        end_save_date:
+                          type: string
+                          format: date-time
+                          description: End date of the saved candidates range
         responses:
             200:
                 content:
@@ -48,37 +56,45 @@ class CandidateScanReportHandler(BaseHandler):
                     schema: Error
         """
         data = self.get_json()
-        if not data.get("obj_id"):
-            return self.error("No object ID provided")
 
         with self.Session() as session:
-            obj = session.scalar(
-                Obj.select(session.user_or_token, mode="read").where(
-                    Obj.id == data.get("obj_id")
+            if not data.get("saved_candidates_range"):
+                return self.error("No saved candidates range provided")
+            saved_range = data["saved_candidates_range"]
+
+            saved_candidates = session.scalars(
+                Source.select(session.user_or_token, mode="read").where(
+                    Source.saved_by_id == session.user_or_token.id,
+                    Source.saved_at.between(
+                        saved_range.get("start_save_date"),
+                        saved_range.get("end_save_date"),
+                    ),
+                    Source.active.is_(True),
                 )
-            )
-            if obj is None:
-                return self.error("Object not found")
+            ).all()
 
-            candidate_scan_report = CandidateScanReport(
-                date=datetime.now(),
-                scanner=session.user_or_token.username,
-                obj_id=data.get("obj_id"),
-                comment=data.get("comment"),
-                already_classified=data.get("already_classified"),
-                host_redshift=obj.redshift,
-                current_age=data.get("current_age"),
-                forced_photometry_requested=data.get("forced_photometry_requested"),
-                saver_id=session.user_or_token.id,
-            )
+            if not saved_candidates:
+                return self.error("No saved candidates found")
 
-            session.add(candidate_scan_report)
-            session.commit()
+            for saved_candidate in saved_candidates:
+                candidate_scan_report = CandidateScanReport(
+                    date=datetime.now(),
+                    scanner=session.user_or_token.username,
+                    obj_id=saved_candidate.obj_id,
+                    already_classified=False,
+                    host_redshift=saved_candidate.obj.redshift,
+                    current_age=0,
+                    forced_photometry_requested=False,
+                    saver_id=session.user_or_token.id,
+                )
 
-            flow = Flow()
-            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
+                session.add(candidate_scan_report)
+                session.commit()
 
-            return self.success()
+                flow = Flow()
+                flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
+
+                return self.success()
 
     @auth_or_token
     def patch(self, candidate_scan_report_id):
