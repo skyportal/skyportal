@@ -81,7 +81,7 @@ const CandidateScanReport = () => {
         <b>Candidate scan report</b>
       </Typography>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
-        <List sx={{ minWidth: "1800px" }}>
+        <List>
           <Item
             sx={{
               fontWeight: "bold",
