@@ -24,17 +24,6 @@ const Item = styled("div")({
   marginBottom: "0.8rem",
 });
 
-const FieldTitle = styled("div")({
-  flex: 1,
-  borderRight: "1px solid grey",
-  fontSize: "0.9rem",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  paddingY: "0.1rem",
-  overflow: "auto",
-});
-
 const Field = styled("div")({
   flex: 1,
   borderRight: "1px solid #d3d3d3",
@@ -42,7 +31,12 @@ const Field = styled("div")({
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  paddingY: "0.1rem",
+  padding: "0.1rem 0.2rem",
+  minWidth: "120px",
+});
+
+const FieldTitle = styled(Field)({
+  borderColor: "grey",
 });
 
 const CandidateScanReport = () => {
