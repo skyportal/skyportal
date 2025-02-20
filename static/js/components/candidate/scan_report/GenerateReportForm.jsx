@@ -76,23 +76,18 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
       setLoading(false);
       if (result.status === "success") {
         dispatch(showNotification("Scan report successfully generated"));
-        closeDialog();
+        setDialogOpen(false);
       } else {
         dispatch(showNotification("Failed to generate scan report", "error"));
       }
     });
   };
 
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setSaveOptions({});
-  };
-
   return (
     <div>
       <Dialog
         open={dialogOpen}
-        onClose={() => closeDialog()}
+        onClose={() => setDialogOpen(false)}
         PaperProps={{ style: { maxWidth: "800px" } }}
       >
         <DialogTitle sx={{ textAlign: "center", fontSize: "1.5em" }}>
