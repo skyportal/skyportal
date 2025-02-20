@@ -45,7 +45,6 @@ const useStyles = makeStyles((theme) => ({
     borderColor: theme.palette.grey[350],
     borderWidth: "2px",
     marginBottom: "1rem",
-    position: "relative",
   },
   listItem: {
     padding: 0,
