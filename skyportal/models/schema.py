@@ -1277,6 +1277,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_assignment_exists = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius that are assigned to an observing run, the followup request will not be executed."
+            )
+        },
+    )
+
     ignore_source_group_ids = fields.List(
         fields.Integer,
         required=False,
