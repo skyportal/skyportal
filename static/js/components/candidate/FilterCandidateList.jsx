@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -36,6 +35,7 @@ import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
+import GenerateReportForm from "./scan_report/GenerateReportForm";
 import Button from "../Button";
 
 dayjs.extend(utc);
@@ -208,6 +208,8 @@ const FilterCandidateList = ({
   const [selectedScanningProfile, setSelectedScanningProfile] = useState(
     defaultScanningProfile,
   );
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     // Once the default profile is fully fetched, set it to the selected.
@@ -567,10 +569,17 @@ const FilterCandidateList = ({
               selectedScanningProfile={selectedScanningProfile}
               setSelectedScanningProfile={setSelectedScanningProfile}
             />
-            <Tooltip title="Access the candidates scan report page">
-              <Link to={`/candidates/scan_report`} role="link">
-                <Button secondary>Report page</Button>
-              </Link>
+            <Tooltip title="Generate a report of scanned candidates">
+              <Button
+                secondary
+                onClick={() => setGenerateReportDialogOpen(true)}
+              >
+                Generate report
+              </Button>
+              <GenerateReportForm
+                dialogOpen={generateReportDialogOpen}
+                setDialogOpen={setGenerateReportDialogOpen}
+              />
             </Tooltip>
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
