@@ -667,31 +667,13 @@ CandidateAutoannotations.defaultProps = {
 };
 
 const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
-  const [dialogOpen, setDialogOpen] = useState(false);
-
   return (
     <Paper
       variant="outlined"
       className={classes.listPaper}
       data-testid={`candidate-${index}`}
     >
-      <div style={{ position: "absolute", left: "0.5rem", top: "0.5rem" }}>
-        <Button
-          primary
-          variant="outlined"
-          size="small"
-          onClick={() => setDialogOpen(true)}
-        >
-          Save to report
-        </Button>
-        <SaveCandidateScanForm
-          dialogOpen={dialogOpen}
-          setDialogOpen={setDialogOpen}
-          objId={candidate.id}
-        />
-      </div>
       <div className={classes.candidatePaper}>
         <div style={{ gridArea: "thumbnails" }}>
           <CandidateThumbnails
