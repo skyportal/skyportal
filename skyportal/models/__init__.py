@@ -7,6 +7,7 @@ from .analysis import *
 from .annotation import *
 from .assignment import *
 from .candidate import *
+from .candidate_scan_report import *
 from .classification import *
 from .comment import *
 
@@ -33,9 +34,9 @@ from .phot_stat import *
 from .photometric_series import *
 from .photometry import *
 from .photometry_validation import *
-from .public_pages.public_release import *
 
 # Public pages
+from .public_pages.public_release import *
 from .public_pages.public_source_page import *
 from .recurring_api import *
 from .reminder import *
