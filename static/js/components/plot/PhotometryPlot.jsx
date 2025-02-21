@@ -426,7 +426,10 @@ const PhotometryPlot = ({
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
-    stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
+    stats.mjd.range = [
+      t0 && displayXAxisSinceT0 ? t0 : stats.mjd.min - 1,
+      stats.mjd.max + 1,
+    ];
     if (stats.days_ago) {
       stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
     } else if (displayXAxisInlog) {
