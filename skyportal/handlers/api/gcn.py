@@ -451,6 +451,10 @@ def post_skymap_from_notice(
                             if source["origin"] is None:
                                 del source["origin"]
                             post_source(source, user_id, session)
+            else:
+                log(
+                    f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
+                )
 
         except Exception as e:
             log(traceback.format_exc())

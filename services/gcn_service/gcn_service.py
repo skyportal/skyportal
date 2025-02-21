@@ -134,6 +134,33 @@ def poll_events(*args, **kwargs):
                     alert_type = "voevent"
                     root = get_root_from_payload(payload)
                     tags = get_tags(root, notice_type)
+                    # if the notice_type is svom.voevent.grm but there is no ra/dec/error radius
+                    # or if the error radius is negative, we reject the event
+                    if notice_type == "svom.voevent.grm":
+                        loc = root.find(
+                            "./WhereWhen/ObsDataLocation/ObservationLocation"
+                        )
+                        if loc is None:
+                            log(
+                                f"Rejecting gcn_event from {topic} due to missing location"
+                            )
+                            continue
+                        error = loc.find("./AstroCoords/Position2D/Error2Radius")
+                        if error is None:
+                            log(
+                                f"Rejecting gcn_event from {topic} due to missing error"
+                            )
+                            continue
+                        try:
+                            error = float(error.text)
+                            if error < 0:
+                                raise ValueError("error is negative")
+                        except ValueError:
+                            log(
+                                f"Rejecting gcn_event from {topic} due to invalid error: {error}"
+                            )
+                            continue
+
                 elif any(topic in notice_type for notice_type in json_notice_types):
                     alert_type = "json"
                     payload = json.loads(payload.decode("utf8"))
@@ -147,6 +174,9 @@ def poll_events(*args, **kwargs):
                             not isinstance(pval_bayesian, int | float)
                             or pval_bayesian > 0.05
                         ):
+                            log(
+                                f"Rejecting gcn_event from {topic} due to pval_bayesian: {pval_bayesian}"
+                            )
                             continue
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))

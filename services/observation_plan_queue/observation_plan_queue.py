@@ -332,7 +332,7 @@ def service(*args, **kwargs):
                                     try:
                                         post_survey_efficiency_analysis(
                                             default_survey_efficiency.to_dict(),
-                                            plan.id,
+                                            plan.observation_plan_request.id,
                                             1,
                                             session,
                                             asynchronous=False,

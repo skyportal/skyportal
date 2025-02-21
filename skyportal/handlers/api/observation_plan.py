@@ -92,6 +92,9 @@ from ..base import BaseHandler
 env, cfg = load_env()
 log = make_log("api/observation_plan")
 
+# monkey-patch numpy to have a np.int type, required by simsurvey
+int = int
+
 DEFAULT_OBSPLAN_OPTIONS = [
     "notice_types",
     "gcn_tags",

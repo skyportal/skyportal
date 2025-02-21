@@ -226,6 +226,16 @@ def get_tags(root, notice_type):
             if lost_lock == "true":
                 yield "StarTrack_Lost_Lock"
 
+    # Check for SVOM ECLAIRs
+    ivorn = str(root.attrib.get("ivorn", ""))
+    if ivorn.startswith("ivo://org.svom/fsc"):
+        if "_eclairs-catalog" in ivorn:
+            yield "ECLAIRs-Catalog"
+        if "_slewing" in ivorn:
+            yield "ECLAIRs-Slewing"
+        if "_not-slewing" in ivorn:
+            yield "ECLAIRs-Not-Slewing"
+
 
 def get_notice_aliases(root, notice_type):
     aliases = []
