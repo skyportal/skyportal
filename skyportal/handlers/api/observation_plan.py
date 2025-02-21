@@ -93,7 +93,7 @@ env, cfg = load_env()
 log = make_log("api/observation_plan")
 
 # monkey-patch numpy to have a np.int type, required by simsurvey
-int = int
+np.int = int  # noqa: NPY001
 
 DEFAULT_OBSPLAN_OPTIONS = [
     "notice_types",
