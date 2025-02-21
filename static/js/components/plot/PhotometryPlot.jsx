@@ -264,7 +264,8 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [t0Max, setT0Max] = useState(mjdnow());
-  const [t0AsOrigin, setT0AsOrigin] = useState(false);
+  const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
+  const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
@@ -273,6 +274,8 @@ const PhotometryPlot = ({
   const [defaultVisibleFilters, setDefaultVisibleFilters] = useState(null);
   const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
     useState(false);
+
+  const daysToSec = (days) => days * 24 * 60 * 60;
 
   const preparePhotometry = (photometryData, distance_modulus) => {
     const stats = {
@@ -286,23 +289,29 @@ const PhotometryPlot = ({
         max: 0,
         range: [0, 100],
       },
-      days_ago: {
-        min: 100000,
-        max: 0,
-        extra: [100000, 0],
-      },
       mjd: {
         min: 100000,
         max: 0,
         extra: [100000, 0],
       },
     };
+    stats[t0 && displayXAxisSinceT0 ? "sec_since_t0" : "days_ago"] = {
+      min: t0 && displayXAxisSinceT0 ? 0 : 100000,
+      max: 0,
+      extra: [t0 && displayXAxisSinceT0 ? 0 : 100000, 0],
+    };
 
     const now = mjdnow();
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
-      newPoint.days_ago = now - newPoint.mjd;
+      if (stats.days_ago) {
+        newPoint.days_ago = now - newPoint.mjd;
+      } else if (displayXAxisInlog) {
+        newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0);
+      } else {
+        newPoint.sec_since_t0 = newPoint.mjd - t0;
+      }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
         newPoint.fluxerr =
@@ -329,6 +338,14 @@ const PhotometryPlot = ({
         return names.length === 0;
       });
       newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+
+      if (newPoint.sec_since_t0) {
+        newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
+          "en-US",
+          { maximumFractionDigits: 0 },
+        )}`;
+      }
+
       if (newPoint.mag) {
         newPoint.text += `
         <br>Mag: ${newPoint.mag.toFixed(3)}
@@ -380,8 +397,19 @@ const PhotometryPlot = ({
       );
       stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
       stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
-      stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
-      stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      if (newPoint.days_ago) {
+        stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
+        stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      } else {
+        stats.sec_since_t0.min = Math.min(
+          stats.sec_since_t0.min,
+          newPoint.sec_since_t0,
+        );
+        stats.sec_since_t0.max = Math.max(
+          stats.sec_since_t0.max,
+          newPoint.sec_since_t0,
+        );
+      }
       stats.flux.min = Math.min(
         stats.flux.min,
         newPoint.flux || newPoint.fluxerr,
@@ -394,26 +422,28 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
-    // If t0 is set and t0AsOrigin is True, start the range from t0
     setT0Max(
       !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [
-      t0 && t0AsOrigin ? t0 : stats.mjd.min - 1,
+      t0 && displayXAxisSinceT0 ? t0 : stats.mjd.min - 1,
       stats.mjd.max + 1,
     ];
-    stats.days_ago.range = [
-      t0 && t0AsOrigin ? now - t0 : stats.days_ago.max + 1,
-      stats.days_ago.min - 1,
-    ];
+    if (stats.days_ago) {
+      stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
+    } else if (displayXAxisInlog) {
+      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + daysToSec(1)];
+    } else {
+      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + 1];
+    }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
     return [newPhotometryData, stats];
   };
 
   const groupPhotometry = (photometryData, usingDuplicates = false) => {
-    // before grouping, we compute the max and min for mag, flux, and days_ago
+    // before grouping, we compute the max and min for mag, flux, and days or sec since T0
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc, point) => {
@@ -514,7 +544,9 @@ const PhotometryPlot = ({
           const upperLimitsTrace = {
             dataType: "upperLimits",
             isForcedPhotometry: upperLimitisFP,
-            x: upperLimits.map((point) => point.mjd),
+            x: upperLimits.map((point) =>
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
             ),
@@ -549,7 +581,9 @@ const PhotometryPlot = ({
           const detectionsTrace = {
             dataType: "detections",
             isForcedPhotometry: detectionisFP,
-            x: detections.map((point) => point.mjd),
+            x: detections.map((point) =>
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
             ),
@@ -588,24 +622,35 @@ const PhotometryPlot = ({
             hovertemplate: "%{text}<extra></extra>",
           };
 
-          const secondaryAxisX = {
-            x: [photometryStats.days_ago.max, photometryStats.days_ago.min],
-            y: [photometryStats.mag.max, photometryStats.mag.min],
-            mode: "markers",
-            type: "scatter",
-            name: "secondaryAxisX",
-            legendgroup: "secondaryAxisX",
-            marker: {
-              line: {
-                width: 1,
-              },
-              opacity: 0,
-            },
-            visible: true,
-            showlegend: false,
-            xaxis: "x2",
-            hoverinfo: "skip",
-          };
+          const secondaryAxisX =
+            t0 && displayXAxisInlog
+              ? null
+              : {
+                  x: photometryStats.days_ago
+                    ? [
+                        photometryStats.days_ago.max,
+                        photometryStats.days_ago.min,
+                      ]
+                    : [
+                        photometryStats.sec_since_t0.min,
+                        photometryStats.sec_since_t0.max,
+                      ],
+                  y: [photometryStats.mag.max, photometryStats.mag.min],
+                  mode: "markers",
+                  type: "scatter",
+                  name: "secondaryAxisX",
+                  legendgroup: "secondaryAxisX",
+                  marker: {
+                    line: {
+                      width: 1,
+                    },
+                    opacity: 0,
+                  },
+                  visible: true,
+                  showlegend: false,
+                  xaxis: "x2",
+                  hoverinfo: "skip",
+                };
 
           const secondaryAxisY = {
             x: [photometryStats.mjd.min, photometryStats.mjd.max],
@@ -631,16 +676,14 @@ const PhotometryPlot = ({
             ];
           }
 
-          if (photometryStats && plotType === "mag" && dm) {
-            return [
-              detectionsTrace,
-              upperLimitsTrace,
-              secondaryAxisX,
-              secondaryAxisY,
-            ];
-          }
-
-          return [detectionsTrace, upperLimitsTrace, secondaryAxisX];
+          return [
+            detectionsTrace,
+            upperLimitsTrace,
+            ...(secondaryAxisX ? [secondaryAxisX] : []),
+            ...(photometryStats && plotType === "mag" && dm
+              ? [secondaryAxisY]
+              : []),
+          ];
         })
         .flat();
 
@@ -832,24 +875,48 @@ const PhotometryPlot = ({
   const createLayouts = (plotType, photStats_value, dm_value) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
-      newLayouts.xaxis = {
-        title: "MJD",
-        side: "top",
-        range: [...photStats_value.mjd.range],
-        tickformat: ".6~f",
-        zeroline: false,
-        ...BASE_LAYOUT,
-      };
-      newLayouts.xaxis2 = {
-        title: "Days Ago",
-        range: [...photStats_value.days_ago.range],
-        overlaying: "x",
-        side: "bottom",
-        showgrid: false,
-        zeroline: false,
-        tickformat: ".6~f",
-        ...BASE_LAYOUT,
-      };
+      if (t0 && displayXAxisInlog) {
+        newLayouts.xaxis = {
+          title: "T - T0 (s)",
+          side: "bottom",
+          range: photStats_value.sec_since_t0.range.map(Math.log10),
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+      } else {
+        newLayouts.xaxis = {
+          title: "MJD",
+          side: "top",
+          range: [...photStats_value.mjd.range],
+          tickformat: ".6~f",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+        newLayouts.xaxis2 = photStats_value.days_ago
+          ? {
+              title: "Days Ago",
+              range: [...photStats_value.days_ago.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              tickformat: ".6~f",
+              ...BASE_LAYOUT,
+            }
+          : {
+              title: "T - T0 (days)",
+              range: [...photStats_value.sec_since_t0.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              tickformat: ",.0f",
+              ...BASE_LAYOUT,
+            };
+      }
     } else if (plotType === "period") {
       newLayouts.xaxis = {
         title: "Phase",
@@ -893,7 +960,8 @@ const PhotometryPlot = ({
 
   useEffect(() => {
     if (t0 >= t0Max) {
-      setT0AsOrigin(false);
+      setDisplayXAxisSinceT0(false);
+      setDisplayXAxisInlog(false);
     }
   }, [t0, t0Max]);
 
@@ -1004,8 +1072,9 @@ const PhotometryPlot = ({
     defaultVisibleFilters,
     filter2color,
     dm,
-    t0AsOrigin,
     t0,
+    displayXAxisSinceT0,
+    displayXAxisInlog,
   ]);
 
   useEffect(() => {
@@ -1378,29 +1447,7 @@ const PhotometryPlot = ({
         />
       </div>
       <div className={classes.gridContainer}>
-        <div
-          className={classes.gridItem}
-          style={{ gridColumn: "span 2", columnGap: 0 }}
-        >
-          {t0 && (
-            <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
-            >
-              <Typography id="T0-start-range" noWrap>
-                T0 as Origin
-              </Typography>
-              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
-                <div className={classes.switchContainer}>
-                  <Switch
-                    disabled={t0 >= t0Max}
-                    checked={t0AsOrigin}
-                    onChange={() => setT0AsOrigin(!t0AsOrigin)}
-                    inputProps={{ "aria-label": "controlled" }}
-                  />
-                </div>
-              </Tooltip>
-            </div>
-          )}
+        <div className={classes.gridItem} style={{ columnGap: 0 }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
@@ -1426,10 +1473,49 @@ const PhotometryPlot = ({
             </div>
           </div>
         </div>
+        <div className={classes.gridItem}>
+          {t0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                X axis since T0
+              </Typography>
+              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    disabled={t0 >= t0Max}
+                    checked={displayXAxisSinceT0}
+                    onChange={() => {
+                      setDisplayXAxisInlog(!displayXAxisSinceT0);
+                      setDisplayXAxisSinceT0(!displayXAxisSinceT0);
+                    }}
+                    inputProps={{ "aria-label": "controlled" }}
+                  />
+                </div>
+              </Tooltip>
+            </div>
+          )}
+          {t0 && displayXAxisSinceT0 && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                T - T0 in log
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={displayXAxisInlog}
+                  onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
         <div
           className={classes.gridItem}
           style={{
-            gridColumn: "span 1",
             alignItems: "end",
           }}
         >
