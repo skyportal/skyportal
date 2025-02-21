@@ -427,15 +427,18 @@ const PhotometryPlot = ({
     );
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [
-      t0 && displayXAxisSinceT0 ? t0 : stats.mjd.min - 1,
+      t0 && displayXAxisSinceT0 ? t0 - 1 : stats.mjd.min - 1,
       stats.mjd.max + 1,
     ];
     if (stats.days_ago) {
       stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
     } else if (displayXAxisInlog) {
-      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + daysToSec(1)];
+      stats.sec_since_t0.range = [
+        -daysToSec(1),
+        stats.sec_since_t0.max + daysToSec(1),
+      ];
     } else {
-      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + 1];
+      stats.sec_since_t0.range = [-1, stats.sec_since_t0.max + 1];
     }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
