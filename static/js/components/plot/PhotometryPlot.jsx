@@ -307,8 +307,10 @@ const PhotometryPlot = ({
       const newPoint = { ...point };
       if (stats.days_ago) {
         newPoint.days_ago = now - newPoint.mjd;
-      } else {
+      } else if (displayXAxisInlog) {
         newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0);
+      } else {
+        newPoint.sec_since_t0 = newPoint.mjd - t0;
       }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
@@ -341,7 +343,7 @@ const PhotometryPlot = ({
         newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
           "en-US",
           { maximumFractionDigits: 0 },
-        )} s`;
+        )}`;
       }
 
       if (newPoint.mag) {
@@ -427,8 +429,10 @@ const PhotometryPlot = ({
     stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
     if (stats.days_ago) {
       stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
-    } else {
+    } else if (displayXAxisInlog) {
       stats.sec_since_t0.range = [0, stats.sec_since_t0.max + daysToSec(1)];
+    } else {
+      stats.sec_since_t0.range = [0, stats.sec_since_t0.max + 1];
     }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
@@ -900,7 +904,7 @@ const PhotometryPlot = ({
               ...BASE_LAYOUT,
             }
           : {
-              title: "T - T0 (s)",
+              title: "T - T0 (days)",
               range: [...photStats_value.sec_since_t0.range],
               overlaying: "x",
               side: "bottom",
