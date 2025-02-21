@@ -9,7 +9,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
-import { fetchCandidatesScanReport } from "../../../ducks/candidate/candidate_scan_report";
+import { fetchCandidatesScanReports } from "../../../ducks/candidate/candidate_scan_report";
 import EditReportCandidateForm from "./EditReportCandidateForm";
 
 const List = styled("div")({
@@ -41,7 +41,7 @@ const FieldTitle = styled(Field)({
 
 const CandidateScanReport = () => {
   const dispatch = useDispatch();
-  const candidatesScan = useSelector((state) => state.candidatesScanReport);
+  const candidatesScan = useSelector((state) => state.candidatesScanReports);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportCandidateToEdit, setReportCandidateToEdit] = useState(null);
@@ -49,7 +49,7 @@ const CandidateScanReport = () => {
   useEffect(() => {
     setLoading(true);
     dispatch(
-      fetchCandidatesScanReport({
+      fetchCandidatesScanReports({
         rows: 10,
         page: 1,
       }),

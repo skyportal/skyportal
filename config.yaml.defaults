@@ -307,7 +307,7 @@ app:
 
         - name: Scan report
           icon: Summarize
-          url: /candidates/scan_report
+          url: /candidates/scan_reports
 
     - name: Admin
       icon: AdminPanelSettings
