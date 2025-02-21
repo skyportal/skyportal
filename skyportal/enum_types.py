@@ -193,7 +193,9 @@ sqla_enum_types = [
 ]
 
 GCN_NOTICE_TYPES = tuple(
-    cfg.get("gcn.notice_types", []) + cfg.get("gcn.json_notice_types", [])
+    str(notice_type).replace("gcn.notices.", "").replace("gcn.classic.voevent.", "")
+    for notice_type in cfg.get("gcn.notice_types.voevent", [])
+    + cfg.get("gcn.notice_types.json", [])
 )
 GCN_ACKNOWLEDGEMENTS = tuple(
     text.strip('"') if text is not None else text
