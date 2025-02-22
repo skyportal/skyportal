@@ -1182,13 +1182,35 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
     try:
         at_report = r.json().get("data", {}).get("feedback", {}).get("at_report", [])
-        if not isinstance(at_report, list) or len(at_report) == 0:
-            raise TNSReportError("No AT report found in response.")
-        if "An identical AT report" in str(
-            at_report
-        ):  # 'An identical AT report (sender, RA\/DEC, discovery date) already exists.'
-            return None, response, None
-        at_report = at_report[0]
+    except Exception as e:
+        raise TNSReportError("Could not find AT report in response.")
+
+    if not isinstance(at_report, list) or len(at_report) == 0:
+        raise TNSReportError("No AT report data found in response.")
+    if "An identical AT report" in str(
+        at_report
+    ):  # 'An identical AT report (sender, RA\/DEC, discovery date) already exists.'
+        return None, response, None
+    at_report = at_report[0]
+
+    if status_code == 400:
+        if (
+            isinstance(at_report.get("reporting_groupid"), list)
+            and len(at_report["reporting_groupid"]) > 0
+        ):
+            return (
+                None,
+                response,
+                f"Report could not be processed Invalid reporting group ID ({at_report['reporting_groupid'][0].get('message')})",
+            )
+        else:
+            return (
+                None,
+                response,
+                f"Report could not be processed ({at_report.get('status_code')})",
+            )
+
+    try:
         # the at_report is a dict with keys 'status code' and 'at_rep'
         keys = list(at_report.keys())
         keys = list(set(keys) - {"at_rep"})
@@ -1292,6 +1314,9 @@ def validate_submission_requests():
                         < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
                     )
                 ).all()
+                log(
+                    f"Found {len(failed_submission_requests)} failed submission requests to re-set..."
+                )
                 for submission_request in failed_submission_requests:
                     # check if there is a more recent submission request for the same object and tnsrobot that is submitted or confirmed,
                     # in which case we don't want to re-set the status of this one but label it appropriately
@@ -1374,8 +1399,13 @@ def validate_submission_requests():
                 )
                 if submission_request is None:
                     # here we add an extra sleep to avoid hammering the TNS API
+                    print("Waiting for TNS submission requests to validate...")
                     time.sleep(25)
                     continue
+
+                log(
+                    f"Checking TNS submission request {submission_request.id} for object {submission_request.obj_id}"
+                )
 
                 submission_id = submission_request.submission_id
 
@@ -1473,6 +1503,10 @@ def validate_submission_requests():
                     session.merge(submission_request)
                     session.commit()
                     log(f"Error checking TNS report: {err}")
+                else:
+                    log(
+                        f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
+                    )
             except TNSReportError as e:
                 log(f"TNSReportError: {str(e)}")
                 session.rollback()
