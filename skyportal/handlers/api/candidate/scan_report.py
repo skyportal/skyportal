@@ -6,12 +6,12 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import Source
-from ...models.candidate import Candidate
-from ...models.scan_report import ScanReport
-from ...models.scan_report_item import ScanReportItem
-from ..base import BaseHandler
-from .public_pages.public_source_page import safe_round
+from ....models import Source
+from ....models.candidate import Candidate
+from ....models.scan_report import ScanReport
+from ....models.scan_report_item import ScanReportItem
+from ...base import BaseHandler
+from ..public_pages.public_source_page import safe_round
 
 log = make_log("api/candidate_scan_report")
 
@@ -46,7 +46,7 @@ def get_saved_candidates(session, detection_range, saved_range):
     ).all()
 
 
-class CandidateScanReportHandler(BaseHandler):
+class ScanReportHandler(BaseHandler):
     @auth_or_token
     def post(self):
         """
@@ -150,79 +150,15 @@ class CandidateScanReportHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def patch(self, report_item_id):
-        """
-        ---
-        summary: Update a scan report item
-        tags:
-          - report
-        parameters:
-          - in: path
-            name: report_item_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report item to update
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  comment:
-                    type: string
-                  already_classified:
-                    type: boolean
-                  forced_photometry_requested:
-                    type: boolean
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        data = self.get_json()
-
-        if not report_item_id:
-            return self.error("Nothing to update")
-
-        with self.Session() as session:
-            item = session.scalar(
-                ScanReportItem.select(session.user_or_token, mode="read").where(
-                    ScanReportItem.id == report_item_id
-                )
-            )
-            if item is None:
-                return self.error("Report item not found")
-
-            item.comment = data.get("comment", item.comment)
-            item.already_classified = data.get(
-                "already_classified", item.already_classified
-            )
-            item.forced_photometry_requested = data.get(
-                "forced_photometry_requested", item.forced_photometry_requested
-            )
-
-            flow = Flow()
-            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
-
-            session.commit()
-            return self.success()
-
-    @auth_or_token
     def get(self):
         """
         ---
-        summary: Get all items in a scan report
+        summary: Retrieve multiple scan reports
         tags:
           - report
         parameters:
           - in: query
-            name: rows
+            name: numPerPage
             schema:
               type: integer
             description: Number of items to return
@@ -242,7 +178,7 @@ class CandidateScanReportHandler(BaseHandler):
                 schema: Error
         """
         try:
-            rows = int(self.get_query_argument("rows", default="10"))
+            rows = int(self.get_query_argument("numPerPage", default="10"))
             page = int(self.get_query_argument("page", default="1"))
         except ValueError:
             rows = 10
@@ -251,6 +187,7 @@ class CandidateScanReportHandler(BaseHandler):
         with self.Session() as session:
             items = session.scalars(
                 ScanReport.select(session.user_or_token, mode="read")
+                .order_by(ScanReport.created_at.desc())
                 .limit(rows)
                 .offset(rows * (page - 1))
             ).all()
