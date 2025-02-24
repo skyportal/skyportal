@@ -8,7 +8,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { generateCandidateScanReport } from "../../../ducks/candidate/candidate_scan_report";
+import { generateScanReport } from "../../../ducks/candidate/scan_reports";
 
 const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
   const dispatch = useDispatch();
@@ -16,9 +16,9 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
 
   const now = new Date();
   const oneDayAgo = new Date(now);
-  oneDayAgo.setDate(now.getDate() - 1);
+  oneDayAgo.setDate(now.getDate() - 1700);
   const twelveHoursAgo = new Date(now);
-  twelveHoursAgo.setHours(now.getHours() - 12);
+  twelveHoursAgo.setHours(now.getHours() - 1700 * 12 * 2);
   const [saveOptions, setSaveOptions] = useState({
     candidates_detection_range: {
       start_date: oneDayAgo.toISOString(),
@@ -30,7 +30,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
     },
   });
 
-  const generateScanReportOptionsSchema = () => {
+  const generateReportSchema = () => {
     return {
       type: "object",
       properties: {
@@ -70,9 +70,9 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
     };
   };
 
-  const generateScanReport = () => {
+  const generateReport = () => {
     setLoading(true);
-    dispatch(generateCandidateScanReport(saveOptions)).then((result) => {
+    dispatch(generateScanReport(saveOptions)).then((result) => {
       setLoading(false);
       if (result.status === "success") {
         dispatch(showNotification("Scan report successfully generated"));
@@ -97,10 +97,10 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           <Form
             formData={saveOptions}
             onChange={({ formData }) => setSaveOptions(formData)}
-            schema={generateScanReportOptionsSchema()}
+            schema={generateReportSchema()}
             liveValidate
             validator={validator}
-            onSubmit={generateScanReport}
+            onSubmit={generateReport}
             disabled={loading}
           />
         </DialogContent>
