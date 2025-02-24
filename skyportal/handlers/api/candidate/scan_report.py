@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from astropy.time import Time
 
 from baselayer.app.access import auth_or_token

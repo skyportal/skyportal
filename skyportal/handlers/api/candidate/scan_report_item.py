@@ -1,9 +1,10 @@
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from skyportal.handlers.base import BaseHandler
-from skyportal.models.scan_report import ScanReport
-from skyportal.models.scan_report_item import ScanReportItem
+
+from ....models.scan_report import ScanReport
+from ....models.scan_report_item import ScanReportItem
+from ...base import BaseHandler
 
 log = make_log("api/candidate_scan_report_item")
 
