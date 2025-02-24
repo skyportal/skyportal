@@ -89,7 +89,7 @@ from ...utils.offset import (
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
-from .candidate import (
+from .candidate.candidate import (
     update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
