@@ -100,6 +100,7 @@ class MovingObjectFollowupHandler(BaseHandler):
         airmass_limit = data.get("airmass_limit", 2.5)
         moon_distance_limit = data.get("moon_distance_limit", 30)
         sun_altitude_limit = data.get("sun_altitude_limit", -18)
+        references_only = data.get("references_only", False)
 
         if instrument_id is None:
             return self.error("Instrument ID must be provided")
@@ -139,13 +140,18 @@ class MovingObjectFollowupHandler(BaseHandler):
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 
+        if str(references_only).lower() in ["true", "1", "t", "y", "yes"]:
+            references_only = True
+        else:
+            references_only = False
+
         with DBSession() as session:
             try:
                 instrument = session.scalar(
                     sa.select(Instrument).where(Instrument.id == instrument_id)
                 )
                 if instrument is None:
-                    return self.error(f"Instrument {instrument_name} not found")
+                    return self.error(f"Instrument {instrument_id} not found")
                 instrument_id, instrument_name = instrument.id, instrument.name
                 observer = instrument.telescope.observer
                 if observer is None:
@@ -160,6 +166,7 @@ class MovingObjectFollowupHandler(BaseHandler):
                     moon_distance_limit=moon_distance_limit,
                     sun_altitude_limit=sun_altitude_limit,
                 )
+
                 dfs, field_id_to_radec = add_instrument_fields(
                     df,
                     instrument_id,
@@ -169,6 +176,7 @@ class MovingObjectFollowupHandler(BaseHandler):
                     primary_only=primary_only,
                     airmass_limit=airmass_limit,
                     moon_distance_limit=moon_distance_limit,
+                    references_only=references_only,
                 )
 
                 observations = find_observable_sequence(

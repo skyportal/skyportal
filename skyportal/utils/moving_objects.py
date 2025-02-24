@@ -179,6 +179,7 @@ def get_ephemeris(
         ]
     )
     data = data.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    data = data.replace("n.a.", np.nan)
 
     data["time"] = pd.to_datetime(data["time"], format="%Y-%b-%d %H:%M")
     data = data[data["time"] >= np.datetime64(start_date)]
@@ -189,6 +190,7 @@ def get_ephemeris(
     data = data.sort_values("time")
 
     # Airmass constraint (using JPL horizons airmass)
+    data["airmass"] = data["airmass"].astype(float)
     data = data[data["airmass"] < airmass_limit]
 
     # Moon separation constraint
@@ -227,6 +229,7 @@ def get_instrument_fields(
     instrument_name: str,
     session,
     primary_only: bool = False,
+    references_only: bool = False,
 ):
     """
     Get the fields that the object is in for the given instrument.
@@ -250,12 +253,14 @@ def get_instrument_fields(
         The fields that the object is in.
     """
     # TODO: account for positional uncertainties (currently not returned by JPL Horizons API call)
-    stmt = sa.select(InstrumentField).where(
-        InstrumentField.reference_filters != "{}",
+    conditions = [
         InstrumentFieldTile.instrument_id == instrument_id,
         InstrumentFieldTile.instrument_field_id == InstrumentField.id,
         InstrumentFieldTile.healpix.contains(row["healpix"]),
-    )
+    ]
+    if references_only:
+        conditions.append(InstrumentField.reference_filters != "{}")
+    stmt = sa.select(InstrumentField).where(sa.and_(*conditions))
     if primary_only and instrument_name == "ZTF":
         stmt = stmt.where(InstrumentField.field_id < 880)
 
@@ -274,6 +279,7 @@ def add_instrument_fields(
     primary_only: bool = False,
     airmass_limit: float = 2,
     moon_distance_limit: float = 30,
+    references_only: bool = False,
 ):
     """
     Add to the dataframe the instrument field IDs that each pointings is in, and split the dataframe into field-based dataframes.
@@ -308,7 +314,12 @@ def add_instrument_fields(
     field_id_to_coords = {}
     for idx, row in df.iterrows():
         fields = get_instrument_fields(
-            row, instrument_id, instrument_name, session, primary_only=primary_only
+            row,
+            instrument_id,
+            instrument_name,
+            session,
+            primary_only=primary_only,
+            references_only=references_only,
         )
         if len(fields) > 0:
             df.at[idx, "instrument_field_ids"] = [f["field_id"] for f in fields]

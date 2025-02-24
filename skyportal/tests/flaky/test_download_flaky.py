@@ -16,6 +16,7 @@ from selenium.webdriver.common.keys import Keys
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
+from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
 
 cfg = load_config()
 
@@ -255,67 +256,9 @@ def test_gcn_summary_observations(
     assert n_times_2 < 25
     localization_id = data["id"]
 
-    name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "telescope",
-        data={
-            "name": name,
-            "nickname": name,
-            "lat": 0.0,
-            "lon": 0.0,
-            "elevation": 0.0,
-            "diameter": 10.0,
-        },
-        token=super_admin_token,
+    _, instrument_id, telescope_name, instrument_name = add_telescope_and_instrument(
+        "ZTF", super_admin_token, list(range(199, 204))
     )
-    assert status == 200
-    assert data["status"] == "success"
-    telescope_id = data["data"]["id"]
-
-    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
-    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
-
-    instrument_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "instrument",
-        data={
-            "name": instrument_name,
-            "type": "imager",
-            "band": "Optical",
-            "filters": ["ztfr"],
-            "telescope_id": telescope_id,
-            "api_classname": "ZTFAPI",
-            "api_classname_obsplan": "ZTFMMAAPI",
-            "field_data": pd.read_csv(fielddatafile)[199:204].to_dict(orient="list"),
-            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    instrument_id = data["data"]["id"]
-
-    # wait for the fields to populate
-    nretries = 0
-    fields_loaded = False
-    while not fields_loaded and nretries < 5:
-        try:
-            status, data = api(
-                "GET",
-                f"instrument/{instrument_id}",
-                token=super_admin_token,
-            )
-            assert status == 200
-            assert data["status"] == "success"
-            assert data["data"]["band"] == "NIR"
-
-            assert len(data["data"]["fields"]) == 5
-            fields_loaded = True
-        except AssertionError:
-            nretries = nretries + 1
-            time.sleep(3)
 
     request_data = {
         "group_id": public_group.id,
@@ -384,7 +327,7 @@ def test_gcn_summary_observations(
 
     datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv"
     data = {
-        "telescopeName": name,
+        "telescopeName": telescope_name,
         "instrumentName": instrument_name,
         "observationData": pd.read_csv(datafile).to_dict(orient="list"),
     }
@@ -397,7 +340,7 @@ def test_gcn_summary_observations(
     # wait for the executed observations to populate
 
     params = {
-        "telescopeName": name,
+        "telescopeName": telescope_name,
         "instrumentName": instrument_name,
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",

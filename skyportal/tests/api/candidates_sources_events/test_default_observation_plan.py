@@ -8,59 +8,14 @@ import pytest
 from regions import Regions
 
 from skyportal.tests import api
+from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
 
 
 @pytest.mark.flaky(reruns=2)
 def test_default_observation_plan_tiling(user, super_admin_token, public_group):
-    name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "telescope",
-        data={
-            "name": name,
-            "nickname": name,
-            "lat": 0.0,
-            "lon": 0.0,
-            "elevation": 0.0,
-            "diameter": 10.0,
-        },
-        token=super_admin_token,
+    _, instrument_id, _, _ = add_telescope_and_instrument(
+        "ZTF", super_admin_token, list(range(5))
     )
-    assert status == 200
-    assert data["status"] == "success"
-    telescope_id = data["data"]["id"]
-
-    fielddatafile = f"{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv"
-    regionsdatafile = f"{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg"
-
-    instrument_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "instrument",
-        data={
-            "name": instrument_name,
-            "type": "imager",
-            "band": "Optical",
-            "filters": ["ztfr"],
-            "telescope_id": telescope_id,
-            "api_classname": "ZTFAPI",
-            "api_classname_obsplan": "ZTFMMAAPI",
-            "field_data": pd.read_csv(fielddatafile)[:5].to_dict(orient="list"),
-            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
-            "sensitivity_data": {
-                "ztfr": {
-                    "limiting_magnitude": 20.3,
-                    "magsys": "ab",
-                    "exposure_time": 30,
-                    "zeropoint": 26.3,
-                }
-            },
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    instrument_id = data["data"]["id"]
 
     request_data = {
         "group_id": public_group.id,
