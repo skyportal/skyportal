@@ -25,8 +25,8 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal.handlers.base import BaseHandler
-from skyportal.models import (
+
+from ....models import (
     Annotation,
     AnnotationOnPhotometry,
     Candidate,
@@ -43,8 +43,9 @@ from skyportal.models import (
     Source,
     Spectrum,
 )
-from skyportal.utils.cache import Cache, array_to_bytes
-from skyportal.utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ....utils.cache import Cache, array_to_bytes
+from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...base import BaseHandler
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
