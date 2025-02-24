@@ -30,4 +30,4 @@ const reducer = (state = [], action) => {
   }
 };
 
-store.injectReducer("candidatesScanReports", reducer);
+store.injectReducer("scanReports", reducer);
