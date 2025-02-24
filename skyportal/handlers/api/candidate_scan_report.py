@@ -7,11 +7,43 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Source
-from ...models.candidate_scan_report import CandidateScanReport
+from ...models.candidate import Candidate
+from ...models.scan_report import ScanReport
+from ...models.scan_report_item import ScanReportItem
 from ..base import BaseHandler
 from .public_pages.public_source_page import safe_round
 
 log = make_log("api/candidate_scan_report")
+
+
+def get_saved_candidates(session, detection_range, saved_range):
+    """
+    Get all saved candidates in a given range which passed the filters in a given range.
+    Parameters
+    ----------
+    session: sqlalchemy.orm.Session
+    detection_range: dict
+    saved_range: dict
+
+    Returns
+    -------
+    list of saved candidates
+    """
+    return session.scalars(
+        Source.select(session.user_or_token, mode="read")
+        .join(Candidate, Source.obj_id == Candidate.obj_id)
+        .where(
+            Source.saved_at.between(
+                saved_range.get("start_save_date"),
+                saved_range.get("end_save_date"),
+            ),
+            Candidate.passed_at.between(
+                detection_range.get("start_date"),
+                detection_range.get("end_date"),
+            ),
+            Source.active.is_(True),
+        )
+    ).all()
 
 
 class CandidateScanReportHandler(BaseHandler):
@@ -28,15 +60,17 @@ class CandidateScanReportHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  candidate_detection_range:
+                  candidates_detection_range:
                     type: object
                     properties:
                       start_date:
                         type: string
                         format: date-time
+                        description: Start date of the candidate detection range
                       end_date:
                         type: string
                         format: date-time
+                        description: End date of the candidate detection range
                     saved_candidates_range:
                       type: object
                       properties:
@@ -61,27 +95,28 @@ class CandidateScanReportHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            if not data.get("saved_candidates_range"):
-                return self.error("No saved candidates range provided")
-            saved_range = data["saved_candidates_range"]
+            detection_range = data.get("candidates_detection_range")
+            if not detection_range:
+                return self.error("No candidate detection range provided")
 
-            saved_candidates = session.scalars(
-                Source.select(session.user_or_token, mode="read").where(
-                    Source.saved_by_id == session.user_or_token.id,
-                    Source.saved_at.between(
-                        saved_range.get("start_save_date"),
-                        saved_range.get("end_save_date"),
-                    ),
-                    Source.active.is_(True),
-                )
-            ).all()
+            saved_range = data.get("saved_candidates_range")
+            if not saved_range:
+                return self.error("No saved candidates range provided")
+
+            saved_candidates = get_saved_candidates(
+                session, detection_range, saved_range
+            )
 
             if not saved_candidates:
-                return self.error("No saved candidates found")
+                return self.error("No candidates found in the given range")
+
+            scan_report = ScanReport(created_by_id=session.user_or_token.id)
+
+            session.add(scan_report)
 
             for saved_candidate in saved_candidates:
                 if saved_candidate.obj is None:
-                    return self.error("No object found for one saved candidate")
+                    return self.error("No object found for one of the saved candidates")
 
                 phot_stats = saved_candidate.obj.photstats
                 current_mag = phot_stats[0].last_detected_mag if phot_stats else None
@@ -91,39 +126,43 @@ class CandidateScanReportHandler(BaseHandler):
                     else None
                 )
 
-                candidate_scan_report = CandidateScanReport(
-                    date=datetime.now(),
-                    scanner=session.user_or_token.username,
+                scan_report_item = ScanReportItem(
                     obj_id=saved_candidate.obj_id,
-                    already_classified=False,
-                    host_redshift=saved_candidate.obj.redshift,
-                    current_mag=safe_round(current_mag, 3),
-                    current_age=safe_round(current_age, 2),
-                    forced_photometry_requested=False,
-                    saver_id=session.user_or_token.id,
+                    scan_report_id=scan_report.id,
+                    data={
+                        "comment": "",
+                        "already_classified": False,
+                        "host_redshift": saved_candidate.obj.redshift,
+                        "current_mag": safe_round(current_mag, 3),
+                        "current_age": safe_round(current_age, 2),
+                    },
                 )
 
-                session.add(candidate_scan_report)
-                session.commit()
+                session.add(scan_report_item)
+                scan_report.items.append(scan_report_item)
 
-                flow = Flow()
-                flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORTS")
+            session.add(scan_report)
+            session.commit()
 
-                return self.success()
+            flow = Flow()
+            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORTS")
+
+            return self.success()
 
     @auth_or_token
-    def patch(self, candidate_scan_report_id):
+    def patch(self, report_item_id):
         """
         ---
-        summary: Update a candidate scan from the report
+        summary: Update a scan report item
         tags:
           - report
         parameters:
           - in: path
-            name: candidate_scan_report_id
+            name: report_item_id
             required: true
             schema:
               type: integer
+            description: ID of the report item to update
         requestBody:
           content:
             application/json:
@@ -134,10 +173,6 @@ class CandidateScanReportHandler(BaseHandler):
                     type: string
                   already_classified:
                     type: boolean
-                  host_redshift:
-                    type: number
-                  current_age:
-                    type: string
                   forced_photometry_requested:
                     type: boolean
         responses:
@@ -152,20 +187,25 @@ class CandidateScanReportHandler(BaseHandler):
         """
         data = self.get_json()
 
-        if not candidate_scan_report_id:
+        if not report_item_id:
             return self.error("Nothing to update")
 
         with self.Session() as session:
-            candidate_scan_report = session.scalar(
-                CandidateScanReport.select(session.user_or_token, mode="read").where(
-                    CandidateScanReport.id == candidate_scan_report_id,
+            item = session.scalar(
+                ScanReportItem.select(session.user_or_token, mode="read").where(
+                    ScanReportItem.id == report_item_id
                 )
             )
-            if candidate_scan_report is None:
-                return self.error("Report line not found")
+            if item is None:
+                return self.error("Report item not found")
 
-            for key, value in data.items():
-                setattr(candidate_scan_report, key, value)
+            item.comment = data.get("comment", item.comment)
+            item.already_classified = data.get(
+                "already_classified", item.already_classified
+            )
+            item.forced_photometry_requested = data.get(
+                "forced_photometry_requested", item.forced_photometry_requested
+            )
 
             flow = Flow()
             flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
@@ -177,7 +217,7 @@ class CandidateScanReportHandler(BaseHandler):
     def get(self):
         """
         ---
-        summary: Get all candidate scan in the report
+        summary: Get all items in a scan report
         tags:
           - report
         parameters:
@@ -185,7 +225,7 @@ class CandidateScanReportHandler(BaseHandler):
             name: rows
             schema:
               type: integer
-            description: Number of rows to return
+            description: Number of items to return
           - in: query
             name: page
             schema:
@@ -209,10 +249,9 @@ class CandidateScanReportHandler(BaseHandler):
             page = 1
 
         with self.Session() as session:
-            candidates_scan_report = session.scalars(
-                CandidateScanReport.select(session.user_or_token, mode="read")
-                .order_by(CandidateScanReport.date.desc())
+            items = session.scalars(
+                ScanReport.select(session.user_or_token, mode="read")
                 .limit(rows)
                 .offset(rows * (page - 1))
             ).all()
-            return self.success(data=candidates_scan_report)
+            return self.success(data=items)
