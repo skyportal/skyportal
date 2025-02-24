@@ -1,6 +1,8 @@
 __all__ = ["ScanReportItem"]
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
 
@@ -14,20 +16,16 @@ class ScanReportItem(Base):
         doc="ID of the Object associated with the candidate",
     )
 
-    scan_report = sa.Column(
-        sa.ForeignKey("scan_report.id", ondelete="CASCADE"),
+    scan_report_id = sa.Column(
+        sa.ForeignKey("scanreports.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         doc="ID of the report where the saved candidate is listed",
     )
-
-    saver_id = sa.Column(
-        sa.ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        doc="ID of the user that saved this candidate",
-    )
+    scan_report = relationship("ScanReport", back_populates="items")
 
     data = sa.Column(
-        sa.JSONB,
+        JSONB,
         nullable=True,
         doc="Source data of the candidate when the report was generated",
     )
