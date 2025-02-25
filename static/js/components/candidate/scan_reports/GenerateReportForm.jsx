@@ -16,9 +16,9 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
 
   const now = new Date();
   const oneDayAgo = new Date(now);
-  oneDayAgo.setDate(now.getDate() - 1700);
+  oneDayAgo.setDate(now.getDate() - 1);
   const twelveHoursAgo = new Date(now);
-  twelveHoursAgo.setHours(now.getHours() - 1700 * 12 * 2);
+  twelveHoursAgo.setHours(now.getHours() - 12);
   const [saveOptions, setSaveOptions] = useState({
     candidates_detection_range: {
       start_date: oneDayAgo.toISOString(),
