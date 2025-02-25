@@ -95,6 +95,7 @@ from ...utils.gcn import (
     get_skymap_properties,
     get_tags,
     get_trigger,
+    get_xml_notice_type,
     has_skymap,
 )
 from ...utils.notifications import post_notification
@@ -131,7 +132,13 @@ op_options = [
 
 
 def post_gcnevent_from_xml(
-    payload, user_id, session, post_skymap=True, asynchronous=True, notify=True
+    payload,
+    user_id,
+    session,
+    notice_type=None,
+    post_skymap=True,
+    asynchronous=True,
+    notify=True,
 ):
     """Post GcnEvent to database from voevent xml.
     payload: str
@@ -164,9 +171,11 @@ def post_gcnevent_from_xml(
 
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
-    notice_type = gcn.get_notice_type(root)
-    if notice_type not in list(gcn.NoticeType):
-        notice_type = gcn.NoticeType.TEST_COORDS
+    if notice_type is None:
+        try:
+            notice_type = str(gcn.NoticeType(int(gcn.get_notice_type(root))).name)
+        except Exception:
+            notice_type = get_xml_notice_type(root)
 
     aliases = get_notice_aliases(
         root, notice_type
@@ -225,7 +234,7 @@ def post_gcnevent_from_xml(
     session.add(properties)
     session.commit()
 
-    tags_text = list(get_tags(root)) + tags_list
+    tags_text = list(get_tags(root, notice_type)) + tags_list
     tags = [
         GcnTag(
             dateobs=dateobs,
@@ -315,12 +324,12 @@ def post_skymap_from_notice(
     if gcn_notice is None:
         raise ValueError(f"No GcnNotice with id {notice_id} found.")
 
+    notice_type = gcn_notice.notice_type
+
     try:
         root = lxml.etree.fromstring(gcn_notice.content)
-        notice_type = gcn.get_notice_type(root)
     except lxml.etree.XMLSyntaxError:
         root = json.loads(gcn_notice.content.decode("utf8"))
-        notice_type = None
 
     skymap, url, properties, tags = None, None, None, None
     try:
@@ -400,7 +409,7 @@ def post_skymap_from_notice(
                 if isinstance(root, dict):
                     event_tags = get_json_tags(root)
                 else:
-                    event_tags = get_tags(root)
+                    event_tags = get_tags(root, notice_type)
                 tags_formatted = [tag.upper().strip() for tag in event_tags]
                 if "GRB" in tags_formatted:
                     source["id"] = f"GRB-{source_name}"
@@ -408,6 +417,8 @@ def post_skymap_from_notice(
                         source["origin"] = "Swift"
                     elif "FERMI" in tags_formatted:
                         source["origin"] = "Fermi"
+                    elif "SVOM" in tags_formatted:
+                        source["origin"] = "SVOM"
                 elif "GW" in tags_formatted:
                     source["id"] = f"GW-{source_name}"
                     if "LVC" in tags_formatted:
@@ -440,6 +451,10 @@ def post_skymap_from_notice(
                             if source["origin"] is None:
                                 del source["origin"]
                             post_source(source, user_id, session)
+            else:
+                log(
+                    f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
+                )
 
         except Exception as e:
             log(traceback.format_exc())
@@ -1289,7 +1304,7 @@ class GcnEventHandler(BaseHandler):
                         data["xml"], self.associated_user_object.id, session
                     )
                 elif "json" in data:
-                    dateobs, even_id, notice_id = post_gcnevent_from_json(
+                    dateobs, event_id, notice_id = post_gcnevent_from_json(
                         data["json"], self.associated_user_object.id, session
                     )
                 else:
@@ -1854,7 +1869,12 @@ class GcnEventHandler(BaseHandler):
                 for notice in event.gcn_notices:
                     if notice.notice_type is not None:
                         try:
-                            notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                            # though we've transitioned to string notice types
+                            # for backwards compatibility, we still try to convert
+                            # integer notice types to string
+                            notice.notice_type = gcn.NoticeType(
+                                int(notice.notice_type)
+                            ).name
                         except ValueError:
                             pass
                 event_info = {
@@ -2417,6 +2437,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     if notice.notice_type is not None:
                         notice_type = notice.notice_type
                         try:
+                            # though we've transitioned to string notice types
+                            # for backwards compatibility, we still try to convert
+                            # integer notice types to string
                             notice_type = gcn.NoticeType(int(notice.notice_type)).name
                         except ValueError:
                             pass

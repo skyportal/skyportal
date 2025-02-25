@@ -779,12 +779,10 @@ def api(queue):
                                             if notice.id == target_data["notice_id"]
                                         ]
 
-                                        if len(filtered_notices) > 0:
-                                            # the notice is the one with "localization_ingested" equal to the "id" of target_id
-                                            notice = filtered_notices[0]
-                                        else:
-                                            # we trigger the notification on localization, but we notify only if it comes from a notice
+                                        # only notify on localizations that come from a notice
+                                        if len(filtered_notices) == 0:
                                             continue
+                                        notice = filtered_notices[0]
                                     else:
                                         # here, the notice is the notice of the target_id
                                         filtered_notices = [
@@ -792,28 +790,24 @@ def api(queue):
                                             for notice in notices
                                             if notice.id == target_id
                                         ]
-                                        if len(filtered_notices) > 0:
-                                            notice = filtered_notices[0]
-                                        else:
+                                        if len(filtered_notices) == 0:
                                             continue
+                                        notice = filtered_notices[0]
 
                                     gcn_prefs = pref["gcn_events"].get("properties", {})
                                     if len(gcn_prefs.keys()) == 0:
                                         continue
                                     for gcn_pref in gcn_prefs.values():
+                                        notice_type = (
+                                            notice.notice_type
+                                            if notice.notice_format
+                                            in ["voevent", "json"]
+                                            else None
+                                        )
                                         if (
                                             len(gcn_pref.get("gcn_notice_types", []))
                                             > 0
                                         ):
-                                            if notice.notice_format == "voevent":
-                                                notice_type = gcn.NoticeType(
-                                                    int(notice.notice_type)
-                                                ).name
-                                            elif notice.notice_format == "json":
-                                                notice_type = notice.notice_type
-                                            else:
-                                                notice_type = None
-
                                             if (
                                                 notice_type is not None
                                                 and notice_type
@@ -932,26 +926,16 @@ def api(queue):
                                                 f"Updated GCN Event *{target_data['dateobs']}*, "
                                                 f"with Tag *{gcn_tag.text}*"
                                             )
+                                        elif len(notices) > 1:
+                                            text = (
+                                                f"New Notice for GCN Event *{target_data['dateobs']}*, "
+                                                f"with Notice Type *{notice_type}*"
+                                            )
                                         else:
-                                            if notice.notice_format == "voevent":
-                                                notice_type = gcn.NoticeType(
-                                                    int(notice.notice_type)
-                                                ).name
-                                            elif notice.notice_format == "json":
-                                                notice_type = notice.notice_type
-                                            else:
-                                                notice_type = "No notice type"
-
-                                            if len(notices) > 1:
-                                                text = (
-                                                    f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                                    f"with Notice Type *{notice_type}*"
-                                                )
-                                            else:
-                                                text = (
-                                                    f"New GCN Event *{target_data['dateobs']}*, "
-                                                    f"with Notice Type *{notice_type}*"
-                                                )
+                                            text = (
+                                                f"New GCN Event *{target_data['dateobs']}*, "
+                                                f"with Notice Type *{notice_type}*"
+                                            )
 
                                         notification = UserNotification(
                                             user=user,
