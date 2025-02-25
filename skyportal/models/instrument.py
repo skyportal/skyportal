@@ -493,7 +493,13 @@ class Instrument(Base):
         doc="The Tiles for this instrument.",
         order_by="InstrumentFieldTile.id",
     )
-    plans = relationship("EventObservationPlan")
+    plans = relationship(
+        "EventObservationPlan",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="The ObservationPlans for this instrument.",
+    )
+
     logs = relationship("InstrumentLog")
 
     tnsrobots = relationship(

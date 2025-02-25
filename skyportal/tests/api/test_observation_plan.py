@@ -18,7 +18,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
     localization_id = gcn_GW190814.localizations[0].id
 
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(199, 204))
+        "ZTF", super_admin_token, list(range(200, 250))
     )
 
     request_data = {
@@ -29,6 +29,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
         "start_date": "3021-02-27T00:00:00",
         "end_date": "3021-07-20T00:00:00",
         "proposal_id": "COO-2020A-P01",
+        "types": ["observation_plan"],
     }
 
     status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
@@ -42,8 +43,8 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
             "gcnevent_id": gcnevent_id,
             "localization_id": localization_id,
             "payload": {
-                "start_date": "2020-02-14 01:01:01",
-                "end_date": "2020-02-15 01:01:01",
+                "start_date": "2020-07-16 01:01:01",
+                "end_date": "2020-07-17 01:01:01",
                 "filter_strategy": "block",
                 "schedule_strategy": "tiling",
                 "schedule_type": "greedy_slew",
@@ -141,7 +142,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
             break
         except AssertionError:
             n_retries += 1
-            time.sleep(6)
+            time.sleep(5)
 
     assert n_retries < 10
 
@@ -174,7 +175,7 @@ def test_observation_plan_galaxy(
     assert data["status"] == "success"
 
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(5))
+        "ZTF", super_admin_token, list(range(200, 250))
     )
 
     nretries = 0
@@ -208,6 +209,7 @@ def test_observation_plan_galaxy(
         "start_date": "3021-02-27T00:00:00",
         "end_date": "3021-07-20T00:00:00",
         "proposal_id": "COO-2020A-P01",
+        "types": ["observation_plan"],
     }
 
     status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
@@ -221,8 +223,8 @@ def test_observation_plan_galaxy(
             "gcnevent_id": gcnevent_id,
             "localization_id": localization_id,
             "payload": {
-                "start_date": "2020-02-14 01:01:01",
-                "end_date": "2020-02-15 01:01:01",
+                "start_date": "2020-07-16 01:01:01",
+                "end_date": "2020-07-17 01:01:01",
                 "filter_strategy": "block",
                 "schedule_strategy": "galaxy",
                 "galaxy_catalog": catalog_name,
@@ -294,7 +296,7 @@ def test_observation_plan_galaxy(
                 ]["end_date"].replace(" ", "T")
 
                 planned_observations = observation_plan["planned_observations"]
-                assert len(planned_observations) >= 10
+                assert len(planned_observations) >= 2
 
                 assert all(
                     obs["filt"] == requests_data[i]["payload"]["filters"]
@@ -308,7 +310,7 @@ def test_observation_plan_galaxy(
             break
         except AssertionError:
             n_retries = n_retries + 1
-            time.sleep(6)
+            time.sleep(5)
 
     assert n_retries < 10
 

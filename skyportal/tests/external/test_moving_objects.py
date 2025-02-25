@@ -40,6 +40,14 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
         "filters": ["ztfr"],
         "telescope_id": telescope_id,
         "api_classname": f"{api_class}API".upper(),
+        "sensitivity_data": {
+            "ztfr": {
+                "limiting_magnitude": 20.3,
+                "magsys": "ab",
+                "exposure_time": 30,
+                "zeropoint": 26.3,
+            }
+        },
     }
     nb_fields = 0
     if api_class == "ZTF" and len(fields_ids) > 0:
