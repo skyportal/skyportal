@@ -39,8 +39,8 @@ from .public_pages.public_release import *
 from .public_pages.public_source_page import *
 from .recurring_api import *
 from .reminder import *
-from .scan_report import *
-from .scan_report_item import *
+from .scan_report.scan_report import *
+from .scan_report.scan_report_item import *
 
 # Generated schema
 from .schema import setup_schema
