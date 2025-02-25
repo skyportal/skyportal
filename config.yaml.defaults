@@ -128,7 +128,7 @@ app:
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/candidates/scan_report"
-      component: candidate/scan_report/CandidateScanReport
+      component: candidate/scan_report/ReportsList
     - path: "/sources"
       component: source/SourceList
     - path: "/user/:id"
