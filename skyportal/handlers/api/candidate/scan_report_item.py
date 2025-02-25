@@ -1,11 +1,45 @@
+from astropy.time import Time
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ....models.scan_report_item import ScanReportItem
+from ....utils.safe_round import safe_round
 from ...base import BaseHandler
 
 log = make_log("api/candidate_scan_report_item")
+
+
+def create_scan_report_item(report_id, saved_candidate):
+    """
+    Parameters
+    ----------
+    report_id: int
+        The ID of the scan report to create an item for
+    saved_candidate: skyportal.model.Source
+        The saved candidate to create a scan report item for
+    Returns
+    -------
+    scan_report_item: skyportal.model.ScanReportItem
+    """
+    phot_stats = saved_candidate.obj.photstats
+    current_mag = phot_stats[0].last_detected_mag if phot_stats else None
+    current_age = (
+        (Time.now().mjd - phot_stats[0].first_detected_mjd) if phot_stats else None
+    )
+
+    return ScanReportItem(
+        obj_id=saved_candidate.obj_id,
+        scan_report_id=report_id,
+        data={
+            "comment": "",
+            "already_classified": False,
+            "host_redshift": saved_candidate.obj.redshift,
+            "current_mag": safe_round(current_mag, 3),
+            "current_age": safe_round(current_age, 2),
+        },
+    )
 
 
 class ScanReportItemHandler(BaseHandler):

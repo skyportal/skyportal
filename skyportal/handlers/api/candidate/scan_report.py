@@ -1,5 +1,3 @@
-from astropy.time import Time
-
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -7,9 +5,8 @@ from baselayer.log import make_log
 from ....models import Source
 from ....models.candidate import Candidate
 from ....models.scan_report import ScanReport
-from ....models.scan_report_item import ScanReportItem
 from ...base import BaseHandler
-from ..public_pages.public_source_page import safe_round
+from .scan_report_item import create_scan_report_item
 
 log = make_log("api/candidate_scan_report")
 
@@ -116,24 +113,8 @@ class ScanReportHandler(BaseHandler):
                 if saved_candidate.obj is None:
                     return self.error("No object found for one of the saved candidates")
 
-                phot_stats = saved_candidate.obj.photstats
-                current_mag = phot_stats[0].last_detected_mag if phot_stats else None
-                current_age = (
-                    (Time.now().mjd - phot_stats[0].first_detected_mjd)
-                    if phot_stats
-                    else None
-                )
-
-                scan_report_item = ScanReportItem(
-                    obj_id=saved_candidate.obj_id,
-                    scan_report_id=scan_report.id,
-                    data={
-                        "comment": "",
-                        "already_classified": False,
-                        "host_redshift": saved_candidate.obj.redshift,
-                        "current_mag": safe_round(current_mag, 3),
-                        "current_age": safe_round(current_age, 2),
-                    },
+                scan_report_item = create_scan_report_item(
+                    scan_report.id, saved_candidate
                 )
 
                 session.add(scan_report_item)
