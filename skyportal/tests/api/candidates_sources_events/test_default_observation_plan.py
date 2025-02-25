@@ -3,9 +3,7 @@ import time
 import uuid
 
 import numpy as np
-import pandas as pd
 import pytest
-from regions import Regions
 
 from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import (
@@ -15,9 +13,9 @@ from skyportal.tests.external.test_moving_objects import (
 
 
 @pytest.mark.flaky(reruns=2)
-def test_default_observation_plan_tiling(user, super_admin_token, public_group):
+def test_default_observation_plan_tiling(super_admin_token, public_group):
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(5))
+        "ZTF", super_admin_token, list(range(200, 250))
     )
 
     request_data = {
@@ -150,10 +148,10 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
     assert n_times_2 < 25
 
     # wait for the plans to be processed
-    time.sleep(30)
+    time.sleep(10)
 
     n_retries = 0
-    while n_retries < 15:
+    while n_retries < 10:
         try:
             # now we want to see if any observation plans were created
             status, data = api(
@@ -171,9 +169,9 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
             break
         except AssertionError:
             n_retries += 1
-            time.sleep(3)
+            time.sleep(5)
 
-    assert n_retries < 15
+    assert n_retries < 10
 
     status, data = api(
         "DELETE",

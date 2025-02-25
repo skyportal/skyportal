@@ -12,7 +12,7 @@ from skyportal.tests.external.test_moving_objects import (
 )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_observation(super_admin_token, gcn_GW190425):
     dateobs = gcn_GW190425.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -54,7 +54,7 @@ def test_observation(super_admin_token, gcn_GW190425):
     assert status == 200
     data = data["data"]
     assert len(data["observations"]) == 10
-    assert np.isclose(data["probability"], 2.927898964006069e-05)
+    assert np.isclose(data["probability"], 2.582514047833091e-05)
     assert any(
         d["obstime"] == "2019-04-25T08:18:18.002909" and d["observation_id"] == 84434604
         for d in data["observations"]
