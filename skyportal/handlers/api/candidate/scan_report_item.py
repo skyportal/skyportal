@@ -2,7 +2,6 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ....models.scan_report import ScanReport
 from ....models.scan_report_item import ScanReportItem
 from ...base import BaseHandler
 
@@ -16,7 +15,7 @@ class ScanReportItemHandler(BaseHandler):
         ---
         summary: Update an item from a scan report
         tags:
-          - report
+          - report item
         parameters:
           - in: path
             name: report_id
@@ -84,13 +83,13 @@ class ScanReportItemHandler(BaseHandler):
         ---
         summary: Retrieve all items in a scan report
         tags:
-          - report
+          - report item
         parameters:
           - in: path
             name: report_id
             required: true
             schema:
-            type: integer
+              type: integer
             description: ID of the report to retrieve items from
         responses:
           200:
@@ -104,8 +103,8 @@ class ScanReportItemHandler(BaseHandler):
         """
         with self.Session() as session:
             items = session.scalars(
-                ScanReport.select(session.user_or_token, mode="read").where(
-                    ScanReport.id == report_id
+                ScanReportItem.select(session.user_or_token, mode="read").where(
+                    ScanReportItem.scan_report_id == report_id
                 )
             ).all()
             return self.success(data=items)
