@@ -8,7 +8,10 @@ from regions import Regions
 from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 
 def test_filter_by_gcnevent(
@@ -214,8 +217,8 @@ def test_gcn_summary_observations(
     assert n_times_2 < 25
     localization_id = data["id"]
 
-    _, instrument_id, telescope_name, instrument_name = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(199, 204))
+    telescope_id, instrument_id, telescope_name, instrument_name = (
+        add_telescope_and_instrument("ZTF", super_admin_token, list(range(199, 204)))
     )
 
     request_data = {
@@ -415,3 +418,5 @@ def test_gcn_summary_observations(
     assert "filter" in obs_table[1]
     assert "exposure" in obs_table[1]
     assert "limmag (ab)" in obs_table[1]
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

@@ -33,17 +33,6 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
     assert data["status"] == "success"
     telescope_id = data["data"]["id"]
 
-    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
-    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Square_Region.reg"
-
-    field_data = pd.read_csv(fielddatafile)
-    field_region = Regions.read(regionsdatafile).serialize(format="ds9")
-
-    if isinstance(fields_ids, list):
-        field_data = field_data[field_data["ID"].isin(fields_ids)]
-
-    field_data = field_data.to_dict(orient="list")
-
     data = {
         "name": instrument_name,
         "type": "imager",
@@ -52,6 +41,7 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
         "telescope_id": telescope_id,
         "api_classname": f"{api_class}API".upper(),
     }
+    nb_fields = 0
     if api_class == "ZTF" and len(fields_ids) > 0:
         fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
         regionsdatafile = (
@@ -62,6 +52,7 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
         field_data = field_data[field_data["ID"].isin(fields_ids)].to_dict(
             orient="list"
         )
+        nb_fields = len(field_data["ID"])
         field_region = Regions.read(regionsdatafile).serialize(format="ds9")
 
         data["api_classname_obsplan"] = "ZTFMMAAPI"
@@ -93,7 +84,7 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
             assert data["status"] == "success"
             assert data["data"]["band"] == "Optical"
             if len(fields_ids) > 0:
-                assert len(data["data"]["fields"]) == len(fields_ids)
+                assert len(data["data"]["fields"]) == nb_fields
             break
         except AssertionError:
             nretries = nretries + 1
@@ -102,6 +93,24 @@ def add_telescope_and_instrument(api_class, super_admin_token, fields_ids=[]):
     assert nretries < maxretries
 
     return telescope_id, instrument_id, telescope_name, instrument_name
+
+
+def remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token):
+    status, data = api(
+        "DELETE",
+        f"instrument/{instrument_id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api(
+        "DELETE",
+        f"telescope/{telescope_id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
 
 
 # @pytest.mark.flaky(reruns=3)
@@ -113,7 +122,7 @@ def test_moving_object_followup(super_admin_token):
     exposure_time = 60
     band = "ztfr"
 
-    _, instrument_id, _, _ = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, fields_ids=[364, 365, 366]
     )
 
@@ -150,3 +159,5 @@ def test_moving_object_followup(super_admin_token):
         prev_start_time = start_time
 
         field["band"] == band
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

@@ -2,12 +2,17 @@ import os
 
 import pytest
 
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_observations(driver, super_admin_user, super_admin_token):
-    add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+        "ZTF", super_admin_token, list(range(5))
+    )
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/observations/")
@@ -47,3 +52,5 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys("84434604")
     driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

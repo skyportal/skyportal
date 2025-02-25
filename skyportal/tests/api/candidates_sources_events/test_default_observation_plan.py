@@ -8,12 +8,15 @@ import pytest
 from regions import Regions
 
 from skyportal.tests import api
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 
 @pytest.mark.flaky(reruns=2)
 def test_default_observation_plan_tiling(user, super_admin_token, public_group):
-    _, instrument_id, _, _ = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
     )
 
@@ -178,3 +181,5 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
         token=super_admin_token,
     )
     assert status == 200
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

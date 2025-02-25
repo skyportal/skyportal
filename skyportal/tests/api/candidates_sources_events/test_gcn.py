@@ -10,7 +10,10 @@ from astropy.table import Table
 from regions import Regions
 
 from skyportal.tests import api
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 from skyportal.utils.gcn import from_url
 
 tach_isonline = False
@@ -643,8 +646,8 @@ def test_gcn_instrument_field(
 ):
     dateobs = gcn_GW190814.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
-    _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(199, 204))
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+        "ZTF", super_admin_token, list(range(200, 250))
     )
 
     status, data = api(
@@ -658,7 +661,9 @@ def test_gcn_instrument_field(
     assert "field_ids" in data["data"]
     assert "probabilities" in data["data"]
 
-    assert set(data["data"]["field_ids"]) == {200, 201, 202}
+    assert set(data["data"]["field_ids"]) == {201, 202, 246, 247}
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
 def test_confirm_reject_source_in_gcn(

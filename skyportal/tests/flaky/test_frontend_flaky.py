@@ -11,7 +11,10 @@ from selenium.webdriver.common.by import By
 from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -335,8 +338,8 @@ def test_gcnevents_observations(
         assert status == 200
         assert data["status"] == "success"
 
-    _, _, telescope_name, instrument_name = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(5))
+    telescope_id, instrument_id, telescope_name, instrument_name = (
+        add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
     )
 
     datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
@@ -399,6 +402,8 @@ def test_gcnevents_observations(
     observations_xpath = '//button[contains(., "Observations")]'
     driver.wait_for_xpath(observations_xpath)
     driver.click_xpath(observations_xpath)
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -484,7 +489,7 @@ def test_observationplan_request(
         assert status == 200
         assert data["status"] == "success"
 
-    _, instrument_id, telescope_name, instrument_name = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, instrument_name = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
     )
 
@@ -608,6 +613,8 @@ def test_observationplan_request(
         f"//div[@data-testid='{instrument_name}-requests-header']"
     )
 
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
+
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(driver, user, super_admin_token, public_group):
@@ -626,8 +633,8 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
         assert status == 200
         assert data["status"] == "success"
 
-    _, _, telescope_name, instrument_name = add_telescope_and_instrument(
-        "ZTF", super_admin_token, list(range(5))
+    telescope_id, instrument_id, telescope_name, instrument_name = (
+        add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
     )
 
     datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
@@ -707,6 +714,8 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
             break
         except AssertionError:
             nretries = nretries + 1
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
 # @pytest.mark.flaky(reruns=2)

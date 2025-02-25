@@ -479,8 +479,20 @@ class Instrument(Base):
         doc="Whether the instrument has a region or not.",
     )
 
-    fields = relationship("InstrumentField")
-    tiles = relationship("InstrumentFieldTile")
+    fields = relationship(
+        "InstrumentField",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="The Fields for this instrument.",
+        order_by="InstrumentField.id",
+    )
+    tiles = relationship(
+        "InstrumentFieldTile",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="The Tiles for this instrument.",
+        order_by="InstrumentFieldTile.id",
+    )
     plans = relationship("EventObservationPlan")
     logs = relationship("InstrumentLog")
 

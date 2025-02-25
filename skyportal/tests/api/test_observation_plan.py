@@ -6,7 +6,10 @@ import numpy as np
 from astropy.table import Table
 
 from skyportal.tests import api
-from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 
 def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
@@ -14,7 +17,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
     gcnevent_id = gcn_GW190814.id
     localization_id = gcn_GW190814.localizations[0].id
 
-    _, instrument_id, _, _ = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(199, 204))
     )
 
@@ -142,6 +145,8 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
 
     assert n_retries < 10
 
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
+
 
 def test_observation_plan_galaxy(
     super_admin_token, view_only_token, public_group, gcn_GW190814
@@ -168,7 +173,7 @@ def test_observation_plan_galaxy(
     assert status == 200
     assert data["status"] == "success"
 
-    _, instrument_id, _, _ = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
     )
 
@@ -306,3 +311,5 @@ def test_observation_plan_galaxy(
             time.sleep(6)
 
     assert n_retries < 10
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
