@@ -11,7 +11,7 @@ log = make_log("api/candidate_scan_report_item")
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    def patch(self, report_item_id):
+    def patch(self, report_id, item_id):
         """
         ---
         summary: Update an item from a scan report
@@ -19,7 +19,13 @@ class ScanReportItemHandler(BaseHandler):
           - report
         parameters:
           - in: path
-            name: report_item_id
+            name: report_id
+            required: true
+            schema:
+              type: integer
+            description: ID of the report where the item is located
+          - in: path
+            name: item_id
             required: true
             schema:
               type: integer
@@ -48,13 +54,11 @@ class ScanReportItemHandler(BaseHandler):
         """
         data = self.get_json()
 
-        if not report_item_id:
-            return self.error("Nothing to update")
-
         with self.Session() as session:
             item = session.scalar(
                 ScanReportItem.select(session.user_or_token, mode="read").where(
-                    ScanReportItem.id == report_item_id
+                    ScanReportItem.id == item_id,
+                    ScanReportItem.scan_report_id == report_id,
                 )
             )
             if item is None:
@@ -75,12 +79,19 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self):
+    def get(self, report_id):
         """
         ---
         summary: Retrieve all items in a scan report
         tags:
           - report
+        parameters:
+          - in: path
+            name: report_id
+            required: true
+            schema:
+            type: integer
+            description: ID of the report to retrieve items from
         responses:
           200:
             content:
@@ -93,6 +104,8 @@ class ScanReportItemHandler(BaseHandler):
         """
         with self.Session() as session:
             items = session.scalars(
-                ScanReport.select(session.user_or_token, mode="read")
+                ScanReport.select(session.user_or_token, mode="read").where(
+                    ScanReport.id == report_id
+                )
             ).all()
             return self.success(data=items)
