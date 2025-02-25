@@ -35,7 +35,7 @@ import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
-import GenerateReportForm from "./scan_report/GenerateReportForm";
+import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
 
 dayjs.extend(utc);
