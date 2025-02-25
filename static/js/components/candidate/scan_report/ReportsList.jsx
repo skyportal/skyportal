@@ -9,8 +9,8 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
-import { fetchCandidatesScanReports } from "../../../ducks/candidate/candidate_scan_report";
-import EditReportCandidateForm from "./EditReportCandidateForm";
+import { fetchScanReports } from "../../../ducks/candidate/scan_reports";
+import EditReportItemForm from "./EditReportItemForm";
 
 const List = styled("div")({
   display: "flex",
@@ -39,9 +39,9 @@ const FieldTitle = styled(Field)({
   borderColor: "grey",
 });
 
-const CandidateScanReport = () => {
+const ReportsList = () => {
   const dispatch = useDispatch();
-  const candidatesScan = useSelector((state) => state.candidatesScanReports);
+  const candidatesScan = useSelector((state) => state.scanReports);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportCandidateToEdit, setReportCandidateToEdit] = useState(null);
@@ -49,7 +49,7 @@ const CandidateScanReport = () => {
   useEffect(() => {
     setLoading(true);
     dispatch(
-      fetchCandidatesScanReports({
+      fetchScanReports({
         rows: 10,
         page: 1,
       }),
@@ -150,7 +150,7 @@ const CandidateScanReport = () => {
         </List>
       </Paper>
       {reportCandidateToEdit && (
-        <EditReportCandidateForm
+        <EditReportItemForm
           dialogOpen={dialogOpen}
           setDialogOpen={setDialogOpen}
           reportCandidateToEdit={reportCandidateToEdit}
@@ -161,7 +161,7 @@ const CandidateScanReport = () => {
   );
 };
 
-CandidateScanReport.propTypes = {
+ReportsList.propTypes = {
   scanList: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
@@ -178,4 +178,4 @@ CandidateScanReport.propTypes = {
   ),
 };
 
-export default CandidateScanReport;
+export default ReportsList;
