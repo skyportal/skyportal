@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import requests
 import sqlalchemy as sa
+from astroplan import Observer
 from astropy.coordinates import AltAz, SkyCoord, get_body
 from astropy.time import Time
 
@@ -91,7 +92,7 @@ def get_ephemeris(
     obj_name: str,
     start_date: datetime,
     end_date: datetime,
-    observer: AltAz,
+    observer: Observer,
     airmass_limit: float = 2,
     moon_distance_limit: float = 30,
     sun_altitude_limit: float = -18,
@@ -275,7 +276,7 @@ def add_instrument_fields(
     instrument_id: int,
     instrument_name: str,
     session,
-    observer: AltAz,
+    observer: Observer,
     primary_only: bool = False,
     airmass_limit: float = 2,
     moon_distance_limit: float = 30,
@@ -433,7 +434,7 @@ def find_longest_sequence(df: pd.DataFrame):
 def find_observable_sequence(
     dfs: list[pd.DataFrame],
     field_id_to_radec: dict,
-    observer: AltAz,
+    observer: Observer,
     nb_obs: int,
     obs_time: int,
     band: str = None,

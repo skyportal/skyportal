@@ -1,5 +1,3 @@
-from typing import Union
-
 import astroplan
 import astropy_healpix as ahp
 import numpy as np
