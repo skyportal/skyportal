@@ -941,7 +941,7 @@ def post_source(data, user_id, session, refresh_source=True):
         # if there is releases with auto_publish_enabled and one of the source groups,
         # a public page is published
         releases = session.scalars(
-            PublicRelease.select(session.user_or_token).where(
+            sa.select(PublicRelease).where(
                 PublicRelease.groups.any(id=group.id),
                 PublicRelease.auto_publish_enabled,
             )

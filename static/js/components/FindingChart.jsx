@@ -1,5 +1,5 @@
 import makeStyles from "@mui/styles/makeStyles";
-import React, { Suspense, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import PrintIcon from "@mui/icons-material/Print";
@@ -19,6 +19,14 @@ import { useImage } from "react-image";
 import TextLoop from "react-text-loop";
 import { useReactToPrint } from "react-to-print";
 import Button from "./Button";
+
+const initialFormState = {
+  imagesource: "ps1",
+  facility: "Keck",
+  positionsource: "ztfref",
+  findersize: 4.0,
+  numoffset: 3,
+};
 
 const useStyles = makeStyles((theme) => ({
   media: {
@@ -68,42 +76,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const FindingChart = () => {
+const PlaceHolder = () => {
   const classes = useStyles();
-  const {
-    handleSubmit,
-    getValues,
-    control,
-
-    formState: { errors },
-  } = useForm();
-  const { id } = useParams();
-
-  const [params, setParams] = useState({
-    imagesource: "ps1",
-    facility: "Keck",
-    positionsource: "ztfref",
-    findersize: 4.0,
-    numoffset: 3,
-  });
-
-  const componentRef = useRef();
-
-  const initialFormState = {
-    ...params,
-  };
-
-  const url = new URL(`/api/sources/${id}/finder`, window.location.href);
-  url.search = new URLSearchParams({
-    type: "png",
-    image_source: `${params.imagesource}`,
-    use_ztfref: `${params.positionsource === "ztfref"}`,
-    imsize: `${params.findersize}`,
-    num_offset_stars: `${params.numoffset}`,
-    facility: `${params.facility}`,
-  });
-
-  const placeholder = (
+  return (
     <div className={classes.spinner}>
       <TextLoop>
         <span>Downloading image</span>
@@ -115,15 +90,64 @@ const FindingChart = () => {
       <CircularProgress color="primary" />
     </div>
   );
+};
+
+const FindingChart = () => {
+  const classes = useStyles();
+  const {
+    handleSubmit,
+    getValues,
+    control,
+
+    formState: { errors },
+  } = useForm();
+  const { id } = useParams();
+
+  const [params, setParams] = useState({ ...initialFormState });
+
+  const [image, setImage] = useState(null);
+
+  const componentRef = useRef();
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      const url = new URL(`/api/sources/${id}/finder`, window.location.href);
+      url.search = new URLSearchParams({
+        type: "png",
+        image_source: `${params.imagesource}`,
+        use_ztfref: `${params.positionsource === "ztfref"}`,
+        imsize: `${params.findersize}`,
+        num_offset_stars: `${params.numoffset}`,
+        facility: `${params.facility}`,
+      });
+      const response = await fetch(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        setImage(imageUrl);
+      } else {
+        console.error("Error fetching image:", response.statusText);
+      }
+    };
+    fetchImage();
+  }, [params]);
 
   function FinderImage() {
     const { src } = useImage({
-      srcList: url,
+      srcList: image,
     });
-    return <img alt={`${id}`} src={src} className={classes.media} />;
+    return (
+      <img
+        alt={`${id}`}
+        src={src}
+        className={classes.media}
+        ref={componentRef}
+      />
+    );
   }
 
   const onSubmit = () => {
+    setImage(null);
     const formData = {
       ...initialFormState,
       ...getValues(),
@@ -134,7 +158,7 @@ const FindingChart = () => {
   const rules = { required: true, min: 2, max: 15, type: "number", step: 0.5 };
 
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: `finder_${id}.pdf`,
     pageStyle: "@page {size: landscape}",
   });
@@ -159,12 +183,8 @@ const FindingChart = () => {
         >
           <Grid item xs={12} md={10}>
             <Card>
-              <CardContent ref={componentRef}>
-                <div>
-                  <Suspense fallback={placeholder}>
-                    <FinderImage />
-                  </Suspense>
-                </div>
+              <CardContent style={{ textAlign: "center" }}>
+                <div>{image ? <FinderImage /> : <PlaceHolder />}</div>
               </CardContent>
             </Card>
           </Grid>
@@ -319,6 +339,7 @@ const FindingChart = () => {
                       className={classes.button}
                       endIcon={<PrintIcon />}
                       onClick={handlePrint}
+                      disabled={!image}
                     >
                       Print
                     </Button>

@@ -244,18 +244,18 @@ const FollowupRequestForm = ({
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    const result = await dispatch(sourceActions.submitFollowupRequest(json));
-    setIsSubmitting(false);
-    if (result.status === "success") {
-      if (
-        result?.data?.request_status &&
-        result.data.request_status.startsWith("rejected")
-      ) {
-        dispatch(showNotification("Photometry request rejected.", "error"));
-      } else {
-        dispatch(showNotification("Photometry successfully requested."));
-      }
-    }
+    await dispatch(sourceActions.submitFollowupRequest(json)).then(
+      (response) => {
+        setIsSubmitting(false);
+        if (response.status === "success") {
+          if (response.data.request_status?.startsWith("rejected")) {
+            dispatch(showNotification("Request has been rejected.", "warning"));
+          } else {
+            dispatch(showNotification("Request successfully submitted."));
+          }
+        }
+      },
+    );
   };
 
   const validate = (formData, errors) => {

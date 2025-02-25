@@ -3,6 +3,7 @@ import io
 import math
 import os
 import re
+import string
 import time
 import urllib
 import warnings
@@ -1214,15 +1215,25 @@ def get_nearby_offset_stars(
             except ValueError:
                 raise ValueError(f"Cannot convert magnitude {source_mag} to float")
 
+        # we only keep letters, numbers, special characters but remove all \n, \t, ... and other control characters
+        # we also remove all mentions of the col_sep character used by the starlist format
+        assignment_comment = str(assignment_comment)
+        assignment_comment = "".join(
+            [
+                c
+                for c in assignment_comment
+                if c.isalnum() or c in string.punctuation or c == " "
+            ]
+        )
+        assignment_comment = assignment_comment.replace(col_sep, " ")
+
         star_list_format = (
             f"{basename}"
             + ","
             + f"{hmsdms}"
             + ",,"  # offset ra, dec (empty for target)
             + ","
-            + str(assignment_comment).replace(
-                col_sep, " "
-            )  # assignment comment, if any, no col_sep allowed
+            + assignment_comment
             + ","
             + str(int(assignment_priority))  # assignment priority, if any
             + ","

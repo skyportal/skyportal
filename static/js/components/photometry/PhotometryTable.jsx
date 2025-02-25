@@ -99,16 +99,16 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const handleDelete = async () => {
     if (!deleteDialogOpen) {
       return;
     }
     await dispatch(Actions.deletePhotometry(deleteDialogOpen));
-    setDeleteDialogOpen(null);
+    setDeleteDialogOpen(false);
   };
   const closeDeleteDialog = () => {
-    setDeleteDialogOpen(null);
+    setDeleteDialogOpen(false);
   };
 
   const objectWithFalseValues = defaultHiddenColumns.reduce((acc, curr) => {
