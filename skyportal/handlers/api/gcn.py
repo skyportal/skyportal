@@ -131,6 +131,84 @@ op_options = [
 ]
 
 
+def post_gcn_source(
+    dateobs: str, localization_name: str, root, notice_type, user, session
+):
+    try:
+        ra, dec, error = (float(val) for val in localization_name.split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            log(
+                f"Creating source for event {dateobs} with Localization {localization_name}."
+            )
+            dateobs_txt = Time(dateobs).isot
+            source_name = f"{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+            source = {
+                "id": source_name,
+                "ra": ra,
+                "dec": dec,
+                "origin": None,
+            }
+            event_tags = []
+            if isinstance(root, dict):
+                event_tags = get_json_tags(root)
+            else:
+                event_tags = get_tags(root, notice_type)
+            tags_formatted = [tag.upper().strip() for tag in event_tags]
+            if "GRB" in tags_formatted:
+                source["id"] = f"GRB-{source_name}"
+                if "SWIFT" in tags_formatted:
+                    source["origin"] = "Swift"
+                elif "FERMI" in tags_formatted:
+                    source["origin"] = "Fermi"
+                elif "SVOM" in tags_formatted:
+                    source["origin"] = "SVOM"
+            elif "GW" in tags_formatted:
+                source["id"] = f"GW-{source_name}"
+                if "LVC" in tags_formatted:
+                    source["origin"] = "LVC"
+            elif "EINSTEIN PROBE" in tags_formatted:
+                source["id"] = f"EP-{source_name}"
+                source["origin"] = "Einstein Probe"
+            else:
+                source["id"] = f"GCN-{source_name}"
+
+            public_group = session.scalar(
+                sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+            )
+            if public_group is None:
+                log(
+                    f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, cannot post source"
+                )
+            else:
+                public_group_id = public_group.id
+                source["group_ids"] = [public_group_id]
+
+                if source.get("id", None) is not None:
+                    existing_source = session.scalars(
+                        Source.select(user).where(Source.obj_id == source["id"])
+                    ).first()
+                    if existing_source is None:
+                        log(
+                            f"Posting source for event {dateobs} with Localization {localization_name} with id {source['id']}."
+                        )
+                        if source["origin"] is None:
+                            del source["origin"]
+                        post_source(source, user.id, session)
+                        return True
+        else:
+            log(
+                f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_name}."
+            )
+
+    except Exception as e:
+        log(traceback.format_exc())
+        log(
+            f"Failed to create source for event {dateobs} with Localization {localization_name}: {str(e)}."
+        )
+    finally:
+        return False
+
+
 def post_gcnevent_from_xml(
     payload,
     user_id,
@@ -389,78 +467,9 @@ def post_skymap_from_notice(
         session.add(gcn_notice)
         session.commit()
 
-        try:
-            ra, dec, error = (
-                float(val) for val in skymap["localization_name"].split("_")
-            )
-            if error < SOURCE_RADIUS_THRESHOLD:
-                log(
-                    f"Creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
-                )
-                dateobs_txt = Time(dateobs).isot
-                source_name = f"{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                source = {
-                    "id": source_name,
-                    "ra": ra,
-                    "dec": dec,
-                    "origin": None,
-                }
-                event_tags = []
-                if isinstance(root, dict):
-                    event_tags = get_json_tags(root)
-                else:
-                    event_tags = get_tags(root, notice_type)
-                tags_formatted = [tag.upper().strip() for tag in event_tags]
-                if "GRB" in tags_formatted:
-                    source["id"] = f"GRB-{source_name}"
-                    if "SWIFT" in tags_formatted:
-                        source["origin"] = "Swift"
-                    elif "FERMI" in tags_formatted:
-                        source["origin"] = "Fermi"
-                    elif "SVOM" in tags_formatted:
-                        source["origin"] = "SVOM"
-                elif "GW" in tags_formatted:
-                    source["id"] = f"GW-{source_name}"
-                    if "LVC" in tags_formatted:
-                        source["origin"] = "LVC"
-                elif "EINSTEIN PROBE" in tags_formatted:
-                    source["id"] = f"EP-{source_name}"
-                    source["origin"] = "Einstein Probe"
-                else:
-                    source["id"] = f"GCN-{source_name}"
-
-                public_group = session.scalar(
-                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-                )
-                if public_group is None:
-                    log(
-                        f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, cannot post source"
-                    )
-                else:
-                    public_group_id = public_group.id
-                    source["group_ids"] = [public_group_id]
-
-                    if source.get("id", None) is not None:
-                        existing_source = session.scalars(
-                            Source.select(user).where(Source.obj_id == source["id"])
-                        ).first()
-                        if existing_source is None:
-                            log(
-                                f"Posting source for event {dateobs} with Localization {localization_id} with id {source['id']}."
-                            )
-                            if source["origin"] is None:
-                                del source["origin"]
-                            post_source(source, user_id, session)
-            else:
-                log(
-                    f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
-                )
-
-        except Exception as e:
-            log(traceback.format_exc())
-            log(
-                f"Failed to create source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}: {str(e)}."
-            )
+        post_gcn_source(
+            dateobs, skymap["localization_name"], root, notice_type, user, session
+        )
 
     else:
         localization_id = localization.id
@@ -637,7 +646,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
 
     user = session.query(User).get(user_id)
 
-    dateobs = payload["dateobs"]
+    dateobs = arrow.get(payload["dateobs"]).datetime
 
     event = session.scalars(
         GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
@@ -725,17 +734,9 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
-    try:
-        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
-        if error < SOURCE_RADIUS_THRESHOLD:
-            source = {
-                "id": Time(event.dateobs).isot.replace(":", "-"),
-                "ra": ra,
-                "dec": dec,
-            }
-            post_source(source, user_id, session)
-    except Exception:
-        pass
+    post_gcn_source(
+        event.dateobs, skymap["localization_name"], payload, None, user, session
+    )
 
     localization = session.scalars(
         Localization.select(user).where(
