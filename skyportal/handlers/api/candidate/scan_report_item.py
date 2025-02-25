@@ -3,8 +3,8 @@ from astropy.time import Time
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from skyportal.models.scan_report.scan_report_item import ScanReportItem
 
+from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
 from ...base import BaseHandler
 
