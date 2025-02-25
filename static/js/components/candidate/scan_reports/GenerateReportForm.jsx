@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -13,6 +13,7 @@ import { generateScanReport } from "../../../ducks/candidate/scan_reports";
 const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
+  const groups = useSelector((state) => state.groups.userAccessible);
 
   const now = new Date();
   const oneDayAgo = new Date(now);
@@ -28,12 +29,27 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
       start_save_date: twelveHoursAgo.toISOString(),
       end_save_date: now.toISOString(),
     },
+    groups: [],
   });
 
   const generateReportSchema = () => {
     return {
       type: "object",
       properties: {
+        group_ids: {
+          type: "array",
+          items: {
+            type: "number",
+            anyOf: (groups || []).map((group) => ({
+              type: "number",
+              enum: [group.id],
+              title: group.name,
+            })),
+          },
+          uniqueItems: true,
+          default: [],
+          title: "Include only saved source in these groups",
+        },
         candidates_detection_range: {
           title: "Candidates Detection Time Range",
           type: "object",
