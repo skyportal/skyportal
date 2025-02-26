@@ -25,7 +25,7 @@ class ScanReport(Base):
 
     groups = relationship(
         "Group",
-        secondary="group_scan_report",
+        secondary="group_scan_reports",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The groups that have access to this report",
