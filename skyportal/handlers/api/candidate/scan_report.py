@@ -29,7 +29,7 @@ def get_saved_candidates(session, group_ids, detection_range, saved_range):
         Source.select(session.user_or_token, mode="read")
         .join(Candidate, Source.obj_id == Candidate.obj_id)
         .where(
-            Source.groups.any(Group.id.in_(group_ids)),
+            Source.group_id.in_(group_ids),
             Source.saved_at.between(
                 saved_range.get("start_save_date"),
                 saved_range.get("end_save_date"),
