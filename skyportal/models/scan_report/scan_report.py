@@ -15,6 +15,7 @@ class ScanReport(Base):
         nullable=False,
         doc="ID of the user that created this report",
     )
+    creator = relationship("User", doc="The User that created this report")
 
     items = relationship(
         "ScanReportItem",

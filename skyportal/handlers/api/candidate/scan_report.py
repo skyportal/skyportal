@@ -1,3 +1,5 @@
+from sqlalchemy.orm import joinedload
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -196,10 +198,22 @@ class ScanReportHandler(BaseHandler):
             page = 1
 
         with self.Session() as session:
-            items = session.scalars(
-                ScanReport.select(session.user_or_token, mode="read")
-                .order_by(ScanReport.created_at.desc())
-                .limit(rows)
-                .offset(rows * (page - 1))
-            ).all()
-            return self.success(data=items)
+            items = (
+                session.scalars(
+                    ScanReport.select(session.user_or_token, mode="read")
+                    .options(joinedload(ScanReport.groups))
+                    .order_by(ScanReport.created_at.desc())
+                    .limit(rows)
+                    .offset(rows * (page - 1))
+                )
+                .unique()
+                .all()
+            )
+
+            # Add the creator username to each scan report
+            items_dict = [
+                {**scan_report.to_dict(), "username": scan_report.creator.username}
+                for scan_report in items
+            ]
+
+            return self.success(data=items_dict)
