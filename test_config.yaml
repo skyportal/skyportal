@@ -67,7 +67,6 @@ services:
     - external_logging
     - cron
     - gcnserver
-    - slack
     - dask
     - spectral_cube_analysis_service
     - tns_retrieval_queue

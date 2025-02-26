@@ -11,6 +11,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 from baselayer.app.env import load_config
 from skyportal.tests import api
+from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
 
 cfg = load_config(config_files=["test_config.yaml"])
 endpoint = cfg["app.sedm_endpoint"]
@@ -103,85 +104,6 @@ except requests.exceptions.ConnectTimeout:
     pass
 else:
     swift_isonline = True
-
-
-def add_telescope_and_instrument(instrument_name, token):
-    status, data = api("GET", f"instrument?name={instrument_name}", token=token)
-    if len(data["data"]) == 1:
-        if instrument_name == "ZTF":
-            fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
-            regionsdatafile = (
-                f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
-            )
-
-            fields = pd.read_csv(fielddatafile)
-            fields = fields[698:701].to_dict(orient="list")
-
-            field_data = {
-                "field_data": fields,
-                "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
-            }
-
-            status, updated_data = api(
-                "PUT",
-                f"instrument/{data['data'][0]['id']}",
-                data=field_data,
-                token=token,
-            )
-            assert status == 200
-            assert updated_data["status"] == "success"
-        return data["data"][0]
-
-    telescope_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "telescope",
-        data={
-            "name": telescope_name,
-            "nickname": telescope_name,
-            "lat": 0.0,
-            "lon": 0.0,
-            "elevation": 0.0,
-            "diameter": 10.0,
-            "robotic": True,
-        },
-        token=token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    telescope_id = data["data"]["id"]
-
-    data = {
-        "name": instrument_name,
-        "type": "imager",
-        "band": "Optical",
-        "telescope_id": telescope_id,
-        "filters": ["ztfg"],
-        "api_classname": f"{instrument_name.upper()}API",
-    }
-
-    if instrument_name == "ZTF":
-        fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
-        regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
-
-        fields = pd.read_csv(fielddatafile)
-        fields = fields[698:701].to_dict(orient="list")
-
-        data = {
-            **data,
-            "field_data": fields,
-            "field_region": Regions.read(regionsdatafile).serialize(format="ds9"),
-        }
-
-    status, data = api(
-        "POST",
-        "instrument",
-        data=data,
-        token=token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_sedm(instrument_id, group_id, token):
@@ -360,8 +282,10 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("SEDMv2", super_admin_token)
-    add_allocation_sedmv2(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDMv2", super_admin_token
+    )
+    add_allocation_sedmv2(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -391,7 +315,7 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "SEDMv2")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -412,29 +336,33 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     driver.click_xpath("//header")
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SEDMv2-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
     driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
     driver.click_xpath('//label/span[text()="exposure_time"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("KAIT", super_admin_token)
-    add_allocation_kait(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "KAIT", super_admin_token
+    )
+    add_allocation_kait(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -464,7 +392,7 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -483,22 +411,26 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     driver.click_xpath("//header")
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='KAIT-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "U")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "U")]'
     )
     # it should fail, as we don't provide real allocation info
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "failed to submit")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]"""
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("UVOTXRT", super_admin_token)
-    add_allocation_uvotxrt(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "UVOTXRT", super_admin_token
+    )
+    add_allocation_uvotxrt(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -528,7 +460,7 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "UVOTXRT")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -550,10 +482,10 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='UVOTXRT-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -563,22 +495,26 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     driver.click_xpath('//label/span[text()="source_type"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Light Curve")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Light Curve")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "4000")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "4000")]"""
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("ZTF", super_admin_token)
-    add_allocation_ztf(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "ZTF", super_admin_token, fields_ids=list(range(699, 704))
+    )
+    add_allocation_ztf(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -608,7 +544,7 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "ZTF")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -620,10 +556,10 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='ZTF-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -632,14 +568,16 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     driver.click_xpath('//label/span[text()="subprogram_name"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "GRB")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "g,r,i")]"""
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Floyds(
@@ -647,8 +585,10 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("Floyds", super_admin_token)
-    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "Floyds", super_admin_token
+    )
+    add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -678,7 +618,7 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "Floyds")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -688,11 +628,11 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath(
-        "//div[@data-testid='Floyds-requests-header']", scroll_parent=True
+        f"//div[@data-testid='{instrument_name}-requests-header']", scroll_parent=True
     )
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -701,11 +641,13 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "30")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_MUSCAT(
@@ -713,8 +655,10 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("MUSCAT", super_admin_token)
-    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "MUSCAT", super_admin_token
+    )
+    add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -744,7 +688,7 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "MUSCAT")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -753,9 +697,9 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
-    driver.click_xpath("//div[@data-testid='MUSCAT-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -764,11 +708,13 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "30")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_ATLAS(
@@ -776,8 +722,10 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("ATLAS", super_admin_token)
-    add_allocation_atlas(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "ATLAS", super_admin_token
+    )
+    add_allocation_atlas(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -814,7 +762,7 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "ATLAS")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -823,12 +771,14 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
-    driver.click_xpath("//div[@data-testid='ATLAS-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     # submission should fail, as we don't provide real allocation info or endpoint
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "failed to submit")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_PS1(
@@ -836,8 +786,10 @@ def add_followup_request_using_frontend_and_verify_PS1(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("PS1", super_admin_token)
-    add_allocation_ps1(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "PS1", super_admin_token
+    )
+    add_allocation_ps1(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -874,7 +826,7 @@ def add_followup_request_using_frontend_and_verify_PS1(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "PS1")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -883,11 +835,13 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
-    driver.click_xpath("//div[@data-testid='PS1-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "PS1_followupRequestsTable")]//div[contains(., "submitted")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Spectral(
@@ -895,8 +849,10 @@ def add_followup_request_using_frontend_and_verify_Spectral(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("Spectral", super_admin_token)
-    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "Spectral", super_admin_token
+    )
+    add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -926,7 +882,7 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "Spectral")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -945,10 +901,10 @@ def add_followup_request_using_frontend_and_verify_Spectral(
 
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
-    driver.click_xpath("//div[@data-testid='Spectral-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -957,11 +913,13 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     driver.click_xpath('//label/span[text()="observation_choices"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "gp,Y")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Sinistro(
@@ -969,8 +927,10 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("Sinistro", super_admin_token)
-    add_allocation_lco(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "Sinistro", super_admin_token
+    )
+    add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1000,7 +960,7 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "Sinistro")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -1020,11 +980,11 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath(
-        "//div[@data-testid='Sinistro-requests-header']", scroll_parent=True
+        f"//div[@data-testid='{instrument_name}-requests-header']", scroll_parent=True
     )
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
@@ -1034,19 +994,23 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     driver.click_xpath('//label/span[text()="observation_choices"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}o_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "gp,Y")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation_sedm(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDM", super_admin_token
+    )
+    add_allocation_sedm(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1076,7 +1040,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -1104,20 +1068,23 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
+    # driver.click_xpath(f"//div[@data-testid='SEDM-requests-header']")
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SPRAT(
@@ -1125,8 +1092,10 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("SPRAT", super_admin_token)
-    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SPRAT", super_admin_token
+    )
+    add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1156,7 +1125,7 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     driver.scroll_to_element_and_click(select_box)
 
     allocation = driver.wait_for_xpath(
-        f'//li[contains(text(), "SPRAT")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
     )
     driver.scroll_to_element_and_click(
         allocation,
@@ -1170,10 +1139,12 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SPRAT-requests-header']", timeout=30)
+    driver.click_xpath(
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
+    )
 
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]""",
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]',
         timeout=20,
     )
 
@@ -1183,13 +1154,15 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     driver.click_xpath('//label/span[text()="exposure_time"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "300")]',
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]""",
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]',
         timeout=20,
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_IOI(
@@ -1197,8 +1170,10 @@ def add_followup_request_using_frontend_and_verify_IOI(
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("IOI", super_admin_token)
-    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "IOI", super_admin_token
+    )
+    add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1227,9 +1202,7 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
     driver.scroll_to_element_and_click(select_box)
 
-    allocation = (
-        f"//li[contains(text(), 'IOI')][contains(text(), '{public_group.name}')]"
-    )
+    allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(allocation),
         scroll_parent=True,
@@ -1246,10 +1219,12 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='IOI-requests-header']", timeout=30)
+    driver.click_xpath(
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
+    )
 
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]""",
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]',
         timeout=20,
     )
 
@@ -1259,21 +1234,25 @@ def add_followup_request_using_frontend_and_verify_IOI(
     driver.click_xpath('//label/span[text()="observation_choices"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "300")]',
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]""",
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]',
         timeout=20,
     )
+
+    return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SLACK(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("SLACK", super_admin_token)
-    add_allocation_slack(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SLACK", super_admin_token
+    )
+    add_allocation_slack(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1302,9 +1281,7 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     )
     driver.scroll_to_element_and_click(select_box)
 
-    allocation = (
-        f"//li[contains(text(), 'SLACK')][contains(text(), '{public_group.name}')]"
-    )
+    allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(allocation),
         scroll_parent=True,
@@ -1320,7 +1297,9 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SLACK-requests-header']", timeout=30)
+    driver.click_xpath(
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
+    )
 
     # we are not pointing to a real slack channel, so it should fail
     driver.wait_for_xpath(
@@ -1332,14 +1311,18 @@ def add_followup_request_using_frontend_and_verify_SLACK(
         timeout=20,
     )
 
+    return instrument_id, instrument_name
+
 
 def add_followup_request_using_frontend_and_verify_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
-    idata = add_telescope_and_instrument("IOO", super_admin_token)
-    add_allocation_lt(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "IOO", super_admin_token
+    )
+    add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1368,9 +1351,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
     driver.scroll_to_element_and_click(select_box)
 
-    allocation = (
-        f"//li[contains(text(), 'IOO')][contains(text(), '{public_group.name}')]"
-    )
+    allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(allocation),
         scroll_parent=True,
@@ -1396,7 +1377,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.click_xpath("//div[@data-testid='IOO-requests-header']", timeout=30)
 
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]""",
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]""",
         timeout=20,
     )
 
@@ -1406,16 +1387,17 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.click_xpath('//label/span[text()="observation_choices"]')
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "300")]',
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]""",
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]""",
         timeout=20,
     )
 
+    return instrument_id, instrument_name
 
-@pytest.mark.flaky(reruns=2)
+
 @pytest.mark.skipif(not swift_isonline, reason="UVOT/XRT server down")
 def test_submit_new_followup_request_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1425,7 +1407,6 @@ def test_submit_new_followup_request_UVOTXRT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
 def test_submit_new_followup_request_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1435,7 +1416,7 @@ def test_submit_new_followup_request_KAIT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+#
 def test_submit_new_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1444,7 +1425,6 @@ def test_submit_new_followup_request_SEDMv2(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1454,7 +1434,7 @@ def test_submit_new_followup_request_ZTF(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+#
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1464,7 +1444,6 @@ def test_submit_new_followup_request_SEDM(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1474,7 +1453,6 @@ def test_submit_new_followup_request_IOO(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1484,7 +1462,6 @@ def test_submit_new_followup_request_IOI(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1494,7 +1471,6 @@ def test_submit_new_followup_request_SPRAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SLACK(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1503,7 +1479,6 @@ def test_submit_new_followup_request_SLACK(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -1513,7 +1488,6 @@ def test_submit_new_followup_request_Sinistro(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1523,7 +1497,6 @@ def test_submit_new_followup_request_Spectral(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
 def test_submit_new_followup_request_ATLAS(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1533,7 +1506,6 @@ def test_submit_new_followup_request_ATLAS(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ps1_isonline, reason="PS1 server down")
 def test_submit_new_followup_request_PS1(
     driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
@@ -1543,7 +1515,6 @@ def test_submit_new_followup_request_PS1(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1553,7 +1524,6 @@ def test_submit_new_followup_request_MUSCAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1563,7 +1533,6 @@ def test_submit_new_followup_request_Floyds(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1604,7 +1573,7 @@ def test_edit_existing_followup_request(
 def test_delete_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_SEDMv2(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_SEDMv2(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1613,22 +1582,21 @@ def test_delete_followup_request_SEDMv2(
     )
 
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_ZTF(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_ZTF(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1647,12 +1615,11 @@ def test_delete_followup_request_ZTF(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_SEDM(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     delete_button = driver.wait_for_xpath(
@@ -1661,22 +1628,21 @@ def test_delete_followup_request_SEDM(
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_IOO(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1685,22 +1651,21 @@ def test_delete_followup_request_IOO(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_IOI(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_IOI(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1709,22 +1674,21 @@ def test_delete_followup_request_IOI(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_SPRAT(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_SPRAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1733,22 +1697,21 @@ def test_delete_followup_request_SPRAT(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_Sinistro(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_Sinistro(
         driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
     )
 
@@ -1757,22 +1720,21 @@ def test_delete_followup_request_Sinistro(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_Spectral(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_Spectral(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1781,22 +1743,21 @@ def test_delete_followup_request_Spectral(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_MUSCAT(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_MUSCAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1805,22 +1766,21 @@ def test_delete_followup_request_MUSCAT(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "30")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_Floyds(
+    _, instrument_name = add_followup_request_using_frontend_and_verify_Floyds(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1829,17 +1789,16 @@ def test_delete_followup_request_Floyds(
     )
 
     driver.wait_for_xpath_to_disappear(
-        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "300")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "30")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
     )
     driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
@@ -1850,8 +1809,10 @@ def test_submit_new_followup_request_two_groups(
     public_group2,
     view_only_token_group2,
 ):
-    idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation_sedm(idata["id"], public_group.id, super_admin_token)
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDM", super_admin_token
+    )
+    add_allocation_sedm(instrument_id, public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -1880,9 +1841,7 @@ def test_submit_new_followup_request_two_groups(
     )
     select_box.click()
 
-    allocation = (
-        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]'
-    )
+    allocation = f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(allocation),
         scroll_parent=True,
@@ -1925,16 +1884,16 @@ def test_submit_new_followup_request_two_groups(
 
     driver.click_xpath("//div[@data-testid='SEDM-requests-header']", timeout=30)
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
     )
     driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
+        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
     )
 
     filename = glob.glob(
@@ -1956,7 +1915,7 @@ def test_submit_new_followup_request_two_groups(
         data={
             "obj_id": str(public_source_two_groups.id),
             "observed_at": "2020-01-01T00:00:00",
-            "instrument_id": idata["id"],
+            "instrument_id": instrument_id,
             "fluxerr_column": 2,
             "followup_request_id": data["data"]["followup_requests"][0]["id"],
             "ascii": ascii,

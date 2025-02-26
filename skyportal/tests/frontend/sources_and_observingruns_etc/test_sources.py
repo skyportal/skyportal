@@ -392,10 +392,7 @@ def test_comments(driver, user, public_source):
     add_comment_and_wait_for_display(driver, comment_text)
 
 
-# @pytest.mark.flaky(reruns=2)
-def test_comment_groups_validation(
-    driver, user, super_admin_token, public_source, public_group
-):
+def test_comment_groups_validation(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')

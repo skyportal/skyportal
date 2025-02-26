@@ -272,7 +272,7 @@ def get_skymap_url(root, notice_type, timeout=10):
             if timeout < 15:
                 timeout = 15
         # Try Fermi GBM convention
-        if notice_type == "FERMI_GBM_FLT_POS":
+        if notice_type == "FERMI_GBM_FIN_POS":
             url = root.find("./What/Param[@name='LocationMap_URL']").attrib["value"]
             url = url.replace("http://", "https://")
             url = url.replace("_locplot_", "_healpix_")
