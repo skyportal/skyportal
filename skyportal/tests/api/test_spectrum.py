@@ -1126,6 +1126,8 @@ def test_minimal_spectrum(
         "owner_id",
         "type",
         "original_file_filename",
+        "created_at",
+        "modified",
     ]
 
     # make sure the minimal list of keys exists in each output
