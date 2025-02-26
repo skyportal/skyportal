@@ -97,36 +97,42 @@ class ScanReportHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            if not data.get("group_ids"):
+            group_ids = data.get("group_ids")
+            if not group_ids:
                 return self.error("No groups provided")
 
-            if not data.get("candidates_detection_range"):
+            detection_range = data.get("candidates_detection_range")
+            if not detection_range:
                 return self.error("No candidate detection range provided")
 
-            if not data.get("saved_candidates_range"):
+            saved_range = data.get("saved_candidates_range")
+            if not saved_range:
                 return self.error("No saved candidates range provided")
 
             saved_candidates = get_saved_candidates(
                 session,
-                data["group_ids"],
-                data["candidates_detection_range"],
-                data["saved_candidates_range"],
+                group_ids,
+                detection_range,
+                saved_range,
             )
 
             if not saved_candidates:
                 return self.error("No candidates found for the giver options")
 
             groups = session.scalars(
-                Group.select(session.user_or_token).where(
-                    Group.id.in_(data["group_ids"])
-                )
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
             ).all()
 
-            if len(groups) != len(data["group_ids"]):
+            if len(groups) != len(group_ids):
                 return self.error("Some groups provided do not exist")
 
             scan_report = ScanReport(
-                created_by_id=session.user_or_token.id, groups=groups
+                created_by_id=session.user_or_token.id,
+                groups=groups,
+                creation_options={
+                    "candidates_detection_range": detection_range,
+                    "saved_candidates_range": saved_range,
+                },
             )
 
             session.add(scan_report)
