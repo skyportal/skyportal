@@ -25,22 +25,26 @@ def get_saved_candidates(session, group_ids, detection_range, saved_range):
     -------
     list of saved candidates
     """
-    return session.scalars(
-        Source.select(session.user_or_token, mode="read")
-        .join(Candidate, Source.obj_id == Candidate.obj_id)
-        .where(
-            Source.group_id.in_(group_ids),
-            Source.saved_at.between(
-                saved_range.get("start_save_date"),
-                saved_range.get("end_save_date"),
-            ),
-            Candidate.passed_at.between(
-                detection_range.get("start_date"),
-                detection_range.get("end_date"),
-            ),
-            Source.active.is_(True),
-        )
-    ).all()
+    try:
+        return session.scalars(
+            Source.select(session.user_or_token, mode="read")
+            .join(Candidate, Source.obj_id == Candidate.obj_id)
+            .where(
+                Source.group_id.in_(group_ids),
+                Source.saved_at.between(
+                    saved_range.get("start_save_date"),
+                    saved_range.get("end_save_date"),
+                ),
+                Candidate.passed_at.between(
+                    detection_range.get("start_date"),
+                    detection_range.get("end_date"),
+                ),
+                Source.active.is_(True),
+            )
+        ).all()
+    except Exception as e:
+        log(f"Error while retrieving saved candidates: {e}")
+        return []
 
 
 class ScanReportHandler(BaseHandler):
@@ -127,7 +131,7 @@ class ScanReportHandler(BaseHandler):
                 return self.error("Some groups provided do not exist")
 
             scan_report = ScanReport(
-                created_by_id=session.user_or_token.id,
+                creator_id=self.associated_user_object.id,
                 groups=groups,
                 creation_options={
                     "candidates_detection_range": detection_range,
@@ -152,7 +156,7 @@ class ScanReportHandler(BaseHandler):
             session.commit()
 
             flow = Flow()
-            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORTS")
+            flow.push("*", "skyportal/REFRESH_SCAN_REPORTS")
 
             return self.success()
 

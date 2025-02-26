@@ -10,8 +10,8 @@ from baselayer.app.models import Base
 class ScanReport(Base):
     """A report listing saved candidates during a scan session between two dates."""
 
-    created_by_id = sa.Column(
-        sa.ForeignKey("users.id", ondelete="CASCADE"),
+    creator_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,
         doc="ID of the user that created this report",
     )
