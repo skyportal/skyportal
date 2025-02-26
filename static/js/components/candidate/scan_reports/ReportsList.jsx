@@ -20,23 +20,40 @@ const List = styled("div")({
   flexDirection: "column",
 });
 
+const Fields = styled("div")({
+  display: "flex",
+  textAlign: "center",
+});
+
+const FieldsAndItems = styled("div")({
+  borderBottom: "1px solid #d3d3d3",
+  paddingBottom: "0.8rem",
+  marginBottom: "0.8rem",
+});
+
+const FieldsTitle = styled(Fields)({
+  paddingBottom: "0.8rem",
+  marginBottom: "0.8rem",
+  fontWeight: "bold",
+  borderBottom: "1px solid grey",
+});
+
+const Field = styled("div")({
+  display: "flex",
+  alignItems: "center",
+  padding: "0.1rem 0.5rem",
+  minWidth: "200px",
+});
+
+const FieldTitle = styled(Field)({
+  borderColor: "grey",
+});
+
 const Item = styled("div")({
   display: "flex",
   textAlign: "center",
   paddingBottom: "0.8rem",
   marginBottom: "0.8rem",
-});
-
-const Field = styled("div")({
-  borderRight: "1px solid #d3d3d3",
-  display: "flex",
-  alignItems: "center",
-  padding: "0.1rem 0.5rem",
-  minWidth: "120px",
-});
-
-const FieldTitle = styled(Field)({
-  borderColor: "grey",
 });
 
 const ReportsList = () => {
@@ -72,17 +89,10 @@ const ReportsList = () => {
       </Typography>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
         <List>
-          <Item
-            sx={{
-              fontWeight: "bold",
-              borderBottom: "1px solid grey",
-            }}
-          >
-            <FieldTitle sx={{ flex: 1 }}>Date</FieldTitle>
-            <FieldTitle sx={{ flex: 3, borderRight: "none" }}>
-              Creator
-            </FieldTitle>
-            <FieldTitle sx={{ borderRight: "none", justifyContent: "right" }}>
+          <FieldsTitle>
+            <FieldTitle>Date</FieldTitle>
+            <FieldTitle>Creator</FieldTitle>
+            <FieldTitle sx={{ flex: 1, justifyContent: "right" }}>
               <IconButton
                 name="new_report"
                 onClick={() => setGenerateReportDialogOpen(true)}
@@ -96,22 +106,24 @@ const ReportsList = () => {
                 setDialogOpen={setGenerateReportDialogOpen}
               />
             </FieldTitle>
-          </Item>
+          </FieldsTitle>
           {scanReports.length > 0 ? (
             scanReports.map((scanReport) => (
-              <Item
-                key={scanReport.id}
-                sx={{ borderBottom: "1px solid #d3d3d3" }}
-              >
-                <Field>{displayDate(scanReport.date)}</Field>
-                <Field sx={{ flex: 1 }}>{scanReport}</Field>
-                <Field sx={{ borderRight: "none" }}>
-                  <Button onClick={() => setReportOpen(!reportOpen)}>
-                    {reportOpen ? <ExpandLess /> : <ExpandMore />}
-                  </Button>
-                </Field>
+              <FieldsAndItems key={scanReport.id}>
+                <Fields>
+                  <Field>{displayDate(scanReport.created_at)}</Field>
+                  <Field>{scanReport.creator.username}</Field>
+                  <Field
+                    sx={{ flex: 1, justifyContent: "right", cursor: "pointer" }}
+                    onClick={() => setReportOpen(!reportOpen)}
+                  >
+                    <IconButton onClick={() => setReportOpen(!reportOpen)}>
+                      {reportOpen ? <ExpandLess /> : <ExpandMore />}
+                    </IconButton>
+                  </Field>
+                </Fields>
                 {reportOpen && <ReportItems reportId={scanReport.id} />}
-              </Item>
+              </FieldsAndItems>
             ))
           ) : (
             <Item
