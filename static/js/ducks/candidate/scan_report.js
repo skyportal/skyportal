@@ -22,7 +22,8 @@ export const updateScanReportItem = (reportId, itemId, payload) =>
 
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_SCAN_REPORT_ITEM) {
-    dispatch(fetchScanReportItem({}));
+    const { report_id } = payload;
+    dispatch(fetchScanReportItem(report_id));
   }
 });
 
