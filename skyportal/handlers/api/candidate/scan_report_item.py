@@ -112,7 +112,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, report_id):
+    def get(self, report_id, _):
         """
         ---
         summary: Retrieve all items in a scan report
