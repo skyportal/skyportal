@@ -4,6 +4,8 @@ import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Link from "@mui/material/Link";
+import Box from "@mui/material/Box";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -32,10 +34,6 @@ const EditReportItemForm = ({
         already_classified: {
           type: ["boolean", "null"],
           title: "Already classified?",
-        },
-        forced_photometry_requested: {
-          type: ["boolean", "null"],
-          title: "Forced photometry requested?",
         },
       },
     };
@@ -69,7 +67,24 @@ const EditReportItemForm = ({
         onClose={() => closeDialog()}
         PaperProps={{ style: { maxWidth: "800px" } }}
       >
-        <DialogTitle>Save candidate scan to report</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box>Update scan report item</Box>
+          <Link
+            href={`/source/${itemToEdit.obj_id}`}
+            underline="none"
+            color="text.secondary"
+            fontSize="1rem"
+            target="_blank"
+          >
+            {itemToEdit.obj_id}
+          </Link>
+        </DialogTitle>
         <DialogContent>
           <Form
             formData={saveOptions}
@@ -98,6 +113,7 @@ EditReportItemForm.propTypes = {
   reportId: PropTypes.number.isRequired,
   itemToEdit: PropTypes.shape({
     id: PropTypes.number.isRequired,
+    obj_id: PropTypes.string.isRequired,
     comment: PropTypes.string,
     already_classified: PropTypes.bool,
   }).isRequired,
