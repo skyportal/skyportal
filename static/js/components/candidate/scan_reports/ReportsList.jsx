@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import PropTypes from "prop-types";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import EditIcon from "@mui/icons-material/Edit";
-import { Link } from "react-router-dom";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import AddIcon from "@mui/icons-material/Add";
 import { fetchScanReports } from "../../../ducks/candidate/scan_reports";
-import EditReportItemForm from "./EditReportItemForm";
+import ReportItems from "./ReportItems";
+import IconButton from "@mui/material/IconButton";
 
 const List = styled("div")({
   display: "flex",
@@ -25,13 +26,10 @@ const Item = styled("div")({
 });
 
 const Field = styled("div")({
-  flex: 1,
   borderRight: "1px solid #d3d3d3",
-  fontSize: "0.8rem",
   display: "flex",
-  justifyContent: "center",
   alignItems: "center",
-  padding: "0.1rem 0.2rem",
+  padding: "0.1rem 0.5rem",
   minWidth: "120px",
 });
 
@@ -41,16 +39,15 @@ const FieldTitle = styled(Field)({
 
 const ReportsList = () => {
   const dispatch = useDispatch();
-  const candidatesScan = useSelector((state) => state.scanReports);
+  const scanReports = useSelector((state) => state.scanReports);
   const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [reportCandidateToEdit, setReportCandidateToEdit] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     dispatch(
       fetchScanReports({
-        rows: 10,
+        numPerPage: 10,
         page: 1,
       }),
     ).then(() => setLoading(false));
@@ -62,11 +59,6 @@ const ReportsList = () => {
       day: "2-digit",
       year: "numeric",
     });
-  };
-
-  const boolToStr = (condition) => {
-    if (condition === null) return "";
-    return condition ? "True" : "False";
   };
 
   return (
@@ -82,52 +74,30 @@ const ReportsList = () => {
               borderBottom: "1px solid grey",
             }}
           >
-            <FieldTitle>date</FieldTitle>
-            <FieldTitle>scanner</FieldTitle>
-            <FieldTitle sx={{ flex: 2 }}>ZTF Name Fritz link</FieldTitle>
-            <FieldTitle sx={{ flex: 3 }}>comment</FieldTitle>
-            <FieldTitle>already classified</FieldTitle>
-            <FieldTitle>host redshift</FieldTitle>
-            <FieldTitle>current mag</FieldTitle>
-            <FieldTitle>current age</FieldTitle>
-            <FieldTitle>forced photometry requested</FieldTitle>
-            <FieldTitle sx={{ borderRight: "none" }}></FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>Date</FieldTitle>
+            <FieldTitle sx={{ flex: 3, borderRight: "none" }}>
+              Creator
+            </FieldTitle>
+            <FieldTitle sx={{ borderRight: "none", justifyContent: "right" }}>
+              <IconButton name="new_report">
+                <AddIcon />
+              </IconButton>
+            </FieldTitle>
           </Item>
-          {candidatesScan.length > 0 ? (
-            candidatesScan.map((candidateScan) => (
+          {scanReports.length > 0 ? (
+            scanReports.map((scanReport) => (
               <Item
-                key={candidateScan.id}
+                key={scanReport.id}
                 sx={{ borderBottom: "1px solid #d3d3d3" }}
               >
-                <Field>{displayDate(candidateScan.date)}</Field>
-                <Field>{candidateScan.scanner}</Field>
-                <Field sx={{ flex: 2 }}>
-                  <Link
-                    to={`/source/${candidateScan.obj_id}`}
-                    role="link"
-                    target="_blank"
-                  >
-                    {candidateScan.obj_id}
-                  </Link>
-                </Field>
-                <Field sx={{ flex: 3 }}>{candidateScan.comment}</Field>
-                <Field>{boolToStr(candidateScan.already_classified)}</Field>
-                <Field>{candidateScan.host_redshift}</Field>
-                <Field>{candidateScan.current_mag}</Field>
-                <Field>{candidateScan.current_age}</Field>
-                <Field>
-                  {boolToStr(candidateScan.forced_photometry_requested)}
-                </Field>
+                <Field>{displayDate(scanReport.date)}</Field>
+                <Field sx={{ flex: 1 }}>{scanReport}</Field>
                 <Field sx={{ borderRight: "none" }}>
-                  <Button
-                    onClick={() => {
-                      setReportCandidateToEdit(candidateScan);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <EditIcon color="primary" fontSize="small" />
+                  <Button onClick={() => setReportOpen(!reportOpen)}>
+                    {reportOpen ? <ExpandLess /> : <ExpandMore />}
                   </Button>
                 </Field>
+                {reportOpen && <ReportItems reportId={scanReport.id} />}
               </Item>
             ))
           ) : (
@@ -142,40 +112,15 @@ const ReportsList = () => {
                 <CircularProgress size={24} />
               ) : (
                 <Box sx={{ color: "text.secondary" }}>
-                  No candidate saved to the report yet
+                  No scan reports found.
                 </Box>
               )}
             </Item>
           )}
         </List>
       </Paper>
-      {reportCandidateToEdit && (
-        <EditReportItemForm
-          dialogOpen={dialogOpen}
-          setDialogOpen={setDialogOpen}
-          reportCandidateToEdit={reportCandidateToEdit}
-          setReportCandidateToEdit={setReportCandidateToEdit}
-        />
-      )}
     </Box>
   );
-};
-
-ReportsList.propTypes = {
-  scanList: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      date: PropTypes.string.isRequired,
-      scanner: PropTypes.string.isRequired,
-      obj_id: PropTypes.string.isRequired,
-      comment: PropTypes.string.isRequired,
-      already_classified: PropTypes.bool,
-      host_redshift: PropTypes.number,
-      current_mag: PropTypes.number,
-      current_age: PropTypes.number,
-      forced_photometry_requested: PropTypes.bool,
-    }),
-  ),
 };
 
 export default ReportsList;
