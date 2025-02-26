@@ -12,6 +12,8 @@ import AddIcon from "@mui/icons-material/Add";
 import { fetchScanReports } from "../../../ducks/candidate/scan_reports";
 import ReportItems from "./ReportItems";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import GenerateReportForm from "./GenerateReportForm";
 
 const List = styled("div")({
   display: "flex",
@@ -42,6 +44,8 @@ const ReportsList = () => {
   const scanReports = useSelector((state) => state.scanReports);
   const [loading, setLoading] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -79,9 +83,18 @@ const ReportsList = () => {
               Creator
             </FieldTitle>
             <FieldTitle sx={{ borderRight: "none", justifyContent: "right" }}>
-              <IconButton name="new_report">
-                <AddIcon />
+              <IconButton
+                name="new_report"
+                onClick={() => setGenerateReportDialogOpen(true)}
+              >
+                <Tooltip title="Generate a report of scanned candidates">
+                  <AddIcon />
+                </Tooltip>
               </IconButton>
+              <GenerateReportForm
+                dialogOpen={generateReportDialogOpen}
+                setDialogOpen={setGenerateReportDialogOpen}
+              />
             </FieldTitle>
           </Item>
           {scanReports.length > 0 ? (
