@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -43,6 +44,7 @@ const Field = styled("div")({
   alignItems: "center",
   padding: "0.1rem 0.5rem",
   minWidth: "200px",
+  flex: 1,
 });
 
 const FieldTitle = styled(Field)({
@@ -58,9 +60,10 @@ const Item = styled("div")({
 
 const ReportsList = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const scanReports = useSelector((state) => state.scanReports);
   const [loading, setLoading] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
+  const [idReportOpen, setIdReportOpen] = useState(null);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] =
     useState(false);
 
@@ -76,6 +79,7 @@ const ReportsList = () => {
 
   const displayDate = (date) => {
     return new Date(date).toLocaleDateString("en-US", {
+      hour: "2-digit",
       month: "2-digit",
       day: "2-digit",
       year: "numeric",
@@ -92,7 +96,8 @@ const ReportsList = () => {
           <FieldsTitle>
             <FieldTitle>Date</FieldTitle>
             <FieldTitle>Creator</FieldTitle>
-            <FieldTitle sx={{ flex: 1, justifyContent: "right" }}>
+            <FieldTitle>Groups</FieldTitle>
+            <FieldTitle sx={{ justifyContent: "right" }}>
               <IconButton
                 name="new_report"
                 onClick={() => setGenerateReportDialogOpen(true)}
@@ -112,17 +117,46 @@ const ReportsList = () => {
               <FieldsAndItems key={scanReport.id}>
                 <Fields>
                   <Field>{displayDate(scanReport.created_at)}</Field>
-                  <Field>{scanReport.creator.username}</Field>
+                  <Field>{scanReport.username}</Field>
+                  <Field>
+                    {scanReport.groups.map((group) => (
+                      <div key={group.name}>
+                        <Chip
+                          label={group.name.substring(0, 15)}
+                          key={group.id}
+                          size="small"
+                          onClick={() => navigate(`/group/${group.id}`)}
+                        />
+                        <br />
+                      </div>
+                    ))}
+                  </Field>
                   <Field
-                    sx={{ flex: 1, justifyContent: "right", cursor: "pointer" }}
-                    onClick={() => setReportOpen(!reportOpen)}
+                    sx={{ justifyContent: "right", cursor: "pointer" }}
+                    onClick={() =>
+                      setIdReportOpen(
+                        idReportOpen === scanReport.id ? null : scanReport.id,
+                      )
+                    }
                   >
-                    <IconButton onClick={() => setReportOpen(!reportOpen)}>
-                      {reportOpen ? <ExpandLess /> : <ExpandMore />}
+                    <IconButton
+                      onClick={() =>
+                        setIdReportOpen(
+                          idReportOpen === scanReport.id ? null : scanReport.id,
+                        )
+                      }
+                    >
+                      {idReportOpen === scanReport.id ? (
+                        <ExpandLess />
+                      ) : (
+                        <ExpandMore />
+                      )}
                     </IconButton>
                   </Field>
                 </Fields>
-                {reportOpen && <ReportItems reportId={scanReport.id} />}
+                {idReportOpen === scanReport.id && (
+                  <ReportItems reportId={scanReport.id} />
+                )}
               </FieldsAndItems>
             ))
           ) : (
