@@ -106,7 +106,7 @@ class ScanReportItemHandler(BaseHandler):
             )
 
             flow = Flow()
-            flow.push("*", "skyportal/REFRESH_CANDIDATE_SCAN_REPORT")
+            flow.push("*", "skyportal/REFRESH_SCAN_REPORT_ITEM")
 
             session.commit()
             return self.success()

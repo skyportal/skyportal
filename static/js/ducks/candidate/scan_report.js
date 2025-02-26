@@ -1,7 +1,11 @@
 import * as API from "../../API";
+import store from "../../store";
+import messageHandler from "../../../../baselayer/static/js/MessageHandler";
 
 const FETCH_SCAN_REPORT_ITEM = "skyportal/FETCH_SCAN_REPORT_ITEM";
+const FETCH_SCAN_REPORT_ITEM_OK = "skyportal/FETCH_SCAN_REPORT_ITEM_OK";
 const UPDATE_SCAN_REPORT_ITEM = "skyportal/UPDATE_SCAN_REPORT_ITEM";
+const REFRESH_SCAN_REPORT_ITEM = "skyportal/REFRESH_SCAN_REPORT_ITEM";
 
 export const fetchScanReportItem = (reportId) =>
   API.GET(
@@ -15,3 +19,21 @@ export const updateScanReportItem = (reportId, itemId, payload) =>
     UPDATE_SCAN_REPORT_ITEM,
     payload,
   );
+
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_SCAN_REPORT_ITEM) {
+    dispatch(fetchScanReportItem({}));
+  }
+});
+
+const reducer = (state = [], action) => {
+  switch (action.type) {
+    case FETCH_SCAN_REPORT_ITEM_OK: {
+      return action.data;
+    }
+    default:
+      return state;
+  }
+};
+
+store.injectReducer("scanReportItems", reducer);
