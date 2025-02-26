@@ -1,7 +1,6 @@
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
-from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ....models import Group, Source
@@ -157,8 +156,7 @@ class ScanReportHandler(BaseHandler):
             session.add(scan_report)
             session.commit()
 
-            flow = Flow()
-            flow.push("*", "skyportal/REFRESH_SCAN_REPORTS")
+            self.push_all("skyportal/REFRESH_SCAN_REPORTS")
 
             return self.success()
 

@@ -1,7 +1,6 @@
 from astropy.time import Time
 
 from baselayer.app.access import auth_or_token
-from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ....models.scan_report.scan_report_item import ScanReportItem
@@ -98,8 +97,10 @@ class ScanReportItemHandler(BaseHandler):
             item.data["comment"] = (data.get("comment"),)
             item.data["already_classified"] = (data.get("already_classified"),)
 
-            flow = Flow()
-            flow.push("*", "skyportal/REFRESH_SCAN_REPORT_ITEM")
+            self.push_all(
+                action="skyportal/REFRESH_SCAN_REPORT_ITEM",
+                payload={"report_id": report_id},
+            )
 
             session.commit()
             return self.success()
