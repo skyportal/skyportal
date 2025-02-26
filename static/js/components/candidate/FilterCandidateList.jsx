@@ -569,7 +569,7 @@ const FilterCandidateList = ({
               selectedScanningProfile={selectedScanningProfile}
               setSelectedScanningProfile={setSelectedScanningProfile}
             />
-            <Tooltip title="Generate a report of scanned candidates">
+            <Tooltip title="Generate a report of saved candidates">
               <Button
                 secondary
                 onClick={() => setGenerateReportDialogOpen(true)}
