@@ -97,13 +97,11 @@ class ScanReportItemHandler(BaseHandler):
             if item is None:
                 return self.error("Report item not found")
 
-            item.comment = data.get("comment", item.comment)
-            item.already_classified = data.get(
-                "already_classified", item.already_classified
-            )
-            item.forced_photometry_requested = data.get(
-                "forced_photometry_requested", item.forced_photometry_requested
-            )
+            item.data = {
+                "comment": data.get("comment"),
+                "already_classified": data.get("already_classified"),
+                "forced_photometry_requested": data.get("forced_photometry_requested"),
+            }
 
             flow = Flow()
             flow.push("*", "skyportal/REFRESH_SCAN_REPORT_ITEM")
