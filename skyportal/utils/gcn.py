@@ -355,6 +355,14 @@ def get_skymap_cone(root):
         if mission == "AMON":
             error /= scipy.stats.chi(df=2).ppf(0.95)
 
+    if error < 0:
+        return None, None, None
+
+    if error == 0:
+        # if error is 0, we set it to a small value
+        # around 4 arcseconds
+        error = 0.001  # 4 arcseconds in degrees
+
     return ra, dec, error
 
 
