@@ -100,11 +100,11 @@ const ReportItem = ({ reportId }) => {
                     {reportItem.obj_id}
                   </Link>
                 </Field>
-                <Field sx={{ flex: 3 }}>{reportItem.comment}</Field>
-                <Field>{boolToStr(reportItem.already_classified)}</Field>
-                <Field>{reportItem.host_redshift}</Field>
-                <Field>{reportItem.current_mag}</Field>
-                <Field>{reportItem.current_age}</Field>
+                <Field sx={{ flex: 3 }}>{reportItem.data.comment}</Field>
+                <Field>{boolToStr(reportItem.data.already_classified)}</Field>
+                <Field>{reportItem.data.host_redshift}</Field>
+                <Field>{reportItem.data.current_mag}</Field>
+                <Field>{reportItem.data.current_age}</Field>
                 <Field sx={{ borderRight: "none" }}>
                   <Button
                     onClick={() => {
