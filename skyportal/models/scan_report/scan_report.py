@@ -1,6 +1,7 @@
 __all__ = ["ScanReport"]
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
@@ -29,4 +30,10 @@ class ScanReport(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="The groups that have access to this report",
+    )
+
+    creation_options = sa.Column(
+        JSONB,
+        nullable=False,
+        doc="Options used to create this report",
     )
