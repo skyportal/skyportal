@@ -33,8 +33,8 @@ def create_scan_report_item(report_id, saved_candidate):
         obj_id=saved_candidate.obj_id,
         scan_report_id=report_id,
         data={
-            "comment": "",
-            "already_classified": False,
+            "comment": None,
+            "already_classified": None,
             "host_redshift": saved_candidate.obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
