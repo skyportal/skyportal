@@ -16,6 +16,8 @@ import ligo.skymap.moc
 import ligo.skymap.postprocess
 import numpy as np
 import sqlalchemy as sa
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from dateutil.relativedelta import relativedelta
 from dustmaps.config import config
@@ -220,8 +222,18 @@ class Localization(Base):
     def center(self):
         """Get information about the center of the localization."""
 
-        prob = self.flat_2d
-        coord = ligo.skymap.postprocess.posterior_max(prob)
+        # if the localization name is like ra_dec_radius, use the ra, dec,
+        try:
+            ra, dec, _radius = self.localization_name.split("_")
+            ra = float(ra)
+            dec = float(dec)
+            _radius = float(_radius)
+            coord = SkyCoord(
+                ra=ra * u.deg, dec=dec * u.deg, frame="icrs", unit=(u.deg, u.deg)
+            )
+        except ValueError:
+            prob = self.flat_2d
+            coord = ligo.skymap.postprocess.posterior_max(prob)
 
         center_info = {}
         center_info["ra"] = coord.ra.deg
