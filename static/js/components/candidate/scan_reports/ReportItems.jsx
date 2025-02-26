@@ -66,9 +66,6 @@ const ReportItem = ({ reportId }) => {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ marginBottom: "1rem" }}>
-        <b>Candidate scan report</b>
-      </Typography>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
         <List>
           <Item
