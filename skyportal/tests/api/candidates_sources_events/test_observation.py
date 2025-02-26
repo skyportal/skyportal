@@ -12,7 +12,6 @@ from skyportal.tests.external.test_moving_objects import (
 )
 
 
-# @pytest.mark.flaky(reruns=2)
 def test_observation(super_admin_token, gcn_GW190425):
     dateobs = gcn_GW190425.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 

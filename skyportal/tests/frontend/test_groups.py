@@ -71,7 +71,6 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
-# @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_admin(
     driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
@@ -206,7 +205,6 @@ def test_invite_all_users_from_other_group(
     driver.wait_for_xpath(f'//*[text()="{user_group2.username}"]')
 
 
-# @pytest.mark.flaky(reruns=2)
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/groups")

@@ -470,7 +470,6 @@ def test_followup_request_frontend(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(
     driver, super_admin_user, super_admin_token, public_group
 ):
@@ -718,7 +717,6 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
-# @pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,

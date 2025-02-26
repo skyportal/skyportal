@@ -162,7 +162,6 @@ def test_find_longest_sequence(super_admin_token):
 
         df = count_consecutive(df)
         start, end, field_id, count = find_longest_sequence(df)
-        print(start, end, field_id, count)
         assert start == datetime(2025, 2, 7, 8, 54)
         assert end == datetime(2025, 2, 7, 8, 59)
         assert field_id == 364
