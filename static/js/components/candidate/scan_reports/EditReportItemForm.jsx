@@ -8,24 +8,23 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { updateCandidateFromReport } from "../../../ducks/candidate/candidate_scan_report";
+import { updateScanReportItem } from "../../../ducks/candidate/scan_report";
 
-const EditReportCandidateForm = ({
+const EditReportItemForm = ({
   dialogOpen,
   setDialogOpen,
-  reportCandidateToEdit,
-  setReportCandidateToEdit,
+  reportId,
+  itemToEdit,
+  setItemToEdit,
 }) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [saveOptions, setSaveOptions] = useState({
-    comment: reportCandidateToEdit?.comment,
-    already_classified: reportCandidateToEdit?.already_classified,
-    forced_photometry_requested:
-      reportCandidateToEdit?.forced_photometry_requested,
+    comment: itemToEdit?.comment,
+    already_classified: itemToEdit?.already_classified,
   });
 
-  const saveCandidateScanOptionsSchema = () => {
+  const updateReportItemSchema = () => {
     return {
       type: "object",
       properties: {
@@ -42,19 +41,17 @@ const EditReportCandidateForm = ({
     };
   };
 
-  const saveToReport = () => {
+  const updateReportItem = () => {
     setLoading(true);
     dispatch(
-      updateCandidateFromReport(reportCandidateToEdit.id, { ...saveOptions }),
+      updateScanReportItem(reportId, itemToEdit.id, { ...saveOptions }),
     ).then((result) => {
       setLoading(false);
       if (result.status === "success") {
-        dispatch(showNotification("Candidate scan successfully updated"));
+        dispatch(showNotification("Report item successfully updated"));
         closeDialog();
       } else {
-        dispatch(
-          showNotification("Failed to update candidate scan report", "error"),
-        );
+        dispatch(showNotification("Failed to update report item", "error"));
       }
     });
   };
@@ -62,7 +59,7 @@ const EditReportCandidateForm = ({
   const closeDialog = () => {
     setDialogOpen(false);
     setSaveOptions({});
-    setReportCandidateToEdit(null);
+    setItemToEdit(null);
   };
 
   return (
@@ -77,10 +74,10 @@ const EditReportCandidateForm = ({
           <Form
             formData={saveOptions}
             onChange={({ formData }) => setSaveOptions(formData)}
-            schema={saveCandidateScanOptionsSchema()}
+            schema={updateReportItemSchema()}
             liveValidate
             validator={validator}
-            onSubmit={saveToReport}
+            onSubmit={updateReportItem}
             disabled={loading}
             uiSchema={{
               comment: {
@@ -95,16 +92,16 @@ const EditReportCandidateForm = ({
   );
 };
 
-EditReportCandidateForm.propTypes = {
+EditReportItemForm.propTypes = {
   dialogOpen: PropTypes.bool.isRequired,
   setDialogOpen: PropTypes.func.isRequired,
-  reportCandidateToEdit: PropTypes.shape({
+  reportId: PropTypes.number.isRequired,
+  itemToEdit: PropTypes.shape({
     id: PropTypes.number.isRequired,
     comment: PropTypes.string,
     already_classified: PropTypes.bool,
-    forced_photometry_requested: PropTypes.bool,
   }).isRequired,
-  setReportCandidateToEdit: PropTypes.func.isRequired,
+  setItemToEdit: PropTypes.func.isRequired,
 };
 
-export default EditReportCandidateForm;
+export default EditReportItemForm;
