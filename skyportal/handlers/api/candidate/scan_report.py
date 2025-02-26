@@ -2,7 +2,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ....models import Source
+from ....models import Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ...base import BaseHandler
@@ -11,12 +11,13 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/candidate_scan_report")
 
 
-def get_saved_candidates(session, detection_range, saved_range):
+def get_saved_candidates(session, group_ids, detection_range, saved_range):
     """
     Get all saved candidates in a given range which passed the filters in a given range.
     Parameters
     ----------
     session: sqlalchemy.orm.Session
+    group_ids: list
     detection_range: dict
     saved_range: dict
 
@@ -28,6 +29,7 @@ def get_saved_candidates(session, detection_range, saved_range):
         Source.select(session.user_or_token, mode="read")
         .join(Candidate, Source.obj_id == Candidate.obj_id)
         .where(
+            Source.groups.any(Group.id.in_(group_ids)),
             Source.saved_at.between(
                 saved_range.get("start_save_date"),
                 saved_range.get("end_save_date"),
@@ -55,6 +57,11 @@ class ScanReportHandler(BaseHandler):
               schema:
                 type: object
                 properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: groups use to filter the candidates and manage the report
                   candidates_detection_range:
                     type: object
                     properties:
@@ -90,22 +97,37 @@ class ScanReportHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            detection_range = data.get("candidates_detection_range")
-            if not detection_range:
+            if not data.get("group_ids"):
+                return self.error("No groups provided")
+
+            if not data.get("candidates_detection_range"):
                 return self.error("No candidate detection range provided")
 
-            saved_range = data.get("saved_candidates_range")
-            if not saved_range:
+            if not data.get("saved_candidates_range"):
                 return self.error("No saved candidates range provided")
 
             saved_candidates = get_saved_candidates(
-                session, detection_range, saved_range
+                session,
+                data["group_ids"],
+                data["candidates_detection_range"],
+                data["saved_candidates_range"],
             )
 
             if not saved_candidates:
-                return self.error("No candidates found in the given range")
+                return self.error("No candidates found for the giver options")
 
-            scan_report = ScanReport(created_by_id=session.user_or_token.id)
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(
+                    Group.id.in_(data["group_ids"])
+                )
+            ).all()
+
+            if len(groups) != len(data["group_ids"]):
+                return self.error("Some groups provided do not exist")
+
+            scan_report = ScanReport(
+                created_by_id=session.user_or_token.id, groups=groups
+            )
 
             session.add(scan_report)
 

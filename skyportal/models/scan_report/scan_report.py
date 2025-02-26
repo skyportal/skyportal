@@ -22,3 +22,11 @@ class ScanReport(Base):
         passive_deletes=True,
         doc="List of candidates saved in this scan report",
     )
+
+    groups = relationship(
+        "Group",
+        secondary="group_scan_report",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="The groups that have access to this report",
+    )
