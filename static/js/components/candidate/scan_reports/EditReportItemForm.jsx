@@ -6,6 +6,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -22,8 +23,8 @@ const EditReportItemForm = ({
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [saveOptions, setSaveOptions] = useState({
-    comment: itemToEdit?.comment,
-    already_classified: itemToEdit?.already_classified,
+    comment: itemToEdit?.data?.comment,
+    already_classified: itemToEdit?.data?.already_classified,
   });
 
   const updateReportItemSchema = () => {
@@ -74,15 +75,17 @@ const EditReportItemForm = ({
             justifyContent: "space-between",
           }}
         >
-          <Box>Update scan report item</Box>
+          <Box>Edit report item</Box>
           <Link
             href={`/source/${itemToEdit.obj_id}`}
             underline="none"
             color="text.secondary"
             fontSize="1rem"
             target="_blank"
+            sx={{ display: "flex", alignItems: "center", columnGap: "0.5rem" }}
           >
             {itemToEdit.obj_id}
+            <VisibilityIcon fontSize="small" />
           </Link>
         </DialogTitle>
         <DialogContent>
@@ -114,8 +117,10 @@ EditReportItemForm.propTypes = {
   itemToEdit: PropTypes.shape({
     id: PropTypes.number.isRequired,
     obj_id: PropTypes.string.isRequired,
-    comment: PropTypes.string,
-    already_classified: PropTypes.bool,
+    data: PropTypes.shape({
+      comment: PropTypes.string,
+      already_classified: PropTypes.bool,
+    }).isRequired,
   }).isRequired,
   setItemToEdit: PropTypes.func.isRequired,
 };
