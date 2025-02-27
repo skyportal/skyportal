@@ -94,18 +94,17 @@ class ScanReportItemHandler(BaseHandler):
             if item is None:
                 return self.error("Report item not found")
 
-            item.data["comment"] = data.get("comment")
-            item.data["already_classified"] = data.get("already_classified")
+            item.data = {
+                "comment": data.get("comment"),
+                "already_classified": data.get("already_classified"),
+            }
 
-            session.add(item)
             session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SCAN_REPORT_ITEM",
                 payload={"report_id": report_id},
             )
-
-            session.commit()
             return self.success()
 
     @auth_or_token
