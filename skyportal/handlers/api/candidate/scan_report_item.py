@@ -96,6 +96,8 @@ class ScanReportItemHandler(BaseHandler):
 
             item.data["comment"] = (data.get("comment"),)
             item.data["already_classified"] = (data.get("already_classified"),)
+            item.data["comment"] = data.get("comment")
+            item.data["already_classified"] = data.get("already_classified")
 
             self.push_all(
                 action="skyportal/REFRESH_SCAN_REPORT_ITEM",
