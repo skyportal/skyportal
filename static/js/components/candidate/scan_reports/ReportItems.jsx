@@ -48,7 +48,7 @@ const ReportItem = ({ reportId }) => {
   useEffect(() => {
     setLoading(true);
     dispatch(fetchScanReportItem(reportId)).then(() => setLoading(false));
-  }, [dispatch]);
+  }, [dispatch, reportId]);
 
   const displayDate = (date) => {
     return new Date(date).toLocaleDateString("en-US", {
