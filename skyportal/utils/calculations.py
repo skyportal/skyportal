@@ -1,5 +1,7 @@
 import astroplan
+import astropy_healpix as ahp
 import numpy as np
+import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
@@ -16,6 +18,23 @@ RGE = np.array(
 
 
 def radec_str2deg(_ra_str, _dec_str):
+    """
+    Convert R.A. and Decl. from string to degrees
+
+    Parameters
+    ----------
+    _ra_str : str
+        Right Ascension in the format 'hh:mm:ss.sss'
+    _dec_str : str
+        Declination in the format 'dd:mm:ss.sss'
+
+    Returns
+    -------
+    ra : float
+        Right Ascension in degrees
+    dec : float
+        Declination in degrees
+    """
     c = SkyCoord(_ra_str, _dec_str, unit=(u.hourangle, u.deg))
     return c.ra.deg, c.dec.deg
 
@@ -51,6 +70,10 @@ def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
     )
 
     return distance * 180.0 / np.pi
+
+
+# Vectorize the function
+great_circle_distance_vec = np.vectorize(great_circle_distance)
 
 
 def get_observer(telescope: dict):
@@ -269,3 +292,67 @@ def radec2lb(ra, dec):
     galactic_l = np.arctan2(y, x)
     galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
     return np.rad2deg(galactic_l), np.rad2deg(galactic_b)
+
+
+def hms_to_deg(input):
+    """
+    Convert hours, minutes, seconds to decimal degrees.
+
+    Parameters
+    ----------
+    h : float
+        Hours
+    m : float
+        Minutes
+    s : float
+        Seconds
+
+    Returns
+    -------
+    float
+        Decimal degrees
+    """
+    h, m, s = input.split(" ")
+    h, m, s = float(h), float(m), float(s)
+    return 15 * (h + m / 60 + s / 3600)  # Multiply by 15 to convert hours to degrees
+
+
+def dms_to_deg(input):
+    """
+    Convert degrees, arcminutes, arcseconds to decimal degrees.
+
+    Parameters
+    ----------
+    d : float
+        Degrees
+    m : float
+        Arcminutes
+    s : float
+        Arcseconds
+
+    Returns
+    -------
+    float
+        Decimal degrees
+    """
+    d, m, s = input.split(" ")
+    d, m, s = float(d), float(m), float(s)
+    sign = 1 if d >= 0 else -1
+    return sign * (abs(d) + m / 60 + s / 3600)
+
+
+def radec_to_healpix(row: dict | pd.Series) -> int:
+    """
+    Convert R.A. and Decl. to HEALPix index.
+
+    Parameters
+    ----------
+    row : dict or pd.Series
+        Dictionary or pandas Series containing "ra" and "dec" keys or columns.
+
+    Returns
+    -------
+    int
+        HEALPix index
+    """
+    return ahp.lonlat_to_healpix(row["ra"] * u.deg, row["dec"] * u.deg, 2**29)

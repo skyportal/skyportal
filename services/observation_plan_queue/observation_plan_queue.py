@@ -329,13 +329,24 @@ def service(*args, **kwargs):
                                 for (
                                     default_survey_efficiency
                                 ) in defaultobsplanrequest.default_survey_efficiencies:
-                                    post_survey_efficiency_analysis(
-                                        default_survey_efficiency.to_dict(),
-                                        plan.id,
-                                        1,
-                                        session,
-                                        asynchronous=False,
-                                    )
+                                    try:
+                                        post_survey_efficiency_analysis(
+                                            default_survey_efficiency.to_dict(),
+                                            plan.observation_plan_request.id,
+                                            1,
+                                            session,
+                                            asynchronous=False,
+                                        )
+                                    except Exception as e:
+                                        if (
+                                            "Need at least one observation to evaluate efficiency"
+                                            in str(e)
+                                        ):
+                                            log(
+                                                f"Error processing default survey efficiency for plan {id}: {e}"
+                                            )
+                                        else:
+                                            raise e
                     except Exception as e:
                         traceback.print_exc()
                         log(

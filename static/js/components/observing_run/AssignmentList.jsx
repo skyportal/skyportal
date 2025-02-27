@@ -287,12 +287,14 @@ const AssignmentList = ({ assignments }) => {
       >
         <DialogTitle>Edit Assignment</DialogTitle>
         <DialogContent dividers>
-          <ModifyAssignment
-            assignment={assignments.find(
-              (a) => a.id === assignmentToEditDelete,
-            )}
-            onClose={closeEditDialog}
-          />
+          {assignments.some((a) => a.id === assignmentToEditDelete) && (
+            <ModifyAssignment
+              assignment={assignments.find(
+                (a) => a.id === assignmentToEditDelete,
+              )}
+              onClose={closeEditDialog}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog

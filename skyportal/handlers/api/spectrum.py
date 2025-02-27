@@ -349,6 +349,22 @@ class SpectrumHandler(BaseHandler):
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
                 return only spectra observed after this time.
             - in: query
+              name: modifiedBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra modified before this time.
+            - in: query
+              name: modifiedAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra modified after this time.
+            - in: query
               name: objID
               nullable: true
               schema:
@@ -542,6 +558,8 @@ class SpectrumHandler(BaseHandler):
         comments_filter_author = self.get_query_argument("commentsFilterAuthor", None)
         comments_filter_before = self.get_query_argument("commentsFilterBefore", None)
         comments_filter_after = self.get_query_argument("commentsFilterAfter", None)
+        modified_before = self.get_query_argument("modifiedBefore", None)
+        modified_after = self.get_query_argument("modifiedAfter", None)
 
         # validate inputs
         try:
@@ -550,13 +568,25 @@ class SpectrumHandler(BaseHandler):
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_before}".')
-
         try:
             observed_after = (
                 arrow.get(observed_after).datetime if observed_after else None
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
+
+        try:
+            modified_before = (
+                arrow.get(modified_before).datetime if modified_before else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{modified_before}".')
+        try:
+            modified_after = (
+                arrow.get(modified_after).datetime if modified_after else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{modified_after}".')
 
         with self.Session() as session:
             try:
@@ -658,6 +688,12 @@ class SpectrumHandler(BaseHandler):
             if observed_after:
                 spec_query = spec_query.where(Spectrum.observed_at >= observed_after)
 
+            if modified_before:
+                spec_query = spec_query.where(Spectrum.modified <= modified_before)
+
+            if modified_after:
+                spec_query = spec_query.where(Spectrum.modified >= modified_after)
+
             if spec_origin:
                 spec_query = spec_query.where(
                     or_(*[Spectrum.origin.contains(value) for value in spec_origin])
@@ -689,6 +725,8 @@ class SpectrumHandler(BaseHandler):
                     "assignment_id",
                     "altdata",
                     "original_file_filename",
+                    "modified",
+                    "created_at",
                 ]
                 for spec in result_spectra:
                     keys = list(spec.keys())

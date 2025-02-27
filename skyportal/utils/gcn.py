@@ -94,7 +94,7 @@ def get_json_tags(payload):
     return tags
 
 
-def get_tags(root):
+def get_tags(root, notice_type):
     """Get source classification tag strings from GCN notice."""
     # Get event stream.
     mission = urlparse(root.attrib["ivorn"]).path.lstrip("/")
@@ -124,28 +124,24 @@ def get_tags(root):
 
     # LIGO/Virgo alerts don't provide the Why/Inference/Concept tag,
     # so let's just identify it as a GW event based on the notice type.
-    notice_type = gcn.get_notice_type(root)
     if notice_type in {
-        gcn.NoticeType.LVC_PRELIMINARY,
-        gcn.NoticeType.LVC_INITIAL,
-        gcn.NoticeType.LVC_UPDATE,
-        gcn.NoticeType.LVC_RETRACTION,
+        "LVC_PRELIMINARY",
+        "LVC_INITIAL",
+        "LVC_UPDATE",
+        "LVC_RETRACTION",
     }:
         yield "GW"
-    elif notice_type in {
-        gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
-        gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
-    }:
+    elif notice_type in {"ICECUBE_ASTROTRACK_GOLD", "ICECUBE_ASTROTRACK_BRONZE"}:
         yield "Neutrino"
         yield "IceCube"
 
-    if notice_type == gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD:
+    if notice_type == "ICECUBE_ASTROTRACK_GOLD":
         yield "Gold"
-    elif notice_type == gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE:
+    elif notice_type == "ICECUBE_ASTROTRACK_BRONZE":
         yield "Bronze"
 
     # Is this a retracted LIGO/Virgo event?
-    if notice_type == gcn.NoticeType.LVC_RETRACTION:
+    if notice_type == "LVC_RETRACTION":
         yield "retracted"
 
     # Is this a short GRB, or a long GRB?
@@ -230,15 +226,25 @@ def get_tags(root):
             if lost_lock == "true":
                 yield "StarTrack_Lost_Lock"
 
+    # Check for SVOM ECLAIRs
+    ivorn = str(root.attrib.get("ivorn", ""))
+    if ivorn.startswith("ivo://org.svom/fsc"):
+        if "_eclairs-catalog" in ivorn:
+            yield "ECLAIRs-Catalog"
+        if "_slewing" in ivorn:
+            yield "ECLAIRs-Slewing"
+        if "_not-slewing" in ivorn:
+            yield "ECLAIRs-Not-Slewing"
+
 
 def get_notice_aliases(root, notice_type):
     aliases = []
     try:
         # we try to find aliases in the notice itself, which the user can update on the frontend by fetching data from TACH
         if notice_type in [
-            gcn.NoticeType.FERMI_GBM_FIN_POS,
-            gcn.NoticeType.FERMI_GBM_FLT_POS,
-            gcn.NoticeType.FERMI_GBM_GND_POS,
+            "FERMI_GBM_FLT_POS",
+            "FERMI_GBM_GND_POS",
+            "FERMI_GBM_FIN_POS",
         ]:
             url = root.find("./What/Param[@name='LightCurve_URL']").attrib["value"]
             alias = url.split("/triggers/")[1].split("/")[1].split("/")[0]
@@ -261,19 +267,19 @@ def get_skymap_url(root, notice_type, timeout=10):
     if isinstance(root, dict):
         url = root.get("url")
     else:
-        if notice_type == gcn.NoticeType.LVC_PRELIMINARY:
+        if notice_type == "LVC_PRELIMINARY":
             # we set a longer timeout here, as by experience the LVC Preliminary skymaps can be a little slow to appear
             if timeout < 15:
                 timeout = 15
         # Try Fermi GBM convention
-        if notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
+        if notice_type == "FERMI_GBM_FIN_POS":
             url = root.find("./What/Param[@name='LocationMap_URL']").attrib["value"]
             url = url.replace("http://", "https://")
             url = url.replace("_locplot_", "_healpix_")
             url = url.replace(".png", ".fit")
 
         # Try Fermi GBM **subthreshold** convention. Stupid, stupid, stupid!!
-        if notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
+        if notice_type == "FERMI_GBM_SUBTHRESH":
             url = root.find("./What/Param[@name='HealPix_URL']").attrib["value"]
 
         # Try LVC convention
@@ -348,6 +354,14 @@ def get_skymap_cone(root):
         # AMON reports a 90% radius, so for AMON, we have to convert.
         if mission == "AMON":
             error /= scipy.stats.chi(df=2).ppf(0.95)
+
+    if error < 0:
+        return None, None, None
+
+    if error == 0:
+        # if error is 0, we set it to a small value
+        # around 4 arcseconds
+        error = 0.001  # 4 arcseconds in degrees
 
     return ra, dec, error
 
@@ -781,3 +795,23 @@ def get_skymap_properties(localization):
             tags_list.append("> 0.9 in 500 sq. deg.")
 
     return properties_dict, tags_list
+
+
+def get_xml_notice_type(root):
+    # This is only useful for events that aren't automatically
+    # ingested by the GCN service. For these, we can only try to
+    # guess the notice type from the root.
+    # As GCN adds new VOEVENT notice types, this needs to be updated.
+    # Here we could in theory rely on the "./What/Param[@name='Packet_Type']"
+    # but it's unclear if these will be used for future notices.
+    # So we will just look at the ivorn which is guaranteed to be there
+    ivorn = str(root.attrib.get("ivorn", ""))
+    print(f"ivorn: {ivorn}")
+    if str(ivorn).startswith("ivo://org.svom/"):
+        if "_eclairs" in ivorn:
+            return "svom.voevent.eclairs"
+        if "_grm" in ivorn:
+            return "svom.voevent.grm"
+        if "_mxt" in ivorn:
+            return "svom.voevent.mxt"
+    return None
