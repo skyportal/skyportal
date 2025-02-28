@@ -140,29 +140,10 @@ class ScanReportItemHandler(BaseHandler):
                 schema: Error
         """
         with self.Session() as session:
-            results = session.execute(
-                select(ScanReportItem, User.username, Source.saved_at, Group.name)
-                .join(
-                    Source,
-                    sa.and_(
-                        ScanReportItem.obj_id == Source.obj_id,
-                        ScanReportItem.group_id_saved_to == Source.group_id,
-                    ),
+            items = session.scalars(
+                ScanReportItem.select(session.user_or_token, mode="read").where(
+                    ScanReportItem.scan_report_id == report_id
                 )
-                .join(Group, ScanReportItem.group_id_saved_to == Group.id)
-                .join(User, Source.saved_by_id == User.id)
-                .where(ScanReportItem.scan_report_id == report_id)
             ).all()
-
-            items = []
-            for item, username, saved_at, group_name in results:
-                items.append(
-                    {
-                        **item.to_dict(),
-                        "saved_by": username,
-                        "saved_at": saved_at.isoformat(),
-                        "group": group_name,
-                    }
-                )
 
             return self.success(data=items)
