@@ -29,6 +29,8 @@ const Field = styled("div")({
   borderRight: "1px solid #d3d3d3",
   fontSize: "0.8rem",
   display: "flex",
+  flexDirection: "column",
+  rowGap: "0.4rem",
   justifyContent: "center",
   alignItems: "center",
   padding: "0.1rem 0.2rem",
@@ -91,14 +93,25 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                 key={reportItem.id}
                 sx={{ borderBottom: "1px solid #d3d3d3" }}
               >
-                <Field>{displayDate(reportItem.saved_at)}</Field>
-                <Field>{reportItem.saved_by}</Field>
+                <Field>
+                  {reportItem.data.saved_infos.map((info, index) => (
+                    <div key={index}>{displayDate(info.saved_at)}</div>
+                  ))}
+                </Field>
+                <Field>
+                  {reportItem.data.saved_infos.map((info, index) => (
+                    <div key={index}>{info.saved_by}</div>
+                  ))}
+                </Field>
                 {isMultiGroup && (
                   <Field>
-                    <Chip
-                      label={reportItem.group.substring(0, 15)}
-                      size="small"
-                    />
+                    {reportItem.data.saved_infos.map((info, index) => (
+                      <Chip
+                        label={info.group.substring(0, 15)}
+                        size="small"
+                        key={index}
+                      />
+                    ))}
                   </Field>
                 )}
                 <Field sx={{ flex: 2 }}>
