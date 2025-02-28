@@ -1,8 +1,8 @@
 """New scanning report page
 
-Revision ID: 17a1710698b9
+Revision ID: b58cae805824
 Revises: 1593df0c0979
-Create Date: 2025-02-27 17:47:33.853275
+Create Date: 2025-02-28 11:07:31.163891
 
 """
 
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "17a1710698b9"
+revision = "b58cae805824"
 down_revision = "1593df0c0979"
 branch_labels = None
 depends_on = None
@@ -71,10 +71,14 @@ def upgrade():
         "scanreportitems",
         sa.Column("obj_id", sa.String(), nullable=False),
         sa.Column("scan_report_id", sa.Integer(), nullable=False),
+        sa.Column("group_id_saved_to", sa.Integer(), nullable=False),
         sa.Column("data", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("modified", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["group_id_saved_to"], ["groups.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(["obj_id"], ["objs.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["scan_report_id"], ["scanreports.id"], ondelete="CASCADE"
