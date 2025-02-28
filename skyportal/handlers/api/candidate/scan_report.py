@@ -1,3 +1,5 @@
+from enum import unique
+
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -27,24 +29,28 @@ def get_saved_candidates(session, group_ids, detection_range, saved_range):
     list of saved candidates
     """
     try:
-        return session.scalars(
-            Source.select(session.user_or_token, mode="read")
-            .join(Candidate, Source.obj_id == Candidate.obj_id)
-            .join(Filter)
-            .where(
-                Source.group_id.in_(group_ids),
-                Filter.group_id.in_(group_ids),
-                Source.saved_at.between(
-                    saved_range.get("start_save_date"),
-                    saved_range.get("end_save_date"),
-                ),
-                Candidate.passed_at.between(
-                    detection_range.get("start_date"),
-                    detection_range.get("end_date"),
-                ),
-                Source.active.is_(True),
+        return (
+            session.scalars(
+                Source.select(session.user_or_token, mode="read")
+                .join(Candidate, Source.obj_id == Candidate.obj_id)
+                .join(Filter)
+                .where(
+                    Source.group_id.in_(group_ids),
+                    Filter.group_id.in_(group_ids),
+                    Source.saved_at.between(
+                        saved_range.get("start_save_date"),
+                        saved_range.get("end_save_date"),
+                    ),
+                    Candidate.passed_at.between(
+                        detection_range.get("start_date"),
+                        detection_range.get("end_date"),
+                    ),
+                    Source.active.is_(True),
+                )
             )
-        ).all()
+            .unique()
+            .all()
+        )
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
         return []
