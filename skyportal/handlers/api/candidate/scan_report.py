@@ -130,7 +130,7 @@ class ScanReportHandler(BaseHandler):
             )
 
             if not saved_candidates:
-                return self.error("No candidates found for the giver options")
+                return self.error("No candidates found for the given options")
 
             groups = session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
