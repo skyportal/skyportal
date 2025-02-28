@@ -155,7 +155,10 @@ const ReportsList = () => {
                   </Field>
                 </Fields>
                 {idReportOpen === scanReport.id && (
-                  <ReportItems reportId={scanReport.id} />
+                  <ReportItems
+                    reportId={scanReport.id}
+                    isMultiGroup={scanReport.groups.length > 1}
+                  />
                 )}
               </FieldsAndItems>
             ))

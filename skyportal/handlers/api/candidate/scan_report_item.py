@@ -6,7 +6,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.models import User
 from baselayer.log import make_log
 
-from ....models import Source
+from ....models import Group, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
 from ...base import BaseHandler
@@ -139,7 +139,7 @@ class ScanReportItemHandler(BaseHandler):
         """
         with self.Session() as session:
             results = session.execute(
-                select(ScanReportItem, User.username, Source.saved_at)
+                select(ScanReportItem, User.username, Source.saved_at, Group.name)
                 .join(
                     Source,
                     sa.and_(
@@ -147,17 +147,19 @@ class ScanReportItemHandler(BaseHandler):
                         ScanReportItem.group_id_saved_to == Source.group_id,
                     ),
                 )
+                .join(Group, ScanReportItem.group_id_saved_to == Group.id)
                 .join(User, Source.saved_by_id == User.id)
                 .where(ScanReportItem.scan_report_id == report_id)
             ).all()
 
             items = []
-            for item, username, saved_at in results:
+            for item, username, saved_at, group_name in results:
                 items.append(
                     {
                         **item.to_dict(),
                         "saved_by": username,
                         "saved_at": saved_at.isoformat(),
+                        "group": group_name,
                     }
                 )
 

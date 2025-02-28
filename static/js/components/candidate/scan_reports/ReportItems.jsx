@@ -5,6 +5,7 @@ import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
@@ -38,7 +39,7 @@ const FieldTitle = styled(Field)({
   borderColor: "grey",
 });
 
-const ReportItem = ({ reportId }) => {
+const ReportItem = ({ reportId, isMultiGroup }) => {
   const dispatch = useDispatch();
   const reportItems = useSelector((state) => state.scanReportItems);
   const [loading, setLoading] = useState(false);
@@ -75,8 +76,9 @@ const ReportItem = ({ reportId }) => {
           >
             <FieldTitle>date</FieldTitle>
             <FieldTitle>scanner</FieldTitle>
+            {isMultiGroup && <FieldTitle>group</FieldTitle>}
             <FieldTitle sx={{ flex: 2 }}>ZTF Name Fritz link</FieldTitle>
-            <FieldTitle sx={{ flex: 3 }}>comment</FieldTitle>
+            <FieldTitle sx={{ flex: 2 }}>comment</FieldTitle>
             <FieldTitle>already classified</FieldTitle>
             <FieldTitle>host redshift</FieldTitle>
             <FieldTitle>current mag</FieldTitle>
@@ -91,6 +93,14 @@ const ReportItem = ({ reportId }) => {
               >
                 <Field>{displayDate(reportItem.saved_at)}</Field>
                 <Field>{reportItem.saved_by}</Field>
+                {isMultiGroup && (
+                  <Field>
+                    <Chip
+                      label={reportItem.group.substring(0, 15)}
+                      size="small"
+                    />
+                  </Field>
+                )}
                 <Field sx={{ flex: 2 }}>
                   <Link
                     to={`/source/${reportItem.obj_id}`}
@@ -100,7 +110,7 @@ const ReportItem = ({ reportId }) => {
                     {reportItem.obj_id}
                   </Link>
                 </Field>
-                <Field sx={{ flex: 3 }}>{reportItem.data.comment}</Field>
+                <Field sx={{ flex: 2 }}>{reportItem.data.comment}</Field>
                 <Field>{boolToStr(reportItem.data.already_classified)}</Field>
                 <Field>{reportItem.data.host_redshift}</Field>
                 <Field>{reportItem.data.current_mag}</Field>
@@ -151,6 +161,7 @@ const ReportItem = ({ reportId }) => {
 
 ReportItem.propTypes = {
   reportId: PropTypes.number.isRequired,
+  isMultiGroup: PropTypes.bool.isRequired,
 };
 
 export default ReportItem;
