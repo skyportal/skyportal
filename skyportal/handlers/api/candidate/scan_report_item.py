@@ -95,6 +95,7 @@ class ScanReportItemHandler(BaseHandler):
                 return self.error("Report item not found")
 
             item.data = {
+                **item.data,
                 "comment": data.get("comment"),
                 "already_classified": data.get("already_classified"),
             }
