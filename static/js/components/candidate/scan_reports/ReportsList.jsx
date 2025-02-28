@@ -15,6 +15,7 @@ import ReportItems from "./ReportItems";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import GenerateReportForm from "./GenerateReportForm";
+import DownloadReport from "./DownloadReport";
 
 const List = styled("div")({
   display: "flex",
@@ -131,14 +132,7 @@ const ReportsList = () => {
                       </div>
                     ))}
                   </Field>
-                  <Field
-                    sx={{ justifyContent: "right", cursor: "pointer" }}
-                    onClick={() =>
-                      setIdReportOpen(
-                        idReportOpen === scanReport.id ? null : scanReport.id,
-                      )
-                    }
-                  >
+                  <Field sx={{ justifyContent: "right" }}>
                     <IconButton
                       onClick={() =>
                         setIdReportOpen(
@@ -152,6 +146,7 @@ const ReportsList = () => {
                         <ExpandMore />
                       )}
                     </IconButton>
+                    <DownloadReport report={scanReport} />
                   </Field>
                 </Fields>
                 {idReportOpen === scanReport.id && (
