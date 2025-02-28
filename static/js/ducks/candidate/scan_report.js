@@ -20,10 +20,15 @@ export const updateScanReportItem = (reportId, itemId, payload) =>
     payload,
   );
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_SCAN_REPORT_ITEM) {
     const { report_id } = payload;
-    dispatch(fetchScanReportItem(report_id));
+    if (
+      getState().scanReports?.length &&
+      report_id === getState().scanReports[0].scan_report_id
+    ) {
+      dispatch(fetchScanReportItem(report_id));
+    }
   }
 });
 
