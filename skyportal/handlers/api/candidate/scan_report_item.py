@@ -14,32 +14,34 @@ from ...base import BaseHandler
 log = make_log("api/candidate_scan_report_item")
 
 
-def create_scan_report_item(report_id, saved_candidate):
+def create_scan_report_item(report, obj, saved_infos):
     """
     Parameters
     ----------
-    report_id: int
-        The ID of the scan report to create an item for
-    saved_candidate: skyportal.model.Source
-        The saved candidate to create a scan report item for
+    report: skyportal.model.ScanReport
+        The scan report to create an item for
+    obj: skyportal.model.Obj
+        The object to create the item for
+    saved_infos: dict
+        The saved infos of the object for each group
     Returns
     -------
     scan_report_item: skyportal.model.ScanReportItem
     """
-    phot_stats = saved_candidate.obj.photstats
+    phot_stats = obj.photstats
     current_mag = phot_stats[0].last_detected_mag if phot_stats else None
     current_age = (
         (Time.now().mjd - phot_stats[0].first_detected_mjd) if phot_stats else None
     )
 
     return ScanReportItem(
-        obj_id=saved_candidate.obj_id,
-        scan_report_id=report_id,
-        group_id_saved_to=saved_candidate.group_id,
+        obj_id=obj.id,
+        scan_report=report,
         data={
+            "saved_infos": saved_infos,
             "comment": None,
             "already_classified": None,
-            "host_redshift": saved_candidate.obj.redshift,
+            "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
         },

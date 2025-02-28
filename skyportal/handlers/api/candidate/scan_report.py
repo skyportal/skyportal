@@ -1,11 +1,12 @@
-from enum import unique
-
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.models import User
 from baselayer.log import make_log
 
-from ....models import Filter, Group, Source
+from ....models import Filter, Group, Obj, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ...base import BaseHandler
@@ -14,9 +15,9 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/candidate_scan_report")
 
 
-def get_saved_candidates(session, group_ids, detection_range, saved_range):
+def get_infos_saved_sources_by_obj(session, group_ids, detection_range, saved_range):
     """
-    Get all saved candidates in a given range which passed the filters in a given range.
+    Retrieve all candidates saved as source in given range by object
     Parameters
     ----------
     session: sqlalchemy.orm.Session
@@ -26,29 +27,44 @@ def get_saved_candidates(session, group_ids, detection_range, saved_range):
 
     Returns
     -------
-    list of saved candidates
+    list of saved_infos, skyportal.models.Obj
     """
     try:
         return (
-            session.scalars(
-                Source.select(session.user_or_token, mode="read")
-                .join(Candidate, Source.obj_id == Candidate.obj_id)
-                .join(Filter)
-                .where(
-                    Source.group_id.in_(group_ids),
-                    Filter.group_id.in_(group_ids),
-                    Source.saved_at.between(
-                        saved_range.get("start_save_date"),
-                        saved_range.get("end_save_date"),
-                    ),
-                    Candidate.passed_at.between(
-                        detection_range.get("start_date"),
-                        detection_range.get("end_date"),
-                    ),
-                    Source.active.is_(True),
-                )
+            session.query(
+                Obj,
+                func.json_agg(
+                    func.distinct(
+                        func.json_build_object(
+                            "saved_at",
+                            Source.saved_at,
+                            "saved_by",
+                            User.username,
+                            "group",
+                            Group.name,
+                        ).cast(JSONB)
+                    )
+                ).label("saved_infos"),
             )
-            .unique()
+            .join(Source)
+            .join(Candidate)
+            .join(Filter)
+            .join(User, Source.saved_by_id == User.id)
+            .join(Group, Source.group_id == Group.id)
+            .filter(
+                Source.group_id.in_(group_ids),
+                Filter.group_id.in_(group_ids),
+                Source.saved_at.between(
+                    saved_range.get("start_save_date"),
+                    saved_range.get("end_save_date"),
+                ),
+                Candidate.passed_at.between(
+                    detection_range.get("start_date"),
+                    detection_range.get("end_date"),
+                ),
+                Source.active.is_(True),
+            )
+            .group_by(Obj)
             .all()
         )
     except Exception as e:
@@ -122,15 +138,18 @@ class ScanReportHandler(BaseHandler):
             if not saved_range:
                 return self.error("No saved candidates range provided")
 
-            saved_candidates = get_saved_candidates(
-                session,
-                group_ids,
-                detection_range,
-                saved_range,
-            )
+            try:
+                saved_infos_by_obj = get_infos_saved_sources_by_obj(
+                    session,
+                    group_ids,
+                    detection_range,
+                    saved_range,
+                )
+            except Exception:
+                return self.error(f"Error while retrieving candidates")
 
-            if not saved_candidates:
-                return self.error("No candidates found for the given options")
+            if not saved_infos_by_obj:
+                return self.error("No saved sources found for the given options")
 
             groups = session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
@@ -150,18 +169,14 @@ class ScanReportHandler(BaseHandler):
 
             session.add(scan_report)
 
-            for saved_candidate in saved_candidates:
-                if saved_candidate.obj is None:
-                    return self.error("No object found for one of the saved candidates")
-
+            for obj, saved_infos in saved_infos_by_obj:
                 scan_report_item = create_scan_report_item(
-                    scan_report.id, saved_candidate
+                    scan_report, obj, saved_infos
                 )
 
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
 
-            session.add(scan_report)
             session.commit()
 
             self.push_all("skyportal/REFRESH_SCAN_REPORTS")
