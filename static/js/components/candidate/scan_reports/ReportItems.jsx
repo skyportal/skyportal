@@ -89,8 +89,8 @@ const ReportItem = ({ reportId }) => {
                 key={reportItem.id}
                 sx={{ borderBottom: "1px solid #d3d3d3" }}
               >
-                <Field>{displayDate(reportItem.date)}</Field>
-                <Field>{reportItem.scanner}</Field>
+                <Field>{displayDate(reportItem.saved_at)}</Field>
+                <Field>{reportItem.saved_by}</Field>
                 <Field sx={{ flex: 2 }}>
                   <Link
                     to={`/source/${reportItem.obj_id}`}

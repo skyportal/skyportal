@@ -1,8 +1,12 @@
+import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy import select
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.models import User
 from baselayer.log import make_log
 
+from ....models import Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
 from ...base import BaseHandler
@@ -31,6 +35,7 @@ def create_scan_report_item(report_id, saved_candidate):
     return ScanReportItem(
         obj_id=saved_candidate.obj_id,
         scan_report_id=report_id,
+        group_id_saved_to=saved_candidate.group_id,
         data={
             "comment": None,
             "already_classified": None,
@@ -133,9 +138,27 @@ class ScanReportItemHandler(BaseHandler):
                 schema: Error
         """
         with self.Session() as session:
-            items = session.scalars(
-                ScanReportItem.select(session.user_or_token, mode="read").where(
-                    ScanReportItem.scan_report_id == report_id
+            results = session.execute(
+                select(ScanReportItem, User.username, Source.saved_at)
+                .join(
+                    Source,
+                    sa.and_(
+                        ScanReportItem.obj_id == Source.obj_id,
+                        ScanReportItem.group_id_saved_to == Source.group_id,
+                    ),
                 )
+                .join(User, Source.saved_by_id == User.id)
+                .where(ScanReportItem.scan_report_id == report_id)
             ).all()
+
+            items = []
+            for item, username, saved_at in results:
+                items.append(
+                    {
+                        **item.to_dict(),
+                        "saved_by": username,
+                        "saved_at": saved_at.isoformat(),
+                    }
+                )
+
             return self.success(data=items)

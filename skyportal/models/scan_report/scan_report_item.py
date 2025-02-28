@@ -24,6 +24,12 @@ class ScanReportItem(Base):
     )
     scan_report = relationship("ScanReport", back_populates="items")
 
+    group_id_saved_to = sa.Column(
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="ID of the group the source was saved to",
+    )
+
     data = sa.Column(
         JSONB,
         nullable=True,
