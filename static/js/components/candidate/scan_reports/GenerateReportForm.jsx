@@ -51,7 +51,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           title: "Include only saved source in these groups",
         },
         candidates_detection_range: {
-          title: "Candidates Detection Time Range",
+          title: "Passed at range",
           type: "object",
           properties: {
             start_date: {
@@ -67,7 +67,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           },
         },
         saved_candidates_range: {
-          title: "Saved Candidates Time Range",
+          title: "Saved at range",
           type: "object",
           properties: {
             start_save_date: {
