@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
-from ....models import Group, Source
+from ....models import Filter, Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ...base import BaseHandler
@@ -30,8 +30,10 @@ def get_saved_candidates(session, group_ids, detection_range, saved_range):
         return session.scalars(
             Source.select(session.user_or_token, mode="read")
             .join(Candidate, Source.obj_id == Candidate.obj_id)
+            .join(Filter)
             .where(
                 Source.group_id.in_(group_ids),
+                Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
                     saved_range.get("start_save_date"),
                     saved_range.get("end_save_date"),
