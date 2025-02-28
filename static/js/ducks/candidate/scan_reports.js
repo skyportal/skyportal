@@ -14,12 +14,9 @@ export const fetchScanReports = (params) =>
 export const generateScanReport = (payload) =>
   API.POST(`/api/candidates/scan_reports`, GENERATE_SCAN_REPORT, payload);
 
-messageHandler.add((actionType, payload, dispatch, getState) => {
+messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_SCAN_REPORTS) {
-    const { report_id } = payload;
-    if (getState().scanReports && report_id === getState().scanReports[0]?.id) {
-      dispatch(fetchScanReports(report_id));
-    }
+    dispatch(fetchScanReports());
   }
 });
 
