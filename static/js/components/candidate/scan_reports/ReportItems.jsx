@@ -87,7 +87,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             <FieldTitle>current age</FieldTitle>
             <FieldTitle sx={{ borderRight: "none" }}></FieldTitle>
           </Item>
-          {reportItems.length > 0 ? (
+          {!loading && reportItems.length ? (
             reportItems.map((reportItem) => (
               <Item
                 key={reportItem.id}
@@ -148,13 +148,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                 paddingTop: "1rem",
               }}
             >
-              {loading ? (
-                <CircularProgress size={24} />
-              ) : (
-                <Box sx={{ color: "text.secondary" }}>
-                  No candidate saved to the report yet
-                </Box>
-              )}
+              {loading && <CircularProgress size={24} />}
             </Item>
           )}
         </List>
