@@ -1,9 +1,6 @@
-from sqlalchemy import func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
-from baselayer.app.models import User
 from baselayer.log import make_log
 
 from ....models import Filter, Group, Obj, Source
@@ -15,7 +12,7 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/scan_report")
 
 
-def get_infos_saved_sources_by_obj(session, group_ids, detection_range, saved_range):
+def get_objs_in_range(session, group_ids, detection_range, saved_range):
     """
     Retrieve all candidates saved as source in given range by object
     Parameters
@@ -30,28 +27,12 @@ def get_infos_saved_sources_by_obj(session, group_ids, detection_range, saved_ra
     list of saved_infos, skyportal.models.Obj
     """
     try:
-        return (
-            session.query(
-                Obj,
-                func.json_agg(
-                    func.distinct(
-                        func.json_build_object(
-                            "saved_at",
-                            Source.saved_at,
-                            "saved_by",
-                            User.username,
-                            "group",
-                            Group.name,
-                        ).cast(JSONB)
-                    )
-                ).label("saved_infos"),
-            )
+        return session.scalars(
+            Obj.select(session.user_or_token, mode="read")
             .join(Source)
-            .join(Candidate)
             .join(Filter)
-            .join(User, Source.saved_by_id == User.id)
-            .join(Group, Source.group_id == Group.id)
-            .filter(
+            .join(Candidate)
+            .where(
                 Source.group_id.in_(group_ids),
                 Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
@@ -64,9 +45,7 @@ def get_infos_saved_sources_by_obj(session, group_ids, detection_range, saved_ra
                 ),
                 Source.active.is_(True),
             )
-            .group_by(Obj)
-            .all()
-        )
+        ).all()
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
         return []
@@ -139,7 +118,7 @@ class ScanReportHandler(BaseHandler):
                 return self.error("No saved candidates range provided")
 
             try:
-                saved_infos_by_obj = get_infos_saved_sources_by_obj(
+                objs = get_objs_in_range(
                     session,
                     group_ids,
                     detection_range,
@@ -148,7 +127,7 @@ class ScanReportHandler(BaseHandler):
             except Exception:
                 return self.error(f"Error while retrieving candidates")
 
-            if not saved_infos_by_obj:
+            if not objs:
                 return self.error("No saved sources found for the given options")
 
             groups = session.scalars(
@@ -169,10 +148,8 @@ class ScanReportHandler(BaseHandler):
 
             session.add(scan_report)
 
-            for obj, saved_infos in saved_infos_by_obj:
-                scan_report_item = create_scan_report_item(
-                    scan_report, obj, saved_infos
-                )
+            for obj in objs:
+                scan_report_item = create_scan_report_item(scan_report, obj)
 
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
