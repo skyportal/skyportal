@@ -10,32 +10,19 @@ const DownloadReport = ({ report }) => {
   const dispatch = useDispatch();
 
   const downloadReport = (reportItems) => {
-    const reportAsCsv = [
-      `Report created by ${report.username} on ${report.created_at}\n`,
-      "date, scanner, group, ZTF Name Fritz link, comment, already classified, host redshift, current mag, current age",
-      ...reportItems.map((item) =>
-        [
-          item.saved_at,
-          item.saved_by,
-          item.group,
-          item.obj_id,
-          item.data.comment,
-          item.data.already_classified,
-          item.data.host_redshift,
-          item.data.current_mag,
-          item.data.current_age,
-        ]
-          .map((value) => `${value}`)
-          .join(", "),
-      ),
-    ].join("\n");
+    const reportData = {
+      created_by: report.username,
+      created_at: report.created_at,
+      items: reportItems,
+    };
 
-    const blob = new Blob([reportAsCsv], { type: "text/csv;charset=utf-8;" });
-
+    const blob = new Blob([JSON.stringify(reportData)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "Report.csv";
+    link.download = "Report.json";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
