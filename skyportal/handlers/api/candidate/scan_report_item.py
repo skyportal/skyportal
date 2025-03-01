@@ -34,6 +34,15 @@ def create_scan_report_item(report, obj, saved_infos):
         (Time.now().mjd - phot_stats[0].first_detected_mjd) if phot_stats else None
     )
 
+    classifications = [
+        {
+            "probability": classification.probability,
+            "classification": classification.classification,
+            "ml": classification.ml,
+        }
+        for classification in obj.classifications
+    ]
+
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
@@ -44,6 +53,7 @@ def create_scan_report_item(report, obj, saved_infos):
             "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
+            "classifications": classifications,
         },
     )
 
