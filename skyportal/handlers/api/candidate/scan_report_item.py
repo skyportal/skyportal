@@ -1,17 +1,13 @@
-import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy import select
 
 from baselayer.app.access import auth_or_token
-from baselayer.app.models import User
 from baselayer.log import make_log
 
-from ....models import Group, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
 from ...base import BaseHandler
 
-log = make_log("api/candidate_scan_report_item")
+log = make_log("api/scan_report_item")
 
 
 def create_scan_report_item(report, obj, saved_infos):

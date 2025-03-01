@@ -12,7 +12,7 @@ from ....models.scan_report.scan_report import ScanReport
 from ...base import BaseHandler
 from .scan_report_item import create_scan_report_item
 
-log = make_log("api/candidate_scan_report")
+log = make_log("api/scan_report")
 
 
 def get_infos_saved_sources_by_obj(session, group_ids, detection_range, saved_range):
