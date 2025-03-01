@@ -26,7 +26,7 @@ const Item = styled("div")({
 });
 
 const Field = styled("div")({
-  flex: 1,
+  flex: 2,
   borderRight: "1px solid #d3d3d3",
   fontSize: "0.8rem",
   display: "flex",
@@ -72,16 +72,20 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
               borderBottom: "1px solid grey",
             }}
           >
-            <FieldTitle>date</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>date</FieldTitle>
             <FieldTitle>scanner</FieldTitle>
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
-            <FieldTitle sx={{ flex: 2 }}>ZTF Name Fritz link</FieldTitle>
-            <FieldTitle sx={{ flex: 2 }}>comment</FieldTitle>
-            <FieldTitle sx={{ flex: 2 }}>classifications</FieldTitle>
-            <FieldTitle>host redshift</FieldTitle>
-            <FieldTitle>current mag</FieldTitle>
-            <FieldTitle>current age</FieldTitle>
-            <FieldTitle sx={{ borderRight: "none" }}></FieldTitle>
+            <FieldTitle>ZTF Name Fritz link</FieldTitle>
+            <FieldTitle>comment</FieldTitle>
+            <FieldTitle>classifications</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
+            <FieldTitle sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
+              <IconButton name="edit_item" disabled={true}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </FieldTitle>
           </Item>
           {!loading && reportItems.length ? (
             reportItems.map((reportItem) => (
@@ -89,7 +93,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                 key={reportItem.id}
                 sx={{ borderBottom: "1px solid #d3d3d3" }}
               >
-                <Field>
+                <Field sx={{ flex: 1 }}>
                   {reportItem.data.saved_infos.map((info, index) => (
                     <div key={index}>{displayDate(info.saved_at)}</div>
                   ))}
@@ -110,7 +114,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                     ))}
                   </Field>
                 )}
-                <Field sx={{ flex: 2 }}>
+                <Field>
                   <Link
                     to={`/source/${reportItem.obj_id}`}
                     role="link"
@@ -119,8 +123,8 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                     {reportItem.obj_id}
                   </Link>
                 </Field>
-                <Field sx={{ flex: 2 }}>{reportItem.data.comment}</Field>
-                <Field sx={{ flex: 2 }}>
+                <Field>{reportItem.data.comment}</Field>
+                <Field>
                   {reportItem.data.classifications?.map(
                     (classification, index) => (
                       <Chip
@@ -135,18 +139,19 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                     ),
                   )}
                 </Field>
-                <Field>{reportItem.data.host_redshift}</Field>
-                <Field>{reportItem.data.current_mag}</Field>
-                <Field>{reportItem.data.current_age}</Field>
-                <Field sx={{ borderRight: "none" }}>
-                  <Button
+                <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
+                <Field sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
+                  <IconButton
+                    name="edit_item"
                     onClick={() => {
                       setItemToEdit(reportItem);
                       setDialogOpen(true);
                     }}
                   >
                     <EditIcon color="primary" fontSize="small" />
-                  </Button>
+                  </IconButton>
                 </Field>
               </Item>
             ))
