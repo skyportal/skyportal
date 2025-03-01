@@ -24,8 +24,8 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_SCAN_REPORT_ITEM) {
     const { report_id } = payload;
     if (
-      getState().scanReports?.length &&
-      report_id === getState().scanReports[0].scan_report_id
+      getState().scanReportItems?.length &&
+      Number(report_id) === Number(getState().scanReportItems[0].scan_report_id)
     ) {
       dispatch(fetchScanReportItem(report_id));
     }
