@@ -11,6 +11,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import { Link } from "react-router-dom";
 import EditReportItemForm from "./EditReportItemForm";
 import { fetchScanReportItem } from "../../../ducks/candidate/scan_report";
+import IconButton from "@mui/material/IconButton";
 
 const List = styled("div")({
   display: "flex",
@@ -61,11 +62,6 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
     });
   };
 
-  const boolToStr = (condition) => {
-    if (condition === null) return "";
-    return condition ? "True" : "False";
-  };
-
   return (
     <Box>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
@@ -81,7 +77,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
             <FieldTitle sx={{ flex: 2 }}>ZTF Name Fritz link</FieldTitle>
             <FieldTitle sx={{ flex: 2 }}>comment</FieldTitle>
-            <FieldTitle>already classified</FieldTitle>
+            <FieldTitle sx={{ flex: 2 }}>classifications</FieldTitle>
             <FieldTitle>host redshift</FieldTitle>
             <FieldTitle>current mag</FieldTitle>
             <FieldTitle>current age</FieldTitle>
@@ -124,7 +120,21 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                   </Link>
                 </Field>
                 <Field sx={{ flex: 2 }}>{reportItem.data.comment}</Field>
-                <Field>{boolToStr(reportItem.data.already_classified)}</Field>
+                <Field sx={{ flex: 2 }}>
+                  {reportItem.data.classifications?.map(
+                    (classification, index) => (
+                      <Chip
+                        label={
+                          (classification.ml ? "ML: " : "") +
+                          classification.classification +
+                          (classification.probability < 0.1 ? "?" : "")
+                        }
+                        size="small"
+                        key={index}
+                      />
+                    ),
+                  )}
+                </Field>
                 <Field>{reportItem.data.host_redshift}</Field>
                 <Field>{reportItem.data.current_mag}</Field>
                 <Field>{reportItem.data.current_age}</Field>
