@@ -24,7 +24,6 @@ const EditReportItemForm = ({
   const [loading, setLoading] = useState(false);
   const [saveOptions, setSaveOptions] = useState({
     comment: itemToEdit?.data?.comment,
-    already_classified: itemToEdit?.data?.already_classified,
   });
 
   const updateReportItemSchema = () => {
@@ -32,10 +31,6 @@ const EditReportItemForm = ({
       type: "object",
       properties: {
         comment: { type: ["string", "null"], title: "comment" },
-        already_classified: {
-          type: ["boolean", "null"],
-          title: "Already classified?",
-        },
       },
     };
   };
@@ -119,7 +114,6 @@ EditReportItemForm.propTypes = {
     obj_id: PropTypes.string.isRequired,
     data: PropTypes.shape({
       comment: PropTypes.string,
-      already_classified: PropTypes.bool,
     }).isRequired,
   }).isRequired,
   setItemToEdit: PropTypes.func.isRequired,

@@ -103,8 +103,6 @@ class ScanReportItemHandler(BaseHandler):
                 properties:
                   comment:
                     type: string
-                  already_classified:
-                    type: boolean
         responses:
           200:
             content:
@@ -130,7 +128,6 @@ class ScanReportItemHandler(BaseHandler):
             item.data = {
                 **item.data,
                 "comment": data.get("comment"),
-                "already_classified": data.get("already_classified"),
             }
 
             session.commit()
