@@ -3,6 +3,7 @@ from astropy.time import Time
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
+from ....models import Obj, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
 from ...base import BaseHandler
@@ -10,46 +11,65 @@ from ...base import BaseHandler
 log = make_log("api/scan_report_item")
 
 
-def create_scan_report_item(report, obj, saved_infos):
+def create_scan_report_item(session, report, sources_by_obj):
     """
     Parameters
     ----------
+    session: sqlalchemy.orm.Session
     report: skyportal.model.ScanReport
         The scan report to create an item for
-    obj: skyportal.model.Obj
-        The object to create the item for
-    saved_infos: dict
-        The saved infos of the object for each group
+    sources_by_obj: tuple (obj_id, source_ids)
+        The object and link source ids to create the item for
     Returns
     -------
     scan_report_item: skyportal.model.ScanReportItem
     """
-    phot_stats = obj.photstats
-    current_mag = phot_stats[0].last_detected_mag if phot_stats else None
+    obj_id, source_ids = sources_by_obj
+
+    obj = session.scalar(
+        Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
+    )
+    current_mag = obj.photstats[0].last_detected_mag if obj.photstats else None
     current_age = (
-        (Time.now().mjd - phot_stats[0].first_detected_mjd) if phot_stats else None
+        (Time.now().mjd - obj.photstats[0].first_detected_mjd)
+        if obj.photstats
+        else None
     )
 
-    classifications = [
-        {
-            "probability": classification.probability,
-            "classification": classification.classification,
-            "ml": classification.ml,
-        }
-        for classification in obj.classifications
-    ]
+    sources = session.scalars(
+        Source.select(session.user_or_token, mode="read").where(
+            Source.obj_id == obj_id, Source.id.in_(source_ids)
+        )
+    ).all()
 
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
         data={
-            "saved_infos": saved_infos,
+            "saved_infos": [
+                {
+                    "saved_at": source.saved_at.isoformat(),
+                    "saved_by": source.saved_by.username,
+                    "group": source.group.name,
+                }
+                for source in sources
+            ]
+            if sources
+            else None,
             "comment": None,
-            "already_classified": None,
             "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
-            "classifications": classifications,
+            "classifications": [
+                {
+                    "probability": classification.probability,
+                    "classification": classification.classification,
+                    "ml": classification.ml,
+                }
+                for classification in obj.classifications
+            ]
+            if obj.classifications
+            else None,
         },
     )
 

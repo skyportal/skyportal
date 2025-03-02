@@ -1,9 +1,10 @@
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
-from ....models import Filter, Group, Obj, Source
+from ....models import Filter, Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ...base import BaseHandler
@@ -12,7 +13,7 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/scan_report")
 
 
-def get_objs_in_range(session, group_ids, detection_range, saved_range):
+def get_sources_by_objs_in_range(session, group_ids, detection_range, saved_range):
     """
     Retrieve all candidates saved as source in given range by object
     Parameters
@@ -24,14 +25,16 @@ def get_objs_in_range(session, group_ids, detection_range, saved_range):
 
     Returns
     -------
-    list of saved_infos, skyportal.models.Obj
+    list of tuples (obj_id, source_ids)
     """
     try:
-        return session.scalars(
-            Obj.select(session.user_or_token, mode="read")
-            .join(Source)
+        return session.execute(
+            sa.select(
+                Source.obj_id,
+                sa.func.array_agg(sa.func.distinct(Source.id)).label("source_ids"),
+            )
+            .join(Candidate, Candidate.obj_id == Source.obj_id)
             .join(Filter)
-            .join(Candidate)
             .where(
                 Source.group_id.in_(group_ids),
                 Filter.group_id.in_(group_ids),
@@ -45,6 +48,7 @@ def get_objs_in_range(session, group_ids, detection_range, saved_range):
                 ),
                 Source.active.is_(True),
             )
+            .group_by(Source.obj_id)
         ).all()
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
@@ -118,7 +122,7 @@ class ScanReportHandler(BaseHandler):
                 return self.error("No saved candidates range provided")
 
             try:
-                objs = get_objs_in_range(
+                sources_by_objs = get_sources_by_objs_in_range(
                     session,
                     group_ids,
                     detection_range,
@@ -127,7 +131,7 @@ class ScanReportHandler(BaseHandler):
             except Exception:
                 return self.error(f"Error while retrieving candidates")
 
-            if not objs:
+            if not sources_by_objs:
                 return self.error("No saved sources found for the given options")
 
             groups = session.scalars(
@@ -148,8 +152,10 @@ class ScanReportHandler(BaseHandler):
 
             session.add(scan_report)
 
-            for obj in objs:
-                scan_report_item = create_scan_report_item(scan_report, obj)
+            for sources_by_obj in sources_by_objs:
+                scan_report_item = create_scan_report_item(
+                    session, scan_report, sources_by_obj
+                )
 
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
