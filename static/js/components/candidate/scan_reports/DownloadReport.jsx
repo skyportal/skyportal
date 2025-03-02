@@ -11,9 +11,13 @@ const DownloadReport = ({ report }) => {
 
   const downloadReport = (reportItems) => {
     const reportData = {
+      report_id: report.id,
       created_by: report.username,
       created_at: report.created_at,
-      items: reportItems,
+      number_of_items: reportItems.length,
+      items: reportItems.map(
+        ({ id, scan_report_id, created_at, ...rest }) => rest,
+      ),
     };
 
     const blob = new Blob([JSON.stringify(reportData)], {
