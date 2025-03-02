@@ -29,7 +29,6 @@ import * as recentGcnEventsActions from "./ducks/recentGcnEvents";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
-/* eslint-disable no-unused-vars */
 import * as sourceActions from "./ducks/source";
 import * as sourcesActions from "./ducks/sources";
 import * as gcnTagsActions from "./ducks/gcnTags";
@@ -40,8 +39,8 @@ import * as spatialCatalogsActions from "./ducks/spatialCatalogs";
 import * as photometryActions from "./ducks/photometry";
 import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";
-import * as candidateActions from "./ducks/candidate";
-import * as candidatesActions from "./ducks/candidates";
+import * as candidateActions from "./ducks/candidate/candidate";
+import * as candidatesActions from "./ducks/candidate/candidates";
 import * as galaxiesActions from "./ducks/galaxies";
 import * as observationsActions from "./ducks/observations";
 import * as catalogQueriesActions from "./ducks/catalog_query";
@@ -53,7 +52,6 @@ import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
 import * as groupActions from "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
-/* eslint-enable no-unused-vars */
 
 // this is used to keep track of what has been hydrated yet or not
 import * as hydrationActions from "./ducks/hydration";
