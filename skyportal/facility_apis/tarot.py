@@ -34,6 +34,12 @@ station_dict = {
     },
 }
 
+filters = {
+    "NoFilter": 0,
+    "g": 13,
+    "r": 14,
+    "i": 15,
+}
 
 def catch_timeout_and_no_endpoint(func):
     @functools.wraps(func)
@@ -48,6 +54,37 @@ def catch_timeout_and_no_endpoint(func):
 
     return wrapper
 
+def check_observation_payload(payload):
+    """Check the payload for a follow-up request to TAROT.
+
+    Parameters
+    ----------
+    payload: dict
+        The payload coming from the request.
+    """
+
+    required_params = {"station_name", "start_date", "end_date", "observation_preference", "priority",
+                       "exposure_time", "exposure_counts", "airmass", "observation_choices"}
+
+    missing_params = required_params - payload.keys()
+    if missing_params:
+        raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+
+    if payload["station_name"] not in station_dict.keys():
+        raise ValueError(f"Invalid station_name. Must be one of {', '.join(station_dict.keys())}")
+
+    if payload["start_date"] > payload["end_date"]:
+        raise ValueError("start_date must be before end_date.")
+
+    if payload["observation_preference"] not in ["Earliest possible", "Optimal Airmass"]:
+        raise ValueError("observation_preference must be one of 'Earliest possible', 'Optimal Airmass'.")
+
+    if not set(payload["observation_choices"]).issubset(filters.keys()):
+        raise ValueError(f"Unknown filter configuration: {payload['observation_choices']}")
+
+    if payload["exposure_time"] < 0 and payload["exposure_time"] != -1:
+        raise ValueError("exposure_time must be positive or -1.")
+
 
 def create_observation_string(request):
     """Create the observation string to send to TAROT.
@@ -57,47 +94,7 @@ def create_observation_string(request):
     request: skyportal.models.FollowupRequest
         The request information to send to TAROT.
     """
-
-    for param in [
-        "station_name",
-        "date",
-        "exposure_time",
-        "exposure_counts",
-        "observation_choices",
-    ]:
-        if param not in request.payload:
-            raise ValueError(f"Parameter {param} required.")
-
-    if any(
-        obs_filter not in ["g", "r", "i", "NoFilter"]
-        for obs_filter in request.payload["observation_choices"]
-    ):
-        raise ValueError(
-            f"Filter configuration {request.payload['observation_choices']} unknown."
-        )
-
-    if request.payload["station_name"] not in [
-        "Tarot_Calern",
-        "Tarot_Chili",
-        "Tarot_Reunion",
-    ]:
-        raise ValueError(
-            "observation_type must be Tarot_Calern, Tarot_Chili, Tarot_Reunion"
-        )
-
-    if (
-        request.payload["exposure_time"] < 0
-        and not request.payload["exposure_time"] == -1
-    ):
-        raise ValueError("exposure_time must be positive or -1.")
-
-    filters = {
-        "NoFilter": 0,
-        "g": 13,
-        "r": 14,
-        "i": 15,
-    }
-    tt = Time(request.payload["date"], format="isot")
+    tt = Time(request.payload["start_date"], format="isot")
     observations = []
 
     if request.payload["exposure_time"] == -1:
