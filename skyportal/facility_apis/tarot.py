@@ -617,10 +617,24 @@ class TAROTAPI(FollowUpAPI):
                 ],
                 "default": "Tarot_Calern",
             },
-            "date": {
+            "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
-                "title": "Date (UT)",
+                "default": str(datetime.utcnow()).replace("T", ""),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "title": "End Date (UT)",
+                "default": str(datetime.utcnow()).replace("T", ""),
+            },
+            "priority_preference": {
+                "type": "string",
+                "title": "Observation Preference",
+                "enum": [
+                    "Earliest possible",
+                    "Optimal Airmass",
+                ],
+                "default": "Earliest possible",
             },
             "priority": {
                 "type": "number",
@@ -639,12 +653,21 @@ class TAROTAPI(FollowUpAPI):
                 "type": "number",
                 "default": 1,
             },
+            "airmass": {
+                "title": "Airmass",
+                "type": "number",
+                "default": 3.0,
+            }
+
         },
         "required": [
             "station_name",
-            "date",
+            "start_date",
+            "end_date",
+            "priority",
             "exposure_time",
             "exposure_counts",
+            "airmass",
             "observation_choices",
         ],
         "dependencies": {
