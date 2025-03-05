@@ -627,7 +627,7 @@ class TAROTAPI(FollowUpAPI):
                 "title": "End Date (UT)",
                 "default": str(datetime.utcnow()).replace("T", ""),
             },
-            "priority_preference": {
+            "observation_preference": {
                 "type": "string",
                 "title": "Observation Preference",
                 "enum": [
@@ -664,6 +664,7 @@ class TAROTAPI(FollowUpAPI):
             "station_name",
             "start_date",
             "end_date",
+            "observation_preference",
             "priority",
             "exposure_time",
             "exposure_counts",
