@@ -4,10 +4,18 @@ function filterSources() {
     .getElementById("search-bar")
     .value.trim()
     .toLowerCase();
+
   const sources = document.getElementsByClassName("sourceAndVersions");
 
   Array.from(sources).forEach((source) => {
     const sourceId = source.getElementsByClassName("sourceId")[0];
+
+    if (searchValue === "") {
+      source.style.display = "";
+      sourceId.innerHTML = sourceId.textContent;
+      return;
+    }
+
     if (sourceId.textContent.toLowerCase().includes(searchValue)) {
       // Mark the search value in the source name
       const re = new RegExp(searchValue, "gi");
