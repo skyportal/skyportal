@@ -202,7 +202,7 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
 
 
 def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
-    """The set time of the field as an astropy.time.Time."""
+    """The rise and set times of the target fields at the given altitude as an astropy.time.Time."""
     if "observer" in kwargs:
         observer = kwargs["observer"]
     elif "telescope" in kwargs:
