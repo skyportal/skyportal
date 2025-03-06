@@ -2,10 +2,12 @@ import functools
 import re
 from datetime import datetime
 
+import astroplan
 import astropy.units as u
 import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
 from baselayer.app.env import load_env
@@ -14,6 +16,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from . import FollowUpAPI
+from ..utils.calculations import get_next_valid_observing_time
 
 env, cfg = load_env()
 
@@ -94,11 +97,28 @@ def create_observation_string(request):
     request: skyportal.models.FollowupRequest
         The request information to send to TAROT.
     """
-    tt = Time(request.payload["start_date"], format="isot")
+    payload = request.payload
+    check_observation_payload(payload)
+
+    obj = request.obj
+    start_time = Time(payload["start_date"], format="isot")
+
+    try:
+        tt = get_next_valid_observing_time(
+            start_time=start_time,
+            telescope=payload["telescope"],
+            target=astroplan.FixedTarget(SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg), name=obj.id),
+            airmass=payload["airmass"],
+            observe_at_optimal_airmass=payload["observation_preference"] == "Optimal Airmass"
+        )
+    except Exception as e:
+        raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
+
+
     observations = []
 
-    if request.payload["exposure_time"] == -1:
-        photstats = request.obj.photstats
+    if payload["exposure_time"] == -1:
+        photstats = obj.photstats
         if len(photstats) == 0:
             raise ValueError("No photometry to base exposure time calculation on")
         photstats = photstats[0]
@@ -210,7 +230,7 @@ def create_observation_string(request):
                     "Tarot_Reunion": {"NoFilter": [18, 200]},
                 }
 
-        seq = sequence.get(request.payload["station_name"], None)
+        seq = sequence.get(payload["station_name"], None)
         if seq is None:
             raise ValueError("Default sequence not available for this telescope")
 
@@ -222,11 +242,11 @@ def create_observation_string(request):
             )
 
     else:
-        for obs_filter in request.payload["observation_choices"]:
+        for obs_filter in payload["observation_choices"]:
             observations.append(
-                f"{request.payload['exposure_time']} {filters[obs_filter]}"
+                f"{payload['exposure_time']} {filters[obs_filter]}"
             )
-        observations = sum([observations] * request.payload["exposure_counts"], [])
+        observations = sum([observations] * payload["exposure_counts"], [])
 
     total_time = 0.0
     observation_string = ""
@@ -241,7 +261,7 @@ def create_observation_string(request):
         ttline = tt + (total_time * u.s)
 
         if obs:
-            observation_string += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
+            observation_string += f'"{obj.id}" {obj.ra} {obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{payload["priority"]} {payload["station_name"]}\n\r'
 
         if ii != number_of_strings:
             total_time += sum(45 + int(o.split(" ")[0]) for o in obs)
