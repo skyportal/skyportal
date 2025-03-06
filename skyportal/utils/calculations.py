@@ -177,7 +177,7 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
     if "observer" in kwargs:
         observer = kwargs["observer"]
     elif "telescope" in kwargs:
-        observer = observer(kwargs["telescope"])
+        observer = get_observer(kwargs["telescope"])
 
     # the output shape should be targets x times
     output_shape = (len(fields), len(time))
