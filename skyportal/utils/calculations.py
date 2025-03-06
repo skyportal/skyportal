@@ -5,6 +5,7 @@ import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from scipy.optimize import fsolve
 
 # Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
 # http://adsabs.harvard.edu/abs/1989A&A...218..325M
@@ -115,6 +116,31 @@ def get_altitude(
     """
     time = np.atleast_1d(time)
     return observer.altaz(time, target, grid_times_targets=True).alt
+
+
+def get_altitude_from_airmass(airmass: np.ndarray):
+    """Return the altitude of the object at a given time.
+
+    Parameters
+    ----------
+    airmass: np.ndarray
+        The array of airmass values
+
+    Returns
+    -------
+    alt : np.ndarray
+        The altitudes corresponding to the airmass values in degrees
+    """
+    def f(a, am_val):
+        return a + 244 / (165 + 47 * a ** 1.1) - np.degrees(np.arcsin(1 / am_val))
+
+    altitudes = []
+    for am in airmass:
+        estimation = np.degrees(np.arcsin(1 / am))
+        altitude_solution = fsolve(f, estimation, args=(am,))
+        altitudes.append(altitude_solution[0])
+
+    return np.array(altitudes)
 
 
 def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
