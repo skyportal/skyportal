@@ -7,6 +7,7 @@ from skyportal.utils.calculations import (
     dms_to_deg,
     get_airmass,
     get_altitude,
+    get_altitude_from_airmass,
     get_observer,
     get_rise_set_time,
     get_target,
@@ -113,6 +114,26 @@ def test_get_airmass():
     airmass = get_airmass(fields, time, observer=observer)
     assert np.isclose(airmass[0, 0], 2.3894099051129727)
     assert np.isclose(airmass[1, 0], 1.0177921215801056)
+
+def test_get_altitude_from_airmass():
+    fields = [
+        {"ra": 30, "dec": 45, "field_id": 1},
+        {"ra": 145, "dec": 45, "field_id": 2},
+    ]
+    time = Time(["2024-01-01 00:00:00"])
+    target = get_target(fields)
+    observer = get_observer({"lon": 30, "lat": 45, "elevation": 100})
+    altitude = get_altitude(time, target, observer)
+    assert np.isclose(altitude.deg[0], 24.60195713)
+    assert np.isclose(altitude.deg[1], 79.22992432)
+
+    airmass = get_airmass(fields, time, observer=observer)
+    assert np.isclose(airmass[0, 0], 2.3894099051129727)
+    assert np.isclose(airmass[1, 0], 1.0177921215801056)
+
+    altitude_from_airmass = get_altitude_from_airmass(airmass)
+    assert np.isclose(altitude_from_airmass[0], 24.60195713)
+    assert np.isclose(altitude_from_airmass[1], 79.22992432)
 
 
 def test_get_rise_set_time():
