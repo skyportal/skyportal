@@ -247,6 +247,57 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     return rise_time, set_time
 
 
+def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, observe_at_optimal_airmass=False):
+    """Return the next valid observing time for the given telescope and target at the given airmass limit.
+    Use the nearest time or the time with the optimal airmass.
+
+    Parameters
+    ----------
+    start_time : astropy.time.Time
+        The start time from which to calculate the next valid observing time.
+    telescope : dict
+        The telescope for which to calculate the next valid observing time.
+    target : `astroplan.FixedTarget`
+        The target of the observation.
+    airmass_limit : float
+        The airmass limit for the observation.
+    observe_at_optimal_airmass : bool
+        If True, use the date at the best airmass limit else use the nearest date.
+
+    Returns
+    -------
+    next_observing_date : `astropy.time.Time`
+        The next valid observing date for the given telescope and target at the given airmass limit.
+    """
+    if start_time < Time.now():
+        start_time = Time.now()
+
+    observer = get_observer(telescope)
+    altitude_limit = get_altitude_from_airmass(np.array([airmass]))[0]
+
+    rise_time, set_time = get_rise_set_time(
+        target=target,
+        altitude=altitude_limit * u.degree,
+        observer=observer,
+        time=start_time,
+    )
+
+    target_rise_time = rise_time.value
+    target_set_time = set_time.value
+
+    if observe_at_optimal_airmass:
+        optimal_airmass_time = Time((rise_time + set_time) / 2, format='unix')
+        if start_time < optimal_airmass_time :
+            return optimal_airmass_time
+        else:
+            return Time.now()
+
+    if target_rise_time < start_time and target_set_time < start_time:
+        return Time.now()
+
+    return target_rise_time
+
+
 def next_sunrise(observer, time=None):
     """The astropy timestamp of the next sunrise after `time` at this site.
     If time=None, uses the current time."""
