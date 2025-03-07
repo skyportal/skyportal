@@ -131,9 +131,8 @@ def test_get_altitude_from_airmass():
     assert np.isclose(airmass[0, 0], 2.3894099051129727)
     assert np.isclose(airmass[1, 0], 1.0177921215801056)
 
-    altitude_from_airmass = get_altitude_from_airmass(airmass)
-    assert np.isclose(altitude_from_airmass[0], 24.60195713)
-    assert np.isclose(altitude_from_airmass[1], 79.22992432)
+    assert np.isclose(get_altitude_from_airmass(airmass[0, 0]), 24.60195713)
+    assert np.isclose(get_altitude_from_airmass(airmass[1, 0]), 79.22992432)
 
 
 def test_get_rise_set_time():
