@@ -675,14 +675,16 @@ instrument:
   - band: optical
     name: Binospec
     telescope_id: =MMT
-    type: spectrograph
+    type: imaging spectrograph
     api_classname: MMTAPI
+    filters: [ "sdssg", "sdssr", "sdssi", "sdssz"]
     =id: Binospec
   - band: NEAR-IR
     name: MMIRS
     telescope_id: =MMT
     type: imaging spectrograph
     api_classname: MMTAPI
+    filters: ["J", "H", "K", "Ks"]
     =id: MMIRS
 
 instrument/=SEDMv2/log:
