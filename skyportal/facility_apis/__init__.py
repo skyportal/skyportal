@@ -58,6 +58,7 @@ APIS = (
     ZTFAPI,
     ZTFMMAAPI,
     GEMINIAPI,
+    MMTAPI,
 )
 
 # Listeners, listed in implementation order, to keep matching enum in db stable
