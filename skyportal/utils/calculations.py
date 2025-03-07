@@ -148,7 +148,7 @@ def get_altitude_from_airmass(airmass: float):
     estimation = np.degrees(np.arcsin(1 / airmass))
     altitude = fsolve(f, estimation)
 
-    return altitude
+    return altitude[0]
 
 
 def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
@@ -244,7 +244,7 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     return rise_time, set_time
 
 
-def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, observe_at_optimal_airmass=False):
+def get_next_valid_observing_time(start_time, telescope, target, airmass, observe_at_optimal_airmass=False):
     """Return the next valid observing time for the given telescope and target at the given airmass limit.
     Use the nearest time or the time with the optimal airmass.
 
@@ -286,7 +286,7 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, ob
         else:
             return Time.now()
 
-    if rise_time < start_time and set_time < start_time:
+    if rise_time <= start_time:
         return Time.now()
 
     return rise_time
