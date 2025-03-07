@@ -1,6 +1,6 @@
 import functools
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import astroplan
 import astropy.units as u
@@ -8,7 +8,6 @@ import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
-from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -37,13 +36,6 @@ station_dict = {
     },
 }
 
-filters = {
-    "NoFilter": 0,
-    "g": 13,
-    "r": 14,
-    "i": 15,
-}
-
 def catch_timeout_and_no_endpoint(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -57,6 +49,41 @@ def catch_timeout_and_no_endpoint(func):
 
     return wrapper
 
+def get_observing_time(session, request):
+    """Get the next valid observing time for the request range and instrument.
+
+    Parameters
+    ----------
+    session: sqlalchemy.Session
+        The database session.
+    request: skyportal.models.FollowupRequest
+        The request to get the observing time for.
+
+    Returns
+    -------
+    observing_time: `astropy.time.Time`
+        The next valid observing time.
+    """
+    from ..models import Telescope
+
+    telescope = session.scalar(
+        Telescope.select(session.user_or_token, mode="read").where(
+            Telescope.instrument.id == request.instrument.id
+        )
+    )
+    print(telescope)
+    try:
+        return get_next_valid_observing_time(
+            start_time=request.payload["start_date"],
+            telescope=telescope,
+            target=astroplan.FixedTarget(SkyCoord(ra=request.obj.ra * u.deg, dec=request.obj.dec * u.deg),
+                                         name=request.obj.id),
+            airmass=request.payload["airmass"],
+            observe_at_optimal_airmass=request.payload["observation_preference"] == "Optimal Airmass"
+        )
+    except Exception as e:
+        raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
+
 def check_observation_payload(payload):
     """Check the payload for a follow-up request to TAROT.
 
@@ -66,15 +93,12 @@ def check_observation_payload(payload):
         The payload coming from the request.
     """
 
-    required_params = {"station_name", "start_date", "end_date", "observation_preference", "priority",
+    required_params = {"start_date", "end_date", "observation_preference", "priority",
                        "exposure_time", "exposure_counts", "airmass", "observation_choices"}
 
     missing_params = required_params - payload.keys()
     if missing_params:
         raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
-
-    if payload["station_name"] not in station_dict.keys():
-        raise ValueError(f"Invalid station_name. Must be one of {', '.join(station_dict.keys())}")
 
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
@@ -82,38 +106,23 @@ def check_observation_payload(payload):
     if payload["observation_preference"] not in ["Earliest possible", "Optimal Airmass"]:
         raise ValueError("observation_preference must be one of 'Earliest possible', 'Optimal Airmass'.")
 
-    if not set(payload["observation_choices"]).issubset(filters.keys()):
-        raise ValueError(f"Unknown filter configuration: {payload['observation_choices']}")
-
     if payload["exposure_time"] < 0 and payload["exposure_time"] != -1:
         raise ValueError("exposure_time must be positive or -1.")
 
 
-def create_observation_string(request):
+def create_observation_string(request, observation_time):
     """Create the observation string to send to TAROT.
 
     Parameters
     ----------
     request: skyportal.models.FollowupRequest
         The request information to send to TAROT.
+    observation_time: datetime
+        The observation time to send to TAROT.
     """
     payload = request.payload
-    check_observation_payload(payload)
-
     obj = request.obj
-    start_time = Time(payload["start_date"], format="isot")
-
-    try:
-        tt = get_next_valid_observing_time(
-            start_time=start_time,
-            telescope=payload["telescope"],
-            target=astroplan.FixedTarget(SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg), name=obj.id),
-            airmass=payload["airmass"],
-            observe_at_optimal_airmass=payload["observation_preference"] == "Optimal Airmass"
-        )
-    except Exception as e:
-        raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
-
+    tt = observation_time
 
     observations = []
 
@@ -342,9 +351,13 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
+        check_observation_payload(request.payload)
+
         hash_user = login_to_tarot(request, session, altdata)
 
-        observation_string = create_observation_string(request)
+        observing_time = get_observing_time(session, request)
+
+        observation_string = create_observation_string(request, observing_time)
 
         # Create one or more new scene in a request using an observation string
         payload = {
@@ -622,116 +635,76 @@ class TAROTAPI(FollowUpAPI):
         except Exception as e:
             log(f"Failed to send notification: {str(e)}")
 
-    form_json_schema = {
-        "type": "object",
-        "properties": {
-            "station_name": {
-                "type": "string",
-                "enum": [
-                    "Tarot_Calern",
-                    "Tarot_Chili",
-                    "Tarot_Reunion",
-                ],
-                "default": "Tarot_Calern",
-            },
-            "start_date": {
-                "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
-                "title": "Start Date (UT)",
-            },
-            "end_date": {
-                "type": "string",
-                "title": "End Date (UT)",
-                "default": str(datetime.utcnow()).replace("T", ""),
-            },
-            "observation_preference": {
-                "type": "string",
-                "title": "Observation Preference",
-                "enum": [
-                    "Earliest possible",
-                    "Optimal Airmass",
-                ],
-                "default": "Earliest possible",
-            },
-            "priority": {
-                "type": "number",
-                "default": 0,
-                "minimum": -5.0,
-                "maximum": 5.0,
-                "title": "Priority (-5 - 5)",
-            },
-            "exposure_time": {
-                "title": "Exposure Time [s] (use -1 if want defaults)",
-                "type": "number",
-                "default": 300.0,
-            },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
-            },
-            "airmass": {
-                "title": "Airmass",
-                "type": "number",
-                "default": 3.0,
-            }
+    def custom_json_schema(instrument, user, **kwargs):
+        form_json_schema = {
+            "type": "object",
+            "properties": {
+                "observation_choices": {
+                    "type": "array",
+                    "title": "Desired Observations",
+                    "items": {
+                        "type": "string",
+                        "enum": instrument.to_dict()["filters"],
+                    },
+                    "uniqueItems": True,
+                    "minItems": 0,
+                },
+                "start_date": {
+                    "type": "string",
+                    "default": str(datetime.utcnow()).replace("T", ""),
+                    "title": "Start Date (UT)",
+                },
+                "end_date": {
+                    "type": "string",
+                    "title": "End Date (UT)",
+                    "default": str(datetime.utcnow() + timedelta(days=7)).replace("T", ""),
+                },
+                "observation_preference": {
+                    "type": "string",
+                    "title": "Observation Preference",
+                    "enum": [
+                        "Earliest possible",
+                        "Optimal Airmass",
+                    ],
+                    "default": "Earliest possible",
+                },
+                "priority": {
+                    "type": "number",
+                    "default": 0,
+                    "minimum": -5.0,
+                    "maximum": 5.0,
+                    "title": "Priority (-5 - 5)",
+                },
+                "exposure_time": {
+                    "title": "Exposure Time [s] (use -1 if want defaults)",
+                    "type": "number",
+                    "default": 300.0,
+                },
+                "exposure_counts": {
+                    "title": "Exposure Counts",
+                    "type": "number",
+                    "default": 1,
+                },
+                "airmass": {
+                    "title": "Airmass limit",
+                    "type": "number",
+                    "default": 3.0,
+                }
 
-        },
-        "required": [
-            "station_name",
-            "start_date",
-            "end_date",
-            "observation_preference",
-            "priority",
-            "exposure_time",
-            "exposure_counts",
-            "airmass",
-            "observation_choices",
-        ],
-        "dependencies": {
-            "station_name": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": [
-                                    "Tarot_Calern",
-                                    "Tarot_Chili",
-                                ],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["g", "r", "i", "NoFilter"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["Tarot_Reunion"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["NoFilter"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                ],
             },
-        },
-    }
+            "required": [
+                "start_date",
+                "end_date",
+                "observation_preference",
+                "priority",
+                "exposure_time",
+                "exposure_counts",
+                "airmass",
+                "observation_choices",
+            ],
+        }
+
+        return form_json_schema
 
     form_json_schema_altdata = {
         "type": "object",
