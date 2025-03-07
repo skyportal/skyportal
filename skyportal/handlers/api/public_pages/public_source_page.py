@@ -24,6 +24,7 @@ from ....models import (
     Stream,
     User,
 )
+from ....utils.safe_round import safe_round
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 from ...base import BaseHandler
 from ..source import get_source
@@ -112,10 +113,6 @@ def get_classifications(source_id, group_ids, session):
     if len(group_ids) > 0:
         stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
     return [c.to_dict_public() for c in session.scalars(stmt).unique().all()]
-
-
-def safe_round(number, precision):
-    return round(number, precision) if isinstance(number, int | float) else None
 
 
 def async_post_public_source_page(options, source, release, user_id):

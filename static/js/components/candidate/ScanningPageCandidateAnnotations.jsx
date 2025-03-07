@@ -12,7 +12,7 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 
 const useStyles = makeStyles((theme) => ({
   root: {

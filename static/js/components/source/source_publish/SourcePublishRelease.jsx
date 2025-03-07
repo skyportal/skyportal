@@ -41,15 +41,15 @@ const SourcePublishRelease = ({
 }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const releases = useSelector((state) => state.publicReleases);
   const manageSourcesAccess = useSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");
 
   useEffect(() => {
-    setIsLoading(true);
-    dispatch(fetchPublicReleases()).then(() => setIsLoading(false));
+    setLoading(true);
+    dispatch(fetchPublicReleases()).then(() => setLoading(false));
   }, [dispatch]);
 
   const formSchema = {
@@ -108,7 +108,7 @@ const SourcePublishRelease = ({
             />
           ) : (
             <div className={styles.noRelease}>
-              {isLoading ? (
+              {loading ? (
                 <CircularProgress size={24} />
               ) : (
                 <div>No releases available yet! Create the first one here.</div>
