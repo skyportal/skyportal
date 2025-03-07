@@ -23,6 +23,7 @@ from .tess import TESSAPI
 from .trt import TRTAPI
 from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
+from .mmt import MMTAPI
 
 
 # APIs, listed in implementation order, to keep matching enum in db stable
