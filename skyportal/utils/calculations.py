@@ -259,7 +259,7 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, ob
         The telescope for which to calculate the next valid observing time.
     target : `astroplan.FixedTarget`
         The target of the observation.
-    airmass_limit : float
+    airmass : float
         The airmass limit for the observation.
     observe_at_optimal_airmass : bool
         If True, use the date at the best airmass limit else use the nearest date.
@@ -282,20 +282,17 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, ob
         time=start_time,
     )
 
-    target_rise_time = rise_time.value
-    target_set_time = set_time.value
-
     if observe_at_optimal_airmass:
-        optimal_airmass_time = Time((rise_time + set_time) / 2, format='unix')
-        if start_time < optimal_airmass_time :
+        optimal_airmass_time = Time((rise_time.unix + set_time.unix) / 2, format="unix")
+        if start_time < optimal_airmass_time:
             return optimal_airmass_time
         else:
             return Time.now()
 
-    if target_rise_time < start_time and target_set_time < start_time:
+    if rise_time < start_time and set_time < start_time:
         return Time.now()
 
-    return target_rise_time
+    return rise_time
 
 
 def next_sunrise(observer, time=None):
