@@ -129,29 +129,26 @@ def get_altitude(
     return observer.altaz(time, target, grid_times_targets=True).alt
 
 
-def get_altitude_from_airmass(airmass: np.ndarray):
+def get_altitude_from_airmass(airmass: float):
     """Return the altitude of the object at a given time.
 
     Parameters
     ----------
-    airmass: np.ndarray
-        The array of airmass values
+    airmass: float
+        The airmass values for which to calculate the altitude
 
     Returns
     -------
-    alt : np.ndarray
+    altitude : float
         The altitudes corresponding to the airmass values in degrees
     """
-    def f(a, am_val):
-        return a + 244 / (165 + 47 * a ** 1.1) - np.degrees(np.arcsin(1 / am_val))
+    def f(a):
+        return a + 244 / (165 + 47 * a ** 1.1) - np.degrees(np.arcsin(1 / airmass))
 
-    altitudes = []
-    for am in airmass:
-        estimation = np.degrees(np.arcsin(1 / am))
-        altitude_solution = fsolve(f, estimation, args=(am,))
-        altitudes.append(altitude_solution[0])
+    estimation = np.degrees(np.arcsin(1 / airmass))
+    altitude = fsolve(f, estimation)
 
-    return np.array(altitudes)
+    return altitude
 
 
 def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
@@ -273,7 +270,7 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass=2.0, ob
         start_time = Time.now()
 
     observer = get_observer(telescope)
-    altitude_limit = get_altitude_from_airmass(np.array([airmass]))[0]
+    altitude_limit = get_altitude_from_airmass(airmass)
 
     rise_time, set_time = get_rise_set_time(
         target=target,
