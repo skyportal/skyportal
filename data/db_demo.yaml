@@ -227,11 +227,23 @@ telescope:
     robotic: true
     =id: TRT0p7m
   - diameter: 0.25
-    nickname: TAROT Network
-    name: TAROT0p25m
+    nickname: TAROT Calern
+    name: TCA
     skycam_link: null
     robotic: true
-    =id: TAROT0p25m
+    =id: TCA
+  - diameter: 0.25
+    nickname: TAROT Reunion
+    name: TRE
+    skycam_link: null
+    robotic: true
+    =id: TRE
+  - diameter: 0.25
+    nickname: TAROT Chile
+    name: TCH
+    skycam_link: null
+    robotic: true
+    =id: TCH
   - diameter: 2.0
     elevation: 3052.0
     lat: 20.7083
@@ -464,12 +476,26 @@ instrument:
     api_classname: TRTAPI
     =id: TRT
   - band: optical
-    name: TAROT
-    telescope_id: =TAROT0p25m
+    name: TAROT Calern
+    telescope_id: =TCA
     type: imager
-    filters: ["sdssg", "sdssr", "sdssi", "sdssz", "ps1::open", "bessellux", "bessellb", "bessellv", "bessellr", "besselli"]
+    filters: ["sdssg", "sdssr", "sdssi"]
     api_classname: TAROTAPI
-    =id: TAROT
+    =id: TCA
+  - band: optical
+    name: TAROT Reunion
+    telescope_id: =TRE
+    type: imager
+    filters: []
+    api_classname: TAROTAPI
+    =id: TRE
+  - band: optical
+    name: TAROT Chile
+    telescope_id: =TCH
+    type: imager
+    filters: [ "sdssg", "sdssr", "sdssi"]
+    api_classname: TAROTAPI
+    =id: TCH
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
@@ -845,7 +871,21 @@ allocation:
     end_date: "3020-07-12T00:00:00"
     hours_allocated: 100
     group_id: =program_A
-    instrument_id: =TAROT
+    instrument_id: =TCA
+  - pi: Michael Coughlin
+    proposal_id: TAROT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TRE
+  - pi: Michael Coughlin
+    proposal_id: TAROT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TCH
   - pi: Michael Coughlin
     proposal_id: GHTS-001
     start_date: "3020-02-12T00:00:00"
