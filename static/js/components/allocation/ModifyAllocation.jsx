@@ -37,7 +37,7 @@ const useStyles = makeStyles(() => ({
 
 const ModifyAllocation = ({ allocation_id, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
-  const { instrumentList } = useSelector((state) => state.instruments);
+  const { instrumentList, instrumentFormParams } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
@@ -196,6 +196,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     return validationErrors;
   }
 
+  const instrument_id = allocationLookUp[allocation_id]?.instrument_id;
   const allocationFormSchema = {
     type: "object",
     properties: {
@@ -231,9 +232,14 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
         title: "Hours allocated",
         default: allocationLookUp[allocation_id]?.hours_allocated,
       },
-      _altdata: {
+      _altdata: instrument_id && instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties ? {
+         type: "object",
+         title: "Alternative data",
+         properties: instrumentFormParams[instrument_id].formSchemaAltdata.properties,
+         dependencies: instrumentFormParams[instrument_id].formSchemaAltdata.dependencies || {}
+      } : {
         type: "string",
-        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
+        title: "Alternative json data (i.e. {'slack_token': 'testtoken'})"
       },
     },
     required: ["pi", "start_date", "end_date", "hours_allocated"],
