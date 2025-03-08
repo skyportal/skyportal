@@ -35,7 +35,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-
 const NewAllocation = ({ onClose }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -187,8 +186,8 @@ const NewAllocation = ({ onClose }) => {
         title: "Instrument",
       },
       _altdata: {
-          type: "string",
-          title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
+        type: "string",
+        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
       },
     },
     required: [
@@ -201,27 +200,30 @@ const NewAllocation = ({ onClose }) => {
     dependencies: {
       instrument_id: {
         oneOf: instrumentList.map((instrument) => {
-          const altdata = instrumentFormParams[instrument.id]?.formSchemaAltdata;
+          const altdata =
+            instrumentFormParams[instrument.id]?.formSchemaAltdata;
           return {
             properties: {
               instrument_id: {
-                enum: [instrument.id]
+                enum: [instrument.id],
               },
-              ...(altdata?.properties ? {
-                _altdata: {
-                  type: "object",
-                  title: "Alternative data",
-                  properties: altdata?.properties,
-                  required: altdata?.required || [],
-                  dependencies: altdata?.dependencies || {}
-                }
-              } : {})
-            }
-          }
-        })
-      }
-    }
-  }
+              ...(altdata?.properties
+                ? {
+                    _altdata: {
+                      type: "object",
+                      title: "Alternative data",
+                      properties: altdata?.properties,
+                      required: altdata?.required || [],
+                      dependencies: altdata?.dependencies || {},
+                    },
+                  }
+                : {}),
+            },
+          };
+        }),
+      },
+    },
+  };
 
   return (
     <div>
