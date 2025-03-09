@@ -50,10 +50,7 @@ const UpdatePhotometry = ({ phot, magsys }) => {
   const instrument = instrumentList.find((x) => x.id === phot.instrument_id);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      !phot.mjd || isNaN(phot.mjd),
-    );
+    setInvalid(!phot.mjd || isNaN(phot.mjd));
     setState({
       mjd: phot.mjd,
       mag: phot.mag,
@@ -88,6 +85,40 @@ const UpdatePhotometry = ({ phot, magsys }) => {
     newState.limiting_mag = subState.limiting_mag;
     newState.filter = subState.filter;
     newState.magsys = magsys;
+
+    Object.keys(newState).forEach((key) => {
+      if (
+        newState[key] === null ||
+        newState[key] === undefined ||
+        newState[key] === ""
+      ) {
+        delete newState[key];
+      }
+    });
+
+    if (
+      newState?.limiting_mag === undefined &&
+      newState?.mag === undefined &&
+      newState?.magerr === undefined
+    ) {
+      dispatch(
+        showNotification(
+          "Please specify both mag and magerr, or a limiting_mag",
+          "error",
+        ),
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (
+      (newState?.mag === undefined && newState?.magerr !== undefined) ||
+      (newState?.mag !== undefined && newState?.magerr === undefined)
+    ) {
+      dispatch(showNotification("Please specify both mag and magerr", "error"));
+      setIsSubmitting(false);
+      return;
+    }
 
     // preserved quantities
     newState.obj_id = phot.obj_id;
