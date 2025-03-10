@@ -23,7 +23,8 @@ from .tess import TESSAPI
 from .trt import TRTAPI
 from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
-from .mmt import MMTAPI
+from .binospec import BINOSPECAPI
+from .mmirs import MMIRSAPI
 
 
 # APIs, listed in implementation order, to keep matching enum in db stable
@@ -58,7 +59,8 @@ APIS = (
     ZTFAPI,
     ZTFMMAAPI,
     GEMINIAPI,
-    MMTAPI,
+    BINOSPECAPI,
+    MMIRSAPI,
 )
 
 # Listeners, listed in implementation order, to keep matching enum in db stable
