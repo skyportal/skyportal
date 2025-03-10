@@ -4,7 +4,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import FacilityTransaction, FollowupRequest
 from ...utils import http
 from .. import FollowUpAPI
 from .utils import (
@@ -14,6 +13,7 @@ from .utils import (
     check_base_mmt_payload,
     check_obj_for_mmt,
     get_base_mmt_json_payload,
+    sanitize_obj_id,
 )
 
 env, cfg = load_env()
@@ -69,6 +69,8 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
+        from ...models import FacilityTransaction
+
         if cfg["app.mmt.endpoint"] is None:
             raise ValueError("MMT endpoint not configured")
 
@@ -107,6 +109,11 @@ class MMIRSAPI(FollowUpAPI):
             timeout=5.0,
         )
 
+        if response.status_code != 200:
+            request.status = f"rejected: status code {response.status_code}"
+        else:
+            request.status = "submitted"
+
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
             response=http.serialize_requests_response(response),
@@ -134,13 +141,61 @@ class MMIRSAPI(FollowUpAPI):
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def get(request, session, **kwargs):
-        return
-
-    @staticmethod
-    @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
-        return
+        from ...models import FacilityTransaction, FollowupRequest
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        # this happens for failed submissions, just go ahead and delete
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            if cfg["app.mmt_endpoint"] is None:
+                raise ValueError("MMT endpoint not configured")
+
+            altdata = request.allocation.altdata
+            if not altdata or "token" not in altdata:
+                raise ValueError("Missing allocation information.")
+
+            response = requests.delete(
+                f"{cfg['app.mmt_endpoint']}/catalogTarget/{sanitize_obj_id(request.obj.id)}",
+                timeout=5.0,
+            )
+
+            if response.status_code != 200:
+                request.status = f"rejected: deletion failed - {response.status_code}"
+            else:
+                request.status = "deleted"
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(response.request),
+                response=http.serialize_requests_response(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            session.add(transaction)
+            session.commit()
+
+            try:
+                flow = Flow()
+                if kwargs.get("refresh_source", False):
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj_internal_key},
+                    )
+                if kwargs.get("refresh_requests", False):
+                    flow.push(
+                        last_modified_by_id,
+                        "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                    )
+            except Exception as e:
+                log(f"Failed to send notification: {str(e)}")
 
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
