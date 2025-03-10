@@ -122,7 +122,10 @@ class BINOSPECAPI(FollowUpAPI):
         )
 
         if response.status_code != 200:
-            request.status = f"rejected: status code {response.status_code}"
+            if response.status_code == 500 and "Invalid token" in response.text:
+                request.status = f"rejected: invalid token"
+            else:
+                request.status = f"rejected: status code {response.status_code}"
         else:
             request.status = "submitted"
 
@@ -226,14 +229,7 @@ class BINOSPECAPI(FollowUpAPI):
                 "filter": {
                     "type": "string",
                     "title": "Filter",
-                    **(
-                        {"enum": instrument.to_dict().get("filters", [])}
-                        if instrument.to_dict().get("filters")
-                        else {
-                            "readOnly": True,
-                            "description": "Filters need to be added to this instrument",
-                        }
-                    ),
+                    "enum": ["g", "r", "i", "z"],
                 },
             },
             "required": [
