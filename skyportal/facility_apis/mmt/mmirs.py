@@ -76,7 +76,8 @@ class MMIRSAPI(FollowUpAPI):
                     "title": "Exposure Time (s)",
                     "default": 400,
                 },
-            }
+            },
+            "required": ["filter"],
         }
 
         spectroscopy_schema = {
