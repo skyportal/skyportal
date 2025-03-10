@@ -31,6 +31,8 @@ base_mmt_properties = {
         "type": "number",
         "title": "Parallactic Angle",
         "default": 0.0,
+        "minimum": -360.0,
+        "maximum": 360.0,
     },
     "pm_ra": {
         "type": "number",
@@ -55,6 +57,7 @@ base_mmt_properties = {
     "priority": {
         "type": "integer",
         "title": "Priority",
+        "enum": [1, 2, 3],
         "default": 3,
     },
     "photometric": {
