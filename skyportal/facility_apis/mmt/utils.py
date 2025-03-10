@@ -41,13 +41,17 @@ def check_base_mmt_payload(payload):
         raise ValueError("A valid target of opportunity value must be provided")
 
 
+def sanitize_obj_id(obj_id):
+    if len(obj_id) > 50:
+        obj_id = obj_id[:50]
+    return "".join(c if c.isalnum() else "X" for c in obj_id)
+
+
 def check_obj_for_mmt(obj):
     if not obj.id or len(obj.id) < 2:
         raise ValueError("Object ID must be more than 2 characters")
-    elif len(obj.id) > 50:
-        obj.id = obj.id[:50]
     else:
-        obj.id = "".join(c if c.isalnum() else "X" for c in obj.id)
+        obj.id = sanitize_obj_id(obj.id)
     if not obj.ra:
         raise ValueError("Missing required field 'ra'")
     if not obj.dec:
