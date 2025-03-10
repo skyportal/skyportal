@@ -55,11 +55,11 @@ def check_obj_for_mmt(obj):
     else:
         obj.id = sanitize_obj_id(obj.id)
     if not obj.ra:
-        raise ValueError("Missing required field 'ra'")
+        raise ValueError("Missing the 'ra' value on the object")
     if not obj.dec:
-        raise ValueError("Missing required field 'dec'")
-    if not obj.mag_nearest_source:
-        raise ValueError("Missing required field 'magnitude'")
+        raise ValueError("Missing the 'dec' value on the object")
+    if not obj.photstats or not obj.photstats.last_detected_mag:
+        raise ValueError("Missing the 'magnitude' value on the object")
 
 
 def get_base_mmt_json_payload(obj, altdata, payload):
@@ -69,7 +69,7 @@ def get_base_mmt_json_payload(obj, altdata, payload):
         "objectid": obj.id,
         "ra": obj.ra,
         "dec": obj.dec,
-        "magnitude": obj.mag_nearest_source,
+        "magnitude": obj.photstats.last_detected_mag,
         "epoch": 2000.0,
         "observationtype": "Imaging",
         "pa": payload.get("pa"),
