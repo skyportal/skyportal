@@ -7,13 +7,7 @@ env, cfg = load_env()
 
 
 def check_payload(payload):
-    keys = payload.keys()
-
-    if "observation_type" not in keys or payload["observation_type"] not in [
-        "Imaging",
-        "Spectroscopy",
-    ]:
-        raise ValueError("A valid observation type must be provided")
+    check_base_mmt_payload(payload)
 
     if payload["observation_type"] == "Spectroscopy":
         valid_ranges = {
@@ -27,21 +21,21 @@ def check_payload(payload):
                 range(8897, 9280),
             ],
         }
-        if "grating" not in keys or payload["grating"] not in valid_ranges:
+        if payload.get("grating") not in valid_ranges:
             raise ValueError("A valid grating must be provided")
         if payload["grating"] != 1000:
             if (
-                "central_wavelength" not in keys
-                or payload["central_wavelength"] not in valid_ranges[payload["grating"]]
+                payload.get("central_wavelength")
+                not in valid_ranges[payload["grating"]]
             ):
                 raise ValueError("A valid central wavelength must be provided")
         else:
-            if "central_wavelength" not in keys or not any(
-                payload["central_wavelength"] in r
+            if not any(
+                payload.get("central_wavelength") in r
                 for r in valid_ranges[payload["grating"]]
             ):
                 raise ValueError("A valid central wavelength must be provided")
-        if "slit_width" not in keys or payload["slit_width"] not in [
+        if payload.get("slitwidth") not in [
             "Longslit0_75",
             "Longslit1",
             "Longslit1_25",
@@ -49,15 +43,30 @@ def check_payload(payload):
             "Longslit5",
         ]:
             raise ValueError("A valid slit width must be provided")
-        if "filter" not in keys or payload["filter"] not in ["LP3800", "LP3500"]:
+        if payload.get("filter") not in ["LP3800", "LP3500"]:
             raise ValueError("A valid filter must be provided")
     else:
-        if "maskid" not in keys or payload["maskid"] not in [110]:
+        if payload.get("maskid") is None:
             raise ValueError("A valid mask id must be provided")
-        if "exposure_time" not in keys or payload["exposure_time"] not in [400]:
+        if payload.get("exposure_time") is None:
             raise ValueError("A valid exposure time must be provided")
-        if "filter" not in keys or payload["filter"] not in ["g", "r", "i", "z"]:
+        if payload.get("filter") not in ["g", "r", "i", "z"]:
             raise ValueError("A valid filter must be provided")
+
+
+def check_obj(obj):
+    if not obj.id or len(obj.id) < 2:
+        raise ValueError("Object ID must be more than 2 characters")
+    elif len(obj.id) > 50:
+        obj.id = obj.id[:50]
+    else:
+        obj.id = "".join(c for c in obj.id if c.isalnum())
+    if not obj.ra:
+        raise ValueError("Missing required field 'ra'")
+    if not obj.dec:
+        raise ValueError("Missing required field 'dec'")
+    if not obj.mag_nearest_source:
+        raise ValueError("Missing required field 'magnitude'")
 
 
 class BINOSPECAPI(FollowUpAPI):
@@ -66,17 +75,142 @@ class BINOSPECAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
-        return
+        if cfg["app.mmt.endpoint"] is None:
+            raise ValueError("MMT endpoint not configured")
 
-    @staticmethod
-    @catch_timeout_and_no_endpoint
-    def get(request, session, **kwargs):
-        return
+        altdata = request.allocation.altdata
+        if not altdata or "token" not in altdata:
+            raise ValueError("Missing allocation information.")
+
+        obj = request.obj
+        payload = request.payload
+        check_obj(obj)
+        check_payload(request.payload)
+
+        json_payload = {
+            "token": altdata["token"],
+            "id": obj.id,
+            #     "ra", "objectid", "observationtype", "moon", "seeing", "photometric", "priority", "dec",
+            # "ra_decimal", "dec_decimal", "pm_ra", "pm_dec", "magnitude", "exposuretime", "numberexposures",
+            # "visits", "onevisitpernight", "filter", "grism", "grating", "centralwavelength", "readtab",
+            # "gain", "dithersize", "epoch", "submitted", "modified", "notes", "pa", "maskid", "slitwidth",
+            # "slitwidthproperty", "iscomplete", "disabled", "notify", "locked", "findingchartfilename",
+            # "instrumentid", "targetofopportunity", "reduced", "exposuretimeremaining", "totallength",
+            # "totallengthformatted", "exposuretimeremainingformatted", "exposuretimecompleted",
+            # "percentcompleted", "offsetstars", "details", "mask")
+            "objectid": obj.id,
+            "ra": obj.ra,
+            "dec": obj.dec,
+            "magnitude": obj.mag_nearest_source,
+            "epoch": 2000.0,
+            "observationtype": payload["observation_type"],
+            "exposuretime": payload["exposure_time"],
+            "numberexposures": payload["numberexposures"],
+            "visits": payload["visits"],
+            "onevisitpernight": payload["nb_visits_per_night"],
+            "filter": payload["filter"],
+            "instrumentid": 1,
+            "maskid": payload.get("maskid", 110),
+            "pa": payload.get("pa", 0),
+            "pm_ra": payload.get("pm_ra", 0),
+            "pm_dec": payload.get("pm_dec", 0),
+            "priority": payload.get("priority", 3),
+            "slitwidth": payload.get("slitwidth", 1),
+            "slitwidthproperty": payload.get("slitwidthproperty", "long"),
+            "grating": payload.get("grating", 270),
+            "centralwavelength": payload.get("central_wavelength", 5501),
+            "readtab": payload.get("readtab", "ramp_4.426"),
+        }
+
+        response = requests.post(
+            f"{cfg['app.mmt.endpoint']}/catalogTarget/{obj.id}",
+            json=json_payload,
+            data=None,
+            files=None,
+            timeout=5.0,
+        )
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
+        session.commit()
+
+        try:
+            flow = Flow()
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
-        return
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        # this happens for failed submissions, just go ahead and delete
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            if cfg["app.mmt_endpoint"] is None:
+                raise ValueError("MMT endpoint not configured")
+
+            altdata = request.allocation.altdata
+            if not altdata:
+                raise ValueError("Missing allocation information.")
+
+            response = requests.post(
+                f"{cfg['app.mmt_endpoint']}",
+                auth=(altdata["browser_username"], altdata["browser_password"]),
+                timeout=5.0,
+            )
+
+            if response.status_code != 200:
+                request.status = f"rejected: deletion failed - {response.status_code}"
+            else:
+                request.status = "deleted"
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(response.request),
+                response=http.serialize_requests_response(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            session.add(transaction)
+            session.commit()
+
+        try:
+            flow = Flow()
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
@@ -260,7 +394,8 @@ class BINOSPECAPI(FollowUpAPI):
             "required": [
                 "observation_type",
                 "filter",
-            ],
+            ]
+            + base_mmt_required,
             "dependencies": {
                 "observation_type": {
                     "oneOf": [imager_schema, spectroscopy_schema],
@@ -270,17 +405,4 @@ class BINOSPECAPI(FollowUpAPI):
 
     ui_json_schema = {}
 
-    form_json_schema_altdata = {
-        "type": "object",
-        "properties": {
-            "username": {
-                "type": "string",
-                "title": "Username",
-            },
-            "password": {
-                "type": "string",
-                "title": "Password",
-            },
-        },
-        "required": [],
-    }
+    form_json_schema_altdata = base_mmt_aldata

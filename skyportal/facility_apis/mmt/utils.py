@@ -17,6 +17,30 @@ def catch_timeout_and_no_endpoint(func):
     return wrapper
 
 
+def check_base_mmt_payload(payload):
+    if payload.get("observation_type") not in [
+        "Imaging",
+        "Spectroscopy",
+    ]:
+        raise ValueError("A valid observation type must be provided")
+    if payload.get("pa") is None or payload["pa"] < -360.0 or payload["pa"] > 360.0:
+        raise ValueError("A valid parallactic angle must be provided")
+    if payload.get("pm_ra") is None:
+        raise ValueError("A valid Proper Motion RA must be provided")
+    if payload.get("pm_dec") is None:
+        raise ValueError("A valid Proper Motion DEC must be provided")
+    if payload.get("exposure_counts") is None or payload["exposure_counts"] < 1:
+        raise ValueError("A valid number of exposures must be provided")
+    if payload.get("visits") is None:
+        raise ValueError("A valid number of visits must be provided")
+    if payload.get("priority") not in [1, 2, 3]:
+        raise ValueError("A valid priority must be provided")
+    if not isinstance(payload.get("photometric"), bool):
+        raise ValueError("A valid photometric value must be provided")
+    if not isinstance(payload.get("target_of_opportunity"), bool):
+        raise ValueError("A valid target of opportunity value must be provided")
+
+
 base_mmt_properties = {
     "observation_type": {
         "type": "string",
@@ -71,6 +95,18 @@ base_mmt_properties = {
         "default": False,
     },
 }
+
+base_mmt_required = [
+    "observation_type",
+    "pa",
+    "pm_ra",
+    "pm_dec",
+    "exposure_counts",
+    "visits",
+    "priority",
+    "photometric",
+    "target_of_opportunity",
+]
 
 base_mmt_aldata = {
     "type": "object",
