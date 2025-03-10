@@ -3,7 +3,9 @@ import functools
 import requests
 
 from baselayer.app.env import load_env
-from skyportal.facility_apis import FollowUpAPI
+
+from .. import FollowUpAPI
+from .utils import base_mmt_properties
 
 env, cfg = load_env()
 
@@ -114,40 +116,7 @@ class MMIRSAPI(FollowUpAPI):
         return {
             "type": "object",
             "properties": {
-                "observation_type": {
-                    "type": "string",
-                    "title": "Observation Type",
-                    "enum": [
-                        "Imaging",
-                        "Spectroscopy",
-                    ],
-                    "default": "Imaging",
-                },
-                "exposure_counts": {
-                    "type": "integer",
-                    "title": "Number of Exposures",
-                    "default": 1,
-                },
-                "visits": {
-                    "type": "integer",
-                    "title": "Number of Visits",
-                    "default": 1,
-                },
-                "priority": {
-                    "type": "integer",
-                    "title": "Priority",
-                    "default": 3,
-                },
-                "photometric": {
-                    "type": "boolean",
-                    "title": "Photometric",
-                    "default": False,
-                },
-                "target_of_opportunity": {
-                    "type": "boolean",
-                    "title": "Target of Opportunity",
-                    "default": False,
-                },
+                **base_mmt_properties,
             },
             "required": ["observation_type"],
             "dependencies": {
