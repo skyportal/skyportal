@@ -9,6 +9,7 @@ from .. import FollowUpAPI
 from .utils import (
     base_mmt_aldata,
     base_mmt_properties,
+    base_mmt_required,
     catch_timeout_and_no_endpoint,
     check_base_mmt_payload,
     check_obj_for_mmt,
@@ -301,7 +302,7 @@ class MMIRSAPI(FollowUpAPI):
             "properties": {
                 **base_mmt_properties,
             },
-            "required": ["observation_type"],
+            "required": base_mmt_required,
             "dependencies": {
                 "observation_type": {
                     "oneOf": [imager_schema, spectroscopy_schema],

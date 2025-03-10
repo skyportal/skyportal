@@ -262,6 +262,7 @@ class BINOSPECAPI(FollowUpAPI):
                         "Longslit1_5",
                         "Longslit5",
                     ],
+                    "default": "Longslit0_75",
                 },
                 "nb_visits_per_night": {
                     "type": "integer",
@@ -388,7 +389,6 @@ class BINOSPECAPI(FollowUpAPI):
                 **base_mmt_properties,
             },
             "required": [
-                "observation_type",
                 "filter",
             ]
             + base_mmt_required,
