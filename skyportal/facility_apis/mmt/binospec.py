@@ -96,21 +96,22 @@ class BINOSPECAPI(FollowUpAPI):
         payload = request.payload
         check_request(request)
 
-        json_payload = get_base_mmt_json_payload(obj, altdata, payload)
-
         if payload["observation_type"] == "Spectroscopy":
-            json_payload = {
+            specific_payload = {
                 "grating": payload.get("grating"),
                 "centralwavelength": payload.get("central_wavelength"),
                 "slitwidth": payload.get("slit_width"),
-                **json_payload,
             }
         else:
-            json_payload = {
+            specific_payload = {
                 "maskid": payload.get("maskid"),
                 "exposuretime": payload.get("exposure_time"),
-                **json_payload,
             }
+        json_payload = {
+            **get_base_mmt_json_payload(obj, altdata, payload),
+            **specific_payload,
+            "instrumentid": 16,  # ID for BINOSPEC instrument
+        }
 
         response = requests.post(
             f"{cfg['app.mmt_endpoint']}/catalogTarget/{obj.id}",

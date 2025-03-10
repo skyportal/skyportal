@@ -83,24 +83,23 @@ class MMIRSAPI(FollowUpAPI):
         payload = request.payload
         check_request(request)
 
-        json_payload = get_base_mmt_json_payload(obj, altdata, payload)
-
         if payload["observation_type"] == "Spectroscopy":
-            json_payload = {
+            specific_payload = {
                 "grism": payload.get("grism"),
                 "readtab": payload.get("readtab"),
                 "slitwidth": payload.get("slitwidth"),
                 "slitwidthproperty": payload.get("slitwidthproperty"),
-                "filter": payload.get("filter"),
-                **json_payload,
             }
         else:
-            json_payload = {
+            specific_payload = {
                 "maskid": payload.get("maskid"),
                 "exposuretime": payload.get("exposure_time"),
-                "filter": payload.get("filter"),
-                **json_payload,
             }
+        json_payload = {
+            **get_base_mmt_json_payload(obj, altdata, payload),
+            **specific_payload,
+            "instrumentid": 15,  # ID for MMIRS instrument
+        }
 
         response = requests.post(
             f"{cfg['app.mmt_endpoint']}/catalogTarget/{obj.id}",
