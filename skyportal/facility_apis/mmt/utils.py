@@ -1,3 +1,22 @@
+import functools
+
+import requests
+
+
+def catch_timeout_and_no_endpoint(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.Timeout:
+            raise ValueError("Unable to reach the MMIRS server")
+        except KeyError as e:
+            if "endpoint" in str(e):
+                raise ValueError("MMIRS endpoint is missing from configuration")
+
+    return wrapper
+
+
 base_mmt_properties = {
     "observation_type": {
         "type": "string",

@@ -1,27 +1,9 @@
-import functools
-
-import requests
-
 from baselayer.app.env import load_env
 
 from .. import FollowUpAPI
-from .utils import base_mmt_properties
+from .utils import base_mmt_properties, catch_timeout_and_no_endpoint
 
 env, cfg = load_env()
-
-
-def catch_timeout_and_no_endpoint(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except requests.exceptions.Timeout:
-            raise ValueError("Unable to reach the BINOSPEC server")
-        except KeyError as e:
-            if "endpoint" in str(e):
-                raise ValueError("BINOSPEC endpoint is missing from configuration")
-
-    return wrapper
 
 
 class BINOSPECAPI(FollowUpAPI):
