@@ -86,7 +86,6 @@ class BINOSPECAPI(FollowUpAPI):
                 "exposure_time": {
                     "type": "number",
                     "title": "Exposure Time (s)",
-                    "default": 400,
                 },
                 "nb_visits_per_night": {
                     "type": "integer",
@@ -107,7 +106,12 @@ class BINOSPECAPI(FollowUpAPI):
                     ),
                 },
             },
-            "required": ["observation_type", "nb_visits_per_night", "filter"],
+            "required": [
+                "observation_type",
+                "exposure_time",
+                "nb_visits_per_night",
+                "filter",
+            ],
         }
 
         spectroscopy_schema = {

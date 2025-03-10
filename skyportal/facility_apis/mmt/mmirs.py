@@ -106,7 +106,6 @@ class MMIRSAPI(FollowUpAPI):
                 "exposure_time": {
                     "type": "number",
                     "title": "Exposure Time (s)",
-                    "default": 400,
                 },
                 "nb_visits_per_night": {
                     "type": "integer",
@@ -120,7 +119,13 @@ class MMIRSAPI(FollowUpAPI):
                     "enum": ["J", "H", "K", "Ks"],
                 },
             },
-            "required": ["readtab", "maskid", "exposure_time", "filter"],
+            "required": [
+                "readtab",
+                "maskid",
+                "exposure_time",
+                "exposure_time",
+                "filter",
+            ],
         }
 
         spectroscopy_schema = {
