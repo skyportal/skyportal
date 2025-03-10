@@ -1,9 +1,23 @@
-from baselayer.app.env import load_env
+import requests
 
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
+from ...models import FacilityTransaction, FollowupRequest
+from ...utils import http
 from .. import FollowUpAPI
-from .utils import base_mmt_properties, catch_timeout_and_no_endpoint
+from .utils import (
+    base_mmt_aldata,
+    base_mmt_properties,
+    base_mmt_required,
+    catch_timeout_and_no_endpoint,
+    check_base_mmt_payload,
+)
 
 env, cfg = load_env()
+
+log = make_log("facility_apis/mmt/binospec")
 
 
 def check_payload(payload):

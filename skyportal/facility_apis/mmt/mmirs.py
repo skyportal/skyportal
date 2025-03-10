@@ -54,6 +54,7 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
+        check_payload(request.payload)
         return
 
     @staticmethod
