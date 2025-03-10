@@ -72,7 +72,7 @@ class MMIRSAPI(FollowUpAPI):
     def submit(request, session, **kwargs):
         from ...models import FacilityTransaction
 
-        if cfg["app.mmt.endpoint"] is None:
+        if cfg["app.mmt_endpoint"] is None:
             raise ValueError("MMT endpoint not configured")
 
         altdata = request.allocation.altdata
@@ -83,7 +83,7 @@ class MMIRSAPI(FollowUpAPI):
         payload = request.payload
         check_request(request)
 
-        json_payload = (get_base_mmt_json_payload(obj, altdata, payload),)
+        json_payload = get_base_mmt_json_payload(obj, altdata, payload)
 
         if payload["observation_type"] == "Spectroscopy":
             json_payload = {
@@ -103,7 +103,7 @@ class MMIRSAPI(FollowUpAPI):
             }
 
         response = requests.post(
-            f"{cfg['app.mmt.endpoint']}/catalogTarget/{obj.id}",
+            f"{cfg['app.mmt_endpoint']}/catalogTarget/{obj.id}",
             json=json_payload,
             data=None,
             files=None,

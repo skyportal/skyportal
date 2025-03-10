@@ -9,10 +9,12 @@ def catch_timeout_and_no_endpoint(func):
         try:
             return func(*args, **kwargs)
         except requests.exceptions.Timeout:
-            raise ValueError("Unable to reach the MMIRS server")
+            raise ValueError("Unable to reach the MMT server")
         except KeyError as e:
             if "endpoint" in str(e):
-                raise ValueError("MMIRS endpoint is missing from configuration")
+                raise ValueError("MMT endpoint is missing from configuration")
+            else:
+                raise e
 
     return wrapper
 
