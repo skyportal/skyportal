@@ -58,7 +58,7 @@ def check_obj_for_mmt(obj):
         raise ValueError("Missing the 'ra' value on the object")
     if not obj.dec:
         raise ValueError("Missing the 'dec' value on the object")
-    if not obj.photstats or not obj.photstats.last_detected_mag:
+    if not obj.photstats or not obj.photstats[0].last_detected_mag:
         raise ValueError("Missing the 'magnitude' value on the object")
 
 
