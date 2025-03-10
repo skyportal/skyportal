@@ -13,6 +13,8 @@ from .utils import (
     base_mmt_required,
     catch_timeout_and_no_endpoint,
     check_base_mmt_payload,
+    check_obj_for_mmt,
+    get_base_mmt_json_payload,
 )
 
 env, cfg = load_env()
@@ -20,8 +22,11 @@ env, cfg = load_env()
 log = make_log("facility_apis/mmt/binospec")
 
 
-def check_payload(payload):
+def check_request(request):
+    payload = request.payload
+
     check_base_mmt_payload(payload)
+    check_obj_for_mmt(request.obj)
 
     if payload["observation_type"] == "Spectroscopy":
         valid_ranges = {
@@ -57,6 +62,8 @@ def check_payload(payload):
             "Longslit5",
         ]:
             raise ValueError("A valid slit width must be provided")
+        if payload.get("nb_visits_per_night") not in (0, 1):
+            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filter") not in ["LP3800", "LP3500"]:
             raise ValueError("A valid filter must be provided")
     else:
@@ -64,23 +71,10 @@ def check_payload(payload):
             raise ValueError("A valid mask id must be provided")
         if payload.get("exposure_time") is None:
             raise ValueError("A valid exposure time must be provided")
+        if payload.get("nb_visits_per_night") not in (0, 1):
+            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filter") not in ["g", "r", "i", "z"]:
             raise ValueError("A valid filter must be provided")
-
-
-def check_obj(obj):
-    if not obj.id or len(obj.id) < 2:
-        raise ValueError("Object ID must be more than 2 characters")
-    elif len(obj.id) > 50:
-        obj.id = obj.id[:50]
-    else:
-        obj.id = "".join(c for c in obj.id if c.isalnum())
-    if not obj.ra:
-        raise ValueError("Missing required field 'ra'")
-    if not obj.dec:
-        raise ValueError("Missing required field 'dec'")
-    if not obj.mag_nearest_source:
-        raise ValueError("Missing required field 'magnitude'")
 
 
 class BINOSPECAPI(FollowUpAPI):
@@ -98,43 +92,23 @@ class BINOSPECAPI(FollowUpAPI):
 
         obj = request.obj
         payload = request.payload
-        check_obj(obj)
-        check_payload(request.payload)
+        check_request(request)
 
-        json_payload = {
-            "token": altdata["token"],
-            "id": obj.id,
-            #     "ra", "objectid", "observationtype", "moon", "seeing", "photometric", "priority", "dec",
-            # "ra_decimal", "dec_decimal", "pm_ra", "pm_dec", "magnitude", "exposuretime", "numberexposures",
-            # "visits", "onevisitpernight", "filter", "grism", "grating", "centralwavelength", "readtab",
-            # "gain", "dithersize", "epoch", "submitted", "modified", "notes", "pa", "maskid", "slitwidth",
-            # "slitwidthproperty", "iscomplete", "disabled", "notify", "locked", "findingchartfilename",
-            # "instrumentid", "targetofopportunity", "reduced", "exposuretimeremaining", "totallength",
-            # "totallengthformatted", "exposuretimeremainingformatted", "exposuretimecompleted",
-            # "percentcompleted", "offsetstars", "details", "mask")
-            "objectid": obj.id,
-            "ra": obj.ra,
-            "dec": obj.dec,
-            "magnitude": obj.mag_nearest_source,
-            "epoch": 2000.0,
-            "observationtype": payload["observation_type"],
-            "exposuretime": payload["exposure_time"],
-            "numberexposures": payload["numberexposures"],
-            "visits": payload["visits"],
-            "onevisitpernight": payload["nb_visits_per_night"],
-            "filter": payload["filter"],
-            "instrumentid": 1,
-            "maskid": payload.get("maskid", 110),
-            "pa": payload.get("pa", 0),
-            "pm_ra": payload.get("pm_ra", 0),
-            "pm_dec": payload.get("pm_dec", 0),
-            "priority": payload.get("priority", 3),
-            "slitwidth": payload.get("slitwidth", 1),
-            "slitwidthproperty": payload.get("slitwidthproperty", "long"),
-            "grating": payload.get("grating", 270),
-            "centralwavelength": payload.get("central_wavelength", 5501),
-            "readtab": payload.get("readtab", "ramp_4.426"),
-        }
+        json_payload = (get_base_mmt_json_payload(obj, altdata, payload),)
+
+        if payload["observation_type"] == "Spectroscopy":
+            json_payload = {
+                "grating": payload.get("grating"),
+                "centralwavelength": payload.get("central_wavelength"),
+                "slitwidth": payload.get("slit_width"),
+                **json_payload,
+            }
+        else:
+            json_payload = {
+                "maskid": payload.get("maskid"),
+                "exposuretime": payload.get("exposure_time"),
+                **json_payload,
+            }
 
         response = requests.post(
             f"{cfg['app.mmt.endpoint']}/catalogTarget/{obj.id}",

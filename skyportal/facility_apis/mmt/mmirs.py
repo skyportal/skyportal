@@ -1,18 +1,31 @@
-from baselayer.app.env import load_env
+import requests
 
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
+from ...models import FacilityTransaction, FollowupRequest
+from ...utils import http
 from .. import FollowUpAPI
 from .utils import (
     base_mmt_aldata,
     base_mmt_properties,
     catch_timeout_and_no_endpoint,
     check_base_mmt_payload,
+    check_obj_for_mmt,
+    get_base_mmt_json_payload,
 )
 
 env, cfg = load_env()
 
+log = make_log("facility_apis/mmt/mmirs")
 
-def check_payload(payload):
+
+def check_request(request):
+    payload = request.payload
+
     check_base_mmt_payload(payload)
+    check_obj_for_mmt(request.obj)
 
     if payload["observation_type"] == "Specroscopy":
         if payload.get("grism") not in ["J", "HK", "HK3"]:
@@ -31,6 +44,8 @@ def check_payload(payload):
             raise ValueError("A valid slit width must be provided")
         if payload.get("slitwidthproperty") not in ["long", "short"]:
             raise ValueError("A valid slit width property must be provided")
+        if payload.get("nb_visits_per_night") not in (0, 1):
+            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filter") not in ["HK", "zJ"]:
             raise ValueError("A valid filter must be provided")
     else:
@@ -54,8 +69,68 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
-        check_payload(request.payload)
-        return
+        if cfg["app.mmt.endpoint"] is None:
+            raise ValueError("MMT endpoint not configured")
+
+        altdata = request.allocation.altdata
+        if not altdata or "token" not in altdata:
+            raise ValueError("Missing allocation information.")
+
+        obj = request.obj
+        payload = request.payload
+        check_request(request)
+
+        json_payload = (get_base_mmt_json_payload(obj, altdata, payload),)
+
+        if payload["observation_type"] == "Spectroscopy":
+            json_payload = {
+                "grism": payload.get("grism"),
+                "readtab": payload.get("readtab"),
+                "slitwidth": payload.get("slitwidth"),
+                "slitwidthproperty": payload.get("slitwidthproperty"),
+                "filter": payload.get("filter"),
+                **json_payload,
+            }
+        else:
+            json_payload = {
+                "maskid": payload.get("maskid"),
+                "exposuretime": payload.get("exposure_time"),
+                "filter": payload.get("filter"),
+                **json_payload,
+            }
+
+        response = requests.post(
+            f"{cfg['app.mmt.endpoint']}/catalogTarget/{obj.id}",
+            json=json_payload,
+            data=None,
+            files=None,
+            timeout=5.0,
+        )
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
+        session.commit()
+
+        try:
+            flow = Flow()
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": request.obj.internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     @catch_timeout_and_no_endpoint
@@ -107,6 +182,7 @@ class MMIRSAPI(FollowUpAPI):
                 "maskid",
                 "exposure_time",
                 "exposure_time",
+                "nb_visits_per_night",
                 "filter",
             ],
         }

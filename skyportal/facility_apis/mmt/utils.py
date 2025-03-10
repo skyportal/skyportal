@@ -41,6 +41,44 @@ def check_base_mmt_payload(payload):
         raise ValueError("A valid target of opportunity value must be provided")
 
 
+def check_obj_for_mmt(obj):
+    if not obj.id or len(obj.id) < 2:
+        raise ValueError("Object ID must be more than 2 characters")
+    elif len(obj.id) > 50:
+        obj.id = obj.id[:50]
+    else:
+        obj.id = "".join(c if c.isalnum() else "X" for c in obj.id)
+    if not obj.ra:
+        raise ValueError("Missing required field 'ra'")
+    if not obj.dec:
+        raise ValueError("Missing required field 'dec'")
+    if not obj.mag_nearest_source:
+        raise ValueError("Missing required field 'magnitude'")
+
+
+def get_base_mmt_json_payload(obj, altdata, payload):
+    return {
+        "token": altdata["token"],
+        "id": obj.id,
+        "objectid": obj.id,
+        "ra": obj.ra,
+        "dec": obj.dec,
+        "magnitude": obj.mag_nearest_source,
+        "epoch": 2000.0,
+        "observationtype": "Imaging",
+        "pa": payload.get("pa"),
+        "pm_ra": payload.get("pm_ra"),
+        "pm_dec": payload.get("pm_dec"),
+        "numberexposures": payload.get("exposure_counts"),
+        "visits": payload.get("visits"),
+        "priority": payload.get("priority"),
+        "photometric": payload.get("photometric"),
+        "targetofopportunity": payload.get("target_of_opportunity"),
+        "filter": payload.get("filter"),
+        "onevisitpernight": payload.get("nb_visits_per_night"),
+    }
+
+
 base_mmt_properties = {
     "observation_type": {
         "type": "string",
