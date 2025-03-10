@@ -211,7 +211,6 @@ class BINOSPECAPI(FollowUpAPI):
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
             "properties": {
-                "observation_type": {"enum": ["Imaging"]},
                 "maskid": {"type": "integer", "title": "Mask ID", "default": 110},
                 "exposure_time": {
                     "type": "number",
@@ -246,12 +245,6 @@ class BINOSPECAPI(FollowUpAPI):
 
         spectroscopy_schema = {
             "properties": {
-                "observation_type": {"enum": ["Spectroscopy"]},
-                "grating": {
-                    "type": "integer",
-                    "title": "Grating",
-                    "enum": [270, 600, 1000],
-                },
                 "slit_width": {
                     "type": "string",
                     "title": "Slit Width",
@@ -275,6 +268,11 @@ class BINOSPECAPI(FollowUpAPI):
                     "title": "Filter",
                     "enum": ["LP3800", "LP3500"],
                     "default": "LP3800",
+                },
+                "grating": {
+                    "type": "integer",
+                    "title": "Grating",
+                    "enum": [270, 600, 1000],
                 },
             },
             "required": [
@@ -392,11 +390,11 @@ class BINOSPECAPI(FollowUpAPI):
                 "filter",
             ]
             + base_mmt_required,
-            "dependencies": {
-                "observation_type": {
-                    "oneOf": [imager_schema, spectroscopy_schema],
-                },
+            "if": {
+                "properties": {"observation_type": {"const": "Imaging"}},
             },
+            "then": imager_schema,
+            "else": spectroscopy_schema,
         }
 
     ui_json_schema = {}

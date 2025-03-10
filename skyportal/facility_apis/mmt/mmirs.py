@@ -201,7 +201,6 @@ class MMIRSAPI(FollowUpAPI):
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
             "properties": {
-                "observation_type": {"enum": ["Imaging"]},
                 "dithersize": {
                     "type": "integer",
                     "title": "Dither Size",
@@ -245,7 +244,6 @@ class MMIRSAPI(FollowUpAPI):
 
         spectroscopy_schema = {
             "properties": {
-                "observation_type": {"enum": ["Spectroscopy"]},
                 "grism": {
                     "type": "string",
                     "title": "Grism",
@@ -303,11 +301,11 @@ class MMIRSAPI(FollowUpAPI):
                 **base_mmt_properties,
             },
             "required": base_mmt_required,
-            "dependencies": {
-                "observation_type": {
-                    "oneOf": [imager_schema, spectroscopy_schema],
-                },
+            "if": {
+                "properties": {"observation_type": {"const": "Imaging"}},
             },
+            "then": imager_schema,
+            "else": spectroscopy_schema,
         }
 
     ui_json_schema = {}
