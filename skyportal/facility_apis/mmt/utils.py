@@ -71,3 +71,14 @@ base_mmt_properties = {
         "default": False,
     },
 }
+
+base_mmt_aldata = {
+    "type": "object",
+    "properties": {
+        "token": {
+            "type": "string",
+            "title": "Token",
+        },
+    },
+    "required": ["token"],
+}
