@@ -28,18 +28,6 @@ class MMIRSAPI(FollowUpAPI):
         imager_schema = {
             "properties": {
                 "observation_type": {"enum": ["Imaging"]},
-                "filter": {
-                    "type": "string",
-                    "title": "Filter",
-                    **(
-                        {"enum": instrument.to_dict().get("filters", [])}
-                        if instrument.to_dict().get("filters")
-                        else {
-                            "readOnly": True,
-                            "description": "Filters need to be added to this instrument",
-                        }
-                    ),
-                },
                 "dithersize": {
                     "type": "integer",
                     "title": "Dither Size",
@@ -48,7 +36,7 @@ class MMIRSAPI(FollowUpAPI):
                 "readtab": {
                     "type": "string",
                     "title": "Read Tab",
-                    "enum": ["ramp_4.426", "ramp_1.475"],
+                    "enum": ["ramp_4.426", "ramp_4.426"],
                 },
                 "maskid": {
                     "type": "integer",
@@ -60,8 +48,19 @@ class MMIRSAPI(FollowUpAPI):
                     "title": "Exposure Time (s)",
                     "default": 400,
                 },
+                "nb_visits_per_night": {
+                    "type": "integer",
+                    "title": "Number of Visits per Night",
+                    "enum": [0, 1],
+                    "default": 0,
+                },
+                "filter": {
+                    "type": "string",
+                    "title": "Filter",
+                    "enum": ["J", "H", "K", "Ks"],
+                },
             },
-            "required": ["filter"],
+            "required": ["readtab", "maskid", "exposure_time", "filter"],
         }
 
         spectroscopy_schema = {
@@ -75,7 +74,7 @@ class MMIRSAPI(FollowUpAPI):
                 "readtab": {
                     "type": "string",
                     "title": "Read Tab",
-                    "enum": ["ramp_1.475"],
+                    "enum": ["ramp_4.426"],
                 },
                 "slitwidth": {
                     "type": "string",
@@ -95,7 +94,27 @@ class MMIRSAPI(FollowUpAPI):
                     "title": "Slit Width Property",
                     "enum": ["long", "short"],
                 },
-            }
+                "nb_visits_per_night": {
+                    "type": "integer",
+                    "title": "Number of Visits per Night",
+                    "enum": [0, 1],
+                    "default": 1,
+                },
+                "filter": {
+                    "type": "string",
+                    "title": "Filter",
+                    "enum": ["HK", "zJ"],
+                    "default": "HK",
+                },
+            },
+            "required": [
+                "grism",
+                "readtab",
+                "slitwidth",
+                "slitwidthproperty",
+                "nb_visits_per_night",
+                "filter",
+            ],
         }
 
         return {
