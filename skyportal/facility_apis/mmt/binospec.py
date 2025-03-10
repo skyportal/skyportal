@@ -34,6 +34,12 @@ class BINOSPECAPI(FollowUpAPI):
                     "title": "Exposure Time (s)",
                     "default": 400,
                 },
+                "nb_visits_per_night": {
+                    "type": "integer",
+                    "title": "Number of Visits per Night",
+                    "enum": [0, 1],
+                    "default": 0,
+                },
                 "filter": {
                     "type": "string",
                     "title": "Filter",
@@ -46,7 +52,8 @@ class BINOSPECAPI(FollowUpAPI):
                         }
                     ),
                 },
-            }
+            },
+            "required": ["observation_type", "nb_visits_per_night", "filter"],
         }
 
         spectroscopy_schema = {
@@ -68,6 +75,12 @@ class BINOSPECAPI(FollowUpAPI):
                         "Longslit5",
                     ],
                 },
+                "nb_visits_per_night": {
+                    "type": "integer",
+                    "title": "Number of Visits per Night",
+                    "enum": [0, 1],
+                    "default": 1,
+                },
                 "filter": {
                     "type": "string",
                     "title": "Filter",
@@ -75,6 +88,14 @@ class BINOSPECAPI(FollowUpAPI):
                     "default": "LP3800",
                 },
             },
+            "required": [
+                "observation_type",
+                "slit_width",
+                "grating",
+                "central_wavelength",
+                "nb_visits_per_night",
+                "filter",
+            ],
             "dependencies": {
                 "grating": {
                     "oneOf": [
