@@ -69,7 +69,7 @@ def get_base_mmt_json_payload(obj, altdata, payload):
         "objectid": obj.id,
         "ra": obj.ra,
         "dec": obj.dec,
-        "magnitude": obj.photstats.last_detected_mag,
+        "magnitude": obj.photstats[0].last_detected_mag,
         "epoch": 2000.0,
         "observationtype": "Imaging",
         "pa": payload.get("pa"),
