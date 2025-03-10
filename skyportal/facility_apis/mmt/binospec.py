@@ -3,8 +3,7 @@ import functools
 import requests
 
 from baselayer.app.env import load_env
-
-from . import FollowUpAPI
+from skyportal.facility_apis import FollowUpAPI
 
 env, cfg = load_env()
 
