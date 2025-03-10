@@ -55,7 +55,14 @@ class BINOSPECAPI(FollowUpAPI):
                 "filter": {
                     "type": "string",
                     "title": "Filter",
-                    "enum": instrument.to_dict()["filters"],
+                    **(
+                        {"enum": instrument.to_dict().get("filters", [])}
+                        if instrument.to_dict().get("filters")
+                        else {
+                            "readOnly": True,
+                            "description": "Filters need to be added to this instrument",
+                        }
+                    ),
                 },
             }
         }

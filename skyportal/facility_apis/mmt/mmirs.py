@@ -46,15 +46,17 @@ class MMIRSAPI(FollowUpAPI):
         imager_schema = {
             "properties": {
                 "observation_type": {"enum": ["Imaging"]},
-                "observation_choices": {
-                    "type": "array",
-                    "title": "Desired Observations",
-                    "items": {
-                        "type": "string",
-                        "enum": instrument.to_dict()["filters"],
-                    },
-                    "uniqueItems": True,
-                    "minItems": 1,
+                "filter": {
+                    "type": "string",
+                    "title": "Filter",
+                    **(
+                        {"enum": instrument.to_dict().get("filters", [])}
+                        if instrument.to_dict().get("filters")
+                        else {
+                            "readOnly": True,
+                            "description": "Filters need to be added to this instrument",
+                        }
+                    ),
                 },
                 "dithersize": {
                     "type": "integer",
