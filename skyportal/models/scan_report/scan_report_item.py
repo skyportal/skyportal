@@ -8,7 +8,7 @@ from baselayer.app.models import Base
 
 
 class ScanReportItem(Base):
-    """Saved candidate listed in a scan report."""
+    """Saved candidate listed in a scanning report."""
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),

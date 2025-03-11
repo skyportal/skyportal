@@ -22,7 +22,7 @@ class ScanReport(Base):
         back_populates="scan_report",
         cascade="delete, delete-orphan",
         passive_deletes=True,
-        doc="List of candidates saved in this scan report",
+        doc="List of candidates saved in this scanning report",
     )
 
     groups = relationship(

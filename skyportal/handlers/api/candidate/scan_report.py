@@ -60,7 +60,7 @@ class ScanReportHandler(BaseHandler):
     def post(self):
         """
         ---
-        summary: Populate the candidate scan report with all saved candidates in a given range
+        summary: Populate the candidate scanning report with all saved candidates in a given range
         tags:
           - report
         requestBody:
@@ -170,7 +170,7 @@ class ScanReportHandler(BaseHandler):
     def get(self):
         """
         ---
-        summary: Retrieve multiple scan reports
+        summary: Retrieve multiple scanning reports
         tags:
           - report
         parameters:
@@ -214,7 +214,7 @@ class ScanReportHandler(BaseHandler):
                 .all()
             )
 
-            # Add the creator username to each scan report
+            # Add the creator username to each scanning report
             items_dict = [
                 {**scan_report.to_dict(), "username": scan_report.creator.username}
                 for scan_report in items

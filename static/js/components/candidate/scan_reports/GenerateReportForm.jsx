@@ -48,35 +48,35 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           },
           uniqueItems: true,
           default: [],
-          title: "Include only saved source in these groups",
+          title: "Include sources saved to these groups",
         },
         candidates_detection_range: {
-          title: "Passed at range",
+          title: "Passed filters",
           type: "object",
           properties: {
             start_date: {
-              title: "Start (Local Time)",
+              title: "After (Local Time)",
               format: "date-time",
               type: "string",
             },
             end_date: {
-              title: "End (Local Time)",
+              title: "Before (Local Time)",
               format: "date-time",
               type: "string",
             },
           },
         },
         saved_candidates_range: {
-          title: "Saved at range",
+          title: "Saved to groups",
           type: "object",
           properties: {
             start_save_date: {
-              title: "Start (Local Time)",
+              title: "After (Local Time)",
               format: "date-time",
               type: "string",
             },
             end_save_date: {
-              title: "End (Local Time)",
+              title: "Before (Local Time)",
               format: "date-time",
               type: "string",
             },
@@ -91,10 +91,12 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
     dispatch(generateScanReport(saveOptions)).then((result) => {
       setLoading(false);
       if (result.status === "success") {
-        dispatch(showNotification("Scan report successfully generated"));
+        dispatch(showNotification("Scanning report successfully generated"));
         setDialogOpen(false);
       } else {
-        dispatch(showNotification("Failed to generate scan report", "error"));
+        dispatch(
+          showNotification("Failed to generate scanning report", "error"),
+        );
       }
     });
   };
@@ -107,7 +109,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
         PaperProps={{ style: { maxWidth: "800px" } }}
       >
         <DialogTitle sx={{ textAlign: "center", fontSize: "1.5em" }}>
-          Generate candidate scan report
+          Generate candidate scanning report
         </DialogTitle>
         <DialogContent>
           <Form

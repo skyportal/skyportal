@@ -90,7 +90,7 @@ const ReportsList = () => {
   return (
     <Box>
       <Typography variant="h5" sx={{ marginBottom: "1rem" }}>
-        <b>Candidate scan report</b>
+        <b>Candidate scanning report</b>
       </Typography>
       <Paper sx={{ padding: "1rem", overflowX: "scroll" }}>
         <List>
@@ -169,7 +169,7 @@ const ReportsList = () => {
                 <CircularProgress size={24} />
               ) : (
                 <Box sx={{ color: "text.secondary" }}>
-                  No scan reports found.
+                  No scanning reports found.
                 </Box>
               )}
             </Item>

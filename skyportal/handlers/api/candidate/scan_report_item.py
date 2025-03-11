@@ -17,7 +17,7 @@ def create_scan_report_item(session, report, sources_by_obj):
     ----------
     session: sqlalchemy.orm.Session
     report: skyportal.model.ScanReport
-        The scan report to create an item for
+        The scanning report to create an item for
     sources_by_obj: tuple (obj_id, source_ids)
         The object and link source ids to create the item for
     Returns
@@ -79,7 +79,7 @@ class ScanReportItemHandler(BaseHandler):
     def patch(self, report_id, item_id):
         """
         ---
-        summary: Update an item from a scan report
+        summary: Update an item from a scanning report
         tags:
           - report item
         parameters:
@@ -142,7 +142,7 @@ class ScanReportItemHandler(BaseHandler):
     def get(self, report_id, _):
         """
         ---
-        summary: Retrieve all items in a scan report
+        summary: Retrieve all items in a scanning report
         tags:
           - report item
         parameters:
