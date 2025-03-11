@@ -42,11 +42,11 @@
       <div class="sourceAndVersions" id="{{ source_id }}">
         <div class="source">
           <div class="sourceAndTimeAgo">
-            <h2 class="sourceId">
-              <a href="/public/sources/{{ source_id }}" target="_blank">
+            <a href="/public/sources/{{ source_id }}" target="_blank">
+              <h2 class="sourceId">
                 {{ source_id }}
-              </a>
-            </h2>
+              </h2>
+            </a>
             {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
             {% if time_difference.days > 30 %}
                 <span class="timeAgo">
