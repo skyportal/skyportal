@@ -159,7 +159,6 @@ class MMIRSAPI(FollowUpAPI):
                 "readtab",
                 "maskid",
                 "exposure_time",
-                "exposure_time",
                 "nb_visits_per_night",
                 "filter",
             ],
