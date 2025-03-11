@@ -129,6 +129,16 @@ const UpdatePhotometry = ({ phot, magsys }) => {
     newState.assignment_id = phot.assignment_id;
     newState.instrument_id = phot.instrument_id;
 
+    if (newState?.mag === undefined) {
+      newState.mag = null;
+    }
+    if (newState?.magerr === undefined) {
+      newState.magerr = null;
+    }
+    if (newState?.limiting_mag === undefined) {
+      newState.limiting_mag = null;
+    }
+
     const result = await dispatch(
       photActions.updatePhotometry(phot.id, {
         ...newState,
