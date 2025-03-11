@@ -96,7 +96,7 @@ const ReportsList = () => {
         <List>
           <FieldsTitle>
             <FieldTitle>Date</FieldTitle>
-            <FieldTitle>Creator</FieldTitle>
+            <FieldTitle>Author</FieldTitle>
             <FieldTitle>Groups</FieldTitle>
             <FieldTitle sx={{ justifyContent: "right" }}>
               <IconButton
@@ -118,7 +118,7 @@ const ReportsList = () => {
               <FieldsAndItems key={scanReport.id}>
                 <Fields>
                   <Field>{displayDate(scanReport.created_at)}</Field>
-                  <Field>{scanReport.username}</Field>
+                  <Field>{scanReport.author}</Field>
                   <Field>
                     {scanReport.groups.map((group) => (
                       <div key={group.name}>

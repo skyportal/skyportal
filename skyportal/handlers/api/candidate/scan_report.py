@@ -142,7 +142,7 @@ class ScanReportHandler(BaseHandler):
                 return self.error("Some groups provided do not exist")
 
             scan_report = ScanReport(
-                creator_id=self.associated_user_object.id,
+                author_id=self.associated_user_object.id,
                 groups=groups,
                 creation_options={
                     "candidates_detection_range": detection_range,
@@ -214,9 +214,9 @@ class ScanReportHandler(BaseHandler):
                 .all()
             )
 
-            # Add the creator username to each scanning report
+            # Add the author username to each scanning report
             items_dict = [
-                {**scan_report.to_dict(), "username": scan_report.creator.username}
+                {**scan_report.to_dict(), "author": scan_report.author.username}
                 for scan_report in items
             ]
 

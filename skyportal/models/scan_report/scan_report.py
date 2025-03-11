@@ -10,12 +10,12 @@ from baselayer.app.models import Base
 class ScanReport(Base):
     """A report listing saved candidates during a scan session between two dates."""
 
-    creator_id = sa.Column(
+    author_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,
         doc="ID of the user that created this report",
     )
-    creator = relationship("User", doc="The User that created this report")
+    author = relationship("User", doc="The User that created this report")
 
     items = relationship(
         "ScanReportItem",
