@@ -6,7 +6,7 @@ from baselayer.log import make_log
 
 from ...utils import http
 from .. import FollowUpAPI
-from .utils import (
+from .base_mmt import (
     base_mmt_aldata,
     base_mmt_properties,
     base_mmt_required,
@@ -102,7 +102,7 @@ class MMIRSAPI(FollowUpAPI):
         }
 
         response = requests.post(
-            f"{cfg['app.mmt_endpoint']}/catalogTarget/{obj.id}",
+            f"{cfg['app.mmt_endpoint']}/catalogTarget",
             json=json_payload,
             data=None,
             files=None,

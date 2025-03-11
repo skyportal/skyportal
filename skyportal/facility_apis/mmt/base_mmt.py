@@ -73,7 +73,9 @@ def get_base_mmt_json_payload(obj, altdata, payload):
         "dec": deg2dms(obj.dec),
         "magnitude": obj.photstats[0].last_detected_mag,
         "epoch": 2000.0,
-        "observationtype": "Imaging",
+        "observationtype": "imaging"
+        if payload.get("observation_type") == "Imaging"
+        else "longslit",
         "pa": payload.get("pa"),
         "pm_ra": payload.get("pm_ra"),
         "pm_dec": payload.get("pm_dec"),
