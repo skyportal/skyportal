@@ -225,7 +225,13 @@ const MovingObjectObsPlanPage = () => {
   };
 
   if (!instruments) {
-    return "Loading...";
+    return (
+      <Paper>
+        <div className={classes.paperContent}>
+          <CircularProgress />
+        </div>
+      </Paper>
+    );
   }
 
   return (
