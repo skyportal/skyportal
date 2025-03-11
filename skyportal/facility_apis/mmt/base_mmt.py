@@ -91,11 +91,6 @@ def get_base_mmt_json_payload(obj, altdata, payload):
 
 
 base_mmt_properties = {
-    "notes": {
-        "type": "string",
-        "title": "Notes",
-        "default": "This request comes from SkyPortal",
-    },
     "observation_type": {
         "type": "string",
         "title": "Observation Type",
@@ -137,6 +132,11 @@ base_mmt_properties = {
         "title": "Priority",
         "enum": [1, 2, 3],
         "default": 3,
+    },
+    "notes": {
+        "type": "string",
+        "title": "Notes",
+        "default": "This request comes from SkyPortal",
     },
     "photometric": {
         "type": "boolean",
