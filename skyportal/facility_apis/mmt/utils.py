@@ -2,6 +2,8 @@ import functools
 
 import requests
 
+from skyportal.utils.calculations import deg2dms, deg2hms
+
 
 def catch_timeout_and_no_endpoint(func):
     @functools.wraps(func)
@@ -67,8 +69,8 @@ def get_base_mmt_json_payload(obj, altdata, payload):
         "token": altdata["token"],
         "id": obj.id,
         "objectid": obj.id,
-        "ra": obj.ra,
-        "dec": obj.dec,
+        "ra": deg2hms(obj.ra),
+        "dec": deg2dms(obj.dec),
         "magnitude": obj.photstats[0].last_detected_mag,
         "epoch": 2000.0,
         "observationtype": "Imaging",
