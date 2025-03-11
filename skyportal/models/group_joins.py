@@ -26,6 +26,7 @@ __all__ = [
     "GroupObjAnalysis",
     "GroupDefaultAnalysis",
     "GroupPublicRelease",
+    "GroupScanReport",
 ]
 
 import sqlalchemy as sa
@@ -63,6 +64,7 @@ from .reminder import (
     ReminderOnShift,
     ReminderOnSpectrum,
 )
+from .scan_report.scan_report import ScanReport
 from .source_notification import SourceNotification
 from .spectrum import Spectrum
 from .stream import Stream, StreamUser
@@ -328,3 +330,6 @@ GroupPublicRelease.__doc__ = "Join table mapping Groups to Public Releases."
 GroupPublicRelease.update = GroupPublicRelease.delete = (
     accessible_by_group_admins & GroupPublicRelease.read
 )
+
+GroupScanReport = join_model("group_scan_reports", Group, ScanReport)
+GroupScanReport.__doc__ = "Join table mapping Groups to Scan Reports."
