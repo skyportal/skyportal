@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from skyportal.facility_apis.tarot import create_observation_string
+from skyportal.facility_apis.tarot import create_request_string
 from skyportal.models import FollowupRequest
 
 
@@ -33,7 +33,7 @@ def test_create_observation_string(public_source):
     )
     followup_request.obj = public_source
 
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
     assert isinstance(observation_strings, str)
 
     assert observation_strings == (
@@ -50,7 +50,7 @@ def test_create_observation_string(public_source):
 
     # Test with 1 exposure count by filter with 1 filters
     followup_request.payload["observation_choices"] = ["g"]
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
     assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
@@ -65,7 +65,7 @@ def test_create_observation_string(public_source):
 
     # Test with 1 exposure count by filter with all filters
     followup_request.payload["observation_choices"] = ["g", "r", "i"]
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
     assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
@@ -80,7 +80,7 @@ def test_create_observation_string(public_source):
 
     # Test with 2 exposure counts by filter with all filters
     followup_request.payload["exposure_counts"] = 2
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
     assert observation_strings == (
         f'"{public_source.id}" {public_source.ra} {public_source.dec} {followup_request.payload["date"]} '
         f"0.004180983 0.00 "
@@ -95,7 +95,7 @@ def test_create_observation_string(public_source):
 
     # Test with 3 exposure counts by filter with all filters
     followup_request.payload["exposure_counts"] = 3
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
 
     # The date of the second line should be after the exposure time of all the first exposure plus the time between
     date_first_scene = datetime.strptime(
@@ -129,7 +129,7 @@ def test_create_observation_string(public_source):
     # Test with 13 exposure counts by filter with 1 filter
     followup_request.payload["exposure_counts"] = 13
     followup_request.payload["observation_choices"] = ["g"]
-    observation_strings = create_observation_string(followup_request)
+    observation_strings = create_request_string(followup_request)
 
     date_first_scene = datetime.strptime(
         followup_request.payload["date"], "%Y-%m-%dT%H:%M:%S.%f"
