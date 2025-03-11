@@ -86,10 +86,16 @@ def get_base_mmt_json_payload(obj, altdata, payload):
         "targetofopportunity": payload.get("target_of_opportunity"),
         "filter": payload.get("filter"),
         "onevisitpernight": payload.get("nb_visits_per_night"),
+        "notes": payload.get("notes"),
     }
 
 
 base_mmt_properties = {
+    "notes": {
+        "type": "string",
+        "title": "Notes",
+        "default": "This request comes from SkyPortal",
+    },
     "observation_type": {
         "type": "string",
         "title": "Observation Type",
