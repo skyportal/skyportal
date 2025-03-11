@@ -1,23 +1,17 @@
-import requests
-
-from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...utils import http
 from .. import FollowUpAPI
-from .base_mmt import (
-    base_mmt_aldata,
-    base_mmt_properties,
-    base_mmt_required,
+from .mmt_utils import (
     catch_timeout_and_no_endpoint,
-    check_base_mmt_payload,
+    check_mmt_payload,
     check_obj_for_mmt,
-    get_base_mmt_json_payload,
-    sanitize_obj_id,
+    delete_mmt_request,
+    mmt_aldata,
+    mmt_properties,
+    mmt_required,
+    submit_mmt_request,
 )
-
-env, cfg = load_env()
 
 log = make_log("facility_apis/mmt/mmirs")
 
@@ -25,7 +19,7 @@ log = make_log("facility_apis/mmt/mmirs")
 def check_request(request):
     payload = request.payload
 
-    check_base_mmt_payload(payload)
+    check_mmt_payload(payload)
     check_obj_for_mmt(request.obj)
 
     if payload["observation_type"] == "Specroscopy":
@@ -70,16 +64,6 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
-        from ...models import FacilityTransaction
-
-        if cfg["app.mmt_endpoint"] is None:
-            raise ValueError("MMT endpoint not configured")
-
-        altdata = request.allocation.altdata
-        if not altdata or "token" not in altdata:
-            raise ValueError("Missing allocation information.")
-
-        obj = request.obj
         payload = request.payload
         check_request(request)
 
@@ -95,37 +79,8 @@ class MMIRSAPI(FollowUpAPI):
                 "maskid": payload.get("maskid"),
                 "exposuretime": payload.get("exposure_time"),
             }
-        json_payload = {
-            **get_base_mmt_json_payload(obj, altdata, payload),
-            **specific_payload,
-            "instrumentid": 15,  # ID for MMIRS instrument
-        }
 
-        response = requests.post(
-            f"{cfg['app.mmt_endpoint']}/catalogTarget",
-            json=json_payload,
-            data=None,
-            files=None,
-            timeout=5.0,
-        )
-
-        if response.status_code != 200:
-            if response.status_code == 500 and "Invalid token" in response.text:
-                request.status = f"rejected: invalid token"
-            else:
-                request.status = f"rejected: status code {response.status_code}"
-        else:
-            request.status = "submitted"
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request),
-            response=http.serialize_requests_response(response),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-        session.commit()
+        submit_mmt_request(session, request, specific_payload, 15)
 
         try:
             flow = Flow()
@@ -145,60 +100,26 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
-        from ...models import FacilityTransaction, FollowupRequest
-
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        # this happens for failed submissions, just go ahead and delete
-        if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
-        else:
-            if cfg["app.mmt_endpoint"] is None:
-                raise ValueError("MMT endpoint not configured")
+        delete_mmt_request(session, request)
 
-            altdata = request.allocation.altdata
-            if not altdata or "token" not in altdata:
-                raise ValueError("Missing allocation information.")
-
-            response = requests.delete(
-                f"{cfg['app.mmt_endpoint']}/catalogTarget/{sanitize_obj_id(request.obj.id)}",
-                timeout=5.0,
-            )
-
-            if response.status_code != 200:
-                request.status = f"rejected: deletion failed - {response.status_code}"
-            else:
-                request.status = "deleted"
-
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(response.request),
-                response=http.serialize_requests_response(response),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-
-            session.add(transaction)
-            session.commit()
-
-            try:
-                flow = Flow()
-                if kwargs.get("refresh_source", False):
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_SOURCE",
-                        payload={"obj_key": obj_internal_key},
-                    )
-                if kwargs.get("refresh_requests", False):
-                    flow.push(
-                        last_modified_by_id,
-                        "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                    )
-            except Exception as e:
-                log(f"Failed to send notification: {str(e)}")
+        try:
+            flow = Flow()
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
@@ -300,9 +221,9 @@ class MMIRSAPI(FollowUpAPI):
         return {
             "type": "object",
             "properties": {
-                **base_mmt_properties,
+                **mmt_properties,
             },
-            "required": base_mmt_required,
+            "required": mmt_required,
             "if": {
                 "properties": {"observation_type": {"const": "Imaging"}},
             },
@@ -312,4 +233,4 @@ class MMIRSAPI(FollowUpAPI):
 
     ui_json_schema = {}
 
-    form_json_schema_altdata = base_mmt_aldata
+    form_json_schema_altdata = mmt_aldata

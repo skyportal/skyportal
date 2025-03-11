@@ -1,8 +1,13 @@
 import functools
+import json
 
 import requests
 
+from baselayer.app.env import load_env
+from skyportal.utils import http
 from skyportal.utils.calculations import deg2dms, deg2hms
+
+env, cfg = load_env()
 
 
 def catch_timeout_and_no_endpoint(func):
@@ -21,7 +26,7 @@ def catch_timeout_and_no_endpoint(func):
     return wrapper
 
 
-def check_base_mmt_payload(payload):
+def check_mmt_payload(payload):
     if payload.get("observation_type") not in [
         "Imaging",
         "Spectroscopy",
@@ -64,10 +69,9 @@ def check_obj_for_mmt(obj):
         raise ValueError("Missing the 'magnitude' value on the object")
 
 
-def get_base_mmt_json_payload(obj, altdata, payload):
+def get_mmt_json_payload(obj, altdata, payload):
     return {
         "token": altdata["token"],
-        "id": obj.id,
         "objectid": obj.id,
         "ra": deg2hms(obj.ra),
         "dec": deg2dms(obj.dec),
@@ -90,7 +94,97 @@ def get_base_mmt_json_payload(obj, altdata, payload):
     }
 
 
-base_mmt_properties = {
+def submit_mmt_request(session, request, specific_payload, instrumentid):
+    from ...models import FacilityTransaction
+
+    if cfg["app.mmt_endpoint"] is None:
+        raise ValueError("MMT endpoint not configured")
+
+    altdata = request.allocation.altdata
+    if not altdata or "token" not in altdata:
+        raise ValueError("Missing allocation information.")
+
+    json_payload = {
+        **get_mmt_json_payload(request.obj, altdata, request.payload),
+        **specific_payload,
+        "instrumentid": instrumentid,
+    }
+
+    response = requests.post(
+        f"{cfg['app.mmt_endpoint']}/catalogTarget",
+        json=json_payload,
+        data=None,
+        files=None,
+        timeout=5.0,
+    )
+
+    if response.status_code != 200:
+        if response.status_code == 500 and "Invalid token" in response.text:
+            request.status = f"rejected: invalid token"
+        else:
+            request.status = f"rejected: status code {response.status_code}"
+    else:
+        request.status = "submitted"
+
+    transaction = FacilityTransaction(
+        request=http.serialize_requests_request(response.request),
+        response=http.serialize_requests_response(response),
+        followup_request=request,
+        initiator_id=request.last_modified_by_id,
+    )
+
+    session.add(transaction)
+    session.commit()
+
+
+def delete_mmt_request(session, request):
+    from ...models import FacilityTransaction, FollowupRequest
+
+    # this happens for failed submissions, just go ahead and delete
+    if len(request.transactions) == 0 or str(request.status).startswith("rejected"):
+        session.query(FollowupRequest).filter(FollowupRequest.id == request.id).delete()
+        session.commit()
+    else:
+        request_response = request.transactions[-1].response
+        if request_response is None or request_response.get("content") is None:
+            raise ValueError("No request information found")
+
+        id_to_delete = json.loads(request_response["content"]).get("id")
+
+        if id_to_delete is None:
+            raise ValueError("No request ID found to delete")
+
+        if cfg["app.mmt_endpoint"] is None:
+            raise ValueError("MMT endpoint not configured")
+
+        altdata = request.allocation.altdata
+        if not altdata or "token" not in altdata:
+            raise ValueError("Missing allocation information.")
+
+        response = requests.delete(
+            f"{cfg['app.mmt_endpoint']}/catalogTarget/{id_to_delete}",
+            timeout=5.0,
+        )
+
+        if response.status_code != 200 or not response.json().get("success"):
+            raise ValueError(
+                f"Failed to delete request: status code {response.status_code}"
+            )
+        else:
+            request.status = "deleted"
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
+        session.commit()
+
+
+mmt_properties = {
     "observation_type": {
         "type": "string",
         "title": "Observation Type",
@@ -150,7 +244,7 @@ base_mmt_properties = {
     },
 }
 
-base_mmt_required = [
+mmt_required = [
     "observation_type",
     "pa",
     "pm_ra",
@@ -162,7 +256,7 @@ base_mmt_required = [
     "target_of_opportunity",
 ]
 
-base_mmt_aldata = {
+mmt_aldata = {
     "type": "object",
     "properties": {
         "token": {
