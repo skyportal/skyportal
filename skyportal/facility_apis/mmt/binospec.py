@@ -48,7 +48,7 @@ def check_request(request):
                 for r in valid_ranges[payload["grating"]]
             ):
                 raise ValueError("A valid central wavelength must be provided")
-        if payload.get("slitwidth") not in [
+        if payload.get("slit_width") not in [
             "Longslit0_75",
             "Longslit1",
             "Longslit1_25",
