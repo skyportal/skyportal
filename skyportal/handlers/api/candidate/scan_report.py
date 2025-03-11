@@ -144,7 +144,7 @@ class ScanReportHandler(BaseHandler):
             scan_report = ScanReport(
                 author_id=self.associated_user_object.id,
                 groups=groups,
-                creation_options={
+                options={
                     "candidates_detection_range": detection_range,
                     "saved_candidates_range": saved_range,
                 },

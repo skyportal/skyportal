@@ -33,7 +33,7 @@ class ScanReport(Base):
         doc="The groups that have access to this report",
     )
 
-    creation_options = sa.Column(
+    options = sa.Column(
         JSONB,
         nullable=False,
         doc="Options used to create this report",
