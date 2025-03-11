@@ -254,6 +254,14 @@ def get_notice_aliases(root, notice_type):
         graceid = root.find("./What/Param[@name='GraceID']")
         if graceid is not None:
             aliases.append(f"LVC#{graceid.attrib['value']}")
+
+        # we try the svom convention
+        burst_id = root.find(
+            "./What/Group[@name='Svom_Identifiers']/Param[@name='Burst_Id']"
+        )
+        if burst_id is not None:
+            aliases.append(f"SVOM#{burst_id.attrib['value']}")
+
     except Exception as e:
         print(f"Could not find aliases in notice: {str(e)}")
 
@@ -458,10 +466,12 @@ def get_properties(root):
         "energy",
         # SVOM
         "SNR",
+        "Timescale",
         "Mean_Flux",
         "Flux_Error",
         "Lower_Energy_Bound",
         "Upper_Energy_Bound",
+        "Trigger_Type",
     ]
     property_dict = {}
     for property_name in property_names:

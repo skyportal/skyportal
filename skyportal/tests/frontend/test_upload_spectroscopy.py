@@ -25,7 +25,11 @@ def test_upload_spectroscopy(
         ),
     )
 
-    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
+    # some browsers may render the filename as markdown, in which case the _ around the date
+    # will cause it to be italicized. So we check if we can match each part of the filename
+    driver.wait_for_xpath(f'//*[contains(., "ZTF20abucjsa")]')
+    driver.wait_for_xpath(f'//*[contains(., "20200909")]')
+    driver.wait_for_xpath(f'//*[contains(., "LT")]')
 
     mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)

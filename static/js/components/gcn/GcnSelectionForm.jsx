@@ -1395,3 +1395,5 @@ GcnSelectionForm.propTypes = {
 };
 
 export default GcnSelectionForm;
+
+export { MyObjectFieldTemplate };
