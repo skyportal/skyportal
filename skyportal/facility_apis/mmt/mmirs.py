@@ -156,6 +156,7 @@ class MMIRSAPI(FollowUpAPI):
                 },
             },
             "required": [
+                "dithersize",
                 "readtab",
                 "maskid",
                 "exposure_time",
