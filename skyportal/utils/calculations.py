@@ -5,6 +5,7 @@ import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from scipy.optimize import fsolve
 
 # Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
 # http://adsabs.harvard.edu/abs/1989A&A...218..325M
@@ -89,7 +90,18 @@ def get_observer(telescope: dict):
 
 def get_target(fields: list[dict]):
     """Return an `astroplan.FixedTarget` representing the target of this
-    observation."""
+    observation.
+
+    Parameters
+    ----------
+    fields : list of dict
+        The fields to get the target from.
+
+    Returns
+    -------
+    target : `astroplan.FixedTarget`
+        The target of the observation.
+    """
     ra = np.array([field["ra"] for field in fields])
     dec = np.array([field["dec"] for field in fields])
     field_ids = np.array([field["field_id"] for field in fields])
@@ -115,6 +127,28 @@ def get_altitude(
     """
     time = np.atleast_1d(time)
     return observer.altaz(time, target, grid_times_targets=True).alt
+
+
+def get_altitude_from_airmass(airmass: float):
+    """Return the altitude of the object at a given time.
+
+    Parameters
+    ----------
+    airmass: float
+        The airmass values for which to calculate the altitude
+
+    Returns
+    -------
+    altitude : float
+        The altitudes corresponding to the airmass values in degrees
+    """
+    def f(a):
+        return a + 244 / (165 + 47 * a ** 1.1) - np.degrees(np.arcsin(1 / airmass))
+
+    estimation = np.degrees(np.arcsin(1 / airmass))
+    altitude = fsolve(f, estimation)
+
+    return altitude[0]
 
 
 def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
@@ -151,7 +185,7 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
     if "observer" in kwargs:
         observer = kwargs["observer"]
     elif "telescope" in kwargs:
-        observer = observer(kwargs["telescope"])
+        observer = get_observer(kwargs["telescope"])
 
     # the output shape should be targets x times
     output_shape = (len(fields), len(time))
@@ -175,8 +209,8 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
     return airmass
 
 
-def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
-    """The set time of the field as an astropy.time.Time."""
+def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
+    """The rise and set times of the target at the given altitude as an astropy.time.Time."""
     if "observer" in kwargs:
         observer = kwargs["observer"]
     elif "telescope" in kwargs:
@@ -190,12 +224,10 @@ def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     sunrise = observer.sun_rise_time(time, which="next")
     sunset = observer.sun_set_time(time, which="next")
 
-    targets = get_target(fields)
-
     rise_time = observer.target_rise_time(
-        sunset, targets, which="next", horizon=altitude
+        sunset, target, which="next", horizon=altitude
     )
-    set_time = observer.target_set_time(sunset, targets, which="next", horizon=altitude)
+    set_time = observer.target_set_time(sunset, target, which="next", horizon=altitude)
 
     # if next rise time is after next sunrise, the target rises before
     # sunset. show the previous rise so that the target is shown to be
@@ -204,12 +236,60 @@ def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
     recalc = rise_time > sunrise
 
     if np.any(recalc):
-        # recalculate the rise time only for those targets that need it
+        # recalculate the rise time only for those coordinates that need it
         rise_time[recalc] = observer.target_rise_time(
-            sunset, targets, which="previous", horizon=altitude
+            sunset, target, which="previous", horizon=altitude
         )[recalc]
 
     return rise_time, set_time
+
+
+def get_next_valid_observing_time(start_time, telescope, target, airmass, observe_at_optimal_airmass=False):
+    """Return the next valid observing time for the given telescope and target at the given airmass limit.
+    Use the nearest time or the time with the optimal airmass.
+
+    Parameters
+    ----------
+    start_time : astropy.time.Time
+        The start time from which to calculate the next valid observing time.
+    telescope : dict
+        The telescope for which to calculate the next valid observing time.
+    target : `astroplan.FixedTarget`
+        The target of the observation.
+    airmass : float
+        The airmass limit for the observation.
+    observe_at_optimal_airmass : bool
+        If True, use the date at the best airmass limit else use the nearest date.
+
+    Returns
+    -------
+    next_observing_date : `astropy.time.Time`
+        The next valid observing date for the given telescope and target at the given airmass limit.
+    """
+    if start_time < Time.now():
+        start_time = Time.now()
+
+    observer = get_observer(telescope)
+    altitude_limit = get_altitude_from_airmass(airmass)
+
+    rise_time, set_time = get_rise_set_time(
+        target=target,
+        altitude=altitude_limit * u.degree,
+        observer=observer,
+        time=start_time,
+    )
+
+    if observe_at_optimal_airmass:
+        optimal_airmass_time = Time((rise_time.unix + set_time.unix) / 2, format="unix")
+        if start_time < optimal_airmass_time:
+            return optimal_airmass_time
+        else:
+            return Time.now()
+
+    if rise_time <= start_time:
+        return Time.now()
+
+    return rise_time
 
 
 def next_sunrise(observer, time=None):

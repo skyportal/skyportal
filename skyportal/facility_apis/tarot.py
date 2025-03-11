@@ -1,18 +1,20 @@
 import functools
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import astroplan
 import astropy.units as u
 import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
-from astropy.time import Time
+from astropy.coordinates import SkyCoord
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.calculations import get_next_valid_observing_time
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -49,59 +51,164 @@ def catch_timeout_and_no_endpoint(func):
     return wrapper
 
 
-def create_observation_string(request):
-    """Create the observation string to send to TAROT.
+def get_observing_time(session, request):
+    """Get the next valid observing time for the request range and instrument.
+
+    Parameters
+    ----------
+    session: sqlalchemy.Session
+        The database session.
+    request: skyportal.models.FollowupRequest
+        The request to get the observing time for.
+
+    Returns
+    -------
+    observing_time: `astropy.time.Time`
+        The next valid observing time.
+    """
+    from ..models import Telescope
+
+    telescope = session.scalar(
+        Telescope.select(session.user_or_token, mode="read").where(
+            Telescope.instrument.id == request.instrument.id
+        )
+    )
+    print(telescope)
+    try:
+        return get_next_valid_observing_time(
+            start_time=request.payload["start_date"],
+            telescope=telescope,
+            target=astroplan.FixedTarget(
+                SkyCoord(ra=request.obj.ra * u.deg, dec=request.obj.dec * u.deg),
+                name=request.obj.id,
+            ),
+            airmass=request.payload["airmass"],
+            observe_at_optimal_airmass=request.payload["observation_preference"]
+            == "Optimal Airmass",
+        )
+    except Exception as e:
+        raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
+
+
+def check_payload(payload):
+    """Check the payload for a follow-up request to TAROT.
+
+    Parameters
+    ----------
+    payload: dict
+        The payload coming from the request.
+    """
+
+    required_params = {
+        "start_date",
+        "end_date",
+        "observation_preference",
+        "priority",
+        "exposure_time",
+        "exposure_counts",
+        "airmass",
+        "observation_choices",
+    }
+
+    missing_params = required_params - payload.keys()
+    if missing_params:
+        raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+
+    if payload["start_date"] > payload["end_date"]:
+        raise ValueError("start_date must be before end_date.")
+
+    if payload["observation_preference"] not in [
+        "Earliest possible",
+        "Optimal Airmass",
+    ]:
+        raise ValueError(
+            "observation_preference must be one of 'Earliest possible', 'Optimal Airmass'."
+        )
+
+    if payload["exposure_time"] < 0 and payload["exposure_time"] != -1:
+        raise ValueError("exposure_time must be positive or -1.")
+
+
+def get_sequence(request, last_detected_mag, phase_angle):
+    sequence = {}
+    instrument_name = request.instrument.name
+
+    if "calern" in instrument_name.lower() or "chili" in instrument_name.lower():
+        if last_detected_mag <= 17.0:
+            if phase_angle > 60:
+                sequence = {
+                    "r": [15, 120],
+                    "g": [0, 0],
+                    "i": [0, 0],
+                    "NoFilter": [6, 120],
+                }
+            else:
+                sequence = {
+                    "r": [8, 120],
+                    "g": [0, 0],
+                    "i": [8, 120],
+                    "NoFilter": [4, 120],
+                }
+        elif 17.0 < last_detected_mag < 19.0:
+            if phase_angle > 60:
+                sequence = {
+                    "r": [22, 120],
+                    "g": [0, 0],
+                    "i": [0, 0],
+                    "NoFilter": [15, 120],
+                }
+            else:
+                sequence = {
+                    "r": [8, 200],
+                    "g": [0, 0],
+                    "i": [8, 200],
+                    "NoFilter": [6, 120],
+                }
+        else:
+            if phase_angle > 60:
+                sequence = {
+                    "r": [0, 0],
+                    "g": [0, 0],
+                    "i": [0, 0],
+                    "NoFilter": [15, 200],
+                }
+            else:
+                sequence = {
+                    "r": [12, 200],
+                    "g": [0, 0],
+                    "i": [12, 200] if "calern" in instrument_name.lower() else [0, 0],
+                    "NoFilter": [12, 120],
+                }
+
+    elif "reunion" in instrument_name.lower():
+        if last_detected_mag <= 17.0:
+            sequence = {"NoFilter": [12, 120] if phase_angle > 60 else [8, 120]}
+        elif 17.0 < last_detected_mag < 19.0:
+            sequence = {"NoFilter": [18, 120] if phase_angle > 60 else [12, 200]}
+        else:
+            sequence = {"NoFilter": [0, 0] if phase_angle > 60 else [18, 200]}
+
+    return sequence
+
+
+def create_request_string(request, observation_time):
+    """Create the request string to send to TAROT.
 
     Parameters
     ----------
     request: skyportal.models.FollowupRequest
         The request information to send to TAROT.
+    observation_time: datetime
+        The observation time to send to TAROT.
     """
+    payload = request.payload
+    obj = request.obj
+    tt = observation_time
 
-    for param in [
-        "station_name",
-        "date",
-        "exposure_time",
-        "exposure_counts",
-        "observation_choices",
-    ]:
-        if param not in request.payload:
-            raise ValueError(f"Parameter {param} required.")
-
-    if any(
-        obs_filter not in ["g", "r", "i", "NoFilter"]
-        for obs_filter in request.payload["observation_choices"]
-    ):
-        raise ValueError(
-            f"Filter configuration {request.payload['observation_choices']} unknown."
-        )
-
-    if request.payload["station_name"] not in [
-        "Tarot_Calern",
-        "Tarot_Chili",
-        "Tarot_Reunion",
-    ]:
-        raise ValueError(
-            "observation_type must be Tarot_Calern, Tarot_Chili, Tarot_Reunion"
-        )
-
-    if (
-        request.payload["exposure_time"] < 0
-        and not request.payload["exposure_time"] == -1
-    ):
-        raise ValueError("exposure_time must be positive or -1.")
-
-    filters = {
-        "NoFilter": 0,
-        "g": 13,
-        "r": 14,
-        "i": 15,
-    }
-    tt = Time(request.payload["date"], format="isot")
     observations = []
 
-    if request.payload["exposure_time"] == -1:
-        photstats = request.obj.photstats
+    if payload["exposure_time"] == -1:
+        photstats = obj.photstats
         if len(photstats) == 0:
             raise ValueError("No photometry to base exposure time calculation on")
         photstats = photstats[0]
@@ -111,125 +218,22 @@ def create_observation_string(request):
             raise ValueError("No detections to base exposure time calculation on")
 
         phase_angle = np.rad2deg(moon_phase_angle(tt).value)
+        sequence = get_sequence(request, last_detected_mag, phase_angle)
 
-        sequence = {}
-        if last_detected_mag <= 17.0:
-            if phase_angle > 60:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [15, 120],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [6, 120],
-                    },
-                    "Tarot_Chili": {
-                        "r": [15, 120],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [6, 120],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [12, 120]},
-                }
-            else:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [8, 120],
-                        "g": [0, 0],
-                        "i": [8, 120],
-                        "NoFilter": [4, 120],
-                    },
-                    "Tarot_Chili": {
-                        "r": [8, 120],
-                        "g": [0, 0],
-                        "i": [8, 120],
-                        "NoFilter": [4, 120],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [8, 120]},
-                }
-        elif 17.0 < last_detected_mag < 19.0:
-            if phase_angle > 60:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [22, 120],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [15, 120],
-                    },
-                    "Tarot_Chili": {
-                        "r": [22, 120],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [15, 120],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [18, 120]},
-                }
-            else:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [8, 200],
-                        "g": [0, 0],
-                        "i": [8, 200],
-                        "NoFilter": [6, 120],
-                    },
-                    "Tarot_Chili": {
-                        "r": [8, 200],
-                        "g": [0, 0],
-                        "i": [8, 200],
-                        "NoFilter": [6, 120],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [12, 200]},
-                }
-        elif last_detected_mag >= 19.0:
-            if phase_angle > 60:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [0, 0],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [15, 200],
-                    },
-                    "Tarot_Chili": {
-                        "r": [0, 0],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [0, 0],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [0, 0]},
-                }
-            else:
-                sequence = {
-                    "Tarot_Calern": {
-                        "r": [12, 200],
-                        "g": [0, 0],
-                        "i": [12, 200],
-                        "NoFilter": [12, 120],
-                    },
-                    "Tarot_Chili": {
-                        "r": [12, 200],
-                        "g": [0, 0],
-                        "i": [0, 0],
-                        "NoFilter": [12, 120],
-                    },
-                    "Tarot_Reunion": {"NoFilter": [18, 200]},
-                }
-
-        seq = sequence.get(request.payload["station_name"], None)
-        if seq is None:
+        if sequence is None:
             raise ValueError("Default sequence not available for this telescope")
 
         observations = []
-        for default_filter in seq:
-            exp_count, exposure_time = seq[default_filter]
+        for default_filter in sequence:
+            exp_count, exposure_time = sequence[default_filter]
             observations.extend(
                 [f"{exposure_time} {filters[default_filter]}"] * exp_count
             )
 
     else:
-        for obs_filter in request.payload["observation_choices"]:
-            observations.append(
-                f"{request.payload['exposure_time']} {filters[obs_filter]}"
-            )
-        observations = sum([observations] * request.payload["exposure_counts"], [])
+        for obs_filter in payload["observation_choices"]:
+            observations.append(f"{payload['exposure_time']} {filters[obs_filter]}")
+        observations = sum([observations] * payload["exposure_counts"], [])
 
     total_time = 0.0
     observation_string = ""
@@ -244,7 +248,7 @@ def create_observation_string(request):
         ttline = tt + (total_time * u.s)
 
         if obs:
-            observation_string += f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{request.payload["priority"]} {request.payload["station_name"]}\n\r'
+            observation_string += f'"{obj.id}" {obj.ra} {obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{payload["priority"]} {payload["station_name"]}\n\r'
 
         if ii != number_of_strings:
             total_time += sum(45 + int(o.split(" ")[0]) for o in obs)
@@ -325,9 +329,13 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
+        check_payload(request.payload)
+
         hash_user = login_to_tarot(request, session, altdata)
 
-        observation_string = create_observation_string(request)
+        observing_time = get_observing_time(session, request)
+
+        observation_string = create_request_string(request, observing_time)
 
         # Create one or more new scene in a request using an observation string
         payload = {
@@ -605,92 +613,75 @@ class TAROTAPI(FollowUpAPI):
         except Exception as e:
             log(f"Failed to send notification: {str(e)}")
 
-    form_json_schema = {
-        "type": "object",
-        "properties": {
-            "station_name": {
-                "type": "string",
-                "enum": [
-                    "Tarot_Calern",
-                    "Tarot_Chili",
-                    "Tarot_Reunion",
-                ],
-                "default": "Tarot_Calern",
-            },
-            "date": {
-                "type": "string",
-                "default": datetime.utcnow().isoformat(),
-                "title": "Date (UT)",
-            },
-            "priority": {
-                "type": "number",
-                "default": 0,
-                "minimum": -5.0,
-                "maximum": 5.0,
-                "title": "Priority (-5 - 5)",
-            },
-            "exposure_time": {
-                "title": "Exposure Time [s] (use -1 if want defaults)",
-                "type": "number",
-                "default": 300.0,
-            },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
-            },
-        },
-        "required": [
-            "station_name",
-            "date",
-            "exposure_time",
-            "exposure_counts",
-            "observation_choices",
-        ],
-        "dependencies": {
-            "station_name": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": [
-                                    "Tarot_Calern",
-                                    "Tarot_Chili",
-                                ],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["g", "r", "i", "NoFilter"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
+    def custom_json_schema(instrument, user, **kwargs):
+        return {
+            "type": "object",
+            "properties": {
+                "observation_choices": {
+                    "type": "array",
+                    "title": "Desired Observations",
+                    "items": {
+                        "type": "string",
+                        "enum": instrument.to_dict()["filters"],
                     },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["Tarot_Reunion"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["NoFilter"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                ],
+                    "uniqueItems": True,
+                    "minItems": 0,
+                },
+                "start_date": {
+                    "type": "string",
+                    "default": str(datetime.utcnow()).replace("T", ""),
+                    "title": "Start Date (UT)",
+                },
+                "end_date": {
+                    "type": "string",
+                    "title": "End Date (UT)",
+                    "default": str(datetime.utcnow() + timedelta(days=7)).replace(
+                        "T", ""
+                    ),
+                },
+                "observation_preference": {
+                    "type": "string",
+                    "title": "Observation Preference",
+                    "enum": [
+                        "Earliest possible",
+                        "Optimal Airmass",
+                    ],
+                    "default": "Earliest possible",
+                },
+                "priority": {
+                    "type": "number",
+                    "default": 0,
+                    "minimum": -5.0,
+                    "maximum": 5.0,
+                    "title": "Priority (-5 - 5)",
+                },
+                "exposure_time": {
+                    "title": "Exposure Time [s] (use -1 if want defaults)",
+                    "type": "number",
+                    "default": 300.0,
+                },
+                "exposure_counts": {
+                    "title": "Exposure Counts",
+                    "type": "number",
+                    "default": 1,
+                },
+                "airmass": {
+                    "title": "Airmass limit",
+                    "type": "number",
+                    "default": 3.0,
+                },
             },
-        },
-    }
+            "required": [
+                "start_date",
+                "end_date",
+                "observation_preference",
+                "priority",
+                "exposure_time",
+                "exposure_counts",
+                "airmass",
+                "observation_choices",
+            ],
+        }
 
     form_json_schema_altdata = {
         "type": "object",
