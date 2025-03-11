@@ -46,7 +46,7 @@ def create_scan_report_item(session, report, sources_by_obj):
         obj_id=obj.id,
         scan_report=report,
         data={
-            "saved_infos": [
+            "saved_info": [
                 {
                     "saved_at": source.saved_at.isoformat(),
                     "saved_by": source.saved_by.username,

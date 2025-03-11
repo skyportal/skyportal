@@ -94,18 +94,18 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                 sx={{ borderBottom: "1px solid #d3d3d3" }}
               >
                 <Field sx={{ flex: 1 }}>
-                  {reportItem.data.saved_infos.map((info, index) => (
+                  {reportItem.data.saved_info.map((info, index) => (
                     <div key={index}>{displayDate(info.saved_at)}</div>
                   ))}
                 </Field>
                 <Field>
-                  {reportItem.data.saved_infos.map((info, index) => (
+                  {reportItem.data.saved_info.map((info, index) => (
                     <div key={index}>{info.saved_by}</div>
                   ))}
                 </Field>
                 {isMultiGroup && (
                   <Field>
-                    {reportItem.data.saved_infos.map((info, index) => (
+                    {reportItem.data.saved_info.map((info, index) => (
                       <Chip
                         label={info.group.substring(0, 15)}
                         size="small"
