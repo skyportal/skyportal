@@ -21,13 +21,13 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
   const twelveHoursAgo = new Date(now);
   twelveHoursAgo.setHours(now.getHours() - 12);
   const [saveOptions, setSaveOptions] = useState({
-    candidates_detection_range: {
+    passed_filters_range: {
       start_date: oneDayAgo.toISOString(),
       end_date: now.toISOString(),
     },
     saved_candidates_range: {
-      start_save_date: twelveHoursAgo.toISOString(),
-      end_save_date: now.toISOString(),
+      start_saved_date: twelveHoursAgo.toISOString(),
+      end_saved_date: now.toISOString(),
     },
     groups: [],
   });
@@ -50,7 +50,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           default: [],
           title: "Include sources saved to these groups",
         },
-        candidates_detection_range: {
+        passed_filters_range: {
           title: "Passed filters",
           type: "object",
           properties: {
@@ -70,12 +70,12 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           title: "Saved to groups",
           type: "object",
           properties: {
-            start_save_date: {
+            start_saved_date: {
               title: "After (Local Time)",
               format: "date-time",
               type: "string",
             },
-            end_save_date: {
+            end_saved_date: {
               title: "Before (Local Time)",
               format: "date-time",
               type: "string",

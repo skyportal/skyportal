@@ -333,6 +333,3 @@ GroupPublicRelease.update = GroupPublicRelease.delete = (
 
 GroupScanReport = join_model("group_scan_reports", Group, ScanReport)
 GroupScanReport.__doc__ = "Join table mapping Groups to Scan Reports."
-GroupScanReport.update = GroupScanReport.delete = (
-    accessible_by_group_admins & GroupScanReport.read
-)

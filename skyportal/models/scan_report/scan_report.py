@@ -6,9 +6,13 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
 
+from ..group import accessible_by_groups_members
+
 
 class ScanReport(Base):
     """A report listing saved candidates during a scan session between two dates."""
+
+    read = create = update = delete = accessible_by_groups_members
 
     author_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="SET NULL"),

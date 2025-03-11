@@ -26,6 +26,9 @@ def create_scan_report_item(session, report, sources_by_obj):
     """
     obj_id, source_ids = sources_by_obj
 
+    if not obj_id or not source_ids:
+        return None
+
     obj = session.scalar(
         Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
     )

@@ -13,16 +13,19 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/scan_report")
 
 
-def get_sources_by_objs_in_range(session, group_ids, detection_range, saved_range):
+def get_sources_by_objs_in_range(session, group_ids, passed_filters_range, saved_range):
     """
     Retrieve all candidates saved as source in given range by object
     Parameters
     ----------
     session: sqlalchemy.orm.Session
+        The database session
     group_ids: list
-    detection_range: dict
+        The group ids to filter the candidates
+    passed_filters_range: dict
+        The range between which the candidates passed the filters
     saved_range: dict
-
+        The range between which the candidates were saved as sources
     Returns
     -------
     list of tuples (obj_id, source_ids)
@@ -39,12 +42,12 @@ def get_sources_by_objs_in_range(session, group_ids, detection_range, saved_rang
                 Source.group_id.in_(group_ids),
                 Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
-                    saved_range.get("start_save_date"),
-                    saved_range.get("end_save_date"),
+                    saved_range.get("start_saved_date"),
+                    saved_range.get("end_saved_date"),
                 ),
                 Candidate.passed_at.between(
-                    detection_range.get("start_date"),
-                    detection_range.get("end_date"),
+                    passed_filters_range.get("start_date"),
+                    passed_filters_range.get("end_date"),
                 ),
                 Source.active.is_(True),
             )
@@ -74,25 +77,25 @@ class ScanReportHandler(BaseHandler):
                     items:
                       type: integer
                     description: groups use to filter the candidates and manage the report
-                  candidates_detection_range:
+                  passed_filters_range:
                     type: object
                     properties:
                       start_date:
                         type: string
                         format: date-time
-                        description: Start date of the candidate detection range
+                        description: Start date of the passed filters range
                       end_date:
                         type: string
                         format: date-time
-                        description: End date of the candidate detection range
+                        description: End date of the passed filters range
                     saved_candidates_range:
                       type: object
                       properties:
-                        start_save_date:
+                        start_saved_date:
                           type: string
                           format: date-time
                           description: Start date of the saved candidates range
-                        end_save_date:
+                        end_saved_date:
                           type: string
                           format: date-time
                           description: End date of the saved candidates range
@@ -113,9 +116,9 @@ class ScanReportHandler(BaseHandler):
             if not group_ids:
                 return self.error("No groups provided")
 
-            detection_range = data.get("candidates_detection_range")
-            if not detection_range:
-                return self.error("No candidate detection range provided")
+            passed_filters_range = data.get("passed_filters_range")
+            if not passed_filters_range:
+                return self.error("No passed filters range provided")
 
             saved_range = data.get("saved_candidates_range")
             if not saved_range:
@@ -125,7 +128,7 @@ class ScanReportHandler(BaseHandler):
                 sources_by_objs = get_sources_by_objs_in_range(
                     session,
                     group_ids,
-                    detection_range,
+                    passed_filters_range,
                     saved_range,
                 )
             except Exception:
@@ -145,7 +148,7 @@ class ScanReportHandler(BaseHandler):
                 author_id=self.associated_user_object.id,
                 groups=groups,
                 options={
-                    "candidates_detection_range": detection_range,
+                    "passed_filters_range": passed_filters_range,
                     "saved_candidates_range": saved_range,
                 },
             )
@@ -156,6 +159,9 @@ class ScanReportHandler(BaseHandler):
                 scan_report_item = create_scan_report_item(
                     session, scan_report, sources_by_obj
                 )
+
+                if scan_report_item is None:
+                    return self.error("Error while creating scan report item")
 
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
