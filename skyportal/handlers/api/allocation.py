@@ -641,6 +641,7 @@ class AllocationHandler(BaseHandler):
             data = self.get_json()
             data["id"] = allocation_id
 
+            only_update_changed_fields = data.pop("only_update_changed_fields", False)
             if isinstance(data.get("_altdata"), dict):
                 # sanitize the dictionary, removing keys with null or empty values
                 data["_altdata"] = {
@@ -651,7 +652,7 @@ class AllocationHandler(BaseHandler):
 
                 if not data["_altdata"]:
                     data.pop("_altdata")
-                elif data.get("only_update_changed_fields"):
+                elif only_update_changed_fields:
                     # when same key the second value is kept
                     data["_altdata"] = json.dumps(
                         {**json.loads(allocation._altdata), **data["_altdata"]}
