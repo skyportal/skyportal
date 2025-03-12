@@ -252,6 +252,14 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
               title:
                 "Alternative json data (i.e. {'slack_token': 'testtoken'})",
             },
+      ...(instrument_id &&
+        instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {
+          only_update_changed_fields: {
+            type: "boolean",
+            title: "Only update altdata changed fields",
+            default: false,
+          },
+        }),
     },
     required: ["pi", "start_date", "end_date", "hours_allocated"],
   };

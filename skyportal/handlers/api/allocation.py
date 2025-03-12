@@ -519,15 +519,15 @@ class AllocationHandler(BaseHandler):
         except ValueError:
             return self.error("instrument_id must be an integer")
         if isinstance(data.get("_altdata"), dict):
-            # sanitize the dictionnary, removing keys with null or empty values
+            # sanitize the dictionary, removing keys with null or empty values
             data["_altdata"] = {
                 k: v
                 for k, v in data["_altdata"].items()
                 if v is not None and str(v).strip() != ""
             }
-            # if it ends up being a dictionnary with no keys, remove it
-            if not data["_altdata"] or not any(data["_altdata"]):
+            if not data["_altdata"]:
                 data.pop("_altdata")
+
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(self.current_user).where(
@@ -640,19 +640,23 @@ class AllocationHandler(BaseHandler):
 
             data = self.get_json()
             data["id"] = allocation_id
+
             if isinstance(data.get("_altdata"), dict):
-                # sanitize the dictionnary, removing keys with null or empty values
+                # sanitize the dictionary, removing keys with null or empty values
                 data["_altdata"] = {
                     k: v
                     for k, v in data["_altdata"].items()
                     if v is not None and str(v).strip() != ""
                 }
-                # if it ends up being a dictionnary with no keys, remove it
-                # otherwise convert it to a string
-                if not data["_altdata"] or not any(data["_altdata"]):
+
+                if not data["_altdata"]:
                     data.pop("_altdata")
+                elif data.get("only_update_changed_fields"):
+                    # when same key the second value is kept
+                    data["_altdata"] = json.dumps(
+                        {**json.loads(allocation._altdata), **data["_altdata"]}
+                    )
                 else:
-                    # then convert it to a string
                     data["_altdata"] = json.dumps(data["_altdata"])
 
             allocation_admin_ids = data.pop("allocation_admin_ids", [])
