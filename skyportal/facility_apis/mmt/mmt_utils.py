@@ -250,21 +250,21 @@ def delete_mmt_request(session, request, log, **kwargs):
         session.add(transaction)
         session.commit()
 
-        try:
-            flow = Flow()
-            if kwargs.get("refresh_source", False):
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj_internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow.push(
-                    last_modified_by_id,
-                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                )
-        except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+    try:
+        flow = Flow()
+        if kwargs.get("refresh_source", False):
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow.push(
+                last_modified_by_id,
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+    except Exception as e:
+        log(f"Failed to send notification: {str(e)}")
 
 
 mmt_properties = {
