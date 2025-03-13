@@ -29,7 +29,7 @@ def check_request(request):
     check_mmt_payload(payload)
     check_obj_for_mmt(request.obj)
 
-    if payload["observation_type"] == "Specroscopy":
+    if payload["observation_type"] == "Spectroscopy":
         if payload.get("grism") not in ["J", "HK", "HK3"]:
             raise ValueError("A valid grism must be provided")
         if payload.get("readtab") not in ["ramp_4.426"]:
