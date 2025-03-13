@@ -35,20 +35,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const basicKeys = [
-  "group_id",
-  "users",
-  "start_date",
-  "end_date",
-  "allocation_admin_ids",
-  "default_share_group_ids",
-  "instrument_id",
-  "pi",
-  "hours_allocated",
-  "_altdata",
-  "types",
-];
-
 const NewAllocation = ({ onClose }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -119,34 +105,6 @@ const NewAllocation = ({ onClose }) => {
       .replace(".000Z", "");
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
-    }
-    // if _altdata is provided as a string keep it as is
-    // otherwise if the instrument has an altdata form
-    // from its API class, use that to populate _altdata
-    // its tricky to infer the keys from the formSchemaAltdata
-    // so instead just pop out the regular keys from the form data
-    // to get the _altdata
-    if (
-      formData?.instrument_id &&
-      instrumentFormParams[formData.instrument_id]?.formSchemaAltdata
-        ?.properties
-    ) {
-      const newAltData = {};
-      if (instrumentFormParams[formData.instrument_id]) {
-        const altDataKeys = Object.keys(formData).filter(
-          (key) => !basicKeys.includes(key),
-        );
-        altDataKeys.forEach((key) => {
-          if (formData[key]) {
-            newAltData[key] = formData[key];
-          }
-        });
-        formData._altdata = newAltData;
-        // remove these keys from the main formData
-        altDataKeys.forEach((key) => {
-          delete formData[key];
-        });
-      }
     }
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
@@ -227,6 +185,10 @@ const NewAllocation = ({ onClose }) => {
         })),
         title: "Instrument",
       },
+      _altdata: {
+        type: "string",
+        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
+      },
     },
     required: [
       "pi",
@@ -235,32 +197,33 @@ const NewAllocation = ({ onClose }) => {
       "instrument_id",
       "hours_allocated",
     ],
+    dependencies: {
+      instrument_id: {
+        oneOf: instrumentList.map((instrument) => {
+          const altdata =
+            instrumentFormParams[instrument.id]?.formSchemaAltdata;
+          return {
+            properties: {
+              instrument_id: {
+                enum: [instrument.id],
+              },
+              ...(altdata?.properties
+                ? {
+                    _altdata: {
+                      type: "object",
+                      title: "Alternative data",
+                      properties: altdata?.properties,
+                      required: altdata?.required || [],
+                      dependencies: altdata?.dependencies || {},
+                    },
+                  }
+                : {}),
+            },
+          };
+        }),
+      },
+    },
   };
-
-  if (
-    selectedFormData?.instrument_id &&
-    instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata
-      ?.properties
-  ) {
-    const formSchemaAltdata =
-      instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata;
-    allocationFormSchema.properties = {
-      ...allocationFormSchema.properties,
-      ...formSchemaAltdata?.properties,
-    };
-    allocationFormSchema.required = [
-      ...allocationFormSchema.required,
-      ...(formSchemaAltdata?.required || []),
-    ];
-    if (formSchemaAltdata?.dependencies) {
-      allocationFormSchema.dependencies = formSchemaAltdata?.dependencies;
-    }
-  } else {
-    allocationFormSchema.properties._altdata = {
-      type: "string",
-      title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
-    };
-  }
 
   return (
     <div>
