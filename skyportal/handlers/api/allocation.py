@@ -659,7 +659,6 @@ class AllocationHandler(BaseHandler):
                     )
                 else:
                     data["_altdata"] = json.dumps(data["_altdata"])
-            print(allocation._altdata)
             allocation_admin_ids = data.pop("allocation_admin_ids", [])
 
             if not isinstance(allocation_admin_ids, list):
