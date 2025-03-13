@@ -4,6 +4,7 @@ import json
 import requests
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from skyportal.utils import http
 from skyportal.utils.calculations import deg2dms, deg2hms
 
@@ -108,7 +109,9 @@ def get_mmt_json_payload(obj, altdata, payload):
     }
 
 
-def submit_mmt_request(session, request, specific_payload, instrument_id):
+def submit_mmt_request(
+    session, request, specific_payload, instrument_id, log, **kwargs
+):
     """
     Submit a request to MMT
 
@@ -122,6 +125,10 @@ def submit_mmt_request(session, request, specific_payload, instrument_id):
         The payload specific to an instrument
     instrument_id : int
         The instrument ID to submit the request to
+    log : callable
+        The logging function associated with the instrument
+    kwargs : dict
+        Additional keyword arguments
     """
     from ...models import FacilityTransaction
 
@@ -164,8 +171,23 @@ def submit_mmt_request(session, request, specific_payload, instrument_id):
     session.add(transaction)
     session.commit()
 
+    try:
+        flow = Flow()
+        if kwargs.get("refresh_source", False):
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow.push(
+                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
+            )
+    except Exception as e:
+        log(f"Failed to send notification: {str(e)}")
 
-def delete_mmt_request(session, request):
+
+def delete_mmt_request(session, request, log, **kwargs):
     """
     Delete a request from the MMT queue
 
@@ -175,8 +197,15 @@ def delete_mmt_request(session, request):
         The current session
     request : FollowupRequest
         The request to delete
+    log : callable
+        The logging function associated with the instrument
+    kwargs : dict
+        Additional keyword arguments
     """
     from ...models import FacilityTransaction, FollowupRequest
+
+    last_modified_by_id = request.last_modified_by_id
+    obj_internal_key = request.obj.internal_key
 
     # this happens for failed submissions, just go ahead and delete
     if len(request.transactions) == 0 or str(request.status).startswith("rejected"):
@@ -220,6 +249,22 @@ def delete_mmt_request(session, request):
 
         session.add(transaction)
         session.commit()
+
+        try:
+            flow = Flow()
+            if kwargs.get("refresh_source", False):
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_internal_key},
+                )
+            if kwargs.get("refresh_requests", False):
+                flow.push(
+                    last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
+        except Exception as e:
+            log(f"Failed to send notification: {str(e)}")
 
 
 mmt_properties = {

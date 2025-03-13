@@ -1,4 +1,3 @@
-from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from .. import FollowUpAPI
@@ -112,58 +111,12 @@ class BINOSPECAPI(FollowUpAPI):
                 "exposuretime": payload.get("exposure_time"),
             }
 
-        submit_mmt_request(session, request, specific_payload, 16)
-
-        try:
-            flow = Flow()
-            if kwargs.get("refresh_source", False):
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": request.obj.internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow.push(
-                    request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-                )
-        except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+        submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
 
     @staticmethod
     @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
-        """
-        Delete a follow-up request to the BINOSPEC instrument from the MMT queue
-
-        Parameters
-        ----------
-        request : FollowupRequest
-            The request to delete
-        session : DBSession
-            Database session
-        kwargs : dict
-            Additional keyword arguments
-        """
-        last_modified_by_id = request.last_modified_by_id
-        obj_internal_key = request.obj.internal_key
-
-        delete_mmt_request(session, request)
-
-        try:
-            flow = Flow()
-            if kwargs.get("refresh_source", False):
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj_internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow.push(
-                    last_modified_by_id,
-                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                )
-        except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+        delete_mmt_request(session, request, log, **kwargs)
 
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
