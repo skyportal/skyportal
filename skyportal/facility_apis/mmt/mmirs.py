@@ -17,6 +17,14 @@ log = make_log("facility_apis/mmt/mmirs")
 
 
 def check_request(request):
+    """
+    Check that the request has the required fields for the MMIRS instrument
+
+    Parameters
+    ----------
+    request : FollowupRequest
+        The request to check
+    """
     payload = request.payload
 
     check_mmt_payload(payload)
@@ -64,6 +72,18 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def submit(request, session, **kwargs):
+        """
+        Submit a followup request to the MMIRS instrument from MMT
+
+        Parameters
+        ----------
+        request : FollowupRequest
+            The request to submit
+        session : DBSession
+            The database session
+        kwargs : dict
+            Additional keyword arguments
+        """
         payload = request.payload
         check_request(request)
 
@@ -100,6 +120,18 @@ class MMIRSAPI(FollowUpAPI):
     @staticmethod
     @catch_timeout_and_no_endpoint
     def delete(request, session, **kwargs):
+        """
+        Delete a followup request from the MMIRS instrument to the MMT queue
+
+        Parameters
+        ----------
+        request : FollowupRequest
+            The request to delete
+        session : DBSession
+            The database session
+        kwargs : dict
+            Additional keyword arguments
+        """
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 

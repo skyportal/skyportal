@@ -11,6 +11,10 @@ env, cfg = load_env()
 
 
 def catch_timeout_and_no_endpoint(func):
+    """
+    Catch timeout and missing endpoint errors from the MMT server
+    """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -27,6 +31,9 @@ def catch_timeout_and_no_endpoint(func):
 
 
 def check_mmt_payload(payload):
+    """
+    Check the validity of the payload for fields common to all MMT instruments
+    """
     if payload.get("observation_type") not in [
         "Imaging",
         "Spectroscopy",
@@ -51,16 +58,20 @@ def check_mmt_payload(payload):
 
 
 def sanitize_obj_id(obj_id):
+    """
+    Sanitize the object ID to avoid using special characters in the MMT request
+    """
     if len(obj_id) > 50:
         obj_id = obj_id[:50]
     return "".join(c if c.isalnum() else "X" for c in obj_id)
 
 
 def check_obj_for_mmt(obj):
+    """
+    Check the validity of the required object fields for an MMT request
+    """
     if not obj.id or len(obj.id) < 2:
         raise ValueError("Object ID must be more than 2 characters")
-    else:
-        obj.id = sanitize_obj_id(obj.id)
     if not obj.ra:
         raise ValueError("Missing the 'ra' value on the object")
     if not obj.dec:
@@ -70,9 +81,12 @@ def check_obj_for_mmt(obj):
 
 
 def get_mmt_json_payload(obj, altdata, payload):
+    """
+    Get the JSON payload common to all MMT instruments
+    """
     return {
         "token": altdata["token"],
-        "objectid": obj.id,
+        "objectid": sanitize_obj_id(obj.id),
         "ra": deg2hms(obj.ra),
         "dec": deg2dms(obj.dec),
         "magnitude": obj.photstats[0].last_detected_mag,
@@ -94,7 +108,21 @@ def get_mmt_json_payload(obj, altdata, payload):
     }
 
 
-def submit_mmt_request(session, request, specific_payload, instrumentid):
+def submit_mmt_request(session, request, specific_payload, instrument_id):
+    """
+    Submit a request to MMT
+
+    Parameters
+    ----------
+    session : SQLAlchemy session
+        The current session
+    request : FollowupRequest
+        The request to submit
+    specific_payload : dict
+        The payload specific to an instrument
+    instrument_id : int
+        The instrument ID to submit the request to
+    """
     from ...models import FacilityTransaction
 
     if cfg["app.mmt_endpoint"] is None:
@@ -107,7 +135,7 @@ def submit_mmt_request(session, request, specific_payload, instrumentid):
     json_payload = {
         **get_mmt_json_payload(request.obj, altdata, request.payload),
         **specific_payload,
-        "instrumentid": instrumentid,
+        "instrumentid": instrument_id,
     }
 
     response = requests.post(
@@ -138,6 +166,16 @@ def submit_mmt_request(session, request, specific_payload, instrumentid):
 
 
 def delete_mmt_request(session, request):
+    """
+    Delete a request from the MMT queue
+
+    Parameters
+    ----------
+    session : SQLAlchemy session
+        The current session
+    request : FollowupRequest
+        The request to delete
+    """
     from ...models import FacilityTransaction, FollowupRequest
 
     # this happens for failed submissions, just go ahead and delete
