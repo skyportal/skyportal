@@ -254,7 +254,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
             },
       ...(instrument_id &&
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {
-          only_update_changed_fields: {
+          replace_altdata: {
             type: "boolean",
             title: "Only update changed alternative data",
             default: true,
