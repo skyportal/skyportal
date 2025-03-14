@@ -82,7 +82,9 @@ def create_payload_and_header(obj, data):
     )
 
     if response.status_code != 200:
-        raise ValueError(f"Failed to validate payload: error {response.status_code}")
+        raise ValueError(
+            f"Failed to validate payload: {response.status_code}: {response.text}"
+        )
     else:
         return payload, header
 
