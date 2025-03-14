@@ -1,4 +1,5 @@
 import functools
+import json
 
 import requests
 
@@ -36,7 +37,10 @@ def create_payload_and_header(obj, data):
     """
     Create the payload qnd the header for Hermes and validate it by using the Hermes API
     """
-    header = {"Authorization": f"Token {data['hermes_token']}"}
+    header = {
+        "Authorization": f"Token {data['hermes_token']}",
+        "Content-Type": "application/json",
+    }
 
     payload = {
         "topic": data["topic"],
@@ -74,6 +78,10 @@ def create_payload_and_header(obj, data):
         },
     }
 
+    return json.dumps(payload), header
+
+
+def validate_payload_and_header(payload, header):
     response = requests.post(
         f"{cfg['app.hermes_endpoint']}/submit_message/validate/",
         data=payload,
@@ -85,8 +93,6 @@ def create_payload_and_header(obj, data):
         raise ValueError(
             f"Failed to validate payload: {response.status_code}: {response.text}"
         )
-    else:
-        return payload, header
 
 
 class HermesHandler(BaseHandler):
@@ -111,6 +117,7 @@ class HermesHandler(BaseHandler):
                 return self.error("Object not found")
 
             payload, header = create_payload_and_header(obj, data)
+            validate_payload_and_header(payload, header)
 
             response = requests.post(
                 f"{cfg['app.hermes_endpoint']}/submit_message/",
