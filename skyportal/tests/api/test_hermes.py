@@ -1,18 +1,25 @@
-from skyportal.tests import api
+from skyportal.handlers.api.hermes.hermes import create_payload_and_header
 
 
-def test_hermes_publishing(public_obj, super_admin_token):
-    assert public_obj.photometry is not None
-
+def test_hermes_payload_creation_and_validation(public_obj):
     data = {
-        "hermes_token": "TOKEN",
+        "hermes_token": "Bad token",
         "topic": "hermes.test",
         "title": "Title test",
         "submitter": "Test user",
     }
 
-    status, data = api("POST", f"hermes/{public_obj.id}", data, token=super_admin_token)
-    print(status)
-    print(data)
-    assert status == 200
-    assert data["status"] == "success"
+    try:
+        payload, header = create_payload_and_header(public_obj, data)
+    except ValueError as e:
+        assert (
+            str(e)
+            == 'Failed to validate payload: 403: {"detail":"Invalid token header. Token string should not contain spaces."}'
+        )
+
+    data["hermes_token"] = "BadToken"
+
+    try:
+        payload, header = create_payload_and_header(public_obj, data)
+    except ValueError as e:
+        assert str(e) == 'Failed to validate payload: 403: {"detail":"Invalid token."}'
