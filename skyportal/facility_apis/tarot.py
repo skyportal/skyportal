@@ -617,15 +617,19 @@ class TAROTAPI(FollowUpAPI):
         return {
             "type": "object",
             "properties": {
-                "observation_choices": {
-                    "type": "array",
-                    "title": "Desired Observations",
-                    "items": {
-                        "type": "string",
-                        "enum": instrument.to_dict()["filters"],
-                    },
+                "filter": {
+                    "type": "string",
+                    "title": "Filter",
+                    **(
+                        {"enum": instrument.to_dict().get("filters", [])}
+                        if instrument.to_dict().get("filters")
+                        else {
+                            "readOnly": True,
+                            "description": "Filters need to be added to this instrument",
+                        }
+                    ),
                     "uniqueItems": True,
-                    "minItems": 0,
+                    "minItems": 1,
                 },
                 "start_date": {
                     "type": "string",
