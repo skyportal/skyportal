@@ -140,6 +140,10 @@ class MovingObjectFollowupHandler(BaseHandler):
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 
+        # if the delta T between start and end time > 7 days, return an error
+        if (end_time - start_time).total_seconds() > 7 * 24 * 3600:
+            return self.error("Time window must be less than 7 days")
+
         if str(references_only).lower() in ["true", "1", "t", "y", "yes"]:
             references_only = True
         else:

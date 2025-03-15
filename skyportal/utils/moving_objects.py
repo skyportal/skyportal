@@ -64,7 +64,10 @@ def find_jplhorizon_obj(obj_name: str):
         The object ID of the object.
     """
     url = urllib.parse.urljoin(BASE_URL, f"/api/horizons_support.api")
-    response = requests.get(url, params={"sstr": obj_name})
+    try:
+        response = requests.get(url, params={"sstr": obj_name})
+    except Exception as e:
+        raise ValueError(f"Failed to query JPL Horizons API: {e}")
     if response.status_code != 200:
         raise ValueError(f"Failed to query JPL Horizons API: {response.text}")
 
@@ -157,7 +160,10 @@ def get_ephemeris(
             "QUANTITIES": "'1,8,9'",
             "CSV_FORMAT": "'YES'",
         }
-        response = requests.get(url, params=params)
+        try:
+            response = requests.get(url, params=params)
+        except Exception as e:
+            raise ValueError(f"Failed to query JPL Horizons API: {e}")
         if response.status_code != 200:
             raise ValueError(f"Failed to query JPL Horizons API: {response.text}")
 
