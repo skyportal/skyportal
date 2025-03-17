@@ -154,14 +154,14 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
         enum: api_classnames,
         uniqueItems: true,
         title: "API Classname",
-        default: instrumentToEdit?.api_classname || "",
+        default: instrumentToEdit?.api_classname || undefined,
       },
       api_classname_obsplan: {
         type: "string",
         enum: api_classnames,
         uniqueItems: true,
         title: "API Observation Plan Classname",
-        default: instrumentToEdit?.api_classname_obsplan || "",
+        default: instrumentToEdit?.api_classname_obsplan || undefined,
       },
       field_data: {
         type: "string",
