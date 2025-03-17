@@ -237,8 +237,8 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
           replace_altdata: {
             type: "boolean",
             title:
-              "Only update specified allocation parameters (if false, overwrite all allocation parameters)",
-            default: true,
+              "Overwrite all allocation parameters (if false, only update specified allocation parameters)",
+            default: false,
           },
         }),
     },
