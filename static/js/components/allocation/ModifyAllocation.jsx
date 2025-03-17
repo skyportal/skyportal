@@ -239,7 +239,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties
           ? {
               type: "object",
-              title: "Alternative data",
+              title: "Allocation Parameters/Credentials",
               properties:
                 instrumentFormParams[instrument_id].formSchemaAltdata
                   .properties,
@@ -249,14 +249,14 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
             }
           : {
               type: "string",
-              title:
-                "Alternative json data (i.e. {'slack_token': 'testtoken'})",
+              title: "Allocation json data (i.e. {'slack_token': 'testtoken'})",
             },
       ...(instrument_id &&
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {
           replace_altdata: {
             type: "boolean",
-            title: "Only update changed alternative data",
+            title:
+              "Only update specified allocation parameters (if false, overwrite all allocation parameters)",
             default: true,
           },
         }),

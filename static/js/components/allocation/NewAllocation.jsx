@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
 import Form from "@rjsf/mui";
@@ -39,12 +40,12 @@ const NewAllocation = ({ onClose }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
   );
-  const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
   );
   const groups = useSelector((state) => state.groups.userAccessible);
   const group = useSelector((state) => state.group);
+  const [instrumentOptions, setInstrumentOptions] = useState([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedFormData, setSelectedFormData] = useState(null);
@@ -73,6 +74,17 @@ const NewAllocation = ({ onClose }) => {
       dispatch(groupActions.fetchGroup(selectedGroup.id));
     }
   }, [selectedGroup, dispatch]);
+
+  useEffect(() => {
+    if (instrumentList?.length > 0) {
+      let options = instrumentList.map((instrument) => ({
+        value: instrument.id,
+        label: `${instrument?.telescope?.name} / ${instrument.name}`,
+      }));
+      options = options.sort((a, b) => a.label.localeCompare(b.label));
+      setInstrumentOptions(options);
+    }
+  }, [instrumentList]);
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -175,13 +187,9 @@ const NewAllocation = ({ onClose }) => {
       },
       instrument_id: {
         type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
-          enum: [instrument.id],
-          title: `${
-            telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id,
-            )?.name
-          } / ${instrument.name}`,
+        oneOf: instrumentOptions.map((instrument) => ({
+          enum: [instrument.value],
+          title: instrument.label,
         })),
         title: "Instrument",
       },
@@ -199,13 +207,13 @@ const NewAllocation = ({ onClose }) => {
     ],
     dependencies: {
       instrument_id: {
-        oneOf: instrumentList.map((instrument) => {
+        oneOf: instrumentOptions.map((instrument) => {
           const altdata =
-            instrumentFormParams[instrument.id]?.formSchemaAltdata;
+            instrumentFormParams[instrument.value]?.formSchemaAltdata;
           return {
             properties: {
               instrument_id: {
-                enum: [instrument.id],
+                enum: [instrument.value],
               },
               ...(altdata?.properties
                 ? {
@@ -224,6 +232,14 @@ const NewAllocation = ({ onClose }) => {
       },
     },
   };
+
+  if (!groups || !instrumentOptions?.length > 0) {
+    return (
+      <div>
+        <CircularProgress />
+      </div>
+    );
+  }
 
   return (
     <div>
