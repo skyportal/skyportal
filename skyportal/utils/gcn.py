@@ -481,7 +481,10 @@ def get_properties(root):
             continue
         value = elem.attrib.get("value", None)
         if value is not None:
-            value = float(value.strip(">="))
+            if property_name in {"Trigger_Type"}:
+                value = str(value)
+            else:
+                value = float(value.strip(">="))
             property_dict[property_name] = value
 
     tags_list = []
