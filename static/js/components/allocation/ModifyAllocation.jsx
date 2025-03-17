@@ -37,10 +37,7 @@ const useStyles = makeStyles(() => ({
 
 const ModifyAllocation = ({ allocation_id, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
-  const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments,
-  );
-  const { telescopeList } = useSelector((state) => state.telescopes);
+  const { instrumentFormParams } = useSelector((state) => state.instruments);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
   );
@@ -109,11 +106,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     }
   }, [group]);
 
-  if (
-    allocationList.length === 0 ||
-    instrumentList.length === 0 ||
-    telescopeList.length === 0
-  ) {
+  if (allocationList.length === 0) {
     return <h3>No allocations available...</h3>;
   }
 
@@ -127,22 +120,10 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     groupLookUp[thisGroup.id] = thisGroup;
   });
 
-  const telLookUp = {};
-
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
-  });
-
   const allocationLookUp = {};
 
   allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
-  });
-
-  const instLookUp = {};
-
-  instrumentList?.forEach((instrumentObj) => {
-    instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
