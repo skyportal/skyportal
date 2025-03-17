@@ -118,6 +118,9 @@ const Theme = ({ disableTransitions, children }) => {
               },
             },
           },
+          ".MuiMenuItem-root[data-value='']": {
+            color: "grey",
+          },
         },
       },
     },
