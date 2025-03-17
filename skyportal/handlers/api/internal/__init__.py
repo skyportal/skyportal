@@ -5,6 +5,7 @@ _, cfg = load_env()
 from .annotations_info import AnnotationsInfoHandler
 from .dbinfo import DBInfoHandler
 from .ephemeris import EphemerisHandler
+from .followup_apis import FollowupAPIsHandler
 from .log import LogHandler
 from .notifications import BulkNotificationHandler, NotificationHandler
 from .notifications_test import NotificationTestHandler
