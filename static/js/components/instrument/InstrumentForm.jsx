@@ -58,7 +58,6 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
   }
 
   const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
-  api_classnames.push("");
   const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
 
   const instrumentToEdit = instrumentID
