@@ -23,8 +23,7 @@ import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewInstrument from "./NewInstrument";
-import ModifyInstrument from "./ModifyInstrument";
+import InstrumentForm from "./InstrumentForm";
 import * as instrumentActions from "../../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
@@ -490,7 +489,7 @@ const InstrumentTable = ({
         >
           <DialogTitle>New Instrument</DialogTitle>
           <DialogContent dividers>
-            <NewInstrument onClose={closeNewDialog} />
+            <InstrumentForm onClose={closeNewDialog} />
           </DialogContent>
         </Dialog>
         <Dialog
@@ -499,11 +498,13 @@ const InstrumentTable = ({
           style={{ position: "fixed" }}
           maxWidth="md"
         >
-          <DialogTitle>Edit Instrument</DialogTitle>
+          <DialogTitle>
+            Edit Instrument {instruments[instrumentToEditDelete]?.name || ""}
+          </DialogTitle>
           <DialogContent dividers>
-            <ModifyInstrument
-              instrumentID={instrumentToEditDelete}
+            <InstrumentForm
               onClose={closeEditDialog}
+              instrumentID={instrumentToEditDelete}
             />
           </DialogContent>
         </Dialog>
@@ -520,7 +521,6 @@ const InstrumentTable = ({
 
 InstrumentTable.propTypes = {
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
