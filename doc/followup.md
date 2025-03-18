@@ -27,4 +27,5 @@ In addition to sending requests to their respective API, the `SEDM`, `Swift`, an
 
 *We plan on adding this notification functionality to all follow-up instruments in the future.*
 
-When creating an allocation from the web interface, upon selecting an instrument the relevant `altdata` fields will be displayed in the form. However when editing an existing allocation, these will not be displayed and the user should refer to this documentation for the correct format. *In the future, we plan to also display the `altdata` fields when editing an allocation.*
+When creating an allocation from the web interface, upon selecting an instrument the relevant `altdata` fields will be displayed in the form.
+When editing an existing allocation, these `altdata` fields will also be displayed, along with a new field `replace_altdata`. This checkbox field allows the user to choose whether to replace all altdata fields or update only the specified ones.
