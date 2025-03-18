@@ -56,19 +56,12 @@ const SourcePublishRelease = ({
     type: "object",
     properties: {
       release: {
-        type: ["integer", "null"],
-        anyOf: [
-          {
-            enum: [null],
-            title: "- - Select a release - -",
-          },
-          ...releases.map((item) => ({
-            enum: [item.id],
-            type: "integer",
-            title: item.name,
-          })),
-        ],
-        default: null,
+        type: "integer",
+        title: "Release",
+        oneOf: releases.map((item) => ({
+          enum: [item.id],
+          title: item.name,
+        })),
       },
     },
   };
@@ -103,6 +96,9 @@ const SourcePublishRelease = ({
               liveValidate
               validator={validator}
               uiSchema={{
+                release: {
+                  "ui:placeholder": "Choose an option",
+                },
                 "ui:submitButtonOptions": { norender: true },
               }}
             />
