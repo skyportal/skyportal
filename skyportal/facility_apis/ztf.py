@@ -643,18 +643,6 @@ class ZTFAPI(FollowUpAPI):
 
                 session.add(req)
                 session.commit()
-
-                facility_microservice_url = (
-                    f"http://127.0.0.1:{cfg['ports.facility_queue']}"
-                )
-                requests.post(
-                    facility_microservice_url,
-                    json={
-                        "request_id": req.id,
-                        "followup_request_id": req.followup_request_id,
-                    },
-                )
-
         else:
             request.status = f"rejected: {r.content}"
 
