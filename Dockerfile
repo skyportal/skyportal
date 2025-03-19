@@ -30,7 +30,7 @@ RUN bash -c "\
     cp docker.yaml config.yaml && \
     python3 -m venv /skyportal_env && \
     source /skyportal_env/bin/activate && \
-    pip install --upgrade pip wheel packaging setuptools --no-cache && \
+    pip install --upgrade pip wheel packaging 'setuptools<76.1.0' --no-cache && \
     pip install -r baselayer/requirements.txt --no-cache && \
     pip install -r requirements.txt --no-cache && \
     make system_setup && \
