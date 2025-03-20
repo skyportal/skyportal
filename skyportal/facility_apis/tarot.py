@@ -23,17 +23,27 @@ log = make_log("facility_apis/tarot")
 
 station_dict = {
     "Tarot_Calern": {
-        "url_to_request": 1,
-        "endpoint": "calern_endpoint",
+        "filters": ["NoFilter", "g", "r", "i"],
+        "status_url": f"{cfg['app.tarot_endpoint']}/rejected1.txt",
+        "observation_url": cfg["app.calern_endpoint"],
     },
     "Tarot_Chili": {
-        "url_to_request": 2,
-        "endpoint": "chili_endpoint",
+        "filters": ["NoFilter", "g", "r", "i"],
+        "status_url": f"{cfg['app.tarot_endpoint']}/rejected2.txt",
+        "observation_url": cfg["app.chili_endpoint"],
     },
     "Tarot_Reunion": {
-        "url_to_request": 8,
-        "endpoint": "reunion_endpoint",
+        "filters": ["NoFilter"],
+        "status_url": f"{cfg['app.tarot_endpoint']}/rejected8.txt",
+        "observation_url": cfg["app.reunion_endpoint"],
     },
+}
+
+filters_value = {
+    "NoFilter": 0,
+    "g": 13,
+    "r": 14,
+    "i": 15,
 }
 
 
@@ -73,7 +83,6 @@ def get_observing_time(session, request):
             Telescope.instrument.id == request.instrument.id
         )
     )
-    print(telescope)
     try:
         return get_next_valid_observing_time(
             start_time=request.payload["start_date"],
@@ -90,7 +99,35 @@ def get_observing_time(session, request):
         raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
 
 
-def check_payload(payload):
+def check_specific_config(request):
+    """Check the specific configuration data for the instrument.
+
+    Parameters
+    ----------
+    request: skyportal.models.FollowupRequest
+        The request to check the specific configuration data for.
+
+    Returns
+    -------
+    specific_config: dict
+        The specific configuration data for the instrument.
+    """
+    if request.instrument.configuration_data is None:
+        raise ValueError("Instrument configuration data is missing")
+    specific_config = request.instrument.configuration_data.specific_configuration
+    if specific_config is None:
+        raise ValueError("Instrument specific data is missing")
+    if specific_config.keys() not in ["station_name"]:
+        raise ValueError(f"Missing station_name in specific configuration data")
+    if specific_config["station_name"] not in station_dict:
+        raise ValueError(
+            f"Invalid station name in specific configuration, must be one of {', '.join(station_dict.keys())}"
+        )
+
+    return specific_config
+
+
+def check_payload(payload, station_name):
     """Check the payload for a follow-up request to TAROT.
 
     Parameters
@@ -107,12 +144,17 @@ def check_payload(payload):
         "exposure_time",
         "exposure_counts",
         "airmass",
-        "observation_choices",
+        "filters",
     }
 
     missing_params = required_params - payload.keys()
     if missing_params:
         raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+
+    if payload["filters"] not in station_dict[station_name]["filters"]:
+        raise ValueError(
+            f"Instrument filters not in Tarot allowed filters ({', '.join(station_dict[station_name]['filters'])})."
+        )
 
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
@@ -129,21 +171,20 @@ def check_payload(payload):
         raise ValueError("exposure_time must be positive or -1.")
 
 
-def get_sequence(request, last_detected_mag, phase_angle):
-    sequence = {}
-    instrument_name = request.instrument.name
+def get_filters_exposures(last_detected_mag, phase_angle, station_name):
+    filters_exposures = {}
 
-    if "calern" in instrument_name.lower() or "chili" in instrument_name.lower():
+    if station_name in ["Tarot_Calern", "Tarot_Chili"]:
         if last_detected_mag <= 17.0:
             if phase_angle > 60:
-                sequence = {
+                filters_exposures = {
                     "r": [15, 120],
                     "g": [0, 0],
                     "i": [0, 0],
                     "NoFilter": [6, 120],
                 }
             else:
-                sequence = {
+                filters_exposures = {
                     "r": [8, 120],
                     "g": [0, 0],
                     "i": [8, 120],
@@ -151,14 +192,14 @@ def get_sequence(request, last_detected_mag, phase_angle):
                 }
         elif 17.0 < last_detected_mag < 19.0:
             if phase_angle > 60:
-                sequence = {
+                filters_exposures = {
                     "r": [22, 120],
                     "g": [0, 0],
                     "i": [0, 0],
                     "NoFilter": [15, 120],
                 }
             else:
-                sequence = {
+                filters_exposures = {
                     "r": [8, 200],
                     "g": [0, 0],
                     "i": [8, 200],
@@ -166,43 +207,49 @@ def get_sequence(request, last_detected_mag, phase_angle):
                 }
         else:
             if phase_angle > 60:
-                sequence = {
+                filters_exposures = {
                     "r": [0, 0],
                     "g": [0, 0],
                     "i": [0, 0],
                     "NoFilter": [15, 200],
                 }
             else:
-                sequence = {
+                filters_exposures = {
                     "r": [12, 200],
                     "g": [0, 0],
-                    "i": [12, 200] if "calern" in instrument_name.lower() else [0, 0],
+                    "i": [12, 200] if station_name is "Tarot_Calern" else [0, 0],
                     "NoFilter": [12, 120],
                 }
 
-    elif "reunion" in instrument_name.lower():
+    elif station_name is "Tarot_Reunion":
         if last_detected_mag <= 17.0:
-            sequence = {"NoFilter": [12, 120] if phase_angle > 60 else [8, 120]}
+            filters_exposures = {
+                "NoFilter": [12, 120] if phase_angle > 60 else [8, 120]
+            }
         elif 17.0 < last_detected_mag < 19.0:
-            sequence = {"NoFilter": [18, 120] if phase_angle > 60 else [12, 200]}
+            filters_exposures = {
+                "NoFilter": [18, 120] if phase_angle > 60 else [12, 200]
+            }
         else:
-            sequence = {"NoFilter": [0, 0] if phase_angle > 60 else [18, 200]}
+            filters_exposures = {"NoFilter": [0, 0] if phase_angle > 60 else [18, 200]}
 
-    return sequence
+    return filters_exposures
 
 
-def create_request_string(request, observation_time):
+def create_request_string(obj, payload, observation_time, station_name):
     """Create the request string to send to TAROT.
 
     Parameters
     ----------
-    request: skyportal.models.FollowupRequest
-        The request information to send to TAROT.
-    observation_time: datetime
+    obj: skyportal.models.Obj
+        The object to observe.
+    payload: dict
+        The payload coming from the request.
+    observation_time: `astropy.time.Time`
         The observation time to send to TAROT.
+    station_name: str
+        The Tarot station name use for the request.
     """
-    payload = request.payload
-    obj = request.obj
     tt = observation_time
 
     observations = []
@@ -218,21 +265,21 @@ def create_request_string(request, observation_time):
             raise ValueError("No detections to base exposure time calculation on")
 
         phase_angle = np.rad2deg(moon_phase_angle(tt).value)
-        sequence = get_sequence(request, last_detected_mag, phase_angle)
-
-        if sequence is None:
-            raise ValueError("Default sequence not available for this telescope")
+        filters_exposures = get_filters_exposures(
+            last_detected_mag, phase_angle, station_name
+        )
 
         observations = []
-        for default_filter in sequence:
-            exp_count, exposure_time = sequence[default_filter]
+        for filter_name, exposures in filters_exposures.items():
+            exposure_count, exposure_time = exposures
             observations.extend(
-                [f"{exposure_time} {filters[default_filter]}"] * exp_count
+                [f"{exposure_time} {filters_value[filter_name]}"] * exposure_count
             )
-
     else:
-        for obs_filter in payload["observation_choices"]:
-            observations.append(f"{payload['exposure_time']} {filters[obs_filter]}")
+        for filter_name in payload["filters"]:
+            observations.append(
+                f"{payload['exposure_time']} {filters_value[filter_name]}"
+            )
         observations = sum([observations] * payload["exposure_counts"], [])
 
     total_time = 0.0
@@ -244,11 +291,10 @@ def create_request_string(request, observation_time):
             obs_filler = ["0 0"] * (6 - int(remainder) - 1) + ["0 0 "]
 
         obs = observations[ii * 6 : (ii + 1) * 6]
-
         ttline = tt + (total_time * u.s)
 
         if obs:
-            observation_string += f'"{obj.id}" {obj.ra} {obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{payload["priority"]} {payload["station_name"]}\n\r'
+            observation_string += f'"{obj.id}" {obj.ra} {obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)}{payload["priority"]} {station_name}\n\r'
 
         if ii != number_of_strings:
             total_time += sum(45 + int(o.split(" ")[0]) for o in obs)
@@ -329,13 +375,17 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        check_payload(request.payload)
+        specific_config = check_specific_config(request)
+        check_payload(request.payload, specific_config["station_name"])
 
         hash_user = login_to_tarot(request, session, altdata)
-
         observing_time = get_observing_time(session, request)
-
-        observation_string = create_request_string(request, observing_time)
+        observation_string = create_request_string(
+            request.obj,
+            request.payload,
+            observing_time,
+            specific_config["station_name"],
+        )
 
         # Create one or more new scene in a request using an observation string
         payload = {
@@ -412,13 +462,15 @@ class TAROTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
+        specific_config = check_specific_config(request)
+
         insert_scene_ids = re.findall(
             r"insert_id\s*=\s*(\d+)",
             request.transactions[-1].response["content"],
         )
 
         response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/rejected{station_dict[request.payload['station_name']]['url_to_request']}.txt",
+            f"{cfg['app.tarot_endpoint']}/{station_dict[specific_config['station_name']]['status_url']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
             timeout=5.0,
         )
@@ -460,30 +512,19 @@ class TAROTAPI(FollowUpAPI):
 
         if "rejected" not in (new_request_status or request.status):
             # check if the scene has been observed
-            station_endpoint = cfg[
-                f"app.{station_dict[request.payload['station_name']]['endpoint']}"
-            ]
-            if station_endpoint:
-                response = requests.get(f"{station_endpoint}/klotz/", timeout=5.0)
+            response = requests.get(
+                f"{station_dict[specific_config['station_name']]['observation_url']}/",
+                timeout=5.0,
+            )
 
-                if response.status_code != 200:
-                    raise ValueError("Error trying to get the observation log")
+            if response.status_code != 200:
+                raise ValueError("Error trying to get the observation log")
 
-                scene_id = insert_scene_ids[0]
-                manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-                if manager_scene_id in response.text:
-                    nb_observation = response.text.count(manager_scene_id)
-                    new_request_status = f"complete"
-            else:
-                flow = Flow()
-                flow.push(
-                    request.last_modified_by_id,
-                    "baselayer/SHOW_NOTIFICATION",
-                    payload={
-                        "note": f"No url provided for endpoint {request.payload['station_name']}.",
-                        "type": "error",
-                    },
-                )
+            scene_id = insert_scene_ids[0]
+            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
+            if manager_scene_id in response.text:
+                nb_observation = response.text.count(manager_scene_id)
+                new_request_status = f"complete"
 
         if new_request_status is None:
             return
@@ -617,19 +658,40 @@ class TAROTAPI(FollowUpAPI):
         return {
             "type": "object",
             "properties": {
-                "filter": {
-                    "type": "string",
-                    "title": "Filter",
-                    **(
-                        {"enum": instrument.to_dict().get("filters", [])}
-                        if instrument.to_dict().get("filters")
-                        else {
-                            "readOnly": True,
-                            "description": "Filters need to be added to this instrument",
-                        }
-                    ),
+                "filters": {
+                    "type": "array",
+                    "title": "Filters",
                     "uniqueItems": True,
                     "minItems": 1,
+                    **(
+                        {
+                            "description": "⚠️ No station name selected in the instrument configuration",
+                            "readonly": True,
+                            "items": {
+                                "type": "string",
+                                "enum": [],
+                            },
+                        }
+                        if not instrument.configuration_data
+                        or not instrument.configuration_data.specific_configuration
+                        or not instrument.configuration_data.specific_configuration[
+                            "station_name"
+                        ]
+                        or not instrument.configuration_data.specific_configuration[
+                            "station_name"
+                        ]
+                        in station_dict
+                        else {
+                            "items": {
+                                "type": "string",
+                                "enum": station_dict[
+                                    instrument.configuration_data.specific_configuration[
+                                        "station_name"
+                                    ]
+                                ],
+                            },
+                        }
+                    ),
                 },
                 "start_date": {
                     "type": "string",
@@ -683,9 +745,11 @@ class TAROTAPI(FollowUpAPI):
                 "exposure_time",
                 "exposure_counts",
                 "airmass",
-                "observation_choices",
+                "filters",
             ],
         }
+
+    ui_json_schema = {"filters": {"ui:widget": "checkboxes"}}
 
     form_json_schema_altdata = {
         "type": "object",
@@ -726,7 +790,7 @@ class TAROTAPI(FollowUpAPI):
             "station_name": {
                 "type": "string",
                 "title": "Station Name use for the request",
-                "enum": list(filters_dict.keys()),
+                "enum": list(station_dict.keys()),
             },
             "station_endpoint": {
                 "type": "string",
