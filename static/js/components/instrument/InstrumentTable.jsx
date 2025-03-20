@@ -499,7 +499,9 @@ const InstrumentTable = ({
           maxWidth="md"
         >
           <DialogTitle>
-            Edit Instrument {instruments[instrumentToEditDelete]?.name || ""}
+            {`Edit ${
+              instruments.find((i) => i.id === instrumentToEditDelete)?.name
+            } instrument`}
           </DialogTitle>
           <DialogContent dividers>
             <InstrumentForm
