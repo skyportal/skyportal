@@ -720,4 +720,21 @@ class TAROTAPI(FollowUpAPI):
         ],
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    form_json_schema_config = {
+        "type": "object",
+        "properties": {
+            "station_name": {
+                "type": "string",
+                "title": "Station Name use for the request",
+                "enum": list(filters_dict.keys()),
+            },
+            "station_endpoint": {
+                "type": "string",
+                "title": "Station Endpoint",
+            },
+            "station_rejected_file": {
+                "type": "number",
+                "title": "Station Rejected File Number",
+            },
+        },
+    }
