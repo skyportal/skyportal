@@ -8,6 +8,7 @@ import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
