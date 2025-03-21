@@ -674,9 +674,9 @@ class TAROTAPI(FollowUpAPI):
                             },
                         }
                         if not config
-                        or not config["specific_configuration"]
-                        or not config["specific_configuration"]["station_name"]
-                        or not config["specific_configuration"]["station_name"]
+                        or not config.get("specific_configuration", {}).get(
+                            "station_name"
+                        )
                         in station_dict
                         else {
                             "items": {
