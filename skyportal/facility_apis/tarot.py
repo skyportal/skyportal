@@ -85,7 +85,8 @@ def get_observing_time(session, request):
     )
     try:
         return get_next_valid_observing_time(
-            start_time=request.payload["start_date"],
+            start_time=Time(request.payload["start_date"], format="iso"),
+            end_time=Time(request.payload["end_date"], format="iso"),
             telescope=telescope,
             target=astroplan.FixedTarget(
                 SkyCoord(ra=request.obj.ra * u.deg, dec=request.obj.dec * u.deg),
