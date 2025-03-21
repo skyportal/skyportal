@@ -752,6 +752,7 @@ class TAROTAPI(FollowUpAPI):
             "request_id": {
                 "type": "string",
                 "title": "Request ID to add scene",
+                "default": "2282",
             },
             "browser_username": {
                 "type": "string",
