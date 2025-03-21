@@ -135,7 +135,7 @@ def service():
                             try:
                                 json_response = response.json()
                             except Exception:
-                                raise ("No JSON data returned in request")
+                                raise ValueError(f"No JSON data returned in request")
 
                             if json_response["finishtimestamp"]:
                                 followup_request.status = (
