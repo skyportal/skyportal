@@ -39,6 +39,8 @@ export function fetchAllocationsApiClassname(params = {}) {
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_ALLOCATIONS) {
     dispatch(fetchAllocations());
+    dispatch(fetchAllocationsApiObsplan());
+    dispatch(fetchAllocationsApiClassname());
   }
 });
 
