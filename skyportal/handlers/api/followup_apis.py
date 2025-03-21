@@ -2,7 +2,7 @@ from baselayer.app.access import auth_or_token
 from skyportal import facility_apis
 from skyportal.enum_types import api_classnames
 
-from ...base import BaseHandler
+from ..base import BaseHandler
 
 
 class FollowupAPIsHandler(BaseHandler):
