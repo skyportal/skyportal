@@ -114,10 +114,12 @@ def check_specific_config(request):
     """
     if request.instrument.configuration_data is None:
         raise ValueError("Instrument configuration data is missing")
-    specific_config = request.instrument.configuration_data.specific_configuration
+    specific_config = request.instrument.configuration_data.get(
+        "specific_configuration"
+    )
     if specific_config is None:
         raise ValueError("Instrument specific data is missing")
-    if specific_config.keys() not in ["station_name"]:
+    if "station_name" not in specific_config:
         raise ValueError(f"Missing station_name in specific configuration data")
     if specific_config["station_name"] not in station_dict:
         raise ValueError(
@@ -151,7 +153,7 @@ def check_payload(payload, station_name):
     if missing_params:
         raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
 
-    if payload["filters"] not in station_dict[station_name]["filters"]:
+    if not set(payload["filters"]).issubset(set(station_dict[station_name]["filters"])):
         raise ValueError(
             f"Instrument filters not in Tarot allowed filters ({', '.join(station_dict[station_name]['filters'])})."
         )
