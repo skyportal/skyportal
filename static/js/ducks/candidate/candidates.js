@@ -1,8 +1,8 @@
 import messageHandler from "baselayer/MessageHandler";
 
-import * as API from "../API";
+import * as API from "../../API";
 import * as candidateActions from "./candidate";
-import store from "../store";
+import store from "../../store";
 
 const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
 const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";

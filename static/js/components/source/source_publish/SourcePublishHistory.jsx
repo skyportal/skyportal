@@ -58,14 +58,14 @@ const useStyles = makeStyles(() => ({
 const SourcePublishHistory = ({ sourceId, versions }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const manageSourcesAccess = useSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");
 
   useEffect(() => {
-    setIsLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId)).then(() => setIsLoading(false));
+    setLoading(true);
+    dispatch(fetchPublicSourcePages(sourceId)).then(() => setLoading(false));
   }, [dispatch, sourceId]);
 
   const deleteVersion = (id) => {
@@ -134,7 +134,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
         })
       ) : (
         <div className={styles.noVersion}>
-          {isLoading ? (
+          {loading ? (
             <CircularProgress size={24} />
           ) : (
             <div>No public page available yet!</div>

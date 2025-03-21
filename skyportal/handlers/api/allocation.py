@@ -528,6 +528,7 @@ class AllocationHandler(BaseHandler):
             # if it ends up being a dictionnary with no keys, remove it
             if not data["_altdata"] or not any(data["_altdata"]):
                 data.pop("_altdata")
+
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(self.current_user).where(
