@@ -80,7 +80,7 @@ def get_observing_time(session, request):
 
     telescope = session.scalar(
         Telescope.select(session.user_or_token, mode="read").where(
-            Telescope.instrument.id == request.instrument.id
+            Telescope.id == request.instrument.telescope_id
         )
     )
     try:
@@ -96,7 +96,7 @@ def get_observing_time(session, request):
             == "Optimal Airmass",
         )
     except Exception as e:
-        raise ValueError(f"Error trying to get the next valid observing time: {str(e)}")
+        raise ValueError(f"Error trying to get the next valid observing time. {str(e)}")
 
 
 def check_specific_config(request):

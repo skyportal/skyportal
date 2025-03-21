@@ -142,8 +142,9 @@ def get_altitude_from_airmass(airmass: float):
     altitude : float
         The altitudes corresponding to the airmass values in degrees
     """
+
     def f(a):
-        return a + 244 / (165 + 47 * a ** 1.1) - np.degrees(np.arcsin(1 / airmass))
+        return a + 244 / (165 + 47 * a**1.1) - np.degrees(np.arcsin(1 / airmass))
 
     estimation = np.degrees(np.arcsin(1 / airmass))
     altitude = fsolve(f, estimation)
@@ -244,7 +245,9 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     return rise_time, set_time
 
 
-def get_next_valid_observing_time(start_time, telescope, target, airmass, observe_at_optimal_airmass=False):
+def get_next_valid_observing_time(
+    start_time, telescope, target, airmass, observe_at_optimal_airmass=False
+):
     """Return the next valid observing time for the given telescope and target at the given airmass limit.
     Use the nearest time or the time with the optimal airmass.
 
@@ -252,7 +255,7 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass, observ
     ----------
     start_time : astropy.time.Time
         The start time from which to calculate the next valid observing time.
-    telescope : dict
+    telescope : `skyportal.models.Telescope`
         The telescope for which to calculate the next valid observing time.
     target : `astroplan.FixedTarget`
         The target of the observation.
@@ -269,13 +272,15 @@ def get_next_valid_observing_time(start_time, telescope, target, airmass, observ
     if start_time < Time.now():
         start_time = Time.now()
 
-    observer = get_observer(telescope)
     altitude_limit = get_altitude_from_airmass(airmass)
+
+    if telescope.observer is None:
+        raise ValueError("Missing some telescope information")
 
     rise_time, set_time = get_rise_set_time(
         target=target,
         altitude=altitude_limit * u.degree,
-        observer=observer,
+        observer=telescope.observer,
         time=start_time,
     )
 
