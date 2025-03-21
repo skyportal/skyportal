@@ -212,35 +212,40 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
 
 def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     """The rise and set times of the target at the given altitude as an astropy.time.Time."""
-    if "observer" in kwargs:
-        observer = kwargs["observer"]
-    elif "telescope" in kwargs:
-        observer = get_observer(kwargs["telescope"])
+    observer = kwargs.get("observer", kwargs.get("telescope"))
+    if observer is None:
+        raise ValueError("Missing telescope or observer information")
 
-    if "time" in kwargs:
-        time = kwargs["time"]
-    else:
-        time = Time.now()
+    time = kwargs.get("time", Time.now())
 
-    sunrise = observer.sun_rise_time(time, which="next")
-    sunset = observer.sun_set_time(time, which="next")
+    # The altitude of the sun below which it is considered to be the night
+    sun_altitude = kwargs.get("sun_altitude", -18 * u.degree)
+
+    sunset = observer.sun_set_time(time, which="next", horizon=sun_altitude)
+    sunrise = observer.sun_rise_time(time, which="next", horizon=sun_altitude)
+
+    # If the sunset is after the sunrise, use the previous sunset
+    recalc = sunset > sunrise
+    if np.any(recalc):
+        sunset[recalc] = observer.sun_set_time(time, which="previous")[recalc]
 
     rise_time = observer.target_rise_time(
         sunset, target, which="next", horizon=altitude
     )
     set_time = observer.target_set_time(sunset, target, which="next", horizon=altitude)
 
-    # if next rise time is after next sunrise, the target rises before
-    # sunset. show the previous rise so that the target is shown to be
-    # "already up" when the run begins (a beginning of night target).
-
+    # If the rise time is after the sunrise, use the previous rise time
     recalc = rise_time > sunrise
-
     if np.any(recalc):
-        # recalculate the rise time only for those coordinates that need it
         rise_time[recalc] = observer.target_rise_time(
             sunset, target, which="previous", horizon=altitude
         )[recalc]
+
+    if kwargs.get("night_only", False) and rise_time < sunset:
+        if sunset < set_time:
+            return sunset, set_time
+        else:
+            return None
 
     return rise_time, set_time
 
