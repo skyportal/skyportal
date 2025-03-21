@@ -25,14 +25,6 @@ const useStyles = makeStyles(() => ({
     width: "20rem",
     marginBottom: "0.75rem",
   },
-  usersSelect: {
-    width: "20rem",
-    marginBottom: "0.75rem",
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
 }));
 
 const ModifyAllocation = ({ allocation_id, onClose }) => {
