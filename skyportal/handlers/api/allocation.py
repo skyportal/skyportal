@@ -657,6 +657,11 @@ class AllocationHandler(BaseHandler):
                     data["_altdata"] = json.dumps(
                         {**json.loads(allocation._altdata), **data["_altdata"]}
                     )
+                elif allocation._altdata and not replace_altdata:
+                    # when same key the second value is kept
+                    data["_altdata"] = json.dumps(
+                        {**json.loads(allocation._altdata), **data["_altdata"]}
+                    )
                 else:
                     data["_altdata"] = json.dumps(data["_altdata"])
             allocation_admin_ids = data.pop("allocation_admin_ids", [])

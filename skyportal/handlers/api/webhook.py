@@ -8,7 +8,7 @@ from baselayer.log import make_log
 
 from ...models import DBSession, ObjAnalysis
 from ..base import BaseHandler
-from .candidate import (
+from .candidate.candidate import (
     update_summary_history_if_relevant,
 )
 

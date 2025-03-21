@@ -29,10 +29,7 @@ const useStyles = makeStyles(() => ({
 
 const ModifyAllocation = ({ allocation_id, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
-  const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments,
-  );
-  const { telescopeList } = useSelector((state) => state.telescopes);
+  const { instrumentFormParams } = useSelector((state) => state.instruments);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
   );
@@ -101,11 +98,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     }
   }, [group]);
 
-  if (
-    allocationList.length === 0 ||
-    instrumentList.length === 0 ||
-    telescopeList.length === 0
-  ) {
+  if (allocationList.length === 0) {
     return <h3>No allocations available...</h3>;
   }
 
@@ -119,22 +112,10 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     groupLookUp[thisGroup.id] = thisGroup;
   });
 
-  const telLookUp = {};
-
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
-  });
-
   const allocationLookUp = {};
 
   allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
-  });
-
-  const instLookUp = {};
-
-  instrumentList?.forEach((instrumentObj) => {
-    instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -231,7 +212,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties
           ? {
               type: "object",
-              title: "Alternative data",
+              title: "Allocation Parameters/Credentials",
               properties:
                 instrumentFormParams[instrument_id].formSchemaAltdata
                   .properties,
@@ -241,15 +222,15 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
             }
           : {
               type: "string",
-              title:
-                "Alternative json data (i.e. {'slack_token': 'testtoken'})",
+              title: "Allocation json data (i.e. {'slack_token': 'testtoken'})",
             },
       ...(instrument_id &&
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {
           replace_altdata: {
             type: "boolean",
-            title: "Only update changed alternative data",
-            default: true,
+            title:
+              "Overwrite all allocation parameters (if false, only update specified allocation parameters)",
+            default: false,
           },
         }),
     },
