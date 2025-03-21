@@ -246,7 +246,7 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
 
 
 def get_next_valid_observing_time(
-    start_time, telescope, target, airmass, observe_at_optimal_airmass=False
+    start_time, end_time, telescope, target, airmass, observe_at_optimal_airmass=False
 ):
     """Return the next valid observing time for the given telescope and target at the given airmass limit.
     Use the nearest time or the time with the optimal airmass.
@@ -255,6 +255,8 @@ def get_next_valid_observing_time(
     ----------
     start_time : astropy.time.Time
         The start time from which to calculate the next valid observing time.
+    end_time : astropy.time.Time
+        The end time until which to calculate the next valid observing time.
     telescope : `skyportal.models.Telescope`
         The telescope for which to calculate the next valid observing time.
     target : `astroplan.FixedTarget`
@@ -269,32 +271,51 @@ def get_next_valid_observing_time(
     next_observing_date : `astropy.time.Time`
         The next valid observing date for the given telescope and target at the given airmass limit.
     """
-    if start_time < Time.now():
-        start_time = Time.now()
-
+    observing_time = Time.now() if start_time < Time.now() else start_time
     altitude_limit = get_altitude_from_airmass(airmass)
 
     if telescope.observer is None:
         raise ValueError("Missing some telescope information")
 
-    rise_time, set_time = get_rise_set_time(
-        target=target,
-        altitude=altitude_limit * u.degree,
-        observer=telescope.observer,
-        time=start_time,
-    )
+    valid_observing_time = None
+    for _ in range(7):
+        # Retrieve the rise and set time of the target within the nighttime observing window
+        valid_observing_time = get_rise_set_time(
+            target=target,
+            altitude=altitude_limit * u.degree,
+            observer=telescope.observer,
+            time=observing_time,
+            night_only=True,
+        )
+        if valid_observing_time or observing_time >= end_time:
+            break
+        else:
+            observing_time += 1 * u.day
+
+    if valid_observing_time is None:
+        raise ValueError(
+            "No valid observing time found in the range (limited to 7 days)"
+        )
+
+    valid_rise_time, valid_set_time = valid_observing_time
 
     if observe_at_optimal_airmass:
+        # Retrieve the real rise and set time to calculate the optimal airmass time
+        rise_time, set_time = get_rise_set_time(
+            target=target,
+            altitude=altitude_limit * u.degree,
+            observer=telescope.observer,
+            time=observing_time,
+            night_only=False,
+        )
         optimal_airmass_time = Time((rise_time.unix + set_time.unix) / 2, format="unix")
-        if start_time < optimal_airmass_time:
-            return optimal_airmass_time
-        else:
-            return Time.now()
+        if valid_rise_time < optimal_airmass_time < valid_set_time:
+            valid_rise_time = optimal_airmass_time
 
-    if rise_time <= start_time:
-        return Time.now()
+    if valid_rise_time < start_time:
+        return start_time
 
-    return rise_time
+    return valid_rise_time
 
 
 def next_sunrise(observer, time=None):
