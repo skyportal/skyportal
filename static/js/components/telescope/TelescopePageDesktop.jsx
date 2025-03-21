@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -11,18 +11,12 @@ import NewTelescope from "./NewTelescope";
 import TelescopeInfo from "./TelescopeInfo";
 
 import TelescopeSearchBar from "./TelescopeSearchBar";
+import { fetchTelescopes } from "../../ducks/telescopes";
 
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
-let dispatch;
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    backgroundColor: theme.palette.background.paper,
-    maxHeight: "90%",
-    overflowY: "auto",
-  },
+const useStyles = makeStyles(() => ({
   paperContent: {
     padding: "1rem",
   },
@@ -78,42 +72,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export function telescopeTitle(telescope) {
-  if (!telescope?.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${telescope?.nickname}`;
-  return result;
-}
-
-export function telescopeInfo(telescope) {
-  if (!telescope?.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const array = [
-    ...(telescope?.lat ? [`Latitude: ${telescope.lat}`] : []),
-    ...(telescope?.lon ? [`Longitude: ${telescope.lon}`] : []),
-    ...(telescope?.elevation ? [`Elevation: ${telescope.elevation}`] : []),
-  ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
-}
-
 const TelescopePage = () => {
-  dispatch = useDispatch();
+  const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentTelescopeMenu = useSelector(

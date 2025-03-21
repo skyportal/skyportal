@@ -42,7 +42,6 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
-      dispatch(fetchInstruments());
       onClose();
     }
   };
