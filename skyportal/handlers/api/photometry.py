@@ -1180,7 +1180,7 @@ def add_external_photometry(
 
             if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
                 log(
-                    f"A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}"
+                    f"A total of ({len(id_map_no_update_needed)}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}"
                 )
             # now safely drop the duplicates:
             new_photometry = df.loc[new_photometry_df_idxs]
