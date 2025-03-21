@@ -655,6 +655,7 @@ class TAROTAPI(FollowUpAPI):
             log(f"Failed to send notification: {str(e)}")
 
     def custom_json_schema(instrument, user, **kwargs):
+        config = instrument.configuration_data
         return {
             "type": "object",
             "properties": {
@@ -672,23 +673,17 @@ class TAROTAPI(FollowUpAPI):
                                 "enum": [],
                             },
                         }
-                        if not instrument.configuration_data
-                        or not instrument.configuration_data.specific_configuration
-                        or not instrument.configuration_data.specific_configuration[
-                            "station_name"
-                        ]
-                        or not instrument.configuration_data.specific_configuration[
-                            "station_name"
-                        ]
+                        if not config
+                        or not config["specific_configuration"]
+                        or not config["specific_configuration"]["station_name"]
+                        or not config["specific_configuration"]["station_name"]
                         in station_dict
                         else {
                             "items": {
                                 "type": "string",
                                 "enum": station_dict[
-                                    instrument.configuration_data.specific_configuration[
-                                        "station_name"
-                                    ]
-                                ],
+                                    config["specific_configuration"]["station_name"]
+                                ]["filters"],
                             },
                         }
                     ),
@@ -791,14 +786,6 @@ class TAROTAPI(FollowUpAPI):
                 "type": "string",
                 "title": "Station Name use for the request",
                 "enum": list(station_dict.keys()),
-            },
-            "station_endpoint": {
-                "type": "string",
-                "title": "Station Endpoint",
-            },
-            "station_rejected_file": {
-                "type": "number",
-                "title": "Station Rejected File Number",
             },
         },
     }
