@@ -1,6 +1,6 @@
 import numpy as np
-from astropy.time import Time
 from astropy import units as u
+from astropy.time import Time
 
 from skyportal.utils.calculations import (
     deg2dms,
@@ -9,9 +9,9 @@ from skyportal.utils.calculations import (
     get_airmass,
     get_altitude,
     get_altitude_from_airmass,
+    get_next_valid_observing_time,
     get_observer,
     get_rise_set_time,
-    get_next_valid_observing_time,
     get_target,
     great_circle_distance,
     great_circle_distance_vec,
@@ -117,6 +117,7 @@ def test_get_airmass():
     assert np.isclose(airmass[0, 0], 2.3894099051129727)
     assert np.isclose(airmass[1, 0], 1.0177921215801056)
 
+
 def test_get_altitude_from_airmass():
     fields = [
         {"ra": 30, "dec": 45, "field_id": 1},
@@ -155,15 +156,27 @@ def test_get_rise_set_time():
     target = get_target([{"ra": 30, "dec": 45, "field_id": 1}])
     altitude = get_altitude_from_airmass(3.0)
     assert np.isclose(altitude, 19.29494943)
-    rise_time, set_time = get_rise_set_time(target, altitude=altitude * u.deg, observer=observer, time=time)
-    assert np.isclose(rise_time.unix, Time("2024-01-01 09:59:14").unix, atol=1, rtol=1e-10) # tolerance is 1 second
-    assert np.isclose(set_time.unix, Time("2024-01-02 00:36:51").unix, atol=1, rtol=1e-10) # tolerance is 1 second
+    rise_time, set_time = get_rise_set_time(
+        target, altitude=altitude * u.deg, observer=observer, time=time
+    )
+    assert np.isclose(
+        rise_time.unix, Time("2024-01-01 09:59:14").unix, atol=1, rtol=1e-10
+    )  # tolerance is 1 second
+    assert np.isclose(
+        set_time.unix, Time("2024-01-02 00:36:51").unix, atol=1, rtol=1e-10
+    )  # tolerance is 1 second
 
     altitude = get_altitude_from_airmass(2.0)
     assert np.isclose(altitude, 29.88587059)
-    rise_time, set_time = get_rise_set_time(target, altitude=altitude * u.deg, observer=observer, time=time)
-    assert np.isclose(rise_time.unix, Time("2024-01-01 11:17:45").unix, atol=1, rtol=1e-10) # tolerance is 1 second
-    assert np.isclose(set_time.unix, Time("2024-01-01 23:18:21").unix, atol=1, rtol=1e-10) # tolerance is 1 second
+    rise_time, set_time = get_rise_set_time(
+        target, altitude=altitude * u.deg, observer=observer, time=time
+    )
+    assert np.isclose(
+        rise_time.unix, Time("2024-01-01 11:17:45").unix, atol=1, rtol=1e-10
+    )  # tolerance is 1 second
+    assert np.isclose(
+        set_time.unix, Time("2024-01-01 23:18:21").unix, atol=1, rtol=1e-10
+    )  # tolerance is 1 second
 
 
 def test_get_next_observing_date():
@@ -178,7 +191,9 @@ def test_get_next_observing_date():
     altitude = get_altitude_from_airmass(3.0)
     assert np.isclose(altitude, 19.29494943)
 
-    rise_time, set_time = get_rise_set_time(target, altitude=altitude * u.deg, observer=observer, time=time)
+    rise_time, set_time = get_rise_set_time(
+        target, altitude=altitude * u.deg, observer=observer, time=time
+    )
 
     next_valid_observing_time = get_next_valid_observing_time(
         start_time=time,
@@ -188,10 +203,20 @@ def test_get_next_observing_date():
         observe_at_optimal_airmass=False,
     )
     if rise_time > time:
-        assert np.isclose(next_valid_observing_time.unix, rise_time.unix, atol=1, rtol=1e-10) # tolerance is 1 second
-        assert np.isclose(get_airmass(fields, np.array([next_valid_observing_time]), observer=observer), 3.00, atol=1e-2)
+        assert np.isclose(
+            next_valid_observing_time.unix, rise_time.unix, atol=1, rtol=1e-10
+        )  # tolerance is 1 second
+        assert np.isclose(
+            get_airmass(
+                fields, np.array([next_valid_observing_time]), observer=observer
+            ),
+            3.00,
+            atol=1e-2,
+        )
     else:
-        assert np.isclose(next_valid_observing_time.unix, time.unix, atol=1, rtol=1e-10) # tolerance is 1 second
+        assert np.isclose(
+            next_valid_observing_time.unix, time.unix, atol=1, rtol=1e-10
+        )  # tolerance is 1 second
 
     next_valid_observing_time = get_next_valid_observing_time(
         start_time=time,
@@ -202,10 +227,19 @@ def test_get_next_observing_date():
     )
     optimal_time = Time((rise_time.unix + set_time.unix) / 2, format="unix")
     if optimal_time > time:
-        assert np.isclose(next_valid_observing_time.unix, optimal_time.unix, atol=1, rtol=1e-10) # tolerance is 1 second
-        assert get_airmass(fields, np.array([next_valid_observing_time]), observer=observer) < 3.00
+        assert np.isclose(
+            next_valid_observing_time.unix, optimal_time.unix, atol=1, rtol=1e-10
+        )  # tolerance is 1 second
+        assert (
+            get_airmass(
+                fields, np.array([next_valid_observing_time]), observer=observer
+            )
+            < 3.00
+        )
     else:
-        assert np.isclose(next_valid_observing_time.unix, time.unix, atol=1, rtol=1e-10) # tolerance is 1 second
+        assert np.isclose(
+            next_valid_observing_time.unix, time.unix, atol=1, rtol=1e-10
+        )  # tolerance is 1 second
 
 
 def test_next_sunrise():
