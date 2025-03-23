@@ -211,7 +211,30 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
 
 
 def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
-    """The rise and set times of the target at the given altitude as an astropy.time.Time."""
+    """The rise and set times of the target at the given altitude as an astropy.time.Time.
+
+    Parameters
+    ----------
+    target : `astroplan.FixedTarget`
+        The target of the observation.
+    altitude : `astropy.units.Quantity`
+        The altitude at which to calculate the rise and set times.
+    observer : `astroplan.Observer`
+        The observer for which to calculate the rise and set times.
+    time : `astropy.time.Time`
+        The time at which to calculate the rise and set times.
+    night_only : bool
+        If True, calculate the rise and set times when the target is visible during the night only.
+    sun_altitude : `astropy.units.Quantity`
+        The altitude of the sun below which it is considered to be the night.
+
+    Returns
+    -------
+    rise_time : `astropy.time.Time`
+        The rise time of the target at the given altitude.
+    set_time : `astropy.time.Time`
+        The set time of the target at the given altitude.
+    """
     observer = kwargs.get("observer", kwargs.get("telescope"))
     if observer is None:
         raise ValueError("Missing telescope or observer information")
@@ -227,7 +250,9 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     # If the sunset is after the sunrise, use the previous sunset
     recalc = sunset > sunrise
     if np.any(recalc):
-        sunset[recalc] = observer.sun_set_time(time, which="previous")[recalc]
+        sunset[recalc] = observer.sun_set_time(
+            time, which="previous", horizon=sun_altitude
+        )[recalc]
 
     rise_time = observer.target_rise_time(
         sunset, target, which="next", horizon=altitude
@@ -241,11 +266,27 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
             sunset, target, which="previous", horizon=altitude
         )[recalc]
 
-    if kwargs.get("night_only", False) and rise_time < sunset:
-        if sunset < set_time:
-            return sunset, set_time
-        else:
-            return None
+    if kwargs.get("night_only", False):
+        # set the rise time to the sunset time if the rise time is during the day
+        rise_time_during_day = rise_time < sunset
+        if np.any(rise_time_during_day):
+            rise_time = np.where(rise_time_during_day, sunset, rise_time)
+
+        # set the set time to the sunrise time if the set time is during the day
+        set_time_during_day = sunrise < set_time
+        if np.any(set_time_during_day):
+            set_time = np.where(set_time_during_day, sunrise, set_time)
+
+        # set time to None if rise is after set time, meaning the target is not visible during the night
+        no_time_during_night = set_time < rise_time
+        if np.any(no_time_during_night):
+            rise_time = np.where(no_time_during_night, None, rise_time)
+            set_time = np.where(no_time_during_night, None, set_time)
+
+    if isinstance(rise_time, np.ndarray) and rise_time.size == 1:
+        rise_time = rise_time.item()
+    if isinstance(set_time, np.ndarray) and set_time.size == 1:
+        set_time = set_time.item()
 
     return rise_time, set_time
 
@@ -282,27 +323,25 @@ def get_next_valid_observing_time(
     if telescope.observer is None:
         raise ValueError("Missing some telescope information")
 
-    valid_observing_time = None
+    valid_rise_time, valid_set_time = None, None
     for _ in range(7):
         # Retrieve the rise and set time of the target within the nighttime observing window
-        valid_observing_time = get_rise_set_time(
+        valid_rise_time, valid_set_time = get_rise_set_time(
             target=target,
             altitude=altitude_limit * u.degree,
             observer=telescope.observer,
             time=observing_time,
             night_only=True,
         )
-        if valid_observing_time or observing_time >= end_time:
+        if (valid_rise_time and valid_set_time) or observing_time >= end_time:
             break
         else:
             observing_time += 1 * u.day
 
-    if valid_observing_time is None:
+    if not valid_rise_time or not valid_set_time:
         raise ValueError(
             "No valid observing time found in the range (limited to 7 days)"
         )
-
-    valid_rise_time, valid_set_time = valid_observing_time
 
     if observe_at_optimal_airmass:
         # Retrieve the real rise and set time to calculate the optimal airmass time
