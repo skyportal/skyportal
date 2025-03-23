@@ -163,6 +163,9 @@ def check_payload(payload, station_name):
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
 
+    if payload["end_date"] < str(datetime.utcnow()):
+        raise ValueError("end_date must be in the future.")
+
     if payload["observation_preference"] not in [
         "Earliest possible",
         "Optimal Airmass",
