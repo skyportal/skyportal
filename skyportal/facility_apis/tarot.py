@@ -474,7 +474,7 @@ class TAROTAPI(FollowUpAPI):
         )
 
         response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/{station_dict[specific_config['station_name']]['status_url']}.txt",
+            f"{station_dict[specific_config['station_name']]['status_url']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
             timeout=5.0,
         )
