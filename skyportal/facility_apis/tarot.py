@@ -474,7 +474,7 @@ class TAROTAPI(FollowUpAPI):
         )
 
         response = requests.get(
-            f"{station_dict[specific_config['station_name']]['status_url']}.txt",
+            f"{station_dict[specific_config['station_name']]['status_url']}",
             auth=(altdata["browser_username"], altdata["browser_password"]),
             timeout=5.0,
         )
