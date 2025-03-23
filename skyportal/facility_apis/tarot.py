@@ -25,17 +25,17 @@ log = make_log("facility_apis/tarot")
 station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
-        "status_url": f"{cfg['app.tarot_endpoint']}/rejected1.txt",
+        "status_url": 1,
         "observation_url": cfg["app.calern_endpoint"],
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
-        "status_url": f"{cfg['app.tarot_endpoint']}/rejected2.txt",
+        "status_url": 2,
         "observation_url": cfg["app.chili_endpoint"],
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
-        "status_url": f"{cfg['app.tarot_endpoint']}/rejected8.txt",
+        "status_url": 3,
         "observation_url": cfg["app.reunion_endpoint"],
     },
 }
@@ -477,7 +477,7 @@ class TAROTAPI(FollowUpAPI):
         )
 
         response = requests.get(
-            f"{station_dict[specific_config['station_name']]['status_url']}",
+            f"{cfg['app.tarot_endpoint']}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
             auth=(altdata["browser_username"], altdata["browser_password"]),
             timeout=5.0,
         )
