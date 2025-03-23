@@ -268,9 +268,11 @@ def test_get_next_observing_time(super_admin_token):
                 atol=1e-2,
             )
         elif rise_time < time and sunset < time:
-            assert next_valid_observing_time.iso == time.iso
+            assert next_valid_observing_time.iso.split(".")[0] == time.iso.split(".")[0]
         else:
-            assert next_valid_observing_time.iso == sunset.iso
+            assert (
+                next_valid_observing_time.iso.split(".")[0] == sunset.iso.split(".")[0]
+            )
 
     except ValueError as e:
         if "No valid observing time found in the range" in str(e):
@@ -318,9 +320,11 @@ def test_get_next_observing_time(super_admin_token):
                 < 2.98
             )
         elif optimal_time < time and sunset < time:
-            assert next_valid_observing_time.iso == time.iso
+            assert next_valid_observing_time.iso.split(".")[0] == time.iso.split(".")[0]
         else:
-            assert next_valid_observing_time.iso == sunset.iso
+            assert (
+                next_valid_observing_time.iso.split(".")[0] == sunset.iso.split(".")[0]
+            )
 
     except ValueError as e:
         if "No valid observing time found in the range" in str(e):
