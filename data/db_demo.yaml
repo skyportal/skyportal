@@ -226,21 +226,30 @@ telescope:
     skycam_link: null
     robotic: true
     =id: TRT0p7m
-  - diameter: 0.25
-    nickname: TAROT Calern
+  - diameter: 0.3
+    elevation: 1320.0
+    lat: 43.7520
+    lon: 6.9235
     name: TCA
+    nickname: TAROT Calern
     skycam_link: null
     robotic: true
     =id: TCA
-  - diameter: 0.25
-    nickname: TAROT Reunion
+  - diameter: 0.2
+    elevation: 991.0
+    lat: -21.1988
+    lon: 55.4102
     name: TRE
+    nickname: TAROT Reunion
     skycam_link: null
     robotic: true
     =id: TRE
-  - diameter: 0.25
-    nickname: TAROT Chile
+  - diameter: 0.3
+    elevation: 2398.0
+    lat: -29.2599
+    lon: -70.7326
     name: TCH
+    nickname: TAROT Chili
     skycam_link: null
     robotic: true
     =id: TCH
@@ -482,6 +491,7 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi"]
     api_classname: TAROTAPI
     =id: TCA
+    configuration_data: { 'specific_configuration': {'station_name': 'Tarot_Calern'}}
   - band: optical
     name: TAROT Reunion
     telescope_id: =TRE
@@ -489,13 +499,15 @@ instrument:
     filters: []
     api_classname: TAROTAPI
     =id: TRE
+    configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Reunion'}}
   - band: optical
-    name: TAROT Chile
+    name: TAROT Chili
     telescope_id: =TCH
     type: imager
     filters: [ "sdssg", "sdssr", "sdssi"]
     api_classname: TAROTAPI
     =id: TCH
+    configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Chili'}}
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
