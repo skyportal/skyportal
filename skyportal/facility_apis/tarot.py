@@ -421,7 +421,7 @@ class TAROTAPI(FollowUpAPI):
                 )
             request.status = error_response
         else:
-            request.comment = observing_time.isot
+            request.comment = f"observing_time:{observing_time.isot}"
             request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: use retrieve to check status"
 
         transaction = FacilityTransaction(
@@ -472,62 +472,64 @@ class TAROTAPI(FollowUpAPI):
 
         specific_config = check_specific_config(request)
 
-        insert_scene_ids = re.findall(
-            r"insert_id\s*=\s*(\d+)",
-            request.transactions[-1].response["content"],
-        )
-
-        response = requests.get(
-            f"{cfg['app.tarot_endpoint']}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
-            auth=(altdata["browser_username"], altdata["browser_password"]),
-            timeout=5.0,
-        )
-
-        if response.status_code != 200:
-            raise ValueError("Error trying to get the status of the request")
-
-        # If request exposure_count * nb_filter > 6, multiple scenes are created
-        # But we only check the status of the first scene
-        scene_id = insert_scene_ids[0]
-        manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-        pattern = (
-            rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
-        )
-        match = re.search(pattern, response.text)
-
-        # To check the request status, an identifier is retrieved from each scene on TAROT manager,
-        # Each identifier corresponds to a different status, as shown below:
-        status_dict = {
-            "1": "rejected: date is before the current/upcoming night.",
-            "2": "submitted: planned for a future night.",
-            "3": "rejected: never visible within the specified range.",
-            "4": "rejected: over quota.",
-            "5": "submitted: planified.",
-            "6": "submitted: planified over.",
-        }
-
-        new_request_status = None
-        nb_observation = None
-        if match is None or match.group(1) is None:
-            # check if the observing date is in more than 24 hours
-            observing_time = Time(request.comment)
-            if observing_time and observing_time > (
-                datetime.utcnow() + timedelta(days=1)
-            ):
-                new_request_status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before observing time"
-        elif (
-            status_dict.get(match.group(1), "rejected: not planified")
-            not in request.status
-        ):
-            new_request_status = status_dict.get(
-                match.group(1), "rejected: not planified"
+        try:
+            # If request exposure_count * nb_filter > 6, multiple scenes are created
+            # But we only check the status and time of the first scene
+            insert_scene_id = re.findall(
+                r"insert_id\s*=\s*(\d+)",
+                request.transactions[-1].response["content"],
+            )[0]
+            manager_scene_id = f"{str(insert_scene_id)[0]}_{str(insert_scene_id)[1:]}"
+            observing_time = Time(
+                re.search(r"observing_time:(.*)", request.comment).group(1)
             )
-            if new_request_status == "submitted: planned for a future night.":
-                observing_time = Time(request.comment)
-                if observing_time:
-                    new_request_status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: planned for a future night"
+        except Exception:
+            raise ValueError("Error trying to get the scene id and observing time")
 
-        if "rejected" not in (new_request_status or request.status):
+        nb_observation = None
+        if not request.status.startswith("submitted: planified"):
+            # if the request is not planified, check the status of the request
+            response = requests.get(
+                f"{cfg['app.tarot_endpoint']}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
+                auth=(altdata["browser_username"], altdata["browser_password"]),
+                timeout=5.0,
+            )
+
+            if response.status_code != 200:
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(response.request),
+                    response=http.serialize_requests_response(response),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+                session.add(transaction)
+                raise ValueError("Error trying to get the status of the request")
+
+            pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
+            match_status = re.search(pattern, response.text)
+
+            # To check the request status, an identifier is retrieved from each scene on TAROT manager,
+            # Each identifier corresponds to a different status, as shown below:
+            status_dict = {
+                "1": "rejected: date is before the current/upcoming night.",
+                "2": "submitted: planned for a future night.",
+                "3": "rejected: never visible within the specified range.",
+                "4": "rejected: over quota.",
+                "5": "submitted: planified.",
+                "6": "submitted: planified over.",
+            }
+
+            if not match_status or not match_status.groups():
+                if observing_time > datetime.utcnow() + timedelta(days=1):
+                    request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
+                else:
+                    return
+            else:
+                request.status = status_dict.get(
+                    match_status.group(1), "rejected: not planified"
+                )
+
+        if "submitted: planified" in request.status:
             # try to retrieve the time of the planified request from the sequenced file
             response_sequenced = requests.get(
                 f"{cfg['app.tarot_endpoint']}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
@@ -535,6 +537,13 @@ class TAROTAPI(FollowUpAPI):
                 timeout=5.0,
             )
             if response_sequenced.status_code != 200:
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(response_sequenced.request),
+                    response=http.serialize_requests_response(response_sequenced),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+                session.add(transaction)
                 raise ValueError(
                     "Error trying to get the time of the planified request"
                 )
@@ -544,39 +553,36 @@ class TAROTAPI(FollowUpAPI):
                 sequenced_info = re.search(pattern, response_sequenced.text)
                 # Regex to capture date and time in the format "YYYY-MM-DDTHH:MM:SS.SSS"
                 pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}"
-                observation_times = re.findall(pattern, sequenced_info.group(0))
-                # Extract the second date and time which is the beginning of the observation
-                new_request_status = f"submitted: planified for {Time(observation_times[1]).strftime('%Y-%m-%d %H:%M:%S')}."
+                # Extract the second date and time which is the real beginning of the observation
+                observing_time = Time(re.findall(pattern, sequenced_info.group(0))[1])
+                request.comment = f"observing_time:{observing_time.isot}"
+                request.status = f"submitted: planified for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}."
             except Exception:
                 pass
 
-            # check if the scene has been observed
-            response = requests.get(
-                f"{station_dict[specific_config['station_name']]['observation_url']}/",
-                timeout=5.0,
-            )
+            if Time(observing_time) < datetime.utcnow():
+                # check if the scene has been observed
+                response_observation = requests.get(
+                    f"{station_dict[specific_config['station_name']]['observation_url']}/",
+                    timeout=5.0,
+                )
 
-            if response.status_code != 200:
-                raise ValueError("Error trying to get the observation log")
+                if response_observation.status_code != 200:
+                    transaction = FacilityTransaction(
+                        request=http.serialize_requests_request(
+                            response_observation.request
+                        ),
+                        response=http.serialize_requests_response(response_observation),
+                        followup_request=request,
+                        initiator_id=request.last_modified_by_id,
+                    )
+                    session.add(transaction)
+                    raise ValueError("Error trying to get the observation log")
 
-            scene_id = insert_scene_ids[0]
-            manager_scene_id = f"{str(scene_id)[0]}_{str(scene_id)[1:]}"
-            if manager_scene_id in response.text:
-                nb_observation = response.text.count(manager_scene_id)
-                new_request_status = f"complete"
+                if manager_scene_id in response_observation.text:
+                    nb_observation = response_observation.text.count(manager_scene_id)
+                    request.status = f"complete"
 
-        if new_request_status is None:
-            return
-
-        request.status = new_request_status
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request),
-            response=http.serialize_requests_response(response),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-        session.add(transaction)
         session.commit()
 
         try:
