@@ -421,7 +421,8 @@ class TAROTAPI(FollowUpAPI):
                 )
             request.status = error_response
         else:
-            request.status = "submitted: use retrieve to check status"
+            request.comment = observing_time.isot
+            request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: use retrieve to check status"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(response.request),
@@ -507,17 +508,48 @@ class TAROTAPI(FollowUpAPI):
 
         new_request_status = None
         nb_observation = None
-        if (
-            match is not None
-            and match.group(1) is not None
-            and status_dict.get(match.group(1), "rejected: not planified")
+        if match is None or match.group(1) is None:
+            # check if the observing date is in more than 24 hours
+            observing_time = Time(request.comment)
+            if observing_time and observing_time > (
+                datetime.utcnow() + timedelta(days=1)
+            ):
+                new_request_status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before observing time"
+        elif (
+            status_dict.get(match.group(1), "rejected: not planified")
             not in request.status
         ):
             new_request_status = status_dict.get(
                 match.group(1), "rejected: not planified"
             )
+            if new_request_status == "submitted: planned for a future night.":
+                observing_time = Time(request.comment)
+                if observing_time:
+                    new_request_status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: planned for a future night"
 
         if "rejected" not in (new_request_status or request.status):
+            # try to retrieve the time of the planified request from the sequenced file
+            response_sequenced = requests.get(
+                f"{cfg['app.tarot_endpoint']}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
+                auth=(altdata["browser_username"], altdata["browser_password"]),
+                timeout=5.0,
+            )
+            if response_sequenced.status_code != 200:
+                raise ValueError(
+                    "Error trying to get the time of the planified request"
+                )
+
+            try:
+                pattern = rf".*{re.escape(manager_scene_id)}.*?{request.obj.id}"
+                sequenced_info = re.search(pattern, response_sequenced.text)
+                # Regex to capture date and time in the format "YYYY-MM-DDTHH:MM:SS.SSS"
+                pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}"
+                observation_times = re.findall(pattern, sequenced_info.group(0))
+                # Extract the second date and time which is the beginning of the observation
+                new_request_status = f"submitted: planified for {Time(observation_times[1]).strftime('%Y-%m-%d %H:%M:%S')}."
+            except Exception:
+                pass
+
             # check if the scene has been observed
             response = requests.get(
                 f"{station_dict[specific_config['station_name']]['observation_url']}/",
