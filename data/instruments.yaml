@@ -451,3 +451,16 @@
   filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
   api_classname: SEDMV2API
   =id: SEDMv2
+- band: optical
+  name: Binospec
+  telescope_id: =MMT
+  type: imaging spectrograph
+  api_classname: BINOSPECAPI
+  filters: [ "sdssg", "sdssr", "sdssi", "sdssz"]
+  =id: Binospec
+- band: NEAR-IR
+  name: MMIRS
+  telescope_id: =MMT
+  type: imaging spectrograph
+  api_classname: MMIRSAPI
+  =id: MMIRS
