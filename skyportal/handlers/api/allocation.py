@@ -652,6 +652,11 @@ class AllocationHandler(BaseHandler):
 
                 if not data["_altdata"]:
                     data.pop("_altdata")
+                elif allocation._altdata and replace_altdata:
+                    # when same key the second value is kept
+                    data["_altdata"] = json.dumps(
+                        {**json.loads(allocation._altdata), **data["_altdata"]}
+                    )
                 elif allocation._altdata and not replace_altdata:
                     # when same key the second value is kept
                     data["_altdata"] = json.dumps(

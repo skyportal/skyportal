@@ -50,8 +50,7 @@ const TelescopeSummary = ({ route }) => {
     };
     if (
       telescope?.id &&
-      (weather?.telescope_id !== parseInt(telescope?.id, 10) ||
-        weather === undefined)
+      weather?.telescope_id !== parseInt(telescope?.id, 10)
     ) {
       fetchWeatherData();
     }
