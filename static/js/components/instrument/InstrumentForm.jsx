@@ -10,32 +10,19 @@ import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../../ducks/instrument";
 import { modifyInstrument } from "../../ducks/instrument";
 import { fetchFollowupApis } from "../../ducks/followupApis";
-import { fetchInstruments } from "../../ducks/instruments";
 
 const InstrumentForm = ({ onClose, instrumentID = null }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { followupApis } = useSelector((state) => state.followupApis);
   const { enum_types } = useSelector((state) => state.enum_types);
-  const [followupApis, setFollowupApis] = useState([]);
   const [formData, setFormData] = useState({});
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const fetchData = async () => {
-      const response = await dispatch(fetchFollowupApis());
-      if (response.status === "success") {
-        setFollowupApis(response.data);
-      } else {
-        dispatch(
-          showNotification(
-            "Error fetching followup apis configuration",
-            "error",
-          ),
-        );
-      }
-    };
-
-    fetchData().then();
+    if (!followupApis?.length) {
+      dispatch(fetchFollowupApis()).then();
+    }
   }, [dispatch]);
 
   const handleSubmit = async () => {
