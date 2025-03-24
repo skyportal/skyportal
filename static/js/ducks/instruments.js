@@ -43,6 +43,7 @@ export const fetchInstrumentObsplanForms = () =>
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_INSTRUMENTS) {
     dispatch(fetchInstruments());
+    dispatch(fetchInstrumentForms());
   }
 });
 

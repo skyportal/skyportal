@@ -1,12 +1,11 @@
-import * as API from "../API";
-import store from "../store";
+import * as API from "../../API";
+import store from "../../store";
 
 const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
 const FETCH_CANDIDATE_OK = "skyportal/FETCH_CANDIDATE_OK";
 const FETCH_CANDIDATE_FAIL = "skyportal/FETCH_CANDIDATE_FAIL";
 const FETCH_CANDIDATE_ERROR = "skyportal/FETCH_CANDIDATE_ERROR";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchCandidate = (id, how = FETCH_CANDIDATE) =>
   API.GET(`/api/candidates/${id}`, how);
 

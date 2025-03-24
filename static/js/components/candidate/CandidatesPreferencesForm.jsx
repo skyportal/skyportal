@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as profileActions from "../../ducks/profile";
 import Responsive from "../Responsive";
 import FoldBox from "../FoldBox";

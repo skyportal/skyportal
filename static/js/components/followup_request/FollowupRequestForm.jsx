@@ -153,12 +153,7 @@ const FollowupRequestForm = ({
       }
       setSettingFilteredList(false);
     }
-    if (
-      filteredAllocationList.length === 0 &&
-      allocationListApiClassname.length > 0 &&
-      Object.keys(instrumentFormParams).length > 0 &&
-      settingFilteredList === false
-    ) {
+    if (settingFilteredList === false) {
       filterAllocations();
     }
   }, [allocationListApiClassname, instrumentFormParams, settingFilteredList]);

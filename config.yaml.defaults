@@ -130,6 +130,8 @@ app:
       component: user/Profile
     - path: "/candidates"
       component: candidate/CandidateList
+    - path: "/candidates/scan_reports"
+      component: candidate/scan_reports/ReportsList
     - path: "/sources"
       component: source/SourceList
     - path: "/user/:id"
@@ -311,6 +313,10 @@ app:
         - name: Taxonomies
           icon: WallpaperOutlined
           url: /taxonomies
+
+        - name: Scanning report
+          icon: Summarize
+          url: /candidates/scan_reports
 
     - name: Admin
       icon: AdminPanelSettings
