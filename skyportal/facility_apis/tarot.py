@@ -560,28 +560,31 @@ class TAROTAPI(FollowUpAPI):
             except Exception:
                 pass
 
-            if Time(observing_time) < datetime.utcnow():
-                # check if the scene has been observed
-                response_observation = requests.get(
-                    f"{station_dict[specific_config['station_name']]['observation_url']}/",
-                    timeout=5.0,
+        if (
+            not request.status.startswith("rejected")
+            and observing_time < datetime.utcnow()
+        ):
+            # check if the scene has been observed
+            response_observation = requests.get(
+                f"{station_dict[specific_config['station_name']]['observation_url']}/",
+                timeout=5.0,
+            )
+
+            if response_observation.status_code != 200:
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(
+                        response_observation.request
+                    ),
+                    response=http.serialize_requests_response(response_observation),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
                 )
+                session.add(transaction)
+                raise ValueError("Error trying to get the observation log")
 
-                if response_observation.status_code != 200:
-                    transaction = FacilityTransaction(
-                        request=http.serialize_requests_request(
-                            response_observation.request
-                        ),
-                        response=http.serialize_requests_response(response_observation),
-                        followup_request=request,
-                        initiator_id=request.last_modified_by_id,
-                    )
-                    session.add(transaction)
-                    raise ValueError("Error trying to get the observation log")
-
-                if manager_scene_id in response_observation.text:
-                    nb_observation = response_observation.text.count(manager_scene_id)
-                    request.status = f"complete"
+            if manager_scene_id in response_observation.text:
+                nb_observation = response_observation.text.count(manager_scene_id)
+                request.status = f"complete"
 
         session.commit()
 
