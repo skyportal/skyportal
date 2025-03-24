@@ -475,3 +475,15 @@
   api_classname: TAROTAPI
   =id: TCH
   configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Chili'}}
+  name: Binospec
+  telescope_id: =MMT
+  type: imaging spectrograph
+  api_classname: BINOSPECAPI
+  filters: [ "sdssg", "sdssr", "sdssi", "sdssz"]
+  =id: Binospec
+- band: NEAR-IR
+  name: MMIRS
+  telescope_id: =MMT
+  type: imaging spectrograph
+  api_classname: MMIRSAPI
+  =id: MMIRS

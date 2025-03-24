@@ -46,6 +46,9 @@ app:
   chili_endpoint: http://tch4.tarotnet.org/ros/klotz
   reunion_endpoint: http://tre4.tarotnet.org/ros/klotz
 
+  # MMT API endpoint
+  mmt_endpoint: https://scheduler.mmto.arizona.edu/APIv2
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu

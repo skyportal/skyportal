@@ -373,7 +373,6 @@ const FollowupRequestForm = ({
             schema={schema}
             validator={validator}
             uiSchema={uiSchema}
-            liveValidate
             customValidate={validate}
             onSubmit={handleSubmit}
             disabled={isSubmitting}

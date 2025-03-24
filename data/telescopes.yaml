@@ -577,3 +577,12 @@
   skycam_link: null
   robotic: true
   =id: TCH
+- name: MMT
+  nickname: MMT
+  lat: 31.6883
+  lon: -110.8850
+  elevation: 2607.0
+  diameter: 6.5
+  robotic: false
+  fixed_location: true
+  =id: MMT
