@@ -451,3 +451,27 @@
   filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
   api_classname: SEDMV2API
   =id: SEDMv2
+- band: optical
+  name: TAROT Calern
+  telescope_id: =TCA
+  type: imager
+  filters: ["sdssg", "sdssr", "sdssi"]
+  api_classname: TAROTAPI
+  =id: TCA
+  configuration_data: { 'specific_configuration': {'station_name': 'Tarot_Calern'}}
+- band: optical
+  name: TAROT Reunion
+  telescope_id: =TRE
+  type: imager
+  filters: []
+  api_classname: TAROTAPI
+  =id: TRE
+  configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Reunion'}}
+- band: optical
+  name: TAROT Chili
+  telescope_id: =TCH
+  type: imager
+  filters: [ "sdssg", "sdssr", "sdssi"]
+  api_classname: TAROTAPI
+  =id: TCH
+  configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Chili'}}
