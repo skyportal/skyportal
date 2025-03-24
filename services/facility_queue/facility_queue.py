@@ -153,7 +153,6 @@ def service():
                                             duplicates="update",
                                         )
                                     req.status = "complete"
-                                    session.add(req)
                                     session.commit()
                                     log(f"Job with ID {req.id} completed")
                                     continue
@@ -162,9 +161,7 @@ def service():
                                     status = f"error: {str(e)}"
                                     if followup_request.status != status:
                                         followup_request.status = status
-                                        session.add(followup_request)
                                     req.status = f"error: {e}"
-                                    session.add(req)
                                     session.commit()
                                     continue
 
@@ -175,27 +172,21 @@ def service():
                                 status = f"Job is running (started at {json_response['starttimestamp']})"
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
-                                session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
                             else:
                                 status = f"Waiting for job to start (queued at {json_response['timestamp']})"
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
-                                session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
                             if followup_request.status != status:
                                 followup_request.status = status
-                                session.add(followup_request)
                             req.last_query = datetime.utcnow()
-                            session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")
 
@@ -231,9 +222,7 @@ def service():
                                 status = "In progress: RA, Dec, jdstart, and jdend required in response."
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
-                                session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
                                 continue
@@ -249,9 +238,7 @@ def service():
                                 status = "In progress: No matching response from forced photometry service. Waiting for database update."
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
-                                session.add(req)
                                 session.commit()
                                 continue
 
@@ -260,9 +247,7 @@ def service():
                                 status = "In progress: Light curve not yet available. Waiting for it to complete."
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
-                                session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
                                 continue
@@ -275,10 +260,8 @@ def service():
                                 status = f"No photometry available: {exitcode_text}"
                                 if followup_request.status != status:
                                     followup_request.status = status
-                                    session.add(followup_request)
                                 req.last_query = datetime.utcnow()
                                 req.status = "complete"
-                                session.add(req)
                                 session.commit()
                                 log(
                                     f"Job with ID {req.id} has no forced photometry: {exitcode_text}"
@@ -296,7 +279,6 @@ def service():
                                         duplicates="update",
                                     )
                                     req.status = "complete"
-                                    session.add(req)
                                     session.commit()
                                     log(f"Job with ID {req.id} completed")
                                 except Exception as e:
@@ -306,9 +288,7 @@ def service():
                                         status = "In progress: Light curve not yet available. Waiting for it to complete."
                                     if followup_request.status != status:
                                         followup_request.status = status
-                                        session.add(followup_request)
                                     req.last_query = datetime.utcnow()
-                                    session.add(req)
                                     session.commit()
                                     log(f"Job {req.id}: {status}")
                         elif (
@@ -318,18 +298,14 @@ def service():
                             status = "In progress: forced photometry database is busy; trying again in 2 minutes."
                             if followup_request.status != status:
                                 followup_request.status = status
-                                session.add(followup_request)
                             req.last_query = datetime.utcnow()
-                            session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
                             if followup_request.status != status:
                                 followup_request.status = status
-                                session.add(followup_request)
                             req.last_query = datetime.utcnow()
-                            session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")
                     else:
