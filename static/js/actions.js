@@ -26,6 +26,8 @@ import * as usersActions from "./ducks/users";
 import * as streamsActions from "./ducks/streams";
 import * as analysisServicesActions from "./ducks/analysis_services";
 import * as recentGcnEventsActions from "./ducks/recentGcnEvents";
+import * as followupApisActions from "./ducks/followupApis";
+import * as galaxiesActions from "./ducks/galaxies";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
@@ -41,7 +43,6 @@ import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";
 import * as candidateActions from "./ducks/candidate/candidate";
 import * as candidatesActions from "./ducks/candidate/candidates";
-import * as galaxiesActions from "./ducks/galaxies";
 import * as observationsActions from "./ducks/observations";
 import * as catalogQueriesActions from "./ducks/catalog_query";
 import * as surveyEfficiencyObservationsActions from "./ducks/survey_efficiency_observations";
@@ -210,6 +211,11 @@ export default function hydrate(
       if (ducks_to_hydrate.includes("mmadetector")) {
         dispatch(mmadetectorActions.fetchMMADetectors()).then(() => {
           dispatch(hydrationActions.finishedHydrating("mmadetector"));
+        });
+      }
+      if (ducks_to_hydrate.includes("followupApis")) {
+        dispatch(followupApisActions.fetchFollowupApis()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("followupApis"));
         });
       }
     }
