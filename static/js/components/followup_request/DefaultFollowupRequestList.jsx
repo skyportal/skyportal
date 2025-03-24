@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -26,7 +26,7 @@ import Button from "../Button";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -86,13 +86,8 @@ const DefaultFollowupRequestList = ({
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
+  const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
+    useState(null);
 
   const openDeleteDialog = (id) => {
     setDeleteDialogOpen(true);
@@ -102,10 +97,6 @@ const DefaultFollowupRequestList = ({
     setDeleteDialogOpen(false);
     setDefaultFollowupRequestToDelete(null);
   };
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
-    useState(null);
 
   const deleteDefaultFollowupRequest = () => {
     dispatch(
@@ -121,9 +112,7 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderInstrumentName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_requests[dataIndex];
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -137,9 +126,7 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderTelescopeName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_requests[dataIndex];
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -156,12 +143,9 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderGroup = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_requests[dataIndex];
 
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
     return <div>{group ? group.name : ""}</div>;
   };
 
@@ -301,9 +285,7 @@ const DefaultFollowupRequestList = ({
     customToolbar: () => (
       <IconButton
         name="new_default_followup_request"
-        onClick={() => {
-          openNewDialog();
-        }}
+        onClick={() => setNewDialogOpen(true)}
       >
         <AddIcon />
       </IconButton>
@@ -326,13 +308,13 @@ const DefaultFollowupRequestList = ({
       </Paper>
       <Dialog
         open={newDialogOpen}
-        onClose={closeNewDialog}
+        onClose={() => setNewDialogOpen(false)}
         style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Default Follow-up Request</DialogTitle>
         <DialogContent dividers>
-          <NewDefaultFollowupRequest onClose={closeNewDialog} />
+          <NewDefaultFollowupRequest setNewDialogOpen={setNewDialogOpen} />
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
