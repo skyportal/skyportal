@@ -42,9 +42,12 @@ app:
 
   # Tarot API endpoints
   tarot_endpoint: http://cador.tarotnet.org/ros
-  calern_endpoint: http://tca4.tarotnet.org/ros
-  chili_endpoint: http://tch4.tarotnet.org/ros
-  reunion_endpoint: http://tre4.tarotnet.org/ros
+  calern_endpoint: http://tca4.tarotnet.org/ros/klotz
+  chili_endpoint: http://tch4.tarotnet.org/ros/klotz
+  reunion_endpoint: http://tre4.tarotnet.org/ros/klotz
+
+  # MMT API endpoint
+  mmt_endpoint: https://scheduler.mmto.arizona.edu/APIv2
 
   ztf:
     protocol: https
@@ -127,6 +130,8 @@ app:
       component: user/Profile
     - path: "/candidates"
       component: candidate/CandidateList
+    - path: "/candidates/scan_reports"
+      component: candidate/scan_reports/ReportsList
     - path: "/sources"
       component: source/SourceList
     - path: "/user/:id"
@@ -308,6 +313,10 @@ app:
         - name: Taxonomies
           icon: WallpaperOutlined
           url: /taxonomies
+
+        - name: Scanning report
+          icon: Summarize
+          url: /candidates/scan_reports
 
     - name: Admin
       icon: AdminPanelSettings

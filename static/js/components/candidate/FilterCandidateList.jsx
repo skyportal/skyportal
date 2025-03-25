@@ -29,12 +29,13 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
+import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
 
 dayjs.extend(utc);
@@ -207,6 +208,8 @@ const FilterCandidateList = ({
   const [selectedScanningProfile, setSelectedScanningProfile] = useState(
     defaultScanningProfile,
   );
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     // Once the default profile is fully fetched, set it to the selected.
@@ -566,6 +569,18 @@ const FilterCandidateList = ({
               selectedScanningProfile={selectedScanningProfile}
               setSelectedScanningProfile={setSelectedScanningProfile}
             />
+            <Tooltip title="Generate a report of saved candidates">
+              <Button
+                secondary
+                onClick={() => setGenerateReportDialogOpen(true)}
+              >
+                Generate report
+              </Button>
+              <GenerateReportForm
+                dialogOpen={generateReportDialogOpen}
+                setDialogOpen={setGenerateReportDialogOpen}
+              />
+            </Tooltip>
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
                 <Button primary type="submit" endIcon={<SearchIcon />}>

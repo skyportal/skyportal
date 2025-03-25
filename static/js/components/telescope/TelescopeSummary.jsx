@@ -23,22 +23,8 @@ const useStyles = makeStyles((theme) => ({
   title: {
     fontSize: "0.875rem",
   },
-  chip: {
-    margin: theme.spacing(0.5),
-  },
   displayInlineBlock: {
     display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-  columnItem: {
-    marginBottom: theme.spacing(1),
-  },
-  accordionHeading: {
-    fontSize: "1.25rem",
-    fontWeight: theme.typography.fontWeightRegular,
   },
   paper: {
     padding: theme.spacing(2),
@@ -64,8 +50,7 @@ const TelescopeSummary = ({ route }) => {
     };
     if (
       telescope?.id &&
-      (weather?.telescope_id !== parseInt(telescope?.id, 10) ||
-        weather === undefined)
+      weather?.telescope_id !== parseInt(telescope?.id, 10)
     ) {
       fetchWeatherData();
     }

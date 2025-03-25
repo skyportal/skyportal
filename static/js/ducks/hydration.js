@@ -30,11 +30,11 @@ export const DUCKS_TO_HYDRATE = [
   "rejected",
   "observationPlans",
   "galaxyCatalogs",
+  "followupApis",
 ];
 
 export const NUMBER_OF_DUCKS_TO_HYDRATE = DUCKS_TO_HYDRATE.length;
 
-// eslint-disable-next-line import/prefer-default-export
 export function finishedHydrating(ducks) {
   return {
     data: ducks,

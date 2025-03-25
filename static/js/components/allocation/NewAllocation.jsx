@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
 import Form from "@rjsf/mui";
@@ -25,40 +26,18 @@ const useStyles = makeStyles(() => ({
     width: "20rem",
     marginBottom: "0.75rem",
   },
-  usersSelect: {
-    width: "20rem",
-    marginBottom: "0.75rem",
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
 }));
-
-const basicKeys = [
-  "group_id",
-  "users",
-  "start_date",
-  "end_date",
-  "allocation_admin_ids",
-  "default_share_group_ids",
-  "instrument_id",
-  "pi",
-  "hours_allocated",
-  "_altdata",
-  "types",
-];
 
 const NewAllocation = ({ onClose }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
   );
-  const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
   );
   const groups = useSelector((state) => state.groups.userAccessible);
   const group = useSelector((state) => state.group);
+  const [instrumentOptions, setInstrumentOptions] = useState([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedFormData, setSelectedFormData] = useState(null);
@@ -87,6 +66,17 @@ const NewAllocation = ({ onClose }) => {
       dispatch(groupActions.fetchGroup(selectedGroup.id));
     }
   }, [selectedGroup, dispatch]);
+
+  useEffect(() => {
+    if (instrumentList?.length > 0) {
+      let options = instrumentList.map((instrument) => ({
+        value: instrument.id,
+        label: `${instrument?.telescope?.name} / ${instrument.name}`,
+      }));
+      options = options.sort((a, b) => a.label.localeCompare(b.label));
+      setInstrumentOptions(options);
+    }
+  }, [instrumentList]);
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -119,34 +109,6 @@ const NewAllocation = ({ onClose }) => {
       .replace(".000Z", "");
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
-    }
-    // if _altdata is provided as a string keep it as is
-    // otherwise if the instrument has an altdata form
-    // from its API class, use that to populate _altdata
-    // its tricky to infer the keys from the formSchemaAltdata
-    // so instead just pop out the regular keys from the form data
-    // to get the _altdata
-    if (
-      formData?.instrument_id &&
-      instrumentFormParams[formData.instrument_id]?.formSchemaAltdata
-        ?.properties
-    ) {
-      const newAltData = {};
-      if (instrumentFormParams[formData.instrument_id]) {
-        const altDataKeys = Object.keys(formData).filter(
-          (key) => !basicKeys.includes(key),
-        );
-        altDataKeys.forEach((key) => {
-          if (formData[key]) {
-            newAltData[key] = formData[key];
-          }
-        });
-        formData._altdata = newAltData;
-        // remove these keys from the main formData
-        altDataKeys.forEach((key) => {
-          delete formData[key];
-        });
-      }
     }
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
@@ -217,15 +179,15 @@ const NewAllocation = ({ onClose }) => {
       },
       instrument_id: {
         type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
-          enum: [instrument.id],
-          title: `${
-            telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id,
-            )?.name
-          } / ${instrument.name}`,
+        oneOf: instrumentOptions.map((instrument) => ({
+          enum: [instrument.value],
+          title: instrument.label,
         })),
         title: "Instrument",
+      },
+      _altdata: {
+        type: "string",
+        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
       },
     },
     required: [
@@ -235,31 +197,40 @@ const NewAllocation = ({ onClose }) => {
       "instrument_id",
       "hours_allocated",
     ],
+    dependencies: {
+      instrument_id: {
+        oneOf: instrumentOptions.map((instrument) => {
+          const altdata =
+            instrumentFormParams[instrument.value]?.formSchemaAltdata;
+          return {
+            properties: {
+              instrument_id: {
+                enum: [instrument.value],
+              },
+              ...(altdata?.properties
+                ? {
+                    _altdata: {
+                      type: "object",
+                      title: "Alternative data",
+                      properties: altdata?.properties,
+                      required: altdata?.required || [],
+                      dependencies: altdata?.dependencies || {},
+                    },
+                  }
+                : {}),
+            },
+          };
+        }),
+      },
+    },
   };
 
-  if (
-    selectedFormData?.instrument_id &&
-    instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata
-      ?.properties
-  ) {
-    const formSchemaAltdata =
-      instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata;
-    allocationFormSchema.properties = {
-      ...allocationFormSchema.properties,
-      ...formSchemaAltdata?.properties,
-    };
-    allocationFormSchema.required = [
-      ...allocationFormSchema.required,
-      ...(formSchemaAltdata?.required || []),
-    ];
-    if (formSchemaAltdata?.dependencies) {
-      allocationFormSchema.dependencies = formSchemaAltdata?.dependencies;
-    }
-  } else {
-    allocationFormSchema.properties._altdata = {
-      type: "string",
-      title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
-    };
+  if (!groups || !instrumentOptions?.length > 0) {
+    return (
+      <div>
+        <CircularProgress />
+      </div>
+    );
   }
 
   return (

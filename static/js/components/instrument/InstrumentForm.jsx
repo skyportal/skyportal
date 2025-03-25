@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -9,40 +9,71 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../../ducks/instrument";
 import { modifyInstrument } from "../../ducks/instrument";
-import { fetchInstruments } from "../../ducks/instruments";
+import { fetchFollowupApis } from "../../ducks/followupApis";
 
 const InstrumentForm = ({ onClose, instrumentID = null }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { followupApis } = useSelector((state) => state.followupApis);
   const { enum_types } = useSelector((state) => state.enum_types);
+  const [formData, setFormData] = useState({});
   const dispatch = useDispatch();
 
-  const handleSubmit = async ({ formData }) => {
-    const keys = Object.keys(formData);
-    if (keys.includes("field_data") && formData.field_data) {
-      const parsed_field_data = dataUriToBuffer(formData.field_data);
-      formData.field_data = new TextDecoder().decode(parsed_field_data.buffer);
+  useEffect(() => {
+    if (!followupApis?.length) {
+      dispatch(fetchFollowupApis()).then();
     }
-    if (keys.includes("field_region") && formData.field_region) {
-      const parsed_field_region = dataUriToBuffer(formData.field_region);
-      formData.field_region = new TextDecoder().decode(
+  }, [dispatch]);
+
+  const handleSubmit = async () => {
+    const dataToSubmit = { ...formData };
+    const keys = Object.keys(dataToSubmit);
+    if (keys.includes("field_data") && dataToSubmit.field_data) {
+      const parsed_field_data = dataUriToBuffer(dataToSubmit.field_data);
+      dataToSubmit.field_data = new TextDecoder().decode(
+        parsed_field_data.buffer,
+      );
+    }
+    if (keys.includes("field_region") && dataToSubmit.field_region) {
+      const parsed_field_region = dataUriToBuffer(dataToSubmit.field_region);
+      dataToSubmit.field_region = new TextDecoder().decode(
         parsed_field_region.buffer,
       );
     }
-    if (keys.includes("references") && formData.references) {
-      const parsed_references = dataUriToBuffer(formData.references);
-      formData.references = new TextDecoder().decode(parsed_references.buffer);
+    if (keys.includes("references") && dataToSubmit.references) {
+      const parsed_references = dataUriToBuffer(dataToSubmit.references);
+      dataToSubmit.references = new TextDecoder().decode(
+        parsed_references.buffer,
+      );
     }
-    formData.field_fov_attributes = formData.field_fov_attributes?.split(",");
+    dataToSubmit.field_fov_attributes =
+      dataToSubmit.field_fov_attributes?.split(",");
+
+    if (dataToSubmit.specific_configuration) {
+      try {
+        dataToSubmit.configuration_data = {
+          ...JSON.parse(dataToSubmit.configuration_data || "{}"),
+          specific_configuration: dataToSubmit.specific_configuration,
+        };
+      } catch (e) {
+        dispatch(
+          showNotification(
+            "Error, configuration data is not valid JSON",
+            "error",
+          ),
+        );
+        return;
+      }
+      delete dataToSubmit.specific_configuration;
+    }
 
     const result = await dispatch(
       instrumentID
-        ? modifyInstrument(instrumentID, formData)
-        : submitInstrument(formData),
+        ? modifyInstrument(instrumentID, dataToSubmit)
+        : submitInstrument(dataToSubmit),
     );
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
-      dispatch(fetchInstruments());
       onClose();
     }
   };
@@ -67,26 +98,35 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
     return <h3>Instrument not found !</h3>;
   }
 
-  function validate(formData, errors) {
+  function validate(dataToCheck, errors) {
+    if (dataToCheck.configuration_data) {
+      try {
+        JSON.parse(dataToCheck.configuration_data);
+      } catch (e) {
+        errors.configuration_data.addError(
+          "Configuration data is not valid JSON",
+        );
+      }
+    }
     if (
       instrumentID === null &&
-      instrumentList?.some((instrument) => formData.name === instrument.name)
+      instrumentList?.some((instrument) => dataToCheck.name === instrument.name)
     ) {
       errors.name.addError("Instrument name matches another, please change.");
     }
-    if (formData.field_region && formData.field_fov_type) {
+    if (dataToCheck.field_region && dataToCheck.field_fov_type) {
       errors.field_region.addError(
         "Must only choose either field_region or field_fov_type.",
       );
     }
-    if (formData.field_fov_type && formData.field_fov_attributes) {
-      const attributes = formData.field_fov_attributes.split(",");
-      if (formData.field_fov_type === "circle" && attributes.length !== 1) {
+    if (dataToCheck.field_fov_type && dataToCheck.field_fov_attributes) {
+      const attributes = dataToCheck.field_fov_attributes.split(",");
+      if (dataToCheck.field_fov_type === "circle" && attributes.length !== 1) {
         errors.field_fov_attributes.addError(
           "For the circle option, field_fov_attributes should be a single number (radius in degrees).",
         );
       } else if (
-        formData.field_fov_type === "rectangle" &&
+        dataToCheck.field_fov_type === "rectangle" &&
         attributes.length !== 2
       ) {
         errors.field_fov_attributes.addError(
@@ -96,6 +136,15 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
     }
     return errors;
   }
+
+  const getDefaultConfigurationData = () => {
+    const { specific_configuration, ...configuration } =
+      instrumentToEdit?.configuration_data || {};
+    if (configuration && Object.keys(configuration).length > 0) {
+      return configuration;
+    }
+    return undefined;
+  };
 
   const instrumentFormSchema = {
     type: "object",
@@ -205,12 +254,31 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
         type: "string",
         title:
           "Sensitivity data i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
+        default: JSON.stringify(
+          instrumentToEdit?.sensitivity_data || undefined,
+        ),
       },
       configuration_data: {
         type: "string",
         title:
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
+        default: JSON.stringify(getDefaultConfigurationData(instrumentToEdit)),
       },
+      ...(followupApis[formData.api_classname]?.formSchemaConfig?.properties
+        ? {
+            specific_configuration: {
+              type: "object",
+              title: "Specific API configuration",
+              properties: {
+                ...followupApis[formData.api_classname].formSchemaConfig
+                  .properties,
+              },
+              default:
+                instrumentToEdit?.configuration_data?.specific_configuration ||
+                {},
+            },
+          }
+        : {}),
     },
     ...(instrumentID
       ? {}
@@ -235,7 +303,8 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
       validator={validator}
       onSubmit={handleSubmit}
       customValidate={validate}
-      liveValidate
+      formData={formData}
+      onChange={(e) => setFormData(e.formData)}
       uiSchema={uiSchema}
     />
   );

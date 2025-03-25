@@ -19,7 +19,9 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
-from .candidate import CandidateFilterHandler, CandidateHandler
+from .candidate.candidate import CandidateFilterHandler, CandidateHandler
+from .candidate.scan_report import ScanReportHandler
+from .candidate.scan_report_item import ScanReportItemHandler
 from .catalog_services import (
     CatalogQueryHandler,
     GaiaPhotometricAlertsQueryHandler,
@@ -45,6 +47,7 @@ from .earthquake import (
 from .enum_types import EnumTypesHandler
 from .facility_listener import FacilityMessageHandler
 from .filter import FilterHandler
+from .followup_apis import FollowupAPIsHandler
 from .followup_request import (
     AssignmentHandler,
     DefaultFollowupRequestHandler,
@@ -152,8 +155,6 @@ from .photometry_request import PhotometryRequestHandler
 from .photometry_validation import PhotometryValidationHandler
 from .public_group import PublicGroupHandler
 from .public_pages.public_release import PublicReleaseHandler
-
-# Public pages
 from .public_pages.public_source_page import PublicSourcePageHandler
 from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
