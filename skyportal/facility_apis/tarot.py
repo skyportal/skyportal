@@ -36,7 +36,7 @@ station_dict = {
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
-        "status_url": 3,
+        "status_url": 8,
         "observation_url": cfg["app.reunion_endpoint"],
     },
 }
