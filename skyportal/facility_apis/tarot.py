@@ -9,6 +9,7 @@ import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from jinja2.utils import missing
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -309,6 +310,21 @@ def create_request_string(obj, payload, observation_time, station_name):
     return observation_string
 
 
+def check_altdata(altdata):
+    required_altdata_keys = {
+        "request_id",
+        "browser_username",
+        "browser_password",
+        "username",
+        "password",
+    }
+
+    missing_keys = required_altdata_keys - set(altdata.keys() if altdata else [])
+    if missing_keys:
+        raise ValueError(f"Missing credentials: {', '.join(missing_keys)}.")
+    return altdata
+
+
 def login_to_tarot(request, session, altdata):
     """Login to TAROT and return the hash user.
 
@@ -378,10 +394,7 @@ class TAROTAPI(FollowUpAPI):
         if cfg["app.tarot_endpoint"] is None:
             raise ValueError("TAROT endpoint not configured")
 
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
+        altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
         check_payload(request.payload, specific_config["station_name"])
 
@@ -466,10 +479,7 @@ class TAROTAPI(FollowUpAPI):
         if cfg["app.tarot_endpoint"] is None:
             raise ValueError("TAROT endpoint not configured")
 
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
+        altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
 
         try:
@@ -642,10 +652,7 @@ class TAROTAPI(FollowUpAPI):
             if cfg["app.tarot_endpoint"] is None:
                 raise ValueError("TAROT endpoint not configured")
 
-            altdata = request.allocation.altdata
-            if not altdata:
-                raise ValueError("Missing allocation information.")
-
+            altdata = check_altdata(request.allocation.altdata)
             hash_user = login_to_tarot(request, session, altdata)
 
             insert_scene_ids = re.findall(
