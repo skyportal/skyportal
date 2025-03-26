@@ -36,16 +36,6 @@ const FETCH_SPATIAL_CATALOG_SOURCES_OK =
   "skyportal/FETCH_SPATIAL_CATALOG_SOURCES_OK";
 
 const addFilterParamDefaults = (filterParams) => {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
-  if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams.numPerPage = 10;
-  }
-  // filterParams.includePhotometryExists = true;
-  // filterParams.includePeriodExists = true;
-  // filterParams.includeSpectrumExists = true;
-  // filterParams.includeCommentExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
@@ -78,27 +68,13 @@ export function fetchFavoriteSources(filterParams = {}) {
 export function fetchGcnEventSources(dateobs, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
-
-  if (!Object.keys(filterParams).includes("startDate")) {
-    if (dateobs) {
-      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    }
+  if (dateobs) {
+    filterParams.startDate ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    filterParams.endDate ??= dayjs(dateobs)
+      .add(7, "day")
+      .format("YYYY-MM-DD HH:mm:ss");
+    filterParams.includeLocalizationStatus ??= true;
   }
-
-  if (!Object.keys(filterParams).includes("endDate")) {
-    if (dateobs) {
-      filterParams.endDate = dayjs(dateobs)
-        .add(7, "day")
-        .format("YYYY-MM-DD HH:mm:ss");
-    }
-  }
-
-  if (!Object.keys(filterParams).includes("include_localization_status")) {
-    if (dateobs) {
-      filterParams.includeLocalizationStatus = true;
-    }
-  }
-
   filterParams.includeSourcesInGcn = true;
   filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams, false);
@@ -117,9 +93,7 @@ export function fetchSpatialCatalogSources(
 
 const initialState = {
   sources: null,
-  pageNumber: 1,
   totalMatches: 0,
-  numPerPage: 10,
 };
 
 // Websocket message handler
