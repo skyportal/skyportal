@@ -1454,7 +1454,9 @@ class CandidateHandler(BaseHandler):
                             Annotation.select(self.current_user).where(
                                 Annotation.obj_id == obj.id
                             )
-                        ).all(),
+                        )
+                        .unique()
+                        .all(),
                         key=lambda x: x.origin,
                     )
                     selected_groups_annotations = []
