@@ -657,9 +657,6 @@ class CandidateHandler(BaseHandler):
 
         start = time.time()
 
-        include_photometry = self.get_query_argument("includePhotometry", False)
-        include_spectra = self.get_query_argument("includeSpectra", False)
-        include_comments = self.get_query_argument("includeComments", False)
         include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
@@ -1435,49 +1432,16 @@ class CandidateHandler(BaseHandler):
                             "group_ids": autosave_group_ids,
                         }
                         post_source(source, self.associated_user_object.id, session)
+
                     candidate_list.append(recursive_to_dict(obj))
-                    if include_photometry:
-                        candidate_list[-1]["photometry"] = (
-                            session.scalars(
-                                Photometry.select(
-                                    session.user_or_token,
-                                    options=[joinedload(Photometry.instrument)],
-                                ).where(Photometry.obj_id == obj.id)
-                            )
-                            .unique()
-                            .all()
-                        )
-
-                    if include_spectra:
-                        candidate_list[-1]["spectra"] = session.scalars(
-                            Spectrum.select(
-                                session.user_or_token,
-                                options=[joinedload(Spectrum.instrument)],
-                            ).where(Spectrum.obj_id == obj.id)
-                        ).all()
-
-                    if include_comments:
-                        candidate_list[-1]["comments"] = sorted(
-                            session.scalars(
-                                Comment.select(session.user_or_token).where(
-                                    Comment.obj_id == obj.id
-                                )
-                            )
-                            .unique()
-                            .all(),
-                            key=lambda x: x.created_at,
-                            reverse=True,
-                        )
-                    unordered_annotations = sorted(
-                        session.scalars(
-                            Annotation.select(self.current_user).where(
-                                Annotation.obj_id == obj.id
-                            )
-                        )
-                        .unique()
-                        .all(),
-                        key=lambda x: x.origin,
+                    candidate_list[-1] = include_requested_obj_data(
+                        obj.id,
+                        candidate_list[-1],
+                        self.get_query_argument,
+                        session,
+                        include_phot_annotations=False,
                     )
+
                     selected_groups_annotations = []
                     other_annotations = []
                     for annotation in unordered_annotations:
