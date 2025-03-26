@@ -487,26 +487,6 @@ class CandidateHandler(BaseHandler):
               Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
               groups' filters if groupIDs is not provided.
           - in: query
-            name: annotationExcludeOrigin
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only load objects that do not have annotations from this origin.
-              If the annotationsExcludeOutdatedDate is also given, then annotations with
-              this origin will still be loaded if they were modified before that date.
-          - in: query
-            name: annotationExcludeOutdatedDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              An Arrow parseable string designating when an existing annotation is outdated.
-              Only relevant if giving the annotationExcludeOrigin argument.
-              Will treat objects with outdated annotations as if they did not have that annotation,
-              so it will load an object if it doesn't have an annotation with the origin specified or
-              if it does have it but the annotation modified date < annotationsExcludeOutdatedDate
-          - in: query
             name: sortByAnnotationOrigin
             nullable: true
             schema:
@@ -773,12 +753,6 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
-        annotation_exclude_origin = self.get_query_argument(
-            "annotationExcludeOrigin", None
-        )
-        annotation_exclude_date = self.get_query_argument(
-            "annotationExcludeOutdatedDate", None
-        )
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
@@ -983,27 +957,12 @@ class CandidateHandler(BaseHandler):
                     )
                 q = q.where(Obj.redshift <= max_redshift)
 
-            if annotation_exclude_origin is not None:
-                if annotation_exclude_date is None:
-                    right = (
-                        Obj.select(session.user_or_token, columns=[Obj.id])
-                        .join(Annotation)
-                        .where(Annotation.origin == annotation_exclude_origin)
-                        .subquery()
-                    )
-                else:
-                    expire_date = arrow.get(annotation_exclude_date).datetime
-                    right = (
-                        Obj.select(session.user_or_token, columns=[Obj.id])
-                        .join(Annotation)
-                        .where(
-                            Annotation.origin == annotation_exclude_origin,
-                            Annotation.modified >= expire_date,
-                        )
-                        .subquery()
-                    )
-
-                q = q.outerjoin(right, Obj.id == right.c.id).where(right.c.id.is_(None))
+            if self.get_query_argument(
+                "annotationExcludeOrigin", None
+            ) or self.get_query_argument("annotationExcludeOutdatedDate", None):
+                return self.error(
+                    "annotationExcludeOrigin and annotationExcludeOutdatedDate parameters are no longer supported"
+                )
 
             if list_name is not None:
                 q = q.where(
