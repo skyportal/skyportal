@@ -1444,7 +1444,7 @@ class CandidateHandler(BaseHandler):
 
                     selected_groups_annotations = []
                     other_annotations = []
-                    for annotation in unordered_annotations:
+                    for annotation in candidate_list[-1]["annotations"]:
                         if set(group_ids).intersection(
                             {group.id for group in annotation.groups}
                         ):
