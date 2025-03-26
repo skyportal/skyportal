@@ -33,6 +33,7 @@ from ....models import (
     Classification,
     Comment,
     Filter,
+    FollowupRequest,
     Group,
     Listing,
     Localization,
@@ -233,6 +234,10 @@ def include_requested_obj_data(
             fetch_obj_data(Comment, [], obj_id, session),
             key=lambda x: x.created_at,
             reverse=True,
+        )
+    if get_query_argument("includeFollowupRequests", False):
+        candidate["followup_requests"] = fetch_obj_data(
+            FollowupRequest, [], obj_id, session
         )
 
     candidate["annotations"] = sorted(
