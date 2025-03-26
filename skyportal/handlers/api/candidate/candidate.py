@@ -46,6 +46,7 @@ from ....models import (
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
+from .candidate_filter import get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -906,32 +907,25 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None or annotation_filter_list is not None:
                 q = q.outerjoin(Annotation)
 
-            if classifications is not None:
-                if isinstance(classifications, str) and "," in classifications:
+            if isinstance(classifications, str):
+                if "," in classifications:
                     classifications = [c.strip() for c in classifications.split(",")]
-                elif isinstance(classifications, str):
-                    classifications = [classifications]
                 else:
-                    return self.error(
-                        "Invalid classifications value -- must provide at least one string value"
-                    )
+                    classifications = [classifications]
                 q = q.join(Classification).where(
                     Classification.classification.in_(classifications)
                 )
-            if classifications_reject is not None:
-                if (
-                    isinstance(classifications_reject, str)
-                    and "," in classifications_reject
-                ):
+            else:
+                return self.error(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            if isinstance(classifications_reject, str):
+                if "," in classifications_reject:
                     classifications_reject = [
                         c.strip() for c in classifications_reject.split(",")
                     ]
-                elif isinstance(classifications_reject, str):
-                    classifications_reject = [classifications_reject]
                 else:
-                    return self.error(
-                        "Invalid classificationsReject value -- must provide at least one string value"
-                    )
+                    classifications_reject = [classifications_reject]
                 # here we want to keep candidates that:
                 #   1. have no classification
                 #   2. do not have one of the classifications_reject as a classification
@@ -948,62 +942,26 @@ class CandidateHandler(BaseHandler):
                     classifications_reject_subquery,
                     Obj.id == classifications_reject_subquery.c.obj_id,
                 ).where(classifications_reject_subquery.c.obj_id.is_(None))
+            else:
+                return self.error(
+                    "Invalid classificationsReject value -- must provide at least one string value"
+                )
+
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
                 # the LIMT/OFFSET helper function down the line once other query
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
-            if saved_status in [
-                "savedToAllSelected",
-                "savedToAnySelected",
-                "savedToAnyAccessible",
-                "notSavedToAnyAccessible",
-                "notSavedToAnySelected",
-                "notSavedToAllSelected",
-            ]:
-                notin = False
-                active_sources = Source.select(
-                    session.user_or_token, columns=[Source.obj_id]
-                ).where(Source.active.is_(True))
-                if saved_status == "savedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids'
-                    subquery = (
-                        active_sources.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                elif saved_status == "savedToAnySelected":
-                    subquery = active_sources.where(Source.group_id.in_(group_ids))
-                elif saved_status == "savedToAnyAccessible":
-                    subquery = active_sources.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                elif saved_status == "notSavedToAnyAccessible":
-                    subquery = active_sources.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                    notin = True
-                elif saved_status == "notSavedToAnySelected":
-                    subquery = active_sources.where(Source.group_id.in_(group_ids))
-                    notin = True
-                elif saved_status == "notSavedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids', and select
-                    # the objects not in that set
-                    subquery = (
-                        active_sources.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                    notin = True
-                q = (
-                    q.where(Obj.id.notin_(subquery))
-                    if notin
-                    else q.where(Obj.id.in_(subquery))
-                )
-            elif saved_status != "all":
+            q = get_subquery_for_saved_status(
+                session,
+                q,
+                saved_status,
+                group_ids,
+                user_accessible_group_ids,
+            )
+
+            if q is None:
                 return self.error(
                     f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
                 )

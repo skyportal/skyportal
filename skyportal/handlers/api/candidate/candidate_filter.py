@@ -18,6 +18,60 @@ from ...base import BaseHandler
 log = make_log("api/candidate_filter")
 
 
+def get_subquery_for_saved_status(
+    session, stmt, saved_status, group_ids, user_accessible_group_ids
+):
+    if saved_status in [
+        "savedToAllSelected",
+        "savedToAnySelected",
+        "savedToAnyAccessible",
+        "notSavedToAnyAccessible",
+        "notSavedToAnySelected",
+        "notSavedToAllSelected",
+    ]:
+        source_subquery = Source.select(
+            session.user_or_token, columns=[Source.obj_id]
+        ).where(Source.active.is_(True))
+        not_in = False
+        if saved_status == "savedToAllSelected":
+            # Retrieve objects that have as many active saved groups that are
+            # in 'group_ids' as there are items in 'group_ids'
+            source_subquery = (
+                source_subquery.where(Source.group_id.in_(group_ids))
+                .group_by(Source.obj_id)
+                .having(func.count(Source.group_id) == len(group_ids))
+            )
+        elif saved_status == "savedToAnySelected":
+            source_subquery = source_subquery.where(Source.group_id.in_(group_ids))
+        elif saved_status == "savedToAnyAccessible":
+            source_subquery = source_subquery.where(
+                Source.group_id.in_(user_accessible_group_ids)
+            )
+        elif saved_status == "notSavedToAnyAccessible":
+            source_subquery = source_subquery.where(
+                Source.group_id.in_(user_accessible_group_ids)
+            )
+            not_in = True
+        elif saved_status == "notSavedToAnySelected":
+            source_subquery = source_subquery.where(Source.group_id.in_(group_ids))
+            not_in = True
+        elif saved_status == "notSavedToAllSelected":
+            source_subquery = (
+                source_subquery.where(Source.group_id.in_(group_ids))
+                .group_by(Source.obj_id)
+                .having(func.count(Source.group_id) == len(group_ids))
+            )
+            not_in = True
+
+        return (
+            stmt.where(Candidate.obj_id.notin_(source_subquery))
+            if not_in
+            else stmt.where(Candidate.obj_id.in_(source_subquery))
+        )
+    elif saved_status != "all":
+        return None
+
+
 class CandidateFilterHandler(BaseHandler):
     @auth_or_token
     def get(self):
@@ -127,58 +181,15 @@ class CandidateFilterHandler(BaseHandler):
                 end_date = arrow.get(end_date).datetime
                 stmt = stmt.where(Candidate.passed_at <= end_date)
 
-            if saved_status in [
-                "savedToAllSelected",
-                "savedToAnySelected",
-                "savedToAnyAccessible",
-                "notSavedToAnyAccessible",
-                "notSavedToAnySelected",
-                "notSavedToAllSelected",
-            ]:
-                source_subquery = Source.select(
-                    session.user_or_token, columns=[Source.obj_id]
-                ).where(Source.active.is_(True))
-                not_in = False
-                if saved_status == "savedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids'
-                    source_subquery = (
-                        source_subquery.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                elif saved_status == "savedToAnySelected":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(group_ids)
-                    )
-                elif saved_status == "savedToAnyAccessible":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                elif saved_status == "notSavedToAnyAccessible":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                    not_in = True
-                elif saved_status == "notSavedToAnySelected":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(group_ids)
-                    )
-                    not_in = True
-                elif saved_status == "notSavedToAllSelected":
-                    source_subquery = (
-                        source_subquery.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                    not_in = True
+            stmt = get_subquery_for_saved_status(
+                session,
+                stmt,
+                saved_status,
+                group_ids,
+                user_accessible_group_ids,
+            )
 
-                stmt = (
-                    stmt.where(Candidate.obj_id.notin_(source_subquery))
-                    if not_in
-                    else stmt.where(Candidate.obj_id.in_(source_subquery))
-                )
-            elif saved_status != "all":
+            if stmt is None:
                 return self.error(
                     f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
                 )
