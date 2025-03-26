@@ -1384,11 +1384,15 @@ class CandidateHandler(BaseHandler):
                                 source_subquery, Group.id == source_subquery.c.group_id
                             )
                         ).all()
-                        obj.classifications = session.scalars(
-                            Classification.select(self.current_user).where(
-                                Classification.obj_id == obj.id
+                        obj.classifications = (
+                            session.scalars(
+                                Classification.select(self.current_user).where(
+                                    Classification.obj_id == obj.id
+                                )
                             )
-                        ).all()
+                            .unique()
+                            .all()
+                        )
                     obj.passing_group_ids = [
                         f.group_id
                         for f in session.scalars(
