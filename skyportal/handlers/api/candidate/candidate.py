@@ -165,6 +165,83 @@ def get_filters(session, user, text_with_ids, is_group_ids=False):
     ).all()
 
 
+def fetch_obj_data(model, options, obj_id, session):
+    return (
+        session.scalars(
+            model.select(session.user_or_token, options=options).where(
+                model.obj_id == obj_id
+            )
+        )
+        .unique()
+        .all()
+    )
+
+
+def include_requested_obj_data(
+    obj_id, candidate, get_query_argument, session, include_phot_annotations
+):
+    """
+    Add object data to the candidate dictionary based on the query parameters
+
+    Parameters
+    ----------
+    obj_id : str
+        The object ID
+    candidate : dict
+        The candidate dictionary
+    get_query_argument : func
+        The function to get query arguments
+    session : `baselayer.app.models.Session`
+        Database session
+    include_phot_annotations : bool
+        Whether to include photometry annotations
+
+    Returns
+    -------
+    dict
+        The updated candidate dictionary
+    """
+    if get_query_argument("includePhotometry", False):
+        phot_options = [joinedload(Photometry.instrument)]
+
+        if include_phot_annotations:
+            phot_options.append(joinedload(Photometry.annotations))
+            candidate["photometry"] = fetch_obj_data(
+                Photometry, phot_options, obj_id, session
+            )
+            candidate["photometry"] = [
+                {
+                    **phot.to_dict(),
+                    "annotations": [
+                        annotation.to_dict() for annotation in phot.annotations
+                    ],
+                }
+                for phot in candidate["photometry"]
+            ]
+        else:
+            candidate["photometry"] = fetch_obj_data(
+                Photometry, phot_options, obj_id, session
+            )
+
+    if get_query_argument("includeSpectra", False):
+        candidate["spectra"] = fetch_obj_data(
+            Spectrum, [joinedload(Spectrum.instrument)], obj_id, session
+        )
+
+    if get_query_argument("includeComments", False):
+        candidate["comments"] = sorted(
+            fetch_obj_data(Comment, [], obj_id, session),
+            key=lambda x: x.created_at,
+            reverse=True,
+        )
+
+    candidate["annotations"] = sorted(
+        fetch_obj_data(Annotation, [], obj_id, session),
+        key=lambda x: x.origin,
+    )
+    return candidate
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
