@@ -151,152 +151,6 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
-def get_candidate_by_obj_id(
-    self,
-    obj_id,
-    start,
-    include_alerts,
-    include_comments,
-    include_photometry,
-    include_spectra,
-):
-    with self.Session() as session:
-        query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
-
-        c = session.scalars(
-            Obj.select(session.user_or_token, options=query_options).where(
-                Obj.id == obj_id
-            )
-        ).first()
-        if c is None:
-            return self.error("Invalid ID")
-        candidate_info = recursive_to_dict(c)
-
-        if include_alerts:
-            accessible_candidates = session.scalars(
-                Candidate.select(session.user_or_token).where(
-                    Candidate.obj_id == obj_id
-                )
-            ).all()
-            filter_ids = [cand.filter_id for cand in accessible_candidates]
-
-            passing_alerts = [
-                {
-                    "filter_id": cand.filter_id,
-                    "passing_alert_id": cand.passing_alert_id,
-                    "passed_at": cand.passed_at,
-                }
-                for cand in accessible_candidates
-            ]
-            candidate_info["filter_ids"] = filter_ids
-            candidate_info["passing_alerts"] = passing_alerts
-
-        if include_comments:
-            candidate_info["comments"] = sorted(
-                session.scalars(
-                    Comment.select(session.user_or_token).where(
-                        Comment.obj_id == obj_id
-                    )
-                ).all(),
-                key=lambda x: x.created_at,
-                reverse=True,
-            )
-
-        if include_photometry:
-            candidate_info["photometry"] = (
-                session.scalars(
-                    Photometry.select(
-                        session.user_or_token,
-                        options=[
-                            joinedload(Photometry.instrument),
-                            joinedload(Photometry.annotations),
-                        ],
-                    ).where(Photometry.obj_id == obj_id)
-                )
-                .unique()
-                .all()
-            )
-            candidate_info["photometry"] = [
-                {
-                    **phot.to_dict(),
-                    "annotations": [
-                        annotation.to_dict() for annotation in phot.annotations
-                    ],
-                }
-                for phot in candidate_info["photometry"]
-            ]
-        if include_spectra:
-            candidate_info["spectra"] = session.scalars(
-                Spectrum.select(
-                    session.user_or_token,
-                    options=[joinedload(Spectrum.instrument)],
-                ).where(Spectrum.obj_id == obj_id)
-            ).all()
-
-        candidate_info["annotations"] = sorted(
-            session.scalars(
-                Annotation.select(session.user_or_token).where(
-                    Annotation.obj_id == obj_id
-                )
-            ).all(),
-            key=lambda x: x.origin,
-        )
-        stmt = Source.select(session.user_or_token).where(Source.obj_id == obj_id)
-        count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-        candidate_info["is_source"] = session.execute(count_stmt).scalar()
-        if candidate_info["is_source"]:
-            source_subquery = (
-                Source.select(session.user_or_token)
-                .where(Source.obj_id == obj_id)
-                .where(Source.active.is_(True))
-                .subquery()
-            )
-            candidate_info["saved_groups"] = (
-                session.scalars(
-                    Group.select(session.user_or_token).join(
-                        source_subquery, Group.id == source_subquery.c.group_id
-                    )
-                )
-                .unique()
-                .all()
-            )
-            candidate_info["classifications"] = (
-                session.scalars(
-                    Classification.select(session.user_or_token).where(
-                        Classification.obj_id == obj_id
-                    )
-                )
-                .unique()
-                .all()
-            )
-        if len(c.photstats) > 0:
-            if c.photstats[-1].last_detected_mjd is not None:
-                candidate_info["last_detected_at"] = Time(
-                    c.photstats[-1].last_detected_mjd, format="mjd"
-                ).datetime
-            else:
-                candidate_info["last_detected_at"] = None
-        else:
-            candidate_info["last_detected_at"] = None
-        candidate_info["gal_lon"] = c.gal_lon_deg
-        candidate_info["gal_lat"] = c.gal_lat_deg
-        candidate_info["luminosity_distance"] = c.luminosity_distance
-        candidate_info["dm"] = c.dm
-        candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
-
-        candidate_info = recursive_to_dict(candidate_info)
-
-        query_size = sizeof(candidate_info)
-        if query_size >= SIZE_WARNING_THRESHOLD:
-            end = time.time()
-            duration = end - start
-            log(
-                f"User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds"
-            )
-
-        return self.success(data=candidate_info)
-
-
 def get_filters(session, user, text_with_ids, is_group_ids=False):
     if "," in text_with_ids and set(text_with_ids).issubset(string.digits + ","):
         ids = [int(val) for val in text_with_ids.split(",")]
@@ -732,15 +586,103 @@ class CandidateHandler(BaseHandler):
         include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
-            return get_candidate_by_obj_id(
-                self,
-                obj_id,
-                start,
-                include_alerts=include_alerts,
-                include_comments=include_comments,
-                include_photometry=include_photometry,
-                include_spectra=include_spectra,
-            )
+            with self.Session() as session:
+                query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
+
+                c = session.scalars(
+                    Obj.select(session.user_or_token, options=query_options).where(
+                        Obj.id == obj_id
+                    )
+                ).first()
+                if c is None:
+                    return self.error("Invalid ID")
+                candidate_info = recursive_to_dict(c)
+
+                if include_alerts:
+                    accessible_candidates = session.scalars(
+                        Candidate.select(session.user_or_token).where(
+                            Candidate.obj_id == obj_id
+                        )
+                    ).all()
+                    filter_ids = [cand.filter_id for cand in accessible_candidates]
+
+                    passing_alerts = [
+                        {
+                            "filter_id": cand.filter_id,
+                            "passing_alert_id": cand.passing_alert_id,
+                            "passed_at": cand.passed_at,
+                        }
+                        for cand in accessible_candidates
+                    ]
+                    candidate_info["filter_ids"] = filter_ids
+                    candidate_info["passing_alerts"] = passing_alerts
+
+                candidate_info = include_requested_obj_data(
+                    obj_id,
+                    candidate_info,
+                    self.get_query_argument,
+                    session,
+                    include_phot_annotations=True,
+                )
+
+                stmt = Source.select(session.user_or_token).where(
+                    Source.obj_id == obj_id
+                )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                candidate_info["is_source"] = session.execute(count_stmt).scalar()
+                if candidate_info["is_source"]:
+                    source_subquery = (
+                        Source.select(session.user_or_token)
+                        .where(Source.obj_id == obj_id)
+                        .where(Source.active.is_(True))
+                        .subquery()
+                    )
+                    candidate_info["saved_groups"] = (
+                        session.scalars(
+                            Group.select(session.user_or_token).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                    candidate_info["classifications"] = (
+                        session.scalars(
+                            Classification.select(session.user_or_token).where(
+                                Classification.obj_id == obj_id
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                if len(c.photstats) > 0:
+                    if c.photstats[-1].last_detected_mjd is not None:
+                        candidate_info["last_detected_at"] = Time(
+                            c.photstats[-1].last_detected_mjd, format="mjd"
+                        ).datetime
+                    else:
+                        candidate_info["last_detected_at"] = None
+                else:
+                    candidate_info["last_detected_at"] = None
+                candidate_info["gal_lon"] = c.gal_lon_deg
+                candidate_info["gal_lat"] = c.gal_lat_deg
+                candidate_info["luminosity_distance"] = c.luminosity_distance
+                candidate_info["dm"] = c.dm
+                candidate_info["angular_diameter_distance"] = (
+                    c.angular_diameter_distance
+                )
+
+                candidate_info = recursive_to_dict(candidate_info)
+
+                query_size = sizeof(candidate_info)
+                if query_size >= SIZE_WARNING_THRESHOLD:
+                    end = time.time()
+                    duration = end - start
+                    log(
+                        f"User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds"
+                    )
+
+                return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 25)
