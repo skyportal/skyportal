@@ -296,6 +296,20 @@ def get_candidate_by_obj_id(
         return self.success(data=candidate_info)
 
 
+def get_filters(session, user, text_with_ids, is_group_ids=False):
+    if "," in text_with_ids and set(text_with_ids).issubset(string.digits + ","):
+        ids = [int(val) for val in text_with_ids.split(",")]
+    elif text_with_ids.isdigit():
+        ids = [int(text_with_ids)]
+    else:
+        return None
+    return session.scalars(
+        Filter.select(user).where(
+            Filter.group_id.in_(ids) if is_group_ids else Filter.id.in_(ids)
+        )
+    ).all()
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
@@ -835,31 +849,23 @@ class CandidateHandler(BaseHandler):
                 if g.filters
             ]
 
-            def str_to_int_list(str, error_msg):
-                if "," in str and set(str).issubset(string.digits + ","):
-                    return [int(val) for val in str.split(",")]
-                elif str.isdigit():
-                    return [int(str)]
-                else:
-                    return self.error(error_msg)
-
             if isinstance(group_ids, str):
-                group_ids = str_to_int_list(
-                    group_ids, "Invalid groupIDs value -- select at least one group"
+                filters = get_filters(
+                    session, self.current_user, group_ids, is_group_ids=True
                 )
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(
-                        Filter.group_id.in_(group_ids)
+                if filters is None:
+                    return self.error(
+                        "Invalid groupIDs value -- select at least one group"
                     )
-                ).all()
                 filter_ids = [f.id for f in filters]
             elif isinstance(filter_ids, str):
-                filter_ids = str_to_int_list(
-                    filter_ids, "Invalid filterIDs value -- select at least one filter"
+                filters = get_filters(
+                    session, self.current_user, filter_ids, is_group_ids=False
                 )
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
-                ).all()
+                if filters is None:
+                    return self.error(
+                        "Invalid filterIDs value -- select at least one filter"
+                    )
                 group_ids = [f.group_id for f in filters]
             else:
                 # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
