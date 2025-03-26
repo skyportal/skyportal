@@ -222,7 +222,8 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
             }
           : {
               type: "string",
-              title: "Allocation json data (i.e. {'slack_token': 'testtoken'})",
+              title:
+                "Allocation Parameters/Credentials json (i.e. {'slack_token': 'testtoken'})",
             },
       ...(instrument_id &&
         instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {

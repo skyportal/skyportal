@@ -333,10 +333,14 @@ def get_next_valid_observing_time(
             time=observing_time,
             night_only=True,
         )
-        if (valid_rise_time and valid_set_time) or observing_time >= end_time:
+
+        if valid_rise_time and valid_set_time and observing_time < valid_set_time:
             break
         else:
-            observing_time += 1 * u.day
+            # if the target is not visible, use the next day rise time as the new observing time
+            observing_time = valid_rise_time + 1 * u.day
+            if end_time < observing_time:
+                break
 
     if not valid_rise_time or not valid_set_time:
         raise ValueError(
