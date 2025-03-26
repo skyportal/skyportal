@@ -915,7 +915,7 @@ class CandidateHandler(BaseHandler):
                 q = q.join(Classification).where(
                     Classification.classification.in_(classifications)
                 )
-            else:
+            elif classifications is not None:
                 return self.error(
                     "Invalid classifications value -- must provide at least one string value"
                 )
@@ -942,7 +942,7 @@ class CandidateHandler(BaseHandler):
                     classifications_reject_subquery,
                     Obj.id == classifications_reject_subquery.c.obj_id,
                 ).where(classifications_reject_subquery.c.obj_id.is_(None))
-            else:
+            elif classifications_reject is not None:
                 return self.error(
                     "Invalid classificationsReject value -- must provide at least one string value"
                 )
