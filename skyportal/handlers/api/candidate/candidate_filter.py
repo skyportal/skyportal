@@ -21,6 +21,9 @@ log = make_log("api/candidate_filter")
 def get_subquery_for_saved_status(
     session, stmt, saved_status, group_ids, user_accessible_group_ids
 ):
+    if saved_status == "all":
+        return stmt
+
     if saved_status in [
         "savedToAllSelected",
         "savedToAnySelected",
@@ -68,7 +71,7 @@ def get_subquery_for_saved_status(
             if not_in
             else stmt.where(Candidate.obj_id.in_(source_subquery))
         )
-    elif saved_status != "all":
+    else:
         return None
 
 
