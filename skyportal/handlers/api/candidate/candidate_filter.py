@@ -134,7 +134,7 @@ class CandidateFilterHandler(BaseHandler):
                 if (
                     isinstance(filter_ids, str)
                     and "," in filter_ids
-                    and set(filter_ids) in set(string.digits + ",")
+                    and set(filter_ids).issubset(string.digits + ",")
                 ):
                     filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
                 elif isinstance(filter_ids, str) and filter_ids.isdigit():
