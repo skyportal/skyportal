@@ -187,7 +187,8 @@ const NewAllocation = ({ onClose }) => {
       },
       _altdata: {
         type: "string",
-        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
+        title:
+          "Allocation Parameters/Credentials json (i.e. {'slack_token': 'testtoken'}",
       },
     },
     required: [
@@ -211,7 +212,7 @@ const NewAllocation = ({ onClose }) => {
                 ? {
                     _altdata: {
                       type: "object",
-                      title: "Alternative data",
+                      title: "Allocation Parameters/Credentials",
                       properties: altdata?.properties,
                       required: altdata?.required || [],
                       dependencies: altdata?.dependencies || {},
