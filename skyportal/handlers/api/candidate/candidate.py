@@ -319,6 +319,13 @@ class CandidateHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include associated comments. Defaults to false.
             - in: query
+              name: includeFollowupRequests
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated follow-up requests. Defaults to false.
+            - in: query
               name: includeAlerts
               nullable: true
               schema:
