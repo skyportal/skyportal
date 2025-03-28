@@ -779,12 +779,12 @@ class TAROTAPI(FollowUpAPI):
                 "exposure_counts": {
                     "title": "Exposure Counts",
                     "type": "number",
-                    "default": 1,
+                    "default": 5,
                 },
                 "airmass": {
                     "title": "Airmass limit",
                     "type": "number",
-                    "default": 3.0,
+                    "default": 2.8,
                 },
             },
             "required": [
