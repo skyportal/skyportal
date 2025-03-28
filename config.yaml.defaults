@@ -766,6 +766,7 @@ gcn:
   summary:
     acknowledgements:
       - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
+  source_radius_threshold: 8.0 # max skymap cone radius to create an associated source
 
 health_monitor:
   seconds_between_checks: 30.5
