@@ -62,7 +62,9 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
 )
 
-SOURCE_RADIUS_THRESHOLD = 8 / 60.0  # 8 arcmin in degrees
+# max error radius of a sky localization to automatically
+# create an associated source. Default is 8 arcmin
+SOURCE_RADIUS_THRESHOLD = cfg.get("gcn.source_radius_threshold", 8) / 60.0 
 
 
 def gcn_update_delete_logic(cls, user_or_token):
