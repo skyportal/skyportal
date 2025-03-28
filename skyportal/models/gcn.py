@@ -66,7 +66,7 @@ cache = Cache(
 # create an associated source. It should be specified in arcminutes
 # in the config's gcn.source_radius_threshold, defaults to 8.0
 # and is then converted in degrees
-SOURCE_RADIUS_THRESHOLD = cfg.get("gcn.source_radius_threshold", 8) / 60.0 
+SOURCE_RADIUS_THRESHOLD = cfg.get("gcn.source_radius_threshold", 8) / 60.0
 
 
 def gcn_update_delete_logic(cls, user_or_token):
