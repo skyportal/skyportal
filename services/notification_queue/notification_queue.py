@@ -1052,7 +1052,11 @@ def api(queue):
                                             session.commit()
                                             queue.append(notification.id)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith("submitted"):
+                                    if target_data["status"].startswith(
+                                        "submitted"
+                                    ) or target_data["status"].startswith(
+                                        "In progress:"
+                                    ):
                                         continue
                                     allocation_id = target_data["allocation_id"]
                                     allocation = session.scalars(
