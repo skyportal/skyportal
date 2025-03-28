@@ -63,7 +63,9 @@ cache = Cache(
 )
 
 # max error radius of a sky localization to automatically
-# create an associated source. Default is 8 arcmin
+# create an associated source. It should be specified in arcminutes
+# in the config's gcn.source_radius_threshold, defaults to 8.0
+# and is then converted in degrees
 SOURCE_RADIUS_THRESHOLD = cfg.get("gcn.source_radius_threshold", 8) / 60.0 
 
 
