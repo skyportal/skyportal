@@ -622,7 +622,7 @@ class TAROTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"Target have been observed {nb_observation} times",
+                        "note": f"Target has been observed {nb_observation} times",
                         "type": "info",
                     },
                 )
