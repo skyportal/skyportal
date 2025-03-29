@@ -595,6 +595,13 @@ class TAROTAPI(FollowUpAPI):
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
                 request.status = f"complete"
+            elif observing_time + timedelta(hours=3) < datetime.utcnow():
+                previous_status = (
+                    "planified"
+                    if request.status.startswith("planified")
+                    else "submitted"
+                )
+                request.status = f"rejected: {previous_status} but observation failed due to a TAROT error"
 
         session.commit()
 
@@ -615,7 +622,7 @@ class TAROTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"TAROT have been observed {nb_observation} times",
+                        "note": f"Target have been observed {nb_observation} times",
                         "type": "info",
                     },
                 )
