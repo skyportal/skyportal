@@ -154,6 +154,20 @@ def create_photometry_annotations_query(
 
 
 def get_filters(session, user, text_with_ids, is_group_ids=False):
+    """
+    Get filters based on the provided text_with_ids which can be a string of group IDs or filter IDs.
+
+    Parameters
+    ----------
+    session : Session
+        The database session.
+    user : User
+        The user object.
+    text_with_ids : str
+        Comma-separated string of filter IDs or group IDs.
+    is_group_ids : bool
+        If True, treat text_with_ids as group IDs; otherwise, treat it as filter IDs.
+    """
     if "," in text_with_ids and set(text_with_ids).issubset(string.digits + ","):
         ids = [int(val) for val in text_with_ids.split(",")]
     elif text_with_ids.isdigit():
