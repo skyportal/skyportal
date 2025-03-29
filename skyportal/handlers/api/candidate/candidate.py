@@ -153,32 +153,13 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
-def get_filters(session, user, text_with_ids, is_group_ids=False):
-    """
-    Get filters based on the provided text_with_ids which can be a string of group IDs or filter IDs.
-
-    Parameters
-    ----------
-    session : Session
-        The database session.
-    user : User
-        The user object.
-    text_with_ids : str
-        Comma-separated string of filter IDs or group IDs.
-    is_group_ids : bool
-        If True, treat text_with_ids as group IDs; otherwise, treat it as filter IDs.
-    """
-    if "," in text_with_ids and set(text_with_ids).issubset(string.digits + ","):
-        ids = [int(val) for val in text_with_ids.split(",")]
-    elif text_with_ids.isdigit():
-        ids = [int(text_with_ids)]
+def get_int_list_from_string(text_with_int, error_msg=""):
+    if "," in text_with_int and set(text_with_int).issubset(string.digits + ","):
+        return [int(val) for val in text_with_int.split(",")]
+    elif text_with_int.isdigit():
+        return [int(text_with_int)]
     else:
-        return None
-    return session.scalars(
-        Filter.select(user).where(
-            Filter.group_id.in_(ids) if is_group_ids else Filter.id.in_(ids)
-        )
-    ).all()
+        raise ValueError(error_msg)
 
 
 def fetch_obj_data(model, options, obj_id, session):
@@ -876,22 +857,26 @@ class CandidateHandler(BaseHandler):
             ]
 
             if isinstance(group_ids, str):
-                filters = get_filters(
-                    session, self.current_user, group_ids, is_group_ids=True
+                group_ids = get_int_list_from_string(
+                    group_ids,
+                    error_msg="Invalid groupIDs value -- select at least one group",
                 )
-                if filters is None:
-                    return self.error(
-                        "Invalid groupIDs value -- select at least one group"
+                filters = session.scalars(
+                    Filter.select(session.user_or_token).where(
+                        Filter.group_id.in_(group_ids)
                     )
+                ).all()
                 filter_ids = [f.id for f in filters]
             elif isinstance(filter_ids, str):
-                filters = get_filters(
-                    session, self.current_user, filter_ids, is_group_ids=False
+                filter_ids = get_int_list_from_string(
+                    filter_ids,
+                    error_msg="Invalid filterIDs value -- select at least one filter",
                 )
-                if filters is None:
-                    return self.error(
-                        "Invalid filterIDs value -- select at least one filter"
+                filters = session.scalars(
+                    Filter.select(session.user_or_token).where(
+                        Filter.id.in_(filter_ids)
                     )
+                ).all()
                 group_ids = [f.group_id for f in filters]
             else:
                 # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
