@@ -27,6 +27,7 @@ from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
 from ....models import (
+    Allocation,
     Annotation,
     AnnotationOnPhotometry,
     Candidate,
@@ -237,7 +238,15 @@ def include_requested_obj_data(
         )
     if get_query_argument("includeFollowupRequests", False):
         candidate["followup_requests"] = fetch_obj_data(
-            FollowupRequest, [], obj_id, session
+            FollowupRequest,
+            [
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.instrument
+                ),
+                joinedload(FollowupRequest.requester),
+            ],
+            obj_id,
+            session,
         )
 
     candidate["annotations"] = sorted(
