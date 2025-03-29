@@ -11,6 +11,7 @@ from baselayer.log import make_log
 from ....models import (
     Candidate,
     Filter,
+    Obj,
     Source,
 )
 from ...base import BaseHandler
@@ -32,44 +33,47 @@ def get_subquery_for_saved_status(
         "notSavedToAnySelected",
         "notSavedToAllSelected",
     ]:
-        source_subquery = Source.select(
+        active_sources = Source.select(
             session.user_or_token, columns=[Source.obj_id]
         ).where(Source.active.is_(True))
         not_in = False
         if saved_status == "savedToAllSelected":
             # Retrieve objects that have as many active saved groups that are
             # in 'group_ids' as there are items in 'group_ids'
-            source_subquery = (
-                source_subquery.where(Source.group_id.in_(group_ids))
+            subquery = (
+                active_sources.where(Source.group_id.in_(group_ids))
                 .group_by(Source.obj_id)
                 .having(func.count(Source.group_id) == len(group_ids))
             )
         elif saved_status == "savedToAnySelected":
-            source_subquery = source_subquery.where(Source.group_id.in_(group_ids))
+            subquery = active_sources.where(Source.group_id.in_(group_ids))
         elif saved_status == "savedToAnyAccessible":
-            source_subquery = source_subquery.where(
+            subquery = active_sources.where(
                 Source.group_id.in_(user_accessible_group_ids)
             )
         elif saved_status == "notSavedToAnyAccessible":
-            source_subquery = source_subquery.where(
+            subquery = active_sources.where(
                 Source.group_id.in_(user_accessible_group_ids)
             )
             not_in = True
         elif saved_status == "notSavedToAnySelected":
-            source_subquery = source_subquery.where(Source.group_id.in_(group_ids))
+            subquery = active_sources.where(Source.group_id.in_(group_ids))
             not_in = True
-        elif saved_status == "notSavedToAllSelected":
-            source_subquery = (
-                source_subquery.where(Source.group_id.in_(group_ids))
+        else:  # notSavedToAllSelected
+            # Retrieve objects that have as many active saved groups that are
+            # in 'group_ids' as there are items in 'group_ids', and select
+            # the objects not in that set
+            subquery = (
+                active_sources.where(Source.group_id.in_(group_ids))
                 .group_by(Source.obj_id)
                 .having(func.count(Source.group_id) == len(group_ids))
             )
             not_in = True
 
         return (
-            stmt.where(Candidate.obj_id.notin_(source_subquery))
+            stmt.where(Obj.id.notin_(subquery))
             if not_in
-            else stmt.where(Candidate.obj_id.in_(source_subquery))
+            else stmt.where(Obj.id.in_(subquery))
         )
     else:
         return None
