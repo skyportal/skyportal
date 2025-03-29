@@ -98,7 +98,7 @@ from .color_mag import get_color_mag
 from .photometry import add_external_photometry, serialize
 from .sources import get_sources
 
-DEFAULT_SOURCES_PER_PAGE = 10
+DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()

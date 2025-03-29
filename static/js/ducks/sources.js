@@ -36,6 +36,9 @@ const FETCH_SPATIAL_CATALOG_SOURCES_OK =
   "skyportal/FETCH_SPATIAL_CATALOG_SOURCES_OK";
 
 const addFilterParamDefaults = (filterParams) => {
+  if (!Object.keys(filterParams).includes("numPerPage")) {
+    filterParams.numPerPage = 10;
+  }
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
@@ -69,6 +72,7 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
   if (dateobs) {
+    // operator ??= is a nullish coalescing operator, which assigns a value to a variable if it is null or undefined
     filterParams.startDate ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     filterParams.endDate ??= dayjs(dateobs)
       .add(7, "day")
@@ -94,6 +98,7 @@ export function fetchSpatialCatalogSources(
 const initialState = {
   sources: null,
   totalMatches: 0,
+  numPerPage: 10,
 };
 
 // Websocket message handler
