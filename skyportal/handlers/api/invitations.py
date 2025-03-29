@@ -301,8 +301,8 @@ class InvitationHandler(BaseHandler):
         group = self.get_query_argument("group", None)
         stream = self.get_query_argument("stream", None)
         invited_by = self.get_query_argument("invitedBy", None)
-        page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 25)
         try:
             page_number = int(page_number)
         except ValueError:

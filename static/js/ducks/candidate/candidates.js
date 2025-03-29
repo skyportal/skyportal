@@ -26,12 +26,8 @@ const SET_CANDIDATES_FILTER_FORM_DATA =
   "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
 
 const GENERATE_PS1_THUMBNAIL = "skyportal/GENERATE_PS1_THUMBNAIL";
-const GENERATE_PS1_THUMBNAILS = "skyportal/GENERATE_PS1_THUMBNAILS";
 
 export const fetchCandidates = (filterParams = {}, append = false) => {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
   return API.GET(
     "/api/candidates",
     append === false ? FETCH_CANDIDATES : FETCH_CANDIDATES_AND_APPEND,
@@ -41,11 +37,6 @@ export const fetchCandidates = (filterParams = {}, append = false) => {
 
 export const generateSurveyThumbnail = (objID) =>
   API.POST("/api/internal/survey_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
-
-export const generateSurveyThumbnails = (objIDs) =>
-  API.POST("/api/internal/survey_thumbnail", GENERATE_PS1_THUMBNAILS, {
-    objIDs,
-  });
 
 export const setCandidatesAnnotationSortOptions = (item) => ({
   type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
@@ -62,11 +53,7 @@ export const setFilterFormData = (formData) => ({
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === FETCH_CANDIDATES) {
-    const { candidates } = getState();
-    const pageNumber = candidates.pageNumber ? candidates.pageNumber : 1;
-    dispatch(fetchCandidates({ pageNumber }));
-  } else if (actionType === REFRESH_CANDIDATE) {
+  if (actionType === REFRESH_CANDIDATE) {
     const { candidates } = getState();
     let done = false;
     if (candidates.candidates !== null) {

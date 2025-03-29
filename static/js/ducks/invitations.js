@@ -14,9 +14,6 @@ export const inviteUser = (data) =>
   API.POST("/api/invitations", INVITE_USER, data);
 
 export const fetchInvitations = (filterParams = {}) => {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
   return API.GET("/api/invitations", FETCH_INVITATIONS, filterParams);
 };
 

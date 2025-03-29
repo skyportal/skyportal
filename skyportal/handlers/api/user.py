@@ -312,7 +312,7 @@ class UserHandler(BaseHandler):
                 return self.success(data=user_info)
 
         # get users by query parameters
-        page_number = self.get_query_argument("pageNumber", None) or 1
+        page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", None)
         first_name = self.get_query_argument("firstName", None)
         last_name = self.get_query_argument("lastName", None)

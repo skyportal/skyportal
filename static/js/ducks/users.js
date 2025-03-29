@@ -16,9 +16,6 @@ export function fetchUser(id) {
 }
 
 export function fetchUsers(filterParams = {}) {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
   return API.GET("/api/user", FETCH_USERS, filterParams);
 }
 

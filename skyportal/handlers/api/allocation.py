@@ -69,12 +69,8 @@ class AllocationObservationPlanHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         # get owned observation plans
-
         with self.Session() as session:
-            allocations = Allocation.select(self.current_user)
-
             try:
                 allocation_id = int(allocation_id)
             except ValueError:
