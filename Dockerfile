@@ -13,7 +13,7 @@ RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common ca-certificates gnupg \
     python3 python3-venv python3-dev libpq-dev supervisor libgdal-dev \
     git postgresql-client vim nano screen htop rsync procps \
-    libcurl4-gnutls-dev libgnutls28-dev && \
+    libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev && \
     mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
