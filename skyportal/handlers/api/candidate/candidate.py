@@ -24,6 +24,7 @@ from sqlalchemy.types import Boolean, Float, Integer, String
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import User
 from baselayer.log import make_log
 
 from ....models import (
@@ -227,7 +228,7 @@ def include_requested_obj_data(
 
     if get_query_argument("includeComments", False):
         candidate["comments"] = sorted(
-            fetch_obj_data(Comment, [], obj_id, session),
+            fetch_obj_data(Comment, [joinedload(Comment.author)], obj_id, session),
             key=lambda x: x.created_at,
             reverse=True,
         )
@@ -237,6 +238,9 @@ def include_requested_obj_data(
             [
                 joinedload(FollowupRequest.allocation).joinedload(
                     Allocation.instrument
+                ),
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.group,
                 ),
                 joinedload(FollowupRequest.requester),
             ],
