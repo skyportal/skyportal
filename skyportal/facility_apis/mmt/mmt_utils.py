@@ -103,7 +103,7 @@ def get_mmt_json_payload(obj, altdata, payload):
         "priority": payload.get("priority"),
         "photometric": payload.get("photometric"),
         "targetofopportunity": payload.get("target_of_opportunity"),
-        "filter": payload.get("filter"),
+        "filter": payload.get("filters"),
         "onevisitpernight": payload.get("nb_visits_per_night"),
         "notes": payload.get("notes"),
     }

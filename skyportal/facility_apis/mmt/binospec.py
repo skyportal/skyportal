@@ -65,7 +65,7 @@ def check_request(request):
             raise ValueError("A valid slit width must be provided")
         if payload.get("nb_visits_per_night") not in (0, 1):
             raise ValueError("A valid number of visits per night must be provided")
-        if payload.get("filter") not in ["LP3800", "LP3500"]:
+        if payload.get("filters") not in ["LP3800", "LP3500"]:
             raise ValueError("A valid filter must be provided")
     else:
         if payload.get("maskid") is None:
@@ -74,7 +74,7 @@ def check_request(request):
             raise ValueError("A valid exposure time must be provided")
         if payload.get("nb_visits_per_night") not in (0, 1):
             raise ValueError("A valid number of visits per night must be provided")
-        if payload.get("filter") not in ["g", "r", "i", "z"]:
+        if payload.get("filters") not in ["g", "r", "i", "z"]:
             raise ValueError("A valid filter must be provided")
 
 
@@ -132,7 +132,7 @@ class BINOSPECAPI(FollowUpAPI):
                     "enum": [0, 1],
                     "default": 0,
                 },
-                "filter": {
+                "filters": {
                     "type": "string",
                     "title": "Filter",
                     "enum": ["g", "r", "i", "z"],
@@ -142,7 +142,7 @@ class BINOSPECAPI(FollowUpAPI):
                 "observation_type",
                 "exposure_time",
                 "nb_visits_per_night",
-                "filter",
+                "filters",
             ],
         }
 
@@ -166,7 +166,7 @@ class BINOSPECAPI(FollowUpAPI):
                     "enum": [0, 1],
                     "default": 1,
                 },
-                "filter": {
+                "filters": {
                     "type": "string",
                     "title": "Filter",
                     "enum": ["LP3800", "LP3500"],
@@ -184,7 +184,7 @@ class BINOSPECAPI(FollowUpAPI):
                 "grating",
                 "central_wavelength",
                 "nb_visits_per_night",
-                "filter",
+                "filters",
             ],
             "dependencies": {
                 "grating": {
@@ -290,7 +290,7 @@ class BINOSPECAPI(FollowUpAPI):
                 **mmt_properties,
             },
             "required": [
-                "filter",
+                "filters",
             ]
             + mmt_required,
             "if": {
