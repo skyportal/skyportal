@@ -9,7 +9,6 @@ import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from jinja2.utils import missing
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -595,6 +594,13 @@ class TAROTAPI(FollowUpAPI):
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
                 request.status = f"complete"
+            elif observing_time + timedelta(hours=3) < datetime.utcnow():
+                previous_status = (
+                    "planified"
+                    if request.status.startswith("planified")
+                    else "submitted"
+                )
+                request.status = f"rejected: {previous_status} but observation failed due to a TAROT error"
 
         session.commit()
 
@@ -615,7 +621,7 @@ class TAROTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"TAROT have been observed {nb_observation} times",
+                        "note": f"Target has been observed {nb_observation} times",
                         "type": "info",
                     },
                 )
@@ -779,12 +785,12 @@ class TAROTAPI(FollowUpAPI):
                 "exposure_counts": {
                     "title": "Exposure Counts",
                     "type": "number",
-                    "default": 1,
+                    "default": 5,
                 },
                 "airmass": {
                     "title": "Airmass limit",
                     "type": "number",
-                    "default": 3.0,
+                    "default": 2.8,
                 },
             },
             "required": [
