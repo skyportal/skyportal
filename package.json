@@ -29,7 +29,7 @@
     "choices.js": "11.0.1",
     "clsx": "2.1.1",
     "convert-css-length": "2.0.1",
-    "core-js": "3.30.2",
+    "core-js": "3.41.0",
     "css-loader": "7.1.2",
     "d3": "7.9.0",
     "d3-array": "3.2.4",
