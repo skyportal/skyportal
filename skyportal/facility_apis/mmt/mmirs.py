@@ -48,7 +48,7 @@ def check_request(request):
             raise ValueError("A valid slit width property must be provided")
         if payload.get("nb_visits_per_night") not in (0, 1):
             raise ValueError("A valid number of visits per night must be provided")
-        if payload.get("filter") not in ["HK", "zJ"]:
+        if payload.get("filters") not in ["HK", "zJ"]:
             raise ValueError("A valid filter must be provided")
     else:
         if payload.get("dithersize") not in (5, 7, 10, 15, 20, 30, 60, 120, 210):
@@ -61,7 +61,7 @@ def check_request(request):
             raise ValueError("A valid exposure time must be provided")
         if payload.get("nb_visits_per_night") not in (0, 1):
             raise ValueError("A valid number of visits per night must be provided")
-        if payload.get("filter") not in ["J", "H", "K", "Ks"]:
+        if payload.get("filters") not in ["J", "H", "K", "Ks"]:
             raise ValueError("A valid filter must be provided")
 
 
@@ -134,7 +134,7 @@ class MMIRSAPI(FollowUpAPI):
                     "enum": [0, 1],
                     "default": 0,
                 },
-                "filter": {
+                "filters": {
                     "type": "string",
                     "title": "Filter",
                     "enum": ["J", "H", "K", "Ks"],
@@ -146,7 +146,7 @@ class MMIRSAPI(FollowUpAPI):
                 "maskid",
                 "exposure_time",
                 "nb_visits_per_night",
-                "filter",
+                "filters",
             ],
         }
 
@@ -186,7 +186,7 @@ class MMIRSAPI(FollowUpAPI):
                     "enum": [0, 1],
                     "default": 1,
                 },
-                "filter": {
+                "filters": {
                     "type": "string",
                     "title": "Filter",
                     "enum": ["HK", "zJ"],
@@ -199,7 +199,7 @@ class MMIRSAPI(FollowUpAPI):
                 "slitwidth",
                 "slitwidthproperty",
                 "nb_visits_per_night",
-                "filter",
+                "filters",
             ],
         }
 

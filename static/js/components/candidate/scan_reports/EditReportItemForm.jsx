@@ -68,6 +68,7 @@ const EditReportItemForm = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            columnGap: "3rem",
           }}
         >
           <Box>Edit report item</Box>
