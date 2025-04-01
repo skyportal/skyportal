@@ -210,6 +210,31 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
     return airmass
 
 
+def fix_sun_time_calculation_error(
+    function, time, which="nearest", horizon=0 * u.degree, n_grid_points=150
+):
+    # Fix an Astroplan issue where sunset or sunrise calculation sometimes fails when the time is near
+    try:
+        result = None
+        for i in range(60):
+            result = function(
+                time + (i * u.minute),
+                which=which,
+                horizon=horizon,
+                n_grid_points=n_grid_points,
+            )
+            if result and not result.masked:
+                break
+        if result and not result.masked:
+            return result
+    except Exception:
+        pass
+
+    raise RuntimeError(
+        f"{function.__name__} calculation failed because of astroplan behavior"
+    )
+
+
 def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     """The rise and set times of the target at the given altitude as an astropy.time.Time.
 
@@ -244,14 +269,18 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     # The altitude of the sun below which it is considered to be the night
     sun_altitude = kwargs.get("sun_altitude", -18 * u.degree)
 
-    sunset = observer.sun_set_time(time, which="next", horizon=sun_altitude)
-    sunrise = observer.sun_rise_time(time, which="next", horizon=sun_altitude)
+    sunset = fix_sun_time_calculation_error(
+        observer.sun_set_time, time=time, which="next", horizon=sun_altitude
+    )
+    sunrise = fix_sun_time_calculation_error(
+        observer.sun_rise_time, time=time, which="next", horizon=sun_altitude
+    )
 
     # If the sunset is after the sunrise, use the previous sunset
     recalc = sunset > sunrise
     if np.any(recalc):
-        sunset[recalc] = observer.sun_set_time(
-            time, which="previous", horizon=sun_altitude
+        sunset[recalc] = fix_sun_time_calculation_error(
+            observer.sun_set_time, time=time, which="previous", horizon=sun_altitude
         )[recalc]
 
     rise_time = observer.target_rise_time(
@@ -259,8 +288,7 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     )
     set_time = observer.target_set_time(sunset, target, which="next", horizon=altitude)
 
-    # If the rise time is after the sunrise, use the previous rise time
-    recalc = rise_time > sunrise
+    recalc = set_time < rise_time
     if np.any(recalc):
         rise_time[recalc] = observer.target_rise_time(
             sunset, target, which="previous", horizon=altitude
@@ -337,8 +365,8 @@ def get_next_valid_observing_time(
         if valid_rise_time and valid_set_time and observing_time < valid_set_time:
             break
         else:
-            # if the target is not visible, use the next day rise time as the new observing time
-            observing_time = valid_rise_time + 1 * u.day
+            # if the target is not visible, use the next day as the new observing time
+            observing_time += 1 * u.day
             if end_time < observing_time:
                 break
 
