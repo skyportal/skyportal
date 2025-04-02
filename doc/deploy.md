@@ -20,6 +20,14 @@ After customizing your `docker.yaml` file (the equivalent of `config.yaml`, used
 make docker-local
 ```
 
+### Running with a different UID, GID and Docker image name
+
+If you're building the docker file to deploy somewhere, you may need to have the file and directory ownership inside the container be under a different UID/GID than the default (which is 1000).  In addition, it is convenient to specify the name of the Docker image to be where you need to push it.  You can change any or all of these values by specifying additional arguments to `make docker-local`:
+
+```
+SKYPORTAL_UID=<uid> SKYPORTAL_GID=<gid> DOCKER_IMAGENAME=<imagename> make docker-local
+```
+
 ## Starting containers
 
 Next, we deploy two containers: `web` (the SkyPortal application, which image you just built) and

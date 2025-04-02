@@ -20,8 +20,12 @@ RUN apt-get update && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
     apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    useradd --create-home --shell /bin/bash skyportal
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ARG SKYPORTAL_UID=1000
+ARG SKYPORTAL_GID=1000
+RUN groupadd -g $SKYPORTAL_GID skyportal && \
+    useradd -u $SKYPORTAL_UID -g $SKYPORTAL_GID --create-home --shell /bin/bash skyportal
 
 ADD . /skyportal
 WORKDIR /skyportal
