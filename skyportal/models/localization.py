@@ -380,31 +380,28 @@ class LocalizationTile(
     def create_partition(cls, name, partition_stmt, table_args=()):
         """Create a partition for the LocalizationTile table."""
 
-        class Partition(Base, LocalizationTileMixin):
-            created_at = sa.Column(
-                sa.DateTime,
-                nullable=False,
-                default=utcnow,
-                doc="UTC time of insertion of object's row into the database.",
-            )
-            __name__ = f"{cls.__name__}_{name}"
-            __qualname__ = f"{cls.__qualname__}_{name}"
-            __tablename__ = f"{cls.__tablename__}_{name}"
-            __table_args__ = table_args
+        partition_class = type(
+            f"{cls.__name__}_{name}",
+            (Base, LocalizationTileMixin),
+            {
+                "__tablename__": f"{cls.__tablename__}_{name}",
+                "__table_args__": table_args,
+            },
+        )
 
         event.listen(
-            Partition.__table__,
+            partition_class.__table__,
             "after_create",
             DDL(
                 f"""
                     ALTER TABLE {cls.__tablename__}
-                    ATTACH PARTITION {Partition.__tablename__}
+                    ATTACH PARTITION {partition_class.__tablename__}
                     {partition_stmt};
                     """
             ),
         )
 
-        cls.partitions[name] = Partition
+        cls.partitions[name] = partition_class
 
 
 # create default partition that will contain all data out of range

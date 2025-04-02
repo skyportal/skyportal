@@ -922,4 +922,5 @@ GcnEvent.event_users_ids = column_property(
     select(func.array_agg(GcnEventUser.user_id))
     .where(GcnEventUser.gcnevent_id == GcnEvent.id)
     .correlate_except(GcnEventUser)
+    .scalar_subquery()
 )
