@@ -410,14 +410,14 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.formRow}>
           <InputLabel id="profileRejectedCandidatesLabel">
-            Show/hide rejected candidates
+            Show/Hide rejected candidates
           </InputLabel>
           <Controller
             labelId="profileRejectedCandidatesSelect"
             name="rejectedStatus"
             control={control}
             input={<Input data-testid="profileRejectedStatusSelect" />}
-            defaultValue="hide"
+            defaultValue="show"
             render={({ field: { onChange, value } }) => (
               <Select
                 labelId="profileRejectedCandidatesSelect"
