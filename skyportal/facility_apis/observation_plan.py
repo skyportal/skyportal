@@ -242,7 +242,6 @@ class MMAAPI(FollowUpAPI):
         from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
         from ..utils.observation_plan import generate_plan
 
-        log(f"request_id: {request_id}")
         with DBSession() as session:
             request = session.scalar(
                 sa.select(ObservationPlanRequest).where(
