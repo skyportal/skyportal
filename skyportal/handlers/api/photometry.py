@@ -199,7 +199,7 @@ def to_numeric(col):
     """Convert a column to numeric, ignoring errors."""
     try:
         return pd.to_numeric(col)
-    except Exception:
+    except (ValueError, TypeError):
         return col
 
 
