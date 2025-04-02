@@ -493,7 +493,7 @@ def test_candidate_rejection_filtering(
 ):
     candidate_id = str(uuid.uuid4())
 
-    status, data = api(
+    status, _ = api(
         "POST",
         "candidates",
         data={
@@ -523,18 +523,20 @@ def test_candidate_rejection_filtering(
     # make sure candidate appears and click the icon to reject it
     driver.click_xpath(f'//*[@data-testid="rejected-visible_{candidate_id}"]')
 
-    driver.click_xpath('//button[text()="Search"]')
-
-    # now the candidate doesn't show up anymore
-    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
-
-    # choose to show rejected now
-    driver.click_xpath('//*[@data-testid="rejectedStatusSelect"]')
-
+    # by default we do not hide rejected candidates, so let's make sure we still
+    # see it in the results
     driver.click_xpath('//button[text()="Search"]')
 
     # make sure candidate appears and that it has a "rejected" icon
     driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
+
+    # choose to hide rejected candidates in the filtering form
+    driver.click_xpath('//*[@data-testid="rejectedStatusSelect"]')
+
+    driver.click_xpath('//button[text()="Search"]')
+
+    # now the candidate doesn't show up anymore
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
 
 
 def test_add_scanning_profile(
