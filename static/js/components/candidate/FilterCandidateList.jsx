@@ -115,6 +115,7 @@ const useStyles = makeStyles((theme) => ({
   rejectCandidatesSelect: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     [theme.breakpoints.down("sm")]: {
       paddingTop: 0,
     },
@@ -357,7 +358,7 @@ const FilterCandidateList = ({
       classifications: scanningProfile?.classifications || [],
       redshiftMinimum: scanningProfile?.redshiftMinimum || "",
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
-      rejectedStatus: scanningProfile?.rejectedStatus || "hide",
+      rejectedStatus: scanningProfile?.rejectedStatus || "show",
       savedStatus: scanningProfile?.savedStatus || "all",
       sortingOrigin: scanningProfile?.sortingOrigin || "",
       sortingKey: scanningProfile?.sortingKey || "",
@@ -692,27 +693,27 @@ const FilterCandidateList = ({
                   />
                 </div>
                 <div className={classes.rejectCandidatesSelect}>
+                  <InputLabel id="rejectedCandidatesLabel">
+                    Hide Rejected
+                  </InputLabel>
                   <Controller
                     labelId="rejectedCandidatesLabel"
                     name="rejectedStatus"
                     control={control}
                     defaultValue={
-                      selectedScanningProfile?.rejectedStatus || "hide"
+                      selectedScanningProfile?.rejectedStatus || "show"
                     }
                     render={({ field: { onChange, value } }) => (
                       <Switch
-                        checked={value === "show"}
+                        checked={value === "hide"}
                         onChange={(event) =>
-                          onChange(event.target.checked ? "show" : "hide")
+                          onChange(event.target.checked ? "hide" : "show")
                         }
                         inputProps={{ "aria-label": "controlled" }}
                         data-testid="rejectedStatusSelect"
                       />
                     )}
                   />
-                  <InputLabel id="rejectedCandidatesLabel">
-                    Hide Rejected
-                  </InputLabel>
                 </div>
               </div>
               <div
