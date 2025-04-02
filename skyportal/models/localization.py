@@ -386,6 +386,20 @@ class LocalizationTile(
             {
                 "__tablename__": f"{cls.__tablename__}_{name}",
                 "__table_args__": table_args,
+                # we redefine the created_at from the Base class
+                # to avoid it from creating an index with the same name
+                # as the one we defined above
+                # (this is a workaround required after we changed how the partitions classes
+                # are created, as it didn't seem to take the Base created_at index into account
+                # before the change, and now it does which would result in 2 identifical indexes
+                # but with different names)
+                "created_at": sa.Column(
+                    sa.DateTime,
+                    nullable=False,
+                    default=utcnow,
+                    # index=True,
+                    doc="UTC time of insertion of object's row into the database.",
+                ),
             },
         )
 
