@@ -201,10 +201,15 @@ def post_gcn_source(
             )
 
     except Exception as e:
-        log(traceback.format_exc())
-        log(
-            f"Failed to create source for event {dateobs} with Localization {localization_name}: {str(e)}."
-        )
+        # if it's a ValueError that contains the text "could not convert string to float", just ignore
+        # as it simply means that the localization name is not a valid ra, dec, error
+        if not (
+            isinstance(e, ValueError) and "could not convert string to float" in str(e)
+        ):
+            log(traceback.format_exc())
+            log(
+                f"Failed to create source for event {dateobs} with Localization {localization_name}: {str(e)}."
+            )
     finally:
         return False
 

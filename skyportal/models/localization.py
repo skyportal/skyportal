@@ -380,31 +380,42 @@ class LocalizationTile(
     def create_partition(cls, name, partition_stmt, table_args=()):
         """Create a partition for the LocalizationTile table."""
 
-        class Partition(Base, LocalizationTileMixin):
-            created_at = sa.Column(
-                sa.DateTime,
-                nullable=False,
-                default=utcnow,
-                doc="UTC time of insertion of object's row into the database.",
-            )
-            __name__ = f"{cls.__name__}_{name}"
-            __qualname__ = f"{cls.__qualname__}_{name}"
-            __tablename__ = f"{cls.__tablename__}_{name}"
-            __table_args__ = table_args
+        partition_class = type(
+            f"{cls.__name__}_{name}",
+            (Base, LocalizationTileMixin),
+            {
+                "__tablename__": f"{cls.__tablename__}_{name}",
+                "__table_args__": table_args,
+                # we redefine the created_at from the Base class
+                # to avoid it from creating an index with the same name
+                # as the one we defined above
+                # (this is a workaround required after we changed how the partitions classes
+                # are created, as it didn't seem to take the Base created_at index into account
+                # before the change, and now it does which would result in 2 identifical indexes
+                # but with different names)
+                "created_at": sa.Column(
+                    sa.DateTime,
+                    nullable=False,
+                    default=utcnow,
+                    # index=True,
+                    doc="UTC time of insertion of object's row into the database.",
+                ),
+            },
+        )
 
         event.listen(
-            Partition.__table__,
+            partition_class.__table__,
             "after_create",
             DDL(
                 f"""
                     ALTER TABLE {cls.__tablename__}
-                    ATTACH PARTITION {Partition.__tablename__}
+                    ATTACH PARTITION {partition_class.__tablename__}
                     {partition_stmt};
                     """
             ),
         )
 
-        cls.partitions[name] = Partition
+        cls.partitions[name] = partition_class
 
 
 # create default partition that will contain all data out of range

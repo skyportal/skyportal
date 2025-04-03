@@ -72,7 +72,12 @@ def fetch_obj(session):
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
+    # start a timer we'll use to have a heartbeat every 60 seconds
+    heartbeat = time.time()
     while True:
+        if time.time() - heartbeat > 60:
+            heartbeat = time.time()
+            log("Thumbnail queue heartbeat.")
         try:
             internal_key = None
             with DBSession() as session:
@@ -81,9 +86,6 @@ def service(*args, **kwargs):
                     log(f"Error fetching object with missing thumbnails: {str(err)}")
                     time.sleep(1)
                 elif obj is None:
-                    log(
-                        "No objects with missing thumbnails found, sleeping for 5 seconds."
-                    )
                     time.sleep(5)
                 else:
                     log(f"Processing thumbnail request for object {obj.id}.")

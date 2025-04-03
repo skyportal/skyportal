@@ -193,6 +193,16 @@ BANDPASSES_WAVELENGTHS = {
 }
 
 
+# this is a drop-in replacement for pandas pd.to_numeric
+# which now does not offer the errors='ignore' option anymore
+def to_numeric(col):
+    """Convert a column to numeric, ignoring errors."""
+    try:
+        return pd.to_numeric(col)
+    except (ValueError, TypeError):
+        return col
+
+
 def save_data_using_copy(rows, table, columns):
     # Prepare data
     output = StringIO()
@@ -515,10 +525,12 @@ def standardize_photometry_data(data):
     #  apply is used to apply it to each column
     # (https://stackoverflow.com/questions/34844711/convert-entire-pandas
     # -dataframe-to-integers-in-pandas-0-17-0/34844867
-    df = df.apply(pd.to_numeric, errors="ignore")
+    df = df.apply(to_numeric)
 
     # set origin to 'None' where it is None.
-    df.loc[df["origin"].isna(), "origin"] = "None"
+    if "origin" in df.columns:
+        df["origin"] = df["origin"].astype(object)
+        df.loc[df["origin"].isna(), "origin"] = "None"
     ref_phot_table = None
 
     if kind == "mag":
