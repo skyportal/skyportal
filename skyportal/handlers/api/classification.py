@@ -156,11 +156,6 @@ def post_classification(data, user_id, session):
         "skyportal/REFRESH_SOURCE",
         payload={"obj_key": classification.obj.internal_key},
     )
-    # flow.push(
-    #    '*',
-    #    'skyportal/REFRESH_CANDIDATE',
-    #    payload={'id': classification.obj.internal_key},
-    # )
 
     return classification.id
 

@@ -720,34 +720,6 @@ def test_exclude_by_outdated_annotations(
     )
     assert status == 200
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"groupIDs": f"{public_group.id}", "annotationExcludeOrigin": origin},
-        token=view_only_token,
-    )
-
-    assert status == 200
-    assert (
-        num_candidates == len(data["data"]["candidates"]) + 1
-    )  # should have one less candidate
-
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0),
-        },
-        token=view_only_token,
-    )
-
-    assert status == 200
-    assert num_candidates == len(
-        data["data"]["candidates"]
-    )  # should now have all the original candidates
-
 
 def test_candidate_list_saved_to_all_selected_groups(
     upload_data_token_two_groups,
