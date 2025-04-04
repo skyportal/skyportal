@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Select from "@mui/material/Select";
@@ -16,7 +16,6 @@ import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { filterOutEmptyValues } from "../../API";
 import * as followupRequestActions from "../../ducks/followup_requests";
 import * as instrumentActions from "../../ducks/instruments";
 import Button from "../Button";
@@ -92,7 +91,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId]);
 
   if (!Array.isArray(followupRequestList)) {
@@ -109,7 +107,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   }
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
@@ -133,7 +131,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   sortedInstrumentList?.forEach((inst) => {
     instLookUp[inst.id] = inst;
   });
@@ -205,20 +203,23 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     setIsSubmittingFilter(false);
   };
 
-  function createScheduleUrl(instrumentId, format, queryParams) {
-    let url = `/api/followup_request/schedule/${instrumentId}`;
-    if (queryParams) {
-      const filteredQueryParams = filterOutEmptyValues(queryParams);
-      const queryString = new URLSearchParams(filteredQueryParams).toString();
-      url += `?${queryString}`;
-    }
-    url += `&output_format=${format}&includeStandards=${includeStandards}`;
-    return url;
+  function handleDownloadSchedule(event) {
+    event.preventDefault(); // prevent the default form submission
+    // we download the content here and then if status is 200 save it
+    dispatch(
+      followupRequestActions.downloadFollowupSchedule(
+        selectedInstrumentId,
+        selectedFormat,
+        includeStandards,
+      ),
+    );
   }
 
-  function createAllocationReportUrl(instrumentId) {
-    const url = `/api/allocation/report/${instrumentId}`;
-    return url;
+  function handleDownloadAnalysis(event) {
+    event.preventDefault(); // prevent the default form submission
+    dispatch(
+      followupRequestActions.downloadAllocationReport(selectedInstrumentId),
+    );
   }
 
   function validateFilter(formData, errors) {
@@ -380,13 +381,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
       "requesters",
     ],
   };
-
-  const scheduleUrl = createScheduleUrl(
-    selectedInstrumentId,
-    selectedFormat,
-    fetchParams,
-  );
-  const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
       <div data-testid="followup-request-selection-form">
@@ -397,7 +391,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
           uiSchema={uiSchema}
           validator={validator}
           onSubmit={handleSubmitFilter}
-          // eslint-disable-next-line react/jsx-no-bind
           validate={validateFilter}
           disabled={isSubmittingFilter}
           liveValidate
@@ -444,21 +437,19 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         />
         <Button
           primary
-          href={`${scheduleUrl}`}
-          download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
           type="submit"
           data-testid={`scheduleRequest_${selectedInstrumentId}`}
+          onClick={handleDownloadSchedule} // to handle the download
         >
           Download
         </Button>
         <Button
           primary
-          href={`${reportUrl}`}
-          download={`reportRequest-${selectedInstrumentId}`}
           size="small"
           type="submit"
           data-testid={`reportRequest_${selectedInstrumentId}`}
+          onClick={handleDownloadAnalysis} // to handle the download
         >
           Instrument Allocation Analysis
         </Button>
