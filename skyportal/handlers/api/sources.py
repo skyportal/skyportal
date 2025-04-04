@@ -593,6 +593,10 @@ async def get_sources(
                 sort_by = "gcn_status"
             else:
                 sort_by = "saved_at"
+        elif sort_by.startswith("altdata."):
+            sort_by_parts = sort_by.split(".")
+            if not all(sort_by_parts):
+                raise ValueError(f"Invalid sort_by: {sort_by}")
         elif sort_by not in SORT_BY:
             raise ValueError(f"Invalid sort_by: {sort_by}")
 
@@ -1846,6 +1850,16 @@ async def get_sources(
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    elif sort_by.startswith("altdata."):
+                        fields = sort_by.split(".")[1:]
+                        statement += f"""ORDER BY altdata->>:altdata_field_0"""
+                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+                        for i, field in fields[1:]:
+                            statement += f"""->>:altdata_field_{i + 1}"""
+                            query_params.append(
+                                sa.bindparam(f"altdata_field_{i + 1}", field)
+                            )
+                        statement += f""" {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
@@ -1896,6 +1910,16 @@ async def get_sources(
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    elif sort_by.startswith("altdata."):
+                        fields = sort_by.split(".")[1:]
+                        statement += f"""ORDER BY altdata->>:altdata_field_0"""
+                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+                        for i, field in fields[1:]:
+                            statement += f"""->>:altdata_field_{i + 1}"""
+                            query_params.append(
+                                sa.bindparam(f"altdata_field_{i + 1}", field)
+                            )
+                        statement += f""" {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
