@@ -724,12 +724,13 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
-            "altdata": {"Einstein Radius": 0.2},
+            "altdata": {"Einstein Radius": 0.2, "nested": {"key": 2}},
         },
         token=upload_data_token,
     )
     assert status == 200
     assert data["data"]["id"] == obj_id
+
     status, data = api(
         "POST",
         "sources",
@@ -741,7 +742,7 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
-            "altdata": {"Einstein Radius": 0.3},
+            "altdata": {"Einstein Radius": 0.3, "nested": {"key": 1}},
         },
         token=upload_data_token,
     )
@@ -802,6 +803,38 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
     npt.assert_almost_equal(
         data["data"]["sources"][1]["altdata"]["Einstein Radius"], 0.3
     )
+
+    # let's try sorting on an altdata nested field
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": "altdata.nested.key",
+            "sortOrder": "asc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    print(status)
+    print(data)
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][1]["id"] == obj_id
+
+    # try it in descending order to validate
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": "altdata.nested.key",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][1]["id"] == obj_id2
 
 
 def test_object_last_detected(

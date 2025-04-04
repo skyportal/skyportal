@@ -1852,14 +1852,14 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        statement += f"""ORDER BY altdata->>:altdata_field_0"""
+                        altdata_substatement = "altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
-                        for i, field in fields[1:]:
-                            statement += f"""->>:altdata_field_{i + 1}"""
+                        for i, field in enumerate(fields[1:]):
+                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
                             query_params.append(
                                 sa.bindparam(f"altdata_field_{i + 1}", field)
                             )
-                        statement += f""" {sort_order.upper()} NULLS LAST"""
+                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
@@ -1912,14 +1912,14 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        statement += f"""ORDER BY altdata->>:altdata_field_0"""
+                        altdata_substatement = "altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
-                        for i, field in fields[1:]:
-                            statement += f"""->>:altdata_field_{i + 1}"""
+                        for i, field in enumerate(fields[1:]):
+                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
                             query_params.append(
                                 sa.bindparam(f"altdata_field_{i + 1}", field)
                             )
-                        statement += f""" {sort_order.upper()} NULLS LAST"""
+                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
