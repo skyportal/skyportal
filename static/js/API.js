@@ -125,4 +125,55 @@ function DELETE(endpoint, actionType, payload) {
   return API(endpoint, actionType, "DELETE", payload);
 }
 
-export { GET, POST, PUT, PATCH, DELETE, API, API_CALL };
+function DOWNLOAD(endpoint, actionType, payload) {
+  // This is a special case where if the status is 200
+  // there is no JSON to parse and return, instead the
+  // browser will download the file directly.
+  // if there is a failure, then we need to handle it like a normal API call
+  return async (dispatch) => {
+    if (!actionType) {
+      dispatch(
+        showNotification(
+          "API invocation error: no actionType specified",
+          "error",
+        ),
+      );
+    }
+    let filename = payload?.filename || "download";
+    delete payload.filename;
+
+    dispatch({ type: actionType, parameters: { endpoint, payload } });
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
+        credentials: "same-origin",
+      });
+
+      if (response.status === 200) {
+        return response.blob().then((blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        });
+      }
+
+      let json = await response.json();
+      dispatch(showNotification(`${json.message}`, "error"));
+      return dispatch({ type: `${actionType}_ERROR`, ...json });
+    } catch (error) {
+      dispatch(showNotification(`${error.message}`, "error"));
+      return dispatch({
+        type: `${actionType}_FAIL`,
+        parameters: { endpoint, payload },
+        status: "error",
+        message: error.message,
+      });
+    }
+  };
+}
+
+export { GET, POST, PUT, PATCH, DELETE, API, DOWNLOAD, API_CALL };
