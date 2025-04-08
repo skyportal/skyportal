@@ -815,8 +815,6 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
         },
         token=view_only_token,
     )
-    print(status)
-    print(data)
     assert status == 200
     assert data["data"]["sources"][0]["id"] == obj_id2
     assert data["data"]["sources"][1]["id"] == obj_id
