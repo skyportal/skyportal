@@ -458,7 +458,7 @@ skyportal_handlers = [
         ObservationPlanFieldsHandler,
     ),
     (r"/api/objs(/[0-9A-Za-z-_\.\+]+)", ObjHandler),
-    (r"/api/objtagoption", ObjTagOptionHandler),
+    (r"/api/objtagoption(/[0-9]+)?", ObjTagOptionHandler),
     (r"/api/photometry(/[0-9]+)?", PhotometryHandler),
     (r"/api/photometry(/[0-9]+)/validation", PhotometryValidationHandler),
     (r"/api/photometric_series(/[0-9]+)?", PhotometricSeriesHandler),
