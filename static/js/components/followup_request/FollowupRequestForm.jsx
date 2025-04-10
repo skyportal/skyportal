@@ -20,13 +20,6 @@ import GroupShareSelect from "../group/GroupShareSelect";
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
 const useStyles = makeStyles(() => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
   marginTop: {
     marginTop: "1rem",
   },
