@@ -197,7 +197,7 @@ from .survey_efficiency import (
     SurveyEfficiencyForObservationsHandler,
 )
 from .sysinfo import SysInfoHandler
-from .tag import ObjTagOptionHandler
+from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
