@@ -317,7 +317,7 @@ mmt_properties = {
     },
     "photometric": {
         "type": "boolean",
-        "title": "Photometric",
+        "title": "Require photometric conditions",
         "default": False,
     },
     "target_of_opportunity": {
