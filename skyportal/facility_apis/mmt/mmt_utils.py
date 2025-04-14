@@ -110,18 +110,18 @@ def get_mmt_json_payload(obj, altdata, payload):
         "onevisitpernight": 1 if payload.get("one_visit_per_night") else 0,
         "notes": payload.get("notes"),
     }
-    if payload.get("observation_type") == "Imaging":
-        return {
-            **json_payload,
-            "observationtype": "imaging",
-            "maskid": payload.get("mask_id"),
-            "exposuretime": payload.get("exposure_time"),
-        }
-    else:
+    if payload.get("observation_type") == "Spectroscopy":
         return {
             **json_payload,
             "observationtype": "longslit",
         }
+    else:
+        return {
+            **json_payload,
+            "observationtype": "imaging",
+            "exposuretime": payload.get("exposure_time"),
+        }
+
 
 def submit_mmt_request(
     session, request, specific_payload, instrument_id, log, **kwargs
