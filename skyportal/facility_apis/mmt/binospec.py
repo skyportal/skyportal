@@ -128,11 +128,11 @@ class BINOSPECAPI(FollowUpAPI):
                     "title": "Filter",
                     "enum": ["g", "r", "i", "z"],
                 },
-                **mmt_imager_schema.properties,
+                **mmt_imager_schema["properties"],
             },
             "required": [
                 "filters",
-            ] + mmt_imager_schema.required,
+            ] + mmt_imager_schema["required"],
         }
 
         spectroscopy_schema = {

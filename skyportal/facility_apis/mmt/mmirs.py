@@ -117,13 +117,13 @@ class MMIRSAPI(FollowUpAPI):
                     "title": "Filter",
                     "enum": ["J", "H", "K", "Ks"],
                 },
-                **mmt_imager_schema.properties,
+                **mmt_imager_schema["properties"],
             },
             "required": [
                 "dither_size",
                 "read_tab",
                 "filters",
-            ] + mmt_imager_schema.required,
+            ] + mmt_imager_schema["required"],
         }
 
         spectroscopy_schema = {
