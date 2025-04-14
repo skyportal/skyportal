@@ -368,6 +368,7 @@ mmt_required = [
     "priority",
     "photometric",
     "target_of_opportunity",
+    "one_visit_per_night",
 ]
 
 mmt_aldata = {
