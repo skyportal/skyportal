@@ -15,6 +15,14 @@ from .mmt_utils import (
 
 log = make_log("facility_apis/mmt/binospec")
 
+slit_width_to_mask_id = {
+    "Longslit0_75": 113,
+    "Longslit1": 111,
+    "Longslit1_25": 131,
+    "Longslit1_5": 114,
+    "Longslit5": 112,
+}
+
 
 def check_request(request):
     """
@@ -92,12 +100,17 @@ class BINOSPECAPI(FollowUpAPI):
         payload = request.payload
         check_request(request)
 
-        specific_payload = {}
         if payload["observation_type"] == "Spectroscopy":
             specific_payload = {
                 "grating": payload.get("grating"),
                 "centralwavelength": payload.get("central_wavelength"),
                 "slitwidth": payload.get("slit_width"),
+                "maskid": slit_width_to_mask_id[payload.get("slit_width")],
+            }
+        else:
+            specific_payload = {
+                "filters": payload.get("filters"),
+                "maskid": 110
             }
 
         submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
