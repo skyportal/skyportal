@@ -10,6 +10,7 @@ from .mmt_utils import (
     mmt_properties,
     mmt_required,
     submit_mmt_request,
+    mmt_imager_schema,
 )
 
 log = make_log("facility_apis/mmt/binospec")
@@ -63,17 +64,9 @@ def check_request(request):
             "Longslit5",
         ]:
             raise ValueError("A valid slit width must be provided")
-        if payload.get("nb_visits_per_night") not in (0, 1):
-            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filters") not in ["LP3800", "LP3500"]:
             raise ValueError("A valid filter must be provided")
     else:
-        if payload.get("maskid") is None:
-            raise ValueError("A valid mask id must be provided")
-        if payload.get("exposure_time") is None:
-            raise ValueError("A valid exposure time must be provided")
-        if payload.get("nb_visits_per_night") not in (0, 1):
-            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filters") not in ["g", "r", "i", "z"]:
             raise ValueError("A valid filter must be provided")
 
@@ -99,16 +92,12 @@ class BINOSPECAPI(FollowUpAPI):
         payload = request.payload
         check_request(request)
 
+        specific_payload = {}
         if payload["observation_type"] == "Spectroscopy":
             specific_payload = {
                 "grating": payload.get("grating"),
                 "centralwavelength": payload.get("central_wavelength"),
                 "slitwidth": payload.get("slit_width"),
-            }
-        else:
-            specific_payload = {
-                "maskid": payload.get("maskid"),
-                "exposuretime": payload.get("exposure_time"),
             }
 
         submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
@@ -121,29 +110,16 @@ class BINOSPECAPI(FollowUpAPI):
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
             "properties": {
-                "maskid": {"type": "integer", "title": "Mask ID", "default": 110},
-                "exposure_time": {
-                    "type": "number",
-                    "title": "Exposure Time (s)",
-                },
-                "nb_visits_per_night": {
-                    "type": "integer",
-                    "title": "Number of Visits per Night",
-                    "enum": [0, 1],
-                    "default": 0,
-                },
                 "filters": {
                     "type": "string",
                     "title": "Filter",
                     "enum": ["g", "r", "i", "z"],
                 },
+                **mmt_imager_schema.properties,
             },
             "required": [
-                "observation_type",
-                "exposure_time",
-                "nb_visits_per_night",
                 "filters",
-            ],
+            ] + mmt_imager_schema.required,
         }
 
         spectroscopy_schema = {
@@ -160,12 +136,6 @@ class BINOSPECAPI(FollowUpAPI):
                     ],
                     "default": "Longslit0_75",
                 },
-                "nb_visits_per_night": {
-                    "type": "integer",
-                    "title": "Number of Visits per Night",
-                    "enum": [0, 1],
-                    "default": 1,
-                },
                 "filters": {
                     "type": "string",
                     "title": "Filter",
@@ -179,11 +149,9 @@ class BINOSPECAPI(FollowUpAPI):
                 },
             },
             "required": [
-                "observation_type",
                 "slit_width",
                 "grating",
                 "central_wavelength",
-                "nb_visits_per_night",
                 "filters",
             ],
             "dependencies": {
@@ -226,60 +194,6 @@ class BINOSPECAPI(FollowUpAPI):
                             },
                         },
                     ]
-                },
-                "slit_width": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit0_75"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 113,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 111,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1_25"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 131,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1_5"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 114,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit5"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 112,
-                                },
-                            },
-                        },
-                    ],
                 },
             },
         }
