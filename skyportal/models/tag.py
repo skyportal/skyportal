@@ -13,7 +13,6 @@ class ObjTagOption(Base):
 
     tag_name = sa.Column(sa.String, nullable=False, doc="Tags list.", unique=True)
 
+
 ObjTags = join_model("obj_tags", ObjTagOption, Source)
-ObjTags.__table_args__ = (
-    sa.Index("obj_tags", "tag_name", "tag_id", unique=True),
-)
+ObjTags.__table_args__ = (sa.Index("obj_tags", "tag_name", "tag_id", unique=True),)
