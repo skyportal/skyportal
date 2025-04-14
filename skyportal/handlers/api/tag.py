@@ -19,7 +19,7 @@ class ObjTagOptionHandler(BaseHandler):
                     'tag_name': tag.tag_name
                 } for tag in tags])
             
-            elif isinstance(tag_identifier, int):
+            elif tag_identifier.isdigit():
                 tag = session.scalars(
                     ObjTagOption.select(session.user_or_token)
                     .where(ObjTagOption.id == int(tag_identifier))
@@ -57,7 +57,7 @@ class ObjTagOptionHandler(BaseHandler):
             
         with self.Session() as session:
             if session.scalars(ObjTagOption.select(session.user_or_token).where(ObjTagOption.tag_name == tag_text)).first():
-                return self.error("Tag already exists")
+                return self.error("Tag already exists", status=404)
                 
             new_tag = ObjTagOption(tag_name=tag_text)
             session.add(new_tag)
@@ -193,15 +193,17 @@ class ObjTagHandler(BaseHandler):
             if not assoc:
                 return self.error("Association not found", status=404)
             
-            # Check for duplicate if changing both fields
-            if new_tag_id and new_source_id:
-                existing = session.scalars(
-                    ObjTags.select(session.user_or_token)
-                    .where(ObjTags.objtagoption_id == new_tag_id)
-                    .where(ObjTags.source_id == new_source_id)
-                ).first()
-                if existing:
-                    return self.error("This tag-source association already exists", status=404)
+            final_tag_id = new_tag_id if new_tag_id is not None else assoc.objtagoption_id
+            final_source_id = new_source_id if new_source_id is not None else assoc.source_id
+            
+            existing = session.scalars(
+                ObjTags.select(session.user_or_token)
+                .where(ObjTags.objtagoption_id == final_tag_id)
+                .where(ObjTags.source_id == final_source_id)
+            ).first()
+            
+            if existing:
+                return self.error("This tag-source association already exists", status=409)
             
             if new_tag_id:
                 # Verify new tag exists
