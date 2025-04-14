@@ -179,10 +179,10 @@ class MMIRSAPI(FollowUpAPI):
             },
             "required": mmt_required,
             "if": {
-                "properties": {"observation_type": {"const": "Imaging"}},
+                "properties": {"observation_type": {"const": "Spectroscopy"}},
             },
-            "then": imager_schema,
-            "else": spectroscopy_schema,
+            "then": spectroscopy_schema,
+            "else": imager_schema,
         }
 
     ui_json_schema = {}

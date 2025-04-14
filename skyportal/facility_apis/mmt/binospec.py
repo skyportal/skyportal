@@ -147,7 +147,7 @@ class BINOSPECAPI(FollowUpAPI):
                         "Longslit1_5",
                         "Longslit5",
                     ],
-                    "default": "Longslit0_75",
+                    "default": "Longslit1",
                 },
                 "filters": {
                     "type": "string",
@@ -159,6 +159,7 @@ class BINOSPECAPI(FollowUpAPI):
                     "type": "integer",
                     "title": "Grating",
                     "enum": [270, 600, 1000],
+                    "default": 270,
                 },
             },
             "required": [
@@ -179,6 +180,7 @@ class BINOSPECAPI(FollowUpAPI):
                                     "title": "Central Wavelength",
                                     "minimum": 5501,
                                     "maximum": 7838,
+                                    "default": 6500,
                                 },
                             },
                         },
@@ -191,6 +193,7 @@ class BINOSPECAPI(FollowUpAPI):
                                     "title": "Central Wavelength",
                                     "minimum": 5146,
                                     "maximum": 8783,
+                                    "default": 6500,
                                 },
                             },
                         },
@@ -203,6 +206,7 @@ class BINOSPECAPI(FollowUpAPI):
                                     "description": "Enter a value in one of these ranges: 4108-4683, 5181-7273, 7363-7967, 8153-8772, 8897-9279",
                                     "minimum": 4108,
                                     "maximum": 9279,
+                                    "default": 6500,
                                 },
                             },
                         },
@@ -221,10 +225,10 @@ class BINOSPECAPI(FollowUpAPI):
             ]
             + mmt_required,
             "if": {
-                "properties": {"observation_type": {"const": "Imaging"}},
+                "properties": {"observation_type": {"const": "Spectroscopy"}},
             },
-            "then": imager_schema,
-            "else": spectroscopy_schema,
+            "then": spectroscopy_schema,
+            "else": imager_schema,
         }
 
     ui_json_schema = {}

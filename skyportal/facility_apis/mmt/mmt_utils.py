@@ -289,7 +289,7 @@ mmt_properties = {
             "Imaging",
             "Spectroscopy",
         ],
-        "default": "Imaging",
+        "default": "Spectroscopy",
     },
     "pa": {
         "type": "number",
