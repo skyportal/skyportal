@@ -56,6 +56,12 @@ def check_mmt_payload(payload):
         raise ValueError("A valid photometric value must be provided")
     if not isinstance(payload.get("target_of_opportunity"), bool):
         raise ValueError("A valid target of opportunity value must be provided")
+    if not isinstance(payload.get("one_visit_per_night"), bool):
+        raise ValueError("A valid one visit per night value must be provided")
+
+    if payload.get("observation_type") == "Imaging":
+        if payload.get("exposure_time") is None:
+            raise ValueError("A valid exposure time must be provided")
 
 
 def sanitize_obj_id(obj_id):
@@ -85,16 +91,13 @@ def get_mmt_json_payload(obj, altdata, payload):
     """
     Get the JSON payload common to all MMT instruments
     """
-    return {
+    json_payload = {
         "token": altdata["token"],
         "objectid": sanitize_obj_id(obj.id),
         "ra": deg2hms(obj.ra),
         "dec": deg2dms(obj.dec),
         "magnitude": obj.photstats[0].last_detected_mag,
         "epoch": 2000.0,
-        "observationtype": "imaging"
-        if payload.get("observation_type") == "Imaging"
-        else "longslit",
         "pa": payload.get("pa"),
         "pm_ra": payload.get("pm_ra"),
         "pm_dec": payload.get("pm_dec"),
@@ -104,10 +107,21 @@ def get_mmt_json_payload(obj, altdata, payload):
         "photometric": payload.get("photometric"),
         "targetofopportunity": payload.get("target_of_opportunity"),
         "filter": payload.get("filters"),
-        "onevisitpernight": payload.get("nb_visits_per_night"),
+        "onevisitpernight": 1 if payload.get("one_visit_per_night") else 0,
         "notes": payload.get("notes"),
     }
-
+    if payload.get("observation_type") == "Imaging":
+        return {
+            **json_payload,
+            "observationtype": "imaging",
+            "maskid": payload.get("mask_id"),
+            "exposuretime": payload.get("exposure_time"),
+        }
+    else:
+        return {
+            **json_payload,
+            "observationtype": "longslit",
+        }
 
 def submit_mmt_request(
     session, request, specific_payload, instrument_id, log, **kwargs
@@ -325,6 +339,23 @@ mmt_properties = {
         "title": "Target of Opportunity",
         "default": False,
     },
+    "one_visit_per_night": {
+        "type": "boolean",
+        "title": "One Visit Per Night",
+        "default": True,
+    },
+}
+
+mmt_imager_schema = {
+    "properties": {
+        "exposure_time": {
+            "type": "number",
+            "title": "Exposure Time (s)",
+        },
+    },
+    "required": [
+        "exposure_time",
+    ],
 }
 
 mmt_required = [
