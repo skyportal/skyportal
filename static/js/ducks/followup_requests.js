@@ -39,12 +39,33 @@ export function fetchFollowupRequests(params = {}) {
   return API.GET("/api/followup_request", FETCH_FOLLOWUP_REQUESTS, params);
 }
 
-// eslint-disable-next-line import/prefer-default-export
 export const prioritizeFollowupRequests = (params = {}) =>
   API.PUT(
     "/api/followup_request/prioritization",
     PRIORITIZE_FOLLOWUP_REQUESTS,
     params,
+  );
+
+export const downloadFollowupSchedule = (
+  instrumentId,
+  format = "csv",
+  include_standards = false,
+) =>
+  API.DOWNLOAD(
+    `/api/followup_request/schedule/${instrumentId}`,
+    "skyportal/DOWNLOAD_FOLLOWUP_SCHEDULE",
+    {
+      output_format: format, // ensure the format is passed in the URL
+      includeStandards: include_standards, // include standards if specified
+      filename: `followup_schedule_${instrumentId}.${format.toLowerCase()}`, // filename for the download
+    },
+  );
+
+export const downloadAllocationReport = (instrumentId) =>
+  API.DOWNLOAD(
+    `/api/allocation/report/${instrumentId}`,
+    "skyportal/DOWNLOAD_ALLOCATION_REPORT",
+    {},
   );
 
 // Websocket message handler
