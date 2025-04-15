@@ -40,9 +40,6 @@ app:
 
   lco_archive_endpoint: https://archive-api.lco.global
 
-  # Hermes API endpoints
-  hermes_endpoint: https://hermes.lco.global/api/v0
-
   # Tarot API endpoints
   tarot_endpoint: http://cador.tarotnet.org/ros
   calern_endpoint: http://tca4.tarotnet.org/ros/klotz
@@ -102,6 +99,10 @@ app:
     bot_name:
     api_key:
     look_back_days: 1
+
+  hermes:
+      endpoint: https://hermes.lco.global/api/v0
+      token:
 
   winter:
     protocol: http
