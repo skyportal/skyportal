@@ -485,6 +485,7 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/hermes", HermesHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
@@ -547,7 +548,6 @@ skyportal_handlers = [
     (r"/api/db_stats", StatsHandler),
     (r"/api/sysinfo", SysInfoHandler),
     (r"/api/config", ConfigHandler),
-    (r"/api/hermes(/[0-9A-Za-z-_\.\+]+)?", HermesHandler),
     (r"/api/taxonomy(/.*)?", TaxonomyHandler),
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
