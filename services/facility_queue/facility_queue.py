@@ -1,16 +1,12 @@
-import asyncio
-import json
 import time
-from datetime import datetime, timedelta
-from threading import Thread
+from datetime import datetime
+from io import StringIO
 
 import astropy.units as u
 import numpy as np
 import pandas as pd
 import requests
 import sqlalchemy as sa
-import tornado.escape
-import tornado.ioloop
 import tornado.web
 from astropy.time import Time, TimeDelta
 from requests.auth import HTTPBasicAuth
@@ -50,65 +46,68 @@ request_session.trust_env = (
     False  # Otherwise pre-existing netrc config will override auth headers
 )
 
-WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=120)
-
-queue = []
+WAIT_TIME_BETWEEN_QUERIES = 120  # in seconds
 
 
-def service(queue):
-    try:
-        with DBSession() as session:
-            cutoff_time = Time.now() - TimeDelta(3 * u.day)
-            requests = (
-                session.query(FacilityTransactionRequest)
-                .where(
-                    FacilityTransactionRequest.status != "complete",
-                    FacilityTransactionRequest.status.not_like("error:%"),
-                    FacilityTransactionRequest.created_at >= cutoff_time.datetime,
-                )
-                .all()
-            )
-            for req in requests:
-                followup_request = session.scalars(
-                    sa.select(FollowupRequest).where(
-                        FollowupRequest.id == req.followup_request_id
-                    )
-                ).first()
-                if followup_request is not None:
-                    queue.append(req.id)
-    except Exception as e:
-        log(f"Error retrieving older requests: {e}")
-
+def service():
     while True:
+        queue = []
+        try:
+            with DBSession() as session:
+                cutoff_time = Time.now() - TimeDelta(3 * u.day)
+                last_query_dt = Time.now() - TimeDelta(WAIT_TIME_BETWEEN_QUERIES * u.s)
+                requests = (
+                    session.query(FacilityTransactionRequest)
+                    .where(
+                        FacilityTransactionRequest.status != "complete",
+                        FacilityTransactionRequest.status.not_like("error:%"),
+                        FacilityTransactionRequest.created_at >= cutoff_time.datetime,
+                        sa.or_(
+                            FacilityTransactionRequest.last_query
+                            < last_query_dt.datetime,
+                            FacilityTransactionRequest.last_query.is_(None),
+                            FacilityTransactionRequest.last_query
+                            == FacilityTransactionRequest.created_at,
+                        ),
+                    )
+                    .all()
+                )
+                for req in requests:
+                    followup_request = session.scalars(
+                        sa.select(FollowupRequest).where(
+                            FollowupRequest.id == req.followup_request_id
+                        )
+                    ).first()
+                    if followup_request is not None:
+                        queue.append(req.id)
+        except Exception as e:
+            log(f"Error retrieving requests to process: {e}")
+            time.sleep(15)
+            continue
+
         if len(queue) == 0:
             # this is a retrieval queue service. Requests were sent before and
             # we are just waiting for the results. No rush to check the queue
             time.sleep(30)
             continue
-        else:
-            # we still add a sleep here to avoid hammering the DB
+
+        for req_id in queue:
+            if req_id is None:
+                log("No request ID found in queue. Continuing to next request.")
+                continue
+
             time.sleep(5)
-        req_id = queue.pop(0)
-        if req_id is None:
-            continue
+            with DBSession() as session:
+                try:
+                    req = session.scalars(
+                        sa.select(FacilityTransactionRequest).where(
+                            FacilityTransactionRequest.id == req_id
+                        )
+                    ).first()
+                    if req is None:
+                        log(f"Facility transaction request {req_id} not found.")
+                        continue
 
-        with DBSession() as session:
-            try:
-                req = session.scalars(
-                    sa.select(FacilityTransactionRequest).where(
-                        FacilityTransactionRequest.id == req_id
-                    )
-                ).first()
-                if req is None:
-                    log(
-                        f"Facility transaction request {req_id} not found. Removing request {req_id} from queue."
-                    )
-                    continue
-
-                dt = datetime.utcnow() - req.last_query
-                if dt < WAIT_TIME_BETWEEN_QUERIES:
-                    queue.append(req_id)
-                else:
                     log(f"Executing request {req.id}")
                     followup_request = session.scalars(
                         sa.select(FollowupRequest).where(
@@ -116,9 +115,7 @@ def service(queue):
                         )
                     ).first()
                     if followup_request is None:
-                        log(
-                            f"Follow-up request {req.followup_request_id} not found. Removing request {req_id} from queue."
-                        )
+                        log(f"Follow-up request {req.followup_request_id} not found.")
                         continue
                     instrument = followup_request.allocation.instrument
                     altdata = followup_request.allocation.altdata
@@ -138,7 +135,7 @@ def service(queue):
                             try:
                                 json_response = response.json()
                             except Exception:
-                                raise ("No JSON data returned in request")
+                                raise ValueError("No JSON data returned in request")
 
                             if json_response["finishtimestamp"]:
                                 followup_request.status = (
@@ -182,7 +179,6 @@ def service(queue):
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 log(f"Job {req.id}: {status}")
                             else:
                                 status = f"Waiting for job to start (queued at {json_response['timestamp']})"
@@ -192,7 +188,6 @@ def service(queue):
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 log(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
@@ -202,7 +197,6 @@ def service(queue):
                             req.last_query = datetime.utcnow()
                             session.add(req)
                             session.commit()
-                            queue.append(req_id)
                             log(f"Job {req.id}: {status}")
 
                     elif instrument.name == "ZTF":
@@ -227,7 +221,7 @@ def service(queue):
                             )
                             continue
                         elif response.status_code == 200:
-                            df_result = pd.read_html(response.text)[0]
+                            df_result = pd.read_html(StringIO(response.text))[0]
                             df_result.rename(
                                 inplace=True,
                                 columns={"startJD": "jdstart", "endJD": "jdend"},
@@ -241,7 +235,6 @@ def service(queue):
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 log(f"Job {req.id}: {status}")
                                 continue
 
@@ -260,7 +253,6 @@ def service(queue):
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 continue
 
                             row = df_result.loc[index_match]
@@ -272,7 +264,6 @@ def service(queue):
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 log(f"Job {req.id}: {status}")
                                 continue
 
@@ -289,7 +280,6 @@ def service(queue):
                                 req.status = "complete"
                                 session.add(req)
                                 session.commit()
-                                queue.append(req_id)
                                 log(
                                     f"Job with ID {req.id} has no forced photometry: {exitcode_text}"
                                 )
@@ -320,7 +310,6 @@ def service(queue):
                                     req.last_query = datetime.utcnow()
                                     session.add(req)
                                     session.commit()
-                                    queue.append(req_id)
                                     log(f"Job {req.id}: {status}")
                         elif (
                             "Error: database is busy; try again a minute later."
@@ -333,7 +322,6 @@ def service(queue):
                             req.last_query = datetime.utcnow()
                             session.add(req)
                             session.commit()
-                            queue.append(req_id)
                             log(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
@@ -343,82 +331,21 @@ def service(queue):
                             req.last_query = datetime.utcnow()
                             session.add(req)
                             session.commit()
-                            queue.append(req_id)
                             log(f"Job {req.id}: {status}")
                     else:
-                        queue.append(req_id)
                         log(f"Job {req.id}: API for {instrument.name} unknown")
-            except Exception as e:
-                queue.append(req_id)
-                log(f"Error processing follow-up request {req_id}: {str(e)}")
-                try:
-                    session.rollback()
-                except Exception:
-                    pass
 
-
-def api(queue):
-    class QueueHandler(tornado.web.RequestHandler):
-        def get(self):
-            self.set_header("Content-Type", "application/json")
-            self.write({"status": "success", "data": {"queue_length": len(queue)}})
-
-        async def post(self):
-            try:
-                data = tornado.escape.json_decode(self.request.body)
-            except json.JSONDecodeError:
-                self.set_status(400)
-                return self.write({"status": "error", "message": "Malformed JSON data"})
-
-            try:
-                queue.append(data["request_id"])
-                self.set_status(200)
-                return self.write(
-                    {
-                        "status": "success",
-                        "message": "Facility request accepted into queue",
-                        "data": {"queue_length": len(queue)},
-                    }
-                )
-            except Exception as e:
-                log(f"Error adding facility request to queue: {str(e)}")
-                self.set_status(500)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": f"Error adding facility request to queue: {str(e)}",
-                        "data": {"followup_request_id": data["followup_request_id"]},
-                    }
-                )
-
-    app = tornado.web.Application([(r"/", QueueHandler)])
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    app.listen(cfg["ports.facility_queue"])
-    loop.run_forever()
+                except Exception as e:
+                    log(f"Error processing follow-up request {req_id}: {str(e)}")
+                    try:
+                        session.rollback()
+                    except Exception:
+                        pass
 
 
 if __name__ == "__main__":
     try:
-        t = Thread(target=service, args=(queue,))
-        t2 = Thread(target=api, args=(queue,))
-        t.start()
-        t2.start()
-
-        while True:
-            log(f"Current facility queue length: {len(queue)}")
-            time.sleep(120)
-            if not t.is_alive():
-                log("Facility queue service thread died, restarting")
-                t = Thread(target=service, args=(queue,))
-                t.start()
-            if not t2.is_alive():
-                log("Facility queue API thread died, restarting")
-                t2 = Thread(target=api, args=(queue,))
-                t2.start()
+        service()
     except Exception as e:
-        log(f"Error starting facility queue: {str(e)}")
+        log(f"Error occurred in service: {e}")
         raise e

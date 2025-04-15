@@ -16,7 +16,7 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Values, bindparam, column, text
 from sqlalchemy.sql.expression import case, cast, func
 from sqlalchemy.types import Boolean, Float, Integer, String
@@ -24,15 +24,18 @@ from sqlalchemy.types import Boolean, Float, Integer, String
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import User
 from baselayer.log import make_log
 
-from ...models import (
+from ....models import (
+    Allocation,
     Annotation,
     AnnotationOnPhotometry,
     Candidate,
     Classification,
     Comment,
     Filter,
+    FollowupRequest,
     Group,
     Listing,
     Localization,
@@ -43,9 +46,10 @@ from ...models import (
     Source,
     Spectrum,
 )
-from ...utils.cache import Cache, array_to_bytes
-from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ..base import BaseHandler
+from ....utils.cache import Cache, array_to_bytes
+from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...base import BaseHandler
+from .candidate_filter import get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -56,8 +60,6 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
 log = make_log("api/candidate")
-
-Session = scoped_session(sessionmaker())
 
 
 def update_summary_history_if_relevant(results_data, obj, user):
@@ -152,6 +154,107 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
+def get_int_list_from_string(text_with_int, error_msg=""):
+    if "," in text_with_int and set(text_with_int).issubset(string.digits + ","):
+        return [int(val) for val in text_with_int.split(",")]
+    elif text_with_int.isdigit():
+        return [int(text_with_int)]
+    else:
+        raise ValueError(error_msg)
+
+
+def fetch_obj_data(model, options, obj_id, session):
+    return (
+        session.scalars(
+            model.select(session.user_or_token, options=options).where(
+                model.obj_id == obj_id
+            )
+        )
+        .unique()
+        .all()
+    )
+
+
+def include_requested_obj_data(
+    obj_id, candidate, get_query_argument, session, include_phot_annotations
+):
+    """
+    Add object data to the candidate dictionary based on the query parameters
+
+    Parameters
+    ----------
+    obj_id : str
+        The object ID
+    candidate : dict
+        The candidate dictionary
+    get_query_argument : func
+        The function to get query arguments
+    session : `baselayer.app.models.Session`
+        Database session
+    include_phot_annotations : bool
+        Whether to include photometry annotations
+
+    Returns
+    -------
+    dict
+        The updated candidate dictionary
+    """
+    if get_query_argument("includePhotometry", False):
+        phot_options = [joinedload(Photometry.instrument)]
+
+        if include_phot_annotations:
+            phot_options.append(joinedload(Photometry.annotations))
+            candidate["photometry"] = fetch_obj_data(
+                Photometry, phot_options, obj_id, session
+            )
+            candidate["photometry"] = [
+                {
+                    **phot.to_dict(),
+                    "annotations": [
+                        annotation.to_dict() for annotation in phot.annotations
+                    ],
+                }
+                for phot in candidate["photometry"]
+            ]
+        else:
+            candidate["photometry"] = fetch_obj_data(
+                Photometry, phot_options, obj_id, session
+            )
+
+    if get_query_argument("includeSpectra", False):
+        candidate["spectra"] = fetch_obj_data(
+            Spectrum, [joinedload(Spectrum.instrument)], obj_id, session
+        )
+
+    if get_query_argument("includeComments", False):
+        candidate["comments"] = sorted(
+            fetch_obj_data(Comment, [joinedload(Comment.author)], obj_id, session),
+            key=lambda x: x.created_at,
+            reverse=True,
+        )
+    if get_query_argument("includeFollowupRequests", False):
+        candidate["followup_requests"] = fetch_obj_data(
+            FollowupRequest,
+            [
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.instrument
+                ),
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.group,
+                ),
+                joinedload(FollowupRequest.requester),
+            ],
+            obj_id,
+            session,
+        )
+
+    candidate["annotations"] = sorted(
+        fetch_obj_data(Annotation, [], obj_id, session),
+        key=lambda x: x.origin,
+    )
+    return candidate
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
@@ -223,6 +326,13 @@ class CandidateHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include associated comments. Defaults to false.
+            - in: query
+              name: includeFollowupRequests
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated follow-up requests. Defaults to false.
             - in: query
               name: includeAlerts
               nullable: true
@@ -327,26 +437,6 @@ class CandidateHandler(BaseHandler):
             description: |
               Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
               groups' filters if groupIDs is not provided.
-          - in: query
-            name: annotationExcludeOrigin
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only load objects that do not have annotations from this origin.
-              If the annotationsExcludeOutdatedDate is also given, then annotations with
-              this origin will still be loaded if they were modified before that date.
-          - in: query
-            name: annotationExcludeOutdatedDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              An Arrow parseable string designating when an existing annotation is outdated.
-              Only relevant if giving the annotationExcludeOrigin argument.
-              Will treat objects with outdated annotations as if they did not have that annotation,
-              so it will load an object if it doesn't have an annotation with the origin specified or
-              if it does have it but the annotation modified date < annotationsExcludeOutdatedDate
           - in: query
             name: sortByAnnotationOrigin
             nullable: true
@@ -587,10 +677,6 @@ class CandidateHandler(BaseHandler):
 
         start = time.time()
 
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        include_photometry = self.get_query_argument("includePhotometry", False)
-        include_spectra = self.get_query_argument("includeSpectra", False)
-        include_comments = self.get_query_argument("includeComments", False)
         include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
@@ -625,56 +711,14 @@ class CandidateHandler(BaseHandler):
                     candidate_info["filter_ids"] = filter_ids
                     candidate_info["passing_alerts"] = passing_alerts
 
-                if include_comments:
-                    candidate_info["comments"] = sorted(
-                        session.scalars(
-                            Comment.select(session.user_or_token).where(
-                                Comment.obj_id == obj_id
-                            )
-                        ).all(),
-                        key=lambda x: x.created_at,
-                        reverse=True,
-                    )
-
-                if include_photometry:
-                    candidate_info["photometry"] = (
-                        session.scalars(
-                            Photometry.select(
-                                session.user_or_token,
-                                options=[
-                                    joinedload(Photometry.instrument),
-                                    joinedload(Photometry.annotations),
-                                ],
-                            ).where(Photometry.obj_id == obj_id)
-                        )
-                        .unique()
-                        .all()
-                    )
-                    candidate_info["photometry"] = [
-                        {
-                            **phot.to_dict(),
-                            "annotations": [
-                                annotation.to_dict() for annotation in phot.annotations
-                            ],
-                        }
-                        for phot in candidate_info["photometry"]
-                    ]
-                if include_spectra:
-                    candidate_info["spectra"] = session.scalars(
-                        Spectrum.select(
-                            session.user_or_token,
-                            options=[joinedload(Spectrum.instrument)],
-                        ).where(Spectrum.obj_id == obj_id)
-                    ).all()
-
-                candidate_info["annotations"] = sorted(
-                    session.scalars(
-                        Annotation.select(session.user_or_token).where(
-                            Annotation.obj_id == obj_id
-                        )
-                    ).all(),
-                    key=lambda x: x.origin,
+                candidate_info = include_requested_obj_data(
+                    obj_id,
+                    candidate_info,
+                    self.get_query_argument,
+                    session,
+                    include_phot_annotations=True,
                 )
+
                 stmt = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_id
                 )
@@ -734,8 +778,8 @@ class CandidateHandler(BaseHandler):
 
                 return self.success(data=candidate_info)
 
-        page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 25)
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
         query_id = self.get_query_argument("queryID", None)
@@ -745,12 +789,6 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
-        annotation_exclude_origin = self.get_query_argument(
-            "annotationExcludeOrigin", None
-        )
-        annotation_exclude_date = self.get_query_argument(
-            "annotationExcludeOutdatedDate", None
-        )
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
@@ -788,12 +826,8 @@ class CandidateHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        if (
-            localization_dateobs is not None
-            or localization_name is not None
-            and require_detections
-        ):
-            if first_detected_date is None or last_detected_date is None:
+        if localization_dateobs or localization_name and require_detections:
+            if not first_detected_date or not last_detected_date:
                 return self.error(
                     "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
                 )
@@ -815,9 +849,6 @@ class CandidateHandler(BaseHandler):
                     "startDate and endDate must be less than 10 years apart when filtering by localizationDateobs or localizationName",
                 )
 
-        if autosave:
-            from .source import post_source
-
         with self.Session() as session:
             user_accessible_group_ids = [
                 g.id for g in self.current_user.accessible_groups
@@ -826,36 +857,29 @@ class CandidateHandler(BaseHandler):
                 filtr.id
                 for g in self.current_user.accessible_groups
                 for filtr in g.filters
-                if g.filters is not None
+                if g.filters
             ]
-            if group_ids is not None:
-                if (
-                    isinstance(group_ids, str)
-                    and "," in group_ids
-                    and set(group_ids).issubset(string.digits + ",")
-                ):
-                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
-                elif isinstance(group_ids, str) and group_ids.isdigit():
-                    group_ids = [int(group_ids)]
-                else:
-                    return self.error(
-                        "Invalid groupIDs value -- select at least one group"
-                    )
+
+            if isinstance(group_ids, str):
+                group_ids = get_int_list_from_string(
+                    group_ids,
+                    error_msg="Invalid groupIDs value -- select at least one group",
+                )
                 filters = session.scalars(
-                    Filter.select(self.current_user).where(
+                    Filter.select(session.user_or_token).where(
                         Filter.group_id.in_(group_ids)
                     )
                 ).all()
                 filter_ids = [f.id for f in filters]
-            elif filter_ids is not None:
-                if "," in filter_ids and set(filter_ids) in set(string.digits + ","):
-                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-                elif filter_ids.isdigit():
-                    filter_ids = [int(filter_ids)]
-                else:
-                    return self.error("Invalid filterIDs paramter value.")
+            elif isinstance(filter_ids, str):
+                filter_ids = get_int_list_from_string(
+                    filter_ids,
+                    error_msg="Invalid filterIDs value -- select at least one filter",
+                )
                 filters = session.scalars(
-                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
+                    Filter.select(session.user_or_token).where(
+                        Filter.id.in_(filter_ids)
+                    )
                 ).all()
                 group_ids = [f.group_id for f in filters]
             else:
@@ -877,20 +901,16 @@ class CandidateHandler(BaseHandler):
             candidate_query = Candidate.select(session.user_or_token).where(
                 Candidate.filter_id.in_(filter_ids)
             )
-            if start_date is not None and start_date.strip() not in [
+            if start_date and start_date.strip().lower() not in {
                 "",
                 "null",
                 "undefined",
-            ]:
+            }:
                 start_date = arrow.get(start_date).datetime
                 candidate_query = candidate_query.where(
                     Candidate.passed_at >= start_date
                 )
-            if end_date is not None and end_date.strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
+            if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
                 end_date = arrow.get(end_date).datetime
                 candidate_query = candidate_query.where(Candidate.passed_at <= end_date)
             candidate_subquery = candidate_query.subquery()
@@ -901,32 +921,25 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None or annotation_filter_list is not None:
                 q = q.outerjoin(Annotation)
 
-            if classifications is not None:
-                if isinstance(classifications, str) and "," in classifications:
+            if isinstance(classifications, str):
+                if "," in classifications:
                     classifications = [c.strip() for c in classifications.split(",")]
-                elif isinstance(classifications, str):
-                    classifications = [classifications]
                 else:
-                    return self.error(
-                        "Invalid classifications value -- must provide at least one string value"
-                    )
+                    classifications = [classifications]
                 q = q.join(Classification).where(
                     Classification.classification.in_(classifications)
                 )
-            if classifications_reject is not None:
-                if (
-                    isinstance(classifications_reject, str)
-                    and "," in classifications_reject
-                ):
+            elif classifications is not None:
+                return self.error(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            if isinstance(classifications_reject, str):
+                if "," in classifications_reject:
                     classifications_reject = [
                         c.strip() for c in classifications_reject.split(",")
                     ]
-                elif isinstance(classifications_reject, str):
-                    classifications_reject = [classifications_reject]
                 else:
-                    return self.error(
-                        "Invalid classificationsReject value -- must provide at least one string value"
-                    )
+                    classifications_reject = [classifications_reject]
                 # here we want to keep candidates that:
                 #   1. have no classification
                 #   2. do not have one of the classifications_reject as a classification
@@ -943,62 +956,26 @@ class CandidateHandler(BaseHandler):
                     classifications_reject_subquery,
                     Obj.id == classifications_reject_subquery.c.obj_id,
                 ).where(classifications_reject_subquery.c.obj_id.is_(None))
+            elif classifications_reject is not None:
+                return self.error(
+                    "Invalid classificationsReject value -- must provide at least one string value"
+                )
+
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
                 # the LIMT/OFFSET helper function down the line once other query
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
-            if saved_status in [
-                "savedToAllSelected",
-                "savedToAnySelected",
-                "savedToAnyAccessible",
-                "notSavedToAnyAccessible",
-                "notSavedToAnySelected",
-                "notSavedToAllSelected",
-            ]:
-                notin = False
-                active_sources = Source.select(
-                    session.user_or_token, columns=[Source.obj_id]
-                ).where(Source.active.is_(True))
-                if saved_status == "savedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids'
-                    subquery = (
-                        active_sources.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                elif saved_status == "savedToAnySelected":
-                    subquery = active_sources.where(Source.group_id.in_(group_ids))
-                elif saved_status == "savedToAnyAccessible":
-                    subquery = active_sources.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                elif saved_status == "notSavedToAnyAccessible":
-                    subquery = active_sources.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                    notin = True
-                elif saved_status == "notSavedToAnySelected":
-                    subquery = active_sources.where(Source.group_id.in_(group_ids))
-                    notin = True
-                elif saved_status == "notSavedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids', and select
-                    # the objects not in that set
-                    subquery = (
-                        active_sources.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                    notin = True
-                q = (
-                    q.where(Obj.id.notin_(subquery))
-                    if notin
-                    else q.where(Obj.id.in_(subquery))
-                )
-            elif saved_status != "all":
+            q = get_subquery_for_saved_status(
+                session,
+                q,
+                saved_status,
+                group_ids,
+                user_accessible_group_ids,
+            )
+
+            if q is None:
                 return self.error(
                     f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
                 )
@@ -1020,27 +997,12 @@ class CandidateHandler(BaseHandler):
                     )
                 q = q.where(Obj.redshift <= max_redshift)
 
-            if annotation_exclude_origin is not None:
-                if annotation_exclude_date is None:
-                    right = (
-                        Obj.select(session.user_or_token, columns=[Obj.id])
-                        .join(Annotation)
-                        .where(Annotation.origin == annotation_exclude_origin)
-                        .subquery()
-                    )
-                else:
-                    expire_date = arrow.get(annotation_exclude_date).datetime
-                    right = (
-                        Obj.select(session.user_or_token, columns=[Obj.id])
-                        .join(Annotation)
-                        .where(
-                            Annotation.origin == annotation_exclude_origin,
-                            Annotation.modified >= expire_date,
-                        )
-                        .subquery()
-                    )
-
-                q = q.outerjoin(right, Obj.id == right.c.id).where(right.c.id.is_(None))
+            if self.get_query_argument(
+                "annotationExcludeOrigin", None
+            ) or self.get_query_argument("annotationExcludeOutdatedDate", None):
+                return self.error(
+                    "annotationExcludeOrigin and annotationExcludeOutdatedDate parameters are no longer supported"
+                )
 
             if list_name is not None:
                 q = q.where(
@@ -1462,11 +1424,15 @@ class CandidateHandler(BaseHandler):
                                 source_subquery, Group.id == source_subquery.c.group_id
                             )
                         ).all()
-                        obj.classifications = session.scalars(
-                            Classification.select(self.current_user).where(
-                                Classification.obj_id == obj.id
+                        obj.classifications = (
+                            session.scalars(
+                                Classification.select(self.current_user).where(
+                                    Classification.obj_id == obj.id
+                                )
                             )
-                        ).all()
+                            .unique()
+                            .all()
+                        )
                     obj.passing_group_ids = [
                         f.group_id
                         for f in session.scalars(
@@ -1483,55 +1449,26 @@ class CandidateHandler(BaseHandler):
                         ).all()
                     ]
                     if autosave:
+                        from ..source import post_source
+
                         source = {
                             "id": obj.id,
                             "group_ids": autosave_group_ids,
                         }
                         post_source(source, self.associated_user_object.id, session)
+
                     candidate_list.append(recursive_to_dict(obj))
-                    if include_photometry:
-                        candidate_list[-1]["photometry"] = (
-                            session.scalars(
-                                Photometry.select(
-                                    session.user_or_token,
-                                    options=[joinedload(Photometry.instrument)],
-                                ).where(Photometry.obj_id == obj.id)
-                            )
-                            .unique()
-                            .all()
-                        )
-
-                    if include_spectra:
-                        candidate_list[-1]["spectra"] = session.scalars(
-                            Spectrum.select(
-                                session.user_or_token,
-                                options=[joinedload(Spectrum.instrument)],
-                            ).where(Spectrum.obj_id == obj.id)
-                        ).all()
-
-                    if include_comments:
-                        candidate_list[-1]["comments"] = sorted(
-                            session.scalars(
-                                Comment.select(session.user_or_token).where(
-                                    Comment.obj_id == obj.id
-                                )
-                            )
-                            .unique()
-                            .all(),
-                            key=lambda x: x.created_at,
-                            reverse=True,
-                        )
-                    unordered_annotations = sorted(
-                        session.scalars(
-                            Annotation.select(self.current_user).where(
-                                Annotation.obj_id == obj.id
-                            )
-                        ).all(),
-                        key=lambda x: x.origin,
+                    candidate_list[-1] = include_requested_obj_data(
+                        obj.id,
+                        candidate_list[-1],
+                        self.get_query_argument,
+                        session,
+                        include_phot_annotations=False,
                     )
+
                     selected_groups_annotations = []
                     other_annotations = []
-                    for annotation in unordered_annotations:
+                    for annotation in candidate_list[-1]["annotations"]:
                         if set(group_ids).intersection(
                             {group.id for group in annotation.groups}
                         ):
@@ -1623,8 +1560,6 @@ class CandidateHandler(BaseHandler):
                               description: List of new candidate IDs
         """
         data = self.get_json()
-
-        ids = []
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1911,196 +1846,3 @@ def grab_query_results(
 
     info[items_name] = items
     return info
-
-
-class CandidateFilterHandler(BaseHandler):
-    @auth_or_token
-    def get(self):
-        # here we want a lighter version of the CandidateHandler, that applies
-        # only the startDate, endDate, groupIDs, filterIDs, and savedStatus
-        # and returns the Candidates themselves including the candidate's alert id (candid)
-        # and not the Objs instead, like the CandidateHandler does
-        # this is useful to map the candidates to the alerts they belong to
-        # in the upstream system that sends the alerts to SkyPortal
-
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        group_ids = self.get_query_argument("groupIDs", None)
-        filter_ids = self.get_query_argument("filterIDs", None)
-        saved_status = self.get_query_argument("savedStatus", "all")
-
-        page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = self.get_query_argument("numPerPage", None) or 25
-
-        with self.Session() as session:
-            user_accessible_group_ids = [
-                g.id for g in self.current_user.accessible_groups
-            ]
-            user_accessible_filter_ids = [
-                filtr.id
-                for g in self.current_user.accessible_groups
-                for filtr in g.filters
-                if g.filters is not None
-            ]
-            if group_ids is not None:
-                if (
-                    isinstance(group_ids, str)
-                    and "," in group_ids
-                    and set(group_ids).issubset(string.digits + ",")
-                ):
-                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
-                elif isinstance(group_ids, str) and group_ids.isdigit():
-                    group_ids = [int(group_ids)]
-                elif isinstance(group_ids, list):
-                    try:
-                        group_ids = [int(g_id) for g_id in group_ids]
-                    except ValueError:
-                        return self.error(
-                            "Invalid groupIDs value -- select at least one group"
-                        )
-                else:
-                    return self.error(
-                        "Invalid groupIDs value -- select at least one group"
-                    )
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(
-                        Filter.group_id.in_(group_ids)
-                    )
-                ).all()
-                filter_ids = [f.id for f in filters]
-            elif filter_ids is not None:
-                if (
-                    isinstance(filter_ids, str)
-                    and "," in filter_ids
-                    and set(filter_ids) in set(string.digits + ",")
-                ):
-                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-                elif isinstance(filter_ids, str) and filter_ids.isdigit():
-                    filter_ids = [int(filter_ids)]
-                elif isinstance(filter_ids, list):
-                    try:
-                        filter_ids = [int(f_id) for f_id in filter_ids]
-                    except ValueError:
-                        return self.error("Invalid filterIDs parameter value.")
-                else:
-                    return self.error("Invalid filterIDs parameter value.")
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
-                ).all()
-                group_ids = [f.group_id for f in filters]
-            else:
-                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-                group_ids = user_accessible_group_ids
-                filter_ids = user_accessible_filter_ids
-
-        try:
-            page = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
-        n_per_page = min(n_per_page, 500)
-
-        with self.Session() as session:
-            stmt = Candidate.select(session.user_or_token).where(
-                Candidate.filter_id.in_(filter_ids)
-            )
-            if start_date is not None and str(start_date).strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
-                start_date = arrow.get(start_date).datetime
-                stmt = stmt.where(Candidate.passed_at >= start_date)
-            if end_date is not None and str(end_date).strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
-                end_date = arrow.get(end_date).datetime
-                stmt = stmt.where(Candidate.passed_at <= end_date)
-
-            if saved_status in [
-                "savedToAllSelected",
-                "savedToAnySelected",
-                "savedToAnyAccessible",
-                "notSavedToAnyAccessible",
-                "notSavedToAnySelected",
-                "notSavedToAllSelected",
-            ]:
-                source_subquery = Source.select(
-                    session.user_or_token, columns=[Source.obj_id]
-                ).where(Source.active.is_(True))
-                not_in = False
-                if saved_status == "savedToAllSelected":
-                    # Retrieve objects that have as many active saved groups that are
-                    # in 'group_ids' as there are items in 'group_ids'
-                    source_subquery = (
-                        source_subquery.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                elif saved_status == "savedToAnySelected":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(group_ids)
-                    )
-                elif saved_status == "savedToAnyAccessible":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                elif saved_status == "notSavedToAnyAccessible":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(user_accessible_group_ids)
-                    )
-                    not_in = True
-                elif saved_status == "notSavedToAnySelected":
-                    source_subquery = source_subquery.where(
-                        Source.group_id.in_(group_ids)
-                    )
-                    not_in = True
-                elif saved_status == "notSavedToAllSelected":
-                    source_subquery = (
-                        source_subquery.where(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
-                    not_in = True
-
-                stmt = (
-                    stmt.where(Candidate.obj_id.notin_(source_subquery))
-                    if not_in
-                    else stmt.where(Candidate.obj_id.in_(source_subquery))
-                )
-            elif saved_status != "all":
-                return self.error(
-                    f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
-                )
-
-            candidates = session.scalars(
-                stmt.order_by(Candidate.passed_at.asc())
-                .limit(n_per_page)
-                .offset((page - 1) * n_per_page)
-            ).all()
-
-            # in this handler we take a different approach. We don't require the user to pass the totalMatches
-            # parameter. But, we only calculate and return the totalMatches when getting the first page.
-            # it's the client's responsibility to keep it when paginating.
-            # that is also why we order the candidates by passed_at asc
-            # so that even if more candidates are added while the user is paginating, they will be added at the end
-            # and it shouldn't break the pagination and keep the results consistent
-            if page == 1:
-                total_matches = session.scalar(
-                    sa.select(func.count()).select_from(stmt.alias())
-                )
-            else:
-                total_matches = None
-
-            candidates = [c.to_dict() for c in candidates]
-            response = {
-                "candidates": candidates,
-            }
-            if total_matches is not None:
-                response["totalMatches"] = total_matches
-            return self.success(data=response)

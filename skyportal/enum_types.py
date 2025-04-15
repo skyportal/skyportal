@@ -38,7 +38,9 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
 
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
-    log(f"added custom bandpass '{name}'")
+
+if len(additional_bandpasses_names) > 0:
+    log(f"registered custom bandpasses: {additional_bandpasses_names}")
 
 
 def force_render_enum_markdown(values):

@@ -20,6 +20,14 @@ After customizing your `docker.yaml` file (the equivalent of `config.yaml`, used
 make docker-local
 ```
 
+### Running with a different UID, GID and Docker image name
+
+If you're building the docker file to deploy somewhere, you may need to have the file and directory ownership inside the container be under a different UID/GID than the default (which is 1000).  In addition, it is convenient to specify the name of the Docker image to be where you need to push it.  You can change any or all of these values by specifying additional arguments to `make docker-local`:
+
+```
+SKYPORTAL_UID=<uid> SKYPORTAL_GID=<gid> DOCKER_IMAGENAME=<imagename> make docker-local
+```
+
 ## Starting containers
 
 Next, we deploy two containers: `web` (the SkyPortal application, which image you just built) and
@@ -53,7 +61,7 @@ docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS
 
 - This command can take a few minutes to run, depending on your machine's configuration.
 - It should only **run once**.
-- Older versions of docker compose may use a different container name, such as `skyportal_web_1` (with underscores instead of dashes).
+- Older versions of docker compose may use a different container name, such as `skyportal_web_1` (with underscores instead of dashes).  Run `docker ps` to see what containers are running.  If you're in the directory with the `docker-compose.yaml` file, you may run `docker compose exec web...` instead of `docker exec skyportal-web-1...`.
 - The `FLAGS` variable is used to pass arguments to the `make` command. In this case, we are passing the `--create_tables` flag to create the database tables and the `--config=config.yaml` flag to specify the configuration file to use. You can pass any other flags you want to the `make` command in the same way.
 - If you are using a different configuration file, please refer to the next section on how to customize the deployment configuration, before you run the `make load_demo_data` command.
 - When running the command above, you might see a few `SAWarning` warnings. These are harmless and can be ignored.
@@ -97,6 +105,24 @@ docker-compose logs db
 ```
 
 (Or, follow the logs with `docker-compose logs -f db`.)
+
+There are additional log files inside the container that might be worth looking at.  Get a shell on the running web container with
+```
+docker exec -it skyportal-web-1 /bin/bash
+```
+and look in `skyportal/log`.  If everything has started up cleaning, then running
+```
+grep 'Listening on' app*log
+```
+should return several lines that end in things like `Listening on 127.0.0.1:65000` (with a different port number for each line).  (The number of lines returned should equal the number configured in server.processes; the default is 4.)  Right after skyportal startup succesfully completes, these will be the last lines in `app*log`.
+
+### sncosmo bandpass problems
+
+If skyportal is not properly starting up, look in one of the `/skyportal/log/app*log` files.  If you're seeing repeated blocks of exceptions that end with something like:
+```
+ValueError: Could not get bandpass for f460m due to sncosmo error: zero-size array to reduction operation maximum which has no identity
+```
+it may indicate that sncosmo had a glitch downloading some bandpass files, and is not detecting that it needs to redownload them.  When this happens, you may also see high CPU usage as various servies keep trying to restart themselves (run `htop` inside the container).  To address this issue, you can delete the directory three `/skyportal/persistentdata/sncosmo/bandpasses` inside the container.  Ideally, that will break the crash loop, and allow skyportal to finish starting up.  (sncosmo will then later attempt to redownload bandpass files as it needs them.)
 
 ## Stopping the deployment
 

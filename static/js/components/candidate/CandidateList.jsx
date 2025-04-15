@@ -36,7 +36,7 @@ import CandidatePlugins from "./CandidatePlugins";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 
 const numPerPage = 50;
 
@@ -460,7 +460,6 @@ const CandidateInfo = ({
                       ?.includes(g.id),
                 ).length),
           ) && (
-            // eslint-disable-next-line react/jsx-indent
             <div className={classes.saveCandidateButton}>
               <SaveCandidateButton
                 candidate={candidateObj}

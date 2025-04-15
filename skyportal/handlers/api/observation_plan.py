@@ -61,7 +61,7 @@ from skyportal.enum_types import ALLOWED_BANDPASSES
 from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
-from skyportal.utils.calculations import get_rise_set_time
+from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
     generate_observation_plan_statistics,
 )
@@ -1031,7 +1031,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                             for planned_observation in observation_plan.planned_observations
                         ]
                         rise_times, set_times = get_rise_set_time(
-                            fields=fields,
+                            target=get_target(fields),
                             observer=observation_plan.instrument.telescope.observer,
                         )
                         for planned_observation, rise_time, set_time in zip(

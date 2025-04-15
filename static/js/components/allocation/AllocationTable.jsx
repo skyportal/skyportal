@@ -80,15 +80,15 @@ const getMuiTheme = (theme) =>
   });
 
 const AllocationTable = ({
-  groups,
+  groups = [],
   allocations,
   telescopes,
   instruments,
-  paginateCallback,
-  totalMatches,
-  numPerPage,
-  sortingCallback,
-  deletePermission,
+  sortingCallback = null,
+  paginateCallback = null,
+  totalMatches = 0,
+  numPerPage = 10,
+  deletePermission = false,
   hideTitle = false,
   telescopeInfo = true,
 }) => {
@@ -298,6 +298,7 @@ const AllocationTable = ({
   };
 
   const handleTableChange = (action, tableState) => {
+    if (!paginateCallback || !sortingCallback) return;
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
@@ -325,7 +326,6 @@ const AllocationTable = ({
       label: "ID",
       options: {
         filter: true,
-        // sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderAllocationID,
       },
@@ -511,10 +511,10 @@ const AllocationTable = ({
 AllocationTable.propTypes = {
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
+  telescopes: PropTypes.arrayOf(PropTypes.any),
   groups: PropTypes.arrayOf(PropTypes.any),
   deletePermission: PropTypes.bool,
-  paginateCallback: PropTypes.func.isRequired,
+  paginateCallback: PropTypes.func,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
@@ -525,9 +525,10 @@ AllocationTable.propTypes = {
 AllocationTable.defaultProps = {
   groups: [],
   deletePermission: false,
+  paginateCallback: null,
+  sortingCallback: null,
   totalMatches: 0,
   numPerPage: 10,
-  sortingCallback: null,
   hideTitle: false,
   telescopeInfo: true,
 };

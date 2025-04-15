@@ -25,20 +25,11 @@ const useStyles = makeStyles(() => ({
     width: "20rem",
     marginBottom: "0.75rem",
   },
-  usersSelect: {
-    width: "20rem",
-    marginBottom: "0.75rem",
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
 }));
 
 const ModifyAllocation = ({ allocation_id, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const { telescopeList } = useSelector((state) => state.telescopes);
+  const { instrumentFormParams } = useSelector((state) => state.instruments);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
   );
@@ -107,11 +98,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     }
   }, [group]);
 
-  if (
-    allocationList.length === 0 ||
-    instrumentList.length === 0 ||
-    telescopeList.length === 0
-  ) {
+  if (allocationList.length === 0) {
     return <h3>No allocations available...</h3>;
   }
 
@@ -125,22 +112,10 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     groupLookUp[thisGroup.id] = thisGroup;
   });
 
-  const telLookUp = {};
-
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
-  });
-
   const allocationLookUp = {};
 
   allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
-  });
-
-  const instLookUp = {};
-
-  instrumentList?.forEach((instrumentObj) => {
-    instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -196,6 +171,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     return validationErrors;
   }
 
+  const instrument_id = allocationLookUp[allocation_id]?.instrument_id;
   const allocationFormSchema = {
     type: "object",
     properties: {
@@ -231,10 +207,33 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
         title: "Hours allocated",
         default: allocationLookUp[allocation_id]?.hours_allocated,
       },
-      _altdata: {
-        type: "string",
-        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
-      },
+      _altdata:
+        instrument_id &&
+        instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties
+          ? {
+              type: "object",
+              title: "Allocation Parameters/Credentials",
+              properties:
+                instrumentFormParams[instrument_id].formSchemaAltdata
+                  .properties,
+              dependencies:
+                instrumentFormParams[instrument_id].formSchemaAltdata
+                  .dependencies || {},
+            }
+          : {
+              type: "string",
+              title:
+                "Allocation Parameters/Credentials json (i.e. {'slack_token': 'testtoken'})",
+            },
+      ...(instrument_id &&
+        instrumentFormParams[instrument_id]?.formSchemaAltdata?.properties && {
+          replace_altdata: {
+            type: "boolean",
+            title:
+              "Overwrite all allocation parameters (if false, only update specified allocation parameters)",
+            default: false,
+          },
+        }),
     },
     required: ["pi", "start_date", "end_date", "hours_allocated"],
   };

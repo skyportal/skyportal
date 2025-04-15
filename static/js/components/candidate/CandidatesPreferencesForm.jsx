@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as profileActions from "../../ducks/profile";
 import Responsive from "../Responsive";
 import FoldBox from "../FoldBox";
@@ -410,14 +410,14 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.formRow}>
           <InputLabel id="profileRejectedCandidatesLabel">
-            Show/hide rejected candidates
+            Show/Hide rejected candidates
           </InputLabel>
           <Controller
             labelId="profileRejectedCandidatesSelect"
             name="rejectedStatus"
             control={control}
             input={<Input data-testid="profileRejectedStatusSelect" />}
-            defaultValue="hide"
+            defaultValue="show"
             render={({ field: { onChange, value } }) => (
               <Select
                 labelId="profileRejectedCandidatesSelect"

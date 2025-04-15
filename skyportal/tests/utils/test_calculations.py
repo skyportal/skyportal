@@ -1,12 +1,22 @@
 import numpy as np
+from astropy import units as u
 from astropy.time import Time
 
+from baselayer.app.models import DBSession
+from skyportal.models import Telescope
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 from skyportal.utils.calculations import (
     deg2dms,
     deg2hms,
     dms_to_deg,
+    fix_sun_time_calculation_error,
     get_airmass,
     get_altitude,
+    get_altitude_from_airmass,
+    get_next_valid_observing_time,
     get_observer,
     get_rise_set_time,
     get_target,
@@ -115,19 +125,213 @@ def test_get_airmass():
     assert np.isclose(airmass[1, 0], 1.0177921215801056)
 
 
+def test_get_altitude_from_airmass():
+    fields = [
+        {"ra": 30, "dec": 45, "field_id": 1},
+        {"ra": 145, "dec": 45, "field_id": 2},
+    ]
+    time = Time(["2024-01-01 00:00:00"])
+    target = get_target(fields)
+    observer = get_observer({"lon": 30, "lat": 45, "elevation": 100})
+    altitude = get_altitude(time, target, observer)
+    assert np.isclose(altitude.deg[0], 24.60195713)
+    assert np.isclose(altitude.deg[1], 79.22992432)
+
+    airmass = get_airmass(fields, time, observer=observer)
+    assert np.isclose(airmass[0, 0], 2.3894099051129727)
+    assert np.isclose(airmass[1, 0], 1.0177921215801056)
+
+    assert np.isclose(get_altitude_from_airmass(airmass[0, 0]), 24.60195713)
+    assert np.isclose(get_altitude_from_airmass(airmass[1, 0]), 79.22992432)
+
+
 def test_get_rise_set_time():
     fields = [
         {"ra": 30, "dec": 45, "field_id": 1},
         {"ra": 145, "dec": 45, "field_id": 2},
     ]
+    sun_altitude = -18 * u.degree
+    target = get_target(fields)
     observer = get_observer({"lon": 30, "lat": 45, "elevation": 100})
-    # check at 2024-01-01 00:00:00
     time = Time("2024-01-01 00:00:00")
-    rise_time, set_time = get_rise_set_time(fields, observer=observer, time=time)
-    assert np.isclose(rise_time[0].unix, 1704107913.0)
-    assert np.isclose(rise_time[1].unix, 1704049332.37)
-    assert np.isclose(set_time[0].unix, 1704151053.54)
-    assert np.isclose(set_time[1].unix, 1704178526.59)
+
+    # rise and set times of the target
+    rise_time, set_time = get_rise_set_time(
+        target, observer=observer, time=time, sun_altitude=sun_altitude
+    )
+    assert rise_time[0].iso == "2023-12-31 11:22:28.590"
+    assert set_time[0].iso == "2023-12-31 23:21:29.263"
+
+    assert rise_time[1].iso == "2023-12-31 19:02:11.732"
+    assert set_time[1].iso == "2024-01-01 06:59:22.583"
+
+    # rise and set times of the target only during nighttime
+    rise_time_by_night, set_time_by_night = get_rise_set_time(
+        target, observer=observer, time=time, sun_altitude=sun_altitude, night_only=True
+    )
+    sunset = observer.sun_set_time(time, which="previous", horizon=sun_altitude)
+    sunrise = observer.sun_rise_time(time, which="next", horizon=sun_altitude)
+    # The target rise before the sunset so the rise time by night should be the sunset time
+    assert rise_time[0] < sunset
+    assert rise_time_by_night[0].iso == sunset.iso
+    # The target set before the sunrise so the set time by night should be the set time
+    assert set_time[0] < sunrise
+    assert set_time_by_night[0].iso == set_time[0].iso
+    # The target rise after the sunset so the rise time by night should be the rise time
+    assert sunset < rise_time[1]
+    assert rise_time_by_night[1].iso == rise_time[1].iso
+
+    assert sunrise < set_time[1]
+    assert set_time_by_night[1].iso == sunrise.iso
+
+    # Test the rise and set times of the target with airmass 3.0
+    target = get_target([{"ra": 30, "dec": 45, "field_id": 1}])
+    altitude = get_altitude_from_airmass(3.0)
+    assert np.isclose(altitude, 19.29494943)
+    rise_time, set_time = get_rise_set_time(
+        target, altitude=altitude * u.deg, observer=observer, time=time
+    )
+    assert rise_time.iso == "2023-12-31 10:03:10.595"
+    assert set_time.iso == "2024-01-01 00:40:47.194"
+
+    # Test the rise and set times of the target with airmass 2.0
+    altitude = get_altitude_from_airmass(2.0)
+    assert np.isclose(altitude, 29.88587059)
+    rise_time, set_time = get_rise_set_time(
+        target, altitude=altitude * u.deg, observer=observer, time=time
+    )
+    # With airmass 2.0 the rise and set range is smaller
+    assert rise_time.iso == "2023-12-31 11:21:40.955"
+    assert set_time.iso == "2023-12-31 23:22:16.866"
+
+
+def test_get_next_observing_time(super_admin_token):
+    fields = [
+        {"ra": 30, "dec": 45, "field_id": 1},
+    ]
+    target = get_target(fields)
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+        "Tarot", super_admin_token
+    )
+    telescope = (
+        DBSession().query(Telescope).filter(Telescope.id == telescope_id).first()
+    )
+    observer = telescope.observer
+    sun_altitude = -18 * u.degree
+
+    altitude_airmass3 = get_altitude_from_airmass(3.0)
+    assert np.isclose(altitude_airmass3, 19.29494943)
+
+    altitude_airmass2 = get_altitude_from_airmass(2.0)
+    assert np.isclose(altitude_airmass2, 29.88587059)
+
+    time = Time.now()
+    try:
+        next_valid_observing_time = get_next_valid_observing_time(
+            start_time=time,
+            end_time=time + 7 * u.day,
+            telescope=telescope,
+            target=target,
+            airmass=3.0,
+            observe_at_optimal_airmass=False,
+        )
+        # check if the time is during the night and the target is high enough
+        target_altitude = get_altitude(
+            np.array(next_valid_observing_time), target, observer=telescope.observer
+        )
+        sunset = fix_sun_time_calculation_error(
+            observer.sun_set_time, time, horizon=sun_altitude
+        )
+        sunrise = fix_sun_time_calculation_error(
+            observer.sun_rise_time, time, horizon=sun_altitude
+        )
+
+        assert (
+            np.isclose(sunset.jd, next_valid_observing_time.jd)
+            or sunset.iso < target_altitude.iso
+        )
+        assert (
+            np.isclose(sunrise.jd, next_valid_observing_time.jd)
+            or target_altitude.iso < sunrise.iso
+        )
+        assert (
+            np.isclose(target_altitude.deg, altitude_airmass3, atol=1e-2)
+            or altitude_airmass3 < target_altitude.deg
+        )
+
+        next_valid_observing_time = get_next_valid_observing_time(
+            start_time=time,
+            end_time=time + 7 * u.day,
+            telescope=telescope,
+            target=target,
+            airmass=2.0,
+            observe_at_optimal_airmass=False,
+        )
+
+        # check if the time is during the night and the target is high enough
+        target_altitude = get_altitude(
+            np.array(next_valid_observing_time), target, observer=telescope.observer
+        )
+        sunset = fix_sun_time_calculation_error(
+            observer.sun_set_time, time, horizon=sun_altitude
+        )
+        sunrise = fix_sun_time_calculation_error(
+            observer.sun_rise_time, time, horizon=sun_altitude
+        )
+
+        assert (
+            np.isclose(sunset.jd, next_valid_observing_time.jd)
+            or sunset.iso < target_altitude.iso
+        )
+        assert (
+            np.isclose(sunrise.jd, next_valid_observing_time.jd)
+            or target_altitude.iso < sunrise.iso
+        )
+        assert (
+            np.isclose(target_altitude.deg, altitude_airmass2, atol=1e-2)
+            or altitude_airmass2 < target_altitude.deg
+        )
+
+        next_valid_observing_time = get_next_valid_observing_time(
+            start_time=time,
+            end_time=time + 7 * u.day,
+            telescope=telescope,
+            target=target,
+            airmass=2.0,
+            observe_at_optimal_airmass=True,
+        )
+
+        # check if the time is during the night and the target is high enough
+        target_altitude = get_altitude(
+            np.array(next_valid_observing_time), target, observer=telescope.observer
+        )
+        sunset = fix_sun_time_calculation_error(
+            observer.sun_set_time, time, horizon=sun_altitude
+        )
+        sunrise = fix_sun_time_calculation_error(
+            observer.sun_rise_time, time, horizon=sun_altitude
+        )
+
+        assert (
+            np.isclose(sunset.jd, next_valid_observing_time.jd)
+            or sunset.iso < target_altitude.iso
+        )
+        assert (
+            np.isclose(sunrise.jd, next_valid_observing_time.jd)
+            or target_altitude.iso < sunrise.iso
+        )
+        assert (
+            np.isclose(target_altitude.deg, altitude_airmass2, atol=1e-2)
+            or altitude_airmass2 < target_altitude.deg
+        )
+
+    except ValueError as e:
+        if "No valid observing time found in the range" in str(e):
+            pass
+        else:
+            raise e
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
 def test_next_sunrise():

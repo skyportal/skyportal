@@ -198,9 +198,9 @@ def test_add_run_to_observing_run_page(
 
     ActionChains(driver).click(pi_element).pause(1).send_keys(pi_name).pause(
         1
-    ).send_keys(Keys.TAB).send_keys(calendar_keys).pause(1).send_keys(Keys.TAB).pause(
+    ).send_keys(Keys.TAB).send_keys(Keys.BACKSPACE).send_keys(calendar_keys).pause(
         1
-    ).send_keys(observer).pause(1).perform()
+    ).send_keys(Keys.TAB).pause(1).send_keys(observer).pause(1).perform()
 
     # instruments
     driver.click_xpath('//*[@id="root_instrument_id"]')

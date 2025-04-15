@@ -204,9 +204,9 @@ TNSRobotGroupAutoreporter.__table_args__ = (
 
 # we add a method that gives us the user_id from that group_user
 TNSRobotGroupAutoreporter.user_id = column_property(
-    sa.select(GroupUser.user_id).where(
-        GroupUser.id == TNSRobotGroupAutoreporter.group_user_id
-    )
+    sa.select(GroupUser.user_id)
+    .where(GroupUser.id == TNSRobotGroupAutoreporter.group_user_id)
+    .scalar_subquery()
 )
 
 

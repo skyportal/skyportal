@@ -23,22 +23,13 @@ import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewInstrument from "./NewInstrument";
-import ModifyInstrument from "./ModifyInstrument";
+import InstrumentForm from "./InstrumentForm";
 import * as instrumentActions from "../../ducks/instrument";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
   },
   instrumentManage: {
     display: "flex",
@@ -85,10 +76,10 @@ const InstrumentTable = ({
   instruments,
   telescopes,
   deletePermission,
-  paginateCallback,
-  totalMatches,
-  numPerPage,
-  sortingCallback,
+  sortingCallback = null,
+  paginateCallback = null,
+  totalMatches = 0,
+  numPerPage = 10,
   hideTitle = false,
   telescopeInfo = true,
 }) => {
@@ -277,11 +268,13 @@ const InstrumentTable = ({
   };
 
   const handleSearchChange = (searchText) => {
+    if (!paginateCallback) return;
     const data = { name: searchText };
     paginateCallback(1, rowsPerPage, {}, data);
   };
 
   const handleTableChange = (action, tableState) => {
+    if (!paginateCallback || !sortingCallback) return;
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
@@ -309,7 +302,6 @@ const InstrumentTable = ({
       label: "ID",
       options: {
         filter: true,
-        // sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentID,
       },
@@ -319,7 +311,6 @@ const InstrumentTable = ({
       label: "Instrument Name",
       options: {
         filter: true,
-        // sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentName,
       },
@@ -490,7 +481,7 @@ const InstrumentTable = ({
         >
           <DialogTitle>New Instrument</DialogTitle>
           <DialogContent dividers>
-            <NewInstrument onClose={closeNewDialog} />
+            <InstrumentForm onClose={closeNewDialog} />
           </DialogContent>
         </Dialog>
         <Dialog
@@ -499,11 +490,15 @@ const InstrumentTable = ({
           style={{ position: "fixed" }}
           maxWidth="md"
         >
-          <DialogTitle>Edit Instrument</DialogTitle>
+          <DialogTitle>
+            {`Edit ${
+              instruments.find((i) => i.id === instrumentToEditDelete)?.name
+            } instrument`}
+          </DialogTitle>
           <DialogContent dividers>
-            <ModifyInstrument
-              instrumentID={instrumentToEditDelete}
+            <InstrumentForm
               onClose={closeEditDialog}
+              instrumentID={instrumentToEditDelete}
             />
           </DialogContent>
         </Dialog>
@@ -520,21 +515,21 @@ const InstrumentTable = ({
 
 InstrumentTable.propTypes = {
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-
-  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
-  paginateCallback: PropTypes.func.isRequired,
+  telescopes: PropTypes.arrayOf(PropTypes.any),
   sortingCallback: PropTypes.func,
+  paginateCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
-  deletePermission: PropTypes.bool.isRequired,
+  deletePermission: PropTypes.bool,
 };
 
 InstrumentTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
+  paginateCallback: null,
   hideTitle: false,
   telescopeInfo: true,
 };

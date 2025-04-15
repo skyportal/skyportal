@@ -550,3 +550,39 @@
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: WINTER
   robotic: true
+- diameter: 0.3
+  elevation: 1320.0
+  lat: 43.7520
+  lon: 6.9235
+  name: TCA
+  nickname: TAROT Calern
+  skycam_link: null
+  robotic: true
+  =id: TCA
+- diameter: 0.2
+  elevation: 991.0
+  lat: -21.1988
+  lon: 55.4102
+  name: TRE
+  nickname: TAROT Reunion
+  skycam_link: null
+  robotic: true
+  =id: TRE
+- diameter: 0.3
+  elevation: 2398.0
+  lat: -29.2599
+  lon: -70.7326
+  name: TCH
+  nickname: TAROT Chili
+  skycam_link: null
+  robotic: true
+  =id: TCH
+- diameter: 6.5
+  elevation: 2607.0
+  lat: 31.6883
+  lon: -110.8850
+  name: MMT
+  nickname: MMT
+  robotic: false
+  fixed_location: true
+  =id: MMT

@@ -6,6 +6,10 @@ NORMAL=\033[0m
 VER := $(shell python -c "import skyportal; print(skyportal.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
+SKYPORTAL_UID ?= 1000
+SKYPORTAL_GID ?= 1000
+DOCKER_IMAGENAME ?= skyportal/web
+
 $(info $())
 $(info $(BANNER))
 $(info $())
@@ -30,11 +34,16 @@ docker-images: ## Make and upload docker images
 docker-images: docker-local
 	@# Add --no-cache flag to rebuild from scratch
 	cd baselayer && git submodule update --init --remote
-	docker build -t skyportal/web . && docker push skyportal/web
+	docker build -t $(DOCKER_IMAGENAME) \
+			--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
+			--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) . && \
+		docker push $(DOCKER_IMAGENAME)
 
 docker-local: ## Build docker images locally
 	cd baselayer && git submodule update --init --remote
-	docker build -t skyportal/web .
+	docker build -t $(DOCKER_IMAGENAME) \
+		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
+		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
 
 doc_reqs:
 	pip install -q -r requirements.docs.txt

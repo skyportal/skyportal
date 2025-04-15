@@ -29,12 +29,13 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as candidatesActions from "../../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
+import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
 
 dayjs.extend(utc);
@@ -114,6 +115,7 @@ const useStyles = makeStyles((theme) => ({
   rejectCandidatesSelect: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     [theme.breakpoints.down("sm")]: {
       paddingTop: 0,
     },
@@ -207,6 +209,8 @@ const FilterCandidateList = ({
   const [selectedScanningProfile, setSelectedScanningProfile] = useState(
     defaultScanningProfile,
   );
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     // Once the default profile is fully fetched, set it to the selected.
@@ -354,7 +358,7 @@ const FilterCandidateList = ({
       classifications: scanningProfile?.classifications || [],
       redshiftMinimum: scanningProfile?.redshiftMinimum || "",
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
-      rejectedStatus: scanningProfile?.rejectedStatus || "hide",
+      rejectedStatus: scanningProfile?.rejectedStatus || "show",
       savedStatus: scanningProfile?.savedStatus || "all",
       sortingOrigin: scanningProfile?.sortingOrigin || "",
       sortingKey: scanningProfile?.sortingKey || "",
@@ -566,6 +570,18 @@ const FilterCandidateList = ({
               selectedScanningProfile={selectedScanningProfile}
               setSelectedScanningProfile={setSelectedScanningProfile}
             />
+            <Tooltip title="Generate a report of saved candidates">
+              <Button
+                secondary
+                onClick={() => setGenerateReportDialogOpen(true)}
+              >
+                Generate report
+              </Button>
+              <GenerateReportForm
+                dialogOpen={generateReportDialogOpen}
+                setDialogOpen={setGenerateReportDialogOpen}
+              />
+            </Tooltip>
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
                 <Button primary type="submit" endIcon={<SearchIcon />}>
@@ -677,27 +693,27 @@ const FilterCandidateList = ({
                   />
                 </div>
                 <div className={classes.rejectCandidatesSelect}>
+                  <InputLabel id="rejectedCandidatesLabel">
+                    Hide Rejected
+                  </InputLabel>
                   <Controller
                     labelId="rejectedCandidatesLabel"
                     name="rejectedStatus"
                     control={control}
                     defaultValue={
-                      selectedScanningProfile?.rejectedStatus || "hide"
+                      selectedScanningProfile?.rejectedStatus || "show"
                     }
                     render={({ field: { onChange, value } }) => (
                       <Switch
-                        checked={value === "show"}
+                        checked={value === "hide"}
                         onChange={(event) =>
-                          onChange(event.target.checked ? "show" : "hide")
+                          onChange(event.target.checked ? "hide" : "show")
                         }
                         inputProps={{ "aria-label": "controlled" }}
                         data-testid="rejectedStatusSelect"
                       />
                     )}
                   />
-                  <InputLabel id="rejectedCandidatesLabel">
-                    Hide Rejected
-                  </InputLabel>
                 </div>
               </div>
               <div

@@ -188,4 +188,5 @@ Shift.shift_users_ids = column_property(
     select(func.array_agg(ShiftUser.user_id))
     .where(ShiftUser.shift_id == Shift.id)
     .correlate_except(ShiftUser)
+    .scalar_subquery()
 )

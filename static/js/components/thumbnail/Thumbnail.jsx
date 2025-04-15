@@ -152,14 +152,14 @@ const Thumbnail = ({
               }
             }}
           />
+          {name !== "sdss" && (
+            <img
+              className={classes.crosshair}
+              src="/static/images/crosshairs.png"
+              alt=""
+            />
+          )}
         </a>
-        {name !== "sdss" && (
-          <img
-            className={classes.crosshair}
-            src="/static/images/crosshairs.png"
-            alt=""
-          />
-        )}
       </div>
     </Card>
   );

@@ -89,7 +89,7 @@ from ...utils.offset import (
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
-from .candidate import (
+from .candidate.candidate import (
     update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
@@ -964,15 +964,12 @@ def post_source(data, user_id, session, refresh_source=True):
                     release=release,
                     user_id=user.id,
                 )
-    else:
-        if refresh_source:
-            flow = Flow()
-            flow.push(
-                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            flow.push(
-                "*", "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
+    if refresh_source:
+        flow = Flow()
+        flow.push(
+            "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        flow.push("*", "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
 
     return obj.id, list(set(group_ids) - set(not_saved_to_group_ids)), warnings
 
