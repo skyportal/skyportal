@@ -99,6 +99,52 @@ class HermesHandler(BaseHandler):
     @auth_or_token
     @catch_timeout_and_no_endpoint
     async def post(self, obj_id=None):
+        """
+        ---
+        description: Publish a message to Hermes
+        Tags:
+          - Hermes
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            description: Object ID
+            schema:
+              type: string
+          - in: query
+            name: hermes_token
+            required: true
+            description: Hermes token
+            schema:
+              type: string
+          - in: query
+            name: topic
+            required: true
+            description: Topic to publish to
+            schema:
+              type: string
+          - in: query
+            name: title
+            required: true
+            description: Title of the message
+            schema:
+              type: string
+          - in: query
+            name: submitter
+            required: true
+            description: Submitter of the message
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         if not obj_id:
             return self.error("Missing object ID")
 
@@ -130,3 +176,4 @@ class HermesHandler(BaseHandler):
                 return self.error(
                     f"Failed to publish to Hermes: status code {response.status_code}"
                 )
+            return self.success()
