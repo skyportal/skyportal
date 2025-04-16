@@ -70,7 +70,7 @@ def validate_photometry_options(submission_request, tnsrobot):
     TNSReportError
         If the photometry options are not valid.
     """
-    from skyportal.handlers.api.tns import (
+    from handlers.api.tns.tns import (
         validate_photometry_options as _validate_photometry_options,
     )
 
