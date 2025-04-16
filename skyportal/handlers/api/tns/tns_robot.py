@@ -208,7 +208,8 @@ def update_tns_robot(
 
     Returns
     -------
-    None
+    id : int
+        The ID of the updated TNSRobot
     """
 
     tnsrobot = session.scalar(
