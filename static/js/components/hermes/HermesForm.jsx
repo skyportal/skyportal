@@ -202,9 +202,9 @@ const HermesForm = ({ obj_id, submitCallback }) => {
       setSubmissionRequestInProcess(false);
       if (result.status === "success") {
         dispatch(showNotification(`added to Hermes`));
-      }
-      if (submitCallback) {
-        submitCallback();
+        if (submitCallback) {
+          submitCallback();
+        }
       }
     });
   };
@@ -224,7 +224,7 @@ const HermesForm = ({ obj_id, submitCallback }) => {
       topic: {
         type: "string",
         title: "Hermes topic",
-        default: "",
+        default: "hermes.message",
       },
       title: {
         type: "string",
