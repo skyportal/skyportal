@@ -9,6 +9,9 @@ from baselayer.app.handlers.base import BaseHandler
 from baselayer.log import make_log
 from skyportal.models import Obj
 
+from ....models import Instrument
+from ....utils.tns import TNS_INSTRUMENT_IDS
+
 env, cfg = load_env()
 log = make_log("api/hermes")
 
@@ -38,7 +41,7 @@ def create_payload_and_header(obj, data):
     Create the payload qnd the header for Hermes and validate it by using the Hermes API
     """
     header = {
-        "Authorization": f"Token {data['hermes_token']}",
+        "Authorization": f"Token {cfg['app.hermes.token']}",
         "Content-Type": "application/json",
     }
 
@@ -66,10 +69,11 @@ def create_payload_and_header(obj, data):
                     "unit": "AB mag",
                     **(
                         {
-                            "limiting_brightness": p.limiting_mag,
+                            "limiting_brightness": p.original_user_data["limiting_mag"],
                             "limiting_brightness_unit": "AB mag",
                         }
-                        if p.original_user_data and p.original_user_data["limiting_mag"]
+                        if p.original_user_data
+                        and "limiting_mag" in p.original_user_data
                         else {}
                     ),
                 }
@@ -83,7 +87,7 @@ def create_payload_and_header(obj, data):
 
 def validate_payload_and_header(payload, header):
     response = requests.post(
-        f"{cfg['app.hermes_endpoint']}/submit_message/validate/",
+        f"{cfg['app.hermes.endpoint']}/submit_message/validate/",
         data=payload,
         headers=header,
         timeout=5.0,
