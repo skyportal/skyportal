@@ -15,6 +15,7 @@ from ....models import (
 )
 from ....utils.tns import TNS_INSTRUMENT_IDS
 from ...base import BaseHandler
+from .obj_tns import check_instruments, check_streams
 
 log = make_log("api/tns_robot")
 
@@ -137,48 +138,15 @@ def create_tns_robot(
         tnsrobot.groups.append(owner_group)
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    if len(instrument_ids) == 0:
+    instruments = check_instruments(session, instrument_ids)
+    if instruments:
+        tnsrobot.instruments = instruments
+    else:
         raise ValueError("At least one instrument must be specified for TNS reporting")
 
-    try:
-        instrument_ids = [int(x) for x in instrument_ids]
-        if isinstance(instrument_ids, str):
-            instrument_ids = [int(x) for x in instrument_ids.split(",")]
-        else:
-            instrument_ids = [int(x) for x in instrument_ids]
-    except ValueError:
-        raise ValueError("instrument_ids must be a comma-separated list of integers")
-    instrument_ids = list(set(instrument_ids))
-    instruments = session.scalars(
-        Instrument.select(session.user_or_token).where(
-            Instrument.id.in_(instrument_ids)
-        )
-    ).all()
-    if len(instruments) != len(instrument_ids):
-        raise ValueError(f"One or more instruments not found: {instrument_ids}")
-    for instrument in instruments:
-        if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
-            raise ValueError(
-                f"Instrument {instrument.name} not supported for TNS reporting"
-            )
-    tnsrobot.instruments = instruments
-
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    if len(stream_ids) > 0:
-        try:
-            stream_ids = [int(x) for x in stream_ids]
-            if isinstance(stream_ids, str):
-                stream_ids = [int(x) for x in stream_ids.split(",")]
-            else:
-                stream_ids = [int(x) for x in stream_ids]
-        except ValueError:
-            raise ValueError("stream_ids must be a comma-separated list of integers")
-        stream_ids = list(set(stream_ids))
-        streams = session.scalars(
-            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
-        ).all()
-        if len(streams) != len(stream_ids):
-            raise ValueError(f"One or more streams not found: {stream_ids}")
+    streams = check_streams(session, stream_ids)
+    if streams:
         tnsrobot.streams = streams
 
     session.commit()
@@ -257,48 +225,13 @@ def update_tns_robot(
     )
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    if len(instrument_ids) > 0:
-        try:
-            instrument_ids = [int(x) for x in instrument_ids]
-            if isinstance(instrument_ids, str):
-                instrument_ids = [int(x) for x in instrument_ids.split(",")]
-            else:
-                instrument_ids = [int(x) for x in instrument_ids]
-        except ValueError:
-            raise ValueError(
-                "instrument_ids must be a comma-separated list of integers"
-            )
-        instrument_ids = list(set(instrument_ids))
-        instruments = session.scalars(
-            Instrument.select(session.user_or_token).where(
-                Instrument.id.in_(instrument_ids)
-            )
-        ).all()
-        if len(instruments) != len(instrument_ids):
-            raise ValueError(f"One or more instruments not found: {instrument_ids}")
-        for instrument in instruments:
-            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
-                raise ValueError(
-                    f"Instrument {instrument.name} not supported for TNS reporting"
-                )
+    instruments = check_instruments(session, instrument_ids)
+    if instruments:
         tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    if len(stream_ids) > 0:
-        try:
-            stream_ids = [int(x) for x in stream_ids]
-            if isinstance(stream_ids, str):
-                stream_ids = [int(x) for x in stream_ids.split(",")]
-            else:
-                stream_ids = [int(x) for x in stream_ids]
-        except ValueError:
-            raise ValueError("stream_ids must be a comma-separated list of integers")
-        stream_ids = list(set(stream_ids))
-        streams = session.scalars(
-            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
-        ).all()
-        if len(streams) != len(stream_ids):
-            raise ValueError(f"One or more streams not found: {stream_ids}")
+    streams = check_streams(session, stream_ids)
+    if streams:
         tnsrobot.streams = streams
 
     session.commit()
