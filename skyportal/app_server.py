@@ -19,7 +19,6 @@ from skyportal.handlers.api import (
     AnnotationHandler,
     AssignmentHandler,
     BulkDeletePhotometryHandler,
-    BulkTNSHandler,
     CandidateFilterHandler,
     CandidateHandler,
     CatalogQueryHandler,
@@ -552,7 +551,6 @@ skyportal_handlers = [
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
-    (r"/api/tns_bulk(/.*)?", BulkTNSHandler),
     (
         r"/api/tns_robot(/[0-9]+)/group(/[0-9]+)/autoreporter(/[0-9]+)?",
         TNSRobotGroupAutoreporterHandler,
