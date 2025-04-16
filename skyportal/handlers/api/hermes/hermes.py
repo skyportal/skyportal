@@ -116,11 +116,27 @@ class HermesHandler(BaseHandler):
             schema:
               type: string
           - in: query
-            name: hermes_token
+            name: tnsrobotID
             required: true
-            description: Hermes token
+            description: TNS robot ID
             schema:
               type: string
+          - in: query
+            name: instrument_ids
+            required: true
+            description: List of instrument IDs
+            schema:
+                type: array
+                items:
+                    type: string
+          - in: query
+            name: stream_ids
+            required: true
+            description: List of stream IDs
+            schema:
+                type: array
+                items:
+                    type: string
           - in: query
             name: topic
             required: true
