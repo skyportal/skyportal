@@ -3,7 +3,6 @@ import tempfile
 import urllib
 
 import requests
-from utils.tns import get_IAUname
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -16,6 +15,7 @@ from ....models import (
     SpectrumReducer,
     TNSRobot,
 )
+from ....utils.tns import get_IAUname
 from ...base import BaseHandler
 
 _, cfg = load_env()

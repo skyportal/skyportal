@@ -2,7 +2,6 @@ import json
 
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
-from utils.tns import TNS_INSTRUMENT_IDS
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -14,6 +13,7 @@ from ....models import (
     TNSRobot,
     TNSRobotGroup,
 )
+from ....utils.tns import TNS_INSTRUMENT_IDS
 from ...base import BaseHandler
 
 log = make_log("api/tns_robot")

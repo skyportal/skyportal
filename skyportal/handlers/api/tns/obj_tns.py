@@ -1,9 +1,7 @@
 import asyncio
 
 import sqlalchemy as sa
-from handlers.api.tns.tns_robot import validate_photometry_options
 from tornado.ioloop import IOLoop
-from utils.tns import TNS_INSTRUMENT_IDS, get_tns
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -15,7 +13,9 @@ from ....models import (
     TNSRobot,
     TNSRobotSubmission,
 )
+from ....utils.tns import TNS_INSTRUMENT_IDS, get_tns
 from ...base import BaseHandler
+from .tns_robot import validate_photometry_options
 
 log = make_log("api/obj_tns")
 
