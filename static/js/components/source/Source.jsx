@@ -162,10 +162,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     height: "100%",
     paddingBottom: "0.75rem",
   },
-  smallPlot: {
-    width: "350px",
-    overflow: "auto",
-  },
   panelButton: {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
@@ -173,15 +169,6 @@ export const useSourceStyles = makeStyles((theme) => ({
       color: theme.palette.primary.main,
     },
   },
-  thumbnailGridDialog: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "1rem",
-  },
-  comments: {
-    width: "100%",
-  },
-  hr_diagram: {},
   container: {
     display: "flex",
     justifyContent: "space-between",
@@ -194,7 +181,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   infoLine: {
-    // Get it's own line
+    // Get its own line
     flexBasis: "100%",
     display: "flex",
     flexFlow: "row wrap",
@@ -514,10 +501,7 @@ const SourceContent = ({ source }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div
-              className={classes.hr_diagram}
-              data-testid={`hr_diagram_${source.id}`}
-            >
+            <div data-testid={`hr_diagram_${source.id}`}>
               {source.color_magnitude?.length > 0 ? (
                 <Suspense
                   fallback={
