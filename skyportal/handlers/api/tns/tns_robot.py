@@ -390,7 +390,7 @@ class TNSRobotHandler(BaseHandler):
                                 f"One or more owner groups not found: {owner_group_ids}"
                             )
 
-                        id = create_tns_robot(
+                        robot_id = create_tns_robot(
                             data,
                             owner_group_ids,
                             instrument_ids,
@@ -400,12 +400,12 @@ class TNSRobotHandler(BaseHandler):
                         self.push(
                             action="skyportal/REFRESH_TNSROBOTS",
                         )
-                        return self.success(data={"id": id})
+                        return self.success(data={"id": robot_id})
                     except Exception as e:
                         return self.error(f"Failed to create TNS robot: {e}")
                 else:
                     try:
-                        id = update_tns_robot(
+                        robot_id = update_tns_robot(
                             data,
                             existing_id,
                             instrument_ids,
@@ -415,7 +415,7 @@ class TNSRobotHandler(BaseHandler):
                         self.push(
                             action="skyportal/REFRESH_TNSROBOTS",
                         )
-                        return self.success(data={"id": id})
+                        return self.success(data={"id": robot_id})
                     except Exception as e:
                         return self.error(f"Failed to update TNS robot: {e}")
         except Exception as e:

@@ -11,7 +11,7 @@ log = make_log("api/tns_robot_submission")
 
 class TNSRobotSubmissionHandler(BaseHandler):
     @auth_or_token
-    def get(self, tnsrobot_id, id=None):
+    def get(self, tnsrobot_id, tnsrobot_submission_id=None):
         """
         ---
         single:
@@ -27,7 +27,7 @@ class TNSRobotSubmissionHandler(BaseHandler):
                     type: integer
                   description: The ID of the TNSRobot
                 - in: path
-                  name: id
+                  name: tnsrobot_submission_id
                   required: false
                   schema:
                     type: integer
@@ -123,17 +123,17 @@ class TNSRobotSubmissionHandler(BaseHandler):
             if tnsrobot is None:
                 return self.error(f"TNSRobot {tnsrobot_id} not found")
 
-            if id is not None:
+            if tnsrobot_submission_id is not None:
                 # we want to return a single submission
                 submission = session.scalar(
                     TNSRobotSubmission.select(session.user_or_token).where(
                         TNSRobotSubmission.tnsrobot_id == tnsrobot_id,
-                        TNSRobotSubmission.id == id,
+                        TNSRobotSubmission.id == tnsrobot_submission_id,
                     )
                 )
                 if submission is None:
                     return self.error(
-                        f"Submission {id} not found for TNSRobot {tnsrobot_id}"
+                        f"Submission {tnsrobot_submission_id} not found for TNSRobot {tnsrobot_id}"
                     )
                 submission = {
                     "tns_name": submission.obj.tns_name,
