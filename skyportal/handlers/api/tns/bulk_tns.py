@@ -3,15 +3,14 @@ import asyncio
 import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
-from handlers.base import BaseHandler
-from models import (
-    TNSRobot,
-)
 from tornado.ioloop import IOLoop
 from utils.tns import get_tns
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from ....models import TNSRobot
+from ...base import BaseHandler
 
 log = make_log("api/bulk_tns")
 

@@ -3,19 +3,20 @@ import tempfile
 import urllib
 
 import requests
-from handlers.base import BaseHandler
-from models import (
-    Spectrum,
-    SpectrumObserver,
-    SpectrumReducer,
-    TNSRobot,
-)
 from utils.tns import get_IAUname
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
+
+from ....models import (
+    Spectrum,
+    SpectrumObserver,
+    SpectrumReducer,
+    TNSRobot,
+)
+from ...base import BaseHandler
 
 _, cfg = load_env()
 

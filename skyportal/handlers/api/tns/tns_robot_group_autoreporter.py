@@ -1,14 +1,14 @@
-from handlers.base import BaseHandler
-from models import (
+from baselayer.app.access import permissions
+from log import make_log
+
+from ....models import (
     GroupUser,
     TNSRobot,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
     User,
 )
-
-from baselayer.app.access import permissions
-from log import make_log
+from ...base import BaseHandler
 
 log = make_log("api/tns_robot_group_autoreporter")
 

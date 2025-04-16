@@ -1,19 +1,20 @@
 import json
 
-from handlers.base import BaseHandler
 from marshmallow.exceptions import ValidationError
-from models import (
+from sqlalchemy.orm import joinedload
+from utils.tns import TNS_INSTRUMENT_IDS
+
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
+
+from ....models import (
     Group,
     Instrument,
     Stream,
     TNSRobot,
     TNSRobotGroup,
 )
-from sqlalchemy.orm import joinedload
-from utils.tns import TNS_INSTRUMENT_IDS
-
-from baselayer.app.access import auth_or_token, permissions
-from baselayer.log import make_log
+from ...base import BaseHandler
 
 log = make_log("api/tns_robot")
 

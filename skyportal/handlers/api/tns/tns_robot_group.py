@@ -1,13 +1,14 @@
 import sqlalchemy as sa
-from handlers.base import BaseHandler
-from models import (
+
+from baselayer.app.access import permissions
+from baselayer.log import make_log
+
+from ....models import (
     GroupUser,
     TNSRobot,
     TNSRobotGroup,
 )
-
-from baselayer.app.access import permissions
-from baselayer.log import make_log
+from ...base import BaseHandler
 
 log = make_log("api/tns_robot_group")
 

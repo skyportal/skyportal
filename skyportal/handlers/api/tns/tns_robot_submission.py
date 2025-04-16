@@ -1,10 +1,11 @@
 import sqlalchemy as sa
-from handlers.base import BaseHandler
-from models import TNSRobot, TNSRobotSubmission
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from ....models import TNSRobot, TNSRobotSubmission
+from ...base import BaseHandler
 
 log = make_log("api/tns_robot_submission")
 
