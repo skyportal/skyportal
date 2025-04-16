@@ -67,6 +67,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "../tns/TNSATForm";
+import HermesForm from "../hermes/HermesForm";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
@@ -239,6 +240,7 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
+  const [hermesDialogOpen, setHermesDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
@@ -988,6 +990,31 @@ const SourceContent = ({ source }) => {
                     <TNSATForm
                       obj_id={source.id}
                       submitCallback={() => setTNSDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className={classes.infoButton}>
+                <Button
+                  secondary
+                  size="small"
+                  data-testid={`hermesSubmissionForm_${source.id}`}
+                  onClick={() => {
+                    setHermesDialogOpen(true);
+                  }}
+                >
+                  Submit to Hermes
+                </Button>
+                <Dialog
+                  open={hermesDialogOpen}
+                  onClose={() => setHermesDialogOpen(false)}
+                  style={{ position: "fixed" }}
+                >
+                  <DialogTitle>Submit to Hermes</DialogTitle>
+                  <DialogContent>
+                    <HermesForm
+                      obj_id={source.id}
+                      submitCallback={() => setHermesDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>
