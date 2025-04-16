@@ -158,6 +158,12 @@ class HermesHandler(BaseHandler):
             description: Submitter of the message
             schema:
               type: string
+          - in: query
+            name: photometry_options
+            required: true
+            description: Photometry options
+            schema:
+              type: object
         responses:
           200:
             content:
@@ -192,6 +198,7 @@ class HermesHandler(BaseHandler):
             tnsrobotID = data["tnsrobotID"]
             instrument_ids = data["instrument_ids"]
             stream_ids = data.get("stream_ids")
+            photometry_options = data.get("photometry_options")
 
             check_instruments(session, instrument_ids)
             check_streams(session, stream_ids)
@@ -207,6 +214,10 @@ class HermesHandler(BaseHandler):
             ).first()
             if tnsrobot is None:
                 return self.error(f"No TNSRobot available with ID {tnsrobotID}")
+
+            photometry_options = validate_photometry_options(
+                photometry_options, tnsrobot.photometry_options
+            )
 
             payload, header = create_payload_and_header(obj, data)
             validate_payload_and_header(payload, header)
