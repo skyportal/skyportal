@@ -1,5 +1,5 @@
 from baselayer.app.access import permissions
-from log import make_log
+from baselayer.log import make_log
 
 from ....models import (
     TNSRobot,
