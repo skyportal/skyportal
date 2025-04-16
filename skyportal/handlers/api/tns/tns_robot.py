@@ -15,7 +15,6 @@ from ....models import (
 )
 from ....utils.tns import TNS_INSTRUMENT_IDS
 from ...base import BaseHandler
-from .obj_tns import check_instruments, check_streams
 
 log = make_log("api/tns_robot")
 
@@ -24,6 +23,61 @@ PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,
     "autoreport_allow_archival": bool,
 }
+
+
+def check_instruments(session, instrument_ids):
+    """
+    Check that the instruments are valid and supported for TNS reporting and return them.
+    """
+    if instrument_ids and len(instrument_ids) > 0:
+        try:
+            if isinstance(instrument_ids, str):
+                instrument_ids = [int(x) for x in instrument_ids.split(",")]
+            else:
+                instrument_ids = [int(x) for x in instrument_ids]
+        except ValueError:
+            raise ValueError(
+                "instrument_ids must be a comma-separated list of integers"
+            )
+        instrument_ids = list(set(instrument_ids))
+        instruments = session.scalars(
+            Instrument.select(session.user_or_token).where(
+                Instrument.id.in_(instrument_ids)
+            )
+        ).all()
+        if len(instruments) != len(instrument_ids):
+            raise ValueError(f"One or more instruments not found: {instrument_ids}")
+        for instrument in instruments:
+            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
+                raise ValueError(
+                    f"Instrument {instrument.name} not supported for TNS reporting"
+                )
+        return instruments
+    else:
+        return None
+
+
+def check_streams(session, stream_ids):
+    """
+    Check that the streams are valid and return them.
+    """
+    if stream_ids and len(stream_ids) > 0:
+        try:
+            if isinstance(stream_ids, str):
+                stream_ids = [int(x) for x in stream_ids.split(",")]
+            else:
+                stream_ids = [int(x) for x in stream_ids]
+        except ValueError:
+            raise ValueError("stream_ids must be a comma-separated list of integers")
+        stream_ids = list(set(stream_ids))
+        streams = session.scalars(
+            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
+        ).all()
+        if len(streams) != len(stream_ids):
+            raise ValueError(f"One or more streams not found: {stream_ids}")
+        return streams
+    else:
+        return None
 
 
 def validate_photometry_options(photometry_options, existing_photometry_options=None):

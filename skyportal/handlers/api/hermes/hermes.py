@@ -2,17 +2,18 @@ import functools
 import json
 
 import requests
-from models import TNSRobot
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.handlers.base import BaseHandler
 from baselayer.log import make_log
-from skyportal.models import Obj
+from skyportal.models import Obj, TNSRobot
 
-from ....models import Instrument
-from ....utils.tns import TNS_INSTRUMENT_IDS
-from ..tns.obj_tns import check_instruments, check_streams
+from ..tns.tns_robot import (
+    check_instruments,
+    check_streams,
+    validate_photometry_options,
+)
 
 env, cfg = load_env()
 log = make_log("api/hermes")
