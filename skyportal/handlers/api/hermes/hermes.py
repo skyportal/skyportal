@@ -2,6 +2,7 @@ import functools
 import json
 
 import requests
+from app.flow import Flow
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -119,7 +120,7 @@ class HermesHandler(BaseHandler):
             schema:
               type: string
           - in: query
-            name: tnsrobotID
+            name: tns_robot_id
             required: true
             description: TNS robot ID
             schema:
@@ -180,7 +181,7 @@ class HermesHandler(BaseHandler):
         data = self.get_json()
 
         for required_data in [
-            "tnsrobotID",
+            "tns_robot_id",
             "topic",
             "title",
             "submitter",
@@ -195,7 +196,7 @@ class HermesHandler(BaseHandler):
         if cfg["app.hermes.token"] is None:
             return self.error("Hermes token is not configured")
         with self.Session() as session:
-            tnsrobotID = data["tnsrobotID"]
+            tns_robot_id = data["tns_robot_id"]
             instrument_ids = data["instrument_ids"]
             stream_ids = data.get("stream_ids")
             photometry_options = data.get("photometry_options")
@@ -210,10 +211,12 @@ class HermesHandler(BaseHandler):
                 return self.error("Object not found")
 
             tnsrobot = session.scalars(
-                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
+                TNSRobot.select(session.user_or_token).where(
+                    TNSRobot.id == tns_robot_id
+                )
             ).first()
             if tnsrobot is None:
-                return self.error(f"No TNSRobot available with ID {tnsrobotID}")
+                return self.error(f"No TNSRobot available with ID {tns_robot_id}")
 
             photometry_options = validate_photometry_options(
                 photometry_options, tnsrobot.photometry_options
@@ -223,6 +226,17 @@ class HermesHandler(BaseHandler):
             validate_payload_and_header(payload, header)
 
             if tnsrobot.testing:
+                try:
+                    flow = Flow()
+                    flow.push(
+                        action_type="baselayer/SHOW_NOTIFICATION",
+                        payload={
+                            "note": "Successfully validate by the API (testing mode, not sent to Hermes)",
+                            "type": "info",
+                        },
+                    )
+                except Exception:
+                    pass
                 return self.success()
 
             response = requests.post(

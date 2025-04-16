@@ -192,7 +192,7 @@ const HermesForm = ({ obj_id, submitCallback }) => {
 
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);
-    formData.tnsrobotID = selectedTNSRobotId;
+    formData.tns_robot_id = selectedTNSRobotId;
     formData.photometry_options = {
       first_and_last_detections: formData.first_and_last_detections,
     };
