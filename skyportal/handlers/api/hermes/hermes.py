@@ -2,6 +2,7 @@ import functools
 import json
 
 import requests
+from models import TNSRobot
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -11,6 +12,7 @@ from skyportal.models import Obj
 
 from ....models import Instrument
 from ....utils.tns import TNS_INSTRUMENT_IDS
+from ..tns.obj_tns import check_instruments, check_streams
 
 env, cfg = load_env()
 log = make_log("api/hermes")
@@ -170,23 +172,49 @@ class HermesHandler(BaseHandler):
 
         data = self.get_json()
 
-        for field in ["hermes_token", "topic", "title", "submitter"]:
-            if field not in data:
-                return self.error(f"Missing required field: {field}")
+        for required_data in [
+            "tnsrobotID",
+            "topic",
+            "title",
+            "submitter",
+            "instrument_ids",
+            "stream_ids",
+        ]:
+            if required_data not in data:
+                return self.error(f"Missing required field: {required_data}")
 
+        if cfg["app.hermes.endpoint"] is None:
+            return self.error("Hermes endpoint is not configured")
+        if cfg["app.hermes.token"] is None:
+            return self.error("Hermes token is not configured")
         with self.Session() as session:
+            tnsrobotID = data["tnsrobotID"]
+            instrument_ids = data["instrument_ids"]
+            stream_ids = data.get("stream_ids")
+
+            check_instruments(session, instrument_ids)
+            check_streams(session, stream_ids)
+
             obj = session.scalar(
                 Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
             )
-
             if not obj:
                 return self.error("Object not found")
+
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f"No TNSRobot available with ID {tnsrobotID}")
 
             payload, header = create_payload_and_header(obj, data)
             validate_payload_and_header(payload, header)
 
+            if tnsrobot.testing:
+                return self.success()
+
             response = requests.post(
-                f"{cfg['app.hermes_endpoint']}/submit_message/",
+                f"{cfg['app.hermes.endpoint']}/submit_message/",
                 data=payload,
                 headers=header,
                 timeout=5.0,
