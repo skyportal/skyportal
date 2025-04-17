@@ -108,9 +108,7 @@ class TNSRobotGroupHandler(BaseHandler):
                 TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
             )
             if tnsrobot is None:
-                return self.error(
-                    f"No TNSRobot with ID {tnsrobot_id}, or inaccessible"
-                )
+                return self.error(f"No TNSRobot with ID {tnsrobot_id}, or inaccessible")
 
             if group_id is None:
                 return self.error(
