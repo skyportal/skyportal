@@ -197,7 +197,7 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
     return tnsrobot_groups
 
 
-def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, session):
+def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request):
     """Apply the rules for existing TNS reports to the submission request.
 
     Parameters
@@ -208,8 +208,6 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, se
         The TNSRobot to submit with.
     submission_request : `~skyportal.models.TNSRobotSubmission`
         The submission request.
-    session : `~sqlalchemy.orm.Session`
-        The database session to use.
     """
     # if the bot is set up to only report objects to TNS if they are not already there,
     # we check if an object is already on TNS (within 2 arcsec of the object's position)
@@ -906,8 +904,6 @@ def process_submission_request(submission_request, session):
     from skyportal.handlers.api.photometry import serialize
     from skyportal.models import Photometry, StreamPhotometry, TNSRobot, User
 
-    warning = None
-
     obj_id = submission_request.obj_id
     tnsrobot_id = submission_request.tnsrobot_id
     user_id = submission_request.user_id
@@ -939,9 +935,7 @@ def process_submission_request(submission_request, session):
 
         validate_obj_id(obj_id, tnsrobot.source_group_id)
 
-        apply_existing_tnsreport_rules(
-            tns_headers, tnsrobot, submission_request, session
-        )
+        apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request)
 
         source = find_source_to_submit(submission_request, tnsrobot_groups, session)
 
