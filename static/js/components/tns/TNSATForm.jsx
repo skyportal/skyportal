@@ -5,7 +5,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import Tooltip from "@mui/material/Tooltip";
@@ -22,13 +21,6 @@ import * as tnsrobotsActions from "../../ducks/tnsrobots";
 import * as streamsActions from "../../ducks/streams";
 
 const useStyles = makeStyles(() => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
   tnsrobotSelect: {
     width: "100%",
   },
@@ -72,8 +64,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     groupIDToName[g.id] = g.name;
   });
 
-  let allowedInstruments = [];
-
+  let allowedInstruments;
   if (
     selectedTNSRobotId &&
     tnsrobotList.find((tnsrobot) => tnsrobot.id === selectedTNSRobotId)
@@ -234,7 +225,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   };
 
   const tnsrobotLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
   tnsrobotList?.forEach((tnsrobot) => {
     tnsrobotLookUp[tnsrobot.id] = tnsrobot;
   });
