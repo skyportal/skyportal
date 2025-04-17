@@ -2,13 +2,17 @@ import functools
 import json
 
 import requests
-from app.flow import Flow
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.handlers.base import BaseHandler
 from baselayer.log import make_log
-from skyportal.models import Obj, TNSRobot
+from services.tns_submission_queue.tns_submission_queue import (
+    TNSReportError,
+    validate_obj_id,
+)
+from skyportal.models import Obj, Source, TNSRobot
 
 from ..tns.tns_robot import (
     check_instruments,
@@ -16,7 +20,7 @@ from ..tns.tns_robot import (
     validate_photometry_options,
 )
 
-env, cfg = load_env()
+_, cfg = load_env()
 log = make_log("api/hermes")
 
 
@@ -210,22 +214,59 @@ class HermesHandler(BaseHandler):
             if not obj:
                 return self.error("Object not found")
 
-            tnsrobot = session.scalars(
+            tns_robot = session.scalars(
                 TNSRobot.select(session.user_or_token).where(
                     TNSRobot.id == tns_robot_id
                 )
             ).first()
-            if tnsrobot is None:
-                return self.error(f"No TNSRobot available with ID {tns_robot_id}")
+            if tns_robot is None:
+                return self.error(f"TNSRobot not available")
+
+            # Check if the user has access to the TNSRobot
+            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+            tns_robot_groups = [
+                tns_robot_group
+                for tns_robot_group in tns_robot.groups
+                if tns_robot_group.group_id in accessible_group_ids
+            ]
+            if len(tns_robot_groups) == 0:
+                raise ValueError(
+                    f"User {self.current_user.id} does not have access to any group with TNSRobot {tns_robot_id}"
+                )
+
+            request_headers = {
+                "User-Agent": f'tns_marker{{"tns_id":{tns_robot.bot_id},"type":"bot", "name":"{tns_robot.bot_name}"}}'
+            }
 
             photometry_options = validate_photometry_options(
-                photometry_options, tnsrobot.photometry_options
+                photometry_options, tns_robot.photometry_options
             )
+
+            try:
+                validate_obj_id(obj_id, tns_robot.source_group_id)
+            except TNSReportError as e:
+                return self.error(e)
+
+            source = session.scalar(
+                Source.select(session.user_or_token)
+                .where(
+                    Source.obj_id == obj_id,
+                    Source.active.is_(True),
+                    Source.group_id.in_([group.group_id for group in tns_robot_groups]),
+                )
+                .order_by(Source.saved_at.asc())
+            )
+            if source is None:
+                return self.error(
+                    f"Source {obj_id} not saved to any group with TNSRobot {tns_robot_id}."
+                )
+
+            return source
 
             payload, header = create_payload_and_header(obj, data)
             validate_payload_and_header(payload, header)
 
-            if tnsrobot.testing:
+            if tns_robot.testing:
                 try:
                     flow = Flow()
                     flow.push(
