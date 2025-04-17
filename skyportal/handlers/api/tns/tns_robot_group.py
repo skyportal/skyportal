@@ -109,7 +109,7 @@ class TNSRobotGroupHandler(BaseHandler):
             )
             if tnsrobot is None:
                 return self.error(
-                    f"No TNSRobot with ID {tnsrobot_id}, or unnaccessible"
+                    f"No TNSRobot with ID {tnsrobot_id}, or inaccessible"
                 )
 
             if group_id is None:
