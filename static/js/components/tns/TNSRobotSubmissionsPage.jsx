@@ -86,6 +86,7 @@ const TNSRobotSubmissionsPage = () => {
         },
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, page, rowsPerPage, id]);
 
   const handleTableChange = (action, tableState) => {
