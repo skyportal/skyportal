@@ -10,7 +10,6 @@ from .mmt_utils import (
     mmt_properties,
     mmt_required,
     submit_mmt_request,
-    mmt_imager_schema,
 )
 
 log = make_log("facility_apis/mmt/binospec")
@@ -108,10 +107,7 @@ class BINOSPECAPI(FollowUpAPI):
                 "maskid": slit_width_to_mask_id[payload.get("slit_width")],
             }
         else:
-            specific_payload = {
-                "filters": payload.get("filters"),
-                "maskid": 110
-            }
+            specific_payload = {"filters": payload.get("filters"), "maskid": 110}
 
         submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
 
@@ -128,11 +124,10 @@ class BINOSPECAPI(FollowUpAPI):
                     "title": "Filter",
                     "enum": ["g", "r", "i", "z"],
                 },
-                **mmt_imager_schema["properties"],
             },
             "required": [
                 "filters",
-            ] + mmt_imager_schema["required"],
+            ],
         }
 
         spectroscopy_schema = {

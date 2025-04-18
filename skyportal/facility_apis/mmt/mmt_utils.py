@@ -46,6 +46,8 @@ def check_mmt_payload(payload):
         raise ValueError("A valid Proper Motion RA must be provided")
     if payload.get("pm_dec") is None:
         raise ValueError("A valid Proper Motion DEC must be provided")
+    if payload.get("exposure_time") is None:
+        raise ValueError("A valid exposure time must be provided")
     if payload.get("exposure_counts") is None or payload["exposure_counts"] < 1:
         raise ValueError("A valid number of exposures must be provided")
     if payload.get("visits") is None:
@@ -58,10 +60,6 @@ def check_mmt_payload(payload):
         raise ValueError("A valid target of opportunity value must be provided")
     if not isinstance(payload.get("one_visit_per_night"), bool):
         raise ValueError("A valid one visit per night value must be provided")
-
-    if payload.get("observation_type") == "Imaging":
-        if payload.get("exposure_time") is None:
-            raise ValueError("A valid exposure time must be provided")
 
 
 def sanitize_obj_id(obj_id):
@@ -87,11 +85,28 @@ def check_obj_for_mmt(obj):
         raise ValueError("Missing the 'magnitude' value on the object")
 
 
+def bool_to_int(value):
+    """
+    Convert a boolean value to an integer
+    """
+    if isinstance(value, bool):
+        if value is True:
+            return 1
+        else:
+            return 0
+    raise ValueError(f"Invalid boolean value: {value}")
+
+
 def get_mmt_json_payload(obj, altdata, payload):
     """
     Get the JSON payload common to all MMT instruments
     """
-    json_payload = {
+    observation_type_dict = {
+        "Imaging": "imaging",
+        "Spectroscopy": "longslit",
+    }
+    return {
+        "observationtype": observation_type_dict.get(payload["observation_type"]),
         "token": altdata["token"],
         "objectid": sanitize_obj_id(obj.id),
         "ra": deg2hms(obj.ra),
@@ -101,26 +116,16 @@ def get_mmt_json_payload(obj, altdata, payload):
         "pa": payload.get("pa"),
         "pm_ra": payload.get("pm_ra"),
         "pm_dec": payload.get("pm_dec"),
+        "exposuretime": payload.get("exposure_time"),
         "numberexposures": payload.get("exposure_counts"),
         "visits": payload.get("visits"),
         "priority": payload.get("priority"),
-        "photometric": payload.get("photometric"),
-        "targetofopportunity": payload.get("target_of_opportunity"),
+        "photometric": bool_to_int(payload.get("photometric")),
+        "targetofopportunity": bool_to_int(payload.get("target_of_opportunity")),
+        "onevisitpernight": bool_to_int(payload.get("one_visit_per_night")),
         "filter": payload.get("filters"),
-        "onevisitpernight": 1 if payload.get("one_visit_per_night") else 0,
         "notes": payload.get("notes"),
     }
-    if payload.get("observation_type") == "Spectroscopy":
-        return {
-            **json_payload,
-            "observationtype": "longslit",
-        }
-    else:
-        return {
-            **json_payload,
-            "observationtype": "imaging",
-            "exposuretime": payload.get("exposure_time"),
-        }
 
 
 def submit_mmt_request(
@@ -308,6 +313,10 @@ mmt_properties = {
         "title": "Proper Motion DEC",
         "default": 0.0,
     },
+    "exposure_time": {
+        "type": "number",
+        "title": "Exposure Time (s)",
+    },
     "exposure_counts": {
         "type": "integer",
         "title": "Number of Exposures",
@@ -346,24 +355,13 @@ mmt_properties = {
     },
 }
 
-mmt_imager_schema = {
-    "properties": {
-        "exposure_time": {
-            "type": "number",
-            "title": "Exposure Time (s)",
-        },
-    },
-    "required": [
-        "exposure_time",
-    ],
-}
-
 mmt_required = [
     "observation_type",
     "pa",
     "pm_ra",
     "pm_dec",
     "exposure_counts",
+    "exposure_time",
     "visits",
     "priority",
     "photometric",

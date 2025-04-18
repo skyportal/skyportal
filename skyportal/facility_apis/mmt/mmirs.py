@@ -10,7 +10,6 @@ from .mmt_utils import (
     mmt_properties,
     mmt_required,
     submit_mmt_request,
-    mmt_imager_schema,
 )
 
 log = make_log("facility_apis/mmt/mmirs")
@@ -117,13 +116,12 @@ class MMIRSAPI(FollowUpAPI):
                     "title": "Filter",
                     "enum": ["J", "H", "K", "Ks"],
                 },
-                **mmt_imager_schema["properties"],
             },
             "required": [
                 "dither_size",
                 "read_tab",
                 "filters",
-            ] + mmt_imager_schema["required"],
+            ],
         }
 
         spectroscopy_schema = {
