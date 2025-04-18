@@ -8,10 +8,11 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.handlers.base import BaseHandler
 from baselayer.log import make_log
-from services.tns_submission_queue.tns_submission_queue import (
-    TNSReportError,
-    validate_obj_id,
-)
+
+# from services.tns_submission_queue.tns_submission_queue import (
+#     TNSReportError,
+#     validate_obj_id,
+# )
 from skyportal.models import Obj, Source, TNSRobot
 
 from ..tns.tns_robot import (
@@ -134,17 +135,17 @@ class HermesHandler(BaseHandler):
             required: true
             description: List of instrument IDs
             schema:
-                type: array
-                items:
-                    type: string
+              type: array
+              items:
+                type: string
           - in: query
             name: stream_ids
             required: true
             description: List of stream IDs
             schema:
-                type: array
-                items:
-                    type: string
+              type: array
+              items:
+                type: string
           - in: query
             name: topic
             required: true
@@ -242,10 +243,10 @@ class HermesHandler(BaseHandler):
                 photometry_options, tns_robot.photometry_options
             )
 
-            try:
-                validate_obj_id(obj_id, tns_robot.source_group_id)
-            except TNSReportError as e:
-                return self.error(e)
+            # try:
+            #     validate_obj_id(obj_id, tns_robot.source_group_id)
+            # except TNSReportError as e:
+            #     return self.error(e)
 
             source = session.scalar(
                 Source.select(session.user_or_token)
