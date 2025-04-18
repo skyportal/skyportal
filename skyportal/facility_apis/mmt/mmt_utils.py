@@ -169,7 +169,7 @@ def submit_mmt_request(
         json=json_payload,
         data=None,
         files=None,
-        timeout=5.0,
+        timeout=10.0,
     )
 
     if response.status_code != 200:
