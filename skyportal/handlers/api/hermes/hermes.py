@@ -216,7 +216,7 @@ class HermesHandler(BaseHandler):
                 )
             ).first()
             if tns_robot is None:
-                return ValueError(f"TNSRobot {tns_robot_id} not found")
+                return self.error(f"TNSRobot {tns_robot_id} not found")
             if tns_robot.testing:
                 try:
                     flow = Flow()
