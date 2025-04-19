@@ -8,120 +8,18 @@ from baselayer.log import make_log
 
 from ....models import (
     Group,
-    Instrument,
-    Stream,
     TNSRobot,
     TNSRobotGroup,
 )
+from ....utils.data_access import (
+    process_instrument_ids,
+    process_stream_ids,
+    validate_photometry_options,
+)
 from ....utils.parse import get_int_list
-from ....utils.tns import TNS_INSTRUMENT_IDS
 from ...base import BaseHandler
 
 log = make_log("api/tns_robot")
-
-
-PHOTOMETRY_OPTIONS = {
-    "first_and_last_detections": bool,
-    "autoreport_allow_archival": bool,
-}
-
-
-def check_instruments(session, instrument_ids):
-    """
-    Check that the instruments are valid and supported for TNS reporting and return them.
-    """
-    if instrument_ids and len(instrument_ids) > 0:
-        try:
-            if isinstance(instrument_ids, str):
-                instrument_ids = [int(x) for x in instrument_ids.split(",")]
-            else:
-                instrument_ids = [int(x) for x in instrument_ids]
-        except ValueError:
-            raise ValueError(
-                "instrument_ids must be a comma-separated list of integers"
-            )
-        instrument_ids = list(set(instrument_ids))
-        instruments = session.scalars(
-            Instrument.select(session.user_or_token).where(
-                Instrument.id.in_(instrument_ids)
-            )
-        ).all()
-        if len(instruments) != len(instrument_ids):
-            raise ValueError(f"One or more instruments not found: {instrument_ids}")
-        for instrument in instruments:
-            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
-                raise ValueError(
-                    f"Instrument {instrument.name} not supported for TNS reporting"
-                )
-        return instruments
-    else:
-        return None
-
-
-def check_streams(session, stream_ids):
-    """
-    Check that the streams are valid and return them.
-    """
-    if stream_ids and len(stream_ids) > 0:
-        try:
-            if isinstance(stream_ids, str):
-                stream_ids = [int(x) for x in stream_ids.split(",")]
-            else:
-                stream_ids = [int(x) for x in stream_ids]
-        except ValueError:
-            raise ValueError("stream_ids must be a comma-separated list of integers")
-        stream_ids = list(set(stream_ids))
-        streams = session.scalars(
-            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
-        ).all()
-        if len(streams) != len(stream_ids):
-            raise ValueError(f"One or more streams not found: {stream_ids}")
-        return streams
-    else:
-        return None
-
-
-def validate_photometry_options(photometry_options, existing_photometry_options=None):
-    """Validate the photometry options and their values
-
-    Parameters
-    ----------
-    photometry_options : dict
-        Dictionary containing the photometry options
-    existing_photometry_options : dict, optional
-        Dictionary containing the existing photometry options, by default None
-
-    Returns
-    -------
-    dict
-        Dictionary containing the validated photometry options
-    """
-    if photometry_options is None:
-        photometry_options = {}
-    if not isinstance(photometry_options, dict):
-        raise ValueError("photometry_options must be a dictionary")
-
-    # if existing_photometry_options is provided, add missing keys with the existing values
-    if existing_photometry_options is not None and isinstance(
-        existing_photometry_options, dict
-    ):
-        for key in PHOTOMETRY_OPTIONS:
-            if key not in photometry_options and key in existing_photometry_options:
-                photometry_options[key] = existing_photometry_options[key]
-
-    # validate the photometry options and their values
-    for key, value in photometry_options.items():
-        if key not in PHOTOMETRY_OPTIONS:
-            raise ValueError(f"Invalid photometry option: {key}")
-        if not isinstance(value, PHOTOMETRY_OPTIONS[key]):
-            raise ValueError(f"Invalid value for photometry option {key}: {value}")
-
-    # add the missing keys with default values (default to True if not specified)
-    for key in PHOTOMETRY_OPTIONS:
-        if key not in photometry_options:
-            photometry_options[key] = True
-
-    return photometry_options
 
 
 def create_tns_robot(
