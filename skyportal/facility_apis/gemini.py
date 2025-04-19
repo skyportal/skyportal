@@ -15,6 +15,7 @@ from ..utils.offset import (
     _calculate_best_position_for_offset_stars,
     get_nearby_offset_stars,
 )
+from ..utils.parse import get_int_list
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -136,13 +137,9 @@ class GeminiRequest:
             isinstance(altdata.get("template_ids"), str | list)
             and len(altdata.get("template_ids")) > 0
         ):
-            template_ids = []
-            try:
-                if isinstance(altdata.get("template_ids"), str):
-                    template_ids = altdata.get("template_ids").split(",")
-                template_ids = [int(i) for i in template_ids]
-            except Exception:
-                raise ValueError("Invalid template IDs specified in altdata")
+            template_ids = get_int_list(
+                altdata.get("template_ids"), "Invalid template IDs specified in altdata"
+            )
             if len(template_ids) > 0 and obsid not in template_ids:
                 raise ValueError(
                     f"Invalid template ID, must be one of: {str(template_ids)}"
@@ -275,14 +272,7 @@ class GEMINIAPI(FollowUpAPI):
 
         template_ids = altdata.get("template_ids")
         if template_ids:
-            if not isinstance(template_ids, str | list):
-                raise ValueError("Invalid template IDs format")
-            if isinstance(template_ids, str):
-                template_ids = template_ids.split(",")
-            try:
-                template_ids = [int(i) for i in template_ids]
-            except Exception:
-                raise ValueError("Invalid template IDs format")
+            template_ids = get_int_list(template_ids, "Invalid template IDs format")
             if len(template_ids) > 0:
                 altdata["template_ids"] = template_ids
 
