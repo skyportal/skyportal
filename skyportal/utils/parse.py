@@ -2,15 +2,12 @@ def get_int_list(text, error_msg="Error parsing string to int list"):
     """
     Convert a comma-separated string to a list of integers.
     If the input is already a list return it as a list of integers.
-    If the input is an integer, return it as a list.
     """
     try:
         if isinstance(text, str):
-            return [int(x.strip()) for x in str(text).split(",") if x.strip()]
+            return [int(x.strip()) for x in text.split(",") if x.strip()]
         if isinstance(text, list):
             return [int(x) for x in text]
-        if text.isdigit():
-            return [int(text)]
         else:
             raise ValueError(error_msg)
     except Exception:
