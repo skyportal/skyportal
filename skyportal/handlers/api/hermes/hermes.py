@@ -9,17 +9,8 @@ from baselayer.app.flow import Flow
 from baselayer.app.handlers.base import BaseHandler
 from baselayer.log import make_log
 
-# from services.tns_submission_queue.tns_submission_queue import (
-#     TNSReportError,
-#     validate_obj_id,
-# )
-from skyportal.models import Obj, Source, TNSRobot
-
-from ..tns.tns_robot import (
-    check_instruments,
-    check_streams,
-    validate_photometry_options,
-)
+from ....models import TNSRobot
+from ....utils.data_access import get_publishable_obj_photometry
 
 _, cfg = load_env()
 log = make_log("api/hermes")
@@ -45,7 +36,7 @@ def catch_timeout_and_no_endpoint(func):
     return wrapper
 
 
-def create_payload_and_header(obj, data):
+def create_payload_and_header(obj, photometry, data):
     """
     Create the payload qnd the header for Hermes and validate it by using the Hermes API
     """
@@ -86,7 +77,7 @@ def create_payload_and_header(obj, data):
                         else {}
                     ),
                 }
-                for p in obj.photometry
+                for p in photometry
             ],
         },
     }
@@ -206,14 +197,18 @@ class HermesHandler(BaseHandler):
             stream_ids = data.get("stream_ids")
             photometry_options = data.get("photometry_options")
 
-            check_instruments(session, instrument_ids)
-            check_streams(session, stream_ids)
-
-            obj = session.scalar(
-                Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
+            source, photometry = get_publishable_obj_photometry(
+                session,
+                self.current_user,
+                tns_robot_id,
+                obj_id,
+                instrument_ids,
+                stream_ids,
+                photometry_options,
             )
-            if not obj:
-                return self.error("Object not found")
+
+            payload, header = create_payload_and_header(source, photometry, data)
+            validate_payload_and_header(payload, header)
 
             tns_robot = session.scalars(
                 TNSRobot.select(session.user_or_token).where(
@@ -221,52 +216,7 @@ class HermesHandler(BaseHandler):
                 )
             ).first()
             if tns_robot is None:
-                return self.error(f"TNSRobot not available")
-
-            # Check if the user has access to the TNSRobot
-            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-            tns_robot_groups = [
-                tns_robot_group
-                for tns_robot_group in tns_robot.groups
-                if tns_robot_group.group_id in accessible_group_ids
-            ]
-            if len(tns_robot_groups) == 0:
-                raise ValueError(
-                    f"User {self.current_user.id} does not have access to any group with TNSRobot {tns_robot_id}"
-                )
-
-            request_headers = {
-                "User-Agent": f'tns_marker{{"tns_id":{tns_robot.bot_id},"type":"bot", "name":"{tns_robot.bot_name}"}}'
-            }
-
-            photometry_options = validate_photometry_options(
-                photometry_options, tns_robot.photometry_options
-            )
-
-            # try:
-            #     validate_obj_id(obj_id, tns_robot.source_group_id)
-            # except TNSReportError as e:
-            #     return self.error(e)
-
-            source = session.scalar(
-                Source.select(session.user_or_token)
-                .where(
-                    Source.obj_id == obj_id,
-                    Source.active.is_(True),
-                    Source.group_id.in_([group.group_id for group in tns_robot_groups]),
-                )
-                .order_by(Source.saved_at.asc())
-            )
-            if source is None:
-                return self.error(
-                    f"Source {obj_id} not saved to any group with TNSRobot {tns_robot_id}."
-                )
-
-            return source
-
-            payload, header = create_payload_and_header(obj, data)
-            validate_payload_and_header(payload, header)
-
+                return ValueError(f"TNSRobot {tns_robot_id} not found")
             if tns_robot.testing:
                 try:
                     flow = Flow()
