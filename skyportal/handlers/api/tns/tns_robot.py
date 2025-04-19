@@ -91,14 +91,14 @@ def create_tns_robot(
         tnsrobot.groups.append(owner_group)
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    instruments = check_instruments(session, instrument_ids)
+    instruments = process_instrument_ids(session, instrument_ids)
     if instruments:
         tnsrobot.instruments = instruments
     else:
         raise ValueError("At least one instrument must be specified for TNS reporting")
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    streams = check_streams(session, stream_ids)
+    streams = process_stream_ids(session, stream_ids)
     if streams:
         tnsrobot.streams = streams
 
@@ -178,12 +178,12 @@ def update_tns_robot(
     )
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    instruments = check_instruments(session, instrument_ids)
+    instruments = process_instrument_ids(session, instrument_ids)
     if instruments:
         tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    streams = check_streams(session, stream_ids)
+    streams = process_stream_ids(session, stream_ids)
     if streams:
         tnsrobot.streams = streams
 
