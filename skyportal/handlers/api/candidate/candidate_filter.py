@@ -131,7 +131,7 @@ class CandidateFilterHandler(BaseHandler):
         with self.Session() as session:
             group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
                 session,
-                self.current_user,
+                session.user_or_token,
                 group_ids,
                 filter_ids,
             )
@@ -154,11 +154,7 @@ class CandidateFilterHandler(BaseHandler):
                 stmt = stmt.where(Candidate.passed_at <= end_date)
 
             stmt = get_subquery_for_saved_status(
-                session,
-                stmt,
-                saved_status,
-                group_ids,
-                self.current_user,
+                session, stmt, saved_status, group_ids, session.user_or_token
             )
 
             if stmt is None:
