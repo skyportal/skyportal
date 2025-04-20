@@ -63,6 +63,7 @@ from ...models import (
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
+from ...utils.parse import get_int_list, get_page_and_n_per_page
 from ..base import BaseHandler
 
 log = make_log("api/followup_request")
@@ -921,32 +922,15 @@ class FollowupRequestHandler(BaseHandler):
         if sortOrder not in ["asc", "desc"]:
             return self.error("Invalid sortOrder value.")
 
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except (ValueError, TypeError) as e:
-            return self.error(f"Invalid numPerPage value: {str(e)}")
-
-        if n_per_page > MAX_FOLLOWUP_REQUESTS:
-            return self.error(
-                f"numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}."
-            )
+        page_number, n_per_page = get_page_and_n_per_page(
+            page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+        )
 
         if requesters is not None:
-            try:
-                if isinstance(requesters, str):
-                    if "," in requesters:
-                        requesters = requesters.split(",")
-                    else:
-                        requesters = [requesters]
-                requesters = [int(r) for r in requesters]
-            except ValueError:
-                return self.error(
-                    "requesters must be a comma seperated string list or list of integers"
-                )
+            requesters = get_int_list(
+                requesters,
+                "requesters must be a comma seperated string list or list of integers",
+            )
 
         if allocationID is not None:
             try:

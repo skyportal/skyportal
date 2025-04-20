@@ -13,6 +13,7 @@ from ....models import (
     TNSRobot,
     TNSRobotGroup,
 )
+from ....utils.parse import get_int_list
 from ....utils.tns import TNS_INSTRUMENT_IDS
 from ...base import BaseHandler
 
@@ -329,17 +330,8 @@ class TNSRobotHandler(BaseHandler):
                     data["_altdata"] = json.dumps(data["_altdata"])
                 data["_altdata"] = data["_altdata"].replace("'", '"')
 
-            owner_group_ids = data.pop("owner_group_ids", [])
+            owner_group_ids = get_int_list(data.pop("owner_group_ids", []))
 
-            if isinstance(owner_group_ids, str | int):
-                owner_group_ids = [
-                    int(owner_group_id)
-                    for owner_group_id in str(owner_group_ids).split(",")
-                ]
-            elif isinstance(owner_group_ids, list):
-                owner_group_ids = [
-                    int(owner_group_id) for owner_group_id in owner_group_ids
-                ]
             if len(owner_group_ids) > 0:
                 owner_group_ids = list(set(owner_group_ids))
 
