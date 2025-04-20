@@ -67,6 +67,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "../tns/TNSATForm";
+import HermesForm from "../hermes/HermesForm";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
@@ -161,10 +162,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     height: "100%",
     paddingBottom: "0.75rem",
   },
-  smallPlot: {
-    width: "350px",
-    overflow: "auto",
-  },
   panelButton: {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
@@ -172,15 +169,6 @@ export const useSourceStyles = makeStyles((theme) => ({
       color: theme.palette.primary.main,
     },
   },
-  thumbnailGridDialog: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "1rem",
-  },
-  comments: {
-    width: "100%",
-  },
-  hr_diagram: {},
   container: {
     display: "flex",
     justifyContent: "space-between",
@@ -193,7 +181,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   infoLine: {
-    // Get it's own line
+    // Get its own line
     flexBasis: "100%",
     display: "flex",
     flexFlow: "row wrap",
@@ -239,6 +227,7 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
+  const [hermesDialogOpen, setHermesDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
@@ -512,10 +501,7 @@ const SourceContent = ({ source }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div
-              className={classes.hr_diagram}
-              data-testid={`hr_diagram_${source.id}`}
-            >
+            <div data-testid={`hr_diagram_${source.id}`}>
               {source.color_magnitude?.length > 0 ? (
                 <Suspense
                   fallback={
@@ -988,6 +974,31 @@ const SourceContent = ({ source }) => {
                     <TNSATForm
                       obj_id={source.id}
                       submitCallback={() => setTNSDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className={classes.infoButton}>
+                <Button
+                  secondary
+                  size="small"
+                  data-testid={`hermesSubmissionForm_${source.id}`}
+                  onClick={() => {
+                    setHermesDialogOpen(true);
+                  }}
+                >
+                  Submit to Hermes
+                </Button>
+                <Dialog
+                  open={hermesDialogOpen}
+                  onClose={() => setHermesDialogOpen(false)}
+                  style={{ position: "fixed" }}
+                >
+                  <DialogTitle>Submit to Hermes</DialogTitle>
+                  <DialogContent>
+                    <HermesForm
+                      obj_id={source.id}
+                      submitCallback={() => setHermesDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>
