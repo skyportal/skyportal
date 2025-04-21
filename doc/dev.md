@@ -144,3 +144,9 @@ It will print a command that you can use to SSH into the runner.
     - A brief summary of the changes, including any breaking changes
     - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the associated PR numbers, as well as the GitHub usernames of the contributors.
     - If applicable, a migration guide to help users and/or admins upgrade to the new version.
+
+## Developer instructions
+
+There are a few methods in `skyportal/utils/parse.py` that are used to help parse common types of input.
+- `get_int_list`: This method is used to parse a comma-separated string into a list of integers. It can also handle lists and will convert them to a list of integers.
+- `get_page_and_n_per_page`: This method is used to parse the page number and number of items per page used for pagination in multiple handlers. It takes the page number and number of items per page as input and returns them as integers. It also ensures that the number of items per page does not exceed a maximum value (default is 500).
