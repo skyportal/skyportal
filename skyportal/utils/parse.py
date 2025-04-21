@@ -7,7 +7,7 @@ def get_int_list(text, error_msg="Error parsing string to int list"):
         if isinstance(text, str):
             return [int(x.strip()) for x in text.split(",") if x.strip()]
         if isinstance(text, list):
-            return [int(x) for x in text]
+            return [int(str(x).strip()) for x in text]
         else:
             raise ValueError(error_msg)
     except Exception:
