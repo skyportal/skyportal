@@ -6,7 +6,7 @@ def test_get_list_typed():
     try:
         assert get_list_typed("1.0,2.0,3.0", int) == [1.0, 2.0, 3.0]
     except ValueError as e:
-        assert str(e) == "Error parsing string to list of <class 'int'>"
+        assert str(e) == "Error parsing string to list of int."
     try:
         get_list_typed("1,a,3", int, "test error message")
     except ValueError as e:

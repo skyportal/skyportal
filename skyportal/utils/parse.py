@@ -3,7 +3,7 @@ def get_list_typed(text, dtype, error_msg=None):
     Convert a comma-separated string to a list of the specified type.
     If the input is already a list return it as a list of the specified type.
     """
-    error_msg = error_msg or f"Error parsing string to list of {dtype}"
+    error_msg = error_msg or f"Error parsing string to list of {dtype.__name__}."
     try:
         if isinstance(text, str):
             return [dtype(x.strip()) for x in text.split(",") if x.strip()]
