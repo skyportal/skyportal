@@ -46,7 +46,7 @@ def create_payload_and_header(obj, photometry, data):
     }
 
     payload = {
-        "topic": data["topic"],
+        "topic": cfg["app.hermes.topic"],
         "title": data["title"],
         "submitter": data["submitter"],
         "data": {
@@ -138,12 +138,6 @@ class HermesHandler(BaseHandler):
               items:
                 type: string
           - in: query
-            name: topic
-            required: true
-            description: Topic to publish to
-            schema:
-              type: string
-          - in: query
             name: title
             required: true
             description: Title of the message
@@ -178,7 +172,6 @@ class HermesHandler(BaseHandler):
 
         for required_data in [
             "tns_robot_id",
-            "topic",
             "title",
             "submitter",
             "instrument_ids",

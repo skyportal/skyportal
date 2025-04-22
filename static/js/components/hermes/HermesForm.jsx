@@ -221,11 +221,6 @@ const HermesForm = ({ obj_id, submitCallback }) => {
   const formSchema = {
     type: "object",
     properties: {
-      topic: {
-        type: "string",
-        title: "Hermes topic",
-        default: "hermes.message",
-      },
       title: {
         type: "string",
         title: "Title",
@@ -281,7 +276,7 @@ const HermesForm = ({ obj_id, submitCallback }) => {
           "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
       },
     },
-    required: ["topic", "title", "submitter", "instrument_ids"],
+    required: ["title", "submitter", "instrument_ids"],
   };
 
   return (
