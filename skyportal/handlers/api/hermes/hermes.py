@@ -182,6 +182,8 @@ class HermesHandler(BaseHandler):
 
         if cfg["app.hermes.endpoint"] is None:
             return self.error("Hermes endpoint is not configured")
+        if cfg["app.hermes.topic"] is None:
+            return self.error("Hermes topic to publish to is not configured")
         if cfg["app.hermes.token"] is None:
             return self.error("Hermes token is not configured")
         with self.Session() as session:
