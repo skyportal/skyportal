@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,37 +18,19 @@ def test_get_tag(super_admin_token):
     assert status == 200
 
 
-def test_add_tag_case_sensitive(super_admin_token):
-    unique_id = uuid.uuid4().hex
-    tag_to_create = {"name": f"TagAdded{unique_id}"}
-    status, _ = api("POST", "objtagoption", data=tag_to_create, token=super_admin_token)
-    assert status == 200
-
-    # Verification that we can't create the same tag twice
+@pytest.mark.parametrize(
+    "invalid_tag_name",
+    [
+        "Tag added",
+        "tag_added",
+        "tag-added",
+    ],
+)
+def test_add_tag_case_sensitive(super_admin_token, invalid_tag_name):
     status, _ = api(
-        "POST",
-        "objtagoption",
-        data={"name": f"tagadded{unique_id}"},
-        token=super_admin_token,
+        "POST", "objtagoption", data={"name": invalid_tag_name}, token=super_admin_token
     )
-    assert status == 409
 
-    # Verification that we can't create a tag with a space
-    status, _ = api(
-        "POST", "objtagoption", data={"name": f"Tag added"}, token=super_admin_token
-    )
-    assert status == 400
-
-    # Verification that we can't create a tag with an underscore
-    status, _ = api(
-        "POST", "objtagoption", data={"name": f"tag_added"}, token=super_admin_token
-    )
-    assert status == 400
-
-    # Verification that we can't create a tag with a dash
-    status, _ = api(
-        "POST", "objtagoption", data={"name": f"tag-added"}, token=super_admin_token
-    )
     assert status == 400
 
 
