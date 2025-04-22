@@ -49,16 +49,7 @@ def create_scan_report_item(session, report, sources_by_obj):
         obj_id=obj.id,
         scan_report=report,
         data={
-            "saved_info": [
-                {
-                    "saved_at": source.saved_at.isoformat(),
-                    "saved_by": source.saved_by.username,
-                    "group": source.group.name,
-                }
-                for source in sources
-            ]
-            if sources
-            else None,
+            "tns_name": obj.tns_name,
             "comment": None,
             "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
@@ -72,6 +63,16 @@ def create_scan_report_item(session, report, sources_by_obj):
                 for classification in obj.classifications
             ]
             if obj.classifications
+            else None,
+            "saved_info": [
+                {
+                    "saved_at": source.saved_at.isoformat(),
+                    "saved_by": source.saved_by.username,
+                    "group": source.group.name,
+                }
+                for source in sources
+            ]
+            if sources
             else None,
         },
     )

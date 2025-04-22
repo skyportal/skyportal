@@ -76,6 +76,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             <FieldTitle>scanner</FieldTitle>
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
             <FieldTitle>Source</FieldTitle>
+            <FieldTitle>TNS name</FieldTitle>
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
@@ -122,6 +123,20 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                   >
                     {reportItem.obj_id}
                   </Link>
+                </Field>
+                <Field>
+                  {reportItem.data.tns_name && (
+                    <Link
+                      to={`https://www.wis-tns.org/object/${reportItem.data.tns_name
+                        .trim()
+                        .split(" ")
+                        .pop()}`}
+                      role="link"
+                      target="_blank"
+                    >
+                      {reportItem.data.tns_name}
+                    </Link>
+                  )}
                 </Field>
                 <Field>{reportItem.data.comment}</Field>
                 <Field>
