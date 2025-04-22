@@ -13,7 +13,7 @@ from ....models import (
     Obj,
     Source,
 )
-from ....utils.parse import get_int_list, get_page_and_n_per_page
+from ....utils.parse import get_list_typed, get_page_and_n_per_page
 from ...base import BaseHandler
 
 log = make_log("api/candidate_filter")
@@ -26,8 +26,9 @@ def get_user_accessible_group_and_filter_ids(session, user, group_ids, filter_id
     ]
 
     if isinstance(group_ids, str):
-        group_ids = get_int_list(
+        group_ids = get_list_typed(
             group_ids,
+            int,
             error_msg="Invalid groupIDs value -- select at least one group",
         )
         filters = session.scalars(
@@ -35,8 +36,9 @@ def get_user_accessible_group_and_filter_ids(session, user, group_ids, filter_id
         ).all()
         filter_ids = [f.id for f in filters]
     elif isinstance(filter_ids, str):
-        filter_ids = get_int_list(
+        filter_ids = get_list_typed(
             filter_ids,
+            int,
             error_msg="Invalid filterIDs value -- select at least one filter",
         )
         filters = session.scalars(
