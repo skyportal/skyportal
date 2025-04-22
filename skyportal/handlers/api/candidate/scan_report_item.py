@@ -67,6 +67,22 @@ def create_scan_report_item(session, report, sources_by_obj):
             for source in sources
         ]
 
+    if obj.followup_requests:
+        followups = {}
+        for followup in obj.followup_requests:
+            instrument_name = followup.instrument.name
+            priority = followup.payload["priority"]
+            if (
+                instrument_name not in followups
+                or priority < followups[instrument_name]
+            ):
+                followups[instrument_name] = priority
+        followups = [
+            {"instrument": name, "priority": prio} for name, prio in followups.items()
+        ]
+    else:
+        followups = None
+
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
@@ -78,6 +94,7 @@ def create_scan_report_item(session, report, sources_by_obj):
             "current_age": safe_round(current_age, 2),
             "classifications": classifications,
             "saved_info": saved_info,
+            "followups": followups,
         },
     )
 

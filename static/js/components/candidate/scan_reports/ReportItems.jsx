@@ -12,6 +12,8 @@ import { Link } from "react-router-dom";
 import EditReportItemForm from "./EditReportItemForm";
 import { fetchScanReportItem } from "../../../ducks/candidate/scan_report";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import BugReportIcon from "@mui/icons-material/BugReport";
 
 const List = styled("div")({
   display: "flex",
@@ -79,6 +81,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             <FieldTitle>TNS name</FieldTitle>
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
+            <FieldTitle>followup/priority</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
@@ -142,17 +145,39 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                 <Field>
                   {reportItem.data.classifications?.map(
                     (classification, index) => (
-                      <Chip
-                        label={
+                      <Tooltip
+                        title={
                           (classification.ml ? "ML: " : "") +
                           classification.classification +
                           (classification.probability < 0.1 ? "?" : "")
                         }
+                        key={index}
+                      >
+                        <Chip
+                          label={
+                            (classification.ml ? "ML: " : "") +
+                            classification.classification +
+                            (classification.probability < 0.1 ? "?" : "")
+                          }
+                          size="small"
+                        />
+                      </Tooltip>
+                    ),
+                  )}
+                </Field>
+                <Field>
+                  {reportItem.data.followups?.map((followup, index) => (
+                    <Tooltip
+                      title={`${followup.instrument}: ${followup.priority}`}
+                      key={index}
+                    >
+                      <Chip
+                        label={`${followup.instrument}: ${followup.priority}`}
                         size="small"
                         key={index}
                       />
-                    ),
-                  )}
+                    </Tooltip>
+                  ))}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
