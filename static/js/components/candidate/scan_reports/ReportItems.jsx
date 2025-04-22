@@ -75,7 +75,7 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             <FieldTitle sx={{ flex: 1 }}>date</FieldTitle>
             <FieldTitle>scanner</FieldTitle>
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
-            <FieldTitle>ZTF Name / Fritz link</FieldTitle>
+            <FieldTitle>Source</FieldTitle>
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
