@@ -102,7 +102,7 @@ app:
 
   hermes:
       endpoint: https://hermes.lco.global/api/v0
-      topic:
+      topic: hermes.test
       token:
 
   winter:
