@@ -118,6 +118,7 @@ class ObjTagHandler(BaseHandler):
                         "id": a.id,
                         "objtagoption_id": a.objtagoption_id,
                         "obj_id": a.obj_id,
+                        "user_id": a.user_id,
                     }
                     for a in associations
                 ]
@@ -156,7 +157,14 @@ class ObjTagHandler(BaseHandler):
             ).first():
                 return self.error("Specified obj does not exist", status=404)
 
-            new_assoc = ObjTags(objtagoption_id=objtagoption_id, obj_id=obj_id)
+            if hasattr(self.current_user, "created_by"):
+                user_id = self.current_user.created_by.id
+            else:
+                user_id = self.current_user.id
+
+            new_assoc = ObjTags(
+                objtagoption_id=objtagoption_id, obj_id=obj_id, user_id=user_id
+            )
             session.add(new_assoc)
             session.commit()
 
@@ -165,6 +173,7 @@ class ObjTagHandler(BaseHandler):
                     "id": new_assoc.id,
                     "objtagoption_id": new_assoc.objtagoption_id,
                     "obj_id": new_assoc.obj_id,
+                    "user_id": new_assoc.user_id,
                 }
             )
 
@@ -174,6 +183,11 @@ class ObjTagHandler(BaseHandler):
         data = self.get_json()
         new_tag_id = data.get("objtagoption_id")
         new_obj_id = data.get("obj_id")
+
+        if hasattr(self.current_user, "created_by"):
+            user_id = self.current_user.created_by.id
+        else:
+            user_id = self.current_user.id
 
         if not new_tag_id and not new_obj_id:
             return self.error(
@@ -222,12 +236,14 @@ class ObjTagHandler(BaseHandler):
                     return self.error("Specified obj does not exist", status=404)
                 assoc.obj_id = new_obj_id
 
+            assoc.user_id = user_id
             session.commit()
             return self.success(
                 data={
                     "id": assoc.id,
                     "objtagoption_id": assoc.objtagoption_id,
                     "obj_id": assoc.obj_id,
+                    "user_id": assoc.user_id,
                 }
             )
 

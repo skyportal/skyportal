@@ -1,4 +1,3 @@
-import random
 import uuid
 
 from sqlalchemy import select
@@ -127,10 +126,7 @@ def test_create_tag_obj_association(super_admin_token):
     tag_data = {"tag_name": f"Tag{uuid.uuid4().hex}"}
     _, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
 
-    assoc_data = {
-        "objtagoption_id": tag["data"]["id"],
-        "obj_id": "TIC_114807149",  # Associate it to the first obj of the demo data
-    }
+    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": "TIC_114807149"}
 
     status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
     assert status == 200
@@ -149,7 +145,8 @@ def test_update_association(super_admin_token):
     _, tag2 = api("POST", "objtagoption", data=tag2_data, token=super_admin_token)
 
     assoc_data = {"objtagoption_id": tag1["data"]["id"], "obj_id": "TIC_114807149"}
-    _, assoc = api("POST", "objtag", data=assoc_data, token=super_admin_token)
+    status, assoc = api("POST", "objtag", data=assoc_data, token=super_admin_token)
+    assert status == 200
 
     # Testing nominal case
     update_data = {"objtagoption_id": tag2["data"]["id"]}
@@ -159,7 +156,7 @@ def test_update_association(super_admin_token):
         data=update_data,
         token=super_admin_token,
     )
-    print(f">>> {tag}")
+
     assert status == 200
 
     # Testing to modify an association with a non exisiting tag id
