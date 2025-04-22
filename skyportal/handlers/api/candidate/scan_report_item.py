@@ -45,6 +45,28 @@ def create_scan_report_item(session, report, sources_by_obj):
         )
     ).all()
 
+    classifications = None
+    if obj.classifications:
+        classifications = [
+            {
+                "probability": classification.probability,
+                "classification": classification.classification,
+                "ml": classification.ml,
+            }
+            for classification in obj.classifications
+        ]
+
+    saved_info = None
+    if sources:
+        saved_info = [
+            {
+                "saved_at": source.saved_at.isoformat(),
+                "saved_by": source.saved_by.username,
+                "group": source.group.name,
+            }
+            for source in sources
+        ]
+
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
@@ -54,26 +76,8 @@ def create_scan_report_item(session, report, sources_by_obj):
             "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
-            "classifications": [
-                {
-                    "probability": classification.probability,
-                    "classification": classification.classification,
-                    "ml": classification.ml,
-                }
-                for classification in obj.classifications
-            ]
-            if obj.classifications
-            else None,
-            "saved_info": [
-                {
-                    "saved_at": source.saved_at.isoformat(),
-                    "saved_by": source.saved_by.username,
-                    "group": source.group.name,
-                }
-                for source in sources
-            ]
-            if sources
-            else None,
+            "classifications": classifications,
+            "saved_info": saved_info,
         },
     )
 
