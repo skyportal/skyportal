@@ -18,43 +18,43 @@ class ObjTagOptionHandler(BaseHandler):
     @auth_or_token
     def post(self):
         data = self.get_json()
-        tag_text = data.get("tag_name")
+        name = data.get("name")
 
-        if not tag_text or not isinstance(tag_text, str):
-            return self.error("`tag_name` must be provided as a non-empty string")
+        if not name or not isinstance(name, str):
+            return self.error("`name` must be provided as a non-empty string")
 
-        if not re.fullmatch(r"[A-Za-z0-9]+", tag_text):
+        if not re.fullmatch(r"[A-Za-z0-9]+", name):
             return self.error(
-                "`tag_name` must contain only letters and numbers (no spaces, underscores, or special characters)",
+                "`name` must contain only letters and numbers (no spaces, underscores, or special characters)",
                 status=400,
             )
 
         with self.Session() as session:
             existing_tag = session.scalars(
                 ObjTagOption.select(session.user_or_token).where(
-                    func.lower(ObjTagOption.tag_name) == tag_text.lower()
+                    func.lower(ObjTagOption.name) == name.lower()
                 )
             ).first()
 
             if existing_tag:
                 return self.error(
-                    f"Tag '{tag_text}' already exists (case-insensitive match)",
+                    f"Tag '{name}' already exists (case-insensitive match)",
                     status=409,
                 )
 
-            new_tag = ObjTagOption(tag_name=tag_text)
+            new_tag = ObjTagOption(name=name)
             session.add(new_tag)
             session.commit()
 
-            return self.success(data={"id": new_tag.id, "tag_name": new_tag.tag_name})
+            return self.success(new_tag)
 
     @auth_or_token
     def patch(self, tag_id):
         data = self.get_json()
-        new_tag_name = data.get("tag_name")
+        new_name = data.get("name")
 
-        if not new_tag_name or not isinstance(new_tag_name, str):
-            return self.error("`tag_name` must be provided as a non-empty string")
+        if not new_name or not isinstance(new_name, str):
+            return self.error("`name` must be provided as a non-empty string")
 
         with self.Session() as session:
             tag = session.scalars(
@@ -68,15 +68,15 @@ class ObjTagOptionHandler(BaseHandler):
 
             if session.scalars(
                 ObjTagOption.select(session.user_or_token)
-                .where(ObjTagOption.tag_name == new_tag_name)
+                .where(ObjTagOption.name == new_name)
                 .where(ObjTagOption.id != tag_id)
             ).first():
                 return self.error("This tag name already exists for another tag")
 
-            tag.tag_name = new_tag_name
+            tag.name = new_name
             session.commit()
 
-            return self.success(data={"id": tag.id, "tag_name": tag.tag_name})
+            return self.success()
 
     @auth_or_token
     def delete(self, tag_id):
@@ -112,17 +112,7 @@ class ObjTagHandler(BaseHandler):
                 query = query.where(ObjTags.objtagoption_id == objtagoption_id)
 
             associations = session.scalars(query).all()
-            return self.success(
-                data=[
-                    {
-                        "id": a.id,
-                        "objtagoption_id": a.objtagoption_id,
-                        "obj_id": a.obj_id,
-                        "user_id": a.user_id,
-                    }
-                    for a in associations
-                ]
-            )
+            return self.success(associations)
 
     @auth_or_token
     def post(self):
@@ -158,24 +148,17 @@ class ObjTagHandler(BaseHandler):
                 return self.error("Specified obj does not exist", status=404)
 
             if hasattr(self.current_user, "created_by"):
-                user_id = self.current_user.created_by.id
+                author_id = self.current_user.created_by.id
             else:
-                user_id = self.current_user.id
+                author_id = self.current_user.id
 
             new_assoc = ObjTags(
-                objtagoption_id=objtagoption_id, obj_id=obj_id, user_id=user_id
+                objtagoption_id=objtagoption_id, obj_id=obj_id, author_id=author_id
             )
             session.add(new_assoc)
             session.commit()
 
-            return self.success(
-                data={
-                    "id": new_assoc.id,
-                    "objtagoption_id": new_assoc.objtagoption_id,
-                    "obj_id": new_assoc.obj_id,
-                    "user_id": new_assoc.user_id,
-                }
-            )
+            return self.success(new_assoc)
 
     @auth_or_token
     def patch(self, association_id):
@@ -185,9 +168,9 @@ class ObjTagHandler(BaseHandler):
         new_obj_id = data.get("obj_id")
 
         if hasattr(self.current_user, "created_by"):
-            user_id = self.current_user.created_by.id
+            author_id = self.current_user.created_by.id
         else:
-            user_id = self.current_user.id
+            author_id = self.current_user.id
 
         if not new_tag_id and not new_obj_id:
             return self.error(
@@ -236,16 +219,9 @@ class ObjTagHandler(BaseHandler):
                     return self.error("Specified obj does not exist", status=404)
                 assoc.obj_id = new_obj_id
 
-            assoc.user_id = user_id
+            assoc.author_id = author_id
             session.commit()
-            return self.success(
-                data={
-                    "id": assoc.id,
-                    "objtagoption_id": assoc.objtagoption_id,
-                    "obj_id": assoc.obj_id,
-                    "user_id": assoc.user_id,
-                }
-            )
+            return self.success()
 
     @auth_or_token
     def delete(self, association_id):
