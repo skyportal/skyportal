@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 
 from baselayer.log import make_log
-from .parse import get_int_list
+from .parse import get_list_typed
 from .tns import TNS_INSTRUMENT_IDS
 
 from ..models import (
@@ -39,8 +39,10 @@ def process_instrument_ids(session, instrument_ids, accessible_instrument_ids=No
         The list of accessible instrument IDs to check against.
     """
     if instrument_ids and len(instrument_ids) > 0:
-        instrument_ids = get_int_list(
-            instrument_ids, "instrument_ids must be a comma-separated list of integers"
+        instrument_ids = get_list_typed(
+            instrument_ids,
+            int,
+            "instrument_ids must be a comma-separated list of integers",
         )
         if accessible_instrument_ids is not None:
             # Only keep the instrument IDs that are in the list of accessible instrument IDs
@@ -121,8 +123,8 @@ def process_stream_ids(session, stream_ids, accessible_stream_ids=None):
         The list of accessible stream IDs to check against.
     """
     if stream_ids and len(stream_ids) > 0:
-        stream_ids = get_int_list(
-            stream_ids, "stream_ids must be a comma-separated list of integers"
+        stream_ids = get_list_typed(
+            stream_ids, int, "stream_ids must be a comma-separated list of integers"
         )
         if accessible_stream_ids is not None:
             # Only keep the stream IDs that are in the list of accessible stream IDs
