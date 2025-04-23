@@ -2,7 +2,6 @@ import datetime
 import json
 import operator  # noqa: F401
 import re
-import string
 import time
 import uuid
 from copy import copy
@@ -24,7 +23,6 @@ from sqlalchemy.types import Boolean, Float, Integer, String
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.app.models import User
 from baselayer.log import make_log
 
 from ....models import (
@@ -47,9 +45,13 @@ from ....models import (
     Spectrum,
 )
 from ....utils.cache import Cache, array_to_bytes
+from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
-from .candidate_filter import get_subquery_for_saved_status
+from .candidate_filter import (
+    get_subquery_for_saved_status,
+    get_user_accessible_group_and_filter_ids,
+)
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -152,15 +154,6 @@ def create_photometry_annotations_query(
         )
 
     return photometry_annotations_query
-
-
-def get_int_list_from_string(text_with_int, error_msg=""):
-    if "," in text_with_int and set(text_with_int).issubset(string.digits + ","):
-        return [int(val) for val in text_with_int.split(",")]
-    elif text_with_int.isdigit():
-        return [int(text_with_int)]
-    else:
-        raise ValueError(error_msg)
 
 
 def fetch_obj_data(model, options, obj_id, session):
@@ -850,52 +843,14 @@ class CandidateHandler(BaseHandler):
                 )
 
         with self.Session() as session:
-            user_accessible_group_ids = [
-                g.id for g in self.current_user.accessible_groups
-            ]
-            user_accessible_filter_ids = [
-                filtr.id
-                for g in self.current_user.accessible_groups
-                for filtr in g.filters
-                if g.filters
-            ]
+            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+                session,
+                session.user_or_token,
+                group_ids,
+                filter_ids,
+            )
 
-            if isinstance(group_ids, str):
-                group_ids = get_int_list_from_string(
-                    group_ids,
-                    error_msg="Invalid groupIDs value -- select at least one group",
-                )
-                filters = session.scalars(
-                    Filter.select(session.user_or_token).where(
-                        Filter.group_id.in_(group_ids)
-                    )
-                ).all()
-                filter_ids = [f.id for f in filters]
-            elif isinstance(filter_ids, str):
-                filter_ids = get_int_list_from_string(
-                    filter_ids,
-                    error_msg="Invalid filterIDs value -- select at least one filter",
-                )
-                filters = session.scalars(
-                    Filter.select(session.user_or_token).where(
-                        Filter.id.in_(filter_ids)
-                    )
-                ).all()
-                group_ids = [f.group_id for f in filters]
-            else:
-                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-                group_ids = user_accessible_group_ids
-                filter_ids = user_accessible_filter_ids
-
-        try:
-            page = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
-        n_per_page = min(n_per_page, 500)
+        page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page, 500)
 
         with self.Session() as session:
             candidate_query = Candidate.select(session.user_or_token).where(
@@ -968,11 +923,7 @@ class CandidateHandler(BaseHandler):
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
             q = get_subquery_for_saved_status(
-                session,
-                q,
-                saved_status,
-                group_ids,
-                user_accessible_group_ids,
+                session, q, saved_status, group_ids, session.user_or_token
             )
 
             if q is None:
@@ -1384,7 +1335,7 @@ class CandidateHandler(BaseHandler):
                     session,
                     q,
                     total_matches,
-                    page,
+                    page_number,
                     n_per_page,
                     "candidates",
                     order_by=order_by,

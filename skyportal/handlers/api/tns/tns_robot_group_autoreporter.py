@@ -8,6 +8,7 @@ from ....models import (
     TNSRobotGroupAutoreporter,
     User,
 )
+from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 
 log = make_log("api/tns_robot_group_autoreporter")
@@ -71,11 +72,7 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
         user_ids = [user_id]
 
         if "user_ids" in self.get_json():
-            user_ids = self.get_json()["user_ids"]
-            if isinstance(user_ids, str | int):
-                user_ids = [int(user_id) for user_id in str(user_ids).split(",")]
-            elif isinstance(user_ids, list):
-                user_ids = [int(user_id) for user_id in user_ids]
+            user_ids = get_list_typed(self.get_json()["user_ids"], int)
 
         if len(user_ids) == 0:
             return self.error(
@@ -229,11 +226,7 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
         user_ids = [user_id]
 
         if "user_ids" in self.get_json():
-            user_ids = self.get_json()["user_ids"]
-            if isinstance(user_ids, str | int):
-                user_ids = [int(user_id) for user_id in str(user_ids).split(",")]
-            elif isinstance(user_ids, list):
-                user_ids = [int(user_id) for user_id in user_ids]
+            user_ids = get_list_typed(self.get_json()["user_ids"], int)
 
         if len(user_ids) == 0:
             return self.error(
