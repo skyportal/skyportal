@@ -12,11 +12,11 @@ class ObjTagOption(Base):
     name = sa.Column(sa.String, nullable=False, doc="Tags list.", unique=True)
 
 
-ObjTags = join_model("obj_tag", ObjTagOption, Obj)
+ObjTag = join_model("obj_tag", ObjTagOption, Obj)
 
 read = update = delete = AccessibleIfUserMatches("user")
 
-ObjTags.author_id = sa.Column(
+ObjTag.author_id = sa.Column(
     "author_id",
     sa.ForeignKey("users.id", ondelete="SET NULL"),
     nullable=True,
@@ -24,10 +24,10 @@ ObjTags.author_id = sa.Column(
     doc="ID of the user who created the tag association",
 )
 
-ObjTags.author = relationship(
+ObjTag.author = relationship(
     User,
     doc="The associated User",
-    foreign_keys=[ObjTags.author_id],
+    foreign_keys=[ObjTag.author_id],
 )
 
-ObjTags.__table_args__ = (sa.Index("obj_tags", "name", "tag_id", unique=True),)
+ObjTag.__table_args__ = (sa.Index("obj_tags", "name", "tag_id", unique=True),)

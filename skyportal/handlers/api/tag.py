@@ -4,7 +4,7 @@ from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token
 
-from ...models import Obj, ObjTagOption, ObjTags
+from ...models import Obj, ObjTag, ObjTagOption
 from ..base import BaseHandler
 
 
@@ -104,12 +104,12 @@ class ObjTagHandler(BaseHandler):
         objtagoption_id = self.get_query_argument("objtagoption_id", None)
 
         with self.Session() as session:
-            query = ObjTags.select(session.user_or_token)
+            query = ObjTag.select(session.user_or_token)
 
             if obj_id:
-                query = query.where(ObjTags.obj_id == obj_id)
+                query = query.where(ObjTag.obj_id == obj_id)
             if objtagoption_id:
-                query = query.where(ObjTags.objtagoption_id == objtagoption_id)
+                query = query.where(ObjTag.objtagoption_id == objtagoption_id)
 
             associations = session.scalars(query).all()
             return self.success(associations)
@@ -127,9 +127,9 @@ class ObjTagHandler(BaseHandler):
         with self.Session() as session:
             # Check if association already exists
             if session.scalars(
-                ObjTags.select(session.user_or_token)
-                .where(ObjTags.objtagoption_id == objtagoption_id)
-                .where(ObjTags.obj_id == obj_id)
+                ObjTag.select(session.user_or_token)
+                .where(ObjTag.objtagoption_id == objtagoption_id)
+                .where(ObjTag.obj_id == obj_id)
             ).first():
                 return self.error("This tag-obj association already exists")
 
@@ -152,7 +152,7 @@ class ObjTagHandler(BaseHandler):
             else:
                 author_id = self.current_user.id
 
-            new_assoc = ObjTags(
+            new_assoc = ObjTag(
                 objtagoption_id=objtagoption_id, obj_id=obj_id, author_id=author_id
             )
             session.add(new_assoc)
@@ -179,9 +179,7 @@ class ObjTagHandler(BaseHandler):
 
         with self.Session() as session:
             assoc = session.scalars(
-                ObjTags.select(session.user_or_token).where(
-                    ObjTags.id == association_id
-                )
+                ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)
             ).first()
 
             if not assoc:
@@ -193,9 +191,9 @@ class ObjTagHandler(BaseHandler):
             final_obj_id = new_obj_id if new_obj_id is not None else assoc.obj_id
 
             existing = session.scalars(
-                ObjTags.select(session.user_or_token)
-                .where(ObjTags.objtagoption_id == final_tag_id)
-                .where(ObjTags.obj_id == final_obj_id)
+                ObjTag.select(session.user_or_token)
+                .where(ObjTag.objtagoption_id == final_tag_id)
+                .where(ObjTag.obj_id == final_obj_id)
             ).first()
 
             if existing:
@@ -228,9 +226,7 @@ class ObjTagHandler(BaseHandler):
         """Delete a tag-obj association"""
         with self.Session() as session:
             assoc = session.scalars(
-                ObjTags.select(session.user_or_token).where(
-                    ObjTags.id == association_id
-                )
+                ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)
             ).first()
 
             if not assoc:
