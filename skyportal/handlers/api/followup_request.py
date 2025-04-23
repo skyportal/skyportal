@@ -63,7 +63,7 @@ from ...models import (
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
-from ...utils.parse import get_int_list, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page
 from ..base import BaseHandler
 
 log = make_log("api/followup_request")
@@ -927,8 +927,9 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         if requesters is not None:
-            requesters = get_int_list(
+            requesters = get_list_typed(
                 requesters,
+                int,
                 "requesters must be a comma seperated string list or list of integers",
             )
 

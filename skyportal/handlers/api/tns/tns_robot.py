@@ -16,7 +16,7 @@ from ....utils.data_access import (
     process_stream_ids,
     validate_photometry_options,
 )
-from ....utils.parse import get_int_list
+from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 
 log = make_log("api/tns_robot")
@@ -228,7 +228,7 @@ class TNSRobotHandler(BaseHandler):
                     data["_altdata"] = json.dumps(data["_altdata"])
                 data["_altdata"] = data["_altdata"].replace("'", '"')
 
-            owner_group_ids = get_int_list(data.pop("owner_group_ids", []))
+            owner_group_ids = get_list_typed(data.pop("owner_group_ids", []), int)
 
             if len(owner_group_ids) > 0:
                 owner_group_ids = list(set(owner_group_ids))

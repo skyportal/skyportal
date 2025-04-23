@@ -1,13 +1,14 @@
-def get_int_list(text, error_msg="Error parsing string to int list"):
+def get_list_typed(text, dtype, error_msg=None):
     """
-    Convert a comma-separated string to a list of integers.
-    If the input is already a list return it as a list of integers.
+    Convert a comma-separated string to a list of the specified type.
+    If the input is already a list return it as a list of the specified type.
     """
+    error_msg = error_msg or f"Error parsing string to list of {dtype.__name__}."
     try:
         if isinstance(text, str):
-            return [int(x.strip()) for x in text.split(",") if x.strip()]
+            return [dtype(x.strip()) for x in text.split(",") if x.strip()]
         if isinstance(text, list):
-            return [int(x) for x in text]
+            return [dtype(str(x).strip()) for x in text]
         else:
             raise ValueError(error_msg)
     except Exception:
