@@ -218,7 +218,7 @@ class HermesHandler(BaseHandler):
                     flow.push(
                         action_type="baselayer/SHOW_NOTIFICATION",
                         payload={
-                            "note": "Successfully validate by the API (testing mode, not sent to Hermes)",
+                            "note": " Payload validated successfully (testing mode, not sent to Hermes)",
                             "type": "info",
                         },
                     )
