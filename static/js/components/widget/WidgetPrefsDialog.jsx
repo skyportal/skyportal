@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
+import Autocomplete from "@mui/material/Autocomplete";
 import Button from "../Button";
 
 const useStyles = makeStyles(() => ({
@@ -22,6 +23,9 @@ const useStyles = makeStyles(() => ({
   inputSectionDiv: {
     marginBottom: "1rem",
     marginTop: "0.5rem",
+  },
+  fullWidth: {
+    width: "100%",
   },
 }));
 
@@ -34,6 +38,7 @@ const WidgetPrefsDialog = ({
   const classes = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
+  const groups = useSelector((state) => state.groups.userAccessible);
 
   const {
     handleSubmit,
@@ -69,7 +74,12 @@ const WidgetPrefsDialog = ({
         fontSize="small"
         onClick={handleClickOpen}
       />
-      <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(formSubmit)}>
@@ -149,6 +159,7 @@ const WidgetPrefsDialog = ({
                           variant="outlined"
                           onChange={onChange}
                           value={value}
+                          className={classes.fullWidth}
                         />
                       )}
                       name={key}
@@ -186,6 +197,47 @@ const WidgetPrefsDialog = ({
                     />
                   </div>
                 );
+              }
+              if (
+                typeof initialValues[key] === "object" &&
+                initialValues[key].constructor === Array
+              ) {
+                if (key === "groupIds") {
+                  return (
+                    <div key={key} className={classes.inputSectionDiv}>
+                      <Controller
+                        name={key}
+                        render={({ field: { onChange, value } }) => (
+                          <Autocomplete
+                            multiple
+                            id={key}
+                            options={groups || []}
+                            getOptionLabel={(group) => group.name}
+                            value={(groups || []).filter((group) =>
+                              value.includes(group.id),
+                            )}
+                            onChange={(e, data) =>
+                              onChange(data.map((group) => group.id))
+                            }
+                            filterSelectedOptions
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                error={!!errors[key]}
+                                variant="outlined"
+                                label="Only show for these groups"
+                                size="small"
+                              />
+                            )}
+                            className={classes.fullWidth}
+                          />
+                        )}
+                        control={control}
+                        defaultValue={[]}
+                      />
+                    </div>
+                  );
+                }
               }
               return <div key={key} />;
             })}
