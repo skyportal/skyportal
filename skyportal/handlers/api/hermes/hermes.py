@@ -15,6 +15,12 @@ from ....utils.data_access import get_publishable_obj_photometry
 _, cfg = load_env()
 log = make_log("api/hermes")
 
+is_configured = (
+    cfg.get("app.hermes.endpoint")
+    and cfg.get("app.hermes.topic")
+    and cfg.get("app.hermes.token")
+)
+
 
 def catch_timeout_and_no_endpoint(func):
     """
@@ -23,6 +29,8 @@ def catch_timeout_and_no_endpoint(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        if not is_configured:
+            raise ValueError("This instance is not configured to use Hermes")
         try:
             return func(*args, **kwargs)
         except requests.exceptions.Timeout:
@@ -180,12 +188,6 @@ class HermesHandler(BaseHandler):
             if required_data not in data:
                 return self.error(f"Missing required field: {required_data}")
 
-        if cfg["app.hermes.endpoint"] is None:
-            return self.error("Hermes endpoint is not configured")
-        if cfg["app.hermes.topic"] is None:
-            return self.error("Hermes topic to publish to is not configured")
-        if cfg["app.hermes.token"] is None:
-            return self.error("Hermes token is not configured")
         with self.Session() as session:
             tns_robot_id = data["tns_robot_id"]
             instrument_ids = data["instrument_ids"]
