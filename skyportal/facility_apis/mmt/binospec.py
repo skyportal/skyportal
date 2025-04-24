@@ -104,7 +104,7 @@ class BINOSPECAPI(FollowUpAPI):
                 "grating": payload.get("grating"),
                 "centralwavelength": payload.get("central_wavelength"),
                 "slitwidth": payload.get("slit_width"),
-                "maskid": slit_width_to_mask_id[payload.get("slit_width")],
+                "maskid": slit_width_to_mask_id.get(payload.get("slit_width")),
             }
         else:
             specific_payload = {"filters": payload.get("filters"), "maskid": 110}
