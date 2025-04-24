@@ -23,6 +23,7 @@ import DialogContent from "@mui/material/DialogContent";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Paper from "@mui/material/Paper";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
@@ -231,11 +232,12 @@ const SourceContent = ({ source }) => {
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
-  const [anchorElFindingChart, setAnchorElFindingChart] = React.useState(null);
-  const [anchorElObservability, setAnchorElObservability] =
-    React.useState(null);
+  const [anchorElFindingChart, setAnchorElFindingChart] = useState(null);
+  const [anchorElObservability, setAnchorElObservability] = useState(null);
+  const [anchorElSendTo, setAnchorElSendTo] = useState(null);
   const openFindingChart = Boolean(anchorElFindingChart);
   const openObservability = Boolean(anchorElObservability);
+  const openSendTo = Boolean(anchorElSendTo);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -955,21 +957,50 @@ const SourceContent = ({ source }) => {
               </div>
               <div className={classes.infoButton}>
                 <Button
+                  aria-controls={openSendTo ? "basic-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={openSendTo ? "true" : undefined}
+                  onClick={(e) => setAnchorElSendTo(e.currentTarget)}
                   secondary
                   size="small"
-                  data-testid={`tnsSubmissionForm_${source.id}`}
-                  onClick={() => {
-                    setTNSDialogOpen(true);
+                >
+                  Send to
+                </Button>
+                <Menu
+                  transitionDuration={50}
+                  id="send-to-menu"
+                  anchorEl={anchorElSendTo}
+                  open={openSendTo}
+                  onClose={() => setAnchorElSendTo(null)}
+                  MenuListProps={{
+                    "aria-labelledby": "basic-button",
                   }}
                 >
-                  Submit to TNS
-                </Button>
+                  <MenuItem
+                    onClick={() => {
+                      setTNSDialogOpen(true);
+                      setAnchorElSendTo(null);
+                      console.log("TNS clicked");
+                    }}
+                  >
+                    TNS
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setHermesDialogOpen(true);
+                      setAnchorElSendTo(null);
+                      console.log("Hermes clicked");
+                    }}
+                  >
+                    Hermes
+                  </MenuItem>
+                </Menu>
                 <Dialog
                   open={tnsDialogOpen}
                   onClose={() => setTNSDialogOpen(false)}
                   style={{ position: "fixed" }}
                 >
-                  <DialogTitle>Submit to TNS</DialogTitle>
+                  <DialogTitle>Send to TNS</DialogTitle>
                   <DialogContent>
                     <TNSATForm
                       obj_id={source.id}
@@ -977,24 +1008,40 @@ const SourceContent = ({ source }) => {
                     />
                   </DialogContent>
                 </Dialog>
-              </div>
-              <div className={classes.infoButton}>
-                <Button
-                  secondary
-                  size="small"
-                  data-testid={`hermesSubmissionForm_${source.id}`}
-                  onClick={() => {
-                    setHermesDialogOpen(true);
-                  }}
-                >
-                  Submit to Hermes
-                </Button>
                 <Dialog
                   open={hermesDialogOpen}
                   onClose={() => setHermesDialogOpen(false)}
                   style={{ position: "fixed" }}
                 >
-                  <DialogTitle>Submit to Hermes</DialogTitle>
+                  <DialogTitle
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    Send to Hermes
+                    <Tooltip
+                      title={
+                        <h2>
+                          HERMES is a Message Exchange Service for
+                          Multi-Messenger Astronomy. Click{" "}
+                          <a
+                            href="https://hermes.lco.global/about"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            here
+                          </a>{" "}
+                          for more information.
+                        </h2>
+                      }
+                      placement="bottom"
+                    >
+                      <InfoOutlined
+                        style={{
+                          fontSize: "1.3rem",
+                          marginLeft: "0.5rem",
+                        }}
+                      />
+                    </Tooltip>
+                  </DialogTitle>
                   <DialogContent>
                     <HermesForm
                       obj_id={source.id}

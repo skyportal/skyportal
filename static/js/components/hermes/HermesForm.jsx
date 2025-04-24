@@ -88,24 +88,15 @@ const HermesForm = ({ obj_id, submitCallback }) => {
 
   useEffect(() => {
     const getTNSRobots = async () => {
-      // Wait for the TNS robots to update before setting
-      // the new default form fields, so that the TNS robots list can
-      // update
-
       const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
-
       const { data } = result;
       setSelectedTNSRobotId(data[0]?.id);
     };
-    if (!tnsrobotList || tnsrobotList.length === 0) {
+    if (tnsrobotList === null) {
       getTNSRobots();
-    } else if (!selectedTNSRobotId && tnsrobotList?.length > 0) {
+    } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
       setSelectedTNSRobotId(tnsrobotList[0]?.id);
     }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
 
   useEffect(() => {
@@ -117,7 +108,7 @@ const HermesForm = ({ obj_id, submitCallback }) => {
       setDataFetched(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataFetched, dispatch]);
+  }, [dispatch, dataFetched]);
 
   useEffect(() => {
     if (
@@ -201,7 +192,7 @@ const HermesForm = ({ obj_id, submitCallback }) => {
     dispatch(sourceActions.addSourceHermes(obj_id, formData)).then((result) => {
       setSubmissionRequestInProcess(false);
       if (result.status === "success") {
-        dispatch(showNotification(`added to Hermes`));
+        dispatch(showNotification(`Sent to Hermes`));
         if (submitCallback) {
           submitCallback();
         }
@@ -318,23 +309,25 @@ const HermesForm = ({ obj_id, submitCallback }) => {
           </MenuItem>
         ))}
       </Select>
-      {allowedInstruments.length === 0 ? (
-        <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
-      ) : (
-        <div>
-          {defaultReporterString ? (
-            <Form
-              schema={formSchema}
-              validator={validator}
-              onSubmit={handleSubmit}
-              disabled={submissionRequestInProcess}
-              liveValidate
-            />
-          ) : (
-            <h3>Loading...</h3>
-          )}
-        </div>
-      )}
+      {selectedTNSRobotId &&
+        tnsrobotList &&
+        (allowedInstruments.length === 0 ? (
+          <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
+        ) : (
+          <div>
+            {defaultReporterString ? (
+              <Form
+                schema={formSchema}
+                validator={validator}
+                onSubmit={handleSubmit}
+                disabled={submissionRequestInProcess}
+                liveValidate
+              />
+            ) : (
+              <h3>Loading...</h3>
+            )}
+          </div>
+        ))}
     </div>
   );
 };

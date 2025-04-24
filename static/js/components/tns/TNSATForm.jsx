@@ -89,24 +89,16 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
 
   useEffect(() => {
     const getTNSRobots = async () => {
-      // Wait for the TNS robots to update before setting
-      // the new default form fields, so that the TNS robots list can
-      // update
-
       const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
 
       const { data } = result;
       setSelectedTNSRobotId(data[0]?.id);
     };
-    if (tnsrobotList?.length === 0 && !tnsrobotList) {
+    if (tnsrobotList === null) {
       getTNSRobots();
     } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
       setSelectedTNSRobotId(tnsrobotList[0]?.id);
     }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
 
   useEffect(() => {
@@ -410,24 +402,26 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
           </MenuItem>
         ))}
       </Select>
-      {allowedInstruments.length === 0 ? (
-        <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
-      ) : (
-        <div data-testid="tnsrobot-form">
-          {defaultReporterString ? (
-            <Form
-              schema={formSchema}
-              validator={validator}
-              onSubmit={handleSubmit}
-              disabled={submissionRequestInProcess}
-              customValidate={validate}
-              liveValidate
-            />
-          ) : (
-            <h3>Loading...</h3>
-          )}
-        </div>
-      )}
+      {selectedTNSRobotId &&
+        tnsrobotList &&
+        (allowedInstruments.length === 0 ? (
+          <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
+        ) : (
+          <div data-testid="tnsrobot-form">
+            {defaultReporterString ? (
+              <Form
+                schema={formSchema}
+                validator={validator}
+                onSubmit={handleSubmit}
+                disabled={submissionRequestInProcess}
+                customValidate={validate}
+                liveValidate
+              />
+            ) : (
+              <h3>Loading...</h3>
+            )}
+          </div>
+        ))}
     </div>
   );
 };
