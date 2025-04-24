@@ -84,11 +84,13 @@ class MMIRSAPI(FollowUpAPI):
                 "readtab": payload.get("read_tab"),
                 "slitwidth": payload.get("slit_width"),
                 "slitwidthproperty": payload.get("slit_width_property"),
+                "maskid": 111,
             }
         else:
             specific_payload = {
                 "dithersize": payload.get("dither_size"),
                 "readtab": payload.get("read_tab"),
+                "maskid": 110,
             }
 
         submit_mmt_request(session, request, specific_payload, 15, log, **kwargs)
