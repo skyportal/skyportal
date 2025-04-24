@@ -25,3 +25,15 @@ def get_page_and_n_per_page(page_number, n_per_page, n_per_page_max=500):
     except ValueError:
         raise ValueError("Invalid numPerPage value.")
     return page_number, min(n_per_page, n_per_page_max)
+
+
+def bool_to_int(value):
+    """
+    Convert a boolean value to an integer
+    """
+    if isinstance(value, bool):
+        if value is True:
+            return 1
+        else:
+            return 0
+    raise ValueError(f"Invalid boolean value: {value}")

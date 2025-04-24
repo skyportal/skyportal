@@ -85,18 +85,6 @@ def check_obj_for_mmt(obj):
         raise ValueError("Missing the 'magnitude' value on the object")
 
 
-def bool_to_int(value):
-    """
-    Convert a boolean value to an integer
-    """
-    if isinstance(value, bool):
-        if value is True:
-            return 1
-        else:
-            return 0
-    raise ValueError(f"Invalid boolean value: {value}")
-
-
 def get_mmt_json_payload(obj, altdata, payload):
     """
     Get the JSON payload common to all MMT instruments
