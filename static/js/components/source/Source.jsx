@@ -980,7 +980,6 @@ const SourceContent = ({ source }) => {
                     onClick={() => {
                       setTNSDialogOpen(true);
                       setAnchorElSendTo(null);
-                      console.log("TNS clicked");
                     }}
                   >
                     TNS
@@ -989,7 +988,6 @@ const SourceContent = ({ source }) => {
                     onClick={() => {
                       setHermesDialogOpen(true);
                       setAnchorElSendTo(null);
-                      console.log("Hermes clicked");
                     }}
                   >
                     Hermes
