@@ -158,13 +158,13 @@ export const useSourceListStyles = makeStyles((theme) => ({
 }));
 
 const defaultPrefs = {
-  maxNumSources: "5",
+  maxNumSources: "25",
+  groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
 };
 
 function containsSpecialCharacters(str) {
-  /* eslint-disable-next-line no-useless-escape */
   const regex = /[ !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
   return regex.test(str);
 }
@@ -229,7 +229,6 @@ const RecentSourcesSearchbar = ({ styles }) => {
         popupIcon={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             variant="outlined"
             placeholder="Source"
