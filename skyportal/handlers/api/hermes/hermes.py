@@ -53,6 +53,24 @@ def create_payload_and_header(obj, photometry, data):
         "Content-Type": "application/json",
     }
 
+    payload_photometry = []
+    for p in photometry:
+        p_dict = p.to_dict_public()
+        payload_photometry.append(
+            {
+                "target_name": obj.id,
+                "date_obs": p.jd,
+                "telescope": p.instrument.telescope.name,
+                "instrument": p_dict.get("instrument_name"),
+                "bandpass": p_dict.get("filter"),
+                "brightness": p_dict.get("mag"),
+                "brightness_error": p_dict["magerr"],
+                "unit": "AB mag",
+                "limiting_brightness": p_dict.get("limiting_mag"),
+                "limiting_brightness_unit": "AB mag",
+            }
+        )
+
     payload = {
         "topic": cfg["app.hermes.topic"],
         "title": data["title"],
@@ -65,28 +83,7 @@ def create_payload_and_header(obj, photometry, data):
                     "dec": obj.dec,
                 }
             ],
-            "photometry": [
-                {
-                    "target_name": obj.id,
-                    "date_obs": p.jd,
-                    "telescope": p.instrument.telescope.name,
-                    "instrument": p.instrument.name,
-                    "bandpass": p.filter,
-                    "brightness": p.mag,
-                    **({"brightness_error": p.e_mag} if p.e_mag else {}),
-                    "unit": "AB mag",
-                    **(
-                        {
-                            "limiting_brightness": p.original_user_data["limiting_mag"],
-                            "limiting_brightness_unit": "AB mag",
-                        }
-                        if p.original_user_data
-                        and "limiting_mag" in p.original_user_data
-                        else {}
-                    ),
-                }
-                for p in photometry
-            ],
+            "photometry": payload_photometry,
         },
     }
 
