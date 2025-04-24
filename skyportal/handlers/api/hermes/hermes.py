@@ -215,17 +215,13 @@ class HermesHandler(BaseHandler):
             if tns_robot is None:
                 return self.error(f"TNSRobot {tns_robot_id} not found")
             if tns_robot.testing:
-                try:
-                    flow = Flow()
-                    flow.push(
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": "Payload validated successfully (testing mode, not sent to Hermes)",
-                            "type": "info",
-                        },
-                    )
-                except Exception:
-                    pass
+                self.push(
+                    action="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": "Payload validated successfully (testing mode, not sent to Hermes)",
+                        "type": "info",
+                    },
+                )
                 return self.success()
 
             response = requests.post(
