@@ -14,6 +14,14 @@ from .mmt_utils import (
 
 log = make_log("facility_apis/mmt/binospec")
 
+slit_width_to_mask_id = {
+    "Longslit0_75": 113,
+    "Longslit1": 111,
+    "Longslit1_25": 131,
+    "Longslit1_5": 114,
+    "Longslit5": 112,
+}
+
 
 def check_request(request):
     """
@@ -63,17 +71,9 @@ def check_request(request):
             "Longslit5",
         ]:
             raise ValueError("A valid slit width must be provided")
-        if payload.get("nb_visits_per_night") not in (0, 1):
-            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filters") not in ["LP3800", "LP3500"]:
             raise ValueError("A valid filter must be provided")
     else:
-        if payload.get("maskid") is None:
-            raise ValueError("A valid mask id must be provided")
-        if payload.get("exposure_time") is None:
-            raise ValueError("A valid exposure time must be provided")
-        if payload.get("nb_visits_per_night") not in (0, 1):
-            raise ValueError("A valid number of visits per night must be provided")
         if payload.get("filters") not in ["g", "r", "i", "z"]:
             raise ValueError("A valid filter must be provided")
 
@@ -104,12 +104,10 @@ class BINOSPECAPI(FollowUpAPI):
                 "grating": payload.get("grating"),
                 "centralwavelength": payload.get("central_wavelength"),
                 "slitwidth": payload.get("slit_width"),
+                "maskid": slit_width_to_mask_id.get(payload.get("slit_width")),
             }
         else:
-            specific_payload = {
-                "maskid": payload.get("maskid"),
-                "exposuretime": payload.get("exposure_time"),
-            }
+            specific_payload = {"filters": payload.get("filters"), "maskid": 110}
 
         submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
 
@@ -121,17 +119,6 @@ class BINOSPECAPI(FollowUpAPI):
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {
             "properties": {
-                "maskid": {"type": "integer", "title": "Mask ID", "default": 110},
-                "exposure_time": {
-                    "type": "number",
-                    "title": "Exposure Time (s)",
-                },
-                "nb_visits_per_night": {
-                    "type": "integer",
-                    "title": "Number of Visits per Night",
-                    "enum": [0, 1],
-                    "default": 0,
-                },
                 "filters": {
                     "type": "string",
                     "title": "Filter",
@@ -139,9 +126,6 @@ class BINOSPECAPI(FollowUpAPI):
                 },
             },
             "required": [
-                "observation_type",
-                "exposure_time",
-                "nb_visits_per_night",
                 "filters",
             ],
         }
@@ -158,13 +142,7 @@ class BINOSPECAPI(FollowUpAPI):
                         "Longslit1_5",
                         "Longslit5",
                     ],
-                    "default": "Longslit0_75",
-                },
-                "nb_visits_per_night": {
-                    "type": "integer",
-                    "title": "Number of Visits per Night",
-                    "enum": [0, 1],
-                    "default": 1,
+                    "default": "Longslit1",
                 },
                 "filters": {
                     "type": "string",
@@ -176,14 +154,13 @@ class BINOSPECAPI(FollowUpAPI):
                     "type": "integer",
                     "title": "Grating",
                     "enum": [270, 600, 1000],
+                    "default": 270,
                 },
             },
             "required": [
-                "observation_type",
                 "slit_width",
                 "grating",
                 "central_wavelength",
-                "nb_visits_per_night",
                 "filters",
             ],
             "dependencies": {
@@ -198,6 +175,7 @@ class BINOSPECAPI(FollowUpAPI):
                                     "title": "Central Wavelength",
                                     "minimum": 5501,
                                     "maximum": 7838,
+                                    "default": 6500,
                                 },
                             },
                         },
@@ -210,6 +188,7 @@ class BINOSPECAPI(FollowUpAPI):
                                     "title": "Central Wavelength",
                                     "minimum": 5146,
                                     "maximum": 8783,
+                                    "default": 6500,
                                 },
                             },
                         },
@@ -222,64 +201,11 @@ class BINOSPECAPI(FollowUpAPI):
                                     "description": "Enter a value in one of these ranges: 4108-4683, 5181-7273, 7363-7967, 8153-8772, 8897-9279",
                                     "minimum": 4108,
                                     "maximum": 9279,
+                                    "default": 6500,
                                 },
                             },
                         },
                     ]
-                },
-                "slit_width": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit0_75"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 113,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 111,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1_25"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 131,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit1_5"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 114,
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "slit_width": {"enum": ["Longslit5"]},
-                                "maskid": {
-                                    "type": "integer",
-                                    "title": "Mask ID",
-                                    "default": 112,
-                                },
-                            },
-                        },
-                    ],
                 },
             },
         }
@@ -294,10 +220,10 @@ class BINOSPECAPI(FollowUpAPI):
             ]
             + mmt_required,
             "if": {
-                "properties": {"observation_type": {"const": "Imaging"}},
+                "properties": {"observation_type": {"const": "Spectroscopy"}},
             },
-            "then": imager_schema,
-            "else": spectroscopy_schema,
+            "then": spectroscopy_schema,
+            "else": imager_schema,
         }
 
     ui_json_schema = {}
