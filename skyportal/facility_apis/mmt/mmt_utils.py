@@ -7,6 +7,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from skyportal.utils import http
 from skyportal.utils.calculations import deg2dms, deg2hms
+from skyportal.utils.parse import bool_to_int
 
 env, cfg = load_env()
 
