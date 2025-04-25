@@ -206,6 +206,10 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  tooltipLink: {
+    textDecoration: "none",
+    color: theme.palette.secondary.dark,
+  },
 }));
 
 const SourceContent = ({ source }) => {
@@ -1024,6 +1028,7 @@ const SourceContent = ({ source }) => {
                             href="https://hermes.lco.global/about"
                             target="_blank"
                             rel="noopener noreferrer"
+                            className={classes.tooltipLink}
                           >
                             here
                           </a>{" "}
