@@ -83,6 +83,7 @@ def create_tns_robot(
             group_id=owner_group_id,
             owner=True,
             auto_report=False,
+            auto_report_allow_bots=False,
         )
         for owner_group_id in owner_group_ids
     ]
