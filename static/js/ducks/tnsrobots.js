@@ -26,7 +26,6 @@ const DELETE_TNSROBOT_COAUTHOR = "skyportal/DELETE_TNSROBOT_COAUTHOR";
 const FETCH_TNSROBOT_SUBMISSIONS = "skyportal/FETCH_TNSROBOT_SUBMISSIONS";
 const FETCH_TNSROBOT_SUBMISSIONS_OK = "skyportal/FETCH_TNSROBOT_SUBMISSIONS_OK";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchTNSRobots = (params = {}) =>
   API.GET("/api/tns_robot", FETCH_TNSROBOTS, params);
 
@@ -109,7 +108,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { tnsrobotList: [], submissions: {} }, action) => {
+const reducer = (state = { tnsrobotList: null, submissions: {} }, action) => {
   switch (action.type) {
     case FETCH_TNSROBOTS_OK: {
       const tnsrobotList = action.data;

@@ -23,6 +23,7 @@ import DialogContent from "@mui/material/DialogContent";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Paper from "@mui/material/Paper";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
@@ -67,6 +68,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "../tns/TNSATForm";
+import HermesForm from "../hermes/HermesForm";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
@@ -161,10 +163,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     height: "100%",
     paddingBottom: "0.75rem",
   },
-  smallPlot: {
-    width: "350px",
-    overflow: "auto",
-  },
   panelButton: {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
@@ -172,15 +170,6 @@ export const useSourceStyles = makeStyles((theme) => ({
       color: theme.palette.primary.main,
     },
   },
-  thumbnailGridDialog: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "1rem",
-  },
-  comments: {
-    width: "100%",
-  },
-  hr_diagram: {},
   container: {
     display: "flex",
     justifyContent: "space-between",
@@ -193,7 +182,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   infoLine: {
-    // Get it's own line
+    // Get its own line
     flexBasis: "100%",
     display: "flex",
     flexFlow: "row wrap",
@@ -217,6 +206,10 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  tooltipLink: {
+    textDecoration: "none",
+    color: theme.palette.secondary.dark,
+  },
 }));
 
 const SourceContent = ({ source }) => {
@@ -239,14 +232,16 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
+  const [hermesDialogOpen, setHermesDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
-  const [anchorElFindingChart, setAnchorElFindingChart] = React.useState(null);
-  const [anchorElObservability, setAnchorElObservability] =
-    React.useState(null);
+  const [anchorElFindingChart, setAnchorElFindingChart] = useState(null);
+  const [anchorElObservability, setAnchorElObservability] = useState(null);
+  const [anchorElSendTo, setAnchorElSendTo] = useState(null);
   const openFindingChart = Boolean(anchorElFindingChart);
   const openObservability = Boolean(anchorElObservability);
+  const openSendTo = Boolean(anchorElSendTo);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -512,10 +507,7 @@ const SourceContent = ({ source }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div
-              className={classes.hr_diagram}
-              data-testid={`hr_diagram_${source.id}`}
-            >
+            <div data-testid={`hr_diagram_${source.id}`}>
               {source.color_magnitude?.length > 0 ? (
                 <Suspense
                   fallback={
@@ -969,25 +961,94 @@ const SourceContent = ({ source }) => {
               </div>
               <div className={classes.infoButton}>
                 <Button
+                  aria-controls={openSendTo ? "basic-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={openSendTo ? "true" : undefined}
+                  onClick={(e) => setAnchorElSendTo(e.currentTarget)}
                   secondary
                   size="small"
-                  data-testid={`tnsSubmissionForm_${source.id}`}
-                  onClick={() => {
-                    setTNSDialogOpen(true);
+                >
+                  Send to
+                </Button>
+                <Menu
+                  transitionDuration={50}
+                  id="send-to-menu"
+                  anchorEl={anchorElSendTo}
+                  open={openSendTo}
+                  onClose={() => setAnchorElSendTo(null)}
+                  MenuListProps={{
+                    "aria-labelledby": "basic-button",
                   }}
                 >
-                  Submit to TNS
-                </Button>
+                  <MenuItem
+                    onClick={() => {
+                      setTNSDialogOpen(true);
+                      setAnchorElSendTo(null);
+                    }}
+                  >
+                    TNS
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setHermesDialogOpen(true);
+                      setAnchorElSendTo(null);
+                    }}
+                  >
+                    Hermes
+                  </MenuItem>
+                </Menu>
                 <Dialog
                   open={tnsDialogOpen}
                   onClose={() => setTNSDialogOpen(false)}
                   style={{ position: "fixed" }}
                 >
-                  <DialogTitle>Submit to TNS</DialogTitle>
+                  <DialogTitle>Send to TNS</DialogTitle>
                   <DialogContent>
                     <TNSATForm
                       obj_id={source.id}
                       submitCallback={() => setTNSDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+                <Dialog
+                  open={hermesDialogOpen}
+                  onClose={() => setHermesDialogOpen(false)}
+                  style={{ position: "fixed" }}
+                >
+                  <DialogTitle
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    Send to Hermes
+                    <Tooltip
+                      title={
+                        <h2>
+                          HERMES is a Message Exchange Service for
+                          Multi-Messenger Astronomy. Click{" "}
+                          <a
+                            href="https://hermes.lco.global/about"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={classes.tooltipLink}
+                          >
+                            here
+                          </a>{" "}
+                          for more information.
+                        </h2>
+                      }
+                      placement="bottom"
+                    >
+                      <InfoOutlined
+                        style={{
+                          fontSize: "1.3rem",
+                          marginLeft: "0.5rem",
+                        }}
+                      />
+                    </Tooltip>
+                  </DialogTitle>
+                  <DialogContent>
+                    <HermesForm
+                      obj_id={source.id}
+                      submitCallback={() => setHermesDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>
