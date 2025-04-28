@@ -858,7 +858,6 @@ const TNSRobotsPage = () => {
     };
 
     if (api_key?.length > 0) {
-      // eslint-disable-next-line no-underscore-dangle
       data._altdata = {
         api_key,
       };

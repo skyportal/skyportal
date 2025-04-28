@@ -9,6 +9,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PropTypes from "prop-types";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -16,6 +20,7 @@ import * as allocationActions from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
+import Button from "../Button";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
@@ -55,6 +60,8 @@ const FollowupRequestForm = ({
     useState(defaultAllocationId);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const [requestData, setRequestData] = useState(null);
 
   const [filteredAllocationList, setFilteredAllocationList] = useState([]);
   const [settingFilteredList, setSettingFilteredList] = useState(false);
@@ -224,7 +231,7 @@ const FollowupRequestForm = ({
     }
   };
 
-  const handleSubmit = async ({ formData }) => {
+  const submitFollowupRequest = async (formData) => {
     setIsSubmitting(true);
     const json = {
       obj_id,
@@ -244,6 +251,22 @@ const FollowupRequestForm = ({
         }
       },
     );
+    setIsSubmitting(false);
+  };
+
+  const handleSubmit = async ({ formData }) => {
+    // if the method does not implement a delete, show a confirmation dialog
+    let allocation = allocationLookUp[selectedAllocationId];
+    let instrument_id = allocation.instrument_id;
+    const implementsDelete =
+      instrumentFormParams[instrument_id].methodsImplemented.delete;
+    if (!implementsDelete) {
+      setRequestData(formData);
+      setShowConfirmationDialog(true);
+      return;
+    }
+
+    submitFollowupRequest(formData);
   };
 
   const validate = (formData, errors) => {
@@ -380,6 +403,40 @@ const FollowupRequestForm = ({
             <CircularProgress />
           </div>
         )}
+        <Dialog
+          open={showConfirmationDialog}
+          onClose={() => setShowConfirmationDialog(false)}
+          aria-labelledby="alert-dialog-title"
+          aria-describedby="alert-dialog-description"
+          maxWidth="sm"
+        >
+          <DialogTitle id="alert-dialog-title">
+            {`Are you sure you want to submit this request?`}
+          </DialogTitle>
+          <DialogContent>
+            {`This instrument's API does not implement a delete method, so you
+            will not be able to delete this request once it is submitted.`}
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                submitFollowupRequest(requestData);
+                setShowConfirmationDialog(false);
+                setRequestData(null);
+              }}
+            >
+              Confirm
+            </Button>
+            <Button
+              onClick={() => {
+                setShowConfirmationDialog(false);
+                setRequestData(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );

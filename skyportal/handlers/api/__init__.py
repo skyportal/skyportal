@@ -98,6 +98,7 @@ from .group import (
 )
 from .group_admission_request import GroupAdmissionRequestHandler
 from .healpix import HealpixUpdateHandler
+from .hermes.hermes import HermesHandler
 from .instrument import InstrumentFieldHandler, InstrumentHandler
 from .instrument_log import (
     InstrumentLogExternalAPIHandler,
@@ -201,16 +202,13 @@ from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
-from .tns import (
-    BulkTNSHandler,
-    ObjTNSHandler,
-    SpectrumTNSHandler,
-    TNSRobotCoauthorHandler,
-    TNSRobotGroupAutoreporterHandler,
-    TNSRobotGroupHandler,
-    TNSRobotHandler,
-    TNSRobotSubmissionHandler,
-)
+from .tns.obj_tns import ObjTNSHandler
+from .tns.spectrum_tns import SpectrumTNSHandler
+from .tns.tns_robot import TNSRobotHandler
+from .tns.tns_robot_coauthor import TNSRobotCoauthorHandler
+from .tns.tns_robot_group import TNSRobotGroupHandler
+from .tns.tns_robot_group_autoreporter import TNSRobotGroupAutoreporterHandler
+from .tns.tns_robot_submission import TNSRobotSubmissionHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,

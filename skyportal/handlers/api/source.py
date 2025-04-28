@@ -86,6 +86,7 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
+from ...utils.parse import get_list_typed
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
@@ -1922,12 +1923,11 @@ class SourceHandler(BaseHandler):
         # parse the group ids:
         group_ids = self.get_query_argument("group_ids", None)
         if group_ids is not None:
-            try:
-                group_ids = [int(gid) for gid in group_ids.split(",")]
-            except ValueError:
-                return self.error(
-                    f"Invalid group ids field ({group_ids}; Could not parse all elements to integers"
-                )
+            group_ids = get_list_typed(
+                group_ids,
+                int,
+                f"Invalid group_ids field ({group_ids}; Could not parse all elements to integers",
+            )
 
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
 
