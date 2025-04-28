@@ -1490,13 +1490,6 @@ class PhotometryHandler(BaseHandler):
                         f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
                     )
                 )
-                new_photometry_query = session.execute(
-                    sa.select(values_table.c.pdidx)
-                    .outerjoin(Photometry, condition)
-                    .filter(Photometry.id.is_(None))
-                )
-
-                new_photometry_df_idxs = [g[0] for g in new_photometry_query]
 
                 duplicated_photometry = (
                     session.execute(
@@ -1508,6 +1501,16 @@ class PhotometryHandler(BaseHandler):
                     .unique()
                     .all()
                 )
+
+                duplicated_photometry_pdidx = {g[0] for g in duplicated_photometry}
+                if len(duplicated_photometry_pdidx) > 0:
+                    new_photometry_df_idxs = [
+                        i
+                        for i in list(df.index)
+                        if i not in duplicated_photometry_pdidx
+                    ]
+                else:
+                    new_photometry_df_idxs = list(df.index)
 
                 id_map = {}
 
