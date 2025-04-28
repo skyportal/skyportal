@@ -17,6 +17,7 @@ from ...utils.offset import (
     get_finding_chart,
     source_image_parameters,
 )
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -224,7 +225,7 @@ class UnsourcedFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         if isinstance(use_ztfref, str):
-            use_ztfref = use_ztfref in ["t", "True", "true", "yes", "y"]
+            use_ztfref = str_to_bool(use_ztfref, default=False)
 
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")
         try:
