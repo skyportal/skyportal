@@ -32,12 +32,21 @@ def create_scan_report_item(session, report, sources_by_obj):
     obj = session.scalar(
         Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
     )
-    current_mag = obj.photstats[0].last_detected_mag if obj.photstats else None
-    current_age = (
-        (Time.now().mjd - obj.photstats[0].first_detected_mjd)
-        if obj.photstats
-        else None
-    )
+
+    if obj.photstats:
+        current_mag = obj.photstats[0].last_detected_mag
+        current_age = Time.now().mjd - obj.photstats[0].first_detected_mjd
+        if obj.redshift:
+            abs_mag_and_filter = {
+                "abs_mag": current_mag - obj.dm,
+                "filter": obj.photstats[0].last_detected_filter,
+            }
+        else:
+            abs_mag_and_filter = None
+    else:
+        current_mag = None
+        current_age = None
+        abs_mag_and_filter = None
 
     sources = session.scalars(
         Source.select(session.user_or_token, mode="read").where(
@@ -92,6 +101,7 @@ def create_scan_report_item(session, report, sources_by_obj):
             "host_redshift": obj.redshift,
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
+            "abs_mag_and_filter": abs_mag_and_filter,
             "classifications": classifications,
             "saved_info": saved_info,
             "followups": followups,
