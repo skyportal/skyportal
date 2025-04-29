@@ -1369,6 +1369,11 @@ def add_tiles(
         session.commit()
 
         log(f"Successfully generated fields for instrument {instrument_id}")
+
+        # PostgreSQL has a tendency of generating really suboptimal query plans
+        # for some queries involving instrumentfieldtiles, after inserting new tiles.
+        # for a new instrument. So, we need to run a VACUUM ANALYZE command.
+        session.execute(sa.text("VACUUM ANALYZE instrumentfieldtiles"))
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
