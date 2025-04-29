@@ -174,7 +174,6 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                       <Chip
                         label={`${followup.instrument}: ${followup.priority}`}
                         size="small"
-                        key={index}
                       />
                     </Tooltip>
                   ))}
