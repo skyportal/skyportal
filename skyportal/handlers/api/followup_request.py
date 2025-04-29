@@ -63,7 +63,7 @@ from ...models import (
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
-from ...utils.parse import get_list_typed, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ..base import BaseHandler
 
 log = make_log("api/followup_request")
@@ -1679,7 +1679,7 @@ def observation_schedule(
             exposure_counts = 1
 
         if "too" in payload:
-            too = payload["too"] in ["Y", "Yes", "True", "t", "true", "1", True, 1]
+            too = str_to_bool(payload["too"], default=False)
         else:
             too = False
 
