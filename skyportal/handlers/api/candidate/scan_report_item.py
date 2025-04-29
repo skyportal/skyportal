@@ -36,9 +36,10 @@ def create_scan_report_item(session, report, sources_by_obj):
     if obj.photstats:
         current_mag = obj.photstats[0].last_detected_mag
         current_age = Time.now().mjd - obj.photstats[0].first_detected_mjd
-        if obj.redshift and obj.dm:
+        dm = obj.dm
+        if dm:
             abs_mag_and_filter = {
-                "abs_mag": current_mag - obj.dm,
+                "abs_mag": current_mag - dm,
                 "filter": obj.photstats[0].last_detected_filter,
             }
         else:
