@@ -23,17 +23,8 @@ export function addObjectTag(data) {
 }
 
 export function deleteObjectTag(data) {
-  return API.DELETE("/api/objtag", DELETE_OBJECT_TAG, data);
+  return API.DELETE(`/api/objtag/${data.id}`, DELETE_OBJECT_TAG, data);
 }
-
-messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === "skyportal/REFRESH_OBJECT_TAGS") {
-    const objectId = payload?.objectId;
-    if (objectId) {
-      dispatch(fetchObjectTags(objectId));
-    }
-  }
-});
 
 const reducer = (state = null, action) => {
   switch (action.type) {

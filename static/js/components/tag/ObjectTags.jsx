@@ -52,18 +52,20 @@ const useStyles = makeStyles(() => ({
 const ObjectTags = ({ source }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  
+
   // const tagOptions = useSelector((state) => state.objectTags || []);
   const deleteTag = (association_id) => {
-    dispatch(objectTagsActions.deleteObjectTag(association_id)).then(
+    dispatch(objectTagsActions.deleteObjectTag({ id: association_id })).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Source Tag deleted"));
+        } else {
+          dispatch(showNotification("Failed to delete tag", "error"));
         }
       },
     );
   };
-  
+
   return (
     <div className={styles.root}>
       <div className={styles.chips}>
@@ -76,7 +78,6 @@ const ObjectTags = ({ source }) => {
             onDelete={() => deleteTag(tag.id)}
           />
         ))}
-      
       </div>
     </div>
   );
@@ -84,10 +85,12 @@ const ObjectTags = ({ source }) => {
 
 ObjectTags.propTypes = {
   source: PropTypes.shape({
-    tags: PropTypes.arrayOf(PropTypes.shape({
-      id: PropTypes.number,
-      text: PropTypes.string
-    })),
+    tags: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        text: PropTypes.string,
+      }),
+    ),
   }).isRequired,
 };
 
