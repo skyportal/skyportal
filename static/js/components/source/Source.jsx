@@ -74,6 +74,8 @@ import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
 
+import ObjectTags from "../tag/ObjectTags";
+import * as objectTagsActions from "../../ducks/objectTags";
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
@@ -85,14 +87,14 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
-const CommentListMobile = React.lazy(
-  () => import("../comment/CommentListMobile"),
+const CommentListMobile = React.lazy(() =>
+  import("../comment/CommentListMobile")
 );
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
-const CentroidPlot = React.lazy(
-  () => import(/* webpackChunkName: "CentroidPlot" */ "../plot/CentroidPlot"),
+const CentroidPlot = React.lazy(() =>
+  import(/* webpackChunkName: "CentroidPlot" */ "../plot/CentroidPlot")
 );
 
 export const useSourceStyles = makeStyles((theme) => ({
@@ -225,13 +227,13 @@ const SourceContent = ({ source }) => {
 
   const currentUser = useSelector((state) => state.profile);
   const groups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group,
+    (g) => !g.single_user_group
   );
   const spectra = useSelector((state) => state.spectra)[source.id];
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
 
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments,
+    (state) => state.instruments
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
@@ -273,7 +275,7 @@ const SourceContent = ({ source }) => {
     source.summary_history?.length < 1 ||
     !source.summary_history ||
     source.summary_history.filter(
-      (summary) => summary.summary !== null && summary.summary.trim() !== "",
+      (summary) => summary.summary !== null && summary.summary.trim() !== ""
     )?.length < 1;
 
   const noHumanSummary =
@@ -285,7 +287,7 @@ const SourceContent = ({ source }) => {
       (summary) =>
         summary.summary !== null &&
         summary.summary.trim() !== "" &&
-        summary.is_bot === false,
+        summary.is_bot === false
     )?.length < 1;
 
   // associatedGCNs is an array of dateobs
@@ -606,16 +608,19 @@ const SourceContent = ({ source }) => {
       >
         <Grid item xs={12} order={{ xs: 1, md: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
-            <div className={classes.container}>
-              <div className={classes.header}>
-                <FavoritesButton sourceID={source.id} />
+            <div className={classes.header}>
+              <FavoritesButton sourceID={source.id} />
+              <div>
                 <h6 className={classes.name}>{source.id}</h6>
-                <div className={classes.sourceCandidates}>
-                  <SourceCandidatesHistory
-                    candidates={source?.candidates || []}
-                  />
-                </div>
+                <ObjectTags source={source} />
               </div>
+              <div className={classes.sourceCandidates}>
+                <SourceCandidatesHistory
+                  candidates={source?.candidates || []}
+                />
+              </div>
+            </div>
+
               {!downLg && (
                 <div className={classes.container}>
                   <IconButton
@@ -635,7 +640,7 @@ const SourceContent = ({ source }) => {
                   </IconButton>
                 </div>
               )}
-            </div>
+            </Paper>
             <div style={{ marginBottom: "0.25rem" }}>
               <ShowClassification
                 classifications={source.classifications}
@@ -659,7 +664,7 @@ const SourceContent = ({ source }) => {
                 {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
                 {source.redshift_error &&
                   source.redshift_error.toFixed(
-                    getZRound(source.redshift_error),
+                    getZRound(source.redshift_error)
                   )}
                 <UpdateSourceRedshift source={source} />
                 <SourceRedshiftHistory
@@ -813,7 +818,7 @@ const SourceContent = ({ source }) => {
                               {galaxyName}
                             </Button>
                           </div>
-                        ),
+                        )
                     )}
                   </div>
                 </div>
@@ -1135,7 +1140,6 @@ const SourceContent = ({ source }) => {
                   alreadySavedGroups={source.groups?.map((g) => g.id)}
                 />
               </div>
-            </div>
             {showStarList && (
               <div style={{ paddingTop: "0.5rem" }}>
                 <StarList sourceId={source.id} />
@@ -1151,7 +1155,7 @@ const SourceContent = ({ source }) => {
                 downLarge={downLg}
               />
             </div>
-          </Paper>
+          </div>
         </Grid>
         <Grid item xs={12} order={{ xs: 2, md: 2, lg: 2 }}>
           <Paper>
@@ -1460,7 +1464,7 @@ SourceContent.propTypes = {
     summary_history: PropTypes.arrayOf(
       PropTypes.shape({
         summary: PropTypes.string,
-      }),
+      })
     ),
     comments: PropTypes.arrayOf(PropTypes.shape({})),
     groups: PropTypes.arrayOf(PropTypes.shape({})),
@@ -1476,7 +1480,7 @@ SourceContent.propTypes = {
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
         data: PropTypes.object.isRequired,
-      }),
+      })
     ),
     host: PropTypes.shape({
       catalog_name: PropTypes.string,
@@ -1518,7 +1522,7 @@ SourceContent.propTypes = {
         b2a: PropTypes.number,
         pa: PropTypes.number,
         btc: PropTypes.number,
-      }),
+      })
     ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1531,7 +1535,7 @@ SourceContent.propTypes = {
         author_id: PropTypes.number,
         taxonomy_id: PropTypes.number,
         created_at: PropTypes.string,
-      }),
+      })
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
@@ -1541,7 +1545,7 @@ SourceContent.propTypes = {
         abs_mag: PropTypes.number,
         color: PropTypes.number,
         origin: PropTypes.string,
-      }),
+      })
     ),
     duplicates: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1549,7 +1553,7 @@ SourceContent.propTypes = {
         ra: PropTypes.number,
         dec: PropTypes.number,
         separation: PropTypes.number,
-      }),
+      })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
@@ -1558,7 +1562,7 @@ SourceContent.propTypes = {
         dateobs: PropTypes.string,
         explanation: PropTypes.string,
         notes: PropTypes.string,
-      }),
+      })
     ),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
