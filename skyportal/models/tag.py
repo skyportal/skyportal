@@ -21,7 +21,7 @@ ObjTag = join_model("obj_tag", Obj, ObjTagOption)
 
 ObjTag.author_id = sa.Column(
     "author_id",
-    sa.ForeignKey("users.id", ondelete="SET NULL"),
+    sa.ForeignKey("users.id", ondelete="CASCADE"),
     nullable=False,
     doc="ID of the user who created the tag association",
 )
