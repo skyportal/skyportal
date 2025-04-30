@@ -10,13 +10,14 @@ from baselayer.log import make_log
 from skyportal.models.group import Group
 
 from ....models import Obj, Source
+from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
 
 # maxNumSources is the maximum number of sources to return
 # includeSitewide is a boolean that determines whether to include
 # sources that are only in the sitewide group
-default_prefs = {"maxNumSources": 5, "includeSitewideSources": False}
+default_prefs = {"maxNumSources": 25, "includeSitewideSources": False, "groupIds": []}
 
 env, cfg = load_env()
 log = make_log("api/recent_sources")
@@ -31,14 +32,17 @@ class RecentSourcesHandler(BaseHandler):
 
         max_num_sources = int(recent_sources_prefs["maxNumSources"])
         include_sitewide = recent_sources_prefs.get("includeSitewideSources", False)
-
-        stmt = (
-            Source.select(session.user_or_token)
-            .where(Source.active.is_(True))
-            .order_by(desc(Source.created_at))
-            .distinct(Source.obj_id, Source.created_at)
+        group_ids = get_list_typed(
+            recent_sources_prefs.get("groupIds", []),
+            int,
+            error_msg="Invalid group_ids, must be a list of integers.",
         )
-        if not include_sitewide:
+
+        stmt = Source.select(session.user_or_token).where(Source.active.is_(True))
+
+        if len(group_ids) > 0:
+            stmt = stmt.where(Source.group_id.in_(group_ids))
+        elif not include_sitewide:
             public_group_id = session.scalar(
                 sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
             )
@@ -47,6 +51,10 @@ class RecentSourcesHandler(BaseHandler):
                     f"Could not find public group with name {cfg['misc.public_group_name']}"
                 )
             stmt = stmt.where(Source.group_id != public_group_id)
+
+        stmt = stmt.order_by(desc(Source.created_at)).distinct(
+            Source.obj_id, Source.created_at
+        )
         query_results = session.scalars(stmt.limit(max_num_sources)).all()
         ids = (src.obj_id for src in query_results)
         return ids

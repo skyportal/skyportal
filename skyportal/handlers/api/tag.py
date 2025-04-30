@@ -38,7 +38,7 @@ class ObjTagOptionHandler(BaseHandler):
 
             if existing_tag:
                 return self.error(
-                    f"Tag '{name}' already exists (case-insensitive match)",
+                    f"Tag '{name}' already exists as '{existing_tag.name}' (case-insensitive match)",
                     status=409,
                 )
 
@@ -52,6 +52,11 @@ class ObjTagOptionHandler(BaseHandler):
     def patch(self, tag_id):
         data = self.get_json()
         new_name = data.get("name")
+
+        try:
+            tag_id = int(tag_id)
+        except Exception:
+            raise ValueError("Invalid tag ID")
 
         if not new_name or not isinstance(new_name, str):
             return self.error("`name` must be provided as a non-empty string")
@@ -80,6 +85,11 @@ class ObjTagOptionHandler(BaseHandler):
 
     @auth_or_token
     def delete(self, tag_id):
+        try:
+            tag_id = int(tag_id)
+        except Exception:
+            raise ValueError("Invalid tag ID")
+
         with self.Session() as session:
             tag = session.scalars(
                 ObjTagOption.select(session.user_or_token).where(
@@ -147,10 +157,7 @@ class ObjTagHandler(BaseHandler):
             ).first():
                 return self.error("Specified obj does not exist", status=404)
 
-            if hasattr(self.current_user, "created_by"):
-                author_id = self.current_user.created_by.id
-            else:
-                author_id = self.current_user.id
+            author_id = self.associated_user_object.id
 
             new_assoc = ObjTag(
                 objtagoption_id=objtagoption_id, obj_id=obj_id, author_id=author_id
@@ -161,69 +168,14 @@ class ObjTagHandler(BaseHandler):
             return self.success(new_assoc)
 
     @auth_or_token
-    def patch(self, association_id):
-        """Update an existing tag-obj association"""
-        data = self.get_json()
-        new_tag_id = data.get("objtagoption_id")
-        new_obj_id = data.get("obj_id")
-
-        if hasattr(self.current_user, "created_by"):
-            author_id = self.current_user.created_by.id
-        else:
-            author_id = self.current_user.id
-
-        if not new_tag_id and not new_obj_id:
-            return self.error(
-                "Either `objtagoption_id` or `obj_id` has not been provided for update"
-            )
-
-        with self.Session() as session:
-            assoc = session.scalars(
-                ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)
-            ).first()
-
-            if not assoc:
-                return self.error("Association not found", status=404)
-
-            final_tag_id = (
-                new_tag_id if new_tag_id is not None else assoc.objtagoption_id
-            )
-            final_obj_id = new_obj_id if new_obj_id is not None else assoc.obj_id
-
-            existing = session.scalars(
-                ObjTag.select(session.user_or_token)
-                .where(ObjTag.objtagoption_id == final_tag_id)
-                .where(ObjTag.obj_id == final_obj_id)
-            ).first()
-
-            if existing:
-                return self.error("This tag-obj association already exists", status=409)
-
-            if new_tag_id:
-                # Verify new tag exists
-                if not session.scalars(
-                    ObjTagOption.select(session.user_or_token).where(
-                        ObjTagOption.id == new_tag_id
-                    )
-                ).first():
-                    return self.error("Specified tag does not exist", status=404)
-                assoc.objtagoption_id = new_tag_id
-
-            if new_obj_id:
-                # Verify new obj exists
-                if not session.scalars(
-                    Obj.select(session.user_or_token).where(Obj.id == new_obj_id)
-                ).first():
-                    return self.error("Specified obj does not exist", status=404)
-                assoc.obj_id = new_obj_id
-
-            assoc.author_id = author_id
-            session.commit()
-            return self.success()
-
-    @auth_or_token
     def delete(self, association_id):
         """Delete a tag-obj association"""
+
+        try:
+            association_id = int(association_id)
+        except Exception:
+            raise ValueError("Invalid association ID")
+
         with self.Session() as session:
             assoc = session.scalars(
                 ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)

@@ -100,6 +100,11 @@ app:
     api_key:
     look_back_days: 1
 
+  hermes:
+      endpoint: https://hermes.lco.global/api/v0
+      topic: hermes.test
+      token:
+
   winter:
     protocol: http
     host: winter.caltech.edu

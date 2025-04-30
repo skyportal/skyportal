@@ -1056,6 +1056,8 @@ def load_field_data(field_data):
     delimiters = [",", " "]
     loaded = False
     for delimiter in delimiters:
+        if delimiter not in field_data:
+            continue
         try:
             field_data_table = pd.read_table(StringIO(field_data), sep=delimiter)
             if {"ID", "RA", "Dec"}.issubset(field_data_table.columns.tolist()):

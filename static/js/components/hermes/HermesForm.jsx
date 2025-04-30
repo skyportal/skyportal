@@ -13,7 +13,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "../Spinner";
-import { userLabel } from "./TNSRobotsPage";
+import { userLabel } from "../tns/TNSRobotsPage";
 import FormValidationError from "../FormValidationError";
 
 import * as sourceActions from "../../ducks/source";
@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const TNSATForm = ({ obj_id, submitCallback }) => {
+const HermesForm = ({ obj_id, submitCallback }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -48,7 +48,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
   const [defaultReporterString, setDefaultReporterString] = useState(null);
-  const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
   const [defaultStreamIds, setDefaultStreamIds] = useState([]);
 
@@ -90,7 +89,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   useEffect(() => {
     const getTNSRobots = async () => {
       const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
-
       const { data } = result;
       setSelectedTNSRobotId(data[0]?.id);
     };
@@ -110,7 +108,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
       setDataFetched(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataFetched, dispatch]);
+  }, [dispatch, dataFetched]);
 
   useEffect(() => {
     if (
@@ -152,7 +150,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
 
   useEffect(() => {
     if (tnsrobotList?.length > 0 && selectedTNSRobotId) {
-      let archivalComment = "No non-detections prior to first detection";
       if (instrumentList?.length > 0) {
         const tnsRobotInstruments = tnsrobotList.find(
           (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
@@ -170,48 +167,35 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         // order the streamIds from lowest to highest
         streamIds = streamIds.sort((a, b) => a - b);
         setDefaultStreamIds(streamIds);
-        // set the default archival comment to be:
-        // No non-detections prior to first detection in <streams> alert stream(s)
-        // where streams are comma separated stream names
-        archivalComment = `${archivalComment} in ${streamIds
-          .map(
-            (streamId) =>
-              streams.find((stream) => stream.id === streamId)?.name,
-          )
-          .join(", ")} alert stream${streamIds?.length > 1 ? "s" : ""}`;
       }
-      setDefaultArchivalComment(archivalComment);
     }
   }, [tnsrobotList, selectedTNSRobotId, instrumentList, streams]);
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if tnsrobotList is not
   // empty.
-  if (tnsrobotList.length === 0) {
-    return <h3>No TNS robots available...</h3>;
-  }
 
-  if (!streams?.length) {
+  if (tnsrobotList?.length === 0) {
+    return <h3>No TNS robots available...</h3>;
+  } else if (streams?.length === 0) {
     return <Spinner />;
   }
 
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);
-    formData.tnsrobotID = selectedTNSRobotId;
+    formData.tns_robot_id = selectedTNSRobotId;
     formData.photometry_options = {
       first_and_last_detections: formData.first_and_last_detections,
     };
     delete formData.first_and_last_detections;
-    if (formData?.remarks?.length === 0) {
-      delete formData.remarks;
-    }
-    dispatch(sourceActions.addSourceTNS(obj_id, formData)).then((result) => {
+
+    dispatch(sourceActions.addSourceHermes(obj_id, formData)).then((result) => {
       setSubmissionRequestInProcess(false);
       if (result.status === "success") {
-        dispatch(showNotification("added to TNS submission queue"));
-      }
-      if (submitCallback) {
-        submitCallback();
+        dispatch(showNotification(`Sent to Hermes`));
+        if (submitCallback) {
+          submitCallback();
+        }
       }
     });
   };
@@ -228,7 +212,12 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const formSchema = {
     type: "object",
     properties: {
-      reporters: {
+      title: {
+        type: "string",
+        title: "Title",
+        default: obj_id,
+      },
+      submitter: {
         type: "string",
         title: "Reporters",
         default: defaultReporterString,
@@ -277,91 +266,9 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         description:
           "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
       },
-      remarks: {
-        type: "string",
-        title: "Remark (optional)",
-        default: "",
-        description:
-          "Any additional remarks to include in the report. Optional",
-      },
-      archival: {
-        type: "boolean",
-        title: "Archival report",
-        description:
-          "TNS reports require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
-        default: false,
-      },
     },
-    dependencies: {
-      archival: {
-        oneOf: [
-          {
-            properties: {
-              archival: {
-                enum: [false],
-              },
-            },
-          },
-          {
-            properties: {
-              archival: {
-                enum: [true],
-              },
-              archivalComment: {
-                type: "string",
-                title: "Archival Comment",
-                default: defaultArchivalComment,
-              },
-            },
-            required: ["archivalComment"],
-          },
-        ],
-      },
-    },
-    required: ["reporters", "instrument_ids"],
+    required: ["title", "submitter", "instrument_ids"],
   };
-
-  const validate = (formData, errors) => {
-    if (
-      formData.reporters ===
-      `${currentUser.first_name} ${currentUser.last_name} on behalf of...`
-    ) {
-      errors.reporters.addError(
-        "Please edit the reporters field before submitting",
-      );
-    }
-    if (formData.reporters.includes("on behalf of")) {
-      const secondHalf = formData.reporters.split("on behalf of")[1];
-      if (!secondHalf.match(/[a-z]/i)) {
-        errors.reporters.addError(
-          "Please specify the group you are reporting on behalf of",
-        );
-      }
-    }
-    if (formData.reporters === "" || formData.reporters === undefined) {
-      errors.reporters.addError(
-        "Please specify the group you are reporting on behalf of",
-      );
-    }
-
-    if (formData.archival === true) {
-      if (
-        Object.keys(formData).includes("archivalComment") &&
-        formData.archivalComment === undefined
-      ) {
-        errors.archival.addError(
-          "Archival comment must be defined if archival is true",
-        );
-      }
-    }
-    return errors;
-  };
-
-  if (!currentUser?.affiliations?.length > 0) {
-    return (
-      <FormValidationError message="Warning: You have no affiliation(s), you should set your affiliation(s) in your profile before submitting to TNS" />
-    );
-  }
 
   return (
     <div className={classes.container}>
@@ -385,9 +292,9 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
                 <Tooltip
                   title={
                     <h2>
-                      This bot is in testing mode and will not submit to TNS but
-                      only store the payload in the database (useful for
-                      debugging). Can be removed from the TNS robots page.
+                      This bot is in testing mode and will not submit to Hermes.
+                      It will only validate the data using the API. Can be
+                      removed from the TNS robots page.
                     </h2>
                   }
                   placement="right"
@@ -407,14 +314,13 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         (allowedInstruments.length === 0 ? (
           <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
         ) : (
-          <div data-testid="tnsrobot-form">
+          <div>
             {defaultReporterString ? (
               <Form
                 schema={formSchema}
                 validator={validator}
                 onSubmit={handleSubmit}
                 disabled={submissionRequestInProcess}
-                customValidate={validate}
                 liveValidate
               />
             ) : (
@@ -426,13 +332,13 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   );
 };
 
-TNSATForm.propTypes = {
+HermesForm.propTypes = {
   obj_id: PropTypes.string.isRequired,
   submitCallback: PropTypes.func,
 };
 
-TNSATForm.defaultProps = {
+HermesForm.defaultProps = {
   submitCallback: null,
 };
 
-export default TNSATForm;
+export default HermesForm;

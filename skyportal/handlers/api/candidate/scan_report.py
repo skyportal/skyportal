@@ -124,6 +124,21 @@ class ScanReportHandler(BaseHandler):
             if not saved_range:
                 return self.error("No saved candidates range provided")
 
+            # Check if this report already exists
+            existing_report = session.scalars(
+                ScanReport.select(session.user_or_token).where(
+                    ScanReport.groups.any(Group.id.in_(group_ids)),
+                    ScanReport.options["passed_filters_range"] == passed_filters_range,
+                    ScanReport.options["saved_candidates_range"] == saved_range,
+                )
+            ).all()
+            for report in existing_report:
+                existing_report_group_ids = [g.id for g in report.groups]
+                if set(existing_report_group_ids) == set(group_ids):
+                    return self.error(
+                        "This report already exists for the given groups and options"
+                    )
+
             try:
                 sources_by_objs = get_sources_by_objs_in_range(
                     session,

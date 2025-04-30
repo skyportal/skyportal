@@ -1,5 +1,4 @@
 import operator  # noqa: F401
-import string
 
 import arrow
 import sqlalchemy as sa
@@ -14,14 +13,47 @@ from ....models import (
     Obj,
     Source,
 )
+from ....utils.parse import get_list_typed, get_page_and_n_per_page
 from ...base import BaseHandler
 
 log = make_log("api/candidate_filter")
 
 
-def get_subquery_for_saved_status(
-    session, stmt, saved_status, group_ids, user_accessible_group_ids
-):
+def get_user_accessible_group_and_filter_ids(session, user, group_ids, filter_ids):
+    user_accessible_group_ids = [g.id for g in user.accessible_groups]
+    user_accessible_filter_ids = [
+        filtr.id for g in user.accessible_groups for filtr in g.filters if g.filters
+    ]
+
+    if isinstance(group_ids, str):
+        group_ids = get_list_typed(
+            group_ids,
+            int,
+            error_msg="Invalid groupIDs value -- select at least one group",
+        )
+        filters = session.scalars(
+            Filter.select(user).where(Filter.group_id.in_(group_ids))
+        ).all()
+        filter_ids = [f.id for f in filters]
+    elif isinstance(filter_ids, str):
+        filter_ids = get_list_typed(
+            filter_ids,
+            int,
+            error_msg="Invalid filterIDs value -- select at least one filter",
+        )
+        filters = session.scalars(
+            Filter.select(user).where(Filter.id.in_(filter_ids))
+        ).all()
+        group_ids = [f.group_id for f in filters]
+    else:
+        # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
+        group_ids = user_accessible_group_ids
+        filter_ids = user_accessible_filter_ids
+    return group_ids, filter_ids
+
+
+def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
+    user_accessible_group_ids = [g.id for g in user.accessible_groups]
     if saved_status == "all":
         return stmt
 
@@ -99,101 +131,32 @@ class CandidateFilterHandler(BaseHandler):
         n_per_page = self.get_query_argument("numPerPage", None) or 25
 
         with self.Session() as session:
-            user_accessible_group_ids = [
-                g.id for g in self.current_user.accessible_groups
-            ]
-            user_accessible_filter_ids = [
-                filtr.id
-                for g in self.current_user.accessible_groups
-                for filtr in g.filters
-                if g.filters is not None
-            ]
-            if group_ids is not None:
-                if (
-                    isinstance(group_ids, str)
-                    and "," in group_ids
-                    and set(group_ids).issubset(string.digits + ",")
-                ):
-                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
-                elif isinstance(group_ids, str) and group_ids.isdigit():
-                    group_ids = [int(group_ids)]
-                elif isinstance(group_ids, list):
-                    try:
-                        group_ids = [int(g_id) for g_id in group_ids]
-                    except ValueError:
-                        return self.error(
-                            "Invalid groupIDs value -- select at least one group"
-                        )
-                else:
-                    return self.error(
-                        "Invalid groupIDs value -- select at least one group"
-                    )
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(
-                        Filter.group_id.in_(group_ids)
-                    )
-                ).all()
-                filter_ids = [f.id for f in filters]
-            elif filter_ids is not None:
-                if (
-                    isinstance(filter_ids, str)
-                    and "," in filter_ids
-                    and set(filter_ids).issubset(string.digits + ",")
-                ):
-                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-                elif isinstance(filter_ids, str) and filter_ids.isdigit():
-                    filter_ids = [int(filter_ids)]
-                elif isinstance(filter_ids, list):
-                    try:
-                        filter_ids = [int(f_id) for f_id in filter_ids]
-                    except ValueError:
-                        return self.error("Invalid filterIDs parameter value.")
-                else:
-                    return self.error("Invalid filterIDs parameter value.")
-                filters = session.scalars(
-                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
-                ).all()
-                group_ids = [f.group_id for f in filters]
-            else:
-                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-                group_ids = user_accessible_group_ids
-                filter_ids = user_accessible_filter_ids
+            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+                session,
+                session.user_or_token,
+                group_ids,
+                filter_ids,
+            )
 
-        try:
-            page = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
-        n_per_page = min(n_per_page, 500)
+        page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page, 500)
 
         with self.Session() as session:
             stmt = Candidate.select(session.user_or_token).where(
                 Candidate.filter_id.in_(filter_ids)
             )
-            if start_date is not None and str(start_date).strip() not in [
+            if start_date and start_date.strip().lower() not in {
                 "",
                 "null",
                 "undefined",
-            ]:
+            }:
                 start_date = arrow.get(start_date).datetime
                 stmt = stmt.where(Candidate.passed_at >= start_date)
-            if end_date is not None and str(end_date).strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
+            if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
                 end_date = arrow.get(end_date).datetime
                 stmt = stmt.where(Candidate.passed_at <= end_date)
 
             stmt = get_subquery_for_saved_status(
-                session,
-                stmt,
-                saved_status,
-                group_ids,
-                user_accessible_group_ids,
+                session, stmt, saved_status, group_ids, session.user_or_token
             )
 
             if stmt is None:
@@ -204,7 +167,7 @@ class CandidateFilterHandler(BaseHandler):
             candidates = session.scalars(
                 stmt.order_by(Candidate.passed_at.asc())
                 .limit(n_per_page)
-                .offset((page - 1) * n_per_page)
+                .offset((page_number - 1) * n_per_page)
             ).all()
 
             # in this handler we take a different approach. We don't require the user to pass the totalMatches
@@ -213,7 +176,7 @@ class CandidateFilterHandler(BaseHandler):
             # that is also why we order the candidates by passed_at asc
             # so that even if more candidates are added while the user is paginating, they will be added at the end
             # and it shouldn't break the pagination and keep the results consistent
-            if page == 1:
+            if page_number == 1:
                 total_matches = session.scalar(
                     sa.select(func.count()).select_from(stmt.alias())
                 )
