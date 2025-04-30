@@ -82,9 +82,10 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>absolute mag</FieldTitle>
-            <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
               <IconButton name="edit_item" disabled={true}>
                 <EditIcon fontSize="small" />
@@ -179,14 +180,10 @@ const ReportItem = ({ reportId, isMultiGroup }) => {
                   ))}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
-                <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
-                <Field sx={{ flex: 1 }}>
-                  {reportItem.data.abs_mag_and_filter &&
-                    `${reportItem.data.abs_mag_and_filter.abs_mag.toFixed(
-                      3,
-                    )} (${reportItem.data.abs_mag_and_filter.filter})`}
-                </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.current_filter}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.abs_mag}</Field>
                 <Field sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
                   <IconButton
                     name="edit_item"
