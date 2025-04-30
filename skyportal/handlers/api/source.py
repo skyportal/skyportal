@@ -582,9 +582,14 @@ async def get_source(
             )
     if include_tags:
         tags = session.scalars(ObjTag.select(user).where(ObjTag.obj_id == obj_id)).all()
-        # fetch text from objtagoption table
-        # print(dir(tags[0]))
-        tags = [{"id": tag.id, "text": tag.objtagoption.name} for tag in tags]
+        tags = [
+            {
+                "id": tag.id,
+                "name": tag.objtagoption.name,
+                "objtagoption_id": tag.objtagoption.id,
+            }
+            for tag in tags
+        ]
         source_info["tags"] = tags
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(

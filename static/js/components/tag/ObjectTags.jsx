@@ -152,7 +152,7 @@ const ObjectTags = ({ source }) => {
           <Chip
             className={styles.chip}
             key={tag.id}
-            label={tag.text}
+            label={tag.name}
             size="small"
             onDelete={() => handleDeleteTag(tag.id)}
             data-testid={`tag-chip-${tag.id}`}
@@ -237,7 +237,7 @@ ObjectTags.propTypes = {
     tags: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-        text: PropTypes.string,
+        name: PropTypes.string,
         objtagoption_id: PropTypes.number,
       }),
     ),
