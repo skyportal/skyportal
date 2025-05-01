@@ -3,6 +3,7 @@ from astropy.time import Time
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
+from .... import facility_apis
 from ....models import Obj, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
@@ -76,13 +77,18 @@ def create_scan_report_item(session, report, sources_by_obj):
     if obj.followup_requests:
         followups = {}
         for followup in obj.followup_requests:
-            instrument_name = followup.instrument.name
+            instrument = followup.instrument
+            priority_order = getattr(
+                facility_apis, instrument.api_classname
+            ).priorityOrder
             priority = followup.payload["priority"]
+            current = followups.get(instrument.name)
             if (
-                instrument_name not in followups
-                or priority < followups[instrument_name]
+                current is None
+                or (priority_order == "desc" and priority < current)
+                or (priority_order == "asc" and priority > current)
             ):
-                followups[instrument_name] = priority
+                followups[instrument.name] = priority
         followups = [
             {"instrument": name, "priority": prio} for name, prio in followups.items()
         ]
