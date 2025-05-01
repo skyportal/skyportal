@@ -16,7 +16,7 @@ dustmaps==1.0.13
 reproject==0.14.1
 avro-python3==1.10.2
 fastavro>=1.9.4,<2.0.0
-tqdm>=4.27,<4.67
+tqdm>=4.27,<4.68
 matplotlib>=3.6.2, <3.8.0
 astroquery==0.4.9
 apispec>=6.3.0, <7.0.0
