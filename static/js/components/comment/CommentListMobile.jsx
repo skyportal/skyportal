@@ -109,11 +109,6 @@ const useStyles = makeStyles(() => ({
     whiteSpace: "nowrap",
     color: "#76aace",
   },
-  commentUserDomain: {
-    color: "lightgray",
-    fontSize: "80%",
-    paddingRight: "0.5em",
-  },
   commentUserAvatar: {
     display: "block",
     margin: "0.5em",
