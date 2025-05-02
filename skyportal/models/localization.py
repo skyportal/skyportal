@@ -455,8 +455,9 @@ LocalizationTile.create_partition(
 )
 
 # create partitions from 2023-04-01 to 2025-04-01
-for year in range(2023, 2026):
-    for month in range(1 if year != 2023 else 4, 13 if year != 2025 else 5):
+# edit 1 (2025-04-29): added partitions until 2027-12-01 (inclusive)
+for year in range(2023, 2028):
+    for month in range(1 if year != 2023 else 4, 13):
         date = datetime.date(year, month, 1)
         table_args = (
             sa.Index(
