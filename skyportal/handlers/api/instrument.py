@@ -1,4 +1,5 @@
 import ast
+import time
 from io import StringIO
 
 import arrow
@@ -33,6 +34,7 @@ from ...models import (
     Photometry,
     Telescope,
 )
+from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes
 from ..base import BaseHandler
 
@@ -1080,6 +1082,27 @@ def load_field_data(field_data):
         return field_data_table.to_dict(orient="list")
 
 
+def vaccum_analyze_instrumentfieldtiles():
+    """
+    Run a VACUUM ANALYZE command on the instrumentfieldtiles table.
+    This is needed to optimize the query plans for some queries involving instrumentfieldtiles,
+    such as querying for an instrument's fields overlap with a GCN event's sky localization.
+    """
+    log("Running VACUUM ANALYZE on instrumentfieldtiles table")
+    start = time.time()
+    with DBSession() as session:
+        connection = (
+            session.connection()
+            .engine.connect()
+            .execution_options(isolation_level="AUTOCOMMIT")
+        )
+        connection.execute(sa.text("VACUUM ANALYZE instrumentfieldtiles"))
+        connection.close()
+    log(
+        f"Successfully ran VACUUM ANALYZE on instrumentfieldtiles table, in {time.time() - start} seconds"
+    )
+
+
 def add_tiles(
     instrument_id,
     instrument_name,
@@ -1373,7 +1396,12 @@ def add_tiles(
         # PostgreSQL has a tendency of generating really suboptimal query plans
         # for some queries involving instrumentfieldtiles, after inserting new tiles.
         # for a new instrument. So, we need to run a VACUUM ANALYZE command.
-        session.execute(sa.text("VACUUM ANALYZE instrumentfieldtiles"))
+        # session.execute(sa.text("VACUUM ANALYZE instrumentfieldtiles"))
+        # the above doesn't work because we get the error:
+        # (psycopg2.errors.ActiveSqlTransaction) VACUUM cannot run inside a transaction block
+        # so we need to run it outside of the session
+        # to do so, we need to get the connection from the session
+        run_async(vaccum_analyze_instrumentfieldtiles)
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
