@@ -91,7 +91,6 @@ const ObjectTags = ({ source }) => {
     setSelectedTagId(event.target.value);
   };
 
-  // Fonction pour rafraîchir complètement la source
   const refreshSource = () => {
     if (source && source.id) {
       dispatch(sourceActions.fetchSource(source.id));
@@ -113,7 +112,6 @@ const ObjectTags = ({ source }) => {
       if (result.status === "success") {
         dispatch(showNotification("Tag added successfully"));
 
-        // Rafraîchir la source pour mettre à jour l'UI
         refreshSource();
 
         handleCloseDialog();
@@ -129,7 +127,6 @@ const ObjectTags = ({ source }) => {
         if (result.status === "success") {
           dispatch(showNotification("Source Tag deleted"));
 
-          // Rafraîchir la source pour mettre à jour l'UI
           refreshSource();
         } else {
           dispatch(showNotification("Failed to delete tag", "error"));
@@ -138,7 +135,6 @@ const ObjectTags = ({ source }) => {
     );
   };
 
-  // Filtrer les tags qui sont déjà utilisés pour ne pas les afficher dans la liste déroulante
   const usedTagIds = (source.tags || []).map((tag) => tag.objtagoption_id);
   const availableTags = tagOptions.filter(
     (tag) => !usedTagIds.includes(tag.id),

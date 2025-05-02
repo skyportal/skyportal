@@ -53,5 +53,3 @@ const reducer = (state = [], action) => {
 };
 
 store.injectReducer("objectTags", reducer);
-
-// export default reducer;
