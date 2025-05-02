@@ -3,6 +3,7 @@ from astropy.time import Time
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
+from .... import facility_apis
 from ....models import Obj, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.safe_round import safe_round
@@ -32,12 +33,18 @@ def create_scan_report_item(session, report, sources_by_obj):
     obj = session.scalar(
         Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
     )
-    current_mag = obj.photstats[0].last_detected_mag if obj.photstats else None
-    current_age = (
-        (Time.now().mjd - obj.photstats[0].first_detected_mjd)
-        if obj.photstats
-        else None
-    )
+
+    if obj.photstats:
+        current_filter = obj.photstats[0].last_detected_filter
+        current_mag = obj.photstats[0].last_detected_mag
+        current_age = Time.now().mjd - obj.photstats[0].first_detected_mjd
+        dm = obj.dm
+        abs_mag = current_mag - dm if dm else None
+    else:
+        current_filter = None
+        current_mag = None
+        current_age = None
+        abs_mag = None
 
     sources = session.scalars(
         Source.select(session.user_or_token, mode="read").where(
@@ -45,34 +52,63 @@ def create_scan_report_item(session, report, sources_by_obj):
         )
     ).all()
 
+    classifications = None
+    if obj.classifications:
+        classifications = [
+            {
+                "probability": classification.probability,
+                "classification": classification.classification,
+                "ml": classification.ml,
+            }
+            for classification in obj.classifications
+        ]
+
+    saved_info = None
+    if sources:
+        saved_info = [
+            {
+                "saved_at": source.saved_at.isoformat(),
+                "saved_by": source.saved_by.username,
+                "group": source.group.name,
+            }
+            for source in sources
+        ]
+
+    if obj.followup_requests:
+        followups = {}
+        for followup in obj.followup_requests:
+            instrument = followup.instrument
+            priority_order = getattr(
+                facility_apis, instrument.api_classname
+            ).priorityOrder
+            priority = followup.payload["priority"]
+            current = followups.get(instrument.name)
+            if (
+                current is None
+                or (priority_order == "desc" and priority < current)
+                or (priority_order == "asc" and priority > current)
+            ):
+                followups[instrument.name] = priority
+        followups = [
+            {"instrument": name, "priority": prio} for name, prio in followups.items()
+        ]
+    else:
+        followups = None
+
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
         data={
-            "saved_info": [
-                {
-                    "saved_at": source.saved_at.isoformat(),
-                    "saved_by": source.saved_by.username,
-                    "group": source.group.name,
-                }
-                for source in sources
-            ]
-            if sources
-            else None,
+            "tns_name": obj.tns_name,
             "comment": None,
             "host_redshift": obj.redshift,
+            "current_filter": current_filter,
+            "abs_mag": safe_round(abs_mag, 3),
             "current_mag": safe_round(current_mag, 3),
             "current_age": safe_round(current_age, 2),
-            "classifications": [
-                {
-                    "probability": classification.probability,
-                    "classification": classification.classification,
-                    "ml": classification.ml,
-                }
-                for classification in obj.classifications
-            ]
-            if obj.classifications
-            else None,
+            "classifications": classifications,
+            "saved_info": saved_info,
+            "followups": followups,
         },
     )
 
