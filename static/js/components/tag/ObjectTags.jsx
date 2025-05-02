@@ -51,9 +51,8 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   addButton: {
-    padding: "2px",
-    marginLeft: "5px",
-    color: theme.palette.primary.main,
+    height: "0.75rem",
+    cursor: "pointer",
   },
   selectFormControl: {
     minWidth: 250,
