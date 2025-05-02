@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogActions from "@mui/material/DialogActions";
+import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
@@ -14,7 +15,9 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -71,8 +74,14 @@ const ObjectTags = ({ source }) => {
   const [open, setOpen] = useState(false);
   const [selectedTagId, setSelectedTagId] = useState("");
   const [isAddingTag, setIsAddingTag] = useState(false);
-
+  const [newTagName, setNewTagName] = useState("");
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [tagError, setTagError] = useState("");
   const tagOptions = useSelector((state) => state.objectTags || []);
+  const currentUser = useSelector((state) => state.profile);
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage sources");
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
@@ -80,11 +89,13 @@ const ObjectTags = ({ source }) => {
 
   const handleOpenDialog = () => {
     setOpen(true);
+    setNewTagName("");
   };
 
   const handleCloseDialog = () => {
     setOpen(false);
     setSelectedTagId("");
+    setNewTagName("");
   };
 
   const handleTagChange = (event) => {
@@ -95,6 +106,41 @@ const ObjectTags = ({ source }) => {
     if (source && source.id) {
       dispatch(sourceActions.fetchSource(source.id));
     }
+  };
+
+  const handleNewTagNameChange = (event) => {
+    setNewTagName(event.target.value);
+  };
+
+  const handleCreateTag = () => {
+    if (!newTagName.trim()) {
+      setTagError("Tag name cannot be empty");
+      return;
+    }
+
+    setIsCreatingTag(true);
+
+    dispatch(
+      objectTagsActions.createTagOption({
+        name: newTagName,
+      }),
+    ).then((result) => {
+      setIsCreatingTag(false);
+
+      if (result.status === "success") {
+        dispatch(showNotification("Tag created successfully"));
+        dispatch(objectTagsActions.fetchTagOptions());
+        setNewTagName("");
+
+        if (result.data && result.data.id) {
+          setSelectedTagId(result.data.id);
+        }
+      } else {
+        const errorMsg = result.message || "Failed to create tag";
+        setTagError(errorMsg);
+        dispatch(showNotification(errorMsg, "error"));
+      }
+    });
   };
 
   const handleAddTag = () => {
@@ -183,7 +229,7 @@ const ObjectTags = ({ source }) => {
               onChange={handleTagChange}
               fullWidth
               data-testid="tag-select"
-              disabled={availableTags.length === 0}
+              disabled={availableTags.length === 0 && !permission}
             >
               {availableTags.length === 0 ? (
                 <MenuItem value="" disabled>
@@ -202,6 +248,51 @@ const ObjectTags = ({ source }) => {
               )}
             </Select>
           </FormControl>
+
+          {permission && (
+            <>
+              <Divider className={styles.divider} />
+
+              <div className={styles.createTagSection}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Create New Tag
+                </Typography>
+
+                <TextField
+                  label="New Tag Name"
+                  value={newTagName}
+                  onChange={handleNewTagNameChange}
+                  variant="outlined"
+                  size="small"
+                  className={styles.newTagField}
+                  error={!!tagError}
+                  helperText={
+                    tagError ||
+                    "Only letters and numbers, no spaces or special characters"
+                  }
+                  disabled={isCreatingTag}
+                  inputProps={{
+                    "data-testid": "new-tag-input",
+                  }}
+                />
+
+                <Button
+                  color="primary"
+                  onClick={handleCreateTag}
+                  disabled={!newTagName || isCreatingTag}
+                  data-testid="create-tag-button"
+                >
+                  {isCreatingTag ? "Creating..." : "Create Tag"}
+                  {isCreatingTag && (
+                    <CircularProgress
+                      size={16}
+                      className={styles.loadingIcon}
+                    />
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="secondary">
@@ -210,9 +301,7 @@ const ObjectTags = ({ source }) => {
           <Button
             onClick={handleAddTag}
             color="primary"
-            disabled={
-              !selectedTagId || isAddingTag || availableTags.length === 0
-            }
+            disabled={!selectedTagId || isAddingTag}
             data-testid="save-tag-button"
           >
             {isAddingTag ? "Saving..." : "Save"}

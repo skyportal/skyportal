@@ -6,19 +6,21 @@ import store from "../store";
 const FETCH_TAG_OPTIONS = "skyportal/FETCH_TAG_OPTIONS";
 const FETCH_TAG_OPTIONS_OK = "skyportal/FETCH_TAG_OPTIONS_OK";
 
+const CREATE_TAG_OPTION = "skyportal/CREATE_TAG_OPTION";
+const CREATE_TAG_OPTION_OK = "skyportal/CREATE_TAG_OPTION_OK";
+
 const FETCH_OBJECT_TAGS = "skyportal/FETCH_OBJECT_TAGS";
-const FETCH_OBJECT_TAGS_OK = "skyportal/FETCH_OBJECT_TAGS_OK";
 
 const ADD_OBJECT_TAG = "skyportal/ADD_OBJECT_TAG";
-const ADD_OBJECT_TAG_OK = "skyportal/ADD_OBJECT_TAG_OK";
-const ADD_OBJECT_TAG_ERROR = "skyportal/ADD_OBJECT_TAG_ERROR";
 
 const DELETE_OBJECT_TAG = "skyportal/DELETE_OBJECT_TAG";
-const DELETE_OBJECT_TAG_OK = "skyportal/DELETE_OBJECT_TAG_OK";
-const DELETE_OBJECT_TAG_ERROR = "skyportal/DELETE_OBJECT_TAG_ERROR";
 
 export function fetchTagOptions() {
   return API.GET("/api/objtagoption", FETCH_TAG_OPTIONS);
+}
+
+export function createTagOption(data) {
+  return API.POST("/api/objtagoption", CREATE_TAG_OPTION, data);
 }
 
 export function fetchObjectTags(objectId) {
@@ -46,6 +48,9 @@ const reducer = (state = [], action) => {
   switch (action.type) {
     case FETCH_TAG_OPTIONS_OK: {
       return action.data || [];
+    }
+    case CREATE_TAG_OPTION_OK: {
+      return [...state, action.data];
     }
     default:
       return state;
