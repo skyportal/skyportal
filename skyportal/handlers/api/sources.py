@@ -1855,6 +1855,7 @@ async def get_sources(
                         altdata_substatement = "altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         for i, field in enumerate(fields[1:]):
+                            # For nested json data, we cast the values we access to JSONB so we can access their keys
                             altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
                             query_params.append(
                                 sa.bindparam(f"altdata_field_{i + 1}", field)
@@ -1914,6 +1915,7 @@ async def get_sources(
                         fields = sort_by.split(".")[1:]
                         altdata_substatement = "altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+                        # For nested json data, we cast the values we access to JSONB so we can access their keys
                         for i, field in enumerate(fields[1:]):
                             altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
                             query_params.append(
