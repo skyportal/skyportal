@@ -7,6 +7,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from skyportal.utils import http
 from skyportal.utils.calculations import deg2dms, deg2hms
+from skyportal.utils.parse import bool_to_int
 
 env, cfg = load_env()
 
@@ -46,6 +47,8 @@ def check_mmt_payload(payload):
         raise ValueError("A valid Proper Motion RA must be provided")
     if payload.get("pm_dec") is None:
         raise ValueError("A valid Proper Motion DEC must be provided")
+    if payload.get("exposure_time") is None:
+        raise ValueError("A valid exposure time must be provided")
     if payload.get("exposure_counts") is None or payload["exposure_counts"] < 1:
         raise ValueError("A valid number of exposures must be provided")
     if payload.get("visits") is None:
@@ -56,6 +59,8 @@ def check_mmt_payload(payload):
         raise ValueError("A valid photometric value must be provided")
     if not isinstance(payload.get("target_of_opportunity"), bool):
         raise ValueError("A valid target of opportunity value must be provided")
+    if not isinstance(payload.get("one_visit_per_night"), bool):
+        raise ValueError("A valid one visit per night value must be provided")
 
 
 def sanitize_obj_id(obj_id):
@@ -85,26 +90,29 @@ def get_mmt_json_payload(obj, altdata, payload):
     """
     Get the JSON payload common to all MMT instruments
     """
+    observation_type_dict = {
+        "Imaging": "imaging",
+        "Spectroscopy": "longslit",
+    }
     return {
+        "observationtype": observation_type_dict.get(payload["observation_type"]),
         "token": altdata["token"],
         "objectid": sanitize_obj_id(obj.id),
         "ra": deg2hms(obj.ra),
         "dec": deg2dms(obj.dec),
         "magnitude": obj.photstats[0].last_detected_mag,
         "epoch": 2000.0,
-        "observationtype": "imaging"
-        if payload.get("observation_type") == "Imaging"
-        else "longslit",
         "pa": payload.get("pa"),
         "pm_ra": payload.get("pm_ra"),
         "pm_dec": payload.get("pm_dec"),
+        "exposuretime": payload.get("exposure_time"),
         "numberexposures": payload.get("exposure_counts"),
         "visits": payload.get("visits"),
         "priority": payload.get("priority"),
-        "photometric": payload.get("photometric"),
-        "targetofopportunity": payload.get("target_of_opportunity"),
+        "photometric": bool_to_int(payload.get("photometric")),
+        "targetofopportunity": bool_to_int(payload.get("target_of_opportunity")),
+        "onevisitpernight": bool_to_int(payload.get("one_visit_per_night")),
         "filter": payload.get("filters"),
-        "onevisitpernight": payload.get("nb_visits_per_night"),
         "notes": payload.get("notes"),
     }
 
@@ -150,7 +158,7 @@ def submit_mmt_request(
         json=json_payload,
         data=None,
         files=None,
-        timeout=5.0,
+        timeout=10.0,
     )
 
     if response.status_code != 200:
@@ -275,7 +283,7 @@ mmt_properties = {
             "Imaging",
             "Spectroscopy",
         ],
-        "default": "Imaging",
+        "default": "Spectroscopy",
     },
     "pa": {
         "type": "number",
@@ -293,6 +301,10 @@ mmt_properties = {
         "type": "number",
         "title": "Proper Motion DEC",
         "default": 0.0,
+    },
+    "exposure_time": {
+        "type": "number",
+        "title": "Exposure Time (s)",
     },
     "exposure_counts": {
         "type": "integer",
@@ -317,13 +329,18 @@ mmt_properties = {
     },
     "photometric": {
         "type": "boolean",
-        "title": "Photometric",
+        "title": "Require photometric conditions",
         "default": False,
     },
     "target_of_opportunity": {
         "type": "boolean",
         "title": "Target of Opportunity",
         "default": False,
+    },
+    "one_visit_per_night": {
+        "type": "boolean",
+        "title": "One Visit Per Night",
+        "default": True,
     },
 }
 
@@ -333,10 +350,12 @@ mmt_required = [
     "pm_ra",
     "pm_dec",
     "exposure_counts",
+    "exposure_time",
     "visits",
     "priority",
     "photometric",
     "target_of_opportunity",
+    "one_visit_per_night",
 ]
 
 mmt_aldata = {

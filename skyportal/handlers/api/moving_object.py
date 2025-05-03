@@ -15,6 +15,7 @@ from ...utils.moving_objects import (
     find_observable_sequence,
     get_ephemeris,
 )
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -144,7 +145,7 @@ class MovingObjectFollowupHandler(BaseHandler):
         if (end_time - start_time).total_seconds() > 7 * 24 * 3600:
             return self.error("Time window must be less than 7 days")
 
-        if str(references_only).lower() in ["true", "1", "t", "y", "yes"]:
+        if str_to_bool(references_only, default=False):
             references_only = True
         else:
             references_only = False

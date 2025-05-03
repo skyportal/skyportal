@@ -19,7 +19,6 @@ from skyportal.handlers.api import (
     AnnotationHandler,
     AssignmentHandler,
     BulkDeletePhotometryHandler,
-    BulkTNSHandler,
     CandidateFilterHandler,
     CandidateHandler,
     CatalogQueryHandler,
@@ -75,6 +74,7 @@ from skyportal.handlers.api import (
     GroupUserHandler,
     GroupUsersFromOtherGroupsHandler,
     HealpixUpdateHandler,
+    HermesHandler,
     InstrumentFieldHandler,
     InstrumentHandler,
     InstrumentLogExternalAPIHandler,
@@ -484,6 +484,7 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/hermes", HermesHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
@@ -550,7 +551,6 @@ skyportal_handlers = [
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
-    (r"/api/tns_bulk(/.*)?", BulkTNSHandler),
     (
         r"/api/tns_robot(/[0-9]+)/group(/[0-9]+)/autoreporter(/[0-9]+)?",
         TNSRobotGroupAutoreporterHandler,

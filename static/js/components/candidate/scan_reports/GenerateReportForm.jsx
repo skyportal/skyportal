@@ -93,10 +93,6 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
       if (result.status === "success") {
         dispatch(showNotification("Scanning report successfully generated"));
         setDialogOpen(false);
-      } else {
-        dispatch(
-          showNotification("Failed to generate scanning report", "error"),
-        );
       }
     });
   };

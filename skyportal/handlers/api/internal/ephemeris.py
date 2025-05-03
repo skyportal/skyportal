@@ -3,6 +3,7 @@ from astropy import time as ap_time
 from baselayer.app.access import auth_or_token
 
 from ....models import Telescope
+from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 
 MAX_TELESCOPES_TO_DISPLAY = 16
@@ -68,8 +69,6 @@ class EphemerisHandler(BaseHandler):
         else:
             time = ap_time.Time.now()
 
-        ephemerides = None
-
         with self.Session() as session:
             if telescope_id is not None:
                 try:
@@ -91,10 +90,9 @@ class EphemerisHandler(BaseHandler):
             else:
                 telescope_ids = self.get_query_argument("telescopeIds", None)
                 if telescope_ids is not None:
-                    try:
-                        telescope_ids = [int(t) for t in telescope_ids.split(",")]
-                    except ValueError as e:
-                        return self.error(f"Invalid telescopeIds format: {e.args[0]}")
+                    telescope_ids = get_list_typed(
+                        telescope_ids, int, "Invalid telescopeIds format"
+                    )
 
                     if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
                         telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]

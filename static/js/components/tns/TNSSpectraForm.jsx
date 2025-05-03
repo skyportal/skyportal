@@ -5,7 +5,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -51,24 +50,17 @@ const TNSSpectraForm = ({ spectrum_id }) => {
 
   useEffect(() => {
     const getTNSRobots = async () => {
-      // Wait for the TNS robots to update before setting
-      // the new default form fields, so that the TNS robots list can
-      // update
-
       const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
 
       const { data } = result;
       setSelectedTNSRobotId(data[0]?.id);
     };
-
-    getTNSRobots();
-
-    dispatch(tnsrobotsActions.fetchTNSRobots());
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedTNSRobotId]);
+    if (tnsrobotList === null) {
+      getTNSRobots();
+    } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
+      setSelectedTNSRobotId(tnsrobotList[0]?.id);
+    }
+  }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
 
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
@@ -169,7 +161,6 @@ const TNSSpectraForm = ({ spectrum_id }) => {
   };
 
   const tnsrobotLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
   tnsrobotList?.forEach((tnsrobot) => {
     tnsrobotLookUp[tnsrobot.id] = tnsrobot;
   });
