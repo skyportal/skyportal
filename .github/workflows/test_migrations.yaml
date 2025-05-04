@@ -187,7 +187,7 @@ jobs:
 
       - name: Check for migration branching
         run: |
-          # First make sure our dependencies are up to date
+          # First make sure the dependencies are up-to-date
           npm i --legacy-peer-deps
           make dependencies
           # Make sure latest revision on main is included in Alembic history
