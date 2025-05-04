@@ -287,7 +287,7 @@ def run_openai_summarization(data_dict):
         rez.update(
             {
                 "status": "failure",
-                "message": f"OpenAI summarization failed {e}",
+                "message": f"OpenAI summarization failed: {e}",
             }
         )
         return rez
@@ -320,7 +320,7 @@ def run_openai_summarization(data_dict):
             rez.update(
                 {
                     "status": "failure",
-                    "message": f"OpenAI embedding failed {e}",
+                    "message": f"OpenAI embedding failed: {e}",
                 }
             )
             return rez
