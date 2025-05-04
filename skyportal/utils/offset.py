@@ -273,7 +273,8 @@ starlist_formats = {
 }
 
 JOBLIB_CACHE_SIZE = 100e6  # 100 MB
-offsets_memory = Memory("./cache/offsets/", verbose=0, bytes_limit=JOBLIB_CACHE_SIZE)
+offsets_memory = Memory("./cache/offsets/", verbose=0)
+offsets_memory.reduce_size(JOBLIB_CACHE_SIZE)
 
 
 def memcache(f):
