@@ -20,8 +20,8 @@ tqdm>=4.27,<4.68
 matplotlib>=3.6.2, <3.8.0
 astroquery==0.4.9
 apispec>=6.3.0, <7.0.0
-marshmallow==3.26.1
-marshmallow-sqlalchemy==1.1.0
+marshmallow==4.0.0
+marshmallow-sqlalchemy==1.4.2
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.7.0
@@ -41,7 +41,6 @@ timezonefinder==6.5.8
 astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
-marshmallow-jsonschema==0.13.0
 paramiko==3.5.1
 scp==0.15.0
 requests_toolbelt==1.0.0
@@ -83,12 +82,12 @@ iminuit==2.30.1
 watchdog==6.0.0
 PyAstronomy==0.22.0
 shapely==2.0.7
-openai==1.12.0
-tiktoken==0.8.0
+openai==1.77.0
+tiktoken==0.9.0
 simplejson==3.20.1
-langchain==0.1.14
-langchain-openai==0.0.6
-pinecone-client==4.1.0
+langchain==0.3.25
+langchain-openai==0.3.16
+pinecone==6.0.2
 pydantic==2.11.4
 sentry-sdk==2.22.0
 typing-inspect==0.9.0
