@@ -108,6 +108,7 @@ jobs:
 
           pip install black
           pip install fiona==1.9.6 # 1.10.0 breaks geopandas
+          pip install joblib<1.5.0
 
       - name: Save current Alembic head on main
         run: |
