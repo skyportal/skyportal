@@ -89,7 +89,7 @@ simplejson==3.20.1
 langchain==0.3.25
 langchain-openai==0.3.16
 pinecone==6.0.2
-pydantic==2.10.2
+pydantic==2.11.4
 sentry-sdk==2.22.0
 typing-inspect==0.9.0
 brotli==1.1.0
