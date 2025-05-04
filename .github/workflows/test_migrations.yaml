@@ -108,7 +108,7 @@ jobs:
 
           pip install black
           pip install fiona==1.9.6 # 1.10.0 breaks geopandas
-          pip install joblib<1.5.0
+          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
 
       - name: Save current Alembic head on main
         run: |
