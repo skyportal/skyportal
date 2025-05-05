@@ -67,8 +67,8 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
       link = `https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra=${ra}&dec=${dec}&scale=0.1`;
       break;
     case "ls":
-      alt = "Link to Legacy Survey DR9 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr9&photoz-dr9&zoom=16&mark=${ra},${dec}`;
+      alt = "Link to Legacy Survey DR10 Image Access";
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr10&photoz-dr9&zoom=16&mark=${ra},${dec}`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
@@ -83,7 +83,7 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
 export const getThumbnailHeader = (type) => {
   switch (type) {
     case "ls":
-      return "LEGACY SURVEY DR9";
+      return "LEGACY SURVEY DR10";
     case "ps1":
       return "PANSTARRS DR2";
     default:
