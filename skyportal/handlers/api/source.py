@@ -1839,16 +1839,18 @@ class SourceHandler(BaseHandler):
         query_id = self.get_query_argument("queryID", None)
 
         class Validator(Schema):
-            saved_after = UTCTZnaiveDateTime(required=False, missing=None)
-            saved_before = UTCTZnaiveDateTime(required=False, missing=None)
+            saved_after = UTCTZnaiveDateTime(required=False, load_default=None)
+            saved_before = UTCTZnaiveDateTime(required=False, load_default=None)
             save_summary = fields.Boolean()
             remove_nested = fields.Boolean()
             include_thumbnails = fields.Boolean()
-            first_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
-            last_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
-            has_spectrum_after = UTCTZnaiveDateTime(required=False, missing=None)
-            has_spectrum_before = UTCTZnaiveDateTime(required=False, missing=None)
-            created_or_modified_after = UTCTZnaiveDateTime(required=False, missing=None)
+            first_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            last_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            has_spectrum_after = UTCTZnaiveDateTime(required=False, load_default=None)
+            has_spectrum_before = UTCTZnaiveDateTime(required=False, load_default=None)
+            created_or_modified_after = UTCTZnaiveDateTime(
+                required=False, load_default=None
+            )
 
         validator_instance = Validator()
         params_to_be_validated = {}
