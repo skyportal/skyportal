@@ -851,3 +851,5 @@ class TAROTAPI(FollowUpAPI):
             },
         },
     }
+
+    priorityOrder = "desc"
