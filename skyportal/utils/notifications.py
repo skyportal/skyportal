@@ -696,8 +696,8 @@ def followup_request_slack_notification(data):
             },
             {
                 "type": "button",
-                "text": {"type": "plain_text", "emoji": True, "text": "LS DR9"},
-                "url": f"https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr9&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}",
+                "text": {"type": "plain_text", "emoji": True, "text": "LS DR10"},
+                "url": f"https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr10&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}",
             },
             {
                 "type": "button",
@@ -789,7 +789,7 @@ def followup_request_email_notification(data):
         f"<a href='{app_url}/observability/{data['obj']['id']}'><button>Observability</button></a>"
         f"<a href='{app_url}/source/{data['obj']['id']}/finder'><button>Finding Chart</button></a>"
         f"<a href='https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra={data['obj']['ra']}&dec={data['obj']['dec']}&scale=0.1'><button>SDSS</button></a>"
-        f"<a href='https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr9&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}'><button>LS DR9</button></a>"
+        f"<a href='https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr10&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}'><button>LS DR10</button></a>"
         f"<a href='https://www.wis-tns.org/search?&ra={data['obj']['ra']}&decl={data['obj']['dec']}&radius=5&coords_unit=arcsec'><button>TNS</button></a>"
         "</div>"
     )
