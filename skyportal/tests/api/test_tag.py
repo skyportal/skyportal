@@ -104,12 +104,12 @@ def test_delete_tag(super_admin_token):
 
 
 # --- Testing ObjTag API
-def test_create_tag_obj_association(super_admin_token):
+def test_create_tag_obj_association(super_admin_token, public_source):
     # Create a tag option
     tag_data = {"name": f"Tag{uuid.uuid4().hex}"}
     _, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
 
-    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": "TIC_114807149"}
+    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": public_source.id}
 
     status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
     assert status == 200
@@ -119,12 +119,13 @@ def test_create_tag_obj_association(super_admin_token):
     assert "already exists" in data["message"]
 
 
-def test_delete_association(super_admin_token):
+
+def test_delete_association(super_admin_token, public_source):
     tag_data = {"name": f"TagDeleteAssociation{uuid.uuid4().hex}"}
     status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
     assert status == 200
 
-    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": "TIC_114807149"}
+    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": public_source.id}
     status, assoc = api("POST", "objtag", data=assoc_data, token=super_admin_token)
     assert status == 200
 
