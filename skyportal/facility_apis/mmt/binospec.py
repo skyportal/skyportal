@@ -229,3 +229,5 @@ class BINOSPECAPI(FollowUpAPI):
     ui_json_schema = {}
 
     form_json_schema_altdata = mmt_aldata
+
+    priorityOrder = "desc"
