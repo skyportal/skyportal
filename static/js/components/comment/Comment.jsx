@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { useSelector } from "react-redux";
+import { isMobileOnly } from "react-device-detect";
 
 import PropTypes from "prop-types";
 
@@ -67,6 +68,8 @@ const Comment = ({
       ? styles.commentMessageShift
       : styles.commentMessage;
 
+  console.log(isMobileOnly);
+
   return (
     <>
       <div className={styles.commentUserAvatar}>
@@ -111,7 +114,7 @@ const Comment = ({
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shiftID={shiftID}
-              hoverID={hoverID}
+              hoverID={isMobileOnly ? id : hoverID}
               id={id}
               commentText={text}
               attachmentName={attachment_name}
@@ -123,7 +126,7 @@ const Comment = ({
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shiftID={shiftID}
-              hoverID={hoverID}
+              hoverID={isMobileOnly ? id : hoverID}
               id={id}
             />
           </div>
