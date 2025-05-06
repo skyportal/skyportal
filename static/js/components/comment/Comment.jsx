@@ -68,8 +68,6 @@ const Comment = ({
       ? styles.commentMessageShift
       : styles.commentMessage;
 
-  console.log(isMobileOnly);
-
   return (
     <>
       <div className={styles.commentUserAvatar}>
