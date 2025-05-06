@@ -21,7 +21,7 @@ import EditComment from "./EditComment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const RegularCommentList = ({
+const Comment = ({
   associatedResourceType = "object",
   objID = null,
   gcnEventID = null,
@@ -180,7 +180,7 @@ const RegularCommentList = ({
   );
 };
 
-RegularCommentList.propTypes = {
+Comment.propTypes = {
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
   earthquakeID: PropTypes.string,
@@ -197,7 +197,7 @@ RegularCommentList.propTypes = {
   shiftID: PropTypes.number,
 };
 
-RegularCommentList.defaultProps = {
+Comment.defaultProps = {
   objID: null,
   gcnEventID: null,
   earthquakeID: null,
@@ -214,4 +214,4 @@ RegularCommentList.defaultProps = {
   shiftID: null,
 };
 
-export default RegularCommentList;
+export default Comment;

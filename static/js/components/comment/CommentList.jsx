@@ -17,8 +17,7 @@ import * as shiftActions from "../../ducks/shift";
 import * as earthquakeActions from "../../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
-import CompactCommentList from "./CompactCommentList";
-import RegularCommentList from "./RegularCommentList";
+import Comment from "./Comment";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -179,7 +178,7 @@ const CommentList = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
 }) => {
-  const styles = useStyles({ maxHeightList });
+  const styles = useStyles();
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -204,11 +203,7 @@ const CommentList = ({
   const earthquake = useSelector((state) => state.earthquake);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
-  const compactComments = useSelector(
-    (state) => state.profile.preferences?.compactComments,
-  );
   const { currentShift } = useSelector((state) => state.shift);
-
   const { showBotComments } = useSelector((state) => state.profile.preferences);
 
   const [includeBots, setIncludeBots] = useState(false);
@@ -320,7 +315,6 @@ const CommentList = ({
     comments = comments?.filter((comment) => comment.bot === false);
   }
 
-  // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme,
   );
@@ -358,39 +352,22 @@ const CommentList = ({
               onFocus={() => handleMouseHover(id, userProfile, author.username)}
               onBlur={() => handleMouseLeave()}
             >
-              {compactComments ? (
-                <CompactCommentList
-                  associatedResourceType={resourceType}
-                  styles={styles}
-                  id={id}
-                  objID={objID}
-                  gcnEventID={gcnEventID}
-                  earthquakeID={earthquakeID}
-                  author={author}
-                  created_at={created_at}
-                  text={text}
-                  spectrum_id={spectrum_id}
-                  hoverID={hoverID}
-                  shiftID={shiftID}
-                />
-              ) : (
-                <RegularCommentList
-                  associatedResourceType={resourceType}
-                  styles={styles}
-                  id={id}
-                  objID={objID}
-                  gcnEventID={gcnEventID}
-                  earthquakeID={earthquakeID}
-                  author={author}
-                  created_at={created_at}
-                  text={text}
-                  attachment_name={attachment_name}
-                  groups={groups}
-                  spectrum_id={spectrum_id}
-                  hoverID={hoverID}
-                  shiftID={shiftID}
-                />
-              )}
+              <Comment
+                associatedResourceType={resourceType}
+                styles={styles}
+                id={id}
+                objID={objID}
+                gcnEventID={gcnEventID}
+                earthquakeID={earthquakeID}
+                author={author}
+                created_at={created_at}
+                text={text}
+                attachment_name={attachment_name}
+                groups={groups}
+                spectrum_id={spectrum_id}
+                hoverID={hoverID}
+                shiftID={shiftID}
+              />
             </span>
           ),
         )}
