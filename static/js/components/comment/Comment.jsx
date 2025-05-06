@@ -43,9 +43,9 @@ const Comment = ({
   const renderCommentText = () => {
     // Format the text to highlight mentions
     const format_text = text.replace(
-      /(?<!\w)@([\w-@]+)/g,
-      (match, username) => {
-        return `***@${username}***`;
+      /(?<!\w)([@#])([\w-@]+)/g,
+      (match, symbol, username) => {
+        return `***${symbol}${username}***`;
       },
     );
 
