@@ -30,7 +30,6 @@ def test_get_page_and_n_per_page():
     assert get_page_and_n_per_page(1, 10) == (1, 10)
     assert get_page_and_n_per_page(1, 1000) == (1, 500)
     assert get_page_and_n_per_page(2, 1000, 200) == (2, 200)
-    assert get_page_and_n_per_page(0, 0) == (0, 0)
     assert get_page_and_n_per_page("1", "10") == (1, 10)
 
     try:
@@ -47,3 +46,13 @@ def test_get_page_and_n_per_page():
         get_page_and_n_per_page("1.0", 10)
     except ValueError as e:
         assert str(e) == "Invalid page number value."
+
+    try:
+        get_page_and_n_per_page(0, 1)
+    except ValueError as e:
+        assert str(e) == "Page number must be greater than 0."
+
+    try:
+        get_page_and_n_per_page(1, 0)
+    except ValueError as e:
+        assert str(e) == "Number per page must be greater than 0."
