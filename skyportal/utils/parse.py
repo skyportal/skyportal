@@ -24,6 +24,12 @@ def get_page_and_n_per_page(page_number, n_per_page, n_per_page_max=500):
         n_per_page = int(n_per_page)
     except ValueError:
         raise ValueError("Invalid numPerPage value.")
+
+    if page_number < 1:
+        raise ValueError("Page number must be greater than 0.")
+    if n_per_page < 1:
+        raise ValueError("Number per page must be greater than 0.")
+
     return page_number, min(n_per_page, n_per_page_max)
 
 

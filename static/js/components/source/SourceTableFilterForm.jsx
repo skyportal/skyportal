@@ -191,7 +191,7 @@ const SourceTableFilterForm = ({
   };
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
@@ -207,7 +207,7 @@ const SourceTableFilterForm = ({
     : [];
 
   const spatialCatalogsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   spatialCatalogs?.forEach((catalog) => {
     spatialCatalogsLookUp[catalog.id] = catalog;
   });
@@ -1303,7 +1303,11 @@ const SourceTableFilterForm = ({
 
 SourceTableFilterForm.propTypes = {
   handleFilterSubmit: PropTypes.func.isRequired,
-  spatialCatalogQuery: PropTypes.bool.isRequired,
+  spatialCatalogQuery: PropTypes.bool,
+};
+
+SourceTableFilterForm.defaultProps = {
+  spatialCatalogQuery: true,
 };
 
 export default SourceTableFilterForm;

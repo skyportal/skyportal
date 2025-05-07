@@ -2,19 +2,15 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Typography from "@mui/material/Typography";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import Button from "../Button";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { checkSource, saveSource } from "../../ducks/source";
 import { dms_to_dec, hours_to_ra } from "../../units";
@@ -135,7 +131,6 @@ const NewSource = ({ classes, onClose }) => {
             onChange={({ formData }) => setSelectedFormData(formData)}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
             liveValidate
           />
@@ -148,8 +143,6 @@ const NewSource = ({ classes, onClose }) => {
 NewSource.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
-    widgetIcon: PropTypes.string.isRequired,
-    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
   onClose: PropTypes.func,
 };
@@ -158,30 +151,4 @@ NewSource.defaultProps = {
   onClose: () => ({}),
 };
 
-const NewSourceButton = () => {
-  // here we want a button with the text "Add a Source"
-  // to open a dialog that shows the form above
-
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div style={{ width: "100%", padding: "0.25rem" }}>
-      <Button
-        onClick={() => setOpen(true)}
-        variant="contained"
-        style={{ width: "100%" }}
-      >
-        Add a Source
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogContent>
-          <NewSource classes={{}} onClose={() => setOpen(false)} />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
 export default NewSource;
-
-export { NewSourceButton };
