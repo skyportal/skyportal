@@ -80,7 +80,7 @@ class WeatherHandler(BaseHandler):
                     f"given in preferences is not a valid ID (integer)."
                 )
 
-            # use the query telecope ID otherwise fall back to preferences id
+            # use the query telescope ID otherwise fall back to preferences id
             telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
             telescope = session.scalars(
@@ -131,6 +131,7 @@ class WeatherHandler(BaseHandler):
                 data={
                     "weather": weather.weather_info,
                     "weather_retrieved_at": weather.retrieved_at,
+                    "weather_fetch_at": datetime.datetime.utcnow(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,
