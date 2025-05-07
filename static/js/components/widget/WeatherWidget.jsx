@@ -173,6 +173,7 @@ const WeatherWidget = ({ classes }) => {
     const isWrongTelescope =
       weatherPrefs?.telescopeID !== weather?.telescope_id;
 
+    // Check if the weather data is stale (older than 1 hour)
     const isWeatherStale = weather?.weather_retrieved_at
       ? isStale(weather?.weather_retrieved_at)
       : isStale(weather?.weather_fetch_at);
