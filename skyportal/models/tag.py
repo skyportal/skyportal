@@ -17,7 +17,7 @@ class ObjTagOption(Base):
     )
 
 
-ObjTag = join_model("obj_tag", Obj, ObjTagOption)
+ObjTag = join_model("obj_tags", Obj, ObjTagOption)
 
 ObjTag.author_id = sa.Column(
     "author_id",

@@ -2,7 +2,7 @@ import re
 
 from sqlalchemy import func
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Obj, ObjTag, ObjTagOption
 from ..base import BaseHandler
@@ -15,7 +15,7 @@ class ObjTagOptionHandler(BaseHandler):
             tags = session.scalars(ObjTagOption.select(session.user_or_token)).all()
             return self.success(data=tags)
 
-    @auth_or_token
+    @permissions(["Manage sources"])
     def post(self):
         data = self.get_json()
         name = data.get("name")
@@ -83,7 +83,7 @@ class ObjTagOptionHandler(BaseHandler):
 
             return self.success()
 
-    @auth_or_token
+    @permissions(["Manage sources"])
     def delete(self, tag_id):
         try:
             tag_id = int(tag_id)
