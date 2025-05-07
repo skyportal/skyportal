@@ -469,7 +469,7 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     def add_linked_thumbnails(self, thumbnails, session=None):
-        """Determine the URLs of the SDSS, Legacy Survey DR9, and
+        """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         if session is None:
@@ -484,7 +484,7 @@ class Obj(Base, conesearch_alchemy.Point):
             session.add(Thumbnail(obj=self, public_url=self.sdss_url, type="sdss"))
         if "ls" in thumbnails:
             session.add(
-                Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type="ls")
+                Thumbnail(obj=self, public_url=self.legacysurvey_dr10_url, type="ls")
             )
         session.commit()
 
@@ -505,11 +505,11 @@ class Obj(Base, conesearch_alchemy.Point):
         )
 
     @property
-    def legacysurvey_dr9_url(self):
-        """Construct URL for public Legacy Survey DR9 cutout."""
+    def legacysurvey_dr10_url(self):
+        """Construct URL for public Legacy Survey DR10 cutout."""
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=ls-dr9&pixscale=0.262&bands=grz"
+            f"&dec={self.dec}&size=200&layer=ls-dr10&pixscale=0.262&bands=griz"
         )
 
     @property
