@@ -167,7 +167,7 @@ const WeatherWidget = ({ classes }) => {
     if (!telescopeList?.length) return;
 
     const isStale = (utcTime) => {
-      return dayjs().diff(`${utcTime}Z`, "hour") < -1;
+      return dayjs().diff(`${utcTime}Z`, "hour") > 1;
     };
 
     const isWrongTelescope =
