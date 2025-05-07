@@ -177,7 +177,7 @@ const WeatherWidget = ({ classes }) => {
       ? isStale(weather?.weather_retrieved_at)
       : isStale(weather?.weather_fetch_at);
 
-    if (isWrongTelescope || isWeatherStale) {
+    if (!weather || isWrongTelescope || isWeatherStale) {
       dispatch(weatherActions.fetchWeather());
     }
   }, [weatherPrefs, weather, telescopeList, dispatch]);
