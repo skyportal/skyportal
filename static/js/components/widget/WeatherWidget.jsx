@@ -173,7 +173,7 @@ const WeatherWidget = ({ classes }) => {
     const isWrongTelescope =
       weatherPrefs?.telescopeID !== weather?.telescope_id;
 
-    let isWeatherStale = weather?.weather_retrieved_at
+    const isWeatherStale = weather?.weather_retrieved_at
       ? isStale(weather?.weather_retrieved_at)
       : isStale(weather?.weather_fetch_at);
 
