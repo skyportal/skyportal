@@ -130,7 +130,9 @@ class WeatherHandler(BaseHandler):
             return self.success(
                 data={
                     "weather": weather.weather_info,
+                    # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
+                    # Timestamp indicating when the API call was made, even if no data was returned
                     "weather_fetch_at": datetime.datetime.utcnow(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
