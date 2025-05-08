@@ -42,7 +42,7 @@ const Comment = ({
 
   const renderCommentText = () => {
     // Format the text to highlight mentions
-    const format_text = text.replace(
+    const formattedText = text.replace(
       /(?<!\w)([@#])([\w-@]+)/g,
       (match, symbol, username) => {
         return `***${symbol}${username}***`;
@@ -60,10 +60,10 @@ const Comment = ({
       return `**Spectrum ${spectrum.observed_at.substring(
         2,
         10,
-      )}.${dayFraction.toFixed(0)}** ${format_text}`;
+      )}.${dayFraction.toFixed(0)}** ${formattedText}`;
     }
 
-    return format_text;
+    return formattedText;
   };
 
   const emojiSupport = (textComment) =>
