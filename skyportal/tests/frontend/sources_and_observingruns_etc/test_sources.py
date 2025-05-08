@@ -23,7 +23,7 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[@data-testid='comments-accordion']//textarea[@name='text']"
+    comment_xpath = '//form[@data-testid="comment-form"]//textarea[@name="text"]'
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
@@ -32,7 +32,7 @@ def enter_comment_text(driver, comment_text):
 def add_comment(driver, comment_text):
     enter_comment_text(driver, comment_text)
     driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     )
 
 
@@ -52,9 +52,7 @@ def wait_for_comment_text_found(driver, comment_text):
     WebDriverWait(driver, timeout=20).until(
         lambda d: any(
             comment_text.strip() in p.get_attribute("innerText").strip()
-            for p in d.find_elements(
-                By.XPATH, '//*[@data-testid="comments-accordion"]//p'
-            )
+            for p in d.find_elements(By.XPATH, '//*[@id="comment"]//p')
         )
     )
 

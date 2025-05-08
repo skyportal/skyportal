@@ -209,7 +209,11 @@ const CommentEntry = ({
   };
 
   return (
-    <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className={styles.commentEntry}
+      onSubmit={handleSubmit(onSubmit)}
+      data-testid="comment-form"
+    >
       {addComment ? <Typography variant="h6">Add comment</Typography> : <></>}
       {editComment ? <Typography variant="h6">Edit comment</Typography> : <></>}
       <div className={styles.inputDiv}>

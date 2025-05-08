@@ -6,20 +6,6 @@ from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import 
 )
 
 
-def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[contains(@data-testid, 'individual-spectrum-id_')]//textarea[@name='text']"
-    comment_box = driver.wait_for_xpath(comment_xpath)
-    driver.click_xpath(comment_xpath)
-    comment_box.send_keys(comment_text)
-
-
-def add_comment(driver, comment_text):
-    enter_comment_text(driver, comment_text)
-    driver.click_xpath(
-        "//div[contains(@data-testid, 'individual-spectrum-id_')]//*[@name='submitCommentButton']"
-    )
-
-
 def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
 
