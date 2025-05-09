@@ -178,7 +178,6 @@ def test_create_tag_obj_association(super_admin_token, public_source):
     assert "already exists" in data["message"]
 
 
-
 def test_delete_association(super_admin_token, public_source):
     tag_data = {"name": f"TagDeleteAssociation{uuid.uuid4().hex}"}
     status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
