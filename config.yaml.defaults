@@ -813,9 +813,9 @@ analysis_services:
         api_key:
         index_name: openai-skyportal-summary
         index_size: 1536
-        model: text-embedding-ada-002
-        environment: gcp-starter
-        pod_type: p1.x1
+        model: text-embedding-3-small
+        cloud: aws
+        region: us-east-1
 
 
 
