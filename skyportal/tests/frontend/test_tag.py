@@ -1,29 +1,26 @@
-import time
 import uuid
 
 import pytest
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 
 
-def test_add_delete_tag(
-    driver, user, public_source, public_group, upload_data_token, super_admin_user
-):
+def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_user):
     """Test the basic CRUD operations for object tags."""
 
+    driver.get(f"/become_user/{super_admin_user.id}")
     tag_name = f"testtag{uuid.uuid4().hex}"
     status, data = api(
         "POST",
         "objtagoption",
         data={"name": tag_name},
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
+
     tag_id = data["data"]["id"]
 
-    driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//h6[contains(text(), "{public_source.id}")]', timeout=20)
 

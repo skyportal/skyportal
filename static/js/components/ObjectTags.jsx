@@ -20,9 +20,9 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
-import * as objectTagsActions from "../../ducks/objectTags";
-import * as sourceActions from "../../ducks/source";
+import Button from "./Button";
+import * as objectTagsActions from "../ducks/objectTags";
+import * as sourceActions from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
   root: {
