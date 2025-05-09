@@ -58,6 +58,7 @@ from ...models import (
     Instrument,
     Obj,
     ObjAnalysis,
+    ObjTag,
     ObservingRun,
     PhotometricSeries,
     Photometry,
@@ -198,6 +199,7 @@ async def get_source(
     include_gcn_crossmatches=False,
     include_gcn_notes=False,
     include_candidates=False,
+    include_tags=False,
 ):
     """Query source from database.
     obj_id: int
@@ -578,7 +580,10 @@ async def get_source(
                     for gcn in confirmed_in_gcn
                 ]
             )
-
+    if include_tags:
+        tags = session.scalars(ObjTag.select(user).where(ObjTag.obj_id == obj_id)).all()
+        tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+        source_info["tags"] = tags
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -1833,6 +1838,7 @@ class SourceHandler(BaseHandler):
         )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         include_candidates = self.get_query_argument("includeCandidates", False)
+        include_tags = self.get_query_argument("includeTags", True)
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -1969,6 +1975,7 @@ class SourceHandler(BaseHandler):
                         include_gcn_crossmatches=include_gcn_crossmatches,
                         include_gcn_notes=include_gcn_notes,
                         include_candidates=include_candidates,
+                        include_tags=include_tags,
                     )
                 except Exception as e:
                     traceback.print_exc()

@@ -75,7 +75,7 @@ import Spinner from "../Spinner";
 import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
-
+import ObjectTags from "../ObjectTags";
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
@@ -591,6 +591,7 @@ const SourceContent = ({ source }) => {
               <div className={classes.header}>
                 <FavoritesButton sourceID={source.id} />
                 <h6 className={classes.name}>{source.id}</h6>
+                <ObjectTags source={source} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
                     candidates={source?.candidates || []}
