@@ -133,7 +133,7 @@ const NewsFeedItem = ({ item }) => {
           S
         </Avatar>
       );
-      /* eslint-disable react/display-name */
+
       entryTitle = "New source";
       break;
     default:
@@ -167,7 +167,12 @@ const NewsFeedItem = ({ item }) => {
           className={styles.entryMessage}
           components={{ text: emojiSupport }}
         >
-          {item.message}
+          {item.message.replace(
+            /(?<!\w)([@#])([\w-@]+)/g,
+            (match, symbol, username) => {
+              return `***${symbol}${username}***`;
+            },
+          )}
         </ReactMarkdown>
         <div className={styles.entryIdent}>
           <span className={styles.entrySourceId}>

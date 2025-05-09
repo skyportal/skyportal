@@ -41,6 +41,14 @@ const Comment = ({
   const spectra = useSelector((state) => state.spectra);
 
   const renderCommentText = () => {
+    // Format the text to highlight mentions
+    const formattedText = text.replace(
+      /(?<!\w)([@#])([\w-@]+)/g,
+      (match, symbol, username) => {
+        return `***${symbol}${username}***`;
+      },
+    );
+
     if (
       spectrum_id &&
       objID in spectra &&
@@ -52,10 +60,10 @@ const Comment = ({
       return `**Spectrum ${spectrum.observed_at.substring(
         2,
         10,
-      )}.${dayFraction.toFixed(0)}** ${text}`;
+      )}.${dayFraction.toFixed(0)}** ${formattedText}`;
     }
 
-    return text;
+    return formattedText;
   };
 
   const emojiSupport = (textComment) =>
