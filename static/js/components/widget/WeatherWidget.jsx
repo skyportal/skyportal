@@ -164,31 +164,23 @@ const WeatherWidget = ({ classes }) => {
   const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
-    if (
-      telescopeList === undefined ||
-      telescopeList === null ||
-      telescopeList?.length === 0
-    ) {
-      return;
-    }
-    // if we don't have weather info yet, query it
-    if (weather === undefined || weather === null) {
-      dispatch(weatherActions.fetchWeather());
-      return;
-    }
+    if (!telescopeList?.length) return;
 
-    // if the weather info is stale or for the wrong telescope, query it
-    if (
-      weatherPrefs?.telescopeID !== weather?.telescope_id ||
-      weather?.weather_retrieved_at === undefined ||
-      weather?.weather_retrieved_at === null ||
-      dayjs(new Date(`${weather?.weather_retrieved_at}Z`)).diff(
-        dayjs(),
-        "hour",
-      ) > 1
-    ) {
+    const isStale = (utcTime) => {
+      if (!utcTime) return true;
+      return dayjs().diff(`${utcTime}Z`, "hour") > 1;
+    };
+
+    const isWrongTelescope =
+      weatherPrefs?.telescopeID !== weather?.telescope_id;
+
+    // Check if the weather data is stale (older than 1 hour)
+    const isWeatherStale = weather?.weather_retrieved_at
+      ? isStale(weather?.weather_retrieved_at)
+      : isStale(weather?.weather_fetch_at);
+
+    if (!weather || isWrongTelescope || isWeatherStale) {
       dispatch(weatherActions.fetchWeather());
-      return;
     }
   }, [weatherPrefs, weather, telescopeList, dispatch]);
 
