@@ -591,7 +591,6 @@ const SourceContent = ({ source }) => {
               <div className={classes.header}>
                 <FavoritesButton sourceID={source.id} />
                 <h6 className={classes.name}>{source.id}</h6>
-                <ObjectTags source={source} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
                     candidates={source?.candidates || []}
@@ -625,6 +624,7 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
+            <ObjectTags source={source} />
             <SourceCoordinates classes={classes} source={source} />
             <div
               className={classes.flexRow}
