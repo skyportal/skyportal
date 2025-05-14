@@ -25,14 +25,25 @@ def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_us
     driver.wait_for_xpath(f'//h6[contains(text(), "{public_source.id}")]', timeout=20)
 
     add_tag_button = driver.wait_for_xpath_to_be_clickable(
-        '//div[contains(@class, "chips")]/following-sibling::button[@data-testid="add-tag-button"] | //div[contains(@class, "chips")]/following-sibling::*//button[@data-testid="add-tag-button"]',
+        '*//button[@data-testid="add-tag-button"]',
         timeout=10,
     )
-    driver.execute_script("arguments[0].click();", add_tag_button)
+    add_tag_button.click()
     driver.wait_for_xpath('//div[@data-testid="add-tag-dialog"]', timeout=20)
-    driver.wait_for_xpath_to_be_clickable('//div[@data-testid="tag-select"]').click()
-    tag_option = driver.wait_for_xpath(f'//li[@data-testid="tag-option-{tag_id}"]')
-    tag_option.click()
+
+    autocomplete = driver.wait_for_xpath_to_be_clickable(
+        '//div[@data-testid="tag-select"]'
+    )
+    autocomplete.click()
+
+    driver.wait_for_xpath(
+        '//div[contains(@class, "MuiAutocomplete-popper")]', timeout=10
+    )
+
+    option = driver.wait_for_xpath_to_be_clickable(
+        f'//li[contains(text(), "{tag_name}")]', timeout=10
+    )
+    option.click()
 
     driver.wait_for_xpath_to_be_clickable('//button[@data-testid="save-tag-button"]')
     driver.click_xpath('//button[@data-testid="save-tag-button"]')
@@ -41,7 +52,7 @@ def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_us
     driver.wait_for_xpath(f'//span[contains(text(), "{tag_name}")]')
 
     driver.click_xpath(
-        f"//*[@data-testid='tag-chip-{tag_id}']//*[contains(@class, 'MuiChip-deleteIcon')]",
+        f"//*[@data-testid='tag-chip-{tag_id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
     )
     driver.wait_for_xpath('//*[contains(text(), "Source Tag deleted")]', timeout=10)
     driver.wait_for_xpath_to_disappear(f"//div[@data-testid='tag-chip-{tag_id}']")
@@ -56,11 +67,10 @@ def test_create_new_tag(driver, user, public_source, super_admin_user):
     driver.wait_for_xpath(f'//h6[contains(text(), "{public_source.id}")]', timeout=20)
 
     add_tag_button = driver.wait_for_xpath_to_be_clickable(
-        '//div[contains(@class, "chips")]/following-sibling::button[@data-testid="add-tag-button"] | //div[contains(@class, "chips")]/following-sibling::*//button[@data-testid="add-tag-button"]',
+        '*//button[@data-testid="add-tag-button"]',
         timeout=10,
     )
-
-    driver.execute_script("arguments[0].click();", add_tag_button)
+    add_tag_button.click()
 
     driver.wait_for_xpath('//div[@data-testid="add-tag-dialog"]', timeout=20)
 
@@ -85,10 +95,10 @@ def test_permission_for_tag_creation(driver, user, public_source):
     driver.wait_for_xpath(f'//h6[contains(text(), "{public_source.id}")]', timeout=20)
 
     add_tag_button = driver.wait_for_xpath_to_be_clickable(
-        '//div[contains(@class, "chips")]/following-sibling::button[@data-testid="add-tag-button"] | //div[contains(@class, "chips")]/following-sibling::*//button[@data-testid="add-tag-button"]',
+        '*//button[@data-testid="add-tag-button"]',
         timeout=10,
     )
-    driver.execute_script("arguments[0].click();", add_tag_button)
+    add_tag_button.click()
 
     driver.wait_for_xpath('//div[@data-testid="add-tag-dialog"]', timeout=20)
 
