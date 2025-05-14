@@ -206,7 +206,6 @@ const GcnSummaryTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = false,
-  hideTitle = false,
 }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -360,7 +359,7 @@ const GcnSummaryTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={!hideTitle ? "GCN Summaries" : ""}
+              title="GCN Summaries"
               data={summaries}
               options={options}
               columns={columns}
@@ -393,7 +392,6 @@ GcnSummaryTable.propTypes = {
   ),
   pageNumber: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
@@ -401,7 +399,6 @@ GcnSummaryTable.defaultProps = {
   summaries: null,
   pageNumber: 1,
   numPerPage: 10,
-  hideTitle: false,
   serverSide: false,
 };
 

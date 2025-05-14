@@ -89,7 +89,6 @@ const AllocationTable = ({
   totalMatches = 0,
   numPerPage = 10,
   deletePermission = false,
-  hideTitle = false,
   telescopeInfo = true,
 }) => {
   const classes = useStyles();
@@ -467,7 +466,7 @@ const AllocationTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={!hideTitle ? "Allocations" : ""}
+              title="Allocations"
               data={allocations || []}
               options={options}
               columns={columns}
@@ -520,7 +519,6 @@ AllocationTable.propTypes = {
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
 };
 
@@ -531,7 +529,6 @@ AllocationTable.defaultProps = {
   sortingCallback: null,
   totalMatches: 0,
   numPerPage: 10,
-  hideTitle: false,
   telescopeInfo: true,
 };
 

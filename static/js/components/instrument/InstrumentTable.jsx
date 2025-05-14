@@ -80,7 +80,6 @@ const InstrumentTable = ({
   paginateCallback = null,
   totalMatches = 0,
   numPerPage = 10,
-  hideTitle = false,
   telescopeInfo = true,
 }) => {
   const classes = useStyles();
@@ -468,7 +467,7 @@ const InstrumentTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={hideTitle === true ? "" : "Instruments"}
+              title="Instruments"
               data={instruments || []}
               options={options}
               columns={columns}
@@ -522,7 +521,6 @@ InstrumentTable.propTypes = {
   paginateCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
   deletePermission: PropTypes.bool,
 };
@@ -532,7 +530,6 @@ InstrumentTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   paginateCallback: null,
-  hideTitle: false,
   telescopeInfo: true,
 };
 

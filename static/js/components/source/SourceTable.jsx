@@ -612,7 +612,6 @@ const SourceTable = ({
   numPerPage,
   sortingCallback,
   favoritesRemoveButton = false,
-  hideTitle = false,
   downloadCallback,
   includeGcnStatus = false,
   sourceInGcnFilter,
@@ -2026,7 +2025,7 @@ const SourceTable = ({
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
                   <MUIDataTable
-                    title={!hideTitle ? title : ""}
+                    title={title}
                     columns={columns}
                     data={sources}
                     options={options}
@@ -2145,7 +2144,6 @@ SourceTable.propTypes = {
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
-  hideTitle: PropTypes.bool,
   downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
@@ -2165,7 +2163,6 @@ SourceTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   favoritesRemoveButton: false,
-  hideTitle: false,
   downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},

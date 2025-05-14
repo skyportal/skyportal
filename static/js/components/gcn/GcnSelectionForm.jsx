@@ -293,7 +293,6 @@ const GcnEventSourcesPage = ({
         numPerPage={sources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
         favoritesRemoveButton
-        hideTitle
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
