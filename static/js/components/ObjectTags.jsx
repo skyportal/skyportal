@@ -9,16 +9,13 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogActions from "@mui/material/DialogActions";
 import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-
+import Autocomplete from "@mui/material/Autocomplete";
+import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import * as objectTagsActions from "../ducks/objectTags";
@@ -72,7 +69,7 @@ const ObjectTags = ({ source }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const [selectedTagId, setSelectedTagId] = useState("");
+  const [selectedTag, setSelectedTag] = useState(null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
@@ -83,6 +80,8 @@ const ObjectTags = ({ source }) => {
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage sources");
 
+  const { control, setValue, getValues } = useForm();
+
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
   }, [dispatch]);
@@ -90,16 +89,15 @@ const ObjectTags = ({ source }) => {
   const handleOpenDialog = () => {
     setOpen(true);
     setNewTagName("");
+    setSelectedTag(null);
+    setValue("tag", null);
   };
 
   const handleCloseDialog = () => {
     setOpen(false);
-    setSelectedTagId("");
+    setSelectedTag(null);
+    setValue("tag", null);
     setNewTagName("");
-  };
-
-  const handleTagChange = (event) => {
-    setSelectedTagId(event.target.value);
   };
 
   const refreshSource = () => {
@@ -110,6 +108,7 @@ const ObjectTags = ({ source }) => {
 
   const handleNewTagNameChange = (event) => {
     setNewTagName(event.target.value);
+    setTagError("");
   };
 
   const handleCreateTag = () => {
@@ -129,12 +128,13 @@ const ObjectTags = ({ source }) => {
 
       if (result.status === "success") {
         dispatch(showNotification("Tag created successfully"));
-        dispatch(objectTagsActions.fetchTagOptions());
+        dispatch(objectTagsActions.fetchTagOptions()).then(() => {
+          if (result.data) {
+            setSelectedTag(result.data);
+            setValue("tag", result.data);
+          }
+        });
         setNewTagName("");
-
-        if (result.data && result.data.id) {
-          setSelectedTagId(result.data.id);
-        }
       } else {
         const errorMsg = result.message || "Failed to create tag";
         setTagError(errorMsg);
@@ -144,22 +144,21 @@ const ObjectTags = ({ source }) => {
   };
 
   const handleAddTag = () => {
-    if (!selectedTagId) return;
+    const formValues = getValues();
+    const tagToAdd = formValues.tag;
 
     setIsAddingTag(true);
 
     dispatch(
       objectTagsActions.addObjectTag({
         obj_id: source.id,
-        objtagoption_id: selectedTagId,
+        objtagoption_id: tagToAdd.id,
       }),
     ).then((result) => {
       setIsAddingTag(false);
       if (result.status === "success") {
         dispatch(showNotification("Tag added successfully"));
-
         refreshSource();
-
         handleCloseDialog();
       } else {
         dispatch(showNotification("Failed to add tag", "error"));
@@ -172,7 +171,6 @@ const ObjectTags = ({ source }) => {
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Source Tag deleted"));
-
           refreshSource();
         } else {
           dispatch(showNotification("Failed to delete tag", "error"));
@@ -221,33 +219,42 @@ const ObjectTags = ({ source }) => {
       >
         <DialogTitle>Add Tag to {source.id}</DialogTitle>
         <DialogContent>
-          <FormControl className={styles.selectFormControl}>
-            <InputLabel id="tag-select-label">Select Tag</InputLabel>
-            <Select
-              labelId="tag-select-label"
-              value={selectedTagId}
-              onChange={handleTagChange}
-              fullWidth
-              data-testid="tag-select"
-              disabled={availableTags.length === 0 && !permission}
-            >
-              {availableTags.length === 0 ? (
-                <MenuItem value="" disabled>
-                  No available tags to add
-                </MenuItem>
-              ) : (
-                availableTags.map((option) => (
-                  <MenuItem
-                    key={option.id}
-                    value={option.id}
-                    data-testid={`tag-option-${option.id}`}
-                  >
-                    {option.name}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
+          {availableTags.length > 0 ? (
+            <Controller
+              name="tag"
+              control={control}
+              render={({ field: { onChange, value } }) => {
+                return (
+                  <Autocomplete
+                    id="tagSelect"
+                    options={availableTags}
+                    getOptionLabel={(option) => option.name}
+                    value={value}
+                    onChange={(e, data) => {
+                      onChange(data);
+                      setSelectedTag(data);
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant="outlined"
+                        label="Select Tag"
+                        size="small"
+                        className={styles.autocomplete}
+                        data-testid="tag-autocomplete-input"
+                      />
+                    )}
+                    filterSelectedOptions
+                    data-testid="tag-select"
+                  />
+                );
+              }}
+            />
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No (more) available tags to add to this source.
+            </Typography>
+          )}
 
           {permission && (
             <>
@@ -301,7 +308,7 @@ const ObjectTags = ({ source }) => {
           <Button
             onClick={handleAddTag}
             color="primary"
-            disabled={!selectedTagId || isAddingTag}
+            disabled={!selectedTag || isAddingTag}
             data-testid="save-tag-button"
           >
             {isAddingTag ? "Saving..." : "Save"}
