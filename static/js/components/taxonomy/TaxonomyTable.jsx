@@ -93,7 +93,6 @@ const TaxonomyTable = ({
   totalMatches,
   deletePermission,
   sortingCallback,
-  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -362,7 +361,7 @@ const TaxonomyTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={hideTitle === true ? "" : "Taxonomies"}
+              title="Taxonomies"
               data={taxonomies}
               options={options}
               columns={columns}
@@ -428,14 +427,12 @@ TaxonomyTable.propTypes = {
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
-  hideTitle: PropTypes.bool,
   deletePermission: PropTypes.bool.isRequired,
 };
 
 TaxonomyTable.defaultProps = {
   totalMatches: 0,
   sortingCallback: null,
-  hideTitle: false,
 };
 
 export default TaxonomyTable;

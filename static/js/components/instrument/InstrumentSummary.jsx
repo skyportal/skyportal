@@ -10,7 +10,6 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -207,7 +206,6 @@ const InstrumentSummary = ({ route }) => {
               data={instrument?.status || {}}
               lastUpdated={instrument?.last_status_update}
               refreshButton={refreshButton}
-              showTitle
             />
           </Paper>
         </Grid>

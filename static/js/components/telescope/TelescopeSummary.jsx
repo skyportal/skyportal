@@ -124,7 +124,6 @@ const TelescopeSummary = ({ route }) => {
                 instruments={instrumentsState.instrumentList}
                 allocations={telescope.allocations}
                 groups={groups}
-                hideTitle
                 telescopeInfo={false}
               />
             )}
