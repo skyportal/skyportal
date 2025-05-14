@@ -872,6 +872,8 @@ const UserManagement = () => {
   ];
 
   const options = {
+    fixedHeader: true,
+    tableBodyHeight: "73vh",
     responsive: "standard",
     print: true,
     download: true,
