@@ -75,7 +75,7 @@ import Spinner from "../Spinner";
 import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
-
+import ObjectTags from "../ObjectTags";
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
@@ -624,6 +624,7 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
+            <ObjectTags source={source} />
             <SourceCoordinates classes={classes} source={source} />
             <div
               className={classes.flexRow}
