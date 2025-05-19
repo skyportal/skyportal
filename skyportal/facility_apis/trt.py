@@ -51,8 +51,8 @@ def validate_request_to_trt(request):
             f"Filter configuration {request.payload['observation_choices']} unknown."
         )
 
-    if request.payload["station_name"] not in ["SRO", "GAO", "SBO"]:
-        raise ValueError("observation_type must be SRO, GAO, or SBO")
+    if request.payload["station_name"] not in ["SRO", "GAO", "SBO", "CTO"]:
+        raise ValueError("observation_type must be SRO, GAO, SBO or CTO")
 
     if request.payload["exposure_time"] < 0:
         raise ValueError("exposure_time must be positive.")
@@ -474,7 +474,7 @@ class TRTAPI(FollowUpAPI):
         "properties": {
             "station_name": {
                 "type": "string",
-                "enum": ["SRO", "GAO", "SBO"],
+                "enum": ["SRO", "GAO", "SBO", "CTO"],
                 "default": "SRO",
             },
             "exposure_time": {
@@ -519,7 +519,7 @@ class TRTAPI(FollowUpAPI):
                     {
                         "properties": {
                             "station_name": {
-                                "enum": ["SRO", "GAO"],
+                                "enum": ["SRO", "GAO", "SBO", "CTO"],
                             },
                             "observation_choices": {
                                 "type": "array",
