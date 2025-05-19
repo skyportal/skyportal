@@ -48,6 +48,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
@@ -733,12 +734,9 @@ const SourceContent = ({ source }) => {
                   <UpdateSourceGCNCrossmatch source={source} />
                 )}
               </div>
-              {source.alias ? (
-                <div className={classes.rowInfo}>
-                  <b>Aliases: &nbsp;</b>
-                  <div key="aliases"> {source.alias.join(", ")} </div>
-                </div>
-              ) : null}
+              <div className={classes.rowInfo}>
+                <SourceAlias source={source} />
+              </div>
             </div>
             {source.host && (
               <div className={classes.infoLine}>
