@@ -468,7 +468,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 return [
                   x.data[0], // id
                   x.data[1], // mjd
-                  x.data[17], // UTC date
                   x.data[2], // mag
                   x.data[3], // magerr
                   x.data[4], // limiting_mag
@@ -484,6 +483,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[14], // ra_unc
                   x.data[15], // dec_unc
                   x.data[16], // created_at
+                  x.data[17], // UTC date
                   renderOwnerDownload(x.data[18]),
                   renderStreamsDownload(x.data[19]),
                   x.data[20],
