@@ -46,6 +46,7 @@ from .earthquake import (
     EarthquakeStatusHandler,
 )
 from .enum_types import EnumTypesHandler
+from .external_publishing.external_publishing import ExternalPublishingHandler
 from .facility_listener import FacilityMessageHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler

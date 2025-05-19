@@ -85,6 +85,7 @@ import SpectraPlot from "../plot/SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
+import ExternalPublishingDialog from "./external_publishing/ExternalPublishingForm";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -228,8 +229,7 @@ const SourceContent = ({ source }) => {
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
-  const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
-  const [hermesDialogOpen, setHermesDialogOpen] = useState(false);
+  const [sendToDialogOpen, setSendToDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
@@ -840,7 +840,7 @@ const SourceContent = ({ source }) => {
                       <CopyPhotometryDialog
                         source={source}
                         duplicate={duplicate}
-                        dialogOpen={copyPhotometryDialogOpen}
+                        sendToDialogOpen={copyPhotometryDialogOpen}
                         closeDialog={setCopyPhotometryDialogOpen}
                       />
                     </div>
@@ -854,7 +854,7 @@ const SourceContent = ({ source }) => {
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
               <SourcePlugins source={source} />
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   aria-controls={openFindingChart ? "basic-menu" : undefined}
                   aria-haspopup="true"
@@ -896,7 +896,7 @@ const SourceContent = ({ source }) => {
                   </MenuItem>
                 </Menu>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   secondary
                   size="small"
@@ -905,7 +905,7 @@ const SourceContent = ({ source }) => {
                   {showStarList ? "Hide Starlist" : "Show Starlist"}
                 </Button>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   aria-controls={openObservability ? "basic-menu" : undefined}
                   aria-haspopup="true"
@@ -948,102 +948,25 @@ const SourceContent = ({ source }) => {
                   </MenuItem>
                 </Menu>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   aria-controls={openSendTo ? "basic-menu" : undefined}
                   aria-haspopup="true"
                   aria-expanded={openSendTo ? "true" : undefined}
-                  onClick={(e) => setAnchorElSendTo(e.currentTarget)}
+                  onClick={() => setSendToDialogOpen(true)}
                   secondary
                   size="small"
                 >
                   Send to
                 </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="send-to-menu"
-                  anchorEl={anchorElSendTo}
-                  open={openSendTo}
-                  onClose={() => setAnchorElSendTo(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      setTNSDialogOpen(true);
-                      setAnchorElSendTo(null);
-                    }}
-                  >
-                    TNS
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      setHermesDialogOpen(true);
-                      setAnchorElSendTo(null);
-                    }}
-                  >
-                    Hermes
-                  </MenuItem>
-                </Menu>
-                <Dialog
-                  open={tnsDialogOpen}
-                  onClose={() => setTNSDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle>Send to TNS</DialogTitle>
-                  <DialogContent>
-                    <TNSATForm
-                      obj_id={source.id}
-                      submitCallback={() => setTNSDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-                <Dialog
-                  open={hermesDialogOpen}
-                  onClose={() => setHermesDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
-                    Send to Hermes
-                    <Tooltip
-                      title={
-                        <h2>
-                          HERMES is a Message Exchange Service for
-                          Multi-Messenger Astronomy. Click{" "}
-                          <a
-                            href="https://hermes.lco.global/about"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={classes.tooltipLink}
-                          >
-                            here
-                          </a>{" "}
-                          for more information.
-                        </h2>
-                      }
-                      placement="bottom"
-                    >
-                      <InfoOutlined
-                        style={{
-                          fontSize: "1.3rem",
-                          marginLeft: "0.5rem",
-                        }}
-                      />
-                    </Tooltip>
-                  </DialogTitle>
-                  <DialogContent>
-                    <HermesForm
-                      obj_id={source.id}
-                      submitCallback={() => setHermesDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
+                <ExternalPublishingDialog
+                  obj_id={source.id}
+                  dialogOpen={sendToDialogOpen}
+                  setDialogOpen={setSendToDialogOpen}
+                />
               </div>
               {currentUser?.preferences?.hideSourceSummary === true ? (
-                <div className={classes.infoButton}>
+                <div>
                   <ShowSummaryHistory
                     summaries={source.summary_history || []}
                     obj_id={source.id}
