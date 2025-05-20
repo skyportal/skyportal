@@ -81,8 +81,10 @@ def create_scan_report_item(session, report, sources_by_obj):
             priority_order = getattr(
                 facility_apis, instrument.api_classname
             ).priorityOrder
-            priority = followup.payload["priority"]
+            priority = followup.payload.get("priority")
             current = followups.get(instrument.name)
+            if current and priority is None:
+                continue  # If the priority is None, keep only the first one
             if (
                 current is None
                 or (priority_order == "desc" and priority < current)
