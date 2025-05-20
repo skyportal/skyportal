@@ -29,8 +29,9 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "4px 8px",
-    borderRadius: "4px",
+    borderRadius: "0px",
+    position: "relative",
+    lineHeight: 1,
     "&:hover $deleteButton": {
       opacity: 1,
     },
@@ -112,10 +113,10 @@ const SourceAlias = ({ source }) => {
       >
         <div
           style={{
-            marginTop: "1rem",
             display: "flex",
-            flexWrap: "3px",
-            gap: "1px",
+            flexWrap: "0px",
+            gap: "0px",
+            alignItems: "center",
           }}
         >
           <b>Aliases: &nbsp;</b>
