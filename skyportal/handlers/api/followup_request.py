@@ -1679,7 +1679,10 @@ def observation_schedule(
             exposure_counts = 1
 
         if "too" in payload:
-            too = str_to_bool(payload["too"], default=False)
+            if type(payload["too"]) == bool:
+                too = payload["too"]
+            else:
+                too = str_to_bool(payload["too"], default=False)
         else:
             too = False
 
