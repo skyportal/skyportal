@@ -92,6 +92,7 @@ class PhotometryValidationHandler(BaseHandler):
         validated = data.get("validated")
         explanation = data.get("explanation")
         notes = data.get("notes")
+        magsys = data.get("magsys")
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -161,7 +162,7 @@ class PhotometryValidationHandler(BaseHandler):
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": phot.obj.id},
+                payload={"obj_id": phot.obj.id, "magsys": magsys},
             )
             return self.success(data={"id": photometry_validation.id})
 
@@ -218,6 +219,7 @@ class PhotometryValidationHandler(BaseHandler):
         validated = data.get("validated")
         explanation = data.get("explanation")
         notes = data.get("notes")
+        magsys = data.get("magsys")
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -258,7 +260,10 @@ class PhotometryValidationHandler(BaseHandler):
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": photometry_validation.photometry.obj.id},
+                payload={
+                    "obj_id": photometry_validation.photometry.obj.id,
+                    "magsys": magsys,
+                },
             )
             return self.success(data={"id": photometry_validation.id})
 
