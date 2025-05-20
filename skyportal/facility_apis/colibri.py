@@ -3,7 +3,7 @@ from datetime import datetime
 import requests
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from requests.auth import HTTPBasicAuth
+from astropy.time import Time, TimeDelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -14,56 +14,60 @@ from . import FollowUpAPI
 env, cfg = load_env()
 
 
-if cfg.get("app.colibri.port") is None:
-    COLIBRI_URL = f"{cfg['app.colibri.protocol']}://{cfg['app.colibri.host']}"
-else:
-    COLIBRI_URL = f"{cfg['app.colibri.protocol']}://{cfg['app.colibri.host']}:{cfg['app.colibri.port']}"
+def validate_request_to_colibri(request):
+    """Validate FollowupRequest contents for COLIBRI queue.
 
+    Parameters
+    ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to Colibri.
+    """
 
-class COLIBRIRequest:
-    """A dictionary structure for COLIBRI ToO requests."""
+    for param in [
+        "observation_choice",
+        "exposure_time",
+        "maximum_airmass",
+        "minimum_lunar_distance",
+        "priority",
+        "start_date",
+        "end_date",
+        "too",
+    ]:
+        if param not in request.payload:
+            raise ValueError(f"Parameter {param} required.")
 
-    def _build_payload(self, request):
-        """Payload json for COLIBRI queue requests.
+    if request.payload["observation_choice"] not in [
+        "U",
+        "g",
+        "r",
+        "i",
+        "z",
+        "B",
+        "V",
+        "R",
+        "I",
+    ]:
+        raise ValueError(
+            f"Filter configuration {request.payload['observation_choice']} unknown."
+        )
 
-        Parameters
-        ----------
+    if request.payload["exposure_time"] < 0:
+        raise ValueError("exposure_time must be positive.")
 
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
+    if request.payload["maximum_airmass"] < 1:
+        raise ValueError("maximum_airmass must be at least 1.")
 
-        Returns
-        ----------
-        payload: json
-            payload for requests.
-        """
+    if (
+        request.payload["minimum_lunar_distance"] < 0
+        or request.payload["minimum_lunar_distance"] > 180
+    ):
+        raise ValueError("minimum lunar distance must be within 0-180.")
 
-        for filt in request.payload["observation_choices"]:
-            if filt not in ["U", "g", "r", "i", "z", "B", "V", "R", "I"]:
-                raise ValueError(f"Improper observation_choice {filt}")
+    if request.payload["priority"] < 0 or request.payload["priority"] > 5:
+        raise ValueError("priority must be within 0-5.")
 
-        c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
-        ra_str = c.ra.to_string(unit="hour", sep=":", precision=2, pad=True)
-        dec_str = c.dec.to_string(unit="degree", sep=":", precision=2, pad=True)
-
-        # The target of the observation
-        target = {
-            "name": request.obj.id,
-            "alpha": ra_str,
-            "delta": dec_str,
-            "equinox": "2000",
-            "uncertainty": "1.0as",
-            "priority": int(request.payload["priority"]),
-            "filters": "".join(request.payload["observation_choices"]),
-            "type": "transient",
-            "projectidentifier": str(request.allocation.id),
-            "identifier": str(request.id),
-            "enabled": "true",
-            "eventtimestamp": request.payload["start_date"],
-            "alerttimestamp": request.payload["start_date"],
-        }
-
-        return target
+    if request.payload["too"] not in ["Y", "N"]:
+        raise ValueError("too must be Y or N")
 
 
 class COLIBRIAPI(FollowUpAPI):
@@ -84,30 +88,12 @@ class COLIBRIAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction
 
-        req = COLIBRIRequest()
-        requestgroup = req._build_payload(request)
-
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
-        requestpath = f"{COLIBRI_URL}/cgi-bin/internal/process_colibri_ztf_request.py"
-
-        r = requests.post(
-            requestpath,
-            auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
-            json=requestgroup,
-        )
-        r.raise_for_status()
-
-        if r.status_code == 200:
-            request.status = "submitted"
-        else:
-            request.status = f"rejected: {r.content}"
+        validate_request_to_colibri(request)
+        request.status = "submitted"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=None,
+            response=None,
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -130,20 +116,31 @@ class COLIBRIAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-        from ..models import FollowupRequest
+        """Delete a follow-up request from Colibri queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
+        """
+
+        from ..models import FacilityTransaction
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
-        else:
-            raise NotImplementedError(
-                "Can't delete requests already submitted successfully to COLIBRI."
-            )
+        request.status = "deleted"
+
+        transaction = FacilityTransaction(
+            request=None,
+            response=None,
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -159,18 +156,73 @@ class COLIBRIAPI(FollowUpAPI):
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
 
+    @staticmethod
+    def update(request, session, **kwargs):
+        """Update a follow-up request to COLIBRI.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
+        """
+
+        from ..models import FacilityTransaction
+
+        validate_request_to_colibri(request)
+        request.status = "submitted"
+
+        transaction = FacilityTransaction(
+            request=None,
+            response=None,
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
+
+        if kwargs.get("refresh_source", False):
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get("refresh_requests", False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+
     form_json_schema = {
         "type": "object",
         "properties": {
-            "observation_choices": {
-                "type": "array",
+            "observation_choice": {
+                "type": "string",
                 "title": "Desired Observations",
-                "items": {
-                    "type": "string",
-                    "enum": ["U", "g", "r", "i", "z", "B", "V", "R", "I"],
-                },
-                "uniqueItems": True,
-                "minItems": 1,
+                "enum": ["U", "g", "r", "i", "z", "B", "V", "R", "I"],
+                "default": "r",
+            },
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
+            },
+            "maximum_airmass": {
+                "title": "Maximum Airmass (1-3)",
+                "type": "number",
+                "default": 2.0,
+                "minimum": 1,
+                "maximum": 3,
+            },
+            "minimum_lunar_distance": {
+                "title": "Minimum Lunar Distance [deg] (0-180)",
+                "type": "number",
+                "default": 30.0,
+                "minimum": 0,
+                "maximum": 180,
             },
             "priority": {
                 "type": "number",
@@ -181,33 +233,41 @@ class COLIBRIAPI(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": Time.now().isot,
                 "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "title": "End Date (UT)",
+                "default": (Time.now() + TimeDelta(7, format="jd")).isot,
+            },
+            "too": {
+                "title": "Is this a Target of Opportunity observation?",
+                "type": "string",
+                "enum": [
+                    "N",
+                    "Y",
+                ],
+                "default": "N",
             },
         },
         "required": [
-            "observation_choices",
+            "observation_choice",
             "priority",
             "start_date",
+            "end_date",
+            "exposure_time",
+            "maximum_airmass",
+            "minimum_lunar_distance",
+            "too",
         ],
     }
 
-    form_json_schema_altdata = {
-        "type": "object",
-        "properties": {
-            "username": {
-                "type": "string",
-                "title": "Username",
-            },
-            "password": {
-                "type": "string",
-                "title": "Password",
-            },
-        },
-    }
-
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
-
+    ui_json_schema = {}
     alias_lookup = {
-        "observation_choices": "Request",
+        "observation_choice": "Request",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "priority": "Priority",
+        "observation_type": "Mode",
     }
