@@ -83,14 +83,18 @@ def create_scan_report_item(session, report, sources_by_obj):
             ).priorityOrder
             priority = followup.payload.get("priority")
             current = followups.get(instrument.name)
-            if current and priority is None:
-                continue  # If the priority is None, keep only the first one
-            if (
-                current is None
-                or (priority_order == "desc" and priority < current)
-                or (priority_order == "asc" and priority > current)
-            ):
-                followups[instrument.name] = priority
+
+            should_update = False
+            if current is None or current == "NA":
+                should_update = True
+            elif priority is not None:
+                if priority_order == "desc" and priority < current:
+                    should_update = True
+                elif priority_order == "asc" and priority > current:
+                    should_update = True
+
+            if should_update:
+                followups[instrument.name] = priority if priority is not None else "NA"
         followups = [
             {"instrument": name, "priority": prio} for name, prio in followups.items()
         ]
