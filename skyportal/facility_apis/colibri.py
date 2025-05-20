@@ -66,8 +66,8 @@ def validate_request_to_colibri(request):
     if request.payload["priority"] < 0 or request.payload["priority"] > 5:
         raise ValueError("priority must be within 0-5.")
 
-    if request.payload["too"] not in ["Y", "N"]:
-        raise ValueError("too must be Y or N")
+    if type(request.payload["too"]) != bool:
+        raise ValueError("too must be boolean")
 
 
 class COLIBRIAPI(FollowUpAPI):
@@ -243,12 +243,8 @@ class COLIBRIAPI(FollowUpAPI):
             },
             "too": {
                 "title": "Is this a Target of Opportunity observation?",
-                "type": "string",
-                "enum": [
-                    "N",
-                    "Y",
-                ],
-                "default": "N",
+                "type": "boolean",
+                "default": False,
             },
         },
         "required": [
