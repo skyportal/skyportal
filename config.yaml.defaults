@@ -804,7 +804,7 @@ analysis_services:
       max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
-      model: gpt-3.5-turbo
+      model: o4-mini
       presence_penalty: 1.0
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
