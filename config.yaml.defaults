@@ -746,6 +746,8 @@ gcn:
     voevent:
       - gcn.notices.svom.voevent.grm
       - gcn.notices.svom.voevent.eclairs
+      - gcn.classic.voevent.GECAM_FLT
+      - gcn.classic.voevent.GECAM_GND
       - gcn.classic.voevent.FERMI_GBM_FLT_POS
       - gcn.classic.voevent.FERMI_GBM_GND_POS
       - gcn.classic.voevent.FERMI_GBM_FIN_POS
