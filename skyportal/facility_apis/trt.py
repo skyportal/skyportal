@@ -44,7 +44,7 @@ def validate_request_to_trt(request):
             raise ValueError(f"Parameter {param} required.")
 
     if any(
-        filt not in ["B", "V", "R", "I", "Rc", "Ic"]
+        filt not in ["B", "V", "R", "I", "Rc", "Ic", "g", "r", "i", "z"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
@@ -519,7 +519,7 @@ class TRTAPI(FollowUpAPI):
                     {
                         "properties": {
                             "station_name": {
-                                "enum": ["SRO", "GAO", "SBO", "CTO"],
+                                "enum": ["SRO", "GAO"],
                             },
                             "observation_choices": {
                                 "type": "array",
@@ -544,6 +544,23 @@ class TRTAPI(FollowUpAPI):
                                 "items": {
                                     "type": "string",
                                     "enum": ["B", "V", "Rc", "Ic"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["CTO"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["B", "V", "R", "I", "g", "r", "i", "z"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
