@@ -10,6 +10,7 @@ const CREATE_TAG_OPTION = "skyportal/CREATE_TAG_OPTION";
 const CREATE_TAG_OPTION_OK = "skyportal/CREATE_TAG_OPTION_OK";
 
 const FETCH_OBJECT_TAGS = "skyportal/FETCH_OBJECT_TAGS";
+const FETCH_OBJECT_TAGS_OK = "skyportal/FETCH_OBJECT_TAGS_OK";
 
 const ADD_OBJECT_TAG = "skyportal/ADD_OBJECT_TAG";
 
@@ -36,7 +37,7 @@ export function deleteObjectTag(data) {
 }
 
 messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === "skyportal/REFRESH_OBJECT_TAGS") {
+  if (actionType === "skyportal/FETCH_OBJECT_TAGS") {
     const objectId = payload?.objectId;
     if (objectId) {
       dispatch(fetchObjectTags(objectId));
@@ -50,6 +51,9 @@ const reducer = (state = [], action) => {
       return action.data || [];
     }
     case CREATE_TAG_OPTION_OK: {
+      return [...state, action.data];
+    }
+    case FETCH_OBJECT_TAGS_OK: {
       return [...state, action.data];
     }
     default:

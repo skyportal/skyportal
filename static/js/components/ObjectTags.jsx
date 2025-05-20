@@ -100,12 +100,6 @@ const ObjectTags = ({ source }) => {
     setNewTagName("");
   };
 
-  const refreshSource = () => {
-    if (source && source.id) {
-      dispatch(sourceActions.fetchSource(source.id));
-    }
-  };
-
   const handleNewTagNameChange = (event) => {
     setNewTagName(event.target.value);
     setTagError("");
@@ -158,7 +152,7 @@ const ObjectTags = ({ source }) => {
       setIsAddingTag(false);
       if (result.status === "success") {
         dispatch(showNotification("Tag added successfully"));
-        refreshSource();
+        dispatch(objectTagsActions.fetchObjectTags());
         handleCloseDialog();
       } else {
         dispatch(showNotification("Failed to add tag", "error"));
@@ -171,7 +165,7 @@ const ObjectTags = ({ source }) => {
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Source Tag deleted"));
-          refreshSource();
+          dispatch(objectTagsActions.fetchObjectTags());
         } else {
           dispatch(showNotification("Failed to delete tag", "error"));
         }
