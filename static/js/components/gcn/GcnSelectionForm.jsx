@@ -286,7 +286,6 @@ const GcnEventSourcesPage = ({
       )}
       <SourceTable
         sources={sources.sources}
-        title="Event Sources"
         paginateCallback={handleSourcesTablePagination}
         pageNumber={sources.pageNumber}
         totalMatches={sources.totalMatches}

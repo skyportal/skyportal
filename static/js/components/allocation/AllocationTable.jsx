@@ -80,6 +80,7 @@ const getMuiTheme = (theme) =>
   });
 
 const AllocationTable = ({
+  title = "Allocations",
   groups = [],
   allocations,
   telescopes,
@@ -90,6 +91,7 @@ const AllocationTable = ({
   numPerPage = 10,
   deletePermission = false,
   telescopeInfo = true,
+  fixedHeader = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -435,8 +437,7 @@ const AllocationTable = ({
   }
 
   const options = {
-    fixedHeader: true,
-    tableBodyHeight: "73vh",
+    ...(fixedHeader ? { fixedHeader: true, tableBodyHeight: "73vh" } : {}),
     search: false,
     draggableColumns: { enabled: true },
     selectableRows: "none",
@@ -466,7 +467,7 @@ const AllocationTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title="Allocations"
+              title={title}
               data={allocations || []}
               options={options}
               columns={columns}
@@ -510,6 +511,7 @@ const AllocationTable = ({
 };
 
 AllocationTable.propTypes = {
+  title: PropTypes.string,
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
   telescopes: PropTypes.arrayOf(PropTypes.any),
@@ -520,9 +522,11 @@ AllocationTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   telescopeInfo: PropTypes.bool,
+  fixedHeader: PropTypes.bool,
 };
 
 AllocationTable.defaultProps = {
+  title: "Allocations",
   groups: [],
   deletePermission: false,
   paginateCallback: null,
@@ -530,6 +534,7 @@ AllocationTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   telescopeInfo: true,
+  fixedHeader: false,
 };
 
 export default AllocationTable;

@@ -603,7 +603,7 @@ RenderShowLabelling.propTypes = {
 // This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
-  title,
+  title = "Sources",
   sourceStatus = "saved",
   groupID,
   paginateCallback,
@@ -615,6 +615,7 @@ const SourceTable = ({
   downloadCallback,
   includeGcnStatus = false,
   sourceInGcnFilter,
+  fixedHeader = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -1744,8 +1745,7 @@ const SourceTable = ({
   }
 
   const options = {
-    fixedHeader: true,
-    tableBodyHeight: "73vh",
+    ...(fixedHeader ? { fixedHeader: true, tableBodyHeight: "73vh" } : {}),
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
@@ -2152,12 +2152,13 @@ SourceTable.propTypes = {
     localizationName: PropTypes.string,
     localizationCumprob: PropTypes.number,
   }),
+  fixedHeader: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
   sourceStatus: "saved",
   groupID: undefined,
-  title: "",
+  title: "Sources",
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
@@ -2166,6 +2167,7 @@ SourceTable.defaultProps = {
   downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},
+  fixedHeader: false,
 };
 
 export default SourceTable;
