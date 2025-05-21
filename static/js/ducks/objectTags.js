@@ -9,9 +9,6 @@ const FETCH_TAG_OPTIONS_OK = "skyportal/FETCH_TAG_OPTIONS_OK";
 const CREATE_TAG_OPTION = "skyportal/CREATE_TAG_OPTION";
 const CREATE_TAG_OPTION_OK = "skyportal/CREATE_TAG_OPTION_OK";
 
-const FETCH_OBJECT_TAGS = "skyportal/FETCH_OBJECT_TAGS";
-const FETCH_OBJECT_TAGS_OK = "skyportal/FETCH_OBJECT_TAGS_OK";
-
 const ADD_OBJECT_TAG = "skyportal/ADD_OBJECT_TAG";
 
 const DELETE_OBJECT_TAG = "skyportal/DELETE_OBJECT_TAG";
@@ -22,10 +19,6 @@ export function fetchTagOptions() {
 
 export function createTagOption(data) {
   return API.POST("/api/objtagoption", CREATE_TAG_OPTION, data);
-}
-
-export function fetchObjectTags(objectId) {
-  return API.GET(`/api/objtag?obj_id=${objectId}`, FETCH_OBJECT_TAGS);
 }
 
 export function addObjectTag(data) {
@@ -42,9 +35,6 @@ const reducer = (state = [], action) => {
       return action.data || [];
     }
     case CREATE_TAG_OPTION_OK: {
-      return [...state, action.data];
-    }
-    case FETCH_OBJECT_TAGS_OK: {
       return [...state, action.data];
     }
     default:

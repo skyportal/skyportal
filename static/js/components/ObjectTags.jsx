@@ -142,7 +142,6 @@ const ObjectTags = ({ source }) => {
       setIsAddingTag(false);
       if (result.status === "success") {
         dispatch(showNotification("Tag added successfully"));
-        dispatch(objectTagsActions.fetchObjectTags());
         handleCloseDialog();
       } else {
         dispatch(showNotification("Failed to add tag", "error"));
@@ -155,7 +154,6 @@ const ObjectTags = ({ source }) => {
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Source Tag deleted"));
-          dispatch(objectTagsActions.fetchObjectTags());
         } else {
           dispatch(showNotification("Failed to delete tag", "error"));
         }
