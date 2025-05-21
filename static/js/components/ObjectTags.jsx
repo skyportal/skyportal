@@ -19,7 +19,6 @@ import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import * as objectTagsActions from "../ducks/objectTags";
-import * as sourceActions from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -28,11 +27,6 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-  },
-  title: {
-    margin: 0,
-    marginRight: "0.45rem",
-    padding: "0",
   },
   chips: {
     padding: "0",
@@ -44,24 +38,20 @@ const useStyles = makeStyles((theme) => ({
       marginRight: "0.05rem",
     },
   },
-  tagDelete: {
-    height: "2.1875rem",
-    paddingTop: "0.5em",
-    paddingBottom: "0.5em",
-    alignItems: "center",
-  },
   addButton: {
     height: "0.75rem",
     cursor: "pointer",
   },
-  selectFormControl: {
-    minWidth: 250,
-    width: "100%",
-    marginBottom: theme.spacing(2),
-  },
   loadingIcon: {
     marginLeft: theme.spacing(1),
     fontSize: "0.875rem",
+  },
+  divider: {
+    marginTop: theme.spacing(3),
+    marginBottom: theme.spacing(2),
+  },
+  newTagField: {
+    width: "100%",
   },
 }));
 
@@ -255,7 +245,7 @@ const ObjectTags = ({ source }) => {
               <Divider className={styles.divider} />
 
               <div className={styles.createTagSection}>
-                <Typography variant="subtitle2" gutterBottom>
+                <Typography variant="subtitle1" gutterBottom>
                   Create New Tag
                 </Typography>
 

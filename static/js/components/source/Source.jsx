@@ -624,7 +624,9 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
-            <ObjectTags source={source} />
+            <div style={{ marginBottom: "0.25rem" }}>
+              <ObjectTags source={source} />
+            </div>
             <SourceCoordinates classes={classes} source={source} />
             <div
               className={classes.flexRow}
