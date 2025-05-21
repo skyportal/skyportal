@@ -166,6 +166,7 @@ const SpatialCatalogSourcesPage = ({
   return (
     <div className={classes.sourceList}>
       <SourceTable
+        title=""
         sources={spatialCatalogSources.sources}
         paginateCallback={handleSourcesTablePagination}
         pageNumber={spatialCatalogSources.pageNumber}

@@ -285,6 +285,7 @@ const GcnEventSourcesPage = ({
         </Typography>
       )}
       <SourceTable
+        title=""
         sources={sources.sources}
         paginateCallback={handleSourcesTablePagination}
         pageNumber={sources.pageNumber}
