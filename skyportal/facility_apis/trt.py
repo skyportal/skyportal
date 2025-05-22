@@ -44,15 +44,15 @@ def validate_request_to_trt(request):
             raise ValueError(f"Parameter {param} required.")
 
     if any(
-        filt not in ["B", "V", "R", "I", "Rc", "Ic"]
+        filt not in ["B", "V", "R", "I", "Rc", "Ic", "g", "r", "i", "z"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
             f"Filter configuration {request.payload['observation_choices']} unknown."
         )
 
-    if request.payload["station_name"] not in ["SRO", "GAO", "SBO"]:
-        raise ValueError("observation_type must be SRO, GAO, or SBO")
+    if request.payload["station_name"] not in ["SRO", "GAO", "SBO", "CTO"]:
+        raise ValueError("observation_type must be SRO, GAO, SBO or CTO")
 
     if request.payload["exposure_time"] < 0:
         raise ValueError("exposure_time must be positive.")
@@ -474,7 +474,7 @@ class TRTAPI(FollowUpAPI):
         "properties": {
             "station_name": {
                 "type": "string",
-                "enum": ["SRO", "GAO", "SBO"],
+                "enum": ["SRO", "GAO", "SBO", "CTO"],
                 "default": "SRO",
             },
             "exposure_time": {
@@ -544,6 +544,23 @@ class TRTAPI(FollowUpAPI):
                                 "items": {
                                     "type": "string",
                                     "enum": ["B", "V", "Rc", "Ic"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["CTO"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["B", "V", "R", "I", "g", "r", "i", "z"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,

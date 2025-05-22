@@ -48,6 +48,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
@@ -87,9 +88,6 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
-const CommentListMobile = React.lazy(
-  () => import("../comment/CommentListMobile"),
-);
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -418,15 +416,7 @@ const SourceContent = ({ source }) => {
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              {downLarge ? (
-                <CommentListMobile />
-              ) : (
-                <CommentList
-                  maxHeightList={
-                    !(downLarge || isRightPanelVisible) ? "28.5vh" : "350px"
-                  }
-                />
-              )}
+              <CommentList maxHeightList={downLarge ? "28.5vh" : "350px"} />
             </Suspense>
           </AccordionDetails>
         </Accordion>
@@ -744,12 +734,9 @@ const SourceContent = ({ source }) => {
                   <UpdateSourceGCNCrossmatch source={source} />
                 )}
               </div>
-              {source.alias ? (
-                <div className={classes.rowInfo}>
-                  <b>Aliases: &nbsp;</b>
-                  <div key="aliases"> {source.alias.join(", ")} </div>
-                </div>
-              ) : null}
+              <div className={classes.rowInfo}>
+                <SourceAlias source={source} />
+              </div>
             </div>
             {source.host && (
               <div className={classes.infoLine}>
