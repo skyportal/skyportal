@@ -284,7 +284,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
               name={`${phot.id}_validation_status`}
             >
               {statusIcon}
-              <PhotometryValidation phot={phot} />
+              <PhotometryValidation phot={phot} magsys={magsys} />
             </div>
           );
         };
