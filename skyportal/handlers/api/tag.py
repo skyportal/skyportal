@@ -164,7 +164,10 @@ class ObjTagHandler(BaseHandler):
             )
             session.add(new_assoc)
             session.commit()
-
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": new_assoc.obj.internal_key},
+            )
             return self.success(new_assoc)
 
     @auth_or_token
@@ -183,8 +186,11 @@ class ObjTagHandler(BaseHandler):
 
             if not assoc:
                 return self.error("Association not found", status=404)
-
+            obj_key = assoc.obj.internal_key
             session.delete(assoc)
             session.commit()
-
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj_key},
+            )
             return self.success(f"Successfully deleted association {association_id}")
