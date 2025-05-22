@@ -80,7 +80,7 @@ class WeatherHandler(BaseHandler):
                     f"given in preferences is not a valid ID (integer)."
                 )
 
-            # use the query telecope ID otherwise fall back to preferences id
+            # use the query telescope ID otherwise fall back to preferences id
             telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
             telescope = session.scalars(
@@ -130,7 +130,10 @@ class WeatherHandler(BaseHandler):
             return self.success(
                 data={
                     "weather": weather.weather_info,
+                    # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
+                    # Timestamp indicating when the API call was made, even if no data was returned
+                    "weather_fetch_at": datetime.datetime.utcnow(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

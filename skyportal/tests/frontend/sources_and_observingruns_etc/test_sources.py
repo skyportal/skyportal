@@ -10,6 +10,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.wait import WebDriverWait
 
 from baselayer.app.config import load_config
 from skyportal.models import DBSession
@@ -22,7 +23,7 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[@data-testid='comments-accordion']//textarea[@name='text']"
+    comment_xpath = '//form[@data-testid="comment-form"]//textarea[@name="text"]'
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
@@ -31,19 +32,29 @@ def enter_comment_text(driver, comment_text):
 def add_comment(driver, comment_text):
     enter_comment_text(driver, comment_text)
     driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     )
 
 
 def add_comment_and_wait_for_display(driver, comment_text):
     add_comment(driver, comment_text)
     try:
-        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]', timeout=20)
+        wait_for_comment_text_found(driver, comment_text)
     except TimeoutException:
         driver.refresh()
-        # little triangle you push to expand the table
         driver.click_xpath("//*[@id='expandable-button']")
-        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]')
+        wait_for_comment_text_found(driver, comment_text)
+
+
+def wait_for_comment_text_found(driver, comment_text):
+    # Wait until a <p> tag contains the comment_text. This checks all the innerText inside each <p> tag,
+    # including child elements, to ensure the comparison works even with highlighted mentions.
+    WebDriverWait(driver, timeout=20).until(
+        lambda d: any(
+            comment_text.strip() in p.get_attribute("innerText").strip()
+            for p in d.find_elements(By.XPATH, '//*[@id="comment"]//p')
+        )
+    )
 
 
 @pytest.mark.flaky(reruns=2)
@@ -71,7 +82,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
+    wait_for_comment_text_found(driver, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)
@@ -90,7 +101,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
+    wait_for_comment_text_found(driver, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)
@@ -109,7 +120,7 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
+    wait_for_comment_text_found(driver, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)

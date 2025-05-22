@@ -8,7 +8,7 @@ import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -399,6 +399,13 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
         observing_time = get_observing_time(session, request)
+
+        # Add 10 minutes delay to the observing time to avoid issues with the TAROT server
+        # This code is a workaround and should be removed after finding a solution
+        minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
+        if observing_time < minimum_observing_time:
+            observing_time = minimum_observing_time
+
         observation_string = create_request_string(
             request.obj,
             request.payload,
