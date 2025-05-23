@@ -13,6 +13,7 @@ all_acl_ids = [
     "Manage sources",
     "Manage groups",
     "Manage TNS robots",
+    "Manage external publishing bots",
     "Manage shifts",
     "Manage instruments",
     "Manage allocations",

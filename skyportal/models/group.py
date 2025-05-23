@@ -1,8 +1,8 @@
 __all__ = [
-    "AccessibleIfUserMatches",
-    "AccessibleIfGroupUserIsAdminAndUserMatches",
     "Group",
     "GroupAdmissionRequest",
+    "AccessibleIfUserMatches",
+    "AccessibleIfGroupUserIsAdminAndUserMatches",
 ]
 
 import sqlalchemy as sa
@@ -409,6 +409,13 @@ class Group(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="TNS Robots associated with this group.",
+    )
+    external_publishing_bots = relationship(
+        "ExternalPublishingBotGroup",
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="External publishing bots associated with this group.",
     )
     gcnreports = relationship(
         "GcnReport",

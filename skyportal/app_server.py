@@ -39,7 +39,12 @@ from skyportal.handlers.api import (
     EarthquakePredictionHandler,
     EarthquakeStatusHandler,
     EnumTypesHandler,
+    ExternalPublishingBotCoauthorHandler,
+    ExternalPublishingBotGroupAutoPublisherHandler,
+    ExternalPublishingBotGroupHandler,
+    ExternalPublishingBotHandler,
     ExternalPublishingHandler,
+    ExternalPublishingSubmissionHandler,
     FacilityMessageHandler,
     FilterHandler,
     FollowupAPIsHandler,
@@ -560,6 +565,7 @@ skyportal_handlers = [
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
+    # TNS robot endpoints
     (
         r"/api/tns_robot(/[0-9]+)/group(/[0-9]+)/autoreporter(/[0-9]+)?",
         TNSRobotGroupAutoreporterHandler,
@@ -568,6 +574,25 @@ skyportal_handlers = [
     (r"/api/tns_robot(/[0-9]+)/submissions(/[0-9]+)?", TNSRobotSubmissionHandler),
     (r"/api/tns_robot(/[0-9]+)/coauthor(/[0-9]+)?", TNSRobotCoauthorHandler),
     (r"/api/tns_robot(/[0-9]+)?", TNSRobotHandler),
+    # External publishing endpoints
+    (r"/api/external_publishing_bot(/[0-9]+)?", ExternalPublishingBotHandler),
+    (
+        r"/api/external_publishing/submission(/[0-9]+)?",
+        ExternalPublishingSubmissionHandler,
+    ),
+    (
+        r"/api/external_publishing(/[0-9]+)/coauthor(/[0-9]+)?",
+        ExternalPublishingBotCoauthorHandler,
+    ),
+    (
+        r"/api/external_publishing(/[0-9]+)/group(/[0-9]+)?",
+        ExternalPublishingBotGroupHandler,
+    ),
+    (
+        r"/api/external_publishing(/[0-9]+)/group(/[0-9]+)/auto_publisher(/[0-9]+)?",
+        ExternalPublishingBotGroupAutoPublisherHandler,
+    ),
+    #
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
     (r"/api/user(/[0-9]+)/roles(/.*)?", UserRoleHandler),
