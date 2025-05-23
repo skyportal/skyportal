@@ -575,23 +575,23 @@ skyportal_handlers = [
     (r"/api/tns_robot(/[0-9]+)/coauthor(/[0-9]+)?", TNSRobotCoauthorHandler),
     (r"/api/tns_robot(/[0-9]+)?", TNSRobotHandler),
     # External publishing endpoints
-    (r"/api/external_publishing_bot(/[0-9]+)?", ExternalPublishingBotHandler),
     (
         r"/api/external_publishing/submission(/[0-9]+)?",
         ExternalPublishingSubmissionHandler,
     ),
     (
-        r"/api/external_publishing(/[0-9]+)/coauthor(/[0-9]+)?",
+        r"/api/external_publishing_bot(/[0-9]+)/coauthor(/[0-9]+)?",
         ExternalPublishingBotCoauthorHandler,
     ),
     (
-        r"/api/external_publishing(/[0-9]+)/group(/[0-9]+)?",
+        r"/api/external_publishing_bot(/[0-9]+)/group(/[0-9]+)?",
         ExternalPublishingBotGroupHandler,
     ),
     (
-        r"/api/external_publishing(/[0-9]+)/group(/[0-9]+)/auto_publisher(/[0-9]+)?",
+        r"/api/external_publishing_bot(/[0-9]+)/group(/[0-9]+)/auto_publisher(/[0-9]+)?",
         ExternalPublishingBotGroupAutoPublisherHandler,
     ),
+    (r"/api/external_publishing_bot(/[0-9]+)?", ExternalPublishingBotHandler),
     #
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
