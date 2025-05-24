@@ -87,7 +87,7 @@ const SpatialCatalogSourcesPage = ({
   );
 
   const spatialCatalogsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   spatialCatalogs?.forEach((catalog) => {
     spatialCatalogsLookUp[catalog.id] = catalog;
   });
@@ -151,7 +151,6 @@ const SpatialCatalogSourcesPage = ({
     );
   };
 
-  // eslint-disable-next-line
   if (!spatialCatalogSources || spatialCatalogSources?.sources?.length === 0) {
     return (
       <div className={classes.noSources}>
@@ -167,15 +166,14 @@ const SpatialCatalogSourcesPage = ({
   return (
     <div className={classes.sourceList}>
       <SourceTable
+        title=""
         sources={spatialCatalogSources.sources}
-        title="Spatial Catalog Sources"
         paginateCallback={handleSourcesTablePagination}
         pageNumber={spatialCatalogSources.pageNumber}
         totalMatches={spatialCatalogSources.totalMatches}
         numPerPage={spatialCatalogSources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
         favoritesRemoveButton
-        hideTitle
       />
     </div>
   );

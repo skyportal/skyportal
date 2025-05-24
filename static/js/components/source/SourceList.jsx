@@ -140,7 +140,6 @@ const SourceList = () => {
       )}
       {sourcesState?.sources ? (
         <SourceTable
-          title="Sources"
           sources={sourcesState.sources}
           paginateCallback={handleSourceTablePagination}
           totalMatches={sourcesState.totalMatches}
@@ -148,6 +147,7 @@ const SourceList = () => {
           numPerPage={sourcesState.numPerPage}
           sortingCallback={handleSourceTableSorting}
           downloadCallback={handleSourcesDownload}
+          fixedHeader={true}
         />
       ) : (
         <Spinner />
