@@ -25,7 +25,7 @@ import { userLabel } from "../../tns/TNSRobotsPage";
 import FormValidationError from "../../FormValidationError";
 
 import * as sourceActions from "../../../ducks/source";
-import * as tnsrobotsActions from "../../../ducks/tnsrobots";
+import * as externalPublishingActions from "../../../ducks/externalPublishing";
 import * as streamsActions from "../../../ducks/streams";
 import InfoIcon from "@mui/icons-material/Info";
 
@@ -75,10 +75,10 @@ const CustomMuiTheme = {
 const Form = withTheme(CustomMuiTheme);
 
 const useStyles = makeStyles(() => ({
-  tnsrobotSelect: {
+  externalPublishingBotSelect: {
     width: "100%",
   },
-  tnsrobotSelectItem: {
+  externalPublishingBotSelectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
@@ -93,13 +93,13 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const { users: allUsers } = useSelector((state) => state.users);
   const currentUser = useSelector((state) => state.profile);
   const streams = useSelector((state) => state.streams);
-  const tnsAllowedInstruments = useSelector(
-    (state) => state.config.tnsAllowedInstruments,
+  const allowedInstrumentForPublishing = useSelector(
+    (state) => state.config.allowedInstrumentForPublishing,
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { tnsrobotList } = useSelector((state) => state.tnsrobots);
-  const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
+  const { botList } = useSelector((state) => state.externalPublishingBots);
+  const [selectedBotId, setSelectedBotId] = useState(null);
   const [defaultReporterString, setDefaultReporterString] = useState(null);
   const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
@@ -113,30 +113,33 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
 
-  const selectedRobot = tnsrobotList?.find((r) => r.id === selectedTNSRobotId);
-  const allowedInstruments = selectedRobot?.instruments
+  const selectedBot = botList?.find((b) => b.id === selectedBotId);
+  const allowedInstruments = selectedBot?.instruments
     ? instrumentList.filter((instrument) =>
-        selectedRobot.instruments.some((i) => i.id === instrument.id),
+        selectedBot.instruments.some((i) => i.id === instrument.id),
       )
     : [];
 
   instrumentList.filter((instrument) =>
-    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase()),
+    (allowedInstrumentForPublishing || []).includes(
+      instrument.name?.toLowerCase(),
+    ),
   );
 
   useEffect(() => {
-    const getTNSRobots = async () => {
-      const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
-
+    const getPublishingBots = async () => {
+      const result = await dispatch(
+        externalPublishingActions.fetchExternalPublishingBots(),
+      );
       const { data } = result;
-      setSelectedTNSRobotId(data[0]?.id);
+      setSelectedBotId(data[0]?.id);
     };
-    if (tnsrobotList === null) {
-      getTNSRobots();
-    } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
-      setSelectedTNSRobotId(tnsrobotList[0]?.id);
+    if (botList === null) {
+      getPublishingBots();
+    } else if (botList?.length > 0 && !selectedBotId) {
+      setSelectedBotId(botList[0]?.id);
     }
-  }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
+  }, [dispatch, botList, selectedBotId]);
 
   useEffect(() => {
     const fetchData = () => {
@@ -151,12 +154,12 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
   useEffect(() => {
     if (
-      tnsrobotList?.length > 0 &&
-      selectedTNSRobotId &&
+      botList?.length > 0 &&
+      selectedBotId &&
       currentUser &&
       allUsers?.length > 0
     ) {
-      const coauthors = (selectedRobot?.coauthors || []).filter(
+      const coauthors = (selectedBot?.coauthors || []).filter(
         (coauthor) => coauthor.user_id !== currentUser.id,
       );
       const authorString = userLabel(currentUser);
@@ -166,7 +169,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         )
         .join(", ");
       const acknowledgments =
-        selectedRobot?.acknowledgments || "on the behalf of ...";
+        selectedBot?.acknowledgments || "on the behalf of ...";
 
       const finalString = `${authorString}${
         coauthorsString ? `, ${coauthorsString}` : ""
@@ -174,21 +177,21 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
       setDefaultReporterString(finalString);
     }
-  }, [tnsrobotList, selectedTNSRobotId, currentUser, allUsers]);
+  }, [botList, selectedBotId, currentUser, allUsers]);
 
   useEffect(() => {
-    if (!tnsrobotList?.length || !selectedTNSRobotId || !selectedRobot) return;
+    if (!botList?.length || !selectedBotId || !selectedBot) return;
     let archivalComment = "No non-detections prior to first detection";
 
     // Set instruments
-    if (instrumentList?.length && selectedRobot.instruments?.length) {
-      const instrumentIds = selectedRobot.instruments.map((i) => i.id);
+    if (instrumentList?.length && selectedBot.instruments?.length) {
+      const instrumentIds = selectedBot.instruments.map((i) => i.id);
       setDefaultInstrumentIds(instrumentIds);
     }
 
     // Set streams
-    if (streams?.length && selectedRobot.streams?.length) {
-      const streamIds = selectedRobot.streams
+    if (streams?.length && selectedBot.streams?.length) {
+      const streamIds = selectedBot.streams
         .map((s) => s.id)
         .sort((a, b) => a - b);
 
@@ -206,10 +209,10 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     setDefaultArchivalComment(archivalComment);
-  }, [tnsrobotList, selectedTNSRobotId, instrumentList, streams]);
+  }, [botList, selectedBotId, instrumentList, streams]);
 
-  if (tnsrobotList?.length === 0) {
-    return <h3>No TNS robots available...</h3>;
+  if (botList?.length === 0) {
+    return <h3>No publishing bots available...</h3>;
   }
 
   if (!streams?.length) {
@@ -221,7 +224,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
     const payload = {
       ...formData,
-      tnsrobotID: selectedTNSRobotId,
+      external_publishing_bot_id: selectedBotId,
       photometry_options: {
         first_and_last_detections: formData.first_and_last_detections,
       },
@@ -295,9 +298,9 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "boolean",
         title: "Mandatory first and last detection",
         default:
-          selectedRobot?.photometry_options?.first_and_last_detections ?? true,
+          selectedBot?.photometry_options?.first_and_last_detections ?? true,
         description:
-          "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
+          "If enabled, the bot will not publish the data if there is no first and last detection (at least 2 detections).",
       },
       archival: {
         type: "boolean",
@@ -429,29 +432,32 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       </DialogTitle>
       <DialogContent>
         <div className={classes.container}>
-          <InputLabel id="tnsrobotSelectLabel">TNS Robot</InputLabel>
+          <InputLabel id="externalPublishingBotSelectLabel">
+            External publishing bot
+          </InputLabel>
           <Select
             inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="tnsrobotSelectLabel"
-            value={selectedTNSRobotId}
-            onChange={(e) => setSelectedTNSRobotId(e.target.value)}
-            name="tnsrobotSelect"
-            className={classes.tnsrobotSelect}
+            labelId="externalPublishingBotSelectLabel"
+            value={selectedBotId}
+            onChange={(e) => setSelectedBotId(e.target.value)}
+            name="externalPublishingBotSelect"
+            className={classes.externalPublishingBotSelect}
           >
-            {tnsrobotList?.map((tnsrobot) => (
+            {botList?.map((publishingBot) => (
               <MenuItem
-                value={tnsrobot.id}
-                key={tnsrobot.id}
-                className={classes.tnsrobotSelectItem}
+                value={publishingBot.id}
+                key={publishingBot.id}
+                className={classes.externalPublishingBotSelectItem}
               >
                 <div style={{ display: "flex", alignItems: "center" }}>
-                  {tnsrobot.testing === true && (
+                  {publishingBot.testing === true && (
                     <Tooltip
                       title={
                         <h2>
-                          This bot is in testing mode and will not submit to TNS
-                          but only store the payload in the database (useful for
-                          debugging). Can be removed from the TNS robots page.
+                          This bot is currently in testing mode. It will not
+                          publish any data but will store the payload in the
+                          database instead (useful for debugging purposes). You
+                          can remove it from the External Publishing Bots page.
                         </h2>
                       }
                       placement="right"
@@ -460,18 +466,18 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                     </Tooltip>
                   )}
                   <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-                    {tnsrobot.bot_name}
+                    {publishingBot.bot_name}
                   </Typography>
                 </div>
               </MenuItem>
             ))}
           </Select>
-          {selectedTNSRobotId &&
-            tnsrobotList &&
+          {selectedBotId &&
+            botList &&
             (allowedInstruments.length === 0 ? (
-              <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
+              <FormValidationError message="This publishing bot has no allowed instruments, edit this bot before submitting" />
             ) : (
-              <div data-testid="tnsrobot-form">
+              <div data-testid="external-publishing-form">
                 {defaultReporterString ? (
                   <Form
                     schema={formSchema}
