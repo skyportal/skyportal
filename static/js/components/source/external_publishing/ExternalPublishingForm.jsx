@@ -98,7 +98,9 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { botList } = useSelector((state) => state.externalPublishingBots);
+  const { externalPublishingBotList } = useSelector(
+    (state) => state.externalPublishingBots,
+  );
   const [selectedBotId, setSelectedBotId] = useState(null);
   const [defaultReporterString, setDefaultReporterString] = useState(null);
   const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
@@ -113,7 +115,9 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
 
-  const selectedBot = botList?.find((b) => b.id === selectedBotId);
+  const selectedBot = externalPublishingBotList?.find(
+    (b) => b.id === selectedBotId,
+  );
   const allowedInstruments = selectedBot?.instruments
     ? instrumentList.filter((instrument) =>
         selectedBot.instruments.some((i) => i.id === instrument.id),
@@ -134,12 +138,12 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       const { data } = result;
       setSelectedBotId(data[0]?.id);
     };
-    if (botList === null) {
+    if (!externalPublishingBotList) {
       getPublishingBots();
-    } else if (botList?.length > 0 && !selectedBotId) {
-      setSelectedBotId(botList[0]?.id);
+    } else if (externalPublishingBotList?.length > 0 && !selectedBotId) {
+      setSelectedBotId(externalPublishingBotList[0]?.id);
     }
-  }, [dispatch, botList, selectedBotId]);
+  }, [dispatch, externalPublishingBotList, selectedBotId]);
 
   useEffect(() => {
     const fetchData = () => {
@@ -154,7 +158,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
   useEffect(() => {
     if (
-      botList?.length > 0 &&
+      externalPublishingBotList?.length > 0 &&
       selectedBotId &&
       currentUser &&
       allUsers?.length > 0
@@ -177,10 +181,11 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
       setDefaultReporterString(finalString);
     }
-  }, [botList, selectedBotId, currentUser, allUsers]);
+  }, [externalPublishingBotList, selectedBotId, currentUser, allUsers]);
 
   useEffect(() => {
-    if (!botList?.length || !selectedBotId || !selectedBot) return;
+    if (!externalPublishingBotList?.length || !selectedBotId || !selectedBot)
+      return;
     let archivalComment = "No non-detections prior to first detection";
 
     // Set instruments
@@ -209,15 +214,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     setDefaultArchivalComment(archivalComment);
-  }, [botList, selectedBotId, instrumentList, streams]);
-
-  if (botList?.length === 0) {
-    return <h3>No publishing bots available...</h3>;
-  }
-
-  if (!streams?.length) {
-    return <Spinner />;
-  }
+  }, [externalPublishingBotList, selectedBotId, instrumentList, streams]);
 
   const handleSubmit = async ({ formData }) => {
     setPublishRequestInProcess(true);
@@ -246,6 +243,26 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
     setDialogOpen(false);
   };
+
+  if (!externalPublishingBotList?.length || !streams?.length) {
+    return (
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        {!externalPublishingBotList?.length ? (
+          <DialogTitle>
+            <h4 style={{ textAlign: "center" }}>
+              No external publishing bots available...
+            </h4>
+          </DialogTitle>
+        ) : (
+          <DialogContent
+            style={{ width: "60px", height: "60px", padding: "0" }}
+          >
+            <Spinner />
+          </DialogContent>
+        )}
+      </Dialog>
+    );
+  }
 
   const formSchema = {
     type: "object",
@@ -443,7 +460,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
             name="externalPublishingBotSelect"
             className={classes.externalPublishingBotSelect}
           >
-            {botList?.map((publishingBot) => (
+            {externalPublishingBotList?.map((publishingBot) => (
               <MenuItem
                 value={publishingBot.id}
                 key={publishingBot.id}
@@ -473,7 +490,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
             ))}
           </Select>
           {selectedBotId &&
-            botList &&
+            externalPublishingBotList &&
             (allowedInstruments.length === 0 ? (
               <FormValidationError message="This publishing bot has no allowed instruments, edit this bot before submitting" />
             ) : (
