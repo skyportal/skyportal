@@ -437,6 +437,13 @@ User.tns_submissions = relationship(
     doc="The TNSRobotSubmission this user has made (manual or automatic).",
 )
 
+User.external_publishing_submissions = relationship(
+    "ExternalPublishingSubmission",
+    back_populates="user",
+    passive_deletes=True,
+    doc="The external publishing submission this user has made (manual or automatic).",
+)
+
 
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
