@@ -83,7 +83,7 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
     while not os.path.exists(file_path) and try_count <= 5:
         try_count += 1
         time.sleep(1)
-    assert os.path.exists(file_path), f"Fichier non trouvé: {file_path}"
+    assert os.path.exists(file_path)
 
     try:
         with open(file_path) as f:
@@ -142,7 +142,7 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
     while not os.path.exists(file_path) and try_count <= 5:
         try_count += 1
         time.sleep(1)
-    assert os.path.exists(file_path), f"Fichier non trouvé: {file_path}"
+    assert os.path.exists(file_path)
 
     try:
         with open(file_path) as f:
