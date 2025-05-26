@@ -1,9 +1,11 @@
 import csv
 import os
 import time
+from datetime import datetime, timezone
 from os.path import join
 
 import pytest
+from astropy.time import Time
 from selenium.webdriver.common.by import By
 
 from baselayer.app.config import load_config
@@ -146,11 +148,21 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
 
     try:
         with open(file_path) as f:
-            reader = csv.reader(f)
-            columns = next(reader)
+            reader = csv.DictReader(f)
+            csv_data = list(reader)
+            columns = list(csv_data[0].keys())
         assert len(columns) == len(ALL_PHOTOMETRY_COLUMNS)
         for col in ALL_PHOTOMETRY_COLUMNS:
             assert col in columns
+
+        phot = public_source.photometry[0].to_dict()
+        assert csv_data[0]["filter"] == phot["filter"]
+        assert int(csv_data[0]["id"]) == phot["id"]
+        assert int(csv_data[0]["flux"]) == int(phot["flux"])
+        phot_utc = Time(phot["mjd"], format="mjd")
+        assert datetime.fromisoformat(
+            csv_data[0]["utc"][:-1] + "+00:00"
+        ) == phot_utc.datetime.replace(microsecond=0, tzinfo=timezone.utc)
 
     finally:
         os.remove(file_path)
