@@ -3,12 +3,14 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import DownloadIcon from "@mui/icons-material/Download";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
@@ -20,16 +22,56 @@ import {
 } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
-
 import Typography from "@mui/material/Typography";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+
 import UpdatePhotometry from "./UpdatePhotometry";
-import PhotometryValidation from "./PhotometryValidation";
+import PhotometryValidation, {
+  getValidationStatus,
+} from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
 import * as Actions from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 import { PHOT_ZP } from "../../utils";
+
+const DEFAULT_DOWNLOAD_COLUMNS = [
+  "id",
+  "mjd",
+  "mag",
+  "magerr",
+  "limiting_mag",
+  "filter",
+  "instrument_name",
+];
+const DEFAULT_HIDDEN_COLUMNS = [
+  "instrument_id",
+  "ra",
+  "dec",
+  "ra_unc",
+  "dec_unc",
+  "created_at",
+];
+
+const calculateFluxFromMag = (mag, magerr, limitingMag) => {
+  let fluxValue = null;
+  let fluxerrValue = null;
+
+  if (mag !== null) {
+    // it's a detection, we have both flux and flux error
+    fluxValue = 10 ** (-0.4 * (mag - PHOT_ZP));
+    if (magerr !== null) {
+      fluxerrValue = (magerr / (2.5 / Math.log(10))) * fluxValue;
+    }
+  } else {
+    // it's an upper limit, we only have fluxerr
+    fluxerrValue = 10 ** (-0.4 * (limitingMag - PHOT_ZP));
+  }
+
+  return { fluxValue, fluxerrValue };
+};
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
@@ -81,15 +123,6 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultHiddenColumns = [
-  "instrument_id",
-  "ra",
-  "dec",
-  "ra_unc",
-  "dec_unc",
-  "created_at",
-];
-
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -107,6 +140,73 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const dispatch = useDispatch();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
+  const [downloadFormData, setDownloadFormData] = useState({
+    columns: DEFAULT_DOWNLOAD_COLUMNS,
+    validationFilter: {
+      validated: true,
+      rejected: false,
+      ambiguous: false,
+      not_vetted: true,
+    },
+  });
+
+  const [downloadParams, setDownloadParams] = useState(null);
+
+  const data = photometry[obj_id] || [];
+
+  let availableDownloadColumns = [];
+  if (data && data.length > 0) {
+    const priorityColumns = ["id", "mjd", "mag", "magerr", "filter"];
+    const allKeys = [...Object.keys(data[0]), "utc", "flux", "fluxerr"];
+
+    const filteredKeys = allKeys.filter(
+      (key) => !["groups", "obj_id", "validations"].includes(key),
+    );
+
+    // sort colomns
+    const priority = filteredKeys
+      .filter((key) => priorityColumns.includes(key))
+      .map((key) => ({ key, label: key }));
+
+    const others = filteredKeys
+      .filter((key) => !priorityColumns.includes(key))
+      .sort()
+      .map((key) => ({ key, label: key }));
+
+    availableDownloadColumns = [...priority, ...others];
+  }
+
+  const downloadSchema = {
+    type: "object",
+    properties: {
+      columns: {
+        type: "array",
+        title: "Columns",
+        items: {
+          type: "string",
+          enum: availableDownloadColumns.map((col) => col.key),
+          enumNames: availableDownloadColumns.map((col) => col.label),
+        },
+        uniqueItems: true,
+        minItems: 1,
+      },
+    },
+    required: ["columns"],
+  };
+  if (usePhotometryValidation) {
+    downloadSchema.properties.validationFilter = {
+      type: "object",
+      title: "Validation",
+      properties: {
+        validated: { type: "boolean", default: true },
+        rejected: { type: "boolean", default: false },
+        ambiguous: { type: "boolean", default: false },
+        not_vetted: { type: "boolean", default: true },
+      },
+    };
+  }
+
   const handleDelete = async () => {
     if (!deleteDialogOpen) {
       return;
@@ -118,7 +218,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
     setDeleteDialogOpen(false);
   };
 
-  const objectWithFalseValues = defaultHiddenColumns.reduce((acc, curr) => {
+  const objectWithFalseValues = DEFAULT_HIDDEN_COLUMNS.reduce((acc, curr) => {
     acc[curr] = false;
     return acc;
   }, {});
@@ -131,6 +231,112 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
     }));
   };
 
+  const filterDataByValidation = (tableData, filter) => {
+    if (!usePhotometryValidation) return tableData;
+    return tableData.filter((rowData) => {
+      const phot = data[rowData.index];
+      const status = getValidationStatus(phot);
+      return filter[status] === true;
+    });
+  };
+
+  const performDownload = (buildHead, buildBody, cols, tableData) => {
+    const filteredTableData = filterDataByValidation(
+      tableData,
+      downloadFormData.validationFilter || {
+        validated: true,
+        rejected: false,
+        ambiguous: false,
+        not_vetted: true,
+      },
+    );
+
+    if (filteredTableData?.length === 0) {
+      console.warn("No data to download after filtering");
+      return;
+    }
+
+    const body = filteredTableData
+      .map((x) => {
+        const phot = data[x.index];
+        const { fluxValue, fluxerrValue } = calculateFluxFromMag(
+          phot.mag,
+          phot.magerr,
+          phot.limiting_mag,
+        );
+
+        const utcValue = mjd_to_utc(phot.mjd);
+        const ownerData = phot.owner?.username || "";
+        const streamsData =
+          phot.streams?.length > 0
+            ? phot.streams.map((s) => s.name).join(";")
+            : "";
+
+        return downloadFormData.columns
+          .map((colKey) => {
+            switch (colKey) {
+              case "owner":
+                return ownerData;
+              case "streams":
+                return streamsData;
+              case "flux":
+                return fluxValue;
+              case "fluxerr":
+                return fluxerrValue;
+              case "snr":
+                return phot.snr;
+              case "utc":
+                return utcValue;
+              default:
+                return phot[colKey];
+            }
+          })
+          .join(",");
+      })
+      .join("\n");
+
+    const selectedHeaders = downloadFormData.columns.map((colKey) => ({
+      name: colKey,
+      download: true,
+    }));
+
+    const result = buildHead(selectedHeaders) + body;
+    const blob = new Blob([result], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${obj_id}_photometry.csv`;
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownload = (buildHead, buildBody, cols, tableData) => {
+    setDownloadParams({ buildHead, buildBody, cols, tableData });
+    setDownloadOptionsOpen(true);
+    return false;
+  };
+
+  const executeDownload = () => {
+    if (!downloadParams?.buildHead || !downloadParams?.tableData) {
+      console.error("No download parameters available");
+      return;
+    }
+
+    setDownloadOptionsOpen(false);
+    performDownload(
+      downloadParams.buildHead,
+      downloadParams.buildBody,
+      downloadParams.cols,
+      downloadParams.tableData,
+    );
+    setDownloadParams(null);
+  };
+
   if (!Object.keys(photometry).includes(obj_id)) {
     bodyContent = (
       <div>
@@ -138,7 +344,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       </div>
     );
   } else {
-    const data = photometry[obj_id];
     if (data.length === 0) {
       bodyContent = <p>Source has no photometry.</p>;
     } else {
@@ -176,6 +381,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           keys.push(key);
         }
       });
+      const downloadUiSchema = {
+        columns: {
+          "ui:widget": "checkboxes",
+          "ui:options": {
+            inline: true,
+          },
+        },
+      };
 
       const columns = keys.map((key) => ({
         name: key,
@@ -426,177 +639,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         filter: false,
         download: true,
         onColumnViewChange: handleColumnViewChange,
-        onDownload: (buildHead, buildBody, cols, tableData) => {
-          const renderStreamsDownload = (streams) => {
-            // console.log(streams);
-            return streams?.length > 0
-              ? streams.map((stream) => stream.name).join(";")
-              : "";
-          };
-          const renderOwnerDownload = (owner) => (owner ? owner.username : "");
-
-          // if there is no data, cancel download
-          if (data?.length > 0) {
-            const body = tableData
-              .map((x) => {
-                // 20 is the flux column
-                // 21 is the flux error column
-                // 22 is the SNR column
-                // DEBUG, print each column name, value, and index
-                x.data.forEach((value, index) => {
-                  console.log(
-                    `${
-                      columns[index].name
-                    } (${index}): ${value} (${typeof value})`,
-                  );
-                });
-                x.data[17] = mjd_to_utc(x.data[1]);
-                if (x.data[2] !== null) {
-                  // it's a detection, we have both flux and flux error
-                  x.data[20] = 10 ** (-0.4 * (x.data[2] - PHOT_ZP));
-                  x.data[21] = (x.data[3] / (2.5 / Math.log(10))) * x.data[20];
-                  x.data[22] = x.data[20] / x.data[21];
-                  if (x.data[22] < 0 || x.data[22] === Infinity) {
-                    x.data[22] = null;
-                  }
-                } else {
-                  // it's an upper limit, we only have fluxerr
-                  x.data[20] = null;
-                  x.data[21] = 10 ** (-0.4 * (x.data[4] - PHOT_ZP));
-                  x.data[22] = null;
-                }
-                return [
-                  x.data[0], // id
-                  x.data[1], // mjd
-                  x.data[2], // mag
-                  x.data[3], // magerr
-                  x.data[4], // limiting_mag
-                  x.data[5], // filter
-                  x.data[6], // instrument_name
-                  x.data[7], // instrument_id
-                  // x.data[8], // snr
-                  x.data[9], // magsys
-                  x.data[10], // origin
-                  x.data[11], // altdata
-                  x.data[12], // ra
-                  x.data[13], // dec
-                  x.data[14], // ra_unc
-                  x.data[15], // dec_unc
-                  x.data[16], // created_at
-                  x.data[17], // UTC date
-                  renderOwnerDownload(x.data[18]),
-                  renderStreamsDownload(x.data[19]),
-                  x.data[20],
-                  x.data[21],
-                  x.data[22],
-                ].join(",");
-              })
-              .join("\n");
-
-            const result =
-              buildHead([
-                {
-                  name: "id", // 0
-                  download: true,
-                },
-                {
-                  name: "mjd", // 1
-                  download: true,
-                },
-                {
-                  name: "mag", // 2
-                  download: true,
-                },
-                {
-                  name: "magerr", // 3
-                  download: true,
-                },
-                {
-                  name: "limiting_mag", // 4
-                  download: true,
-                },
-                {
-                  name: "filter", // 5
-                  download: true,
-                },
-                {
-                  name: "instrument_name", // 6
-                  download: true,
-                },
-                {
-                  name: "instrument_id", // 7
-                  download: true,
-                },
-                {
-                  name: "magsys", // 9
-                  download: true,
-                },
-                {
-                  name: "origin", // 10
-                  download: true,
-                },
-                {
-                  name: "altdata", // 11
-                  download: true,
-                },
-                {
-                  name: "ra", // 12
-                  download: true,
-                },
-                {
-                  name: "dec", // 13
-                  download: true,
-                },
-                {
-                  name: "ra_unc", // 14
-                  download: true,
-                },
-                {
-                  name: "dec_unc", // 15
-                  download: true,
-                },
-                {
-                  name: "created_at", // 16
-                  download: true,
-                },
-                {
-                  name: "UTC", // 17
-                  download: true,
-                },
-                {
-                  name: "owner", // 18
-                  download: true,
-                },
-                {
-                  name: "streams", // 19
-                  download: true,
-                },
-                {
-                  name: "flux", // 20
-                  download: true,
-                },
-                {
-                  name: "fluxerr", // 21
-                  download: true,
-                },
-                {
-                  name: "snr", // 22
-                  download: true,
-                },
-              ]) + body;
-            const blob = new Blob([result], {
-              type: "text/csv;charset=utf-8;",
-            });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.setAttribute("download", "photometry.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-          return false;
-        },
+        onDownload: handleDownload,
       };
 
       bodyContent = (
@@ -633,6 +676,74 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
             closeDialog={closeDeleteDialog}
             resourceName="Photometry Point"
           />
+          <Dialog
+            open={downloadOptionsOpen}
+            onClose={() => setDownloadOptionsOpen(false)}
+            maxWidth="xs"
+            fullWidth
+          >
+            <DialogTitle>
+              <Typography variant="h6">Download Options</Typography>
+            </DialogTitle>
+
+            <DialogContent>
+              <div>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() =>
+                    setDownloadFormData((prev) => ({
+                      ...prev,
+                      columns: DEFAULT_DOWNLOAD_COLUMNS.filter((col) =>
+                        availableDownloadColumns.some(
+                          (availCol) => availCol.key === col,
+                        ),
+                      ),
+                    }))
+                  }
+                >
+                  Default
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() =>
+                    setDownloadFormData((prev) => ({
+                      ...prev,
+                      columns: availableDownloadColumns.map((col) => col.key),
+                    }))
+                  }
+                >
+                  All
+                </Button>
+              </div>
+
+              <div>
+                <Form
+                  schema={downloadSchema}
+                  uiSchema={downloadUiSchema}
+                  formData={downloadFormData}
+                  onChange={({ formData }) => setDownloadFormData(formData)}
+                  onSubmit={executeDownload}
+                  validator={validator}
+                  showErrorList={false}
+                >
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="small"
+                    endIcon={<DownloadIcon />}
+                    disabled={
+                      !downloadFormData.columns ||
+                      downloadFormData.columns.length === 0
+                    }
+                  >
+                    Download
+                  </Button>
+                </Form>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       );
     }
