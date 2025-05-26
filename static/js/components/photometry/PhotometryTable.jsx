@@ -737,6 +737,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                       !downloadFormData.columns ||
                       downloadFormData.columns.length === 0
                     }
+                    data-testid="download-photometry-table-button"
                   >
                     Download
                   </Button>
