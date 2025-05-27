@@ -45,6 +45,8 @@ const DEFAULT_DOWNLOAD_COLUMNS = [
   "limiting_mag",
   "filter",
   "instrument_name",
+  "flux",
+  "fluxerr",
 ];
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
@@ -54,6 +56,13 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "dec_unc",
   "created_at",
 ];
+
+const DEFAULT_VALIDATION_FILTER = {
+  validated: true,
+  rejected: false,
+  ambiguous: false,
+  not_vetted: false,
+};
 
 const calculateFluxFromMag = (mag, magerr, limitingMag) => {
   let fluxValue = null;
@@ -143,12 +152,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [downloadFormData, setDownloadFormData] = useState({
     columns: DEFAULT_DOWNLOAD_COLUMNS,
-    validationFilter: {
-      validated: true,
-      rejected: false,
-      ambiguous: false,
-      not_vetted: true,
-    },
+    validationFilter: DEFAULT_VALIDATION_FILTER,
   });
 
   const [downloadParams, setDownloadParams] = useState(null);
@@ -199,10 +203,22 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       type: "object",
       title: "Validation",
       properties: {
-        validated: { type: "boolean", default: true },
-        rejected: { type: "boolean", default: false },
-        ambiguous: { type: "boolean", default: false },
-        not_vetted: { type: "boolean", default: true },
+        validated: {
+          type: "boolean",
+          default: DEFAULT_VALIDATION_FILTER.validated,
+        },
+        rejected: {
+          type: "boolean",
+          default: DEFAULT_VALIDATION_FILTER.rejected,
+        },
+        ambiguous: {
+          type: "boolean",
+          default: DEFAULT_VALIDATION_FILTER.ambiguous,
+        },
+        not_vetted: {
+          type: "boolean",
+          default: DEFAULT_VALIDATION_FILTER.not_vetted,
+        },
       },
     };
   }
@@ -243,12 +259,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const performDownload = (buildHead, buildBody, cols, tableData) => {
     const filteredTableData = filterDataByValidation(
       tableData,
-      downloadFormData.validationFilter || {
-        validated: true,
-        rejected: false,
-        ambiguous: false,
-        not_vetted: true,
-      },
+      downloadFormData.validationFilter || DEFAULT_VALIDATION_FILTER,
     );
 
     if (filteredTableData?.length === 0) {

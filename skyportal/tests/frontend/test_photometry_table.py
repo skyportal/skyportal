@@ -20,14 +20,14 @@ DEFAULT_PHOTOMETRY_COLUMNS = [
     "limiting_mag",
     "filter",
     "instrument_name",
+    "flux",
+    "fluxerr",
 ]
 ALL_PHOTOMETRY_COLUMNS = DEFAULT_PHOTOMETRY_COLUMNS + [
     "altdata",
     "created_at",
     "dec",
     "dec_unc",
-    "flux",
-    "fluxerr",
     "instrument_id",
     "magsys",
     "origin",
@@ -69,6 +69,8 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
     driver.wait_for_xpath('//button[contains(text(), "All")]')
     driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
 
+    driver.click_xpath('//label[.//span[text()="not_vetted"]]')
+
     execute_download_button = driver.wait_for_xpath_to_be_clickable(
         '//button[@data-testid="download-photometry-table-button"]',
         timeout=10,
@@ -89,12 +91,17 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
 
     try:
         with open(file_path) as f:
-            reader = csv.reader(f)
-            columns = next(reader)
+            reader = csv.DictReader(f)
+            csv_data = list(reader)
+            columns = list(csv_data[0].keys())
         assert len(columns) == len(DEFAULT_PHOTOMETRY_COLUMNS)
         for col in DEFAULT_PHOTOMETRY_COLUMNS:
             assert col in columns
 
+        phot = public_source.photometry[0].to_dict()
+        assert csv_data[0]["filter"] == phot["filter"]
+        assert int(csv_data[0]["id"]) == phot["id"]
+        assert float(csv_data[0]["flux"]) - phot["flux"] < 0.001
     finally:
         os.remove(file_path)
 
@@ -128,6 +135,8 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
     all_columns_button.click()
     driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
 
+    driver.click_xpath('//label[.//span[text()="not_vetted"]]')
+
     execute_download_button = driver.wait_for_xpath_to_be_clickable(
         '//button[@data-testid="download-photometry-table-button"]',
         timeout=10,
@@ -158,7 +167,7 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
         phot = public_source.photometry[0].to_dict()
         assert csv_data[0]["filter"] == phot["filter"]
         assert int(csv_data[0]["id"]) == phot["id"]
-        assert int(csv_data[0]["flux"]) == int(phot["flux"])
+        assert float(csv_data[0]["flux"]) - phot["flux"] < 0.001
         phot_utc = Time(phot["mjd"], format="mjd")
         assert datetime.fromisoformat(
             csv_data[0]["utc"][:-1] + "+00:00"
