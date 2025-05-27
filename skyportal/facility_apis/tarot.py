@@ -26,17 +26,17 @@ station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 1,
-        "observation_url": cfg["app.calern_endpoint"],
+        "observation_url_config_key": "app.calern_endpoint",
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 2,
-        "observation_url": cfg["app.chili_endpoint"],
+        "observation_url_config_key": "app.chili_endpoint",
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
         "status_url": 8,
-        "observation_url": cfg["app.reunion_endpoint"],
+        "observation_url_config_key": "app.reunion_endpoint",
     },
 }
 
@@ -582,7 +582,7 @@ class TAROTAPI(FollowUpAPI):
         ):
             # check if the scene has been observed
             response_observation = requests.get(
-                f"{station_dict[specific_config['station_name']]['observation_url']}/",
+                f"{cfg[station_dict[specific_config['station_name']]['observation_url_config_key']]}/",
                 timeout=5.0,
             )
 
