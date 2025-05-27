@@ -550,10 +550,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.maxima = {}
         self.stds = {}
         for key in self._data:
-            self.medians[key] = float(np.nanmedian(self.mjds))
-            self.minima[key] = float(np.nanmin(self.mjds))
-            self.maxima[key] = float(np.nanmax(self.mjds))
-            self.stds[key] = float(np.nanstd(self.mjds))
+            try:
+                self.medians[key] = float(np.nanmedian(self._data[key]))
+            except TypeError:
+                # if the column is not numeric, skip it
+                continue
+            try:
+                self.minima[key] = float(np.nanmin(self._data[key]))
+            except TypeError:
+                continue
+            try:
+                self.maxima[key] = float(np.nanmax(self._data[key]))
+            except TypeError:
+                continue
+            try:
+                self.stds[key] = float(np.nanstd(self._data[key]))
+            except TypeError:
+                continue
 
         # This assumes the data is sorted by mjd!
         self.mjd_first = float(self.mjds[0])
