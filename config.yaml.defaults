@@ -81,11 +81,6 @@ app:
     host: herculesii.astro.berkeley.edu
     port:
 
-  colibri:
-    protocol: http
-    host:
-    port:
-
   gemini:
     protocol: https
     host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production

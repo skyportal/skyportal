@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { useSelector } from "react-redux";
+import { isMobile } from "react-device-detect";
 
 import PropTypes from "prop-types";
 
@@ -21,7 +22,7 @@ import EditComment from "./EditComment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const RegularCommentList = ({
+const Comment = ({
   associatedResourceType = "object",
   objID = null,
   gcnEventID = null,
@@ -40,6 +41,14 @@ const RegularCommentList = ({
   const spectra = useSelector((state) => state.spectra);
 
   const renderCommentText = () => {
+    // Format the text to highlight mentions
+    const formattedText = text.replace(
+      /(?<!\w)([@#])([\w-@]+)/g,
+      (match, symbol, username) => {
+        return `***${symbol}${username}***`;
+      },
+    );
+
     if (
       spectrum_id &&
       objID in spectra &&
@@ -51,10 +60,10 @@ const RegularCommentList = ({
       return `**Spectrum ${spectrum.observed_at.substring(
         2,
         10,
-      )}.${dayFraction.toFixed(0)}** ${text}`;
+      )}.${dayFraction.toFixed(0)}** ${formattedText}`;
     }
 
-    return text;
+    return formattedText;
   };
 
   const emojiSupport = (textComment) =>
@@ -111,7 +120,7 @@ const RegularCommentList = ({
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shiftID={shiftID}
-              hoverID={hoverID}
+              hoverID={isMobile ? id : hoverID}
               id={id}
               commentText={text}
               attachmentName={attachment_name}
@@ -123,7 +132,7 @@ const RegularCommentList = ({
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shiftID={shiftID}
-              hoverID={hoverID}
+              hoverID={isMobile ? id : hoverID}
               id={id}
             />
           </div>
@@ -180,7 +189,7 @@ const RegularCommentList = ({
   );
 };
 
-RegularCommentList.propTypes = {
+Comment.propTypes = {
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
   earthquakeID: PropTypes.string,
@@ -197,7 +206,7 @@ RegularCommentList.propTypes = {
   shiftID: PropTypes.number,
 };
 
-RegularCommentList.defaultProps = {
+Comment.defaultProps = {
   objID: null,
   gcnEventID: null,
   earthquakeID: null,
@@ -214,4 +223,4 @@ RegularCommentList.defaultProps = {
   shiftID: null,
 };
 
-export default RegularCommentList;
+export default Comment;

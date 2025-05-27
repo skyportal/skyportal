@@ -108,6 +108,7 @@ User Guide
    analysis
    extensions
    pages
+   thumbnails
 
 Contributing
 ------------

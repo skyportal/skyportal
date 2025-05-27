@@ -54,6 +54,7 @@ from .spatial_catalog import *
 from .spectrum import *
 from .stream import *
 from .survey_efficiency import *
+from .tag import *
 from .taxonomy import *
 from .telescope import *
 from .thumbnail import *

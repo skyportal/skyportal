@@ -420,7 +420,7 @@ ConfirmSourceInGCN.propTypes = {
   source_id: PropTypes.string.isRequired,
   start_date: PropTypes.string.isRequired,
   end_date: PropTypes.string.isRequired,
-  localization_cumprob: PropTypes.string.isRequired,
+  localization_cumprob: PropTypes.number.isRequired,
   sources_id_list: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 

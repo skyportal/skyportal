@@ -81,7 +81,14 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultHiddenColumns = ["instrument_id", "snr", "magsys", "created_at"];
+const defaultHiddenColumns = [
+  "instrument_id",
+  "ra",
+  "dec",
+  "ra_unc",
+  "dec_unc",
+  "created_at",
+];
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -201,7 +208,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           </div>
         );
       };
-      columns.push({
+      const mjdIndex = columns.findIndex((col) => col.name === "mjd");
+      columns.splice(mjdIndex + 1, 0, {
         name: "UTC",
         label: "UTC",
         options: {
@@ -276,7 +284,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
               name={`${phot.id}_validation_status`}
             >
               {statusIcon}
-              <PhotometryValidation phot={phot} />
+              <PhotometryValidation phot={phot} magsys={magsys} />
             </div>
           );
         };

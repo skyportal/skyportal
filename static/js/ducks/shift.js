@@ -18,11 +18,6 @@ const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
 const DELETE_COMMENT_ON_SHIFT = "skyportal/DELETE_COMMENT_ON_SHIFT";
 const EDIT_COMMENT_ON_SHIFT = "skyportal/EDIT_COMMENT_ON_SHIFT";
 
-const GET_COMMENT_ON_SHIFT_ATTACHMENT =
-  "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT";
-const GET_COMMENT_ON_SHIFT_ATTACHMENT_OK =
-  "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_OK";
-
 const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW";
 const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK =
@@ -113,13 +108,6 @@ export function deleteCommentOnShift(shiftID, commentID) {
   );
 }
 
-export function getCommentOnShiftAttachment(shiftID, commentID) {
-  return API.GET(
-    `/api/shift/${shiftID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_SHIFT_ATTACHMENT,
-  );
-}
-
 export function getCommentOnShiftTextAttachment(shiftID, commentID) {
   return API.GET(
     `/api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
@@ -158,18 +146,6 @@ const reducer = (
       return {
         ...state,
         currentShift: shift,
-      };
-    }
-    case GET_COMMENT_ON_SHIFT_ATTACHMENT_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
       };
     }
     case GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK: {
