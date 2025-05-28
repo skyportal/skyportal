@@ -245,6 +245,7 @@ let defaultDisplayedColumns = [
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
+  "Tags",
   "Classification",
   " ",
   "Groups",
@@ -1243,6 +1244,23 @@ const SourceTable = ({
     return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
   };
 
+  const renderTags = (dataIndex) => {
+    const source = sources[dataIndex];
+    const tags = source.tags || [];
+
+    if (tags.length === 0) {
+      return <div>-</div>;
+    }
+
+    return (
+      <div key={`${source.id}_tags`} className={classes.groupChips}>
+        {tags.map((tag) => (
+          <Chip key={tag.id} label={tag.name} size="small" />
+        ))}
+      </div>
+    );
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1571,6 +1589,17 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Redshift"),
+      },
+    },
+    {
+      name: "tags",
+      label: "Tags",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Tags"),
+        customBodyRenderLite: renderTags,
+        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
       },
     },
     {
@@ -2130,6 +2159,13 @@ SourceTable.propTypes = {
           peak_mjd_global: PropTypes.number,
           last_detected_mag: PropTypes.number,
           last_detected_mjd: PropTypes.number,
+        }),
+      ),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number.isRequired,
+          name: PropTypes.string.isRequired,
+          objtagoption_id: PropTypes.number,
         }),
       ),
     }),

@@ -70,10 +70,9 @@ class RecentSourcesHandler(BaseHandler):
             query_results = RecentSourcesHandler.get_recent_source_ids(
                 self.current_user, session
             )
-            obj_ids_list = list(query_results)
             sources = []
             sources_seen = defaultdict(lambda: 1)
-            for obj_id in obj_ids_list:
+            for obj_id in query_results:
                 # The recency_index is how current a source row was saved for a given
                 # object. If recency_index = 0, this is the most recent time a source
                 # was saved; recency_index = 1 is the second-latest time the source

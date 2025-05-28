@@ -17,6 +17,7 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
+import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -377,7 +378,7 @@ const RecentSourcesList = ({
                       </Link>
                       {displayTags && source.tags && source.tags.length > 0 && (
                         <div className={styles.tagsContainer}>
-                          {source.tags.map((tag) => (
+                          {source.tags.slice(0, 2).map((tag) => (
                             <Chip
                               key={tag.id}
                               label={tag.name}
@@ -387,6 +388,37 @@ const RecentSourcesList = ({
                               variant="filled"
                             />
                           ))}
+                          {source.tags.length > 2 && (
+                            <Tooltip
+                              title={
+                                <div>
+                                  <strong>Additional tags:</strong>
+                                  <br />
+                                  {source.tags.slice(2).map((tag, index) => (
+                                    <span key={tag.id}>
+                                      {tag.name}
+                                      {index < source.tags.slice(2).length - 1
+                                        ? ", "
+                                        : ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              }
+                            >
+                              <Chip
+                                key="more-tags"
+                                label={`+${source.tags.length - 2}`}
+                                size="small"
+                                className={styles.tagChip}
+                                color="default"
+                                variant="filled"
+                                style={{
+                                  fontStyle: "italic",
+                                  opacity: 0.7,
+                                }}
+                              />
+                            </Tooltip>
+                          )}
                         </div>
                       )}
                       {classification && (
