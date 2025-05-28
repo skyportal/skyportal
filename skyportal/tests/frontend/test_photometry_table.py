@@ -69,7 +69,7 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
     driver.wait_for_xpath('//button[contains(text(), "All")]')
     driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
 
-    driver.click_xpath('//label[.//span[text()="not_vetted"]]')
+    driver.click_xpath('//label[.//span[text()="Not vetted"]]')
 
     execute_download_button = driver.wait_for_xpath_to_be_clickable(
         '//button[@data-testid="download-photometry-table-button"]',
@@ -134,8 +134,6 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
     )
     all_columns_button.click()
     driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
-
-    driver.click_xpath('//label[.//span[text()="not_vetted"]]')
 
     execute_download_button = driver.wait_for_xpath_to_be_clickable(
         '//button[@data-testid="download-photometry-table-button"]',

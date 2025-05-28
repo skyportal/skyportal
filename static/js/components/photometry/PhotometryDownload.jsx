@@ -6,6 +6,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DownloadIcon from "@mui/icons-material/Download";
 import Typography from "@mui/material/Typography";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -91,31 +93,6 @@ const PhotometryDownload = ({
     required: ["columns"],
   };
 
-  if (usePhotometryValidation) {
-    downloadSchema.properties.validationFilter = {
-      type: "object",
-      title: "Validation",
-      properties: {
-        validated: {
-          type: "boolean",
-          default: DEFAULT_VALIDATION_FILTER.validated,
-        },
-        rejected: {
-          type: "boolean",
-          default: DEFAULT_VALIDATION_FILTER.rejected,
-        },
-        ambiguous: {
-          type: "boolean",
-          default: DEFAULT_VALIDATION_FILTER.ambiguous,
-        },
-        not_vetted: {
-          type: "boolean",
-          default: DEFAULT_VALIDATION_FILTER.not_vetted,
-        },
-      },
-    };
-  }
-
   const downloadUiSchema = {
     columns: {
       "ui:widget": "checkboxes",
@@ -123,6 +100,16 @@ const PhotometryDownload = ({
         inline: true,
       },
     },
+  };
+
+  const handleValidationFilterChange = (key) => (event) => {
+    setDownloadFormData((prev) => ({
+      ...prev,
+      validationFilter: {
+        ...prev.validationFilter,
+        [key]: event.target.checked,
+      },
+    }));
   };
 
   const filterDataByValidation = (tableData, filter) => {
@@ -230,6 +217,9 @@ const PhotometryDownload = ({
       columns: DEFAULT_DOWNLOAD_COLUMNS.filter((col) =>
         availableDownloadColumns.some((availCol) => availCol.key === col),
       ),
+      ...(usePhotometryValidation && {
+        validationFilter: DEFAULT_VALIDATION_FILTER,
+      }),
     }));
   };
 
@@ -237,21 +227,30 @@ const PhotometryDownload = ({
     setDownloadFormData((prev) => ({
       ...prev,
       columns: availableDownloadColumns.map((col) => col.key),
+      ...(usePhotometryValidation && {
+        validationFilter: {
+          validated: true,
+          rejected: true,
+          ambiguous: true,
+          not_vetted: true,
+        },
+      }),
     }));
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h6">Download Options</Typography>
       </DialogTitle>
 
       <DialogContent>
-        <div>
+        <div style={{ marginBottom: "16px" }}>
           <Button
             size="small"
             variant="outlined"
             onClick={handleSetDefaultColumns}
+            style={{ marginRight: "8px" }}
           >
             Default
           </Button>
@@ -260,30 +259,66 @@ const PhotometryDownload = ({
           </Button>
         </div>
 
-        <div>
-          <Form
-            schema={downloadSchema}
-            uiSchema={downloadUiSchema}
-            formData={downloadFormData}
-            onChange={({ formData }) => setDownloadFormData(formData)}
-            onSubmit={executeDownload}
-            validator={validator}
-            showErrorList={false}
-          >
-            <Button
-              type="submit"
-              variant="contained"
-              size="small"
-              endIcon={<DownloadIcon />}
-              disabled={
-                !downloadFormData.columns ||
-                downloadFormData.columns.length === 0
-              }
-              data-testid="download-photometry-table-button"
+        <Form
+          schema={downloadSchema}
+          uiSchema={downloadUiSchema}
+          formData={downloadFormData}
+          onChange={({ formData }) => setDownloadFormData(formData)}
+          validator={validator}
+          showErrorList={false}
+        >
+          <div></div>
+        </Form>
+
+        {usePhotometryValidation && (
+          <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+            <Typography variant="h6" style={{ marginBottom: "8px" }}>
+              Validation
+            </Typography>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+              }}
             >
-              Download
-            </Button>
-          </Form>
+              {Object.entries({
+                validated: "Validated",
+                rejected: "Rejected",
+                ambiguous: "Ambiguous",
+                not_vetted: "Not vetted",
+              }).map(([key, label]) => (
+                <FormControlLabel
+                  key={key}
+                  control={
+                    <Checkbox
+                      checked={
+                        downloadFormData.validationFilter?.[key] || false
+                      }
+                      onChange={handleValidationFilterChange(key)}
+                      size="small"
+                    />
+                  }
+                  label={label}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: "16px" }}>
+          <Button
+            onClick={executeDownload}
+            variant="contained"
+            size="small"
+            endIcon={<DownloadIcon />}
+            disabled={
+              !downloadFormData.columns || downloadFormData.columns.length === 0
+            }
+            data-testid="download-photometry-table-button"
+          >
+            Download
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
