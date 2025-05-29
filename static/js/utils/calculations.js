@@ -50,6 +50,24 @@ function mjdnow() {
   return unix2mjd(new Date().getTime());
 }
 
+function calculateFluxFromMag(mag, magerr, limitingMag, PHOT_ZP) {
+  let fluxValue = null;
+  let fluxerrValue = null;
+
+  if (mag !== null) {
+    // it's a detection, we have both flux and flux error
+    fluxValue = 10 ** (-0.4 * (mag - PHOT_ZP));
+    if (magerr !== null) {
+      fluxerrValue = (magerr / (2.5 / Math.log(10))) * fluxValue;
+    }
+  } else {
+    // it's an upper limit, we only have fluxerr
+    fluxerrValue = 10 ** (-0.4 * (limitingMag - PHOT_ZP));
+  }
+
+  return { fluxValue, fluxerrValue };
+}
+
 export {
   median,
   mean,
@@ -58,4 +76,5 @@ export {
   unix2mjd,
   mjdnow,
   colorScaleRainbow,
+  calculateFluxFromMag,
 };
