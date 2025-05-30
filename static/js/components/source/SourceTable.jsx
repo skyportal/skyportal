@@ -1745,7 +1745,9 @@ const SourceTable = ({
   }
 
   const options = {
-    ...(fixedHeader ? { fixedHeader: true, tableBodyHeight: "73vh" } : {}),
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
+      : {}),
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,

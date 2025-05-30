@@ -437,7 +437,9 @@ const AllocationTable = ({
   }
 
   const options = {
-    ...(fixedHeader ? { fixedHeader: true, tableBodyHeight: "73vh" } : {}),
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
+      : {}),
     search: false,
     draggableColumns: { enabled: true },
     selectableRows: "none",

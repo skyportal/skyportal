@@ -864,7 +864,7 @@ const UserManagement = () => {
 
   const options = {
     fixedHeader: true,
-    tableBodyHeight: "73vh",
+    tableBodyHeight: "calc(100vh - 201px)",
     responsive: "standard",
     print: true,
     download: true,
@@ -899,8 +899,11 @@ const UserManagement = () => {
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      <br />
-      {invitationsEnabled && <UserInvitations />}
+      {invitationsEnabled && (
+        <div style={{ marginTop: "1rem" }}>
+          <UserInvitations />
+        </div>
+      )}
       <Dialog
         open={addUserGroupsDialogOpen}
         onClose={() => {

@@ -436,7 +436,9 @@ const InstrumentTable = ({
   });
 
   const options = {
-    ...(fixedHeader ? { fixedHeader: true, tableBodyHeight: "80vh" } : {}),
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 148px)" }
+      : {}),
     search: true,
     onSearchChange: handleSearchChange,
     selectableRows: "none",
