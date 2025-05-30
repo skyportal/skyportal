@@ -59,7 +59,6 @@ const GcnReportTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = false,
-  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -183,7 +182,7 @@ const GcnReportTable = ({
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                title={!hideTitle ? "GCN Reports" : ""}
+                title="GCN Reports"
                 data={reports}
                 options={options}
                 columns={columns}
@@ -212,7 +211,6 @@ GcnReportTable.propTypes = {
   deleteGcnReport: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
@@ -220,7 +218,6 @@ GcnReportTable.defaultProps = {
   reports: null,
   pageNumber: 1,
   numPerPage: 10,
-  hideTitle: false,
   serverSide: false,
 };
 

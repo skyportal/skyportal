@@ -75,7 +75,6 @@ const getMuiTheme = (theme) =>
 const DefaultFollowupRequestList = ({
   default_followup_requests,
   deletePermission,
-  hideTitle = false,
 }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -123,7 +122,7 @@ const DefaultFollowupRequestList = ({
   const renderInstrumentName = (dataIndex) => {
     const default_followup_request = default_followup_requests[dataIndex];
 
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_request;
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -139,7 +138,7 @@ const DefaultFollowupRequestList = ({
   const renderTelescopeName = (dataIndex) => {
     const default_followup_request = default_followup_requests[dataIndex];
 
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_request;
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -158,7 +157,7 @@ const DefaultFollowupRequestList = ({
   const renderGroup = (dataIndex) => {
     const default_followup_request = default_followup_requests[dataIndex];
 
-    const { allocation, default_followup_name } = default_followup_request;
+    const { allocation } = default_followup_request;
 
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
 
@@ -316,7 +315,7 @@ const DefaultFollowupRequestList = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={!hideTitle ? "Default Follow-up Requests" : ""}
+              title="Default Follow-up Requests"
               data={default_followup_requests || []}
               options={options}
               columns={columns}
@@ -348,11 +347,6 @@ const DefaultFollowupRequestList = ({
 DefaultFollowupRequestList.propTypes = {
   default_followup_requests: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
-  hideTitle: PropTypes.bool,
-};
-
-DefaultFollowupRequestList.defaultProps = {
-  hideTitle: false,
 };
 
 export default DefaultFollowupRequestList;

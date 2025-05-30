@@ -5,7 +5,6 @@ import { Controller, useForm } from "react-hook-form";
 import MUIDataTable from "mui-datatables";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -54,14 +53,6 @@ dayjs.extend(utc);
 const useStyles = makeStyles(() => ({
   icon: {
     height: "1rem",
-  },
-  headerCell: {
-    verticalAlign: "bottom",
-  },
-  container: { padding: "1rem" },
-  section: { margin: "0.5rem 0 1rem 0" },
-  spinnerDiv: {
-    paddingTop: "2rem",
   },
   submitButton: {
     marginTop: "1rem",
@@ -872,6 +863,8 @@ const UserManagement = () => {
   ];
 
   const options = {
+    fixedHeader: true,
+    tableBodyHeight: "calc(100vh - 201px)",
     responsive: "standard",
     print: true,
     download: true,
@@ -893,17 +886,24 @@ const UserManagement = () => {
   };
 
   return (
-    <Paper className={classes.container}>
-      <Typography variant="h5">Manage users</Typography>
-      <Paper className={classes.section}>
+    <>
+      <Paper>
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={dataTableStyles(theme)}>
-            <MUIDataTable columns={columns} data={users} options={options} />
+            <MUIDataTable
+              title="Manage Users"
+              data={users}
+              options={options}
+              columns={columns}
+            />
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      <br />
-      {invitationsEnabled && <UserInvitations />}
+      {invitationsEnabled && (
+        <div style={{ marginTop: "1rem" }}>
+          <UserInvitations />
+        </div>
+      )}
       <Dialog
         open={addUserGroupsDialogOpen}
         onClose={() => {
@@ -1252,7 +1252,7 @@ const UserManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </Paper>
+    </>
   );
 };
 
