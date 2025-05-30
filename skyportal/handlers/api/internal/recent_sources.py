@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, Source
+from ....models import Obj, ObjTag, Source
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
@@ -17,7 +17,12 @@ from .source_views import t_index
 # maxNumSources is the maximum number of sources to return
 # includeSitewide is a boolean that determines whether to include
 # sources that are only in the sitewide group
-default_prefs = {"maxNumSources": 25, "includeSitewideSources": False, "groupIds": []}
+default_prefs = {
+    "maxNumSources": 25,
+    "includeSitewideSources": False,
+    "groupIds": [],
+    "displayTags": True,
+}
 
 env, cfg = load_env()
 log = make_log("api/recent_sources")
@@ -91,6 +96,13 @@ class RecentSourcesHandler(BaseHandler):
                     .offset(recency_index)
                 ).first()
 
+                tags = session.scalars(
+                    ObjTag.select(session.user_or_token).where(ObjTag.obj_id == obj_id)
+                ).all()
+                tags = [
+                    {**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags
+                ]
+
                 sources.append(
                     {
                         "obj_id": s.id,
@@ -108,6 +120,7 @@ class RecentSourcesHandler(BaseHandler):
                         "classifications": s.classifications,
                         "recency_index": recency_index,
                         "tns_name": s.tns_name,
+                        "tags": tags,
                     }
                 )
 
