@@ -398,14 +398,14 @@ class TAROTAPI(FollowUpAPI):
         check_payload(request.payload, specific_config["station_name"])
 
         hash_user = login_to_tarot(request, session, altdata)
-        observing_time = get_observing_time(session, request)
 
         # Add 10 minutes delay to the observing time to avoid issues with the TAROT server
         # This code is a workaround and should be removed after finding a solution
         minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
-        if observing_time < minimum_observing_time:
-            observing_time = minimum_observing_time
+        if request.payload["start_date"] < minimum_observing_time:
+            request.payload["start_date"] = minimum_observing_time
 
+        observing_time = get_observing_time(session, request)
         observation_string = create_request_string(
             request.obj,
             request.payload,
@@ -596,7 +596,7 @@ class TAROTAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
                 session.add(transaction)
-                raise ValueError("Error trying to get the observation log")
+                raise ValueError("Observation log currently unavailable on TAROT")
 
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
