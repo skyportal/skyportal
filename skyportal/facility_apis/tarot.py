@@ -399,7 +399,7 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        # Add 10 minutes delay to the observing time to avoid issues with the TAROT server
+        # Set the start date to be at least 10 minutes in the future to avoid issues with the TAROT server
         # This code is a workaround and should be removed after finding a solution
         minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
         if request.payload["start_date"] < minimum_observing_time:
