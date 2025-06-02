@@ -47,7 +47,7 @@ scp==0.15.0
 requests_toolbelt==1.0.0
 sendgrid==6.11.0
 responses==0.25.7
-twilio==9.5.1
+twilio==9.6.2
 numba>=0.59.0
 pyvo==1.5.2
 lxml==5.4.0
@@ -62,7 +62,7 @@ pysedm==0.31.1
 xmlschema==4.0.1
 requests>=2.30.0, <3.0.0
 geojson==3.2.0
-typing-extensions==4.12.2
+typing-extensions==4.13.2
 swifttools==3.0.23
 pip>=24.0.0
 gwemopt==0.3.6
@@ -70,7 +70,7 @@ humanize==4.12.2
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
-black==24.4.2
+black==25.1.0
 click==8.1.7
 arviz==0.19.0
 corner==2.2.2
@@ -91,6 +91,6 @@ langchain==0.3.25
 langchain-openai==0.3.16
 pinecone==6.0.2
 pydantic==2.11.4
-sentry-sdk==2.22.0
+sentry-sdk==2.29.1
 typing-inspect==0.9.0
 brotli==1.1.0

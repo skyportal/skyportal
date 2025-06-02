@@ -352,7 +352,7 @@ def get_next_valid_observing_time(
         raise ValueError("Missing some telescope information")
 
     valid_rise_time, valid_set_time = None, None
-    for _ in range(7):
+    for _ in range(14):  # Try 7 days, checking every 12 hours
         # Retrieve the rise and set time of the target within the nighttime observing window
         valid_rise_time, valid_set_time = get_rise_set_time(
             target=target,
@@ -365,8 +365,8 @@ def get_next_valid_observing_time(
         if valid_rise_time and valid_set_time and observing_time < valid_set_time:
             break
         else:
-            # if the target is not visible, use the next day as the new observing time
-            observing_time += 1 * u.day
+            # if the target is not visible, use the next 12 hours as the new observing time
+            observing_time += 12 * u.hour
             if end_time < observing_time:
                 break
 
