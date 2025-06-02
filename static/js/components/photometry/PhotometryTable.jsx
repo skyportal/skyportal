@@ -420,7 +420,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         onColumnViewChange: handleColumnViewChange,
         onDownload: (buildHead, buildBody, cols, tableData) => {
           const renderStreamsDownload = (streams) => {
-            // console.log(streams);
             return streams?.length > 0
               ? streams.map((stream) => stream.name).join(";")
               : "";
