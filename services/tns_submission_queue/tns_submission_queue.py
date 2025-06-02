@@ -16,6 +16,7 @@ from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models.stream import Stream
+from skyportal.utils.data_access import validate_photometry_options
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
@@ -48,39 +49,6 @@ class TNSReportError(Exception):
 # same thing but for warnings, to avoid showing these messages as errors to the user
 class TNSReportWarning(Exception):
     pass
-
-
-def validate_photometry_options(submission_request, tnsrobot):
-    """Validate the photometry options for a TNSRobot.
-
-    Parameters
-    ----------
-    submission_request : `~skyportal.models.TNSRobotSubmission`
-        The submission request's photometry options to validate.
-    tns_robot : `~skyportal.models.TNSRobot`
-        The TNSRobot to validate the photometry options for.
-
-    Returns
-    -------
-    dict
-        The validated photometry options.
-
-    Raises
-    ------
-    TNSReportError
-        If the photometry options are not valid.
-    """
-    from skyportal.handlers.api.tns.tns_robot import (
-        validate_photometry_options as _validate_photometry_options,
-    )
-
-    try:
-        return _validate_photometry_options(
-            getattr(submission_request, "photometry_options", {}),
-            getattr(tnsrobot, "photometry_options", {}),
-        )
-    except ValueError as e:
-        raise TNSReportError(str(e))
 
 
 def validate_obj_id(obj_id, tns_source_group_id):
@@ -931,7 +899,13 @@ def process_submission_request(submission_request, session):
             "User-Agent": f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
-        photometry_options = validate_photometry_options(submission_request, tnsrobot)
+        try:
+            photometry_options = validate_photometry_options(
+                getattr(submission_request, "photometry_options", {}),
+                getattr(tnsrobot, "photometry_options", {}),
+            )
+        except ValueError as e:
+            raise TNSReportError(str(e))
 
         validate_obj_id(obj_id, tnsrobot.source_group_id)
 

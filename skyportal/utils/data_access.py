@@ -187,12 +187,14 @@ def filter_accessible_stream_ids(session, stream_ids, tns_robot, auto_submission
     return [stream.id for stream in streams]
 
 
-def validate_photometry_options(photometry_options, existing_photometry_options=None):
+def validate_photometry_options(
+    photometry_options=None, existing_photometry_options=None
+):
     """Validate the photometry options and their values
 
     Parameters
     ----------
-    photometry_options : dict
+    photometry_options : dict, optional
         Dictionary containing the photometry options
     existing_photometry_options : dict, optional
         Dictionary containing the existing photometry options, by default None
