@@ -74,7 +74,9 @@ def create_external_publishing_bot(
     """
     data = {
         **data,
-        "report_existing": str_to_bool(data.get("report_existing", "false")),
+        "publish_existing_tns_objects": str_to_bool(
+            data.get("publish_existing_tns_objects", "false")
+        ),
         "testing": str_to_bool(data.get("testing", "true")),
         "photometry_options": validate_photometry_options(
             data.get("photometry_options", {})
@@ -91,7 +93,7 @@ def create_external_publishing_bot(
 
     owner_groups = [
         ExternalPublishingBotGroup(
-            external_publishing_bot_id=external_publishing_bot.external_publishing_bot_id,
+            external_publishing_bot_id=external_publishing_bot.id,
             group_id=owner_group_id,
             owner=True,
             auto_publish=False,
@@ -101,7 +103,6 @@ def create_external_publishing_bot(
     ]
     for owner_group in owner_groups:
         session.add(owner_group)
-        ExternalPublishingBot.groups.append(owner_group)
         external_publishing_bot.groups.append(owner_group)
 
     instruments = process_instrument_ids(session, instrument_ids)
@@ -163,7 +164,7 @@ def update_external_publishing_bot(
             setattr(external_publishing_bot, field, data[field])
 
     # Fields requiring conversion
-    for boolean_field in ["report_existing", "testing"]:
+    for boolean_field in ["publish_existing_tns_objects", "testing"]:
         value = data.get(boolean_field)
         if value not in [None, ""]:
             setattr(external_publishing_bot, boolean_field, str_to_bool(str(value)))
@@ -302,25 +303,40 @@ class ExternalPublishingBotHandler(BaseHandler):
     def get(self, external_publishing_bot_id=None):
         """
         ---
-        summary: Retrieve an external publishing bot
-        description: Retrieve an external publishing bot
-        tags:
-          - external publishing bot
-        parameters:
-          - in: path
-            name: external_publishing_bot_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleExternalPublishingBot
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          summary: Retrieve an external publishing bot
+          description: Retrieve an external publishing bot
+          tags:
+            - external publishing bot
+          parameters:
+            - in: path
+              name: external_publishing_bot_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleExternalPublishingBot
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          summary: Retrieve all external publishing bots
+          description: Retrieve all external publishing bots
+          tags:
+            - external publishing bot
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfExternalPublishingBots
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         with self.Session() as session:
             stmt = ExternalPublishingBot.select(
@@ -344,7 +360,7 @@ class ExternalPublishingBotHandler(BaseHandler):
                 for group in external_publishing_bot.groups:
                     if group.owner:
                         owner_group_ids.append(group.group_id)
-                    group.autoreporters  # we just need to load the users by accessing the attribute
+                    group.auto_publishers  # we just need to load the users by accessing the attribute
                 external_publishing_bot.owner_group_ids = owner_group_ids
                 return self.success(data=external_publishing_bot)
             else:
@@ -355,7 +371,7 @@ class ExternalPublishingBotHandler(BaseHandler):
                     for group in external_publishing_bot.groups:
                         if group.owner:
                             owner_group_ids.append(group.group_id)
-                        group.autoreporters  # we just need to load the users by accessing the attribute
+                        group.auto_publishers  # we just need to load the users by accessing the attribute
                     external_publishing_bot.owner_group_ids = owner_group_ids
                 return self.success(data=external_publishing_bots)
 

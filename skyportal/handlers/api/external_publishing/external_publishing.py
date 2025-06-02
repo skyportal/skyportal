@@ -81,6 +81,46 @@ class ExternalPublishingHandler(BaseHandler):
             required: true
             schema:
               type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  external_publishing_bot_id:
+                    type: integer
+                    description: ID of the external publishing bot to use
+                  publishers:
+                    type: string
+                    description: Custom string for publishers
+                  remarks:
+                    type: string
+                    description: Custom remarks string
+                  archival:
+                    type: boolean
+                    description: Flag to indicate if the source is archival
+                  archival_comment:
+                    type: string
+                    description: Comment for archival sources (required if archival is True)
+                  instrument_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of instrument IDs to associate with the submission
+                  stream_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of stream IDs to associate with the submission
+                  photometry_options:
+                    type: object
+                    description: Options for photometry processing
+                  publish_to_tns:
+                    type: boolean
+                    description: Flag to indicate if the submission should be published to TNS
+                  publish_to_hermes:
+                    type: boolean
+                    description: Flag to indicate if the submission should be published to Hermes
         responses:
           200:
             content:
@@ -93,34 +133,29 @@ class ExternalPublishingHandler(BaseHandler):
         """
         data = self.get_json()
 
+        external_publishing_bot_id = data.get("external_publishing_bot_id")
+        publishers = data.get("publishers", "")
+        remarks = data.get("remarks", "")
+        archival = data.get("archival", False)
+        archival_comment = data.get("archivalComment", "")
+        instrument_ids = data.get("instrument_ids", [])
+        stream_ids = data.get("stream_ids", [])
+        photometry_options = data.get("photometry_options", {})
+        publish_to_tns = data.get("publish_to_tns", False)
+        publish_to_hermes = data.get("publish_to_hermes", False)
+
+        if not publish_to_tns and not publish_to_hermes:
+            return self.error(
+                "Either publish to tns or publish to hermes must be set to True"
+            )
+        if publish_to_hermes and not is_configured:
+            return self.error("This instance is not configured to use Hermes")
+
+        if external_publishing_bot_id is None:
+            return self.error("Publishing bot id is required")
+        if publishers == "" or not isinstance(publishers, str):
+            return self.error("publishers is required and must be a non-empty string")
         with self.Session() as session:
-            external_publishing_bot_id = data.get("external_publishing_bot_id")
-            reporters = data.get("reporters", "")
-            remarks = data.get("remarks", "")
-            archival = data.get("archival", False)
-            archival_comment = data.get("archivalComment", "")
-            instrument_ids = data.get("instrument_ids", [])
-            stream_ids = data.get("stream_ids", [])
-            photometry_options = data.get("photometry_options", {})
-            publish_to_tns = data.get("publish_to_tns", False)
-            publish_to_hermes = data.get("publish_to_hermes", False)
-
-            if not publish_to_tns and not publish_to_hermes:
-                return self.error(
-                    "Either publish to tns or publish to hermes must be set to True"
-                )
-            if publish_to_tns and self.current_user.affiliation is None:
-                return self.error("User affiliation is required to publish to TNS")
-            if publish_to_hermes and not is_configured:
-                return self.error("This instance is not configured to use Hermes")
-
-            if external_publishing_bot_id is None:
-                return self.error("external_publishing_bot_id is required")
-            if reporters == "" or not isinstance(reporters, str):
-                return self.error(
-                    "reporters is required and must be a non-empty string"
-                )
-
             process_instrument_ids(session, instrument_ids)
             process_stream_ids(session, stream_ids)
 
@@ -137,10 +172,10 @@ class ExternalPublishingHandler(BaseHandler):
             ).first()
 
             if publish_to_tns:
-                altdata = external_publishing_bot.altdata
-                if not altdata:
+                tns_altdata = external_publishing_bot.tns_altdata
+                if not tns_altdata:
                     return self.error("Missing TNS information.")
-                if "api_key" not in altdata:
+                if "api_key" not in tns_altdata:
                     return self.error("Missing TNS API key.")
 
             if external_publishing_bot is None:
@@ -180,7 +215,7 @@ class ExternalPublishingHandler(BaseHandler):
                 external_publishing_bot_id=external_publishing_bot.id,
                 obj_id=obj.id,
                 user_id=self.associated_user_object.id,
-                custom_publishing_string=reporters,
+                custom_publishing_string=publishers,
                 custom_remarks_string=remarks,
                 archival=archival,
                 archival_comment=archival_comment,

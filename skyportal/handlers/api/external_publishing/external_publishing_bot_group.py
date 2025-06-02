@@ -12,6 +12,7 @@ from ....models.external_publishing_bot import (
 )
 from ....utils.parse import str_to_bool
 from ...base import BaseHandler
+from .external_publishing_bot import check_access_to_external_publishing_bot
 
 log = make_log("api/external_publishing_bot_group")
 
@@ -77,37 +78,19 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
         owner = data.get("owner")
 
         group_id = data.get("group_id", group_id)
+        if group_id is None:
+            return self.error(
+                "You must specify a group_id when giving or editing the access to a publishing bot for a group"
+            )
         try:
             group_id = int(group_id)
         except ValueError:
             return self.error(f"Invalid group_id: {group_id}, must be an integer")
 
         with self.Session() as session:
-            # verify that the user has access to the external_publishing_bot
-            external_publishing_bot = session.scalar(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
-                )
-            )
-            if external_publishing_bot is None:
-                return self.error(
-                    f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
-                )
-
-            if group_id is None:
-                return self.error(
-                    "You must specify a group_id when giving or editing the access to a publishing bot for a group"
-                )
-
-            # verify that this group is accessible by the user
-            accessible_group_ids = {g.id for g in self.current_user.accessible_groups}
-            if (
-                not self.current_user.is_system_admin
-                and group_id not in accessible_group_ids
-            ):
-                return self.error(
-                    f"Group {group_id} is not accessible by the current user"
-                )
+            # Check if the user has access to the external_publishing_bot and group
+            check_access_to_external_publishing_bot(session, external_publishing_bot_id)
+            self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the external_publishing_bot
             external_publishing_bot_group = session.scalar(
@@ -242,32 +225,14 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        with self.Session() as session:
-            # verify that the user has access to the external_publishing_bot
-            external_publishing_bot = session.scalar(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
-                )
+        if group_id is None:
+            return self.error(
+                "You must specify a group_id when giving or editing the access to a publishing bot for a group"
             )
-            if external_publishing_bot is None:
-                return self.error(
-                    f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
-                )
-
-            if group_id is None:
-                return self.error(
-                    "You must specify a group_id when giving or editing the access to a publishing bot for a group"
-                )
-
-            # verify that this group is accessible by the user
-            accessible_group_ids = {g.id for g in self.current_user.accessible_groups}
-            if (
-                not self.current_user.is_system_admin
-                and group_id not in accessible_group_ids
-            ):
-                return self.error(
-                    f"Group {group_id} is not accessible by the current user"
-                )
+        with self.Session() as session:
+            # Check if the user has access to the external_publishing_bot and group
+            check_access_to_external_publishing_bot(session, external_publishing_bot_id)
+            self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the external_publishing_bot
             external_publishing_bot_group = session.scalar(
@@ -294,7 +259,7 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
 
             if len(owners) == 1 and external_publishing_bot_group.owner:
                 return self.error(
-                    "Cannot delete the only external_publishing_bot_group owning this bot, add another group as an owner first."
+                    "Cannot delete the only group owning this bot, add another group as an owner first."
                 )
 
             session.delete(external_publishing_bot_group)

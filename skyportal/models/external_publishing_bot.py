@@ -241,8 +241,8 @@ class ExternalPublishingSubmission(Base):
         doc="Custom remarks string to use for this submission only.",
     )
 
-    tns_status = sa.Column(sa.String, nullable=False, default="pending")
-    hermes_status = sa.Column(sa.String, nullable=False, default="pending")
+    tns_status = sa.Column(sa.String, nullable=True, default="pending")
+    hermes_status = sa.Column(sa.String, nullable=True, default="pending")
 
     archival = sa.Column(
         sa.Boolean,

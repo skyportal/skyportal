@@ -21,6 +21,7 @@ log = make_log("publishable_access")
 PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,
     "autoreport_allow_archival": bool,
+    "auto_publish_allow_archival": bool,
 }
 
 
