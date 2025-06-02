@@ -10,7 +10,7 @@
     "@emotion/react": "11.13.5",
     "@emotion/styled": "11.14.0",
     "@eslint/compat": "1.2.3",
-    "@mui/icons-material": "7.0.2",
+    "@mui/icons-material": "7.1.0",
     "@mui/lab": "5.0.0-alpha.154",
     "@mui/material": "5.14.11",
     "@mui/styled-engine": "6.4.2",
