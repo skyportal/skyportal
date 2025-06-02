@@ -181,7 +181,7 @@ export function addSourceHermes(id, formData) {
 
 export function publishSourceExternally(id, formData) {
   return API.POST(
-    `/api/sources/${id}/hermes`,
+    `/api/sources/${id}/external_publishing`,
     PUBLISH_SOURCE_EXTERNALLY,
     formData,
   );

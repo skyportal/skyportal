@@ -20,13 +20,13 @@ import DialogContent from "@mui/material/DialogContent";
 import Checkbox from "@mui/material/Checkbox";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Spinner from "../../Spinner";
-import { userLabel } from "../../tns/TNSRobotsPage";
-import FormValidationError from "../../FormValidationError";
+import Spinner from "../Spinner";
+import { userLabel } from "../tns/TNSRobotsPage";
+import FormValidationError from "../FormValidationError";
 
-import * as sourceActions from "../../../ducks/source";
-import * as externalPublishingActions from "../../../ducks/externalPublishing";
-import * as streamsActions from "../../../ducks/streams";
+import * as sourceActions from "../../ducks/source";
+import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as streamsActions from "../../ducks/streams";
 import InfoIcon from "@mui/icons-material/Info";
 
 const CustomCheckboxWidget = ({ id, name, value, onChange, label, schema }) => {
@@ -93,8 +93,8 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const { users: allUsers } = useSelector((state) => state.users);
   const currentUser = useSelector((state) => state.profile);
   const streams = useSelector((state) => state.streams);
-  const allowedInstrumentForPublishing = useSelector(
-    (state) => state.config.allowedInstrumentForPublishing,
+  const allowedInstrumentsForPublishing = useSelector(
+    (state) => state.config.allowedInstrumentsForPublishing,
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
@@ -102,7 +102,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     (state) => state.externalPublishingBots,
   );
   const [selectedBotId, setSelectedBotId] = useState(null);
-  const [defaultReporterString, setDefaultReporterString] = useState(null);
+  const [defaultPublishersString, setDefaultPublishersString] = useState(null);
   const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
   const [defaultStreamIds, setDefaultStreamIds] = useState([]);
@@ -125,7 +125,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     : [];
 
   instrumentList.filter((instrument) =>
-    (allowedInstrumentForPublishing || []).includes(
+    (allowedInstrumentsForPublishing || []).includes(
       instrument.name?.toLowerCase(),
     ),
   );
@@ -179,7 +179,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         coauthorsString ? `, ${coauthorsString}` : ""
       } ${acknowledgments}`.replace(/\s+/g, " ");
 
-      setDefaultReporterString(finalString);
+      setDefaultPublishersString(finalString);
     }
   }, [externalPublishingBotList, selectedBotId, currentUser, allUsers]);
 
@@ -267,10 +267,10 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const formSchema = {
     type: "object",
     properties: {
-      reporters: {
+      publishers: {
         type: "string",
-        title: "Reporters",
-        default: defaultReporterString,
+        title: "Publishers",
+        default: defaultPublishersString,
       },
       instrument_ids: {
         type: "array",
@@ -308,8 +308,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "string",
         title: "Remark (optional)",
         default: "",
-        description:
-          "Any additional remarks to include in the report. Optional",
+        description: "Any additional remarks to include. Optional",
       },
       first_and_last_detections: {
         type: "boolean",
@@ -321,9 +320,9 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       },
       archival: {
         type: "boolean",
-        title: "Archival report",
+        title: "TNS Archival",
         description:
-          "TNS reports require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
+          "TNS require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
         default: false,
       },
     },
@@ -353,7 +352,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         ],
       },
     },
-    required: ["reporters", "instrument_ids"],
+    required: ["publishers", "instrument_ids"],
   };
 
   const validate = (formData, errors) => {
@@ -362,21 +361,21 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         "Please select at least one destination (TNS or Hermes)",
       );
     }
-    const reporters = formData.reporters ?? "";
-    if (!reporters.trim()) {
-      errors.reporters.addError(
-        "Please specify the group you are reporting on behalf of",
+    const publishers = formData.publishers ?? "";
+    if (!publishers.trim()) {
+      errors.publishers.addError(
+        "Please specify the group you are publishing on behalf of",
       );
     }
-    if (reporters === `on behalf of...`) {
-      errors.reporters.addError(
-        "Please edit the reporters field before submitting",
+    if (publishers === `on behalf of...`) {
+      errors.publishers.addError(
+        "Please edit the publishers field before submitting",
       );
     }
-    if (reporters.includes("on behalf of")) {
-      if (!/on behalf of\s*[a-zA-Z]+/i.test(reporters)) {
-        errors.reporters.addError(
-          "Please specify the group you are reporting on behalf of",
+    if (publishers.includes("on behalf of")) {
+      if (!/on behalf of\s*[a-zA-Z]+/i.test(publishers)) {
+        errors.publishers.addError(
+          "Please specify the group you are publishing on behalf of",
         );
       }
     }
@@ -495,7 +494,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               <FormValidationError message="This publishing bot has no allowed instruments, edit this bot before submitting" />
             ) : (
               <div data-testid="external-publishing-form">
-                {defaultReporterString ? (
+                {defaultPublishersString ? (
                   <Form
                     schema={formSchema}
                     validator={validator}

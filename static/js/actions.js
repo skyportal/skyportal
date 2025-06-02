@@ -21,6 +21,7 @@ import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
 import * as rejectedActions from "./ducks/rejected_candidates";
 import * as tnsrobotsActions from "./ducks/tnsrobots";
+import * as externalPublishingActions from "./ducks/externalPublishing";
 import * as enumTypesActions from "./ducks/enum_types";
 import * as usersActions from "./ducks/users";
 import * as streamsActions from "./ducks/streams";
@@ -148,6 +149,15 @@ export default function hydrate(
         dispatch(tnsrobotsActions.fetchTNSRobots()).then(() => {
           dispatch(hydrationActions.finishedHydrating("tnsrobots"));
         });
+      }
+      if (ducks_to_hydrate.includes("externalPublishingBots")) {
+        dispatch(externalPublishingActions.fetchExternalPublishingBots()).then(
+          () => {
+            dispatch(
+              hydrationActions.finishedHydrating("externalPublishingBots"),
+            );
+          },
+        );
       }
       if (ducks_to_hydrate.includes("galaxyCatalogs")) {
         dispatch(galaxiesActions.fetchGalaxyCatalogs()).then(() => {

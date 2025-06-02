@@ -85,7 +85,7 @@ import SpectraPlot from "../plot/SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
-import ExternalPublishingDialog from "./external_publishing/ExternalPublishingForm";
+import ExternalPublishingDialog from "../external_publishing/ExternalPublishingForm";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -235,10 +235,9 @@ const SourceContent = ({ source }) => {
   // (where it will appear on the screen)
   const [anchorElFindingChart, setAnchorElFindingChart] = useState(null);
   const [anchorElObservability, setAnchorElObservability] = useState(null);
-  const [anchorElSendTo, setAnchorElSendTo] = useState(null);
+  const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
   const openFindingChart = Boolean(anchorElFindingChart);
   const openObservability = Boolean(anchorElObservability);
-  const openSendTo = Boolean(anchorElSendTo);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -950,9 +949,28 @@ const SourceContent = ({ source }) => {
               </div>
               <div>
                 <Button
-                  aria-controls={openSendTo ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openSendTo ? "true" : undefined}
+                  onClick={() => setTNSDialogOpen(true)}
+                  secondary
+                  size="small"
+                >
+                  Send to TNS
+                </Button>
+                <Dialog
+                  open={tnsDialogOpen}
+                  onClose={() => setTNSDialogOpen(false)}
+                  style={{ position: "fixed" }}
+                >
+                  <DialogTitle>Send to TNS</DialogTitle>
+                  <DialogContent>
+                    <TNSATForm
+                      obj_id={source.id}
+                      submitCallback={() => setTNSDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div>
+                <Button
                   onClick={() => setSendToDialogOpen(true)}
                   secondary
                   size="small"

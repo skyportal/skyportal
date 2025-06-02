@@ -22,10 +22,10 @@ const EDIT_EXTERNAL_PUBLISHING_BOT_GROUP =
 const DELETE_EXTERNAL_PUBLISHING_BOT_GROUP =
   "skyportal/DELETE_EXTERNAL_PUBLISHING_BOT_GROUP";
 
-const ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER =
-  "skyportal/ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER";
-const DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER =
-  "skyportal/DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER";
+const ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHER =
+  "skyportal/ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHER";
+const DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHERS =
+  "skyportal/DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHERS";
 
 const ADD_EXTERNAL_PUBLISHING_BOT_COAUTHOR =
   "skyportal/ADD_EXTERNAL_PUBLISHING_BOT_COAUTHOR";
@@ -90,25 +90,25 @@ export const deleteExternalPublishingBotGroup = (
     DELETE_EXTERNAL_PUBLISHING_BOT_GROUP,
   );
 
-export const addExternalPublishingBotGroupAutoReporters = (
+export const addExternalPublishingBotGroupAutoPublishers = (
   external_publishing_bot_id,
   group_id,
   user_ids = [],
 ) =>
   API.POST(
-    `/api/external_publishing_bot/${external_publishing_bot_id}/group/${group_id}/autoreporter`,
-    ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER,
+    `/api/external_publishing_bot/${external_publishing_bot_id}/group/${group_id}/auto_publisher`,
+    ADD_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHER,
     { user_ids },
   );
 
-export const deleteExternalPublishingBotGroupAutoReporters = (
+export const deleteExternalPublishingBotGroupAutoPublishers = (
   external_publishing_bot_id,
   group_id,
   user_ids = [],
 ) =>
   API.DELETE(
-    `/api/external_publishing_bot/${external_publishing_bot_id}/group/${group_id}/autoreporter`,
-    DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTOREPORTER,
+    `/api/external_publishing_bot/${external_publishing_bot_id}/group/${group_id}/auto_publisher`,
+    DELETE_EXTERNAL_PUBLISHING_BOT_GROUP_AUTO_PUBLISHERS,
     { user_ids },
   );
 
@@ -154,7 +154,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 const reducer = (
-  state = { externalPublishingBotList: null, submissions: {} },
+  state = { externalPublishingBotList: [], submissions: {} },
   action,
 ) => {
   switch (action.type) {
