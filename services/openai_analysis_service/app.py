@@ -287,7 +287,7 @@ def run_openai_summarization(data_dict):
         rez.update(
             {
                 "status": "failure",
-                "message": f"OpenAI summarization failed {e}",
+                "message": f"OpenAI summarization failed: {e}",
             }
         )
         return rez
@@ -310,10 +310,20 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if USE_PINECONE:
-        e = client.embeddings.create(
-            input=openai_summary,
-            model=summarize_embedding_config.get("model", "text-embedding-ada-002"),
-        )
+        try:
+            e = client.embeddings.create(
+                input=openai_summary,
+                model=summarize_embedding_config.get("model", "text-embedding-3-small"),
+            )
+        except Exception as e:
+            log(f"OpenAI embedding failed {e}")
+            rez.update(
+                {
+                    "status": "failure",
+                    "message": f"OpenAI embedding failed: {e}",
+                }
+            )
+            return rez
         pinecone_index = pinecone_client.Index(summarize_embedding_index)
         metadata = {}
         if z is not None:

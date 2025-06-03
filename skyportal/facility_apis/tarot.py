@@ -26,17 +26,17 @@ station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 1,
-        "observation_url": cfg["app.calern_endpoint"],
+        "observation_url_config_key": "app.calern_endpoint",
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 2,
-        "observation_url": cfg["app.chili_endpoint"],
+        "observation_url_config_key": "app.chili_endpoint",
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
         "status_url": 8,
-        "observation_url": cfg["app.reunion_endpoint"],
+        "observation_url_config_key": "app.reunion_endpoint",
     },
 }
 
@@ -398,14 +398,14 @@ class TAROTAPI(FollowUpAPI):
         check_payload(request.payload, specific_config["station_name"])
 
         hash_user = login_to_tarot(request, session, altdata)
-        observing_time = get_observing_time(session, request)
 
-        # Add 10 minutes delay to the observing time to avoid issues with the TAROT server
+        # Set the start date to be at least 10 minutes in the future to avoid issues with the TAROT server
         # This code is a workaround and should be removed after finding a solution
         minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
-        if observing_time < minimum_observing_time:
-            observing_time = minimum_observing_time
+        if request.payload["start_date"] < minimum_observing_time:
+            request.payload["start_date"] = minimum_observing_time
 
+        observing_time = get_observing_time(session, request)
         observation_string = create_request_string(
             request.obj,
             request.payload,
@@ -582,7 +582,7 @@ class TAROTAPI(FollowUpAPI):
         ):
             # check if the scene has been observed
             response_observation = requests.get(
-                f"{station_dict[specific_config['station_name']]['observation_url']}/",
+                f"{cfg[station_dict[specific_config['station_name']]['observation_url_config_key']]}/",
                 timeout=5.0,
             )
 
@@ -596,7 +596,7 @@ class TAROTAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
                 session.add(transaction)
-                raise ValueError("Error trying to get the observation log")
+                raise ValueError("Observation log currently unavailable on TAROT")
 
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)

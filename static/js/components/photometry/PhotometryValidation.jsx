@@ -30,6 +30,17 @@ const defaultExplanations = defaultExplanationsHighlight.concat(
   defaultExplanationsReject,
 );
 
+export const getValidationStatus = (phot) => {
+  if (!phot?.validations || phot.validations.length === 0) {
+    return "not_vetted";
+  }
+
+  const validation = phot.validations[0];
+  if (validation.validated === true) return "validated";
+  if (validation.validated === false) return "rejected";
+  return "ambiguous";
+};
+
 const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
