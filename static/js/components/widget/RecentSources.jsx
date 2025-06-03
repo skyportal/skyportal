@@ -15,6 +15,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
+import Avatar from "@mui/material/Avatar";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
 import Tooltip from "@mui/material/Tooltip";
@@ -381,6 +382,7 @@ const RecentSourcesList = ({
                           {source.tags.slice(0, 2).map((tag) => (
                             <Chip
                               key={tag.id}
+                              avatar={<Avatar>T</Avatar>}
                               label={tag.name}
                               size="small"
                               className={styles.tagChip}
@@ -409,6 +411,7 @@ const RecentSourcesList = ({
                                 key="more-tags"
                                 label={`+${source.tags.length - 2}`}
                                 size="small"
+                                avatar={<Avatar>T</Avatar>}
                                 className={styles.tagChip}
                                 color="default"
                                 variant="filled"
