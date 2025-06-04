@@ -1236,18 +1236,25 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                     continue
 
                 # remove the columns we do not need:
-                obstable = obstable[
-                    [
-                        "jd",
-                        "field",
-                        "fid",
-                        "expid",
-                        "diffmaglim",
-                        "difffwhm",
-                        "exptime",
-                        "subtractionstatus",
+                try:
+                    obstable = obstable[
+                        [
+                            "jd",
+                            "field",
+                            "fid",
+                            "expid",
+                            "diffmaglim",
+                            "difffwhm",
+                            "exptime",
+                            "subtractionstatus",
+                        ]
                     ]
-                ]
+                except KeyError as e:
+                    log(
+                        f"Could not find expected columns in depot file for JD {jd}: {e}"
+                    )
+                    log(f"Depot file head:\n{obstable.head(1)}")
+                    continue
 
                 # move rows with NaN values in any of the columns
                 obstable = obstable.dropna()
