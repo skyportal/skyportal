@@ -47,7 +47,6 @@ def establish_cosmology(cfg=cfg):
         log(f"Try setting it to one of [{cosmology.realizations.available}]")
         raise RuntimeError("No valid cosmology specified")
 
-    log(f"Using {cosmo.name} for cosmological calculations")
-    log(f"{cosmo}")
+    log(f"Using {cosmo} for cosmological calculations")
 
     return cosmo
