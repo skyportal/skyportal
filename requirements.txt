@@ -84,7 +84,7 @@ iminuit==2.30.1
 watchdog==6.0.0
 PyAstronomy==0.22.0
 shapely==2.0.7
-openai==1.77.0
+openai==1.82.1
 tiktoken==0.9.0
 simplejson==3.20.1
 langchain==0.3.25
