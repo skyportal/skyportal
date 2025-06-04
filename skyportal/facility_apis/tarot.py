@@ -228,7 +228,7 @@ def get_filters_exposures(last_detected_mag, phase_angle, station_name):
                     "NoFilter": [12, 120],
                 }
 
-    elif station_name is "Tarot_Reunion":
+    elif station_name == "Tarot_Reunion":
         if last_detected_mag <= 17.0:
             filters_exposures = {
                 "NoFilter": [12, 120] if phase_angle > 60 else [8, 120]
