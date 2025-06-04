@@ -88,8 +88,8 @@ openai==1.77.0
 tiktoken==0.9.0
 simplejson==3.20.1
 langchain==0.3.25
-langchain-openai==0.3.16
-pinecone==6.0.2
+langchain-openai==0.3.19
+pinecone==7.0.2
 pydantic==2.11.4
 sentry-sdk==2.29.1
 typing-inspect==0.9.0

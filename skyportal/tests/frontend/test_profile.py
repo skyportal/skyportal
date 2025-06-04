@@ -157,9 +157,8 @@ def test_profile_dropdown(driver, user):
     driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
 
 
-@pytest.mark.flaky(reruns=2)
-def test_add_classification_shortcut(driver, user, public_group, taxonomy_token):
-    status, data = api(
+def add_classification_shortcut(driver, user, public_group, taxonomy_token):
+    status, _ = api(
         "POST",
         "taxonomy",
         data={
@@ -203,8 +202,9 @@ def test_add_classification_shortcut(driver, user, public_group, taxonomy_token)
     return shortcut_name
 
 
+@pytest.mark.flaky(reruns=2)
 def test_classification_shortcut(driver, user, public_group, taxonomy_token):
-    shortcut_name = test_add_classification_shortcut(
+    shortcut_name = add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )
     driver.get("/candidates")
@@ -214,8 +214,9 @@ def test_classification_shortcut(driver, user, public_group, taxonomy_token):
     driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_classification_shortcut(driver, user, public_group, taxonomy_token):
-    shortcut_name = test_add_classification_shortcut(
+    shortcut_name = add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )
     delete_icon = driver.wait_for_xpath('//*[contains(@class,"MuiChip-deleteIcon")]')
