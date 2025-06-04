@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
 import makeStyles from "@mui/styles/makeStyles";
 
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 
 const useStyles = makeStyles({
   paper: {
@@ -53,7 +53,7 @@ const SharePage = ({ value }) => {
           paper: classes.paper,
         }}
       >
-        <QRCode value={value} />
+        <QRCodeSVG value={value} />
       </Dialog>
     </>
   );

@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from astroquery.gaia import GaiaClass
-from astroquery.irsa import Irsa
+from astroquery.ipac.irsa import Irsa
 from astroquery.vizier import Vizier
 from sqlalchemy.exc import IntegrityError
 
