@@ -150,7 +150,8 @@ def build_reporters_and_remarks_string(
                     bio += "."
                 remarks.append(bio[0].upper() + bio[1:])
 
-        reporters = ", ".join(reporters)
+        # avoid duplicates in the reporters, only keep the first occurrence of each reporter
+        reporters = ", ".join(list(dict.fromkeys(reporters)))
         remarks = " ".join(remarks)
 
         if acknowledgments:

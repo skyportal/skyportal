@@ -416,7 +416,8 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
                     bio += "."
                 remarks.append(bio)
 
-        reporters = ", ".join(reporters)
+        # avoid duplicates in the reporters, only keep the first occurrence of each reporter
+        reporters = ", ".join(list(dict.fromkeys(reporters)))
         remarks = " ".join(remarks)
 
         # acknowledgments are added to the end of the reporters string if they exist (optional)
