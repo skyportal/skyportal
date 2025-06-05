@@ -241,8 +241,35 @@ class ExternalPublishingSubmission(Base):
         doc="Custom remarks string to use for this submission only.",
     )
 
-    tns_status = sa.Column(sa.String, nullable=True, default="pending")
-    hermes_status = sa.Column(sa.String, nullable=True, default="pending")
+    publish_to_tns = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether to publish to TNS or not.",
+    )
+
+    tns_status = sa.Column(
+        sa.String, nullable=True, doc="Status of the TNS submission."
+    )
+
+    tns_response = deferred(
+        sa.Column(psql.JSONB, doc="Serialized HTTP response from TNS.")
+    )
+
+    publish_to_hermes = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether to publish to Hermes or not.",
+    )
+
+    hermes_status = sa.Column(
+        sa.String, nullable=True, doc="Status of the Hermes submission."
+    )
+
+    hermes_response = deferred(
+        sa.Column(psql.JSONB, doc="Serialized HTTP response from Hermes.")
+    )
 
     archival = sa.Column(
         sa.Boolean,
@@ -294,7 +321,6 @@ class ExternalPublishingSubmission(Base):
     )
 
     payload = deferred(sa.Column(psql.JSONB, doc="Payload to publish."))
-    response = deferred(sa.Column(psql.JSONB, doc="Serialized HTTP response."))
 
     external_publishing_bot = relationship(
         "ExternalPublishingBot",
