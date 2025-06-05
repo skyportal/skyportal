@@ -1092,7 +1092,7 @@ const ExternalPublishingBotsPage = () => {
 
   const renderSubmissions = (dataIndex) => {
     // this button simply sends the user to the submissions page for the selected external publishing bot,
-    // which url is /external_publishing/:id/submissions, link should open in a new tab
+    // which url is /external_publishing/:bot_id/submissions, link should open in a new tab
     const externalPublishingBot = externalPublishingBotList[dataIndex];
     return (
       <Link

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 
@@ -25,13 +25,13 @@ import * as externalPublishingActions from "../../ducks/externalPublishing";
 import { userLabelWithAffiliations } from "../../utils/user";
 
 function getStatusColors(status) {
-  if (status.startsWith("complete")) {
+  if (status.toLowerCase().startsWith("complete")) {
     return ["black", "MediumAquaMarine"];
   }
-  if (status.includes("already posted to TNS")) {
+  if (status.toLowerCase().includes("already posted to TNS")) {
     return ["black", "Orange"];
   }
-  if (status.startsWith("error")) {
+  if (status.toLowerCase().startsWith("error")) {
     return ["white", "Crimson"];
   }
   return ["black", "LightGrey"];
@@ -40,7 +40,7 @@ function getStatusColors(status) {
 const ExternalPublishingSubmissionsPage = () => {
   const dispatch = useDispatch();
 
-  const { id } = useParams();
+  const { bot_id } = useParams();
 
   const { users: allUsers } = useSelector((state) => state.users);
   const submissions = useSelector(
@@ -48,30 +48,28 @@ const ExternalPublishingSubmissionsPage = () => {
   );
 
   const publishingBotSubmissions =
-    submissions && submissions[id] ? submissions[id]?.submissions : [];
-  const [page, setPage] = React.useState(1);
-  const [rowsPerPage, setRowsPerPage] = React.useState(100);
-  const [loading, setLoading] = React.useState(false);
-  const [showPayload, setShowPayload] = React.useState(null);
+    submissions && submissions[bot_id] ? submissions[bot_id]?.submissions : [];
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [showPayload, setShowPayload] = useState(null);
 
   useEffect(() => {
-    if (id && !loading) {
+    if (bot_id && !loading) {
       setLoading(true);
       const params = {
+        external_publishing_bot_id: bot_id,
         pageNumber: page,
         numPerPage: rowsPerPage,
       };
       dispatch(
-        externalPublishingActions.fetchExternalPublishingSubmissions(
-          id,
-          params,
-        ),
+        externalPublishingActions.fetchExternalPublishingSubmissions(params),
       ).then(() => {
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, page, rowsPerPage, id]);
+  }, [dispatch, page, rowsPerPage, bot_id]);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -94,6 +92,7 @@ const ExternalPublishingSubmissionsPage = () => {
   }
 
   const handleStatusRender = (status) => {
+    if (!status) return;
     const colors = getStatusColors(status);
     return (
       <Typography
@@ -106,7 +105,7 @@ const ExternalPublishingSubmissionsPage = () => {
           maxWidth: "fit-content",
         }}
       >
-        {status}
+        {status ?? "NA"}
       </Typography>
     );
   };
@@ -246,8 +245,8 @@ const ExternalPublishingSubmissionsPage = () => {
       },
     },
     {
-      name: "custom_reporting_string",
-      label: "Custom Reporting String",
+      name: "custom_publishing_string",
+      label: "Custom Publishing String",
       options: {
         display: false,
         filter: false,
@@ -317,7 +316,7 @@ const ExternalPublishingSubmissionsPage = () => {
             rowsPerPage,
             rowsPerPageOptions: [1, 25, 50, 100, 200],
             jumpToPage: true,
-            count: submissions[id]?.totalMatches || 0,
+            count: submissions[bot_id]?.totalMatches || 0,
             onTableChange: handleTableChange,
           }}
         />

@@ -32,10 +32,14 @@ const ADD_EXTERNAL_PUBLISHING_BOT_COAUTHOR =
 const DELETE_EXTERNAL_PUBLISHING_BOT_COAUTHOR =
   "skyportal/DELETE_EXTERNAL_PUBLISHING_BOT_COAUTHOR";
 
+const ADD_EXTERNAL_PUBLISHING_SUBMISSION =
+  "skyportal/ADD_EXTERNAL_PUBLISHING_SUBMISSION";
 const FETCH_EXTERNAL_PUBLISHING_SUBMISSIONS =
   "skyportal/FETCH_EXTERNAL_PUBLISHING_SUBMISSIONS";
 const FETCH_EXTERNAL_PUBLISHING_SUBMISSIONS_OK =
   "skyportal/FETCH_EXTERNAL_PUBLISHING_SUBMISSIONS_OK";
+const REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS =
+  "skyportal/REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS";
 
 export const fetchExternalPublishingBots = (params = {}) =>
   API.GET(
@@ -130,12 +134,17 @@ export const deleteExternalPublishingBotCoauthor = (
     DELETE_EXTERNAL_PUBLISHING_BOT_COAUTHOR,
   );
 
-export const fetchExternalPublishingSubmissions = (
-  external_publishing_bot_id,
-  params,
-) =>
+export function addExternalPublishingSubmission(formData) {
+  return API.POST(
+    `/api/external_publishing/submission`,
+    ADD_EXTERNAL_PUBLISHING_SUBMISSION,
+    formData,
+  );
+}
+
+export const fetchExternalPublishingSubmissions = (params = {}) =>
   API.GET(
-    `/api/external_publishing/${external_publishing_bot_id}/submissions`,
+    `/api/external_publishing/submission`,
     FETCH_EXTERNAL_PUBLISHING_SUBMISSIONS,
     {
       ...params,
@@ -150,6 +159,12 @@ messageHandler.add((actionType, payload, dispatch) => {
     } else {
       dispatch(fetchExternalPublishingBots());
     }
+  } else if (actionType === REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS) {
+    dispatch(
+      fetchExternalPublishingSubmissions({
+        external_publishing_bot_id: payload.external_publishing_bot_id,
+      }),
+    );
   }
 });
 

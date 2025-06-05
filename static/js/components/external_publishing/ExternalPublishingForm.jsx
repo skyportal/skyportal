@@ -24,7 +24,6 @@ import Spinner from "../Spinner";
 import { userLabel } from "../tns/TNSRobotsPage";
 import FormValidationError from "../FormValidationError";
 
-import * as sourceActions from "../../ducks/source";
 import * as externalPublishingActions from "../../ducks/externalPublishing";
 import * as streamsActions from "../../ducks/streams";
 import InfoIcon from "@mui/icons-material/Info";
@@ -221,6 +220,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
     const payload = {
       ...formData,
+      obj_id: obj_id,
       external_publishing_bot_id: selectedBotId,
       photometry_options: {
         first_and_last_detections: formData.first_and_last_detections,
@@ -235,7 +235,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     const result = await dispatch(
-      sourceActions.publishSourceExternally(obj_id, payload),
+      externalPublishingActions.addExternalPublishingSubmission(payload),
     );
     setPublishRequestInProcess(false);
     if (result.status === "success") {

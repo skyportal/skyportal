@@ -215,7 +215,7 @@ app:
       component: tns/TNSRobotSubmissionsPage
     - path: "/external_publishing_bots"
       component: external_publishing/ExternalPublishingBotsPage
-    - path: "/external_publishing/:id/submissions"
+    - path: "/external_publishing/:bot_id/submissions"
       component: external_publishing/ExternalPublishingSubmissionsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
@@ -737,6 +737,7 @@ ports:
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
   tns_submission_queue: 64812
+  external_publishing_submission_queue: 64814
 
 gcn:
   server: gcn.nasa.gov
