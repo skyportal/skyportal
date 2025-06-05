@@ -46,7 +46,6 @@ from .earthquake import (
     EarthquakeStatusHandler,
 )
 from .enum_types import EnumTypesHandler
-from .external_publishing.external_publishing import ExternalPublishingHandler
 from .external_publishing.external_publishing_bot import ExternalPublishingBotHandler
 from .external_publishing.external_publishing_bot_coauthor import (
     ExternalPublishingBotCoauthorHandler,
