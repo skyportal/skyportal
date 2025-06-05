@@ -7,11 +7,9 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
 from ....models import (
-    Group,
-)
-from ....models.external_publishing_bot import (
     ExternalPublishingBot,
     ExternalPublishingBotGroup,
+    Group,
 )
 from ....utils.data_access import (
     process_instrument_ids,
@@ -22,27 +20,6 @@ from ....utils.parse import get_list_typed, str_to_bool
 from ...base import BaseHandler
 
 log = make_log("api/external_publishing_bot")
-
-
-def check_access_to_external_publishing_bot(session, external_publishing_bot_id):
-    """Check if the user has access to the external_publishing_bot
-
-    Parameters
-    ----------
-    session : `baselayer.app.models.Session`
-        Database session
-    external_publishing_bot_id : int
-        The ID of the external_publishing_bot to check access for
-    """
-    external_publishing_bot = session.scalar(
-        ExternalPublishingBot.select(session.user_or_token).where(
-            ExternalPublishingBot.id == external_publishing_bot_id
-        )
-    )
-    if external_publishing_bot is None:
-        raise ValueError(
-            f"No ExternalPublishingBot with ID {external_publishing_bot_id}, or inaccessible"
-        )
 
 
 def create_external_publishing_bot(
@@ -105,7 +82,7 @@ def create_external_publishing_bot(
         session.add(owner_group)
         external_publishing_bot.groups.append(owner_group)
 
-    instruments = process_instrument_ids(session, instrument_ids)
+    instruments = process_instrument_ids(session, session.user_or_token, instrument_ids)
     if instruments:
         external_publishing_bot.instruments = instruments
     else:
@@ -113,7 +90,7 @@ def create_external_publishing_bot(
             "At least one instrument must be specified for external publishing"
         )
 
-    streams = process_stream_ids(session, stream_ids)
+    streams = process_stream_ids(session, session.user_or_token, stream_ids)
     if streams:
         external_publishing_bot.streams = streams
 
@@ -178,11 +155,11 @@ def update_external_publishing_bot(
         data.get("photometry_options", {}), external_publishing_bot.photometry_options
     )
 
-    instruments = process_instrument_ids(session, instrument_ids)
+    instruments = process_instrument_ids(session, session.user_or_token, instrument_ids)
     if instruments:
         external_publishing_bot.instruments = instruments
 
-    streams = process_stream_ids(session, stream_ids)
+    streams = process_stream_ids(session, session.user_or_token, stream_ids)
     if streams:
         external_publishing_bot.streams = streams
 

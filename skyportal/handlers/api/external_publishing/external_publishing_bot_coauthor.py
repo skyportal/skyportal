@@ -1,11 +1,7 @@
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
-from ....models import User
-from ....models.external_publishing_bot import (
-    ExternalPublishingBot,
-    ExternalPublishingBotCoauthor,
-)
+from ....models import ExternalPublishingBot, ExternalPublishingBotCoauthor, User
 from ...base import BaseHandler
 
 log = make_log("api/external_publishing_bot_coauthor")

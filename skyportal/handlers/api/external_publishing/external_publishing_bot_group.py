@@ -4,15 +4,12 @@ from baselayer.app.access import permissions
 from baselayer.log import make_log
 
 from ....models import (
+    ExternalPublishingBotGroup,
     GroupUser,
 )
-from ....models.external_publishing_bot import (
-    ExternalPublishingBot,
-    ExternalPublishingBotGroup,
-)
+from ....utils.data_access import check_access_to_external_publishing_bot
 from ....utils.parse import str_to_bool
 from ...base import BaseHandler
-from .external_publishing_bot import check_access_to_external_publishing_bot
 
 log = make_log("api/external_publishing_bot_group")
 
@@ -89,7 +86,9 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
 
         with self.Session() as session:
             # Check if the user has access to the external_publishing_bot and group
-            check_access_to_external_publishing_bot(session, external_publishing_bot_id)
+            check_access_to_external_publishing_bot(
+                session, session.user_or_token, external_publishing_bot_id
+            )
             self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the external_publishing_bot
@@ -231,7 +230,9 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
             )
         with self.Session() as session:
             # Check if the user has access to the external_publishing_bot and group
-            check_access_to_external_publishing_bot(session, external_publishing_bot_id)
+            check_access_to_external_publishing_bot(
+                session, session.user_or_token, external_publishing_bot_id
+            )
             self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the external_publishing_bot
