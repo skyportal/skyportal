@@ -128,7 +128,7 @@
     "@types/eslint": "9.6.1",
     "@types/node": "22.10.1",
     "babel-loader": "8.2.2",
-    "eslint": "9.16.0",
+    "eslint": "9.28.0",
     "eslint-config-airbnb": "18.2.1",
     "eslint-config-prettier": "10.1.5",
     "eslint-loader": "4.0.2",
