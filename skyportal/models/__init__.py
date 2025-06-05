@@ -13,6 +13,7 @@ from .comment import *
 # Cosmology
 from .cosmo import cosmo
 from .earthquake import *
+from .external_publishing import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
@@ -58,6 +59,8 @@ from .tag import *
 from .taxonomy import *
 from .telescope import *
 from .thumbnail import *
+
+# External publishing
 from .tns import *
 from .user_notification import *
 from .user_token import *

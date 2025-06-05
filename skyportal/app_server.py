@@ -574,7 +574,7 @@ skyportal_handlers = [
     (r"/api/tns_robot(/[0-9]+)?", TNSRobotHandler),
     # External publishing endpoints
     (
-        r"/api/external_publishing(/[0-9]+)/submissions(/[0-9]+)?",
+        r"/api/external_publishing/submission(/[0-9]+)?",
         ExternalPublishingSubmissionHandler,
     ),
     (

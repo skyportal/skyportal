@@ -23,8 +23,6 @@ const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_SOURCE_HERMES = "skyportal/ADD_SOURCE_HERMES";
 
-const PUBLISH_SOURCE_EXTERNALLY = "skyportal/PUBLISH_SOURCE_EXTERNALLY";
-
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
 const ADD_ANNOTATION = "skyportal/ADD_ANNOTATION";
@@ -177,14 +175,6 @@ export function addSourceTNS(id, formData) {
 
 export function addSourceHermes(id, formData) {
   return API.POST(`/api/sources/${id}/hermes`, ADD_SOURCE_HERMES, formData);
-}
-
-export function publishSourceExternally(id, formData) {
-  return API.POST(
-    `/api/sources/${id}/external_publishing`,
-    PUBLISH_SOURCE_EXTERNALLY,
-    formData,
-  );
 }
 
 export function startAnalysis(id, analysis_service_id, formData = {}) {

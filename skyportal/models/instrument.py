@@ -34,7 +34,7 @@ from ..enum_types import (
     instrument_types,
     listener_classnames,
 )
-from .external_publishing_bot import ExternalPublishingBot
+from .external_publishing import ExternalPublishingBot
 from .tns import TNSRobot
 
 _, cfg = load_env()

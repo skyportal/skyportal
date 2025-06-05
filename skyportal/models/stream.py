@@ -21,7 +21,7 @@ from baselayer.app.models import (
     restricted,
 )
 
-from .external_publishing_bot import ExternalPublishingBot
+from .external_publishing import ExternalPublishingBot
 from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
