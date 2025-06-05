@@ -343,7 +343,7 @@ class TaxonomyHandler(BaseHandler):
 
         with self.Session() as session:
             classification = session.scalars(
-                Classification.select(session.user_or_token).where(
+                sa.select(Classification).where(
                     Classification.taxonomy_id == taxonomy_id
                 )
             ).first()
