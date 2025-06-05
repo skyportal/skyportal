@@ -112,7 +112,6 @@ from .group import (
 )
 from .group_admission_request import GroupAdmissionRequestHandler
 from .healpix import HealpixUpdateHandler
-from .hermes.hermes import HermesHandler
 from .instrument import InstrumentFieldHandler, InstrumentHandler
 from .instrument_log import (
     InstrumentLogExternalAPIHandler,

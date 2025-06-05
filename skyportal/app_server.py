@@ -80,7 +80,6 @@ from skyportal.handlers.api import (
     GroupUserHandler,
     GroupUsersFromOtherGroupsHandler,
     HealpixUpdateHandler,
-    HermesHandler,
     InstrumentFieldHandler,
     InstrumentHandler,
     InstrumentLogExternalAPIHandler,
@@ -494,7 +493,6 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
-    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/hermes", HermesHandler),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/external_publishing",
         ExternalPublishingHandler,
