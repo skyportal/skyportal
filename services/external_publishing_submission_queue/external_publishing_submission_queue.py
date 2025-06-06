@@ -12,15 +12,21 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
-from skyportal.models import ExternalPublishingBot, ExternalPublishingBotCoauthor, User
+from skyportal.models import (
+    DBSession,
+    ExternalPublishingBot,
+    ExternalPublishingBotCoauthor,
+    ExternalPublishingSubmission,
+    Obj,
+    User,
+)
 from skyportal.utils.data_access import (
     get_publishable_source_and_photometry,
     validate_photometry_options,
 )
 from skyportal.utils.hermes_submission import submit_to_hermes
-from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.services import check_loaded
-from skyportal.utils.tns_submission import get_tns_url, submit_to_tns
+from skyportal.utils.tns_submission import check_at_report, submit_to_tns
 
 env, cfg = load_env()
 
@@ -243,12 +249,18 @@ def process_submission_request(submission_request, session):
             pass
         raise
 
-    if submission_request.publish_to_hermes:
+    if (
+        submission_request.publish_to_hermes
+        and submission_request.hermes_status == "processing"
+    ):
         submit_to_hermes(
             submission_request, publishing_bot, user, photometry, reporters, session
         )
 
-    if submission_request.publish_to_tns:
+    if (
+        submission_request.publish_to_tns
+        and submission_request.tns_status == "processing"
+    ):
         submit_to_tns(
             submission_request,
             publishing_bot,
@@ -265,13 +277,9 @@ def process_submission_request(submission_request, session):
 def process_submission_requests():
     """
     Service to publish data to external services, such as TNS and Hermes,
-    processing the ExternalPublishingSubmission table.
+    by processing the ExternalPublishingSubmission table.
     """
     session_context_id.set(uuid.uuid4().hex)
-    from skyportal.models import (
-        DBSession,
-        ExternalPublishingSubmission,
-    )
 
     while True:
         with DBSession() as session:
@@ -354,18 +362,16 @@ def process_submission_requests():
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the ExternalPublishingSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
-    from skyportal.models import DBSession, ExternalPublishingSubmission, Obj, TNSRobot
-
     while True:
         time.sleep(5)
         with DBSession() as session:
-            # we look for submissions with a 504 status (meaning the processing or validation failed at some point)
+            # we look for TNS submissions with a 504 status (meaning the processing or validation failed at some point)
             # and re-set them as pending if they failed more than 5 minutes ago, confirmed if they were reported,
-            # and label them appropriately if a more recent submission request successfully reported the object with the same robot
+            # and label them appropriately if a more recent submission request successfully publish the object with the same bot
             try:
                 failed_submission_requests = session.scalars(
                     sa.select(ExternalPublishingSubmission).where(
-                        ExternalPublishingSubmission.status.ilike(
+                        ExternalPublishingSubmission.tns_status.ilike(
                             "%504 - Gateway Time-out%"
                         ),
                         ExternalPublishingSubmission.modified
@@ -373,34 +379,34 @@ def validate_submission_requests():
                     )
                 ).all()
                 log(
-                    f"Found {len(failed_submission_requests)} failed submission requests to re-set..."
+                    f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
                 )
                 for submission_request in failed_submission_requests:
-                    # check if there is a more recent submission request for the same object and tnsrobot that is submitted or confirmed,
+                    # check if there is a more recent submission request for the same object and bot that is submitted or confirmed,
                     # in which case we don't want to re-set the status of this one but label it appropriately
                     recent_submission_request = session.scalar(
                         sa.select(ExternalPublishingSubmission).where(
                             ExternalPublishingSubmission.obj_id
                             == submission_request.obj_id,
-                            ExternalPublishingSubmission.tnsrobot_id
-                            == submission_request.tnsrobot_id,
+                            ExternalPublishingSubmission.external_publishing_bot_id
+                            == submission_request.external_publishing_bot_id,
                             ExternalPublishingSubmission.created_at
                             > submission_request.created_at,
                             sa.or_(
-                                ExternalPublishingSubmission.status.ilike(
+                                ExternalPublishingSubmission.tns_status.ilike(
                                     "%submitted%"
                                 ),
-                                ExternalPublishingSubmission.status.ilike(
+                                ExternalPublishingSubmission.tns_status.ilike(
                                     "%confirmed%"
                                 ),
                             ),
                         )
                     )
                     if recent_submission_request is not None:
-                        submission_request.status = "error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same robot) reported the object since."
+                        submission_request.tns_status = "Error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same bot) reported the object since."
                         continue
 
-                    # let's check if the object is already on TNS and submitted by this robot, in which case we can mark the submission request as confirmed
+                    # let's check if the object is already on TNS and submitted by this bot, in which case we can mark the submission request as confirmed
                     obj = session.scalar(
                         sa.select(Obj).where(Obj.id == submission_request.obj_id)
                     )
@@ -409,12 +415,12 @@ def validate_submission_requests():
                         and isinstance(obj.tns_info, dict)
                         and obj.tns_info.get("reporterid") is not None
                         and obj.tns_info.get("reporterid")
-                        == submission_request.tnsrobot.bot_id
+                        == submission_request.external_publishing_bot.bot_id
                         and isinstance(obj.tns_info.get("reporting_group", {}), dict)
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
                         is not None
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
-                        == submission_request.tnsrobot.source_group_id
+                        == submission_request.external_publishing_bot.source_group_id
                         and obj.tns_info.get("discoverer") is not None
                         and (
                             (
@@ -424,38 +430,40 @@ def validate_submission_requests():
                                 == submission_request.payload.get("reporter")
                             )
                             or (
-                                submission_request.custom_reporting_string is not None
+                                submission_request.custom_publishing_string is not None
                                 and obj.tns_info.get("discoverer")
-                                == submission_request.custom_reporting_string
+                                == submission_request.custom_publishing_string
                             )
                         )
                     ):
                         log(
                             f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
                         )
-                        submission_request.status = "confirmed"
+                        submission_request.tns_status = "confirmed"
                         continue
 
-                    # not reported on TNS by this robot yet, re-set the submission request to pending
+                    # not reported on TNS by this bot yet, re-set the submission request to pending
                     log(
                         f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
-                    submission_request.status = "pending"
+                    submission_request.tns_status = "pending"
                 if len(failed_submission_requests) > 0:
                     session.commit()
             except Exception as e:
-                log(f"Error re-setting failed TNS submission requests: {str(e)}")
+                log(f"Error re-setting failed TNS submission requests: {e}")
                 session.rollback()
 
             try:
-                # grab the first TNS robot submission request that has a submission ID that's not null
+                # grab the first TNS bot submission request that has a submission ID that's not null
                 submission_request = session.scalar(
                     sa.select(ExternalPublishingSubmission)
                     .where(
-                        ExternalPublishingSubmission.status.like("submitted"),
-                        ExternalPublishingSubmission.submission_id.isnot(None),
-                        ExternalPublishingSubmission.tnsrobot_id.notin_(
-                            sa.select(TNSRobot.id).where(TNSRobot.testing.is_(True))
+                        ExternalPublishingSubmission.tns_status.like("submitted"),
+                        ExternalPublishingSubmission.tns_submission_id.isnot(None),
+                        ExternalPublishingSubmission.external_publishing_bot_id.notin_(
+                            sa.select(ExternalPublishingBot.id).where(
+                                ExternalPublishingBot.testing.is_(True)
+                            )
                         ),
                     )
                     .order_by(ExternalPublishingSubmission.created_at.asc())
@@ -470,52 +478,46 @@ def validate_submission_requests():
                     f"Checking TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                 )
 
-                submission_id = submission_request.tns_submission_id
+                tns_submission_id = submission_request.tns_submission_id
 
-                tnsrobot = session.scalar(
-                    sa.select(TNSRobot).where(
-                        TNSRobot.id == submission_request.tnsrobot_id
+                publishing_bot = session.scalar(
+                    sa.select(ExternalPublishingBot).where(
+                        ExternalPublishingBot.id
+                        == submission_request.external_publishing_bot_id
                     )
                 )
-                if tnsrobot is None:
-                    log("Could not find TNSRobot for submission request")
+                if publishing_bot is None:
+                    log("Could not find publishing bot for this submission request")
                     continue
 
-                tns_headers = {
-                    "User-Agent": f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
-                }
-
                 tns_source, serialized_response, err = check_at_report(
-                    submission_id, tnsrobot, tns_headers
+                    tns_submission_id, publishing_bot
                 )
                 if (
-                    err is None
-                    and tns_source is None
-                    and serialized_response is not None
+                    not err
+                    and not tns_source
+                    and serialized_response
                     and "An identical AT report" in str(serialized_response)
                 ):
-                    # we mark as complete
-                    submission_request.status = "complete"
-                    submission_request.response = serialized_response
+                    submission_request.tns_status = "complete"
+                    submission_request.tns_response = serialized_response
                     session.merge(submission_request)
                     session.commit()
                     log(
                         f"AT report of {submission_request.obj_id} already exists on TNS"
                     )
-                elif (
-                    err is None
-                    and tns_source is not None
-                    and serialized_response is not None
-                ):
+                elif not err and tns_source and serialized_response:
                     # we may have warnings after the "submitted" status, so we keep them in the "complete" status
-                    existing_status = str(submission_request.status).strip().split(" ")
-                    if len(existing_status) > 1 and existing_status[0] == "submitted":
-                        submission_request.status = (
-                            f"complete {' '.join(existing_status[1:])}"
+                    existing_tns_status = (
+                        str(submission_request.tns_status).strip().split(" ")
+                    )
+                    if existing_tns_status and existing_tns_status[0] == "submitted":
+                        submission_request.tns_status = (
+                            f"complete {' '.join(existing_tns_status[1:])}"
                         )
                     else:
-                        submission_request.status = "complete"
-                    submission_request.response = serialized_response
+                        submission_request.tns_status = "complete"
+                    submission_request.tns_response = serialized_response
                     session.merge(submission_request)
                     session.commit()
                     log(
@@ -527,7 +529,7 @@ def validate_submission_requests():
                             json={"tns_source": tns_source},
                         )
                     except Exception as e:
-                        log(f"Error submitting TNS name to retrieval queue: {str(e)}")
+                        log(f"Error submitting TNS name to retrieval queue: {e}")
                     try:
                         flow = Flow()
                         flow.push(
@@ -536,24 +538,18 @@ def validate_submission_requests():
                             payload={
                                 "note": f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
                                 "type": "info",
-                                "duration": 4000,  # in ms
+                                "duration": 8000,
                             },
                         )
                     except Exception:
                         pass
                 elif err == "report not found":
-                    # it can happen that even after sending a report to TNS and getting
-                    # a submission ID back, the report is not found in TNS... Probably,
-                    # TNS "lost" the report if we still get that error more than 1 minute
-                    # after the ExternalPublishingSubmission entry was last modified.
-                    #
-                    # So, if it has been less than one minute, we do nothing.
-                    # But otherwise, we mark the submission as pending again,
-                    # so that it can be retried.
+                    # Sometimes TNS accepts a report but it disappears.
+                    # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
                     if (
                         datetime.datetime.utcnow() - submission_request.modified
                     ).total_seconds() > 60:
-                        submission_request.status = "pending"
+                        submission_request.tns_status = "pending"
                         submission_request.tns_submission_id = None
                         session.merge(submission_request)
                         session.commit()
@@ -561,7 +557,7 @@ def validate_submission_requests():
                             f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
                         )
                 elif err is not None and serialized_response is not None:
-                    submission_request.status = f"error: {err}"
+                    submission_request.tns_status = f"Error: {err}"
                     submission_request.response = serialized_response
                     session.merge(submission_request)
                     session.commit()
@@ -570,12 +566,11 @@ def validate_submission_requests():
                     log(
                         f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
                     )
-            # except ExternalPublishingError as e:
-            #     log(f"ExternalPublishingError: {str(e)}")
-            #     session.rollback()
-            #     traceback.print_exc()
-            #     continue
             except Exception as e:
+                if "ExternalPublishingError" in str(e):
+                    log(f"ExternalPublishingError: {str(e)}")
+                    session.rollback()
+                    continue
                 session.rollback()
                 traceback.print_exc()
                 log(f"Unexpected error checking TNS report: {str(e)}")
@@ -585,9 +580,9 @@ def validate_submission_requests():
 @check_loaded(logger=log)
 def service(*args, **kwargs):
     t = Thread(target=process_submission_requests)
-    # t2 = Thread(target=validate_submission_requests)
+    t2 = Thread(target=validate_submission_requests)
     t.start()
-    # t2.start()
+    t2.start()
     while True:
         log("External publishing submission queue heartbeat")
         time.sleep(120)
