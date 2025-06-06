@@ -5,7 +5,15 @@ import time
 import requests
 import sqlalchemy as sa
 from astropy.time import Time
-from utils.tns import (
+
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+from skyportal.handlers.api.photometry import serialize
+from skyportal.models import Stream
+from skyportal.utils.http import serialize_requests_response
+from skyportal.utils.parse import is_null
+from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
     TNS_SOURCE_GROUP_NAMING_CONVENTIONS,
@@ -15,14 +23,6 @@ from utils.tns import (
     get_tns_headers,
     get_tns_url,
 )
-
-from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
-from baselayer.log import make_log
-from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Stream
-from skyportal.utils.http import serialize_requests_response
-from skyportal.utils.parse import is_null
 
 env, cfg = load_env()
 
