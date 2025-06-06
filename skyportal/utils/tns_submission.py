@@ -585,7 +585,6 @@ def send_tns_report(submission_request, publishing_bot, report):
         "data": json.dumps(report),
     }
 
-    status = None
     submission_id = None
     serialized_response = None
 
@@ -747,3 +746,119 @@ def submit_to_tns(
 
     submission_request.tns_status = status
     session.commit()
+
+
+def check_at_report(submission_id, publishing_bot):
+    """Check the status of a report submission to TNS, verifying that the submission was successful (or not).
+
+    Parameters
+    ----------
+    submission_id : int
+        The ID of the submission request to check on TNS.
+    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+        The bot to use for the check.
+
+    Returns
+    -------
+    obj_name : str
+        The TNS name of the object for which the report was submitted.
+    response : dict
+        The response from TNS, serialized as a dictionary.
+    """
+
+    obj_name, response = None, None
+
+    data = {
+        "api_key": publishing_bot.tns_altdata["api_key"],
+        "report_id": submission_id,
+    }
+
+    max_retries = 24
+    retry_delay = 10
+    status_code = None
+    for _ in range(max_retries):
+        r = requests.post(
+            get_tns_url("report_reply"),
+            headers=get_tns_headers(publishing_bot),
+            data=data,
+        )
+        status_code = r.status_code
+        if status_code != 429:
+            break
+        time.sleep(retry_delay)
+
+    if status_code not in [200, 400, 404]:
+        raise ValueError(f"ExternalPublishingError: Error checking report: {r.text}")
+
+    try:
+        response = serialize_requests_response(r)
+    except Exception as e:
+        raise ValueError(f"ExternalPublishingError: Error serializing response: {e}")
+
+    if status_code == 404:
+        return None, response, "report not found"
+
+    try:
+        at_report = r.json().get("data", {}).get("feedback", {}).get("at_report", [])
+    except Exception:
+        raise ValueError(
+            "ExternalPublishingError: Could not find AT report in response."
+        )
+
+    if not at_report or not isinstance(at_report, list):
+        raise ValueError(
+            "ExternalPublishingError: No AT report data found in response."
+        )
+
+    # An identical AT report (sender, RA\/DEC, discovery date) already exists.
+    if "An identical AT report" in str(at_report):
+        return None, response, None
+    at_report = at_report[0]
+
+    if status_code == 400:
+        if at_report.get("reporting_groupid") and isinstance(
+            at_report.get("reporting_groupid"), list
+        ):
+            return (
+                None,
+                response,
+                f"Report could not be processed invalid reporting group ID ({at_report['reporting_groupid'][0].get('message')})",
+            )
+        else:
+            return (
+                None,
+                response,
+                f"Report could not be processed ({at_report.get('status_code')})",
+            )
+
+    try:
+        # the at_report is a dict with keys 'status code' and 'at_rep'
+        status_keys = set(at_report) - {"at_rep"}
+
+        if not status_keys:
+            raise ValueError(
+                "ExternalPublishingError: Report received but not yet processed."
+            )
+
+        if "100" in status_keys:
+            # an object has been created along with the report
+            obj_name = at_report["100"]["objname"]
+            if obj_name is None:
+                raise ValueError(
+                    "ExternalPublishingError: Object created and report posted but no name found."
+                )
+        elif "101" in status_keys:
+            # object already exists, no new object created but report processed
+            obj_name = at_report["101"]["objname"]
+            if obj_name is None:
+                raise ValueError(
+                    "ExternalPublishingError: Object found and report posted but no name found."
+                )
+    except Exception as e:
+        if "ExternalPublishingError:" in str(e):
+            raise e
+        log(f"Error checking report: {e}")
+        raise ValueError(f"ExternalPublishingError: Error checking report: {e}")
+
+    # for now catching errors from TNS is not implemented, so we just return None for the error
+    return obj_name, response, None
