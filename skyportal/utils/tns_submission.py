@@ -594,36 +594,33 @@ def send_tns_report(submission_request, publishing_bot, report):
         )
         return "testing mode, not submitted", None, None
 
-    # 6 * 4 * 10 seconds = 4 minutes of retries
+    # 24 * 10 seconds = 4 minutes of retries
     max_retries = 24
     retry_delay = 10
-
-    status_code = 0
+    r = None
+    exceeded_rate_message = f"Exceeded TNS API rate limit when submitting {obj_id} with publishing bot {publishing_bot.id}"
     for attempt in range(max_retries):
-        r = (requests.post(get_tns_url("report"), headers=tns_headers, data=data),)
-        status_code = r.status_code
+        r = requests.post(get_tns_url("report"), headers=tns_headers, data=data)
+        if r.status_code != 429:
+            break  # If not rate-limited, exit the retry loop
 
-        if status_code == 429:
-            status = f"Exceeded TNS API rate limit when submitting {obj_id} with publishing bot {publishing_bot.id}"
-            log(f"{status}, waiting {retry_delay} seconds before retrying...")
-            time.sleep(retry_delay)
-            continue
+        log(
+            f"{exceeded_rate_message}, waiting {retry_delay} seconds before retrying..."
+        )
+        time.sleep(retry_delay)
 
-        if status_code == 200:
-            submission_id = r.json()["data"]["report_id"]
-            log(
-                f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for publishing bot {publishing_bot.id}"
-            )
-        elif status_code == 401:
-            status = f"Unauthorized to submit {obj_id} to TNS with publishing bot {publishing_bot.id}, credentials may be invalid"
-        else:
-            status = f"Failed to submit {obj_id} to TNS with publishing bot {publishing_bot.id}: {r.content}"
-        break
+    if r.status_code == 200:
+        submission_id = r.json()["data"]["report_id"]
+        log(
+            f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for publishing bot {publishing_bot.id}"
+        )
+        status = "submitted"
+    elif r.status_code == 401:
+        status = f"Error: Unauthorized to submit {obj_id} to TNS with publishing bot {publishing_bot.id}, credentials may be invalid"
+    elif r.status_code == 429:
+        status = f"Error: {exceeded_rate_message}, and exceeded number of retries ({max_retries})"
     else:
-        # If we reach here, it means we exhausted all retries (for loop completed without break)
-        status = f"{status}, and exceeded number of retries ({max_retries})"
-
-    status = f"error: {status}" if status_code != 200 else "submitted"
+        status = f"Error: Failed to submit {obj_id} to TNS with publishing bot {publishing_bot.id}: {r.content}"
 
     if isinstance(r, requests.models.Response):
         # we store the request's TNS response in the database for bookkeeping and debugging
