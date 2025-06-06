@@ -26,13 +26,16 @@ import { userLabelWithAffiliations } from "../../utils/user";
 
 function getStatusColors(status) {
   if (status.toLowerCase().startsWith("complete")) {
-    return ["black", "MediumAquaMarine"];
+    return ["white", "rgba(11,181,119,0.90)"];
   }
   if (status.toLowerCase().includes("already posted to TNS")) {
-    return ["black", "Orange"];
+    return ["#212121", "rgba(255,152,0,0.90)"];
   }
   if (status.toLowerCase().startsWith("error")) {
-    return ["white", "Crimson"];
+    return ["white", "rgba(244,67,54,0.90)"];
+  }
+  if (status.toLowerCase().startsWith("testing mode")) {
+    return ["white", "rgba(92,107,192,0.9)"];
   }
   return ["black", "LightGrey"];
 }
@@ -100,9 +103,10 @@ const ExternalPublishingSubmissionsPage = () => {
         style={{
           backgroundColor: colors[1],
           color: colors[0],
-          padding: "0.25rem 0.75rem 0.25rem 0.75rem",
+          padding: "1.3em",
           borderRadius: "1rem",
           maxWidth: "fit-content",
+          fontWeight: 500,
         }}
       >
         {status ?? "NA"}
