@@ -35,7 +35,7 @@ function getStatusColors(status) {
     return ["white", "rgba(244,67,54,0.90)"];
   }
   if (status.toLowerCase().startsWith("testing mode")) {
-    return ["white", "rgba(92,107,192,0.9)"];
+    return ["white", "rgba(125,163,227,0.9)"];
   }
   return ["black", "LightGrey"];
 }
