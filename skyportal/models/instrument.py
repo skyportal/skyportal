@@ -4,6 +4,7 @@ __all__ = [
     "InstrumentFieldTile",
     "InstrumentLog",
     "InstrumentTNSRobot",
+    "InstrumentExternalPublishingBot",
 ]
 
 import re
