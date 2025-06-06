@@ -1,13 +1,20 @@
 import json
 import re
 import time
-import urllib
 
 import requests
 import sqlalchemy as sa
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from utils.tns import (
+    SNCOSMO_TO_TNSFILTER,
+    TNS_INSTRUMENT_IDS,
+    TNS_SOURCE_GROUP_NAMING_CONVENTIONS,
+    TNS_URL,
+    get_IAUname,
+    get_internal_names,
+    get_tns_headers,
+    get_tns_url,
+)
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -17,344 +24,12 @@ from skyportal.models import Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 
-log = make_log("tns_submission_utils")
-
 env, cfg = load_env()
 
-TNS_URL = cfg.get("app.tns.endpoint")
-
-tns_url_dict = {
-    "search": "api/get/search",
-    "search_frontend": "search",
-    "object": "api/get/object",
-    "report": "api/set/bulk-report",
-    "report_reply": "api/get/bulk-report-reply",
-}
-
-TNS_INSTRUMENT_IDS = {
-    "alfosc": 41,
-    "asas-sn": 195,
-    "atlas": [153, 159, 160, 255, 256, 167],
-    "decam": 172,
-    "efosc2": 30,
-    "gaia": 163,
-    "goodman": 136,
-    "goto": [218, 264, 265, 266],
-    "ps1": [98, 154, 155, 257],
-    "sedm": [149, 225],
-    "sprat": 156,
-    "ztf": 196,
-}
-
-SNCOSMO_TO_TNSFILTER = {
-    "atlasc": 71,
-    "atlaso": 72,
-    "sdssu": 20,
-    "sdssg": 21,
-    "sdssr": 22,
-    "sdssi": 23,
-    "sdssz": 24,
-    "desu": 20,
-    "desg": 21,
-    "desr": 22,
-    "desi": 23,
-    "desz": 24,
-    "desy": 81,
-    "gaia::g": 75,
-    "gotol": 121,
-    "gotor": 122,
-    "gotog": 123,
-    "gotob": 124,
-    "ps1::g": 56,
-    "ps1::r": 57,
-    "ps1::i": 58,
-    "ps1::z": 59,
-    "ps1::w": 26,
-    "ztfg": 110,
-    "ztfr": 111,
-    "ztfi": 112,
-}
-
-TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
-
-# here we store regex patterns, to validate that a source name is in the correct format
-# for a given TNS source group. Used to not submit incorrect sources to TNS.
-TNS_SOURCE_GROUP_NAMING_CONVENTIONS = {
-    48: r"ZTF\d{2}[a-z]{7}",  # ZTF: ZTF + 2 digits + 7 lowercase characters
-    135: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
-}
+log = make_log("tns_submission_utils")
 
 
-def get_tns_headers(publishing_bot):
-    """Get the headers to use for TNS requests.
-    Parameters
-    ----------
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
-        The bot to use for the submission.
-    Returns
-    -------
-    dict
-        The headers to use for TNS requests.
-    """
-    return {
-        "User-Agent": f'tns_marker{{"tns_id":{publishing_bot.bot_id},"type":"bot", "name":"{publishing_bot.bot_name}"}}'
-    }
-
-
-def get_tns_url(url_type):
-    """Get the TNS URL for the specified type.
-    Parameters
-    ----------
-    url_type : str
-        Type of TNS URL to retrieve.
-    Returns
-    -------
-    str
-        The TNS URL for the specified type.
-    """
-    if TNS_URL is None:
-        raise ValueError(
-            "TNS URL is not configured. Please set 'app.tns.endpoint' in the configuration."
-        )
-    if url_type not in tns_url_dict:
-        raise ValueError(
-            "Invalid TNS URL type specified. Valid types are: "
-            + ", ".join(tns_url_dict.keys())
-        )
-    return urllib.parse.urljoin(TNS_URL, tns_url_dict[url_type])
-
-
-def get_IAUname(
-    api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0, closest=False
-):
-    """Query TNS to get IAU name (if exists)
-    Parameters
-    ----------
-    api_key : str
-        TNS api key
-    objname : str
-        Name of the object to query TNS for
-    headers : str
-        TNS query headers
-    obj_id : str
-        Object name to search for
-    ra : float
-        Right ascension of object to search for
-    dec : float
-        Declination of object to search for
-    radius : float
-        Radius of object to search for
-    Returns
-    -------
-    list
-        IAU prefix, IAU name
-    """
-
-    if obj_id is not None:
-        req_data = {
-            "ra": "",
-            "dec": "",
-            "radius": "",
-            "units": "",
-            "objname": "",
-            "objname_exact_match": 0,
-            "internal_name": obj_id.replace("_", " "),
-            "internal_name_exact_match": 0,
-            "objid": "",
-        }
-    elif ra is not None and dec is not None:
-        c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
-        req_data = {
-            "ra": c.ra.to_string(unit=u.hour, sep=":", pad=True),
-            "dec": c.dec.to_string(unit=u.degree, sep=":", alwayssign=True, pad=True),
-            "radius": f"{radius}",
-            "units": "arcsec",
-            "objname": "",
-            "objname_exact_match": 0,
-            "internal_name": "",
-            "internal_name_exact_match": 0,
-            "objid": "",
-        }
-    else:
-        raise ValueError("Must define obj_id or ra/dec.")
-
-    data = {"api_key": api_key, "data": json.dumps(req_data)}
-    r = requests.post(get_tns_url("search"), headers=headers, data=data)
-
-    count = 0
-    count_limit = 24  # 6 * 4 * 10 = 4 minutes of retries
-    while r.status_code == 429 and count < count_limit:
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        log(
-            f"TNS request rate limited: {str(content)}.  Waiting 10 seconds to try again."
-        )
-        time.sleep(10)
-        r = requests.post(get_tns_url("search"), headers=headers, data=data)
-        count += 1
-
-    if r.status_code not in [200, 429, 401]:
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        raise ValueError(f"Request failed, {str(content)}.")
-
-    if r.status_code == 401:
-        raise ValueError("Request failed, invalid TNS API key.")
-
-    if count == count_limit:
-        raise ValueError("Request failed, request rate exceeded.")
-
-    try:
-        reply = r.json().get("data", {})
-    except Exception as e:
-        log(f"Failed to parse TNS response: {str(e)} ({str(r.json())})")
-        reply = []
-
-    if len(reply) > 0:
-        prefix, objname = reply[-1]["prefix"], reply[-1]["objname"]
-        if closest and len(reply) > 1:
-            closest_separation = float(radius)
-            for obj in reply:
-                data = {
-                    "api_key": api_key,
-                    "data": json.dumps(
-                        {
-                            "objname": obj["objname"],
-                        }
-                    ),
-                }
-                status_code = 429
-                n_retries = 0
-                r = None
-                while (
-                    status_code == 429 and n_retries < 24
-                ):  # 6 * 4 * 10 seconds = 4 minutes of retries
-                    r = requests.post(
-                        get_tns_url("object"),
-                        headers=headers,
-                        data=data,
-                        allow_redirects=True,
-                        stream=True,
-                        timeout=10,
-                    )
-                    status_code = r.status_code
-                    if status_code == 429:
-                        n_retries += 1
-                        time.sleep(10)
-                    else:
-                        break
-
-                if status_code != 200 or r is None:
-                    # ignore this object
-                    continue
-
-                try:
-                    source_data = r.json().get("data", {})
-                except Exception:
-                    source_data = None
-                if source_data:
-                    tns_ra, tns_dec = source_data["radeg"], source_data["decdeg"]
-                    from skyportal.utils.calculations import great_circle_distance
-
-                    separation = (
-                        great_circle_distance(ra, dec, tns_ra, tns_dec) * 3600
-                    )  # arcsec
-                    if separation < closest_separation:
-                        closest_separation = separation
-                        prefix, objname = obj["prefix"], obj["objname"]
-
-        return prefix, objname
-
-    else:
-        return None, None
-
-
-def get_internal_names(api_key, headers, tns_name=None):
-    """Query TNS to get internal names of an object
-
-    Parameters
-    ----------
-    api_key : str
-        TNS api key
-    headers : str
-        TNS query headers
-    tns_name : str
-        Name of the object to query TNS for
-
-    Returns
-    -------
-    list
-        Internal names of the object
-    """
-    data = {
-        "api_key": api_key,
-        "data": json.dumps(
-            {
-                "objname": tns_name,
-            }
-        ),
-    }
-
-    status_code = 429
-    n_retries = 0
-    r = None
-    while n_retries < 24:  # 6 * 4 * 10 = 4 minutes of retries
-        r = requests.post(
-            get_tns_url("object"),
-            headers=headers,
-            data=data,
-            allow_redirects=True,
-            stream=True,
-            timeout=10,
-        )
-        status_code = r.status_code
-        if status_code == 429:
-            n_retries += 1
-            try:
-                content = r.json()
-            except Exception:
-                content = r.text
-            log(
-                f"TNS request rate limited: {str(content)}.  Waiting 10 seconds to try again."
-            )
-            time.sleep(10)
-        else:
-            break
-
-    if not isinstance(r, requests.Response):
-        raise ValueError("Request failed, no response received.")
-
-    if r.status_code not in [200, 429, 401]:
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        raise ValueError(f"Request failed, {str(content)}.")
-
-    if status_code == 401:
-        raise ValueError("Request failed, invalid TNSRobot API key.")
-
-    if n_retries == 24:
-        raise ValueError("TNS request failed: request rate exceeded.")
-
-    try:
-        reply = json.loads(r.text)
-        internal_names = reply["data"]["internal_names"]
-        # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
-        internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
-    except Exception as e:
-        raise ValueError(
-            f"Failed to parse TNS response to retrieve internal names, {str(e)}"
-        )
-
-    return internal_names
-
-
-def apply_existing_tnsreport_rules(publishing_bot, submission_request):
+def apply_existing_tns_report_rules(publishing_bot, submission_request):
     """Apply the rules for existing TNS reports to the submission request.
 
     Parameters
@@ -371,7 +46,7 @@ def apply_existing_tnsreport_rules(publishing_bot, submission_request):
     # (i.e. the same obj_id from the same survey)
     altdata = publishing_bot.tns_altdata
     obj_id = submission_request.obj_id
-    tns_headers = get_tns_headers(publishing_bot)
+    tns_headers = get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name)
 
     _, existing_tns_name = get_IAUname(
         altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
@@ -578,7 +253,7 @@ def send_tns_report(submission_request, publishing_bot, report):
     serialized_response : str or None
         The serialized response from the TNS API if the submission was successful, otherwise None.
     """
-    tns_headers = get_tns_headers(publishing_bot)
+    tns_headers = get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name)
     obj_id = submission_request.obj_id
     data = {
         "api_key": publishing_bot.tns_altdata["api_key"],
@@ -668,7 +343,7 @@ def submit_to_tns(
                 f"ExternalPublishingError: Object ID {obj_id} does not match the expected naming convention for TNS source group ID {publishing_bot.source_group_id}."
             )
 
-        apply_existing_tnsreport_rules(publishing_bot, submission_request)
+        apply_existing_tns_report_rules(publishing_bot, submission_request)
 
         archival = submission_request.archival
         archival_comment = submission_request.archival_comment
@@ -770,21 +445,21 @@ def check_at_report(submission_id, publishing_bot):
         "report_id": submission_id,
     }
 
+    # 24 * 10 seconds = 4 minutes of retries
     max_retries = 24
     retry_delay = 10
-    status_code = None
+    r = None
     for _ in range(max_retries):
         r = requests.post(
             get_tns_url("report_reply"),
-            headers=get_tns_headers(publishing_bot),
+            headers=get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name),
             data=data,
         )
-        status_code = r.status_code
-        if status_code != 429:
+        if r.status_code != 429:
             break
         time.sleep(retry_delay)
 
-    if status_code not in [200, 400, 404]:
+    if r.status_code not in [200, 400, 404]:
         raise ValueError(f"ExternalPublishingError: Error checking report: {r.text}")
 
     try:
@@ -792,7 +467,7 @@ def check_at_report(submission_id, publishing_bot):
     except Exception as e:
         raise ValueError(f"ExternalPublishingError: Error serializing response: {e}")
 
-    if status_code == 404:
+    if r.status_code == 404:
         return None, response, "report not found"
 
     try:
@@ -812,7 +487,7 @@ def check_at_report(submission_id, publishing_bot):
         return None, response, None
     at_report = at_report[0]
 
-    if status_code == 400:
+    if r.status_code == 400:
         if at_report.get("reporting_groupid") and isinstance(
             at_report.get("reporting_groupid"), list
         ):
