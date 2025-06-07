@@ -77,7 +77,6 @@ const DefaultSurveyEfficiencyTable = ({
   totalMatches,
   sortingCallback,
   deletePermission,
-  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -403,7 +402,7 @@ const DefaultSurveyEfficiencyTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={hideTitle === true ? "" : "Default Survey Efficiencies"}
+              title="Default Survey Efficiencies"
               data={default_survey_efficiencies}
               options={options}
               columns={columns}
@@ -441,14 +440,12 @@ DefaultSurveyEfficiencyTable.propTypes = {
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   deletePermission: PropTypes.bool,
-  hideTitle: PropTypes.bool,
 };
 
 DefaultSurveyEfficiencyTable.defaultProps = {
   totalMatches: 0,
   sortingCallback: null,
   deletePermission: false,
-  hideTitle: false,
 };
 
 export default DefaultSurveyEfficiencyTable;

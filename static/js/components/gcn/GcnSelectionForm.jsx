@@ -285,15 +285,14 @@ const GcnEventSourcesPage = ({
         </Typography>
       )}
       <SourceTable
+        title=""
         sources={sources.sources}
-        title="Event Sources"
         paginateCallback={handleSourcesTablePagination}
         pageNumber={sources.pageNumber}
         totalMatches={sources.totalMatches}
         numPerPage={sources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
         favoritesRemoveButton
-        hideTitle
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
