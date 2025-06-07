@@ -166,9 +166,9 @@ def update_external_publishing_bot(
     if instruments:
         external_publishing_bot.instruments = instruments
 
-    streams = process_stream_ids(session, session.user_or_token, stream_ids)
-    if streams:
-        external_publishing_bot.streams = streams
+    external_publishing_bot.streams = (
+        process_stream_ids(session, session.user_or_token, stream_ids) or []
+    )
 
     session.commit()
     return external_publishing_bot.id
