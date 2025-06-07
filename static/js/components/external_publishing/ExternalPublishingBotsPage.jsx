@@ -34,6 +34,8 @@ import * as externalPublishingActions from "../../ducks/externalPublishing";
 import * as streamsActions from "../../ducks/streams";
 import { userLabelWithAffiliations } from "../../utils/user";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
+import Box from "@mui/material/Box";
+import InfoIcon from "@mui/icons-material/Info";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
@@ -220,14 +222,14 @@ const ExternalPublishingBotGroup = ({
       if (response.status === "success") {
         dispatch(
           showNotification(
-            `Successfully remove access to ExternalPublishingBot from group`,
+            `Group access to publishing bot removed successfully`,
           ),
         );
         setOpen(false);
       } else {
         dispatch(
           showNotification(
-            `Failed to remove access to publishing bot from group`,
+            `Failed to remove group access to publishing bot`,
             "error",
           ),
         );
@@ -647,10 +649,12 @@ const ExternalPublishingBotsPage = () => {
 
   const [openNewExternalPublishingBot, setOpenNewExternalPublishingBot] =
     useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(null);
   const [externalPublishingBotToManage, setExternalPublishingBotToManage] =
     useState(null);
+  const [autoSendToTNS, setAutoSendToTNS] = useState(true);
+  const [autoSendToHermes, setAutoSendToHermes] = useState(false);
 
   const groups = useSelector((state) => state.groups.userAccessible);
   const allGroups = useSelector((state) => state.groups.all);
@@ -723,48 +727,43 @@ const ExternalPublishingBotsPage = () => {
   }
 
   const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(true);
+    setDeleteDialogOpen(id);
     setExternalPublishingBotToManage(id);
   };
 
-  const openEditDialog = (id) => {
+  const openEditDialog = (publishingBot) => {
     setSelectedFormData({
-      bot_name: externalPublishingBotListLookup[id]?.bot_name || "",
-      bot_id: externalPublishingBotListLookup[id]?.bot_id || "",
-      source_group_id:
-        externalPublishingBotListLookup[id]?.source_group_id || "",
-      acknowledgments:
-        externalPublishingBotListLookup[id]?.acknowledgments || "",
+      bot_name: publishingBot?.bot_name || "",
+      bot_id: publishingBot?.bot_id || "",
+      source_group_id: publishingBot?.source_group_id || "",
+      acknowledgments: publishingBot?.acknowledgments || "",
       api_key: "",
-      owner_group_ids: (
-        externalPublishingBotListLookup[id]?.owner_group_ids || []
-      ).map((groupId) => groupsLookup[groupId].name),
-      instrument_ids: (
-        externalPublishingBotListLookup[id]?.instruments || []
-      ).map((instrument) => instrument.id),
-      stream_ids: (externalPublishingBotListLookup[id]?.streams || []).map(
-        (stream) => stream.id,
+      owner_group_ids: (publishingBot?.owner_group_ids || []).map(
+        (groupId) => groupsLookup[groupId].name,
       ),
-      publish_existing_tns_objects:
-        externalPublishingBotListLookup[id]?.publish_existing_tns_objects,
+      instrument_ids: (publishingBot?.instruments || []).map(
+        (instrument) => instrument.id,
+      ),
+      stream_ids: (publishingBot?.streams || []).map((stream) => stream.id),
+      publish_existing_tns_objects: publishingBot?.publish_existing_tns_objects,
       first_and_last_detections:
-        externalPublishingBotListLookup[id]?.photometry_options
-          ?.first_and_last_detections,
+        publishingBot?.photometry_options?.first_and_last_detections,
       auto_publish_allow_archival:
-        externalPublishingBotListLookup[id]?.photometry_options
-          ?.auto_publish_allow_archival,
+        publishingBot?.photometry_options?.auto_publish_allow_archival,
     });
-    setEditDialogOpen(true);
-    setExternalPublishingBotToManage(id);
+    setAutoSendToTNS(publishingBot?.auto_publish_to_tns);
+    setAutoSendToHermes(publishingBot?.auto_publish_to_hermes);
+    setExternalPublishingBotToManage(publishingBot.id);
+    setEditDialogOpen(publishingBot.id);
   };
 
   const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
+    setDeleteDialogOpen(null);
     setExternalPublishingBotToManage(null);
   };
 
   const closeEditDialog = () => {
-    setEditDialogOpen(false);
+    setEditDialogOpen(null);
     setExternalPublishingBotToManage(null);
   };
 
@@ -773,8 +772,8 @@ const ExternalPublishingBotsPage = () => {
       bot_name,
       bot_id,
       source_group_id,
-      acknowledgments,
       api_key,
+      acknowledgments,
       owner_group_ids,
       instrument_ids,
       stream_ids,
@@ -811,6 +810,8 @@ const ExternalPublishingBotsPage = () => {
         first_and_last_detections,
         auto_publish_allow_archival,
       },
+      auto_publish_to_tns: autoSendToTNS,
+      auto_publish_to_hermes: autoSendToHermes,
     };
 
     dispatch(externalPublishingActions.addExternalPublishingBot(data)).then(
@@ -868,6 +869,8 @@ const ExternalPublishingBotsPage = () => {
         first_and_last_detections,
         auto_publish_allow_archival,
       },
+      auto_publish_to_tns: autoSendToTNS,
+      auto_publish_to_hermes: autoSendToHermes,
     };
 
     if (api_key?.length > 0) {
@@ -904,7 +907,7 @@ const ExternalPublishingBotsPage = () => {
         </IconButton>
         <ConfirmDeletionDialog
           deleteFunction={deleteExternalPublishingBot}
-          dialogOpen={deleteDialogOpen}
+          dialogOpen={deleteDialogOpen === dataIndex}
           closeDialog={closeDeleteDialog}
           resourceName="Publishing Bot"
         />
@@ -1066,16 +1069,68 @@ const ExternalPublishingBotsPage = () => {
           classes={{
             root: classes.externalPublishingBotEdit,
           }}
-          onClick={() => openEditDialog(externalPublishingBot.id)}
+          onClick={() => openEditDialog(externalPublishingBot)}
         >
           <EditIcon />
         </IconButton>
         <Dialog
-          open={editDialogOpen}
+          open={editDialogOpen === externalPublishingBot.id}
           onClose={closeEditDialog}
           aria-labelledby="form-dialog-title"
         >
-          <DialogTitle id="form-dialog-title">Edit publishing bot</DialogTitle>
+          <DialogTitle id="form-dialog-title">
+            <Box
+              display="flex"
+              gap={1}
+              style={{ alignItems: "center", justifyContent: "space-between" }}
+            >
+              Edit publishing bot
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <Tooltip title="Select which services to automatically publish to if auto-publishing is enabled.">
+                  <InfoIcon
+                    fontSize="small"
+                    style={{ cursor: "help", color: "#888" }}
+                  />
+                </Tooltip>
+                <div>
+                  <Chip
+                    label="Tns"
+                    clickable
+                    onClick={() => setAutoSendToTNS(!autoSendToTNS)}
+                    color={autoSendToTNS ? "primary" : "default"}
+                    variant={autoSendToTNS ? "filled" : "outlined"}
+                  />
+                </div>
+                <Tooltip
+                  title={
+                    <h3>
+                      HERMES is a Message Exchange Service for Multi-Messenger
+                      Astronomy. Click{" "}
+                      <a
+                        href="https://hermes.lco.global/about"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={classes.tooltipLink}
+                      >
+                        here
+                      </a>{" "}
+                      for more information.
+                    </h3>
+                  }
+                >
+                  <Chip
+                    label="Hermes"
+                    clickable
+                    onClick={() => setAutoSendToHermes(!autoSendToHermes)}
+                    color={autoSendToHermes ? "primary" : "default"}
+                    variant={autoSendToHermes ? "filled" : "outlined"}
+                  />
+                </Tooltip>
+              </div>
+            </Box>
+          </DialogTitle>
           <DialogContent>
             <Form
               formData={selectedFormData}
@@ -1422,6 +1477,8 @@ const ExternalPublishingBotsPage = () => {
                   publish_existing_tns_objects: false,
                   first_and_last_detections: true,
                 });
+                setAutoSendToTNS(true);
+                setAutoSendToHermes(false);
                 setOpenNewExternalPublishingBot(true);
               }}
             >
@@ -1437,7 +1494,59 @@ const ExternalPublishingBotsPage = () => {
         }}
         aria-labelledby="form-dialog-title"
       >
-        <DialogTitle id="form-dialog-title">Add Publishing Bot</DialogTitle>
+        <DialogTitle id="form-dialog-title">
+          <Box
+            display="flex"
+            gap={1}
+            style={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            Add Publishing Bot
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <Tooltip title="Select which services to automatically publish to if auto-publishing is enabled.">
+                <InfoIcon
+                  fontSize="small"
+                  style={{ cursor: "help", color: "#888" }}
+                />
+              </Tooltip>
+              <div>
+                <Chip
+                  label="Tns"
+                  clickable
+                  onClick={() => setAutoSendToTNS(!autoSendToTNS)}
+                  color={autoSendToTNS ? "primary" : "default"}
+                  variant={autoSendToTNS ? "filled" : "outlined"}
+                />
+              </div>
+              <Tooltip
+                title={
+                  <h3>
+                    HERMES is a Message Exchange Service for Multi-Messenger
+                    Astronomy. Click{" "}
+                    <a
+                      href="https://hermes.lco.global/about"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={classes.tooltipLink}
+                    >
+                      here
+                    </a>{" "}
+                    for more information.
+                  </h3>
+                }
+              >
+                <Chip
+                  label="Hermes"
+                  clickable
+                  onClick={() => setAutoSendToHermes(!autoSendToHermes)}
+                  color={autoSendToHermes ? "primary" : "default"}
+                  variant={autoSendToHermes ? "filled" : "outlined"}
+                />
+              </Tooltip>
+            </div>
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <Form
             formData={selectedFormData}
