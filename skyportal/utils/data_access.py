@@ -417,10 +417,10 @@ def get_publishable_source_and_photometry(
         if bot_group.group_id in user_accessible_group_ids
     ]
 
-    # if auto_submission, check if the group has auto-publishing enabled
+    # if auto_submission, check if the group has auto-publish enabled
     # and if the user is an auto-publisher for that group
     if is_auto_submission:
-        valid_bot_groups = [g for g in valid_bot_groups if g.auto_publishing]
+        valid_bot_groups = [g for g in valid_bot_groups if g.auto_publish]
         if not valid_bot_groups:
             raise ValueError(
                 f"No group with publishing bot {publishing_bot_id} set to auto-publish."
