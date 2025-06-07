@@ -46,6 +46,19 @@ from .earthquake import (
     EarthquakeStatusHandler,
 )
 from .enum_types import EnumTypesHandler
+from .external_publishing.external_publishing_bot import ExternalPublishingBotHandler
+from .external_publishing.external_publishing_bot_coauthor import (
+    ExternalPublishingBotCoauthorHandler,
+)
+from .external_publishing.external_publishing_bot_group import (
+    ExternalPublishingBotGroupHandler,
+)
+from .external_publishing.external_publishing_bot_group_auto_publisher import (
+    ExternalPublishingBotGroupAutoPublisherHandler,
+)
+from .external_publishing.external_publishing_submission import (
+    ExternalPublishingSubmissionHandler,
+)
 from .facility_listener import FacilityMessageHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler
@@ -98,7 +111,6 @@ from .group import (
 )
 from .group_admission_request import GroupAdmissionRequestHandler
 from .healpix import HealpixUpdateHandler
-from .hermes.hermes import HermesHandler
 from .instrument import InstrumentFieldHandler, InstrumentHandler
 from .instrument_log import (
     InstrumentLogExternalAPIHandler,

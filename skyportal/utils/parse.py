@@ -104,3 +104,23 @@ def str_to_bool(value, default=None):
         return default
     else:
         raise ValueError(f"Invalid string value for boolean conversion: {value}")
+
+
+def is_null(value):
+    """Check if a value is considered null.
+    Parameters
+    ----------
+    value : any
+        The value to check.
+    Returns
+    -------
+    bool
+        True if the value is null, False otherwise.
+    """
+    if isinstance(value, str):
+        value = value.strip().lower()
+    return value in [None, "", "none", "nan", "null"]
+
+
+def safe_round(number, precision):
+    return round(number, precision) if isinstance(number, int | float) else None
