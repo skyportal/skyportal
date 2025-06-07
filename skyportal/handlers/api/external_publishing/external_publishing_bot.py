@@ -136,7 +136,14 @@ def update_external_publishing_bot(
         )
 
     # Fields to update as-is if present
-    for field in ["bot_name", "bot_id", "source_group_id", "_tns_altdata"]:
+    for field in [
+        "bot_name",
+        "bot_id",
+        "source_group_id",
+        "_tns_altdata",
+        "auto_publish_to_tns",
+        "auto_publish_to_hermes",
+    ]:
         if field in data:
             setattr(external_publishing_bot, field, data[field])
 
@@ -211,7 +218,7 @@ class ExternalPublishingBotHandler(BaseHandler):
 
         owner_group_ids = get_list_typed(data.pop("owner_group_ids", []), int)
 
-        if len(owner_group_ids) > 0:
+        if owner_group_ids:
             owner_group_ids = list(set(owner_group_ids))
 
         instrument_ids = data.pop("instrument_ids", [])

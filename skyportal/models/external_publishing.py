@@ -111,6 +111,20 @@ class ExternalPublishingBot(Base):
         doc="Coauthors associated with this publishing bot.",
     )
 
+    auto_publish_to_tns = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to automatically publish to TNS for this bot if auto-publishing is enabled.",
+    )
+
+    auto_publish_to_hermes = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to automatically publish to Hermes for this bot if auto-publishing is enabled.",
+    )
+
 
 # we want a unique constraint on the bot_name, bot_id, source_group_id, testing columns
 # this way you can't have the same bot twice, except for testing
