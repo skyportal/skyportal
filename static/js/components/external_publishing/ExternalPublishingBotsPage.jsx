@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
+import { withTheme } from "@rjsf/core";
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -21,19 +22,20 @@ import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 
-import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import MUIDataTable from "mui-datatables";
-
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import TransferList from "../TransferList";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import * as externalPublishingActions from "../../ducks/externalPublishing";
 import * as streamsActions from "../../ducks/streams";
 import { userLabelWithAffiliations } from "../../utils/user";
+import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
+
+const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
 const useStyles = makeStyles(() => ({
   publishingBotList: {
