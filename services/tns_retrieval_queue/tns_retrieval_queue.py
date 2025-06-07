@@ -13,8 +13,6 @@ import tornado.escape
 import tornado.ioloop
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
-from utils.parse import is_null
-from utils.tns_submission import get_tns_headers
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -25,12 +23,15 @@ from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import DBSession, Group, Obj, Source, User
 from skyportal.utils.calculations import great_circle_distance
+from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
+    get_IAUname,
+    get_recent_TNS,
+    get_tns_headers,
     read_tns_photometry,
     read_tns_spectrum,
 )
-from skyportal.utils.tns_submission import get_IAUname, get_recent_TNS
 
 env, cfg = load_env()
 log = make_log("tns_queue")
