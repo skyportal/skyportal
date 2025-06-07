@@ -5,12 +5,9 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ....models import (
-    ExternalPublishingBot,
-    ExternalPublishingSubmission,
-    Obj,
-)
+from ....models import ExternalPublishingBot, ExternalPublishingSubmission, Obj
 from ....utils.data_access import (
+    is_existing_submission_request,
     process_instrument_ids,
     process_stream_ids,
     validate_photometry_options,
@@ -27,42 +24,6 @@ is_configured = (
     and cfg.get("app.hermes.topic")
     and cfg.get("app.hermes.token")
 )
-
-
-def is_existing_submission_request(session, obj, external_publishing_bot_id, service):
-    """Check if there is an existing submission request for the given object and bot and external service.
-    session: SQLAlchemy
-        session
-    obj: Obj
-        object to check
-    external_publishing_bot_id: int
-        ID of the external publishing bot
-    service: str
-        Name of the external service to check (TNS or Hermes)
-
-    Returns:
-        ExternalPublishingSubmission or None:
-            The existing submission request if found, None otherwise.
-    """
-    if service not in ["TNS", "Hermes"]:
-        raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
-    if service == "TNS":
-        service_status = ExternalPublishingSubmission.tns_status
-    else:
-        service_status = ExternalPublishingSubmission.hermes_status
-    return session.scalars(
-        ExternalPublishingSubmission.select(session.user_or_token).where(
-            ExternalPublishingSubmission.obj_id == obj.id,
-            ExternalPublishingSubmission.external_publishing_bot_id
-            == external_publishing_bot_id,
-            sa.or_(
-                service_status == "pending",
-                service_status == "processing",
-                service_status.like("submitted%"),
-                service_status.like("complete%"),
-            ),
-        )
-    ).first()
 
 
 class ExternalPublishingSubmissionHandler(BaseHandler):
