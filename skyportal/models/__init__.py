@@ -34,12 +34,12 @@ from .phot_stat import *
 from .photometric_series import *
 from .photometry import *
 from .photometry_validation import *
-
-# Public pages
 from .public_pages.public_release import *
 from .public_pages.public_source_page import *
 from .recurring_api import *
 from .reminder import *
+
+# report
 from .scan_report.scan_report import *
 from .scan_report.scan_report_item import *
 
@@ -60,7 +60,7 @@ from .taxonomy import *
 from .telescope import *
 from .thumbnail import *
 
-# External publishing
+# publishing
 from .tns import *
 from .user_notification import *
 from .user_token import *
