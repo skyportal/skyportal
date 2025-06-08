@@ -717,7 +717,7 @@ def post_source(data, user_id, session, refresh_source=True):
         )
     # we use the ignore_if_in_group_ids field, to cancel saving to the specified group_ids if there is already a source
     # saved to one of the ignore_if_in_group_ids
-    # ignore_if_in_group_ids is a dict, where each key are the group_ids for which we want to specify groups to avoid
+    # ignore_if_in_group_ids is a dict, where each key is the group_id for which we want to specify groups to avoid
     ignore_if_in_group_ids = {}
     if "ignore_if_in_group_ids" in data:
         if not isinstance(data["ignore_if_in_group_ids"], dict):
