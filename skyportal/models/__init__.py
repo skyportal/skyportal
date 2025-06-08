@@ -9,8 +9,6 @@ from .assignment import *
 from .candidate import *
 from .classification import *
 from .comment import *
-
-# Cosmology
 from .cosmo import cosmo
 from .earthquake import *
 from .external_publishing import *
@@ -38,12 +36,8 @@ from .public_pages.public_release import *
 from .public_pages.public_source_page import *
 from .recurring_api import *
 from .reminder import *
-
-# report
 from .scan_report.scan_report import *
 from .scan_report.scan_report_item import *
-
-# Generated schema
 from .schema import setup_schema
 from .shift import *
 from .source import *
@@ -59,8 +53,6 @@ from .tag import *
 from .taxonomy import *
 from .telescope import *
 from .thumbnail import *
-
-# publishing
 from .tns import *
 from .user_notification import *
 from .user_token import *
