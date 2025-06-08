@@ -209,6 +209,15 @@ def process_submission_request(submission_request, session):
                 f"No publishing bot found with ID {publishing_bot_id} or user {user_id} does not have access to it."
             )
 
+        if (
+            submission_request.auto_submission
+            and not publishing_bot.auto_publish_to_tns
+            and not publishing_bot.auto_publish_to_hermes
+        ):
+            raise ValueError(
+                f"Auto-submission on publishing bot {publishing_bot_id} is not selected for any service (TNS or Hermes)."
+            )
+
         photometry_options = validate_photometry_options(
             getattr(submission_request, "photometry_options", {}),
             getattr(publishing_bot, "photometry_options", {}),
@@ -240,7 +249,7 @@ def process_submission_request(submission_request, session):
                 user_id=submission_request.user_id,
                 action_type="baselayer/SHOW_NOTIFICATION",
                 payload={
-                    "note": str(e),
+                    "note": f"Error processing external publishing request: {str(e)}",
                     "type": "error",
                     "duration": 8000,
                 },
@@ -249,29 +258,40 @@ def process_submission_request(submission_request, session):
             pass
         raise
 
-    if (
-        submission_request.publish_to_hermes
-        and submission_request.hermes_status == "processing"
-    ):
-        submit_to_hermes(
-            submission_request, publishing_bot, user, photometry, reporters, session
-        )
+    if submission_request.hermes_status == "processing":
+        if submission_request.publish_to_hermes and (
+            not submission_request.auto_submission
+            or publishing_bot.auto_publish_to_hermes
+        ):
+            submit_to_hermes(
+                submission_request, publishing_bot, user, photometry, reporters, session
+            )
+        else:
+            submission_request.hermes_status = (
+                "Error: Auto-submission to Hermes is not enabled for this bot."
+            )
+            session.commit()
 
-    if (
-        submission_request.publish_to_tns
-        and submission_request.tns_status == "processing"
-    ):
-        submit_to_tns(
-            submission_request,
-            publishing_bot,
-            photometry,
-            photometry_options,
-            stream_ids,
-            reporters,
-            remarks,
-            warning,
-            session,
-        )
+    if submission_request.tns_status == "processing":
+        if submission_request.publish_to_tns and (
+            not submission_request.auto_submission or publishing_bot.auto_publish_to_tns
+        ):
+            submit_to_tns(
+                submission_request,
+                publishing_bot,
+                photometry,
+                photometry_options,
+                stream_ids,
+                reporters,
+                remarks,
+                warning,
+                session,
+            )
+        else:
+            submission_request.tns_status = (
+                "Error: Auto-submission to TNS is not enabled for this bot."
+            )
+            session.commit()
 
 
 def process_submission_requests():
