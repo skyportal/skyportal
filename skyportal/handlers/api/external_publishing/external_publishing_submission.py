@@ -99,7 +99,7 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
         publishers = data.get("publishers", "")
         remarks = data.get("remarks", "")
         archival = data.get("archival", False)
-        archival_comment = data.get("archivalComment", "")
+        archival_comment = data.get("archival_comment", "")
         instrument_ids = data.get("instrument_ids", [])
         stream_ids = data.get("stream_ids", [])
         photometry_options = data.get("photometry_options", {})

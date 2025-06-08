@@ -296,13 +296,13 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               archival: {
                 enum: [true],
               },
-              archivalComment: {
+              archival_comment: {
                 type: "string",
                 title: "Archival Comment",
                 default: defaultArchivalComment,
               },
             },
-            required: ["archivalComment"],
+            required: ["archival_comment"],
           },
         ],
       },
@@ -334,7 +334,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         );
       }
     }
-    if (formData.archival === true && !formData.archivalComment) {
+    if (formData.archival === true && !formData.archival_comment) {
       errors.archival.addError(
         "Archival comment must be defined if archival is true",
       );
