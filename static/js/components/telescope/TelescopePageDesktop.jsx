@@ -186,10 +186,9 @@ const TelescopePage = () => {
           placeholder="Telescope"
           InputProps={{
             ...params.InputProps,
-            className: classes.textField,
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" className={classes.icon} />
+                <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -303,9 +302,7 @@ const TelescopePage = () => {
                       />
                     </div>
                     {telescope.skycam_link && (
-                      <a className={classes.link} href={telescope.skycam_link}>
-                        skycam link
-                      </a>
+                      <a href={telescope.skycam_link}>skycam link</a>
                     )}
                   </ListItem>
                 ))}
