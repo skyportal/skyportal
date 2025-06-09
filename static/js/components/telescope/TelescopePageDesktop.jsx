@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -6,128 +6,198 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import * as telescopesActions from "../../ducks/telescopes";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import { Link } from "react-router-dom";
 import Button from "../Button";
-import NewTelescope from "./NewTelescope";
-import TelescopeInfo from "./TelescopeInfo";
-
-import TelescopeSearchBar from "./TelescopeSearchBar";
-import { fetchTelescopes } from "../../ducks/telescopes";
+import DeleteIcon from "@mui/icons-material/Delete";
+import Chip from "@mui/material/Chip";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import SearchIcon from "@mui/icons-material/Search";
 
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   paperContent: {
-    padding: "1rem",
-  },
-  menu: {
-    display: "flex",
-    direction: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginBottom: "1rem",
-  },
-  selectedMenu: {
-    height: "3rem",
-    fontSize: "1.2rem",
-  },
-  nonSelectedMenu: {
-    height: "3rem",
-    fontSize: "1.2rem",
+    padding: "0.5rem",
   },
   help: {
-    display: "flex",
-    justifyContent: "right",
-    alignItems: "center",
+    textAlign: "right",
   },
   tooltip: {
+    padding: "1rem",
     maxWidth: "60rem",
-    fontSize: "1.2rem",
+    fontSize: "1rem",
   },
   tooltipContent: {
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
+    gap: "0.7rem",
   },
   legend: {
-    width: "100%",
     display: "flex",
-    flexDirection: "row",
-    justifyContent: "left",
     alignItems: "center",
-    gap: "10px",
+    gap: "0.5rem",
   },
-  circle: {
+  baseIcon: {
+    minHeight: "1rem",
+    minWidth: "1rem",
     borderRadius: "50%",
-    width: "25px",
-    height: "25px",
-    display: "inline-block",
+    margin: "0.25rem 0.75rem",
   },
-  rect: {
-    width: "25px",
-    height: "25px",
-    display: "inline-block",
+  canObserveFixed: {
+    backgroundColor: "#0c1445",
+  },
+  cannotObserveFixed: {
+    backgroundColor: "#f9d71c",
+  },
+  cannotObserveNonFixed: {
+    backgroundColor: "#5ca9d6",
+    borderRadius: "0",
+  },
+  listItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    padding: "0.8rem 0",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: "0.5rem",
+    gap: "0.5rem",
+    textAlign: "center",
+  },
+  info: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    alignItems: "center",
+  },
+  date: {
+    fontSize: "1rem",
+    color: "#666",
+    display: "flex",
+    flexDirection: "column",
+  },
+  telescopeDelete: {
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
 }));
 
 const TelescopePage = () => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
+  const loading = useSelector((state) => state.telescopes.loading);
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const currentTelescopeMenu = useSelector(
-    (state) => state.telescope.currentTelescopeMenu,
-  );
+  const { currentTelescopes } = useSelector((state) => state.telescopes);
+  const [displayedTelescopes, setDisplayedTelescopes] = useState(telescopeList);
+  const [telescopeToDelete, setTelescopeToDelete] = useState(null);
+  const [selectedTelescope, setSelectedTelescope] = useState(null);
 
-  function setSelectedMenu(currentSelectedTelescopeMenu) {
-    const currentTelescopes = null;
-    dispatch({
-      type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
-      data: {
-        currentTelescopes,
-        currentTelescopeMenu: currentSelectedTelescopeMenu,
+  useEffect(() => {
+    setDisplayedTelescopes(telescopeList);
+  }, [telescopeList]);
+
+  useEffect(() => {
+    if (currentTelescopes?.length) {
+      setDisplayedTelescopes(currentTelescopes);
+    }
+  }, [currentTelescopes]);
+
+  const permission =
+    currentUser.permissions?.includes("Delete telescope") ||
+    currentUser.permissions?.includes("System admin");
+
+  const deleteTelescope = () => {
+    dispatch(telescopesActions.deleteTelescope(telescopeToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Telescope deleted"));
+          setTelescopeToDelete(null);
+        }
       },
-    });
-  }
+    );
+  };
 
-  const classes = useStyles();
+  const getSpecificIconClasses = (telescope) => {
+    if (!telescope.fixed_location) return classes.cannotObserveNonFixed;
+    if (telescope.is_night_astronomical) return classes.canObserveFixed;
+    return classes.cannotObserveFixed;
+  };
 
-  const Title = () => (
+  const legend = () => (
     <div className={classes.tooltipContent}>
       <div className={classes.legend}>
-        <div style={{ background: "#f9d71c" }} className={classes.circle} />
-        <p> Daytime</p>
+        <p className={`${classes.baseIcon} ${classes.cannotObserveFixed}`} />
+        Daytime
       </div>
       <div className={classes.legend}>
-        <div style={{ background: "#0c1445" }} className={classes.circle} />
-        <p> Nighttime</p>
+        <p className={`${classes.baseIcon} ${classes.canObserveFixed}`} />
+        Nighttime
       </div>
       <div className={classes.legend}>
-        <div style={{ background: "#5ca9d6" }} className={classes.rect} />
-        <p> Networks and Space-based Instruments</p>
+        <p className={`${classes.baseIcon} ${classes.cannotObserveNonFixed}`} />
+        Networks and Space-based Instruments
       </div>
     </div>
   );
-  const TelescopeToolTip = () => (
-    <Tooltip
-      title={Title()}
-      placement="bottom-end"
-      classes={{ tooltip: classes.tooltip }}
-    >
-      <HelpOutlineOutlinedIcon />
-    </Tooltip>
+
+  const handleChange = (option) => {
+    setSelectedTelescope(option);
+    if (option) {
+      setDisplayedTelescopes([option]);
+    } else {
+      setDisplayedTelescopes(telescopeList);
+      if (currentTelescopes?.length) {
+        dispatch({
+          type: "skyportal/CURRENT_TELESCOPES",
+          data: { currentTelescopes: [] },
+        });
+      }
+    }
+  };
+
+  const SearchBar = () => (
+    <Autocomplete
+      color="primary"
+      id="telescopes-search-bar"
+      classes={{ root: classes.root, paper: classes.paper }}
+      onChange={(event, option) => {
+        handleChange(option);
+      }}
+      value={selectedTelescope}
+      options={telescopeList}
+      getOptionLabel={(option) => option.name || ""}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          variant="outlined"
+          placeholder="Telescope"
+          InputProps={{
+            ...params.InputProps,
+            className: classes.textField,
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" className={classes.icon} />
+              </InputAdornment>
+            ),
+          }}
+        />
+      )}
+    />
   );
 
-  function isMenuSelected(menu) {
-    let style;
-    if (menu === currentTelescopeMenu) {
-      style = classes.selectedMenu;
-    } else {
-      style = classes.nonSelectedMenu;
-    }
-    return style;
-  }
   return (
     <Suspense
       fallback={
@@ -141,42 +211,116 @@ const TelescopePage = () => {
           <Paper className={classes.paperContent}>
             <TelescopeMap telescopes={telescopeList} />
             <div className={classes.help}>
-              <TelescopeToolTip />
+              <Tooltip
+                title={legend()}
+                placement="bottom-end"
+                classes={{ tooltip: classes.tooltip }}
+              >
+                <HelpOutlineOutlinedIcon />
+              </Tooltip>
             </div>
           </Paper>
         </Grid>
         <Grid item md={4} sm={12}>
-          <Paper className={classes.menu}>
-            <Button
-              secondary
-              id="telescope-list"
-              onClick={() => setSelectedMenu("Telescope List")}
-              className={isMenuSelected("Telescope List")}
-            >
-              Telescope List
-            </Button>
-            {currentUser.permissions?.includes("Manage telescopes") && (
-              <Button
-                primary
-                id="new-telescope"
-                onClick={() => setSelectedMenu("New Telescope")}
-                className={isMenuSelected("New Telescope")}
-              >
-                New Telescope
-              </Button>
-            )}
-          </Paper>
-          <Paper className={classes.paperContent}>
-            <Paper>
-              <TelescopeSearchBar id="search" telescopeList={telescopeList} />
-            </Paper>
-            {currentTelescopeMenu === "Telescope List" ? (
-              <TelescopeInfo />
-            ) : (
-              currentUser.permissions?.includes("Manage telescopes") && (
-                <NewTelescope />
-              )
-            )}
+          <Paper
+            className={classes.paperContent}
+            style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
+          >
+            <SearchBar />
+            <List>
+              {displayedTelescopes &&
+                displayedTelescopes.map((telescope) => (
+                  <ListItem
+                    id={`${telescope.name}_info`}
+                    className={classes.listItem}
+                    key={`${telescope.id}_list_item`}
+                  >
+                    <div className={classes.header}>
+                      <span
+                        className={`${
+                          classes.baseIcon
+                        } ${getSpecificIconClasses(telescope)}`}
+                      />
+                      <Link to={`/telescope/${telescope.id}`} role="link">
+                        <h2 style={{ margin: 0 }}>
+                          {telescope.name} ({telescope.nickname})
+                        </h2>
+                      </Link>
+                      {permission && (
+                        <div style={{ minWidth: "2.5rem" }}>
+                          <Button
+                            id="delete_button"
+                            classes={{ root: classes.telescopeDelete }}
+                            onClick={() => setTelescopeToDelete(telescope.id)}
+                          >
+                            <DeleteIcon />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {telescope.fixed_location && (
+                      <>
+                        <div className={classes.date}>
+                          {telescope.morning && (
+                            <i>
+                              Next Sunrise (Astronomical):{" "}
+                              {telescope.morning.slice(8, -4)} UTC
+                            </i>
+                          )}
+                          {telescope.evening && (
+                            <i>
+                              Next Sunset (Astronomical):{" "}
+                              {telescope.evening.slice(8, -4)} UTC
+                            </i>
+                          )}
+                        </div>
+                        <div>
+                          <b>Location:</b> {telescope.lat?.toFixed(4)},{" "}
+                          {telescope.lon?.toFixed(4)}
+                        </div>
+                        <div>
+                          <b>Elevation:</b> {telescope.elevation?.toFixed(1)}
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <b>Diameter:</b> {telescope.diameter?.toFixed(1)}
+                    </div>
+                    <div>
+                      <b>Robotic:</b>{" "}
+                      <Chip
+                        label={telescope.robotic ? "Yes" : "No"}
+                        size="small"
+                        color={telescope.robotic ? "primary" : "default"}
+                      />
+                    </div>
+                    <div>
+                      <b>Fixed Location:</b>{" "}
+                      <Chip
+                        label={telescope.fixed_location ? "Yes" : "No"}
+                        size="small"
+                        color={telescope.fixed_location ? "primary" : "default"}
+                      />
+                    </div>
+                    {telescope.skycam_link && (
+                      <a className={classes.link} href={telescope.skycam_link}>
+                        skycam link
+                      </a>
+                    )}
+                  </ListItem>
+                ))}
+              {loading && (
+                <div style={{ textAlign: "center", paddingTop: "1rem" }}>
+                  <CircularProgress size={30} />
+                </div>
+              )}
+            </List>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteTelescope}
+              dialogOpen={telescopeToDelete !== null}
+              closeDialog={() => setTelescopeToDelete(null)}
+              resourceName="telescope"
+            />
           </Paper>
         </Grid>
       </Grid>
