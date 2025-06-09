@@ -20,9 +20,6 @@ const useStyles = makeStyles((theme) => ({
   paperContent: {
     padding: "1rem",
   },
-}));
-
-const textStyles = makeStyles(() => ({
   primary: {
     fontWeight: "bold",
     fontSize: "110%",
@@ -65,7 +62,6 @@ export function telescopeInfo(telescope) {
 
 const TelescopeList = ({ telescopes }) => {
   const classes = useStyles();
-  const textClasses = textStyles();
 
   return (
     <div className={classes.root}>
@@ -75,7 +71,7 @@ const TelescopeList = ({ telescopes }) => {
             <ListItemText
               primary={telescopeTitle(telescope)}
               secondary={telescopeInfo(telescope)}
-              classes={textClasses}
+              classes={{ primary: classes.primary }}
             />
           </ListItem>
         ))}
@@ -100,7 +96,6 @@ TelescopeList.propTypes = {
 
 const TelescopePage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const currentUser = useSelector((state) => state.profile);
 
   const classes = useStyles();
   return (
@@ -113,16 +108,6 @@ const TelescopePage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage telescopes") && (
-        <Grid item md={6} sm={12}>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New Telescope</Typography>
-              <NewTelescope />
-            </div>
-          </Paper>
-        </Grid>
-      )}
     </Grid>
   );
 };

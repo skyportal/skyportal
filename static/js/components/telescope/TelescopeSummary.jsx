@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
@@ -16,8 +16,9 @@ import Spinner from "../Spinner";
 
 import withRouter from "../withRouter";
 
-import * as Action from "../../ducks/telescope";
+import * as telescopesAction from "../../ducks/telescopes";
 import * as weatherActions from "../../ducks/weather";
+import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -34,14 +35,20 @@ const useStyles = makeStyles((theme) => ({
 const TelescopeSummary = ({ route }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const telescope = useSelector((state) => state.telescope);
   const instrumentsState = useSelector((state) => state.instruments);
   const groups = useSelector((state) => state.groups.all);
   const weather = useSelector((state) => state.weather);
+  const [telescope, setTelescope] = useState(null);
 
   // Load the instrument if needed
   useEffect(() => {
-    dispatch(Action.fetchTelescope(route.id));
+    dispatch(telescopesAction.fetchTelescope(route.id)).then((result) => {
+      if (result.status === "success") {
+        setTelescope(result.data);
+      } else {
+        dispatch(showNotification("Error loading telescope data", "error"));
+      }
+    });
   }, [route.id, dispatch]);
 
   useEffect(() => {
