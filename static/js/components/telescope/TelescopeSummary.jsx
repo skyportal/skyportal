@@ -60,7 +60,7 @@ const TelescopeSummary = ({ route }) => {
     }
   }, [weather, telescope, dispatch]);
 
-  if (!("id" in telescope && telescope.id === parseInt(telescope.id, 10))) {
+  if (!telescope) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -141,7 +141,7 @@ const TelescopeSummary = ({ route }) => {
 
 TelescopeSummary.propTypes = {
   route: PropTypes.shape({
-    id: PropTypes.number,
+    id: PropTypes.string,
   }).isRequired,
 };
 
