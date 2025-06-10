@@ -81,7 +81,7 @@ def check_mmt_payload(payload):
         if (
             not isinstance(payload["number_offset_Stars"], int)
             or payload["number_offset_Stars"] < 0
-            or payload["number_offset_Stars"] > 5
+            or payload["number_offset_Stars"] > 4
         ):
             raise ValueError("A valid number of offset stars must be provided")
 
@@ -476,7 +476,7 @@ mmt_dependencies = {
                         "title": "Number of Offset Stars",
                         "default": 3,
                         "minimum": 0,
-                        "maximum": 5,
+                        "maximum": 4,
                     },
                 }
             },
