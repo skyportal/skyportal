@@ -756,9 +756,9 @@ def test_user_without_save_access_cannot_save(
 def test_add_classification_on_scanning_page(
     driver, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
-    from ..test_profile import test_add_classification_shortcut
+    from ..test_profile import add_classification_shortcut
 
-    shortcut_name = test_add_classification_shortcut(
+    shortcut_name = add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )
     driver.get(f"/become_user/{user.id}")

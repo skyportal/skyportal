@@ -70,8 +70,8 @@ def validate_request_to_sedmv2(request):
     if request.payload["priority"] < 0 or request.payload["priority"] > 5:
         raise ValueError("priority must be within 0-5.")
 
-    if request.payload["too"] not in ["Y", "N"]:
-        raise ValueError("too must be Y or N")
+    if type(request.payload["too"]) != bool:
+        raise ValueError("too must be boolean")
 
     if (request.payload["observation_type"] == "variable") and (
         request.payload["frame_exposure_time"] not in [1, 2, 3, 5, 10, 15, 20, 25, 30]
@@ -425,12 +425,8 @@ class SEDMV2API(FollowUpAPI):
             },
             "too": {
                 "title": "Is this a Target of Opportunity observation?",
-                "type": "string",
-                "enum": [
-                    "N",
-                    "Y",
-                ],
-                "default": "N",
+                "type": "boolean",
+                "default": False,
             },
             "observation_type": {
                 "title": "What type of observation is this?",

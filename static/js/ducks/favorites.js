@@ -8,7 +8,6 @@ const ADD_TO_FAVORITES = "skyportal/ADD_TO_FAVORITES";
 const REMOVE_FROM_FAVORITES = "skyportal/REMOVE_FROM_FAVORITES";
 const REFRESH_FAVORITES = "skyportal/REFRESH_FAVORITES";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchFavorites = () =>
   API.GET("/api/listing", FETCH_FAVORITES, { listName: "favorites" });
 

@@ -45,14 +45,11 @@ const TelescopeSummary = ({ route }) => {
   }, [route.id, dispatch]);
 
   useEffect(() => {
-    const fetchWeatherData = () => {
-      dispatch(weatherActions.fetchWeather(parseInt(telescope.id, 10)));
-    };
     if (
       telescope?.id &&
       weather?.telescope_id !== parseInt(telescope?.id, 10)
     ) {
-      fetchWeatherData();
+      dispatch(weatherActions.fetchWeather(parseInt(telescope.id, 10)));
     }
   }, [weather, telescope, dispatch]);
 

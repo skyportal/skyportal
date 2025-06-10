@@ -31,6 +31,7 @@ export const DUCKS_TO_HYDRATE = [
   "observationPlans",
   "galaxyCatalogs",
   "followupApis",
+  "objectTags",
 ];
 
 export const NUMBER_OF_DUCKS_TO_HYDRATE = DUCKS_TO_HYDRATE.length;

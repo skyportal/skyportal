@@ -81,11 +81,6 @@ app:
     host: herculesii.astro.berkeley.edu
     port:
 
-  colibri:
-    protocol: http
-    host:
-    port:
-
   gemini:
     protocol: https
     host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
@@ -804,7 +799,7 @@ analysis_services:
       max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
-      model: gpt-3.5-turbo
+      model: o4-mini
       presence_penalty: 1.0
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
@@ -813,9 +808,9 @@ analysis_services:
         api_key:
         index_name: openai-skyportal-summary
         index_size: 1536
-        model: text-embedding-ada-002
-        environment: gcp-starter
-        pod_type: p1.x1
+        model: text-embedding-3-small
+        cloud: aws
+        region: us-east-1
 
 
 
