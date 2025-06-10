@@ -1,4 +1,6 @@
+import datetime
 import functools
+import io
 import json
 
 import requests
@@ -6,10 +8,18 @@ import requests
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from skyportal.utils import http
+from skyportal.utils.asynchronous import run_async
 from skyportal.utils.calculations import deg2dms, deg2hms
 from skyportal.utils.parse import bool_to_int
 
 env, cfg = load_env()
+
+image_source_dict = {
+    "DESI DR8": "desi",
+    "ZTF Ref Image": "ztfref",
+    "DSS2": "dss",
+    "PS1": "ps1",
+}
 
 
 def catch_timeout_and_no_endpoint(func):
@@ -61,6 +71,19 @@ def check_mmt_payload(payload):
         raise ValueError("A valid target of opportunity value must be provided")
     if not isinstance(payload.get("one_visit_per_night"), bool):
         raise ValueError("A valid one visit per night value must be provided")
+    if not isinstance(payload.get("include_finder_chart"), bool):
+        raise ValueError("A valid include finder chart value must be provided")
+    if payload.get("include_finder_chart"):
+        if payload.get("primary_image_source") not in image_source_dict:
+            raise ValueError(f"A valid primary image source must be provided")
+        if payload.get("offset_position_origin") not in ["ZTF Ref", "Gaia DR3"]:
+            raise ValueError("A valid offset position origin must be provided")
+        if (
+            not isinstance(payload["number_offset_Stars"], int)
+            or payload["number_offset_Stars"] < 0
+            or payload["number_offset_Stars"] > 5
+        ):
+            raise ValueError("A valid number of offset stars must be provided")
 
 
 def sanitize_obj_id(obj_id):
@@ -115,6 +138,51 @@ def get_mmt_json_payload(obj, altdata, payload):
         "filter": payload.get("filters"),
         "notes": payload.get("notes"),
     }
+
+
+def send_finder_to_mmt(finder_callable, id_to_upload_chart_to, altdata, user_id):
+    # Finder generation
+    result = finder_callable()
+
+    filename = result["name"]
+    data = io.BytesIO(result["data"])
+    data.name = filename
+
+    files = {
+        "finding_chart_file": (filename, data, "application/pdf"),
+    }
+    upload_data = {
+        "type": "finding_chart",
+        "token": altdata["token"],
+        "target_id": id_to_upload_chart_to,
+    }
+    upload_response = requests.post(
+        f"{cfg['app.mmt_endpoint']}/catalogTarget/{id_to_upload_chart_to}",
+        data=upload_data,
+        files=files,
+    )
+
+    is_success = upload_response.status_code == 200
+    if is_success:
+        note = "Successfully uploaded finder chart to MMT"
+    else:
+        note = (
+            f"Failed to upload finder chart to MMT: error {upload_response.status_code}"
+        )
+
+    flow = Flow()
+    flow.push(
+        user_id,
+        action_type="baselayer/SHOW_NOTIFICATION",
+        payload={
+            "note": note,
+            "type": "info" if is_success else "error",
+        },
+    )
+    if not is_success:
+        raise ValueError(
+            f"Failed to upload finder chart: {upload_response.status_code} - {upload_response.text}"
+        )
 
 
 def submit_mmt_request(
@@ -178,6 +246,37 @@ def submit_mmt_request(
 
     session.add(transaction)
     session.commit()
+
+    # If include_finder_chart is True, we try to upload the finder chart
+    if request.status == "submitted" and request.payload.get(
+        "include_finder_chart", False
+    ):
+        from skyportal.handlers.api.source import get_finding_chart_callable
+
+        if response.content is None:
+            raise ValueError("Impossible to upload finder chart: no response content")
+        id_to_upload_chart_to = json.loads(response.content).get("id")
+        if id_to_upload_chart_to is None:
+            raise ValueError("No ID found in response to upload finder chart to")
+
+        finder_callable = get_finding_chart_callable(
+            obj_id=request.obj.id,
+            session=session,
+            imsize=4.0,
+            facility="Keck",
+            image_source=image_source_dict[request.payload["primary_image_source"]],
+            use_ztfref=request.payload["offset_position_origin"] == "ZTF Ref",
+            obstime=datetime.datetime.utcnow().isoformat(),
+            output_type="pdf",
+            num_offset_stars=request.payload.get("number_offset_Stars", 3),
+        )
+        run_async(
+            send_finder_to_mmt,
+            finder_callable,
+            id_to_upload_chart_to,
+            altdata,
+            session.user_or_token.id,
+        )
 
     try:
         flow = Flow()
@@ -342,6 +441,52 @@ mmt_properties = {
         "title": "One Visit Per Night",
         "default": True,
     },
+    "include_finder_chart": {
+        "type": "boolean",
+        "title": "Include Finder Chart",
+        "default": False,
+    },
+}
+
+mmt_dependencies = {
+    "include_finder_chart": {
+        "oneOf": [
+            {
+                "properties": {
+                    "include_finder_chart": {"enum": [True]},
+                    "primary_image_source": {
+                        "type": "string",
+                        "title": "Primary Image Source",
+                        "enum": [
+                            "DESI DR8",
+                            "ZTF Ref Image",
+                            "DSS2",
+                            "PS1",
+                        ],
+                        "default": "DESI DR8",
+                    },
+                    "offset_position_origin": {
+                        "type": "string",
+                        "title": "Offset Position Origin",
+                        "enum": ["ZTF Ref", "Gaia DR3"],
+                        "default": "Gaia DR3",
+                    },
+                    "number_offset_Stars": {
+                        "type": "integer",
+                        "title": "Number of Offset Stars",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                    },
+                }
+            },
+            {
+                "properties": {
+                    "include_finder_chart": {"enum": [False]},
+                }
+            },
+        ]
+    },
 }
 
 mmt_required = [
@@ -367,4 +512,14 @@ mmt_aldata = {
         },
     },
     "required": ["token"],
+}
+
+mmt_ui_json_schema = {
+    "ui:order": [
+        "*",
+        "include_finder_chart",
+        "primary_image_source",
+        "offset_position_origin",
+        "number_offset_Stars",
+    ]
 }

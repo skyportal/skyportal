@@ -2587,6 +2587,123 @@ class SourceOffsetsHandler(BaseHandler):
             )
 
 
+def get_finding_chart_callable(
+    obj_id,
+    session,
+    imsize,
+    facility,
+    image_source,
+    use_ztfref,
+    obstime,
+    output_type,
+    num_offset_stars,
+):
+    """
+    Returns a callable that generates a finding chart for the given object ID.
+
+    obj_id:  str
+        The ID of the object for which to generate the finding chart.
+    session: SQLAlchemy session
+        The SQLAlchemy session to use for database queries.
+    imsize: float
+        The size of the image in arcminutes (default is 4.0).
+    facility: str
+        The facility for which to generate the starlist (e.g., "Keck", "Shane", "P200", "P200-NGPS").
+    image_source: str
+        The source of the image used in the finding chart (e.g., "desi", "dss", "ztfref", "ps1").
+    use_ztfref: bool
+        Whether to use the ZTFref catalog for offset star positions (default is True).
+    obstime: str
+        The observation time in ISO format (e.g., "2020-12-30T12:34:10").
+    output_type: str
+        The desired output type for the finding chart (e.g., "pdf", "png").
+    num_offset_stars: int
+        The desired number of offset stars (default is 3, must be between 0 and 4).
+
+    Returns a callable that generates the finding chart.
+    """
+    source = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
+    if source is None:
+        raise ValueError("Source not found")
+    if output_type not in ["pdf", "png"]:
+        raise ValueError("Invalid output type")
+    if imsize < 2.0 or imsize > 15.0:
+        raise ValueError(
+            "The value for `imsize` is outside the allowed range (2.0-15.0)"
+        )
+    if not 0 <= num_offset_stars <= 4:
+        raise ValueError(
+            "The value for `num_offset_stars` is outside the allowed range (0-4)"
+        )
+    if facility not in facility_parameters:
+        raise ValueError("Invalid facility")
+
+    if image_source not in source_image_parameters:
+        raise ValueError("Invalid image source")
+
+    photometry = (
+        session.scalars(
+            sa.select(Photometry).where(
+                sa.and_(
+                    Photometry.obj_id == source.id,
+                    ~Photometry.origin.ilike("%fp%"),
+                )
+            )
+        )
+    ).all()
+
+    photometry = [
+        p
+        for p in photometry
+        if not np.isnan(p.flux)
+        and not np.isnan(p.fluxerr)
+        and p.ra is not None
+        and not np.isnan(p.ra)
+        and p.dec is not None
+        and not np.isnan(p.dec)
+        and p.flux / p.fluxerr > 3.0
+    ]
+
+    ra, dec = source.ra, source.dec
+    try:
+        ra, dec = _calculate_best_position_for_offset_stars(
+            photometry, fallback=(source.ra, source.dec), how="snr2"
+        )
+    except JSONDecodeError:
+        flow = Flow()
+        flow.push(
+            session.user_or_token.id,
+            action_type="baselayer/SHOW_NOTIFICATION",
+            payload={
+                "note": f"Source position using photometry points failed. Reverting to discovery position.",
+                "type": "error",
+            },
+        )
+
+    return functools.partial(
+        get_finding_chart,
+        ra,
+        dec,
+        obj_id,
+        image_source=image_source,
+        output_format=output_type,
+        imsize=imsize,
+        how_many=num_offset_stars,
+        radius_degrees=facility_parameters[facility]["radius_degrees"],
+        mag_limit=facility_parameters[facility]["mag_limit"],
+        mag_min=facility_parameters[facility]["mag_min"],
+        min_sep_arcsec=facility_parameters[facility]["min_sep_arcsec"],
+        starlist_type=facility,
+        obstime=obstime,
+        use_source_pos_in_starlist=True,
+        allowed_queries=2,
+        queries_issued=0,
+        use_ztfref=use_ztfref,
+    )
+
+
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
     async def get(self, obj_id):
@@ -2671,118 +2788,37 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        imsize = self.get_query_argument("imsize", 4.0)
+        try:
+            imsize = float(imsize)
+        except ValueError:
+            return self.error("Invalid argument for `imsize`")
+        facility = self.get_query_argument("facility", "Keck")
+        image_source = self.get_query_argument("image_source", "ps1")
+        use_ztfref = self.get_query_argument("use_ztfref", True)
+        obstime = self.get_query_argument(
+            "obstime", datetime.datetime.utcnow().isoformat()
+        )
+        if not isinstance(isoparse(obstime), datetime.datetime):
+            return self.error("obstime is not valid isoformat")
+        output_type = self.get_query_argument("type", "pdf")
+        num_offset_stars = self.get_query_argument("num_offset_stars", "3")
+        try:
+            num_offset_stars = int(num_offset_stars)
+        except ValueError:
+            return self.error("Invalid argument for `num_offset_stars`")
 
         with self.Session() as session:
-            source = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
-            if source is None:
-                return self.error("Source not found", status=404)
-
-            output_type = self.get_query_argument("type", "pdf")
-            if output_type not in ["png", "pdf"]:
-                return self.error(f"Invalid argument for `type`: {output_type}")
-
-            imsize = self.get_query_argument("imsize", 4.0)
-            try:
-                imsize = float(imsize)
-            except ValueError:
-                # could not handle inputs
-                return self.error("Invalid argument for `imsize`")
-
-            if imsize < 2.0 or imsize > 15.0:
-                return self.error(
-                    "The value for `imsize` is outside the allowed range (2.0-15.0)"
-                )
-
-            facility = self.get_query_argument("facility", "Keck")
-            image_source = self.get_query_argument("image_source", "ps1")
-            use_ztfref = self.get_query_argument("use_ztfref", True)
-
-            num_offset_stars = self.get_query_argument("num_offset_stars", "3")
-            try:
-                num_offset_stars = int(num_offset_stars)
-            except ValueError:
-                # could not handle inputs
-                return self.error("Invalid argument for `num_offset_stars`")
-
-            if not 0 <= num_offset_stars <= 4:
-                return self.error(
-                    "The value for `num_offset_stars` is outside the allowed range (0-4)"
-                )
-
-            obstime = self.get_query_argument(
-                "obstime", datetime.datetime.utcnow().isoformat()
-            )
-            if not isinstance(isoparse(obstime), datetime.datetime):
-                return self.error("obstime is not valid isoformat")
-
-            if facility not in facility_parameters:
-                return self.error("Invalid facility")
-
-            if image_source not in source_image_parameters:
-                return self.error("Invalid source image")
-
-            radius_degrees = facility_parameters[facility]["radius_degrees"]
-            mag_limit = facility_parameters[facility]["mag_limit"]
-            min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
-            mag_min = facility_parameters[facility]["mag_min"]
-
-            photometry = (
-                session.scalars(
-                    sa.select(Photometry).where(
-                        sa.and_(
-                            Photometry.obj_id == source.id,
-                            ~Photometry.origin.ilike("%fp%"),
-                        )
-                    )
-                )
-            ).all()
-
-            photometry = [
-                p
-                for p in photometry
-                if not np.isnan(p.flux)
-                and not np.isnan(p.fluxerr)
-                and p.ra is not None
-                and not np.isnan(p.ra)
-                and p.dec is not None
-                and not np.isnan(p.dec)
-                and p.flux / p.fluxerr > 3.0
-            ]
-
-            ra, dec = source.ra, source.dec
-            try:
-                ra, dec = _calculate_best_position_for_offset_stars(
-                    photometry,
-                    fallback=(source.ra, source.dec),
-                    how="snr2",
-                )
-            except JSONDecodeError:
-                self.push_notification(
-                    "Source position using photometry points failed."
-                    " Reverting to discovery position."
-                )
-
-            finder = functools.partial(
-                get_finding_chart,
-                ra,
-                dec,
+            finder = get_finding_chart_callable(
                 obj_id,
-                image_source=image_source,
-                output_format=output_type,
-                imsize=imsize,
-                how_many=num_offset_stars,
-                radius_degrees=radius_degrees,
-                mag_limit=mag_limit,
-                mag_min=mag_min,
-                min_sep_arcsec=min_sep_arcsec,
-                starlist_type=facility,
-                obstime=obstime,
-                use_source_pos_in_starlist=True,
-                allowed_queries=2,
-                queries_issued=0,
-                use_ztfref=use_ztfref,
+                session,
+                imsize,
+                facility,
+                image_source,
+                use_ztfref,
+                obstime,
+                output_type,
+                num_offset_stars,
             )
 
             self.push_notification(
