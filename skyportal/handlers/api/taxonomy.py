@@ -6,7 +6,7 @@ from tdtax import schema, validate
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 
-from ...models import Group, Taxonomy
+from ...models import Classification, Group, Taxonomy
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -342,6 +342,16 @@ class TaxonomyHandler(BaseHandler):
         """
 
         with self.Session() as session:
+            classification = session.scalars(
+                sa.select(Classification).where(
+                    Classification.taxonomy_id == taxonomy_id
+                )
+            ).first()
+            if classification is not None:
+                return self.error(
+                    f"Cannot delete taxonomy {taxonomy_id} because it has associated classifications."
+                )
+
             taxonomy = session.scalars(
                 Taxonomy.select(session.user_or_token, mode="delete").where(
                     Taxonomy.id == taxonomy_id
@@ -349,7 +359,7 @@ class TaxonomyHandler(BaseHandler):
             ).first()
             if taxonomy is None:
                 return self.error(
-                    "Taxonomy does not exist or is not available to user."
+                    f"Taxonomy {taxonomy_id} does not exist or is not available to user."
                 )
 
             session.delete(taxonomy)
