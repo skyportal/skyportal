@@ -1,5 +1,4 @@
 import time
-from typing import Union
 
 import numpy as np
 from astropy import units as u
@@ -129,7 +128,7 @@ class GaiaQuery:
 
         Returns
         -------
-        Union[Table, None]
+        Table | None
             The results of the query as an Astropy Table, or None if all servers fail.
         """
         if self.session is None:
