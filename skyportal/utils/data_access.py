@@ -73,7 +73,7 @@ def check_access_to_external_publishing_bot(session, user, external_publishing_b
     )
     if external_publishing_bot is None:
         raise ValueError(
-            f"No ExternalPublishingBot with ID {external_publishing_bot_id}, or inaccessible"
+            f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
         )
     return external_publishing_bot
 

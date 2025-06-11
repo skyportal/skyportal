@@ -112,7 +112,7 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
             return self.error("obj_id is required")
         if not publish_to_tns and not publish_to_hermes:
             return self.error(
-                "Either publish to tns or publish to hermes must be set to True"
+                "Either publish to TNS or publish to Hermes must be set to True"
             )
         if publish_to_hermes and not is_configured:
             return self.error("This instance is not configured to use Hermes")
