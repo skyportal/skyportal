@@ -896,7 +896,11 @@ def get_nearby_offset_stars(
 
     # try to get Gaia sources first
     with gaia as g:
-        r = g.query(query_string)
+        try:
+            r = g.query(query_string)
+        except Exception as e:
+            log(f"Error querying Gaia: {e}. Falling back to ZTFref or empty result.")
+            r = None
 
     # ...otherwise fall back to ZTFref public sources or return
     # a tuple of no offset stars

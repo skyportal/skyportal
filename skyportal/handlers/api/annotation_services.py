@@ -152,7 +152,7 @@ class GaiaQueryHandler(BaseHandler):
                     df = df.to_pandas()
                 except Exception as e:
                     return self.error(
-                        f"Error querying Gaia: {e}. Please try again later."
+                        f"Error querying Gaia annotations for {obj_id}: {e}. Please try again later."
                     )
 
             if df is None:
