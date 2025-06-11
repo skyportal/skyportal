@@ -6,9 +6,10 @@ import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
 import Button from "../../Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import SpectroscopyColorSelect from "./SpectroscopyColorSelect";
-
 import * as profileActions from "../../../ducks/profile";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
 
 const useStyles = makeStyles(() => ({
   submitButton: {
@@ -39,6 +40,7 @@ const useStyles = makeStyles(() => ({
 const SpectroscopyButtonsForm = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const colorPalette = useSelector((state) => state.config.colorPalette);
   const { spectroscopyButtons } = useSelector(
     (state) => state.profile.preferences,
   );
@@ -46,21 +48,13 @@ const SpectroscopyButtonsForm = () => {
     handleSubmit,
     register,
     reset,
-    control,
     formState: { errors },
   } = useForm();
-  const [selectedColor, setSelectedColor] = useState([]);
-
-  const onColorSelectChange = (event) => {
-    setSelectedColor(
-      event.target.value.includes("Clear selections") ? [] : event.target.value,
-    );
-  };
 
   const onSubmit = (formValues) => {
     const currSpectroscopyButtons = spectroscopyButtons || {};
     currSpectroscopyButtons[formValues.spectroscopyButtonName] = {
-      color: selectedColor,
+      color: formValues.spectroscopyColorSelect,
       wavelengths: formValues.spectroscopyButtonWavelengths
         .split(",")
         .map(Number),
@@ -71,6 +65,7 @@ const SpectroscopyButtonsForm = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
     reset({
       spectroscopyButtonName: "",
+      spectroscopyButtonWavelengths: "",
     });
   };
 
@@ -105,38 +100,51 @@ const SpectroscopyButtonsForm = () => {
         )}
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className={classes.form}>
-            <SpectroscopyColorSelect
-              initValue={selectedColor}
-              onColorSelectChange={onColorSelectChange}
-              control={control}
-            />
+            <div>
+              <InputLabel htmlFor="spectroscopyColorSelect">Color</InputLabel>
+              <Select
+                fullWidth
+                name="spectroscopyColorSelect"
+                id="spectroscopyColorSelectInput"
+                {...register("spectroscopyColorSelect", { required: true })}
+                error={!!errors.spectroscopyColorSelect}
+              >
+                {(colorPalette || []).map((color) => (
+                  <MenuItem key={color} value={color}>
+                    <div
+                      style={{
+                        width: "1rem",
+                        height: "1rem",
+                        background: color,
+                      }}
+                    />
+                  </MenuItem>
+                ))}
+              </Select>
+            </div>
             <TextField
               label="Name"
               {...register("spectroscopyButtonName", {
-                required: true,
-                validate: (value) => {
-                  if (spectroscopyButtons) {
-                    return !(value in spectroscopyButtons);
-                  }
-                  return null;
-                },
+                required: "Name is required",
+                validate: (value) =>
+                  spectroscopyButtons && value in spectroscopyButtons
+                    ? "A button with this name already exists"
+                    : true,
               })}
               name="spectroscopyButtonName"
               id="spectroscopyButtonNameInput"
               error={!!errors.spectroscopyButtonName}
-              helperText={
-                errors.spectroscopyButtonName
-                  ? "Required/Button with that name already exists"
-                  : ""
-              }
+              helperText={errors.spectroscopyButtonName?.message}
             />
             <TextField
               label="Wavelengths"
               {...register("spectroscopyButtonWavelengths", {
-                required: true,
+                required: "Wavelengths are required",
               })}
               name="spectroscopyButtonWavelengths"
               id="spectroscopyButtonWavelengthInput"
+              error={!!errors.spectroscopyButtonWavelengths}
+              helperText={errors.spectroscopyButtonWavelengths?.message}
             />
           </div>
           <Button
