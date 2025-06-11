@@ -124,7 +124,7 @@ class GaiaQuery:
         query_string : str
             The TAP query string to execute.
         n_retries : int, optional
-            Number of retries per server in case of failure, by default 1.
+            Number of retries per server in case of failure, by default 0.
 
         Returns
         -------
