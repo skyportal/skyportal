@@ -198,46 +198,41 @@ const WidgetPrefsDialog = ({
                   </div>
                 );
               }
-              if (
-                typeof initialValues[key] === "object" &&
-                initialValues[key].constructor === Array
-              ) {
-                if (key === "groupIds") {
-                  return (
-                    <div key={key} className={classes.inputSectionDiv}>
-                      <Controller
-                        name={key}
-                        render={({ field: { onChange, value } }) => (
-                          <Autocomplete
-                            multiple
-                            id={key}
-                            options={groups || []}
-                            getOptionLabel={(group) => group.name}
-                            value={(groups || []).filter((group) =>
-                              value.includes(group.id),
-                            )}
-                            onChange={(e, data) =>
-                              onChange(data.map((group) => group.id))
-                            }
-                            filterSelectedOptions
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                error={!!errors[key]}
-                                variant="outlined"
-                                label="Only show for these groups"
-                                size="small"
-                              />
-                            )}
-                            className={classes.fullWidth}
-                          />
-                        )}
-                        control={control}
-                        defaultValue={[]}
-                      />
-                    </div>
-                  );
-                }
+              if (Array.isArray(initialValues[key]) && key === "groupIds") {
+                return (
+                  <div key={key} className={classes.inputSectionDiv}>
+                    <Controller
+                      name={key}
+                      render={({ field: { onChange, value } }) => (
+                        <Autocomplete
+                          multiple
+                          id={key}
+                          options={groups || []}
+                          getOptionLabel={(group) => group.name}
+                          value={(groups || []).filter((group) =>
+                            value.includes(group.id),
+                          )}
+                          onChange={(e, data) =>
+                            onChange(data.map((group) => group.id))
+                          }
+                          filterSelectedOptions
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              error={!!errors[key]}
+                              variant="outlined"
+                              label="Only show for these groups"
+                              size="small"
+                            />
+                          )}
+                          className={classes.fullWidth}
+                        />
+                      )}
+                      control={control}
+                      defaultValue={[]}
+                    />
+                  </div>
+                );
               }
               return <div key={key} />;
             })}
@@ -263,6 +258,7 @@ WidgetPrefsDialog.propTypes = {
     PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool,
+      PropTypes.arrayOf(PropTypes.string),
       PropTypes.shape({}),
     ]),
   ).isRequired,
