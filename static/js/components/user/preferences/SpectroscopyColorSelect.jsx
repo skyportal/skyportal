@@ -6,25 +6,13 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 
-const SpectroscopyColorSelect = ({
-  onColorSelectChange,
-  initValue,
-  parent,
-}) => {
+const SpectroscopyColorSelect = ({ onColorSelectChange, initValue }) => {
   const colorPalette = useSelector((state) => state.config.colorPalette);
 
   return (
     <div style={{ width: "100%" }}>
       <InputLabel>Color</InputLabel>
-      <Select
-        fullWidth
-        value={initValue}
-        onChange={onColorSelectChange}
-        inputProps={{
-          name: `${parent}-color-select`,
-          id: `${parent}-color-select`,
-        }}
-      >
+      <Select fullWidth value={initValue} onChange={onColorSelectChange}>
         {(colorPalette || []).map((color) => (
           <MenuItem key={color} value={color}>
             <div style={{ width: "1rem", height: "1rem", background: color }} />
@@ -38,7 +26,6 @@ const SpectroscopyColorSelect = ({
 SpectroscopyColorSelect.propTypes = {
   onColorSelectChange: PropTypes.func.isRequired,
   initValue: PropTypes.arrayOf(PropTypes.string),
-  parent: PropTypes.string.isRequired,
 };
 
 SpectroscopyColorSelect.defaultProps = {
