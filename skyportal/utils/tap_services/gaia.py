@@ -149,7 +149,9 @@ class GaiaQuery:
                     HTTPError,
                 ) as e:
                     if retry < n_retries:
-                        wait_time = 1 + 2**retry
+                        wait_time = min(
+                            1 + 2**retry, self.timeout
+                        )  # Exponential backoff, capped at timeout
                         log(
                             f"Query attempt {retry + 1} failed on {server_url}, retrying in {wait_time}s: {e}"
                         )
