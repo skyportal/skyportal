@@ -198,7 +198,7 @@ const WidgetPrefsDialog = ({
                   </div>
                 );
               }
-              if (Array.isArray(initialValues[key]) && key === "groupIds") {
+              if (key === "groupIds" && Array.isArray(initialValues[key])) {
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
                     <Controller
