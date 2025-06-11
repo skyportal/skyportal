@@ -4,7 +4,6 @@ import math
 import os
 import re
 import string
-import time
 import urllib
 import warnings
 from functools import wraps
@@ -13,7 +12,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyvo as vo
 import requests
 import seaborn as sns
 from astropy import units as u
@@ -26,18 +24,15 @@ from astropy.visualization import ImageNormalize, ZScaleInterval
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.wcs.wcs import FITSFixedWarning
-from astroquery.gaia import Gaia
 from joblib import Memory
-from numpy import ma
-from pyvo.dal.exceptions import DALQueryError, DALServiceError
 from reproject import reproject_adaptive
-from requests.exceptions import HTTPError
 from scipy.ndimage import gaussian_filter
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from .cache import Cache
+from .tap_services.gaia import GaiaQuery
 
 log = make_log("finder-chart")
 
@@ -66,102 +61,7 @@ ALL_NGPS_SNCOSMO_BANDS = []
 for v in NGPS_TARGET_BANDS_TO_SNCOSMO.values():
     ALL_NGPS_SNCOSMO_BANDS.extend(v)
 
-
-class GaiaQuery:
-    alt_tap = "https://gaia.aip.de/tap"
-    alt_main_db = "gaiadr3"
-
-    # conversion for units in VO tables to astropy units
-    unit_conversion = {
-        "Dimensionless": None,
-        "Angle[deg]": u.deg,
-        "Time[Julian Years]": u.yr,
-        "Magnitude[mag]": u.mag,
-        "Angular Velocity[mas/year]": u.mas / u.yr,
-        "Angle[mas]": u.mas,
-        "yr": u.yr,
-        "mas.yr**-1": u.mas / u.yr,
-        "mas": u.mas,
-        "mag": u.mag,
-        "deg": u.deg,
-        "Angle[rad], Angle[rad]": u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
-    }
-
-    def __init__(self, main_db="gaiadr3"):
-        self.main_db = main_db
-        self.db_connected = self._connect()
-        log(
-            f"Gaia connection {'succeeded' if self.db_connected else 'failed'}."
-            f" Main db = {self.main_db}{' (backup)' if self.is_backup else ''}."
-        )
-
-    def _connect(self):
-        """Try to connect to the main Gaia server of astroquery, else
-        fall over to backup server
-        """
-        try:
-            g = Gaia
-            q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
-            job = g.launch_job(q)
-            _ = job.get_results()
-            self.is_backup = False
-            self.connection = g
-            return True
-        except (HTTPError, ConnectionResetError):
-            log("Warning: main Gaia TAP+ server failed")
-            self.is_backup = True
-        except Exception as e:  # noqa: E722
-            log("Warning: main Gaia TAP+ server failed in a way we didn't expect.")
-            log(f"Exception type={type(e).__name__}. Exception message={e}")
-            self.is_backup = True
-
-        if self.is_backup:
-            try:
-                self.main_db = GaiaQuery.alt_main_db
-                g = vo.dal.TAPService(GaiaQuery.alt_tap)
-                q = f"SELECT TOP 1 ra, dec from {self.alt_main_db}.gaia_source"
-                _ = g.search(q)
-                self.connection = g
-                return True
-            except DALQueryError:
-                log("Warning: backup TAP+ server failed")
-                self.connection = None
-                return False
-
-    def query(self, q):
-        if not self.db_connected or self.connection is None:
-            raise HTTPError("GaiaQuery not connected properly.")
-
-        # replace the main db name
-        q = q.format(main_db=self.main_db)
-        if not self.is_backup:
-            job = self.connection.launch_job(q)
-            rez = job.get_results()
-            return rez
-        else:
-            try:
-                # native return type is pyvo.dal.tap.TAPResults
-                job = self.connection.search(q)
-                return self._standardize_table(job.to_table())
-            except DALServiceError:
-                log("Warning: backup TAP+ server failed")
-                self.connection = None
-                raise HTTPError("GaiaQuery failed on backup database.")
-
-    def _standardize_table(self, tab):
-        new_tab = tab.copy()
-        for col in tab.columns:
-            if tab[col].name == "source_id":
-                new_tab[col] = tab[col].astype(np.int64)
-            if tab[col].unit is not None:
-                colunit = new_tab[col].unit.to_string()
-                new_tab[col].unit = GaiaQuery.unit_conversion.get(colunit)
-            if tab[col].name == "pos":
-                ma.set_fill_value(new_tab[col], 180.0)
-                new_tab[col] = new_tab[col].astype(np.float64)
-                new_tab[col].name = "dist"
-
-        return new_tab
+gaia = GaiaQuery()
 
 
 def warningfilter(action="ignore", category=RuntimeWarning):
@@ -995,15 +895,8 @@ def get_nearby_offset_stars(
     )
 
     # try to get Gaia sources first
-    r = None
-    for retry in range(2):
-        try:
-            g = GaiaQuery()
-            r = g.query(query_string)
-            break
-        except Exception as e:
-            log(f"Gaia query failed: {e}]")
-            time.sleep(1 + 2**retry)
+    with gaia as g:
+        r = g.query(query_string)
 
     # ...otherwise fall back to ZTFref public sources or return
     # a tuple of no offset stars

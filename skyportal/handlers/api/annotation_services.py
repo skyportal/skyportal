@@ -18,7 +18,6 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from astroquery.gaia import GaiaClass
 from astroquery.ipac.irsa import Irsa
 from astroquery.vizier import Vizier
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from skyportal.utils.calculations import great_circle_distance
+from skyportal.utils.tap_services import GaiaQuery
 
 from ...models import (
     Annotation,
@@ -37,6 +37,8 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 PS1_URL = cfg["app.ps1_endpoint"]
+
+gaia = GaiaQuery()
 
 
 class GaiaQueryHandler(BaseHandler):
@@ -122,35 +124,47 @@ class GaiaQueryHandler(BaseHandler):
             author = self.associated_user_object
 
             catalog = data.pop("catalog", "gaiadr3.gaia_source")
-            radius_arcsec = data.pop("crossmatchRadius", cfg["cross_match.gaia.radius"])
+            radius_degrees = (
+                data.pop("crossmatchRadius", cfg["cross_match.gaia.radius"]) / 3600.0
+            )  # convert arcsec to degrees
             limmag = data.pop("crossmatchLimmag", cfg["cross_match.gaia.limmag"])
             num_matches = data.pop("crossmatchNumber", cfg["cross_match.gaia.number"])
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
-            gc = GaiaClass()
-            sub_context = gc.GAIA_MESSAGES
-            conn_handler = gc._TapPlus__getconnhandler()
-            response = conn_handler.execute_tapget(sub_context, verbose=False)
+            query_string = f"""
+                SELECT DISTANCE(
+                POINT('ICRS', ra, dec),
+                POINT('ICRS', {obj.ra}, {obj.dec})) AS
+                source_id, ra, dec, ref_epoch,
+                phot_g_mean_mag, phot_bp_mean_mag, phot_rp_mean_mag,
+                pm, pmra, pmdec, parallax, parallax_error, parallax_over_error,
+                ruwe
+                FROM {{main_db}}.gaia_source
+                WHERE 1=CONTAINS(
+                POINT('ICRS', ra, dec),
+                CIRCLE('ICRS', {obj.ra}, {obj.dec},
+                        {radius_degrees}))
+            """
 
-            maintenance = False
-            for line in response:
-                if "Maintenance ongoing" in line.decode("utf-8"):
-                    maintenance = True
-                    break
+            with gaia as g:
+                try:
+                    df = g.query(query_string)
+                    df = df.to_pandas()
+                except Exception as e:
+                    return self.error(
+                        f"Error querying Gaia: {e}. Please try again later."
+                    )
 
-            if maintenance:
-                return self.error("Gaia server down! Please try again later.")
-
-            df = (
-                GaiaClass()
-                .cone_search(
-                    candidate_coord,
-                    radius=radius_arcsec * u.arcsec,
-                    table_name=catalog,
+            if df is None:
+                return self.error(
+                    "Failed to retrieve Gaia data. Please try again later."
                 )
-                .get_data()
-                .to_pandas()
-            )
+            if len(df) == 0:
+                return self.error(
+                    f"No Gaia sources available within {(radius_degrees * 3600):.2f} arcseconds of the candidate."
+                )
+
+            df = df.to_pandas()
 
             # first remove rows that have faint magnitudes
             if limmag:  # do not remove if limmag is None or zero
@@ -190,7 +204,6 @@ class GaiaQueryHandler(BaseHandler):
                 "Plx": "parallax",
                 "Plx_err": "parallax_error",
                 "Plx_over_err": "parallax_over_error",
-                "A_G": "a_g_val",
                 "RUWE": "ruwe",
             }
 
