@@ -115,6 +115,7 @@ const AllocationList = ({ deletePermission }) => {
           numPerPage={allocationsState.numPerPage}
           sortingCallback={handleAllocationTableSorting}
           deletePermission={deletePermission}
+          fixedHeader={true}
         />
       )}
     </div>
