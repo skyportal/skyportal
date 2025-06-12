@@ -73,6 +73,7 @@ const getMuiTheme = (theme) =>
   });
 
 const InstrumentTable = ({
+  title = "Instruments",
   instruments,
   telescopes,
   deletePermission,
@@ -80,8 +81,8 @@ const InstrumentTable = ({
   paginateCallback = null,
   totalMatches = 0,
   numPerPage = 10,
-  hideTitle = false,
   telescopeInfo = true,
+  fixedHeader = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -435,6 +436,9 @@ const InstrumentTable = ({
   });
 
   const options = {
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 148px)" }
+      : {}),
     search: true,
     onSearchChange: handleSearchChange,
     selectableRows: "none",
@@ -466,7 +470,7 @@ const InstrumentTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={hideTitle === true ? "" : "Instruments"}
+              title={title}
               data={instruments || []}
               options={options}
               columns={columns}
@@ -514,24 +518,26 @@ const InstrumentTable = ({
 };
 
 InstrumentTable.propTypes = {
+  title: PropTypes.string,
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
   telescopes: PropTypes.arrayOf(PropTypes.any),
   sortingCallback: PropTypes.func,
   paginateCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
   deletePermission: PropTypes.bool,
+  fixedHeader: PropTypes.bool,
 };
 
 InstrumentTable.defaultProps = {
+  title: "Instruments",
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
   paginateCallback: null,
-  hideTitle: false,
   telescopeInfo: true,
+  fixedHeader: false,
 };
 
 export default InstrumentTable;

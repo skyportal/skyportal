@@ -149,10 +149,16 @@ class CandidateFilterHandler(BaseHandler):
                 "null",
                 "undefined",
             }:
-                start_date = arrow.get(start_date).datetime
+                try:
+                    start_date = arrow.get(start_date).datetime
+                except Exception as e:
+                    return self.error(f"Invalid startDate value: {e}")
                 stmt = stmt.where(Candidate.passed_at >= start_date)
             if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
-                end_date = arrow.get(end_date).datetime
+                try:
+                    end_date = arrow.get(end_date).datetime
+                except Exception as e:
+                    return self.error(f"Invalid endDate value: {e}")
                 stmt = stmt.where(Candidate.passed_at <= end_date)
 
             stmt = get_subquery_for_saved_status(

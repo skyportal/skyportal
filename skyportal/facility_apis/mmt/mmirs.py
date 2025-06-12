@@ -7,8 +7,10 @@ from .mmt_utils import (
     check_obj_for_mmt,
     delete_mmt_request,
     mmt_aldata,
+    mmt_dependencies,
     mmt_properties,
     mmt_required,
+    mmt_ui_json_schema,
     submit_mmt_request,
 )
 
@@ -177,6 +179,9 @@ class MMIRSAPI(FollowUpAPI):
             "properties": {
                 **mmt_properties,
             },
+            "dependencies": {
+                **mmt_dependencies,
+            },
             "required": mmt_required,
             "if": {
                 "properties": {"observation_type": {"const": "Spectroscopy"}},
@@ -185,7 +190,7 @@ class MMIRSAPI(FollowUpAPI):
             "else": imager_schema,
         }
 
-    ui_json_schema = {}
+    ui_json_schema = {**mmt_ui_json_schema}
 
     form_json_schema_altdata = mmt_aldata
 

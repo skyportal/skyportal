@@ -6,7 +6,6 @@ import store from "../store";
 const FETCH_NEWSFEED = "skyportal/FETCH_NEWSFEED";
 const FETCH_NEWSFEED_OK = "skyportal/FETCH_NEWSFEED_OK";
 
-// eslint-disable-next-line import/prefer-default-export
 export function fetchNewsFeed() {
   return API.GET("/api/newsfeed", FETCH_NEWSFEED);
 }

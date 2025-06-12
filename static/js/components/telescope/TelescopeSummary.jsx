@@ -108,31 +108,34 @@ const TelescopeSummary = ({ route }) => {
           </Paper>
         </Grid>
         <Grid item xs={12}>
-          <div>
-            <Typography className={classes.title} color="textSecondary">
-              Instruments
-            </Typography>
-            {telescope.instruments && (
-              <InstrumentTable
-                instruments={telescope.instruments}
-                telescopeInfo={false}
-              />
-            )}
-          </div>
-          <div>
-            <Typography className={classes.title} color="textSecondary">
-              Allocations
-            </Typography>
-            {telescope.allocations && (
-              <AllocationTable
-                instruments={instrumentsState.instrumentList}
-                allocations={telescope.allocations}
-                groups={groups}
-                hideTitle
-                telescopeInfo={false}
-              />
-            )}
-          </div>
+          {telescope.instruments ? (
+            <InstrumentTable
+              instruments={telescope.instruments}
+              telescopeInfo={false}
+            />
+          ) : (
+            <Paper className={classes.paper}>
+              <Typography className={classes.title} color="textSecondary">
+                No instruments available
+              </Typography>
+            </Paper>
+          )}
+        </Grid>
+        <Grid item xs={12}>
+          {telescope.allocations ? (
+            <AllocationTable
+              instruments={instrumentsState.instrumentList}
+              allocations={telescope.allocations}
+              groups={groups}
+              telescopeInfo={false}
+            />
+          ) : (
+            <Paper className={classes.paper}>
+              <Typography className={classes.title} color="textSecondary">
+                No allocations available
+              </Typography>
+            </Paper>
+          )}
         </Grid>
       </Grid>
     </div>
