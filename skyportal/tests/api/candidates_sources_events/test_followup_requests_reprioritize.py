@@ -29,7 +29,6 @@ def test_reprioritize_followup_request(
     status, data = api(
         "POST", "followup_request", data=request_data, token=upload_data_token
     )
-    print(status, data)
     assert status == 200
     assert data["status"] == "success"
     id = data["data"]["id"]
