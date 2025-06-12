@@ -12,13 +12,15 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
-import CloseIcon from "@mui/icons-material/Close";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/styles";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 import TelescopeTable from "./TelescopeTable";
@@ -99,6 +101,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const TelescopePage = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const classes = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
@@ -202,6 +206,45 @@ const TelescopePage = () => {
     />
   );
 
+  const DisplayMode = () => (
+    <Box
+      position="absolute"
+      top={43}
+      left="50%"
+      sx={{ transform: "translateX(-50%)", zIndex: 10 }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          borderRadius: "999px",
+          px: 0,
+          backgroundColor: "rgba(240,242,245,0.7)",
+        }}
+      >
+        <ToggleButtonGroup
+          value={displayTelescopeTable}
+          exclusive
+          onChange={(e, newView) => {
+            if (newView === null) return;
+            setDisplayTelescopeTable(newView);
+          }}
+          sx={{
+            height: 34,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: "999px",
+              textTransform: "none",
+              px: 3,
+            },
+          }}
+        >
+          <ToggleButton value={false}>Map</ToggleButton>
+          <ToggleButton value={true}>Table</ToggleButton>
+        </ToggleButtonGroup>
+      </Paper>
+    </Box>
+  );
+
   return (
     <Suspense
       fallback={
@@ -210,7 +253,8 @@ const TelescopePage = () => {
         </div>
       }
     >
-      <Grid container spacing={5}>
+      <Grid container spacing={5} style={{ position: "relative" }}>
+        {!isMobile && <DisplayMode />}
         <Grid
           item
           lg={8}
@@ -240,36 +284,7 @@ const TelescopePage = () => {
           lg={displayTelescopeTable ? 12 : 4}
           style={{ position: "relative" }}
         >
-          <Button
-            onClick={() => {
-              setDisplayTelescopeTable(!displayTelescopeTable);
-            }}
-            sx={{
-              position: "absolute",
-              height: displayTelescopeTable ? "24px" : "56px",
-              top: displayTelescopeTable ? "52px" : "76px",
-              left: displayTelescopeTable ? "40px" : "12px",
-              boxShadow: displayTelescopeTable
-                ? "none"
-                : "-1px 0 1px rgba(0, 0, 0, 0.4)",
-              backgroundColor: displayTelescopeTable ? "" : "#f0f2f5",
-              borderRadius: displayTelescopeTable ? "8px" : "8px 0 0 8px",
-              padding: "5px 4px",
-              transform: "translateY(-50%)",
-              zIndex: 2,
-              minWidth: "28px",
-              "&:hover": {
-                boxShadow: "-1px 0 1px rgba(0, 0, 0, 0.1)",
-              },
-            }}
-          >
-            {displayTelescopeTable ? (
-              <CloseIcon fontSize="medium" />
-            ) : (
-              <ArrowBackIosNewIcon fontSize="small" />
-            )}
-          </Button>
-          {displayTelescopeTable ? (
+          {displayTelescopeTable || isMobile ? (
             <TelescopeTable
               telescopes={telescopeList}
               deletePermission={permission}
