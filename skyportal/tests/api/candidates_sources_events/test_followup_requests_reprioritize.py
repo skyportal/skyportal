@@ -2,7 +2,7 @@ from skyportal.tests import api
 
 
 def test_reprioritize_followup_request(
-    public_group_generic_instrument_allocation,
+    public_group_generic_allocation,
     public_source,
     upload_data_token,
     gcn_GW190425,
@@ -10,13 +10,13 @@ def test_reprioritize_followup_request(
     localization_id = gcn_GW190425.localizations[0].id
 
     request_data = {
-        "allocation_id": public_group_generic_instrument_allocation.id,
+        "allocation_id": public_group_generic_allocation.id,
         "obj_id": public_source.id,
         "payload": {
             "priority": 1,
             "start_date": "3020-09-01",
             "end_date": "3022-09-01",
-            "observation_choices": public_group_generic_instrument_allocation.instrument.to_dict()[
+            "observation_choices": public_group_generic_allocation.instrument.to_dict()[
                 "filters"
             ],
             "exposure_time": 300,

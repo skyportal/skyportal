@@ -36,16 +36,16 @@ def test_token_user_post_robotic_followup_request(
 
 
 def test_token_user_delete_owned_followup_request(
-    public_group_generic_instrument_allocation, public_source, upload_data_token
+    public_group_generic_allocation, public_source, upload_data_token
 ):
     request_data = {
-        "allocation_id": public_group_generic_instrument_allocation.id,
+        "allocation_id": public_group_generic_allocation.id,
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
             "start_date": "3020-09-01",
             "end_date": "3022-09-01",
-            "observation_choices": public_group_generic_instrument_allocation.instrument.to_dict()[
+            "observation_choices": public_group_generic_allocation.instrument.to_dict()[
                 "filters"
             ],
             "exposure_time": 300,
@@ -119,19 +119,19 @@ def test_token_user_modify_owned_followup_request(
 
 
 def test_regular_user_delete_super_admin_followup_request(
-    public_group_generic_instrument_allocation,
+    public_group_generic_allocation,
     public_source,
     upload_data_token,
     super_admin_token,
 ):
     request_data = {
-        "allocation_id": public_group_generic_instrument_allocation.id,
+        "allocation_id": public_group_generic_allocation.id,
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
             "start_date": "3020-09-01",
             "end_date": "3022-09-01",
-            "observation_choices": public_group_generic_instrument_allocation.instrument.to_dict()[
+            "observation_choices": public_group_generic_allocation.instrument.to_dict()[
                 "filters"
             ],
             "exposure_time": 300,

@@ -1293,7 +1293,7 @@ def public_group2_sedm_allocation(sedm, public_group2):
 
 
 @pytest.fixture()
-def public_group_generic_instrument_allocation(generic_instrument, public_group):
+def public_group_generic_allocation(generic_instrument, public_group):
     allocation = AllocationFactory(
         instrument=generic_instrument,
         group=public_group,
