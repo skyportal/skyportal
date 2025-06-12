@@ -36,19 +36,22 @@ def test_token_user_post_robotic_followup_request(
 
 
 def test_token_user_delete_owned_followup_request(
-    public_group_sedm_allocation, public_source, upload_data_token
+    public_group_generic_instrument_allocation, public_source, upload_data_token
 ):
     request_data = {
-        "allocation_id": public_group_sedm_allocation.id,
+        "allocation_id": public_group_generic_instrument_allocation.id,
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
             "start_date": "3020-09-01",
             "end_date": "3022-09-01",
-            "observation_type": "IFU",
+            "observation_choices": public_group_generic_instrument_allocation.instrument.to_dict()[
+                "filters"
+            ],
             "exposure_time": 300,
+            "exposure_counts": 1,
             "maximum_airmass": 2,
-            "maximum_fwhm": 1.2,
+            "minimum_lunar_distance": 30,
         },
     }
 
@@ -116,19 +119,25 @@ def test_token_user_modify_owned_followup_request(
 
 
 def test_regular_user_delete_super_admin_followup_request(
-    public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
+    public_group_generic_instrument_allocation,
+    public_source,
+    upload_data_token,
+    super_admin_token,
 ):
     request_data = {
-        "allocation_id": public_group_sedm_allocation.id,
+        "allocation_id": public_group_generic_instrument_allocation.id,
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
             "start_date": "3020-09-01",
             "end_date": "3022-09-01",
-            "observation_type": "IFU",
+            "observation_choices": public_group_generic_instrument_allocation.instrument.to_dict()[
+                "filters"
+            ],
             "exposure_time": 300,
+            "exposure_counts": 1,
             "maximum_airmass": 2,
-            "maximum_fwhm": 1.2,
+            "minimum_lunar_distance": 30,
         },
     }
 

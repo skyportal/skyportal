@@ -636,6 +636,20 @@ def sedm(p60_telescope):
 
 
 @pytest.fixture()
+def generic_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"GenericInstrument_{uuid.uuid4()}",
+        type="imaging spectrograph",
+        telescope=p60_telescope,
+        band="Optical",
+        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
+        api_classname="GENERICAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
 def red_transients_run(user):
     run = ObservingRunFactory(owner=user)
     yield run
@@ -1270,6 +1284,19 @@ def public_group2_sedm_allocation(sedm, public_group2):
     allocation = AllocationFactory(
         instrument=sedm,
         group=public_group2,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def public_group_generic_instrument_allocation(generic_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=generic_instrument,
+        group=public_group,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
