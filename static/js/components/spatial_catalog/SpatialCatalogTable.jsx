@@ -194,7 +194,6 @@ const SpatialCatalogTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = false,
-  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -268,7 +267,7 @@ const SpatialCatalogTable = ({
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                title={!hideTitle ? "Catalog Entries" : ""}
+                title="Catalog Entries"
                 data={catalog.entries}
                 options={options}
                 columns={columns}
@@ -298,7 +297,6 @@ SpatialCatalogTable.propTypes = {
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
@@ -307,7 +305,6 @@ SpatialCatalogTable.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
-  hideTitle: false,
   serverSide: false,
 };
 

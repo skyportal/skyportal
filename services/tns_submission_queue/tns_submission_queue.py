@@ -185,6 +185,11 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request):
     altdata = tnsrobot.altdata
     obj_id = submission_request.obj_id
 
+    # if the robot is in test mode, we skip the existing TNS report check
+    if tnsrobot.testing:
+        log(f"Skipping existing TNS report check for {obj_id} in test mode.")
+        return
+
     _, existing_tns_name = get_IAUname(
         altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
     )
@@ -941,11 +946,11 @@ def process_submission_request(submission_request, session):
             Photometry.select(user).where(
                 Photometry.obj_id == obj_id,
                 Photometry.instrument_id.in_(instrument_ids),
-                # make sure that the origin does not contain 'fp' (for forced photometry)
-                # as we only want to submit alert-based photometry for surveys
-                # like ZTF that also provide a forced photometry service,
-                # which detections might have lower SNR and be less reliable or not real
-                ~Photometry.origin.ilike("%fp%"),
+                # keep all non-detections, reject detections with SNR < 5
+                sa.or_(
+                    Photometry.flux / Photometry.fluxerr > 5,
+                    Photometry.flux.is_(None),
+                ),
             )
         ).all()
 

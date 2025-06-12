@@ -68,6 +68,7 @@ const InstrumentList = () => {
           pageNumber={instrumentsState.pageNumber}
           numPerPage={instrumentsState.numPerPage}
           sortingCallback={handleInstrumentTableSorting}
+          fixedHeader={true}
         />
       </Grid>
     </Grid>
