@@ -25,59 +25,16 @@ function CustomZoomableGroup({ children, ...restProps }) {
   );
 }
 function setCurrentTelescopes(currentTelescopes) {
-  const currentTelescopeMenu = "Telescope List";
   dispatch({
-    type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
-    data: { currentTelescopes, currentTelescopeMenu },
+    type: "skyportal/CURRENT_TELESCOPES",
+    data: { currentTelescopes },
   });
 }
 
-function telescopelabel(nestedTelescope) {
+function telescopeLabel(nestedTelescope) {
   return nestedTelescope.telescopes
     .map((telescope) => telescope.nickname)
     .join(" / ");
-}
-
-function telescopeCanObserve(nestedTelescope) {
-  let color = "#f9d71c";
-  if (nestedTelescope.is_night_astronomical_at_least_one) {
-    color = "#0c1445";
-  }
-  return color;
-}
-
-function TelescopeMarker({ nestedTelescope, position }) {
-  return (
-    <Marker
-      id="telescope_marker"
-      key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
-      coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
-      onClick={() => setCurrentTelescopes(nestedTelescope)}
-    >
-      {nestedTelescope.fixed_location ? (
-        <circle
-          r={6.5 / position.k}
-          fill={telescopeCanObserve(nestedTelescope)}
-        />
-      ) : (
-        <rect
-          x={-6.5 / position.k}
-          y={-6.5 / position.k}
-          width={13 / position.k}
-          height={13 / position.k}
-          fill="#5ca9d6"
-        />
-      )}
-      <text
-        id="telescopes_label"
-        textAnchor="middle"
-        fontSize={10 / position.k}
-        y={-10 / position.k}
-      >
-        {telescopelabel(nestedTelescope)}
-      </text>
-    </Marker>
-  );
 }
 
 function normalizeLongitudeDiff(alpha, beta) {
@@ -177,11 +134,41 @@ const TelescopeMap = ({ telescopes }) => {
               (nestedTelescope) =>
                 nestedTelescope.lon &&
                 nestedTelescope.lat && (
-                  <TelescopeMarker
+                  <Marker
                     key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
-                    nestedTelescope={nestedTelescope}
-                    position={position}
-                  />
+                    id="telescope_marker"
+                    coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
+                    onClick={() =>
+                      setCurrentTelescopes(nestedTelescope.telescopes)
+                    }
+                  >
+                    {nestedTelescope.fixed_location ? (
+                      <circle
+                        r={6.5 / position.k}
+                        fill={
+                          nestedTelescope.is_night_astronomical_at_least_one
+                            ? "#0c1445"
+                            : "#f9d71c"
+                        }
+                      />
+                    ) : (
+                      <rect
+                        x={-6.5 / position.k}
+                        y={-6.5 / position.k}
+                        width={13 / position.k}
+                        height={13 / position.k}
+                        fill="#5ca9d6"
+                      />
+                    )}
+                    <text
+                      id="telescopes_label"
+                      textAnchor="middle"
+                      fontSize={10 / position.k}
+                      y={-10 / position.k}
+                    >
+                      {telescopeLabel(nestedTelescope)}
+                    </text>
+                  </Marker>
                 ),
             )}
           </>
@@ -204,35 +191,8 @@ TelescopeMap.propTypes = {
   ).isRequired,
 };
 
-TelescopeMarker.propTypes = {
-  nestedTelescope: PropTypes.shape({
-    lat: PropTypes.number.isRequired,
-    lon: PropTypes.number.isRequired,
-    fixed_location: PropTypes.bool.isRequired,
-    is_night_astronomical_at_least_one: PropTypes.bool.isRequired,
-    telescopes: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number.isRequired,
-        name: PropTypes.string.isRequired,
-        nickname: PropTypes.string.isRequired,
-        lat: PropTypes.number,
-        lon: PropTypes.number,
-        fixed_location: PropTypes.bool,
-        is_night_astronomical: PropTypes.bool.isRequired,
-      }),
-    ),
-  }).isRequired,
-  position: PropTypes.shape({
-    k: PropTypes.number,
-  }).isRequired,
-};
-
 CustomZoomableGroup.propTypes = {
-  children: PropTypes.node,
-};
-
-CustomZoomableGroup.defaultProps = {
-  children: null,
+  children: PropTypes.func.isRequired,
 };
 
 export default TelescopeMap;

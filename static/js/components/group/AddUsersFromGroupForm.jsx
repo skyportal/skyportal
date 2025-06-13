@@ -79,7 +79,6 @@ const AddUsersFromGroupForm = ({ groupID }) => {
               data-testid="addUsersFromGroupsSelect"
               renderInput={(field) => (
                 <TextField
-                  // eslint-disable-next-line react/jsx-props-no-spreading
                   {...field}
                   error={!!errors.groups}
                   variant="outlined"
