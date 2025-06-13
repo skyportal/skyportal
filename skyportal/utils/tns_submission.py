@@ -48,6 +48,11 @@ def apply_existing_tns_report_rules(publishing_bot, submission_request):
     obj_id = submission_request.obj_id
     tns_headers = get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name)
 
+    # if the bot is in test mode, we skip the existing TNS report check
+    if publishing_bot.testing:
+        log(f"Skipping existing TNS report check for {obj_id} in test mode.")
+        return
+
     _, existing_tns_name = get_IAUname(
         altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
     )
