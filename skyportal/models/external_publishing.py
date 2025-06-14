@@ -266,9 +266,18 @@ class ExternalPublishingSubmission(Base):
         sa.String, nullable=True, doc="Status of the TNS submission."
     )
 
+    tns_submission_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        default=None,
+        doc="ID of the submission returned by TNS.",
+    )
+
     tns_response = deferred(
         sa.Column(psql.JSONB, doc="Serialized HTTP response from TNS.")
     )
+
+    tns_payload = deferred(sa.Column(psql.JSONB, doc="Payload to publish to TNS."))
 
     publish_to_hermes = sa.Column(
         sa.Boolean,
@@ -299,13 +308,6 @@ class ExternalPublishingSubmission(Base):
         doc="Comment to use for archival submission.",
     )
 
-    tns_submission_id = sa.Column(
-        sa.Integer,
-        nullable=True,
-        default=None,
-        doc="ID of the submission returned by TNS.",
-    )
-
     auto_submission = sa.Column(
         sa.Boolean,
         nullable=False,
@@ -333,8 +335,6 @@ class ExternalPublishingSubmission(Base):
         doc="Photometry options to use for this submission, to make some data optional or mandatory."
         "If specified, overrides the bot's default photometry options.",
     )
-
-    payload = deferred(sa.Column(psql.JSONB, doc="Payload to publish."))
 
     external_publishing_bot = relationship(
         "ExternalPublishingBot",

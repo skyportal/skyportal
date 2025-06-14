@@ -272,7 +272,7 @@ def send_tns_report(submission_request, publishing_bot, report):
         log(
             f"Publishing bot {publishing_bot.id} is in testing mode, skipping TNS submission for {obj_id}."
         )
-        return "testing mode, not submitted", None, None
+        return "Testing mode, not submitted", None, None
 
     # 24 * 10 seconds = 4 minutes of retries
     max_retries = 24
@@ -368,7 +368,7 @@ def submit_to_tns(
             stream_ids,
             session,
         )
-        submission_request.payload = json.dumps(tns_report)
+        submission_request.tns_payload = json.dumps(tns_report)
 
         # submit the report to TNS
         status, submission_id, serialized_response = send_tns_report(
@@ -378,8 +378,8 @@ def submit_to_tns(
         submission_request.tns_response = serialized_response
 
         notif_text = status
-        if status in ["submitted", "testing mode, not submitted"]:
-            if status == "testing mode, not submitted":
+        if status in ["submitted", "Testing mode, not submitted"]:
+            if status == "Testing mode, not submitted":
                 notif_text = f"Successfully created TNS report for {submission_request.obj_id} (testing mode, not submitted)."
             else:
                 notif_text = (
@@ -391,11 +391,7 @@ def submit_to_tns(
 
     except Exception as e:
         error = str(e)
-        notif_type = (
-            "warning"
-            if "ExternalPublishingWarning:" in error or "already posted" in error
-            else "error",
-        )
+        notif_type = ("warning" if "ExternalPublishingWarning:" in error else "error",)
 
         e = re.sub(r"ExternalPublishing(Error|Warning): ", "", error)
         notif_text = f"TNS error: {e}"

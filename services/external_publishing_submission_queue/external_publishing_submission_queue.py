@@ -444,10 +444,10 @@ def validate_submission_requests():
                         and obj.tns_info.get("discoverer") is not None
                         and (
                             (
-                                submission_request.payload is not None
-                                and isinstance(submission_request.payload, dict)
+                                submission_request.tns_payload is not None
+                                and isinstance(submission_request.tns_payload, dict)
                                 and obj.tns_info.get("discoverer")
-                                == submission_request.payload.get("reporter")
+                                == submission_request.tns_payload.get("reporter")
                             )
                             or (
                                 submission_request.custom_publishing_string is not None
