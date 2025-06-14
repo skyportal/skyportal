@@ -66,11 +66,11 @@ const NewSource = ({ classes, onClose }) => {
   };
 
   function validate(formData, errors) {
+    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
+      errors.__errors.push("Select at least one group.");
+    }
     if ((formData?.ra !== "" || formData?.dec !== "") && formData?.id === "") {
       errors.id.addError("Please enter a source ID.");
-    }
-    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
-      errors.id.addError("Select at least one group.");
     }
     if ((formData?.id || "").indexOf(" ") >= 0) {
       errors.id.addError("IDs are not allowed to have spaces, please fix.");
@@ -132,7 +132,6 @@ const NewSource = ({ classes, onClose }) => {
             validator={validator}
             onSubmit={handleSubmit}
             customValidate={validate}
-            liveValidate
           />
         </div>
       </div>
