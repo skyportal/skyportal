@@ -68,16 +68,6 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                         schema: Error
         """
         data = self.get_json()
-        fields = [
-            "auto_publish_to_tns",
-            "auto_publish_to_hermes",
-            "owner",
-            "auto_publish_allow_bots",
-        ]
-        if not any(field in data for field in fields):
-            return self.error(
-                "You must update at least one of: auto_publish_to_tns, auto_publish_to_hermes, owner, or auto_publish_allow_bots when editing a bot group."
-            )
         auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns", ""))
         auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes", ""))
         auto_publish_allow_bots = str_to_bool(data.get("auto_publish_allow_bots", ""))
@@ -100,7 +90,7 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
             )
             self.current_user.assert_group_accessible(group_id)
 
-            # check if the group already has access to the external_publishing_bot
+            # check if a bot group already exist
             bot_group = session.scalar(
                 ExternalPublishingBotGroup.select(session.user_or_token).where(
                     ExternalPublishingBotGroup.external_publishing_bot_id
@@ -110,6 +100,16 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
             )
 
             if bot_group:
+                # If this is an edit, check if the user has selected at least one field to update
+                if (
+                    auto_publish_to_tns is None
+                    and auto_publish_to_hermes is None
+                    and auto_publish_allow_bots is None
+                    and owner is None
+                ):
+                    return self.error(
+                        "You must update at least one of: auto_publish_to_tns, auto_publish_to_hermes, owner, or auto_publish_allow_bots when editing a bot group."
+                    )
                 if (
                     auto_publish_to_tns is not None
                     and auto_publish_to_hermes != bot_group.auto_publish_to_tns
