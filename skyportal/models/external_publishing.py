@@ -166,8 +166,10 @@ class ExternalPublishingBotGroup(Base):
     group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
-    auto_publish_to_tns = sa.Column(sa.Boolean, nullable=False, default=False)
-    auto_publish_to_hermes = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_publish_to_tns = sa.Column(sa.Boolean, nullable=False, server_default="false")
+    auto_publish_to_hermes = sa.Column(
+        sa.Boolean, nullable=False, server_default="false"
+    )
     auto_publish_allow_bots = sa.Column(
         sa.Boolean, nullable=False, server_default="false"
     )

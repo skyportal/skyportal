@@ -68,13 +68,20 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                         schema: Error
         """
         data = self.get_json()
-
-        auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns", False))
-        auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes", False))
-        auto_publish_allow_bots = str_to_bool(
-            data.get("auto_publish_allow_bots", False)
-        )
-        owner = str_to_bool(data.get("owner", False))
+        fields = [
+            "auto_publish_to_tns",
+            "auto_publish_to_hermes",
+            "owner",
+            "auto_publish_allow_bots",
+        ]
+        if not any(field in data for field in fields):
+            return self.error(
+                "You must update at least one of: auto_publish_to_tns, auto_publish_to_hermes, owner, or auto_publish_allow_bots when editing a bot group."
+            )
+        auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns", ""))
+        auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes", ""))
+        auto_publish_allow_bots = str_to_bool(data.get("auto_publish_allow_bots", ""))
+        owner = str_to_bool(data.get("owner", ""))
 
         group_id = data.get("group_id", group_id)
         if group_id is None:
@@ -103,16 +110,6 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
             )
 
             if bot_group:
-                if (
-                    auto_publish_to_tns is None
-                    and auto_publish_to_hermes is None
-                    and owner is None
-                    and auto_publish_allow_bots is None
-                ):
-                    return self.error(
-                        "Specify at least one auto-publish service, owner, or auto_publish_allow_bots when editing a bot group."
-                    )
-
                 if (
                     auto_publish_to_tns is not None
                     and auto_publish_to_hermes != bot_group.auto_publish_to_tns
