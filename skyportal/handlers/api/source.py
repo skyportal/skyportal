@@ -873,7 +873,7 @@ def post_source(data, user_id, session, refresh_source=True):
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-    publish_to = ["TNS", "TNS/Hermes", "Public page"]
+    publish_to = ["TNS", "Hermes", "Public page"]
     for group in groups:
         auto_source_publishing(
             session=session,

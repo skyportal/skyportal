@@ -139,7 +139,7 @@ class SourceGroupsHandler(BaseHandler):
             session.commit()
 
             # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-            publish_to = ["TNS", "TNS/Hermes", "Public page"]
+            publish_to = ["TNS", "Hermes", "Public page"]
             for group_id in saved_to_group_ids:
                 auto_source_publishing(
                     session=session,
