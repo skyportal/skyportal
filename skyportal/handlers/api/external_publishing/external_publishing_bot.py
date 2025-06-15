@@ -152,7 +152,7 @@ def update_external_publishing_bot(
     for boolean_field in ["publish_existing_tns_objects", "testing"]:
         value = data.get(boolean_field)
         if value not in [None, ""]:
-            setattr(external_publishing_bot, boolean_field, str_to_bool(str(value)))
+            setattr(external_publishing_bot, boolean_field, str_to_bool(value))
 
     # Optional text field
     ack = data.get("acknowledgments")

@@ -68,10 +68,22 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                         schema: Error
         """
         data = self.get_json()
-        auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns", ""))
-        auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes", ""))
-        auto_publish_allow_bots = str_to_bool(data.get("auto_publish_allow_bots", ""))
-        owner = str_to_bool(data.get("owner", ""))
+        auto_publish_to_tns = (
+            str_to_bool(data.get("auto_publish_to_tns"))
+            if "auto_publish_to_tns" in data
+            else None
+        )
+        auto_publish_to_hermes = (
+            str_to_bool(data.get("auto_publish_to_hermes"))
+            if "auto_publish_to_hermes" in data
+            else None
+        )
+        auto_publish_allow_bots = (
+            str_to_bool(data.get("auto_publish_allow_bots"))
+            if "auto_publish_allow_bots" in data
+            else None
+        )
+        owner = str_to_bool(data.get("owner")) if "owner" in data else None
 
         group_id = data.get("group_id", group_id)
         if group_id is None:
