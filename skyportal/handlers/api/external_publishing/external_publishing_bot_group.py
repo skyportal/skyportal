@@ -69,10 +69,12 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
         """
         data = self.get_json()
 
-        auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns"))
-        auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes"))
-        auto_publish_allow_bots = str_to_bool(data.get("auto_publish_allow_bots"))
-        owner = str_to_bool(data.get("owner"))
+        auto_publish_to_tns = str_to_bool(data.get("auto_publish_to_tns", False))
+        auto_publish_to_hermes = str_to_bool(data.get("auto_publish_to_hermes", False))
+        auto_publish_allow_bots = str_to_bool(
+            data.get("auto_publish_allow_bots", False)
+        )
+        owner = str_to_bool(data.get("owner", False))
 
         group_id = data.get("group_id", group_id)
         if group_id is None:
