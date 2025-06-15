@@ -23,7 +23,7 @@ env, cfg = load_env()
 
 app_url = get_app_base_url()
 
-TNS_URL = cfg["app.tns.endpoint"]
+TNS_URL = cfg.get("app.tns.endpoint")
 
 tns_url_dict = {
     "base": TNS_URL,
