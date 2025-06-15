@@ -29,6 +29,11 @@ env, cfg = load_env()
 log = make_log("tns_submission_utils")
 
 
+# Custom exception to catch external publishing issues we want to notify as warnings
+class TNSWarning(Exception):
+    pass
+
+
 def apply_existing_tns_report_rules(publishing_bot, submission_request):
     """Apply the rules for existing TNS reports to the submission request.
 
@@ -58,17 +63,15 @@ def apply_existing_tns_report_rules(publishing_bot, submission_request):
     )
     if existing_tns_name is not None:
         if not publishing_bot.publish_existing_tns_objects:
-            raise ValueError(
-                f"ExternalPublishingWarning: {obj_id} already posted to TNS as {existing_tns_name}."
-            )
+            raise TNSWarning(f"{obj_id} already posted to TNS as {existing_tns_name}.")
         else:
             # look if the object on TNS has already been reported by the same survey (same internal name, here being the obj_id)
             internal_names = get_internal_names(
                 altdata["api_key"], tns_headers, tns_name=existing_tns_name
             )
             if len(internal_names) > 0 and obj_id in internal_names:
-                raise ValueError(
-                    f"ExternalPublishingWarning: {obj_id} already posted to TNS with the same internal source name."
+                raise TNSWarning(
+                    f"{obj_id} already posted to TNS with the same internal source name."
                 )
 
 
@@ -123,16 +126,6 @@ def build_tns_report(
         else:
             detections.append(phot)
 
-    if not detections:
-        raise ValueError(
-            f"ExternalPublishingWarning: Need at least one detection to report with publishing bot {publishing_bot.id}."
-        )
-
-    if photometry_options["first_and_last_detections"] is True and len(detections) < 2:
-        raise ValueError(
-            f"ExternalPublishingWarning: Publishing bot {publishing_bot.id} requires both first and last detections, but only one detection is available."
-        )
-
     # sort each by mjd ascending and filter out non-detections that are after the first detection
     detections.sort(key=lambda k: k["mjd"])
     non_detections = sorted(
@@ -180,8 +173,8 @@ def build_tns_report(
             archival_comment = "No non-detections prior to first detection"
 
     if not non_detections and not archival:
-        raise ValueError(
-            f"ExternalPublishingWarning: Publishing bot {publishing_bot.id} requires at least one non-detection before the first detection, but none are available."
+        raise TNSWarning(
+            f"To publish to TNS the bot {publishing_bot.id} requires at least one non-detection before the first detection, but none are available."
         )
 
     if archival:
@@ -324,7 +317,7 @@ def submit_to_tns(
     try:
         if not TNS_URL:
             raise ValueError(
-                "ExternalPublishingWarning: TNS URL is not configured. Please set 'app.tns.endpoint' in the configuration to use TNS submission."
+                "TNS URL is not configured. Please set 'app.tns.endpoint' in the configuration to use TNS submission."
             )
 
         obj_id = submission_request.obj_id
@@ -332,20 +325,20 @@ def submit_to_tns(
 
         if not tns_altdata or "api_key" not in tns_altdata:
             raise ValueError(
-                f"ExternalPublishingError: No TNS API key found for publishing bot {publishing_bot.id}."
+                f"No TNS API key found for publishing bot {publishing_bot.id}."
             )
 
         # Validate that the object ID is valid for submission to TNS with the given TNS source group ID.
         if publishing_bot.source_group_id not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS:
             raise ValueError(
-                f"ExternalPublishingError: Unknown naming convention for TNS source group ID {publishing_bot.source_group_id}, cannot validate object ID."
+                f"Unknown naming convention for TNS source group ID {publishing_bot.source_group_id}, cannot validate object ID."
             )
         regex_pattern = TNS_SOURCE_GROUP_NAMING_CONVENTIONS[
             publishing_bot.source_group_id
         ]
         if not re.match(regex_pattern, obj_id):
             raise ValueError(
-                f"ExternalPublishingError: Object ID {obj_id} does not match the expected naming convention for TNS source group ID {publishing_bot.source_group_id}."
+                f"Object ID {obj_id} does not match the expected naming convention for TNS source group ID {publishing_bot.source_group_id}."
             )
 
         apply_existing_tns_report_rules(publishing_bot, submission_request)
@@ -354,7 +347,7 @@ def submit_to_tns(
         archival_comment = submission_request.archival_comment
         if archival and not archival_comment:
             raise ValueError(
-                f"ExternalPublishingError: Archival submission requested for {obj_id} but no archival_comment provided."
+                f"Archival submission requested for {obj_id} but no archival_comment provided."
             )
 
         photometry = [serialize(phot, "ab", "mag") for phot in photometry]
@@ -386,14 +379,16 @@ def submit_to_tns(
                     f"Successfully submitted {submission_request.obj_id} to TNS."
                 )
             if warning:
-                status = f"{status} (warning: {warning})"
-                notif_text += f"; Warning: {warning}"
+                status += f"(warning: {warning})"
+                notif_text += f"(warning: {warning})"
+    except TNSWarning as e:
+        notif_type = "warning"
+        notif_text = f"TNS warning: {e}"
+        status = f"Warning: {e}"
+        log(str(e))
 
     except Exception as e:
-        error = str(e)
-        notif_type = ("warning" if "ExternalPublishingWarning:" in error else "error",)
-
-        e = re.sub(r"ExternalPublishing(Error|Warning): ", "", error)
+        notif_type = "error"
         notif_text = f"TNS error: {e}"
         status = f"Error: {e}"
         log(str(e))
@@ -461,12 +456,12 @@ def check_at_report(submission_id, publishing_bot):
         time.sleep(retry_delay)
 
     if r.status_code not in [200, 400, 404]:
-        raise ValueError(f"ExternalPublishingError: Error checking report: {r.text}")
+        raise ValueError(f"Error checking report: {r.text}")
 
     try:
         response = serialize_requests_response(r)
     except Exception as e:
-        raise ValueError(f"ExternalPublishingError: Error serializing response: {e}")
+        raise ValueError(f"Error serializing response: {e}")
 
     if r.status_code == 404:
         return None, response, "report not found"
@@ -474,14 +469,10 @@ def check_at_report(submission_id, publishing_bot):
     try:
         at_report = r.json().get("data", {}).get("feedback", {}).get("at_report", [])
     except Exception:
-        raise ValueError(
-            "ExternalPublishingError: Could not find AT report in response."
-        )
+        raise ValueError("Could not find AT report in response.")
 
     if not at_report or not isinstance(at_report, list):
-        raise ValueError(
-            "ExternalPublishingError: No AT report data found in response."
-        )
+        raise ValueError("No AT report data found in response.")
 
     # An identical AT report (sender, RA\/DEC, discovery date) already exists.
     if "An identical AT report" in str(at_report):
@@ -509,29 +500,23 @@ def check_at_report(submission_id, publishing_bot):
         status_keys = set(at_report) - {"at_rep"}
 
         if not status_keys:
-            raise ValueError(
-                "ExternalPublishingError: Report received but not yet processed."
-            )
+            raise ValueError("Report received but not yet processed.")
 
         if "100" in status_keys:
             # an object has been created along with the report
             obj_name = at_report["100"]["objname"]
             if obj_name is None:
-                raise ValueError(
-                    "ExternalPublishingError: Object created and report posted but no name found."
-                )
+                raise ValueError("Object created and report posted but no name found.")
         elif "101" in status_keys:
             # object already exists, no new object created but report processed
             obj_name = at_report["101"]["objname"]
             if obj_name is None:
-                raise ValueError(
-                    "ExternalPublishingError: Object found and report posted but no name found."
-                )
+                raise ValueError("Object found and report posted but no name found.")
     except Exception as e:
         if "ExternalPublishingError:" in str(e):
             raise e
         log(f"Error checking report: {e}")
-        raise ValueError(f"ExternalPublishingError: Error checking report: {e}")
+        raise ValueError(f"Error checking report: {e}")
 
     # for now catching errors from TNS is not implemented, so we just return None for the error
     return obj_name, response, None
