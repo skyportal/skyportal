@@ -45,12 +45,15 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                             group_id:
                                 type: integer
                                 description: ID of the group to add
-                            auto_publish:
+                            auto_publish_to_tns:
                                 type: boolean
-                                description: Whether to automatically publish to this group
+                                description: Whether to automatically publish to TNS
+                            auto_publish_to_hermes:
+                                type: boolean
+                                description: Whether to automatically publish to Hermes
                             auto_publish_allow_bots:
                                 type: boolean
-                                description: Whether to allow bots to automatically publish to this group
+                                description: Whether to allow bots to automatically publish
                             owner:
                                 type: boolean
                                 description: Whether this group is the owner of the external publishing bot
@@ -66,13 +69,10 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
         """
         data = self.get_json()
 
-        # process the boolean values
-        for field in ["auto_publish", "auto_publish_allow_bots", "owner"]:
-            if field in data:
-                data[field] = str_to_bool(data[field])
-        auto_publish = data.get("auto_publish")
-        auto_publish_allow_bots = data.get("auto_publish_allow_bots")
-        owner = data.get("owner")
+        auto_publish_to_tns = str_to_bool(data["auto_publish_to_tns"])
+        auto_publish_to_hermes = str_to_bool(data["auto_publish_to_hermes"])
+        auto_publish_allow_bots = str_to_bool(data["auto_publish_allow_bots"])
+        owner = str_to_bool(data["owner"])
 
         group_id = data.get("group_id", group_id)
         if group_id is None:
@@ -92,7 +92,7 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
             self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the external_publishing_bot
-            external_publishing_bot_group = session.scalar(
+            bot_group = session.scalar(
                 ExternalPublishingBotGroup.select(session.user_or_token).where(
                     ExternalPublishingBotGroup.external_publishing_bot_id
                     == external_publishing_bot_id,
@@ -100,25 +100,30 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                 )
             )
 
-            if external_publishing_bot_group:
+            if bot_group:
                 if (
-                    auto_publish is None
+                    auto_publish_to_tns is None
+                    and auto_publish_to_hermes is None
                     and owner is None
                     and auto_publish_allow_bots is None
                 ):
                     return self.error(
-                        "You must specify auto_publish, owner and/or auto_publish_allow_bots when editing a publishing bot group"
+                        "Specify at least one auto-publish service, owner, or auto_publish_allow_bots when editing a bot group."
                     )
 
                 if (
-                    auto_publish is not None
-                    and auto_publish != external_publishing_bot_group.auto_publish
+                    auto_publish_to_tns is not None
+                    and auto_publish_to_hermes != bot_group.auto_publish_to_tns
                 ):
-                    external_publishing_bot_group.auto_publish = auto_publish
+                    bot_group.auto_publish_to_tns = auto_publish_to_tns
+                if (
+                    auto_publish_to_hermes is not None
+                    and auto_publish_to_hermes != bot_group.auto_publish_to_hermes
+                ):
+                    bot_group.auto_publish_to_hermes = auto_publish_to_hermes
                 if (
                     auto_publish_allow_bots is not None
-                    and auto_publish_allow_bots
-                    != external_publishing_bot_group.auto_publish_allow_bots
+                    and auto_publish_allow_bots != bot_group.auto_publish_allow_bots
                 ):
                     # if the user is trying to set auto_report_allow_bots to False,
                     # we need to verify that none of the existing auto publishers are bots
@@ -126,10 +131,7 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                         auto_publishers_group_users = session.scalars(
                             sa.select(GroupUser).where(
                                 GroupUser.id.in_(
-                                    [
-                                        r.group_user_id
-                                        for r in external_publishing_bot_group.auto_publishers
-                                    ]
+                                    [r.group_user_id for r in bot_group.auto_publishers]
                                 )
                             )
                         )
@@ -140,15 +142,13 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                             return self.error(
                                 "Cannot set auto_publish_allow_bots to False when one or more auto_publishers are bots. Remove the bots from the auto_publishers first."
                             )
-                    external_publishing_bot_group.auto_publish_allow_bots = (
-                        auto_publish_allow_bots
-                    )
+                    bot_group.auto_publish_allow_bots = auto_publish_allow_bots
 
-                if owner is not None and owner != external_publishing_bot_group.owner:
+                if owner is not None and owner != bot_group.owner:
                     # Check if this is the only owner group
                     owners = [
                         group.group_id
-                        for group in external_publishing_bot_group.external_publishing_bot.groups
+                        for group in bot_group.external_publishing_bot.groups
                         if group.owner
                     ]
 
@@ -157,13 +157,13 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                             "Cannot remove ownership from the only group owning this bot. Please assign another group as owner first."
                         )
 
-                    external_publishing_bot_group.owner = owner
+                    bot_group.owner = owner
 
                 session.commit()
                 self.push(
                     action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
                 )
-                return self.success(data=external_publishing_bot_group)
+                return self.success(data=bot_group)
             else:
                 # Check if the association already exists but is inaccessible to the current user
                 existing_association = session.scalar(
@@ -178,20 +178,21 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                         f"Group {group_id} already has access to publishing bot {external_publishing_bot_id}, but user is not allowed to edit it"
                     )
 
-                external_publishing_bot_group = ExternalPublishingBotGroup(
+                bot_group = ExternalPublishingBotGroup(
                     external_publishing_bot_id=external_publishing_bot_id,
                     group_id=group_id,
-                    auto_publish=auto_publish,
+                    auto_publish_to_tns=auto_publish_to_tns,
+                    auto_publish_to_hermes=auto_publish_to_hermes,
                     auto_publish_allow_bots=auto_publish_allow_bots,
                     owner=owner,
                 )
 
-                session.add(external_publishing_bot_group)
+                session.add(bot_group)
                 session.commit()
                 self.push(
                     action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
                 )
-                return self.success(data={"id": external_publishing_bot_group.id})
+                return self.success(data={"id": bot_group.id})
 
     @permissions(["Manage external publishing bots"])
     def delete(self, external_publishing_bot_id, group_id):

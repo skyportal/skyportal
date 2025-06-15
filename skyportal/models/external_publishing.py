@@ -32,14 +32,6 @@ class ExternalPublishingBot(Base):
     __tablename__ = "external_publishing_bots"
 
     bot_name = sa.Column(sa.String, doc="Name of the bot.", nullable=False)
-    bot_id = sa.Column(sa.Integer, doc="ID of the bot.", nullable=False)
-    source_group_id = sa.Column(
-        sa.Integer, doc="Source group ID of the bot.", nullable=False
-    )
-
-    _tns_altdata = sa.Column(
-        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
-    )
 
     instruments = relationship(
         "Instrument",
@@ -66,13 +58,6 @@ class ExternalPublishingBot(Base):
         doc="Acknowledgments to use for this bot.",
     )
 
-    publish_existing_tns_objects = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        server_default="false",
-        doc="Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey).",
-    )
-
     testing = sa.Column(
         sa.Boolean,
         nullable=False,
@@ -84,6 +69,34 @@ class ExternalPublishingBot(Base):
         psql.JSONB,
         nullable=True,
         doc="Photometry options to use for this bot, to make some data optional or mandatory for manual and auto-publishing.",
+    )
+
+    enable_publish_to_hermes = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to enable publishing to Hermes or not.",
+    )
+
+    enable_publish_to_tns = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to enable publishing to TNS or not.",
+    )
+    # Fields specific to TNS
+    bot_id = sa.Column(sa.Integer, doc="ID of the bot.", nullable=True)
+    source_group_id = sa.Column(
+        sa.Integer, doc="Source group ID of the bot.", nullable=True
+    )
+    _tns_altdata = sa.Column(
+        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+    )
+    publish_existing_tns_objects = sa.Column(
+        sa.Boolean,
+        nullable=True,
+        server_default="false",
+        doc="Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey).",
     )
 
     @property
@@ -109,20 +122,6 @@ class ExternalPublishingBot(Base):
         back_populates="external_publishing_bot",
         passive_deletes=True,
         doc="Coauthors associated with this publishing bot.",
-    )
-
-    auto_publish_to_tns = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        server_default="false",
-        doc="Whether to automatically publish to TNS for this bot if auto-publishing is enabled.",
-    )
-
-    auto_publish_to_hermes = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        server_default="false",
-        doc="Whether to automatically publish to Hermes for this bot if auto-publishing is enabled.",
     )
 
 
@@ -167,7 +166,8 @@ class ExternalPublishingBotGroup(Base):
     group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
-    auto_publish = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_publish_to_tns = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_publish_to_hermes = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_publish_allow_bots = sa.Column(
         sa.Boolean, nullable=False, server_default="false"
     )

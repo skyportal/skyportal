@@ -73,7 +73,8 @@ def create_external_publishing_bot(
             external_publishing_bot_id=external_publishing_bot.id,
             group_id=owner_group_id,
             owner=True,
-            auto_publish=False,
+            auto_publish_to_tns=False,
+            auto_publish_to_hermes=False,
             auto_publish_allow_bots=False,
         )
         for owner_group_id in owner_group_ids
@@ -141,8 +142,8 @@ def update_external_publishing_bot(
         "bot_id",
         "source_group_id",
         "_tns_altdata",
-        "auto_publish_to_tns",
-        "auto_publish_to_hermes",
+        "enable_publish_to_tns",
+        "enable_publish_to_hermes",
     ]:
         if field in data:
             setattr(external_publishing_bot, field, data[field])
@@ -227,20 +228,34 @@ class ExternalPublishingBotHandler(BaseHandler):
         with self.Session() as session:
             # Check for duplicates if we're creating a new bot
             if not existing_id:
+                duplicates_search = [
+                    ExternalPublishingBot.bot_name == data["bot_name"],
+                    ExternalPublishingBot.groups.any(
+                        ExternalPublishingBotGroup.group_id.in_(owner_group_ids)
+                    ),
+                ]
+
+                if data.get("enable_publish_to_tns"):
+                    duplicates_search.append(
+                        ExternalPublishingBot.bot_id == data["bot_id"]
+                    )
+                    duplicates_search.append(
+                        ExternalPublishingBot.source_group_id == data["source_group_id"]
+                    )
+
                 existing_external_publishing_bot = session.scalar(
                     ExternalPublishingBot.select(session.user_or_token).where(
-                        ExternalPublishingBot.bot_id == data["bot_id"],
-                        ExternalPublishingBot.bot_name == data["bot_name"],
-                        ExternalPublishingBot.source_group_id
-                        == data["source_group_id"],
-                        ExternalPublishingBot.groups.any(
-                            ExternalPublishingBotGroup.group_id.in_(owner_group_ids)
-                        ),
+                        *duplicates_search
                     )
                 )
                 if existing_external_publishing_bot:
+                    tns_fields = (
+                        ", bot_id and source_group_id"
+                        if data.get("enable_publish_to_tns")
+                        else ""
+                    )
                     return self.error(
-                        f"A publishing bot with the same bot_id, bot_name, and source_group_id already exists with id: {existing_external_publishing_bot.id} (owned by group_ids: {owner_group_ids}), specify the ID to update it"
+                        f"A publishing bot with the same bot_name{tns_fields} already exists with id: {existing_external_publishing_bot.id} (owned by group_ids: {owner_group_ids})"
                     )
 
                 try:

@@ -126,11 +126,11 @@ def test_post_and_delete_external_publishing_bot(
     assert data["status"] == "success"
     assert len(data["data"]["groups"]) == 2
 
-    # edit the bot, to give it ownership and to set auto_publish to true
+    # edit the bot, to give it ownership and to set auto_publish_to_tns to True
     status, data = api(
         "PUT",
         f"external_publishing_bot/{id}/group/{public_group.id}",
-        data={"owner": True, "auto_publish": True},
+        data={"owner": True, "auto_publish_to_tns": True},
         token=super_admin_token,
     )
     assert status == 200
@@ -143,7 +143,8 @@ def test_post_and_delete_external_publishing_bot(
     group = [g for g in data["data"]["groups"] if g["group_id"] == public_group.id]
     assert len(group) == 1
     assert group[0]["owner"] is True
-    assert group[0]["auto_publish"] is True
+    assert group[0]["auto_publish_to_tns"] is True
+    assert group[0]["auto_publish_to_hermes"] is False
 
     # try adding a coauthor with no affiliations to the bot
     status, data = api(
