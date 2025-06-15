@@ -35,7 +35,11 @@ import * as streamsActions from "../../ducks/streams";
 import { userLabelWithAffiliations } from "../../utils/user";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import Box from "@mui/material/Box";
-import InfoIcon from "@mui/icons-material/Info";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
+import FormGroup from "@mui/material/FormGroup";
+import FormLabel from "@mui/material/FormLabel";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
@@ -65,8 +69,11 @@ const ExternalPublishingBotGroup = ({
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [owner, setOwner] = useState(botGroup.owner || false);
-  const [autoPublish, setAutoPublish] = useState(
-    botGroup.auto_publish || false,
+  const [autoPublishTns, setAutoPublishTns] = useState(
+    botGroup.auto_publish_to_tns,
+  );
+  const [autoPublishHermes, setAutoPublishHermes] = useState(
+    botGroup.auto_publish_to_hermes,
   );
   const [autoPublishAllowBots, setAutoPublishAllowBots] = useState(
     botGroup.auto_publish_allow_bots || false,
@@ -129,7 +136,8 @@ const ExternalPublishingBotGroup = ({
     setUpdating(true);
     if (
       owner !== botGroup.owner ||
-      autoPublish !== botGroup.auto_publish ||
+      autoPublishTns !== botGroup.auto_publish_to_tns ||
+      autoPublishHermes !== botGroup.auto_publish_to_hermes ||
       autoPublishAllowBots !== botGroup.auto_publish_allow_bots
     ) {
       await dispatch(
@@ -138,7 +146,8 @@ const ExternalPublishingBotGroup = ({
           botGroup.group_id,
           {
             owner,
-            auto_publish: autoPublish,
+            auto_publish_to_tns: autoPublishTns,
+            auto_publish_to_hermes: autoPublishHermes,
             auto_publish_allow_bots: autoPublishAllowBots,
           },
         ),
@@ -264,12 +273,28 @@ const ExternalPublishingBotGroup = ({
             checked={owner}
             onChange={(e) => setOwner(e.target.checked)}
           />
-          <InputLabel>Auto publish</InputLabel>
-          <Switch
-            checked={autoPublish}
-            onChange={(e) => setAutoPublish(e.target.checked)}
-          />
-          {autoPublish && (
+          <FormLabel component="legend">Auto publish to</FormLabel>
+          <FormGroup row>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={autoPublishTns}
+                  onChange={(e) => setAutoPublishTns(e.target.checked)}
+                />
+              }
+              label="TNS"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={autoPublishHermes}
+                  onChange={(e) => setAutoPublishHermes(e.target.checked)}
+                />
+              }
+              label="Hermes"
+            />
+          </FormGroup>
+          {(autoPublishTns || autoPublishHermes) && (
             <>
               <InputLabel>Allow bots to auto publish</InputLabel>
               <Switch
@@ -333,7 +358,8 @@ ExternalPublishingBotGroup.propTypes = {
     external_publishing_bot_id: PropTypes.number,
     group_id: PropTypes.number,
     owner: PropTypes.bool,
-    auto_publish: PropTypes.bool,
+    auto_publish_to_tns: PropTypes.bool,
+    auto_publish_to_hermes: PropTypes.bool,
     auto_publish_allow_bots: PropTypes.bool,
     auto_publishers: PropTypes.arrayOf(
       PropTypes.shape({
@@ -377,7 +403,8 @@ const NewExternalPublishingBotGroup = ({
         {
           group_id: group,
           owner,
-          auto_publish: false,
+          auto_publish_to_tns: false,
+          auto_publish_to_hermes: false,
           auto_publish_allow_bots: false,
         },
       ),
@@ -467,7 +494,8 @@ NewExternalPublishingBotGroup.propTypes = {
         external_publishing_bot_id: PropTypes.number,
         group_id: PropTypes.number,
         owner: PropTypes.bool,
-        auto_publish: PropTypes.bool,
+        auto_publish_to_tns: PropTypes.bool,
+        auto_publish_to_hermes: PropTypes.bool,
         auto_publish_allow_bots: PropTypes.bool,
       }),
     ),
@@ -646,15 +674,11 @@ NewExternalPublishingBotCoauthor.propTypes = {
 const ExternalPublishingBotsPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
-
-  const [openNewExternalPublishingBot, setOpenNewExternalPublishingBot] =
-    useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(null);
-  const [externalPublishingBotToManage, setExternalPublishingBotToManage] =
-    useState(null);
-  const [autoSendToTNS, setAutoSendToTNS] = useState(true);
-  const [autoSendToHermes, setAutoSendToHermes] = useState(false);
+  const [openManageBotDialog, setOpenManageBotDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [botToManage, setBotToManage] = useState(null);
+  const [enablePublishToTNS, setEnablePublishToTNS] = useState(true);
+  const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
 
   const groups = useSelector((state) => state.groups.userAccessible);
   const allGroups = useSelector((state) => state.groups.all);
@@ -667,19 +691,6 @@ const ExternalPublishingBotsPage = () => {
     (state) => state.config.allowedInstrumentsForPublishing,
   );
   const streams = useSelector((state) => state.streams);
-
-  const [selectedFormData, setSelectedFormData] = useState({
-    bot_name: "",
-    bot_id: "",
-    source_group_id: "",
-    acknowledgments: "",
-    api_key: "",
-    owner_group_ids: [],
-    instrument_ids: [],
-    stream_ids: [],
-    first_and_last_detections: true,
-    auto_publish_allow_archival: false,
-  });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
     (allowedInstrumentsForPublishing || []).includes(
@@ -726,330 +737,86 @@ const ExternalPublishingBotsPage = () => {
     });
   }
 
-  const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(id);
-    setExternalPublishingBotToManage(id);
-  };
-
-  const openEditDialog = (publishingBot) => {
-    setSelectedFormData({
-      bot_name: publishingBot?.bot_name || "",
-      bot_id: publishingBot?.bot_id || "",
-      source_group_id: publishingBot?.source_group_id || "",
-      acknowledgments: publishingBot?.acknowledgments || "",
-      api_key: "",
-      owner_group_ids: (publishingBot?.owner_group_ids || []).map(
-        (groupId) => groupsLookup[groupId].name,
-      ),
-      instrument_ids: (publishingBot?.instruments || []).map(
-        (instrument) => instrument.id,
-      ),
-      stream_ids: (publishingBot?.streams || []).map((stream) => stream.id),
-      publish_existing_tns_objects: publishingBot?.publish_existing_tns_objects,
-      first_and_last_detections:
-        publishingBot?.photometry_options?.first_and_last_detections,
-      auto_publish_allow_archival:
-        publishingBot?.photometry_options?.auto_publish_allow_archival,
-    });
-    setAutoSendToTNS(publishingBot?.auto_publish_to_tns);
-    setAutoSendToHermes(publishingBot?.auto_publish_to_hermes);
-    setExternalPublishingBotToManage(publishingBot.id);
-    setEditDialogOpen(publishingBot.id);
-  };
-
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(null);
-    setExternalPublishingBotToManage(null);
-  };
-
-  const closeEditDialog = () => {
-    setEditDialogOpen(null);
-    setExternalPublishingBotToManage(null);
-  };
-
-  const addExternalPublishingBot = (formData) => {
+  const submitExternalPublishingBot = (formData, isEdit) => {
     const {
       bot_name,
+      owner_group_ids,
+      acknowledgments,
+      instrument_ids,
+      stream_ids,
+      testing,
+      first_and_last_detections,
+      auto_publish_allow_archival,
+      publish_existing_tns_objects,
       bot_id,
       source_group_id,
       api_key,
-      acknowledgments,
-      owner_group_ids,
-      instrument_ids,
-      stream_ids,
-      testing,
-      publish_existing_tns_objects,
-      first_and_last_detections,
-      auto_publish_allow_archival,
     } = formData.formData;
-
-    if (api_key?.length === 0) {
-      dispatch(
-        showNotification(
-          "Error adding publishing bot: A TNS API key is required to create a new bot.",
-          "error",
-        ),
-      );
-      return;
-    }
 
     const data = {
       bot_name,
-      bot_id,
-      source_group_id,
       acknowledgments,
-      _tns_altdata: {
-        api_key,
-      },
       owner_group_ids,
       instrument_ids,
       stream_ids,
       testing,
-      publish_existing_tns_objects,
       photometry_options: {
         first_and_last_detections,
         auto_publish_allow_archival,
       },
-      auto_publish_to_tns: autoSendToTNS,
-      auto_publish_to_hermes: autoSendToHermes,
+      publish_existing_tns_objects,
+      bot_id,
+      source_group_id,
+      ...(!isEdit ||
+        (api_key?.length > 0 && {
+          _tns_altdata: {
+            api_key,
+          },
+        })),
+      enable_publish_to_tns: enablePublishToTNS,
+      enable_publish_to_hermes: enablePublishToHermes,
     };
 
-    dispatch(externalPublishingActions.addExternalPublishingBot(data)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Publishing Bot added successfully."));
-          setOpenNewExternalPublishingBot(false);
-        } else {
-          dispatch(showNotification("Error adding publishing Bot.", "error"));
-        }
-      },
-    );
+    const submitBot = isEdit
+      ? externalPublishingActions.editExternalPublishingBot(
+          botToManage.id,
+          data,
+        )
+      : externalPublishingActions.addExternalPublishingBot(data);
+
+    dispatch(submitBot).then((result) => {
+      if (result.status === "success") {
+        dispatch(
+          showNotification(
+            `Publishing Bot ${isEdit ? "edited" : "added"} successfully.`,
+          ),
+        );
+        setBotToManage(null);
+        setOpenManageBotDialog(false);
+      } else {
+        dispatch(
+          showNotification(
+            `Error ${isEdit ? "editing" : "adding"} publishing Bot.`,
+            "error",
+          ),
+        );
+      }
+    });
   };
 
   const deleteExternalPublishingBot = () => {
     dispatch(
-      externalPublishingActions.deleteExternalPublishingBot(
-        externalPublishingBotToManage,
-      ),
+      externalPublishingActions.deleteExternalPublishingBot(botToManage),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Publishing Bot deleted successfully."));
-        closeDeleteDialog();
+        setBotToManage(null);
+        setDeleteDialogOpen(false);
       } else {
         dispatch(showNotification("Error deleting publishing Bot.", "error"));
       }
     });
   };
-
-  const editExternalPublishingBot = (formData) => {
-    const {
-      bot_name,
-      bot_id,
-      source_group_id,
-      api_key,
-      acknowledgments,
-      instrument_ids,
-      stream_ids,
-      testing,
-      publish_existing_tns_objects,
-      first_and_last_detections,
-      auto_publish_allow_archival,
-    } = formData.formData;
-
-    const data = {
-      bot_name,
-      bot_id,
-      source_group_id,
-      acknowledgments,
-      instrument_ids,
-      stream_ids,
-      testing,
-      publish_existing_tns_objects,
-      photometry_options: {
-        first_and_last_detections,
-        auto_publish_allow_archival,
-      },
-      auto_publish_to_tns: autoSendToTNS,
-      auto_publish_to_hermes: autoSendToHermes,
-    };
-
-    if (api_key?.length > 0) {
-      data._tns_altdata = {
-        api_key,
-      };
-    }
-
-    dispatch(
-      externalPublishingActions.editExternalPublishingBot(
-        externalPublishingBotToManage,
-        data,
-      ),
-    ).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Publishing Bot edited successfully."));
-        closeEditDialog();
-      } else {
-        dispatch(showNotification("Error editing publishing Bot.", "error"));
-      }
-    });
-  };
-
-  const renderDelete = (dataIndex) => {
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
-    return (
-      <div>
-        <IconButton
-          key={externalPublishingBot.id}
-          id="delete_button"
-          onClick={() => openDeleteDialog(externalPublishingBot.id)}
-        >
-          <DeleteIcon />
-        </IconButton>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteExternalPublishingBot}
-          dialogOpen={deleteDialogOpen === dataIndex}
-          closeDialog={closeDeleteDialog}
-          resourceName="Publishing Bot"
-        />
-      </div>
-    );
-  };
-
-  const editSchema = {
-    type: "object",
-    properties: {
-      bot_name: {
-        type: "string",
-        title: "Bot name",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.bot_name || "",
-      },
-      bot_id: {
-        type: "number",
-        title: "Bot ID",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.bot_id || "",
-      },
-      source_group_id: {
-        type: "integer",
-        title: "Source group ID",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.source_group_id || "",
-      },
-      api_key: {
-        type: "string",
-        title: "TNS API Key",
-      },
-      acknowledgments: {
-        type: "string",
-        title: "Acknowledgments",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.acknowledgments || "on behalf of ...",
-        description:
-          "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ...'",
-      },
-      instrument_ids: {
-        type: "array",
-        items: {
-          type: "integer",
-          anyOf: (allowedInstruments || []).map((instrument) => ({
-            enum: [instrument.id],
-            type: "integer",
-            title: instrument.name,
-          })),
-        },
-        uniqueItems: true,
-        default: [],
-        title: "Instruments to restrict photometry to",
-      },
-      stream_ids: {
-        type: "array",
-        items: {
-          type: "integer",
-          anyOf: (streams || []).map((stream) => ({
-            enum: [stream.id],
-            type: "integer",
-            title: stream.name,
-          })),
-        },
-        uniqueItems: true,
-        default: [],
-        title: "Streams to restrict photometry to (optional)",
-      },
-      testing: {
-        type: "boolean",
-        title: "Testing Mode",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.testing,
-        description:
-          "If enabled, the bot will not publish the data but only store the payload in the DB (useful for debugging).",
-      },
-      publish_existing_tns_objects: {
-        type: "boolean",
-        title: "Publish existing TNS objects",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.publish_existing_tns_objects || false,
-        description:
-          "If disabled, skips objects within 2 arcsec already in TNS. If enabled, publish if not yet submitted under this internal name.",
-      },
-      first_and_last_detections: {
-        type: "boolean",
-        title: "Mandatory first and last detection",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.photometry_options?.first_and_last_detections || true,
-        description:
-          "If enabled, the bot will only publish objects with both a first and last detection (i.e., at least two detections).",
-      },
-      auto_publish_allow_archival: {
-        type: "boolean",
-        title: "Allow archival auto-publishing",
-        default:
-          externalPublishingBotListLookup[externalPublishingBotToManage]
-            ?.photometry_options?.auto_publish_allow_archival || false,
-        description:
-          "If enabled, the bot will submit auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
-      },
-    },
-    required: [
-      "bot_name",
-      "bot_id",
-      "source_group_id",
-      "acknowledgments",
-      "instrument_ids",
-      "first_and_last_detections",
-    ],
-  };
-
-  // the create schema is the same as the edit schema, but with the owner_group_ids field
-  const createSchema = JSON.parse(JSON.stringify(editSchema));
-  createSchema.properties.owner_group_ids = {
-    type: "array",
-    items: {
-      type: "integer",
-      anyOf: (groups || [])
-        .sort((a, b) => a?.name?.localeCompare(b?.name))
-        .map((group) => ({
-          enum: [group.id],
-          type: "integer",
-          title: group.name,
-        })),
-    },
-    uniqueItems: true,
-    default:
-      externalPublishingBotListLookup[externalPublishingBotToManage]
-        ?.owner_group_ids || [],
-    title: "Owner Group(s)",
-  };
-  createSchema.required.push("owner_group_ids");
-  // change the default of testing to be true
-  createSchema.properties.testing.default = true;
 
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
@@ -1059,106 +826,14 @@ const ExternalPublishingBotsPage = () => {
     return errors;
   };
 
-  const renderEdit = (dataIndex) => {
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
-    return (
-      <div>
-        <IconButton
-          key={externalPublishingBot.id}
-          id="edit_button"
-          classes={{
-            root: classes.externalPublishingBotEdit,
-          }}
-          onClick={() => openEditDialog(externalPublishingBot)}
-        >
-          <EditIcon />
-        </IconButton>
-        <Dialog
-          open={editDialogOpen === externalPublishingBot.id}
-          onClose={closeEditDialog}
-          aria-labelledby="form-dialog-title"
-        >
-          <DialogTitle id="form-dialog-title">
-            <Box
-              display="flex"
-              gap={1}
-              style={{ alignItems: "center", justifyContent: "space-between" }}
-            >
-              Edit publishing bot
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-              >
-                <Tooltip title="Select which services to automatically publish to if auto-publishing is enabled.">
-                  <InfoIcon
-                    fontSize="small"
-                    style={{ cursor: "help", color: "#888" }}
-                  />
-                </Tooltip>
-                <div>
-                  <Chip
-                    label="Tns"
-                    clickable
-                    onClick={() => setAutoSendToTNS(!autoSendToTNS)}
-                    color={autoSendToTNS ? "primary" : "default"}
-                    variant={autoSendToTNS ? "filled" : "outlined"}
-                  />
-                </div>
-                <Tooltip
-                  title={
-                    <h3>
-                      HERMES is a Message Exchange Service for Multi-Messenger
-                      Astronomy. Click{" "}
-                      <a
-                        href="https://hermes.lco.global/about"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={classes.tooltipLink}
-                      >
-                        here
-                      </a>{" "}
-                      for more information.
-                    </h3>
-                  }
-                >
-                  <Chip
-                    label="Hermes"
-                    clickable
-                    onClick={() => setAutoSendToHermes(!autoSendToHermes)}
-                    color={autoSendToHermes ? "primary" : "default"}
-                    variant={autoSendToHermes ? "filled" : "outlined"}
-                  />
-                </Tooltip>
-              </div>
-            </Box>
-          </DialogTitle>
-          <DialogContent>
-            <Form
-              formData={selectedFormData}
-              onChange={({ formData }) => setSelectedFormData(formData)}
-              schema={editSchema}
-              onSubmit={editExternalPublishingBot}
-              liveValidate
-              validator={validator}
-              customValidate={validate}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  };
-
-  const renderSubmissions = (dataIndex) => {
-    // this button simply sends the user to the submissions page for the selected external publishing bot,
-    // which url is /external_publishing/:bot_id/submissions, link should open in a new tab
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
+  const publishingSubmissionsLink = (dataIndex) => {
     return (
       <Link
-        to={`/external_publishing/${externalPublishingBot.id}/submissions`}
-        key={externalPublishingBot.id}
+        to={`/external_publishing/${externalPublishingBotList[dataIndex].id}/submissions`}
         id="submissions_button"
         target="_blank"
       >
-        <Tooltip title="View submissions">
+        <Tooltip title="View publishing submissions">
           <IconButton
             classes={{
               root: classes.externalPublishingBotSubmissions,
@@ -1171,12 +846,46 @@ const ExternalPublishingBotsPage = () => {
     );
   };
 
-  const renderBotName = (dataIndex) => {
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
+  const renderEdit = (dataIndex) => (
+    <IconButton
+      id="edit_button"
+      classes={{
+        root: classes.externalPublishingBotEdit,
+      }}
+      onClick={() => {
+        setBotToManage(externalPublishingBotList[dataIndex]);
+        setEnablePublishToTNS(
+          externalPublishingBotList[dataIndex].enable_publish_to_tns,
+        );
+        setEnablePublishToHermes(
+          externalPublishingBotList[dataIndex].enable_publish_to_hermes,
+        );
+        setOpenManageBotDialog(true);
+      }}
+    >
+      <EditIcon />
+    </IconButton>
+  );
 
+  const renderDelete = (dataIndex) => {
+    return (
+      <IconButton
+        id="delete_button"
+        onClick={() => {
+          setBotToManage(externalPublishingBotList[dataIndex]);
+          setDeleteDialogOpen(true);
+        }}
+      >
+        <DeleteIcon />
+      </IconButton>
+    );
+  };
+
+  const renderBotName = (dataIndex) => {
+    const bot = externalPublishingBotList[dataIndex];
     return (
       <div style={{ display: "flex", alignItems: "center" }}>
-        {externalPublishingBot.testing === true && (
+        {bot.testing === true && (
           <Tooltip
             title={
               <h2>
@@ -1191,45 +900,33 @@ const ExternalPublishingBotsPage = () => {
           </Tooltip>
         )}
         <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-          {externalPublishingBot.bot_name}
+          {bot.bot_name}
         </Typography>
       </div>
     );
   };
 
   const renderCoauthors = (dataIndex) => {
-    let external_publishing_bot_coauthors =
-      externalPublishingBotList[dataIndex]?.coauthors || [];
-    // sort them alphabetically
-    external_publishing_bot_coauthors = external_publishing_bot_coauthors.sort(
-      (a, b) => {
-        const a_fullname = userLabelWithAffiliations(usersLookup[a.user_id]);
-        const b_fullname = userLabelWithAffiliations(usersLookup[b.user_id]);
-        if (a_fullname < b_fullname) {
-          return -1;
-        }
-        if (a_fullname > b_fullname) {
-          return 1;
-        }
-        return 0;
-      },
+    const coauthors = [
+      ...(externalPublishingBotList[dataIndex]?.coauthors || []),
+    ];
+    coauthors.sort((a, b) =>
+      userLabelWithAffiliations(usersLookup[a.user_id] || "").localeCompare(
+        userLabelWithAffiliations(usersLookup[b.user_id] || ""),
+      ),
     );
-
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
-        {external_publishing_bot_coauthors.map(
-          (external_publishing_bot_coauthor) => (
-            <ExternalPublishingBotCoauthor // eslint-disable-line react/jsx-key
-              external_publishing_bot_id={
-                externalPublishingBotList[dataIndex]?.id
-              }
-              external_publishing_bot_coauthor={
-                external_publishing_bot_coauthor
-              }
-              usersLookup={usersLookup}
-            />
-          ),
-        )}
+        {coauthors.map((coauthor, idx) => (
+          <ExternalPublishingBotCoauthor
+            key={`${coauthor.user_id}-${idx}`}
+            external_publishing_bot_id={
+              externalPublishingBotList[dataIndex]?.id
+            }
+            external_publishing_bot_coauthor={coauthor}
+            usersLookup={usersLookup}
+          />
+        ))}
         <NewExternalPublishingBotCoauthor
           externalPublishingBot={externalPublishingBotList[dataIndex]}
           usersLookup={usersLookup}
@@ -1255,35 +952,20 @@ const ExternalPublishingBotsPage = () => {
   };
 
   const renderGroups = (dataIndex) => {
-    let botGroups = externalPublishingBotList[dataIndex]?.groups || [];
     // order alphabetically by group name, then by owner status
-    botGroups = botGroups.sort((a, b) => {
-      if (
-        allGroupsLookup[a.group_id]?.name < allGroupsLookup[b.group_id]?.name
-      ) {
-        return -1;
-      }
-      if (
-        allGroupsLookup[a.group_id]?.name > allGroupsLookup[b.group_id]?.name
-      ) {
-        return 1;
-      }
-      return 0;
-    });
-    botGroups = botGroups.sort((a, b) => {
-      if (a.owner && !b.owner) {
-        return -1;
-      }
-      if (!a.owner && b.owner) {
-        return 1;
-      }
-      return 0;
+    const botGroups = [...(externalPublishingBotList[dataIndex]?.groups || [])];
+    botGroups.sort((a, b) => {
+      const nameA = allGroupsLookup[a.group_id]?.name || "";
+      const nameB = allGroupsLookup[b.group_id]?.name || "";
+      if (a.owner !== b.owner) return b.owner - a.owner;
+      return nameA.localeCompare(nameB);
     });
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
-        {botGroups.map((botGroup) => (
-          <ExternalPublishingBotGroup // eslint-disable-line react/jsx-key
+        {botGroups.map((botGroup, idx) => (
+          <ExternalPublishingBotGroup
+            key={`${botGroup.group_id}-${idx}`}
             botGroup={botGroup}
             groupsLookup={allGroupsLookup}
             usersLookup={usersLookup}
@@ -1297,115 +979,202 @@ const ExternalPublishingBotsPage = () => {
     );
   };
 
-  const renderPublishExisting = (dataIndex) => {
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
-    return (
-      <Tooltip
-        title={
-          externalPublishingBot.publish_existing_tns_objects
-            ? "This bot will publish to TNS even if a matching object (within 2 arcsec) already exists, as long as it hasn't been published under the same internal name."
-            : "This bot will not publish to TNS if a matching object (within 2 arcsec) already exists."
-        }
-        placement="left"
-      >
-        <Typography variant="body1">
-          {externalPublishingBot.publish_existing_tns_objects ? "Yes" : "No"}
-        </Typography>
-      </Tooltip>
-    );
-  };
-
-  const renderManage = (dataIndex) => {
-    const deleteButton = renderDelete(dataIndex);
-    const editButton = renderEdit(dataIndex);
-    const submissionsButton = renderSubmissions(dataIndex);
-    return (
-      <div className={classes.manageButtons}>
-        {submissionsButton}
-        {editButton}
-        {deleteButton}
-      </div>
-    );
+  const getFormSchema = (isNewBot, enableTNS) => {
+    return {
+      type: "object",
+      properties: {
+        bot_name: { type: "string", title: "Bot name" },
+        ...(isNewBot
+          ? {
+              owner_group_ids: {
+                type: "array",
+                items: {
+                  type: "integer",
+                  anyOf: (groups || [])
+                    .sort((a, b) => a?.name?.localeCompare(b?.name))
+                    .map((group) => ({
+                      enum: [group.id],
+                      type: "integer",
+                      title: group.name,
+                    })),
+                },
+                uniqueItems: true,
+                default: [],
+                title: "Owner Group(s)",
+              },
+            }
+          : {}),
+        acknowledgments: {
+          type: "string",
+          title: "Acknowledgments",
+          default: "on behalf of ...",
+          description:
+            "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ...'",
+        },
+        instrument_ids: {
+          type: "array",
+          items: {
+            type: "integer",
+            anyOf: (allowedInstruments || []).map((instrument) => ({
+              enum: [instrument.id],
+              type: "integer",
+              title: instrument.name,
+            })),
+          },
+          uniqueItems: true,
+          default: botToManage?.instruments?.map((i) => i.id) || [],
+          title: "Instruments to restrict photometry to",
+        },
+        stream_ids: {
+          type: "array",
+          items: {
+            type: "integer",
+            anyOf: (streams || []).map((stream) => ({
+              enum: [stream.id],
+              type: "integer",
+              title: stream.name,
+            })),
+          },
+          uniqueItems: true,
+          default: botToManage?.streams?.map((s) => s.id) || [],
+          title: "Streams to restrict photometry to (optional)",
+        },
+        testing: {
+          type: "boolean",
+          title: "Testing Mode",
+          default: true,
+          description:
+            "If enabled, the bot will not publish the data but only store the payload in the DB (useful for debugging).",
+        },
+        first_and_last_detections: {
+          type: "boolean",
+          title: "Mandatory first and last detection",
+          default: true,
+          description:
+            "If enabled, the bot will only publish objects with both a first and last detection (i.e., at least two detections).",
+        },
+        ...(enableTNS
+          ? {
+              bot_id: { type: "number", title: "Bot ID" },
+              source_group_id: { type: "integer", title: "Source group ID" },
+              api_key: { type: "string", title: "TNS API Key" },
+              publish_existing_tns_objects: {
+                type: "boolean",
+                title: "Publish existing TNS objects",
+                default: false,
+                description:
+                  "If disabled, skips objects within 2 arcsec already in TNS. If enabled, publish if not yet submitted under this internal name.",
+              },
+              auto_publish_allow_archival: {
+                type: "boolean",
+                title: "Allow archival auto-publishing",
+                default: false,
+                description:
+                  "If enabled, the bot will submit auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
+              },
+            }
+          : {}),
+      },
+      required: [
+        "bot_name",
+        "acknowledgments",
+        "instrument_ids",
+        "first_and_last_detections",
+        ...((isNewBot && ["owner_group_ids"]) || []),
+        ...(enableTNS ? ["bot_id", "source_group_id"] : []),
+        ...(isNewBot && enableTNS ? ["api_key"] : []),
+      ],
+    };
   };
 
   const columns = [
-    {
-      name: "id",
-      label: "ID",
-      options: {
-        display: false,
-        filter: false,
-        sort: false,
-      },
-    },
+    { name: "id", label: "ID", options: { display: false } },
     {
       name: "bot_name",
       label: "Bot name",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: renderBotName,
-      },
+      options: { customBodyRenderLite: renderBotName },
     },
     {
-      name: "bot_id",
-      label: "Bot ID",
+      name: "publish_to",
+      label: "Publish enabled to",
       options: {
-        filter: false,
-        sort: true,
-      },
-    },
-    {
-      name: "source_group_id",
-      label: "Source group ID",
-      options: {
-        filter: false,
-        sort: true,
+        sort: false,
+        customBodyRenderLite: (dataIndex) => (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
+            {externalPublishingBotList[dataIndex].enable_publish_to_tns && (
+              <Tooltip
+                title={
+                  <div style={{ fontSize: "0.8rem", fontWeight: "500" }}>
+                    TNS config:
+                    <br />- Bot ID:{" "}
+                    {externalPublishingBotList[dataIndex].bot_id}
+                    <br />- Source Group ID:{" "}
+                    {externalPublishingBotList[dataIndex].source_group_id}
+                    <br />- Publish existing TNS objects:{" "}
+                    {externalPublishingBotList[dataIndex]
+                      .publish_existing_tns_objects
+                      ? "Yes"
+                      : "No"}
+                    <br />
+                  </div>
+                }
+              >
+                <Chip
+                  label={
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                      }}
+                    >
+                      TNS{" "}
+                      <InfoIcon
+                        size="small"
+                        style={{ color: "primary", fontSize: "1rem" }}
+                      />
+                    </span>
+                  }
+                  color="primary"
+                  variant="outlined"
+                />
+              </Tooltip>
+            )}
+            {externalPublishingBotList[dataIndex].enable_publish_to_hermes && (
+              <Chip label="Hermes" color="primary" variant="outlined" />
+            )}
+          </div>
+        ),
       },
     },
     {
       name: "groups",
       label: "Groups",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderGroups,
-      },
+      options: { sort: false, customBodyRenderLite: renderGroups },
     },
     {
       name: "coauthors",
       label: "Coauthors",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderCoauthors,
-      },
+      options: { sort: false, customBodyRenderLite: renderCoauthors },
     },
     {
       name: "acknowledgments",
       label: "Acknowledgments",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderAcknowledgments,
-      },
+      options: { sort: false, customBodyRenderLite: renderAcknowledgments },
     },
     {
       name: "instruments",
       label: "Instruments",
       options: {
-        filter: false,
-        sort: true,
         customBodyRenderLite: (dataIndex) => {
           const { instruments } = externalPublishingBotList[dataIndex];
-          if (instruments?.length > 0) {
-            return (
-              <span>
-                {instruments.map((instrument) => instrument.name).join(", ")}
-              </span>
-            );
-          }
-          return <span />;
+          return (
+            <span>
+              {instruments?.length
+                ? instruments.map((i) => i.name).join(", ")
+                : ""}
+            </span>
+          );
         },
       },
     },
@@ -1413,33 +1182,29 @@ const ExternalPublishingBotsPage = () => {
       name: "streams",
       label: "Streams (optional)",
       options: {
-        filter: false,
-        sort: true,
         customBodyRenderLite: (dataIndex) => {
           const { streams } = externalPublishingBotList[dataIndex]; // eslint-disable-line no-shadow
-          if (streams?.length > 0) {
-            return (
-              <span>{streams.map((stream) => stream.name).join(", ")}</span>
-            );
-          }
-          return <span />;
+          return (
+            <span>
+              {streams?.length > 0
+                ? streams.map((stream) => stream.name).join(", ")
+                : ""}
+            </span>
+          );
         },
       },
     },
     {
-      name: "publish_existing_tns_objects",
-      label: "Publish existing",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderPublishExisting,
-      },
-    },
-    {
-      name: "delete",
+      name: "manage",
       label: " ",
       options: {
-        customBodyRenderLite: renderManage,
+        customBodyRenderLite: (dataIndex) => (
+          <div className={classes.manageButtons}>
+            {publishingSubmissionsLink(dataIndex)}
+            {renderEdit(dataIndex)}
+            {renderDelete(dataIndex)}
+          </div>
+        ),
       },
     },
   ];
@@ -1465,21 +1230,10 @@ const ExternalPublishingBotsPage = () => {
             <IconButton
               name="new_externalPublishingBot"
               onClick={() => {
-                setSelectedFormData({
-                  bot_name: "",
-                  bot_id: "",
-                  source_group_id: "",
-                  api_key: "",
-                  owner_group_ids: [],
-                  instrument_ids: [],
-                  stream_ids: [],
-                  acknowledgments: "on behalf of ...",
-                  publish_existing_tns_objects: false,
-                  first_and_last_detections: true,
-                });
-                setAutoSendToTNS(true);
-                setAutoSendToHermes(false);
-                setOpenNewExternalPublishingBot(true);
+                setBotToManage(null);
+                setEnablePublishToTNS(true);
+                setEnablePublishToHermes(true);
+                setOpenManageBotDialog(true);
               }}
             >
               <AddIcon />
@@ -1488,9 +1242,10 @@ const ExternalPublishingBotsPage = () => {
         }}
       />
       <Dialog
-        open={openNewExternalPublishingBot}
+        open={openManageBotDialog}
         onClose={() => {
-          setOpenNewExternalPublishingBot(false);
+          setBotToManage(null);
+          setOpenManageBotDialog(false);
         }}
         aria-labelledby="form-dialog-title"
       >
@@ -1500,11 +1255,11 @@ const ExternalPublishingBotsPage = () => {
             gap={1}
             style={{ alignItems: "center", justifyContent: "space-between" }}
           >
-            Add Publishing Bot
+            {botToManage ? "Edit" : "New"} publishing bot
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
-              <Tooltip title="Select which services to automatically publish to if auto-publishing is enabled.">
+              <Tooltip title="Select which services to enable publishing to">
                 <InfoIcon
                   fontSize="small"
                   style={{ cursor: "help", color: "#888" }}
@@ -1514,9 +1269,9 @@ const ExternalPublishingBotsPage = () => {
                 <Chip
                   label="Tns"
                   clickable
-                  onClick={() => setAutoSendToTNS(!autoSendToTNS)}
-                  color={autoSendToTNS ? "primary" : "default"}
-                  variant={autoSendToTNS ? "filled" : "outlined"}
+                  onClick={() => setEnablePublishToTNS(!enablePublishToTNS)}
+                  color={enablePublishToTNS ? "primary" : "default"}
+                  variant={enablePublishToTNS ? "filled" : "outlined"}
                 />
               </div>
               <Tooltip
@@ -1539,9 +1294,11 @@ const ExternalPublishingBotsPage = () => {
                 <Chip
                   label="Hermes"
                   clickable
-                  onClick={() => setAutoSendToHermes(!autoSendToHermes)}
-                  color={autoSendToHermes ? "primary" : "default"}
-                  variant={autoSendToHermes ? "filled" : "outlined"}
+                  onClick={() =>
+                    setEnablePublishToHermes(!enablePublishToHermes)
+                  }
+                  color={enablePublishToHermes ? "primary" : "default"}
+                  variant={enablePublishToHermes ? "filled" : "outlined"}
                 />
               </Tooltip>
             </div>
@@ -1549,15 +1306,25 @@ const ExternalPublishingBotsPage = () => {
         </DialogTitle>
         <DialogContent>
           <Form
-            formData={selectedFormData}
-            onChange={({ formData }) => setSelectedFormData(formData)}
-            schema={createSchema}
-            onSubmit={addExternalPublishingBot}
+            formData={botToManage}
+            schema={getFormSchema(!botToManage, enablePublishToTNS)}
+            onSubmit={(formData) =>
+              submitExternalPublishingBot(formData, !!botToManage)
+            }
             validator={validator}
             customValidate={validate}
           />
         </DialogContent>
       </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteExternalPublishingBot}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={() => {
+          setBotToManage(null);
+          setDeleteDialogOpen(false);
+        }}
+        resourceName="Publishing Bot"
+      />
     </div>
   );
 };
