@@ -46,7 +46,7 @@ def test_post_and_delete_tns_robot(
     status, data = api("PUT", "tns_robot", data=request_data, token=super_admin_token)
     assert status == 400
     assert (
-        f"Instrument {ztf_camera.name} not supported for TNS reporting"
+        f"Failed to create TNS robot: Instrument {ztf_camera.name} not supported for external publishing"
         in data["message"]
     )
 
