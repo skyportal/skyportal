@@ -65,7 +65,6 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "0.9rem",
     fontWeight: "bold",
     background: alpha(theme.palette.primary.light, 0.4),
-    backgroundOpacity: 0.1,
     padding: "0.3rem 0.6rem",
     borderRadius: "0.5rem",
   },
@@ -124,7 +123,7 @@ const HeaderContent = () => {
         </p>
       </Link>
       <Box className={classes.date} display={{"{{ xs: 'none', lg: 'inline-flex' }}"}}>
-        {now.toLocaleString('us-US', {
+        {now.toLocaleString('en-US', {
           timeZone: 'UTC',
           month: 'short',
           day: '2-digit',
