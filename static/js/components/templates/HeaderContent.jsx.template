@@ -93,19 +93,22 @@ const HeaderContent = () => {
   }, [isDesktop]);
 
   useEffect(() => {
-    let timeRefresh;
-    if (isDesktop) {
-        setNow(new Date());
-        timeRefresh = setInterval(() => {
-          setNow(new Date());
-        }, 60000);
+    if (!isDesktop) return;
 
-    }
-    return () => {
-        if (timeRefresh) {
-          clearInterval(timeRefresh);
-        }
-    }
+    const updateNow = () => setNow(new Date());
+    const delay = (60 - new Date().getSeconds()) * 1000; // the number of seconds to wait until the next minute
+
+    updateNow();
+    let interval;
+    const timeout = setTimeout(() => {
+      updateNow(); // after the delay, update now
+      interval = setInterval(updateNow, 60000); // then set an interval to update every minute
+    }, delay);
+
+    return () => { // cleanup
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, [isDesktop]);
 
   return (
