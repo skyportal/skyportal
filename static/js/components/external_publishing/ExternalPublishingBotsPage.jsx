@@ -674,6 +674,10 @@ NewExternalPublishingBotCoauthor.propTypes = {
 const ExternalPublishingBotsPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
+  const manageBotPermission = currentUser.permissions?.includes(
+    "Manage external publishing bots",
+  );
   const [openManageBotDialog, setOpenManageBotDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [botToManage, setBotToManage] = useState(null);
@@ -1025,20 +1029,22 @@ const ExternalPublishingBotsPage = () => {
           default: botToManage?.instruments?.map((i) => i.id) || [],
           title: "Instruments to restrict photometry to",
         },
-        stream_ids: {
-          type: "array",
-          items: {
-            type: "integer",
-            anyOf: (streams || []).map((stream) => ({
-              enum: [stream.id],
+        ...(streams?.length > 0 && {
+          stream_ids: {
+            type: "array",
+            items: {
               type: "integer",
-              title: stream.name,
-            })),
+              anyOf: (streams || []).map((stream) => ({
+                enum: [stream.id],
+                type: "integer",
+                title: stream.name,
+              })),
+            },
+            uniqueItems: true,
+            default: botToManage?.streams?.map((s) => s.id) || [],
+            title: "Streams to restrict photometry to (optional)",
           },
-          uniqueItems: true,
-          default: botToManage?.streams?.map((s) => s.id) || [],
-          title: "Streams to restrict photometry to (optional)",
-        },
+        }),
         testing: {
           type: "boolean",
           title: "Testing Mode",
@@ -1201,8 +1207,8 @@ const ExternalPublishingBotsPage = () => {
         customBodyRenderLite: (dataIndex) => (
           <div className={classes.manageButtons}>
             {publishingSubmissionsLink(dataIndex)}
-            {renderEdit(dataIndex)}
-            {renderDelete(dataIndex)}
+            {manageBotPermission && renderEdit(dataIndex)}
+            {manageBotPermission && renderDelete(dataIndex)}
           </div>
         ),
       },
@@ -1226,19 +1232,20 @@ const ExternalPublishingBotsPage = () => {
           viewColumns: false,
           pagination: false,
           search: false,
-          customToolbar: () => (
-            <IconButton
-              name="new_externalPublishingBot"
-              onClick={() => {
-                setBotToManage(null);
-                setEnablePublishToTNS(true);
-                setEnablePublishToHermes(true);
-                setOpenManageBotDialog(true);
-              }}
-            >
-              <AddIcon />
-            </IconButton>
-          ),
+          customToolbar: () =>
+            manageBotPermission && (
+              <IconButton
+                name="new_externalPublishingBot"
+                onClick={() => {
+                  setBotToManage(null);
+                  setEnablePublishToTNS(true);
+                  setEnablePublishToHermes(true);
+                  setOpenManageBotDialog(true);
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            ),
         }}
       />
       <Dialog
