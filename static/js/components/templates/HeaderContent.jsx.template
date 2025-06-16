@@ -18,6 +18,7 @@ import Notes from "../Notes";
 import hydrate from "../../actions";
 
 import QuickSearchBar from "../QuickSearchBar";
+import {alpha} from "@mui/material";
 
 const useStyles = makeStyles((theme) => ({
   topBannerContent: {
@@ -60,6 +61,14 @@ const useStyles = makeStyles((theme) => ({
       },
     },
   },
+  date: {
+    fontSize: "0.9rem",
+    fontWeight: "bold",
+    background: alpha(theme.palette.primary.light, 0.4),
+    backgroundOpacity: 0.1,
+    padding: "0.3rem 0.6rem",
+    borderRadius: "0.5rem",
+  },
 }));
 
 const HeaderContent = () => {
@@ -70,6 +79,7 @@ const HeaderContent = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   const handleRefresh = () => {
     dispatch(hydrate());
@@ -80,6 +90,22 @@ const HeaderContent = () => {
   useEffect(() => {
     if (isDesktop) {
       setOpenSearch(false);
+    }
+  }, [isDesktop]);
+
+  useEffect(() => {
+    let timeRefresh;
+    if (isDesktop) {
+        setNow(new Date());
+        const timeRefresh = setInterval(() => {
+          setNow(new Date());
+        }, 60000);
+
+    }
+    return () => {
+        if (timeRefresh) {
+          clearInterval(timeRefresh);
+        }
     }
   }, [isDesktop]);
 
@@ -97,6 +123,16 @@ const HeaderContent = () => {
           {{ app.title }}
         </p>
       </Link>
+      <Box className={classes.date} display={{"{{ xs: 'none', lg: 'inline-flex' }}"}}>
+        {now.toLocaleString('us-US', {
+          timeZone: 'UTC',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })} UTC
+      </Box>
       <div style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', paddingRight: '1rem' }}"}}>
         <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
           <QuickSearchBar />
