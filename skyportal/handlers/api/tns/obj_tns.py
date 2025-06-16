@@ -11,13 +11,13 @@ from ....models import (
     TNSRobot,
     TNSRobotSubmission,
 )
-from ....utils.tns import get_tns
-from ...base import BaseHandler
-from .tns_robot import (
+from ....utils.data_access import (
     process_instrument_ids,
     process_stream_ids,
     validate_photometry_options,
 )
+from ....utils.tns import get_tns
+from ...base import BaseHandler
 
 log = make_log("api/obj_tns")
 
@@ -127,8 +127,8 @@ class ObjTNSHandler(BaseHandler):
                     "reporters is required and must be a non-empty string"
                 )
 
-            process_instrument_ids(session, instrument_ids)
-            process_stream_ids(session, stream_ids)
+            process_instrument_ids(session, session.user_or_token, instrument_ids)
+            process_stream_ids(session, session.user_or_token, stream_ids)
 
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)

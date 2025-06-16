@@ -108,7 +108,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { tnsrobotList: null, submissions: {} }, action) => {
+const reducer = (state = { tnsrobotList: [], submissions: {} }, action) => {
   switch (action.type) {
     case FETCH_TNSROBOTS_OK: {
       const tnsrobotList = action.data;

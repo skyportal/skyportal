@@ -468,6 +468,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="TNS auto-submissions associated with this obj.",
     )
 
+    external_publishing_submissions = relationship(
+        "ExternalPublishingSubmission",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="External publishing auto-submissions associated with this obj.",
+    )
+
     def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,

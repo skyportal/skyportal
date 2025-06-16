@@ -9,10 +9,9 @@ from .assignment import *
 from .candidate import *
 from .classification import *
 from .comment import *
-
-# Cosmology
 from .cosmo import cosmo
 from .earthquake import *
+from .external_publishing import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
@@ -33,16 +32,12 @@ from .phot_stat import *
 from .photometric_series import *
 from .photometry import *
 from .photometry_validation import *
-
-# Public pages
 from .public_pages.public_release import *
 from .public_pages.public_source_page import *
 from .recurring_api import *
 from .reminder import *
 from .scan_report.scan_report import *
 from .scan_report.scan_report_item import *
-
-# Generated schema
 from .schema import setup_schema
 from .shift import *
 from .source import *

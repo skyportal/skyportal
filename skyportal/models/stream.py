@@ -5,6 +5,7 @@ __all__ = [
     "StreamPhotometricSeries",
     "StreamInvitation",
     "StreamTNSRobot",
+    "StreamExternalPublishingBot",
 ]
 
 import sqlalchemy as sa
@@ -21,6 +22,7 @@ from baselayer.app.models import (
     restricted,
 )
 
+from .external_publishing import ExternalPublishingBot
 from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
@@ -90,6 +92,15 @@ class Stream(Base):
         doc="TNS robots associated with this stream, used for auto-reporting.",
     )
 
+    external_publishing_bots = relationship(
+        "ExternalPublishingBot",
+        secondary="stream_external_publishing_bots",
+        back_populates="streams",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="External publishing bots associated with this stream, used for auto-publishing.",
+    )
+
 
 def stream_delete_logic(cls, user_or_token):
     """Can only delete a stream from a user if none of the user's groups
@@ -139,3 +150,11 @@ StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
 StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
 StreamTNSRobot.create = accessible_by_stream_members
+
+StreamExternalPublishingBot = join_model(
+    "stream_external_publishing_bots", Stream, ExternalPublishingBot
+)
+StreamExternalPublishingBot.__doc__ = (
+    "Join table mapping Streams to ExternalPublishingBots."
+)
+StreamExternalPublishingBot.create = accessible_by_stream_members
