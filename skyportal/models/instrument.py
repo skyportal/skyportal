@@ -524,7 +524,7 @@ class Instrument(Base):
 
 
 @event.listens_for(Instrument.region, "set")
-def _instrument_region_append(target, value):
+def _instrument_region_append(target, value, oldvalue, initiator):
     if value is not None and value != "":
         target.has_region = True
     else:
@@ -532,7 +532,7 @@ def _instrument_region_append(target, value):
 
 
 @event.listens_for(Instrument.region, "remove")
-def _instrument_region_remove(target):
+def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 
 
