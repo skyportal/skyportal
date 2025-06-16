@@ -398,7 +398,7 @@ def get_photometry_by_instruments_stream_and_options(
     detections = [phot for phot in photometry if not is_null(phot.mag)]
 
     # if no photometry or only non-detections photometry is found, raise an error
-    if len(detections) == 0:
+    if not detections:
         stream_names = (
             session.scalars(sa.select(Stream.name).where(Stream.id.in_(stream_ids)))
             .unique()

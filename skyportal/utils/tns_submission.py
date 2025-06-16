@@ -513,8 +513,6 @@ def check_at_report(submission_id, publishing_bot):
             if obj_name is None:
                 raise ValueError("Object found and report posted but no name found.")
     except Exception as e:
-        if "ExternalPublishingError:" in str(e):
-            raise e
         log(f"Error checking report: {e}")
         raise ValueError(f"Error checking report: {e}")
 

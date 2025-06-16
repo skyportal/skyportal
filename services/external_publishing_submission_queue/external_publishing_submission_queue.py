@@ -37,6 +37,10 @@ log = make_log("external_publishing_queue")
 tns_retrieval_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
 
 
+class ExternalPublishingWarning(Warning):
+    pass
+
+
 def build_reporters_and_remarks_string(
     submission_request, source, acknowledgments, session
 ):
@@ -105,7 +109,7 @@ def build_reporters_and_remarks_string(
 
         if not authors:
             raise ValueError(
-                f"ExternalPublishingError: No authors found for publishing bot {bot_id} and source {obj_id}, cannot publish"
+                f"No authors found for publishing bot {bot_id} and source {obj_id}, cannot publish"
             )
 
         # Sort authors by appearance order
@@ -115,14 +119,14 @@ def build_reporters_and_remarks_string(
             a.username for a in authors if not a.first_name or not a.last_name
         ]
         if missing_names:
-            raise ValueError(
-                f"ExternalPublishingWarning: Missing first or last name: {', '.join(missing_names)}, cannot publish {obj_id}."
+            raise ExternalPublishingWarning(
+                f"Missing first or last name: {', '.join(missing_names)}, cannot publish {obj_id}."
             )
 
         missing_affiliation = [a.username for a in authors if not any(a.affiliations)]
         if missing_affiliation:
-            raise ValueError(
-                f"ExternalPublishingWarning: Missing affiliation: {', '.join(missing_affiliation)}, cannot publish {obj_id}."
+            raise ExternalPublishingWarning(
+                f"Missing affiliation: {', '.join(missing_affiliation)}, cannot publish {obj_id}."
             )
 
         invalid_bio_bots = [
@@ -131,8 +135,8 @@ def build_reporters_and_remarks_string(
             if a.is_bot and not (10 <= len((a.bio or "").strip()) <= 1000)
         ]
         if invalid_bio_bots:
-            raise ValueError(
-                f"ExternalPublishingWarning: Invalid bio (missing, too short, or too long) for bot(s): {', '.join(invalid_bio_bots)}, cannot publish {obj_id}."
+            raise ExternalPublishingWarning(
+                f"Invalid bio (missing, too short, or too long) for bot(s): {', '.join(invalid_bio_bots)}, cannot publish {obj_id}."
             )
 
         reporters = []
@@ -232,7 +236,8 @@ def process_submission_request(submission_request, session):
         submission_request.custom_publishing_string = reporters
         submission_request.custom_remarks_string = remarks
 
-    except ValueError as e:
+    except Exception as e:
+        notif_type = "Warning" if isinstance(e, ExternalPublishingWarning) else "Error"
         log(str(e))
         try:
             flow = Flow()
@@ -240,8 +245,8 @@ def process_submission_request(submission_request, session):
                 user_id=submission_request.user_id,
                 action_type="baselayer/SHOW_NOTIFICATION",
                 payload={
-                    "note": f"Error processing external publishing request: {str(e)}",
-                    "type": "error",
+                    "note": f"{notif_type} processing external publishing request: {e}",
+                    "type": notif_type.lower(),
                     "duration": 8000,
                 },
             )
@@ -518,13 +523,6 @@ def validate_submission_requests():
                         f"AT report of {submission_request.obj_id} submitted to TNS as {tns_source}"
                     )
                     try:
-                        requests.post(
-                            tns_retrieval_microservice_url,
-                            json={"tns_source": tns_source},
-                        )
-                    except Exception as e:
-                        log(f"Error submitting TNS name to retrieval queue: {e}")
-                    try:
                         flow = Flow()
                         flow.push(
                             user_id=submission_request.user_id,
@@ -537,6 +535,13 @@ def validate_submission_requests():
                         )
                     except Exception:
                         pass
+                    try:
+                        requests.post(
+                            tns_retrieval_microservice_url,
+                            json={"tns_source": tns_source},
+                        )
+                    except Exception as e:
+                        log(f"Error submitting TNS name to retrieval queue: {e}")
                 elif err == "report not found":
                     # Sometimes TNS accepts a report but it disappears.
                     # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
@@ -561,10 +566,6 @@ def validate_submission_requests():
                         f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
                     )
             except Exception as e:
-                if "ExternalPublishingError" in str(e):
-                    log(f"ExternalPublishingError: {str(e)}")
-                    session.rollback()
-                    continue
                 session.rollback()
                 traceback.print_exc()
                 log(f"Unexpected error checking TNS report: {str(e)}")

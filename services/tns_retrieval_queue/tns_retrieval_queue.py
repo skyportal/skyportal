@@ -26,9 +26,11 @@ from skyportal.utils.calculations import great_circle_distance
 from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
+    TNS_URL,
     get_IAUname,
     get_recent_TNS,
     get_tns_headers,
+    get_tns_url,
     read_tns_photometry,
     read_tns_spectrum,
 )
@@ -42,9 +44,6 @@ Session = scoped_session(sessionmaker())
 
 USER_ID = 1  # super admin user ID
 DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
-
-TNS_URL = cfg["app.tns.endpoint"]
-object_url = urllib.parse.urljoin(TNS_URL, "api/get/object")
 
 bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
@@ -340,7 +339,7 @@ def process_queue(queue):
                 r = None
                 for _ in range(max_retries):
                     r = requests.post(
-                        object_url,
+                        get_tns_url("object"),
                         headers=tns_headers,
                         data=data,
                         allow_redirects=True,
@@ -614,4 +613,3 @@ if __name__ == "__main__":
         service()
     except Exception as e:
         log(f"Error occurred in TNS retrieval queue: {str(e)}")
-        raise e
