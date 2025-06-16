@@ -384,17 +384,18 @@ def get_photometry_by_instruments_stream_and_options(
         )
 
     # Filter the photometry by stream IDs
-    photometry = [
-        phot
-        for phot in photometry
-        if session.scalar(
-            sa.select(StreamPhotometry.stream_id).where(
-                StreamPhotometry.photometr_id == phot.id,
-                StreamPhotometry.stream_id.in_(stream_ids),
+    if stream_ids:
+        photometry = [
+            phot
+            for phot in photometry
+            if session.scalar(
+                sa.select(StreamPhotometry.stream_id).where(
+                    StreamPhotometry.photometr_id == phot.id,
+                    StreamPhotometry.stream_id.in_(stream_ids),
+                )
             )
-        )
-        is not None
-    ]
+            is not None
+        ]
     detections = [phot for phot in photometry if not is_null(phot.mag)]
 
     # if no photometry or only non-detections photometry is found, raise an error
