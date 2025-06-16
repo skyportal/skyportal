@@ -20,7 +20,6 @@ import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
 import * as rejectedActions from "./ducks/rejected_candidates";
-import * as tnsrobotsActions from "./ducks/tnsrobots";
 import * as externalPublishingActions from "./ducks/externalPublishing";
 import * as enumTypesActions from "./ducks/enum_types";
 import * as usersActions from "./ducks/users";
@@ -144,11 +143,6 @@ export default function hydrate(
       if (ducks_to_hydrate.includes("favorites")) {
         dispatch(favoritesActions.fetchFavorites()).then(() => {
           dispatch(hydrationActions.finishedHydrating("favorites"));
-        });
-      }
-      if (ducks_to_hydrate.includes("tnsrobots")) {
-        dispatch(tnsrobotsActions.fetchTNSRobots()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("tnsrobots"));
         });
       }
       if (ducks_to_hydrate.includes("externalPublishingBots")) {

@@ -19,7 +19,7 @@ import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "../Spinner";
-import { userLabel } from "../tns/TNSRobotsPage";
+import { userLabelWithAffiliations } from "../../utils/user";
 import FormValidationError from "../FormValidationError";
 
 import * as externalPublishingActions from "../../ducks/externalPublishing";
@@ -60,7 +60,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
   const [defaultStreamIds, setDefaultStreamIds] = useState([]);
-  const [sendToTNS, setSendToTNS] = useState(!isNoAffiliation);
+  const [sendToTNS, setSendToTNS] = useState(false);
   const [sendToHermes, setSendToHermes] = useState(false);
   // request in process
   const [publishRequestInProcess, setPublishRequestInProcess] = useState(false);
@@ -120,10 +120,12 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       const coauthors = (selectedBot?.coauthors || []).filter(
         (coauthor) => coauthor.user_id !== currentUser.id,
       );
-      const authorString = userLabel(currentUser);
+      const authorString = userLabelWithAffiliations(currentUser);
       const coauthorsString = coauthors
         .map((coauthor) =>
-          userLabel(allUsers.find((user) => user.id === coauthor.user_id)),
+          userLabelWithAffiliations(
+            allUsers.find((user) => user.id === coauthor.user_id),
+          ),
         )
         .join(", ");
       const acknowledgments =
@@ -141,6 +143,14 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     if (!externalPublishingBotList?.length || !selectedBotId || !selectedBot)
       return;
     let archivalComment = "No non-detections prior to first detection";
+
+    // Set publish to
+    if (sendToTNS !== selectedBot.enable_publish_to_tns) {
+      setSendToTNS(selectedBot.enable_publish_to_tns);
+    }
+    if (sendToHermes !== selectedBot.enable_publish_to_hermes) {
+      setSendToHermes(selectedBot.enable_publish_to_hermes);
+    }
 
     // Set instruments
     if (instrumentList?.length && selectedBot.instruments?.length) {
@@ -273,13 +283,15 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         description:
           "If enabled, the bot will not publish the data if there is no first and last detection (at least 2 detections).",
       },
-      archival: {
-        type: "boolean",
-        title: "TNS Archival",
-        description:
-          "TNS require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
-        default: false,
-      },
+      ...(sendToTNS && {
+        archival: {
+          type: "boolean",
+          title: "TNS Archival",
+          description:
+            "TNS require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
+          default: false,
+        },
+      }),
     },
     dependencies: {
       archival: {
@@ -370,7 +382,9 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                 onClick={() => setSendToTNS(!sendToTNS)}
                 color={sendToTNS ? "primary" : "default"}
                 variant={sendToTNS ? "filled" : "outlined"}
-                disabled={isNoAffiliation}
+                disabled={
+                  isNoAffiliation || !selectedBot?.enable_publish_to_tns
+                }
               />
             </div>
           </Tooltip>
@@ -397,6 +411,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               onClick={() => setSendToHermes(!sendToHermes)}
               color={sendToHermes ? "primary" : "default"}
               variant={sendToHermes ? "filled" : "outlined"}
+              disabled={!selectedBot?.enable_publish_to_hermes}
             />
           </Tooltip>
         </Box>
@@ -424,12 +439,12 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                   {publishingBot.testing === true && (
                     <Tooltip
                       title={
-                        <h2>
+                        <h3>
                           This bot is currently in testing mode. It will not
                           publish any data but will store the payload in the
                           database instead (useful for debugging purposes). You
                           can remove it from the External Publishing Bots page.
-                        </h2>
+                        </h3>
                       }
                       placement="right"
                     >
@@ -456,7 +471,6 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                     onSubmit={handleSubmit}
                     disabled={publishRequestInProcess}
                     customValidate={validate}
-                    liveValidate
                   />
                 ) : (
                   <h3>Loading...</h3>

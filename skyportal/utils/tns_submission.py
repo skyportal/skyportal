@@ -89,7 +89,7 @@ def build_tns_report(
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.TNSRobotSubmission`
+    submission_request : `~skyportal.models.ExternalPublishingSubmission`
         The submission request.
     publishing_bot : `~skyportal.models.ExternalPublishingBot`
         The bot to use for the submission.

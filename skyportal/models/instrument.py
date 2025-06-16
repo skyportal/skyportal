@@ -3,7 +3,6 @@ __all__ = [
     "InstrumentField",
     "InstrumentFieldTile",
     "InstrumentLog",
-    "InstrumentTNSRobot",
     "InstrumentExternalPublishingBot",
 ]
 
@@ -36,7 +35,6 @@ from ..enum_types import (
     listener_classnames,
 )
 from .external_publishing import ExternalPublishingBot
-from .tns import TNSRobot
 
 _, cfg = load_env()
 
@@ -504,15 +502,6 @@ class Instrument(Base):
 
     logs = relationship("InstrumentLog")
 
-    tnsrobots = relationship(
-        "TNSRobot",
-        secondary="instrument_tnsrobots",
-        back_populates="instruments",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="TNS robots associated with this instrument, used for auto-reporting.",
-    )
-
     external_publishing_bots = relationship(
         "ExternalPublishingBot",
         secondary="instrument_external_publishing_bots",
@@ -535,9 +524,6 @@ def _instrument_region_append(target, value, oldvalue, initiator):
 def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 
-
-InstrumentTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
-InstrumentTNSRobot.__doc__ = "Join table mapping Instruments to TNSRobots."
 
 InstrumentExternalPublishingBot = join_model(
     "instrument_external_publishing_bots", Instrument, ExternalPublishingBot

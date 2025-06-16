@@ -168,14 +168,12 @@ from skyportal.handlers.api import (
     SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
     SourcesConfirmedInGCNHandler,
-    SourcesConfirmedInGCNTNSHandler,
     SpatialCatalogASCIIFileHandler,
     SpatialCatalogHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
     SpectrumHandler,
     SpectrumRangeHandler,
-    SpectrumTNSHandler,
     StatsHandler,
     StreamHandler,
     StreamUserHandler,
@@ -190,11 +188,6 @@ from skyportal.handlers.api import (
     TelescopeHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
-    TNSRobotCoauthorHandler,
-    TNSRobotGroupAutoreporterHandler,
-    TNSRobotGroupHandler,
-    TNSRobotHandler,
-    TNSRobotSubmissionHandler,
     UnsourcedFinderHandler,
     UserACLHandler,
     UserHandler,
@@ -366,7 +359,6 @@ skyportal_handlers = [
     (r"/api/gcn_event/tags(/.*)?", GcnEventTagsHandler),
     (r"/api/gcn_event/properties", GcnEventPropertiesHandler),
     (r"/api/gcn_event(/.*)?", GcnEventHandler),
-    (r"/api/sources_in_gcn/(.*)/tns", SourcesConfirmedInGCNTNSHandler),
     (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", SourcesConfirmedInGCNHandler),
     (r"/api/associated_gcns/(.*)", GCNsAssociatedWithSourceHandler),
     (
@@ -539,7 +531,6 @@ skyportal_handlers = [
     (r"/api/spectrum/parse/ascii", SpectrumASCIIFileParser),
     (r"/api/spectrum/ascii(/[0-9]+)?", SpectrumASCIIFileHandler),
     (r"/api/spectrum/range(/.*)?", SpectrumRangeHandler),
-    (r"/api/spectrum/tns(/[0-9]+)?", SpectrumTNSHandler),
     # End deprecated
     (r"/api/streams(/[0-9]+)/users(/.*)?", StreamUserHandler),
     (r"/api/streams(/[0-9]+)?", StreamHandler),
@@ -558,15 +549,6 @@ skyportal_handlers = [
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
-    # TNS robot endpoints
-    (
-        r"/api/tns_robot(/[0-9]+)/group(/[0-9]+)/autoreporter(/[0-9]+)?",
-        TNSRobotGroupAutoreporterHandler,
-    ),
-    (r"/api/tns_robot(/[0-9]+)/group(/[0-9]+)?", TNSRobotGroupHandler),
-    (r"/api/tns_robot(/[0-9]+)/submissions(/[0-9]+)?", TNSRobotSubmissionHandler),
-    (r"/api/tns_robot(/[0-9]+)/coauthor(/[0-9]+)?", TNSRobotCoauthorHandler),
-    (r"/api/tns_robot(/[0-9]+)?", TNSRobotHandler),
     # External publishing endpoints
     (
         r"/api/external_publishing/submission(/[0-9]+)?",

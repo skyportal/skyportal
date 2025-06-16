@@ -4,7 +4,6 @@ __all__ = [
     "StreamPhotometry",
     "StreamPhotometricSeries",
     "StreamInvitation",
-    "StreamTNSRobot",
     "StreamExternalPublishingBot",
 ]
 
@@ -27,7 +26,6 @@ from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
 from .photometry import Photometry
-from .tns import TNSRobot
 
 
 class Stream(Base):
@@ -81,15 +79,6 @@ class Stream(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Photometric series associated with this stream.",
-    )
-
-    tnsrobots = relationship(
-        "TNSRobot",
-        secondary="stream_tnsrobots",
-        back_populates="streams",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="TNS robots associated with this stream, used for auto-reporting.",
     )
 
     external_publishing_bots = relationship(
@@ -146,10 +135,6 @@ StreamPhotometricSeries.__doc__ = "Join table mapping Streams to PhotometricSeri
 StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
-
-StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
-StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
-StreamTNSRobot.create = accessible_by_stream_members
 
 StreamExternalPublishingBot = join_model(
     "stream_external_publishing_bots", Stream, ExternalPublishingBot

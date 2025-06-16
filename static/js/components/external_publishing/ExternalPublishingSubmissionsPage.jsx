@@ -55,7 +55,7 @@ const ExternalPublishingSubmissionsPage = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [loading, setLoading] = useState(false);
-  const [showPayload, setShowPayload] = useState(null);
+  const [showTNSPayload, setShowTNSPayload] = useState(null);
 
   useEffect(() => {
     if (bot_id && !loading) {
@@ -269,14 +269,14 @@ const ExternalPublishingSubmissionsPage = () => {
       },
     },
     {
-      name: "payload",
-      label: "Payload",
+      name: "tns_payload",
+      label: "TNS payload",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: (dataIndex) => {
-          const { payload } = publishingBotSubmissions[dataIndex];
-          if (payload === null) {
+          const { tns_payload } = publishingBotSubmissions[dataIndex];
+          if (tns_payload === null) {
             return null;
           }
           return (
@@ -285,7 +285,7 @@ const ExternalPublishingSubmissionsPage = () => {
             >
               <IconButton
                 onClick={() => {
-                  setShowPayload(dataIndex);
+                  setShowTNSPayload(dataIndex);
                 }}
               >
                 <HistoryEduIcon />
@@ -327,24 +327,25 @@ const ExternalPublishingSubmissionsPage = () => {
       )}
       {publishingBotSubmissions?.length > 0 && (
         <Dialog
-          open={showPayload !== null}
-          onClose={() => setShowPayload(null)}
+          open={showTNSPayload !== null}
+          onClose={() => setShowTNSPayload(null)}
           maxWidth="lg"
         >
           <DialogTitle
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            <Typography variant="h6">Payload</Typography>
+            <Typography variant="h6">TNS payload</Typography>
             <Tooltip title="Copy to clipboard">
               <span>
                 <IconButton
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      typeof publishingBotSubmissions[showPayload]?.payload ===
-                        "string"
-                        ? publishingBotSubmissions[showPayload]?.payload
+                      typeof publishingBotSubmissions[showTNSPayload]
+                        ?.tns_payload === "string"
+                        ? publishingBotSubmissions[showTNSPayload]?.tns_payload
                         : JSON.stringify(
-                            publishingBotSubmissions[showPayload]?.payload,
+                            publishingBotSubmissions[showTNSPayload]
+                              ?.tns_payload,
                           ),
                     );
                   }}
@@ -357,17 +358,19 @@ const ExternalPublishingSubmissionsPage = () => {
           <DialogContent>
             <ReactJson
               src={
-                typeof publishingBotSubmissions[showPayload]?.payload ===
+                typeof publishingBotSubmissions[showTNSPayload]?.tns_payload ===
                 "string"
-                  ? JSON.parse(publishingBotSubmissions[showPayload]?.payload)
-                  : publishingBotSubmissions[showPayload]?.payload
+                  ? JSON.parse(
+                      publishingBotSubmissions[showTNSPayload]?.tns_payload,
+                    )
+                  : publishingBotSubmissions[showTNSPayload]?.tns_payload
               }
               displayDataTypes={false}
               displayObjectSize={false}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowPayload(null)} color="primary">
+            <Button onClick={() => setShowTNSPayload(null)} color="primary">
               Close
             </Button>
           </DialogActions>

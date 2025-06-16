@@ -17,13 +17,9 @@ import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
-import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Paper from "@mui/material/Paper";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
@@ -68,8 +64,6 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
-import TNSATForm from "../tns/TNSATForm";
-import HermesForm from "../hermes/HermesForm";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
@@ -236,7 +230,6 @@ const SourceContent = ({ source }) => {
   // (where it will appear on the screen)
   const [anchorElFindingChart, setAnchorElFindingChart] = useState(null);
   const [anchorElObservability, setAnchorElObservability] = useState(null);
-  const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
   const openFindingChart = Boolean(anchorElFindingChart);
   const openObservability = Boolean(anchorElObservability);
 
@@ -947,28 +940,6 @@ const SourceContent = ({ source }) => {
                     </Link>
                   </MenuItem>
                 </Menu>
-              </div>
-              <div>
-                <Button
-                  onClick={() => setTNSDialogOpen(true)}
-                  secondary
-                  size="small"
-                >
-                  Send to TNS
-                </Button>
-                <Dialog
-                  open={tnsDialogOpen}
-                  onClose={() => setTNSDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle>Send to TNS</DialogTitle>
-                  <DialogContent>
-                    <TNSATForm
-                      obj_id={source.id}
-                      submitCallback={() => setTNSDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
               </div>
               <div>
                 <Button

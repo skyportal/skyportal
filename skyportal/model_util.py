@@ -12,7 +12,6 @@ all_acl_ids = [
     "Manage users",
     "Manage sources",
     "Manage groups",
-    "Manage TNS robots",
     "Manage external publishing bots",
     "Manage shifts",
     "Manage instruments",

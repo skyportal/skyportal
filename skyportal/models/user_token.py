@@ -430,13 +430,6 @@ User.sources = relationship(
     viewonly=True,
 )
 
-User.tns_submissions = relationship(
-    "TNSRobotSubmission",
-    back_populates="user",
-    passive_deletes=True,
-    doc="The TNSRobotSubmission this user has made (manual or automatic).",
-)
-
 User.external_publishing_submissions = relationship(
     "ExternalPublishingSubmission",
     back_populates="user",

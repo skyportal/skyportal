@@ -348,7 +348,7 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
 
                 if include_payload:
                     stmt = stmt.options(
-                        sa.orm.undefer(ExternalPublishingSubmission.payload)
+                        sa.orm.undefer(ExternalPublishingSubmission.tns_payload)
                     )
                 if include_response:
                     stmt = stmt.options(

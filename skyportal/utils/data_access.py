@@ -15,9 +15,6 @@ from ..models import (
     ExternalPublishingSubmission,
     ExternalPublishingBotGroup,
     ExternalPublishingBot,
-    TNSRobotGroupAutoreporter,
-    TNSRobotSubmission,
-    TNSRobotGroup,
     Thumbnail,
     InstrumentExternalPublishingBot,
     StreamExternalPublishingBot,
@@ -43,7 +40,6 @@ EXTERNAL_PUBLISHING_INSTRUMENT_IDS = {
 
 PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,
-    "autoreport_allow_archival": bool,
     "auto_publish_allow_archival": bool,
 }
 
