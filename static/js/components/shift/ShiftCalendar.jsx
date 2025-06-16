@@ -376,6 +376,13 @@ function MyCalendar({ events, currentShift, setShow }) {
             components={{
               event: Event,
             }}
+            formats={{
+              timeGutterFormat: (date) => {
+                const utcHour = date.getUTCHours().toString().padStart(2, "0");
+                const localHour = localizer.format(date, "HH");
+                return `${localHour}h (UTC ${utcHour}h)`;
+              },
+            }}
             startAccessor="start_date"
             endAccessor="end_date"
             titleAccessor="name"
