@@ -97,7 +97,7 @@ const HeaderContent = () => {
     let timeRefresh;
     if (isDesktop) {
         setNow(new Date());
-        const timeRefresh = setInterval(() => {
+        timeRefresh = setInterval(() => {
           setNow(new Date());
         }, 60000);
 
