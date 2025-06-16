@@ -18,7 +18,7 @@ import Notes from "../Notes";
 import hydrate from "../../actions";
 
 import QuickSearchBar from "../QuickSearchBar";
-import {alpha} from "@mui/material";
+import {alpha} from "@mui/material/styles";
 
 const useStyles = makeStyles((theme) => ({
   topBannerContent: {
