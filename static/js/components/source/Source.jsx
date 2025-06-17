@@ -868,14 +868,14 @@ const SourceContent = ({ source }) => {
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <a
-                      href={`/api/sources/${source.id}/finder`}
-                      download="finder-chart-pdf"
-                      className={classes.dropdownText}
-                    >
-                      PDF
-                    </a>
+                  <MenuItem
+                    component="a"
+                    href={`/api/sources/${source.id}/finder`}
+                    download="finder-chart"
+                    className={classes.dropdownText}
+                    onClick={() => setAnchorElFindingChart(null)}
+                  >
+                    PDF
                   </MenuItem>
                   <MenuItem onClick={() => setAnchorElFindingChart(null)}>
                     <Link
@@ -919,15 +919,15 @@ const SourceContent = ({ source }) => {
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <a
-                      href={`/api/sources/${source.id}/observability`}
-                      download={`observabilityChartRequest-${source.id}`}
-                      data-testid={`observabilityChartRequest_${source.id}`}
-                      className={classes.dropdownText}
-                    >
-                      PDF
-                    </a>
+                  <MenuItem
+                    component="a"
+                    href={`/api/sources/${source.id}/observability`}
+                    download={`observabilityChartRequest-${source.id}`}
+                    data-testid={`observabilityChartRequest_${source.id}`}
+                    className={classes.dropdownText}
+                    onClick={() => setAnchorElObservability(null)}
+                  >
+                    PDF
                   </MenuItem>
                   <MenuItem onClick={() => setAnchorElObservability(null)}>
                     <Link

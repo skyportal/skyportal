@@ -321,6 +321,14 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     return path_ursa_ref
 
 
+def ngps_defaults(mag, magfilter):
+    try:  # if numerical, format to 2 decimal places
+        mag = f"{mag:<0.02f}"
+    except TypeError:
+        pass
+    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5"
+
+
 # helper dict for seaching for FITS images from various surveys
 source_image_parameters = {
     "desi": {
@@ -743,7 +751,7 @@ def get_formatted_standards_list(
                         + "standard"  # comment
                         + ","  # priority, empty for standards
                         + ","
-                        + f"2,1,PA,1.3,2.5,650,680,R,{mag},{magfilter},SNR 5"
+                        + ngps_defaults(mag, magfilter)
                     )
                 }
             )
@@ -1134,7 +1142,7 @@ def get_nearby_offset_stars(
             + ","
             + str(int(assignment_priority))  # assignment priority, if any
             + ","
-            + f"2,1,PA,1.3,2.5,650,680,R,{mag},{magfilter},SNR 5"
+            + ngps_defaults(mag, magfilter)
         )
     else:
         star_list_format = (
@@ -1193,7 +1201,7 @@ def get_nearby_offset_stars(
                 + "offset"  # comment
                 + ","  # priority (empty for offsets)
                 + ","
-                + f"2,1,PA,1.3,2.5,650,680,R,{source['phot_rp_mean_mag']:<0.02f},R,SNR 5"
+                + ngps_defaults(source["phot_rp_mean_mag"], "R")
             )
         else:
             star_list_format = (
