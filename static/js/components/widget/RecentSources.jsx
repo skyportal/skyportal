@@ -15,7 +15,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
-import Avatar from "@mui/material/Avatar";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
 import Tooltip from "@mui/material/Tooltip";
@@ -74,6 +73,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   sourceNameContainer: {
     display: "flex",
     flexDirection: "column",
+    minWidth: "300px",
   },
   sourceName: {
     fontSize: "1rem",
@@ -114,6 +114,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     width: "100%",
     alignItems: "flex-end",
     justifyContent: "space-between",
+    minWidth: "110px",
   },
   sourceItemWithButton: {
     display: "flex",
@@ -163,6 +164,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     gap: "0.25rem",
     marginTop: "0.25rem",
     justifyContent: "flex-start",
+    width: "100%",
   },
   tagChip: {
     padding: "0",
@@ -377,12 +379,28 @@ const RecentSourcesList = ({
                           {recentSourceName}
                         </span>
                       </Link>
+                      {classification && (
+                        <span className={styles.classification}>
+                          {classification}
+                        </span>
+                      )}
+                      <div className={styles.sourceCoordinates}>
+                        <span
+                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                        >
+                          {`\u03B1: ${ra_to_hours(source.ra)}`}
+                        </span>
+                        <span
+                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                        >
+                          {`\u03B4: ${dec_to_dms(source.dec)}`}
+                        </span>
+                      </div>
                       {displayTags && source.tags && source.tags.length > 0 && (
                         <div className={styles.tagsContainer}>
                           {source.tags.slice(0, 2).map((tag) => (
                             <Chip
                               key={tag.id}
-                              avatar={<Avatar>T</Avatar>}
                               label={tag.name}
                               size="small"
                               className={styles.tagChip}
@@ -411,7 +429,6 @@ const RecentSourcesList = ({
                                 key="more-tags"
                                 label={`+${source.tags.length - 2}`}
                                 size="small"
-                                avatar={<Avatar>T</Avatar>}
                                 className={styles.tagChip}
                                 color="default"
                                 variant="filled"
@@ -424,23 +441,6 @@ const RecentSourcesList = ({
                           )}
                         </div>
                       )}
-                      {classification && (
-                        <span className={styles.classification}>
-                          {classification}
-                        </span>
-                      )}
-                      <div className={styles.sourceCoordinates}>
-                        <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
-                        >
-                          {`\u03B1: ${ra_to_hours(source.ra)}`}
-                        </span>
-                        <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
-                        >
-                          {`\u03B4: ${dec_to_dms(source.dec)}`}
-                        </span>
-                      </div>
                       {source.resaved && <span>(Source was re-saved)</span>}
                     </div>
                     <div className={styles.bottomContainer}>
