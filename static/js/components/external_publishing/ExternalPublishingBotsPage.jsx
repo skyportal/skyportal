@@ -156,7 +156,6 @@ const ExternalPublishingBotGroup = ({
           dispatch(
             showNotification(`Successfully updated group ${botGroup.group_id}`),
           );
-          setOpen(false);
         } else {
           dispatch(
             showNotification(
@@ -217,8 +216,8 @@ const ExternalPublishingBotGroup = ({
         }
       });
     }
-
     setUpdating(false);
+    setOpen(false);
   };
 
   const deleteGroup = () => {
