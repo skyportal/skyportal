@@ -49,7 +49,7 @@ from .source import *
 from .source_label import *
 from .source_notification import *
 from .source_view import *
-from .sources_confirmed_in_gcn import *
+from .sources_in_gcn import *
 from .spatial_catalog import *
 from .spectrum import *
 from .stream import *

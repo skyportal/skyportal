@@ -46,11 +46,11 @@ class SourcesInGCN(Base):
         doc="UTC event timestamp",
     )
 
-    # confirmed = sa.Column(
-    #     sa.Boolean,
-    #     doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
-    #     "If undefined, the source is not yet confirmed or rejected in the GCN.",
-    # )
+    confirmed = sa.Column(
+        sa.Boolean,
+        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
+        "If undefined, the source is not yet confirmed or rejected in the GCN.",
+    )
 
     status = sa.Column(
         sources_in_gcn_status,
