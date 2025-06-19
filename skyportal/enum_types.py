@@ -174,6 +174,13 @@ listener_classnames = sa.Enum(
     validate_strings=True,
 )
 
+sources_in_gcn_status = Enum(
+    *SOURCES_IN_GCN_STATUS,
+    name="sources_in_gcn_status",
+    validate_strings=True,
+)
+
+
 py_allowed_spectrum_types = Enum("spectrumtypes", ALLOWED_SPECTRUM_TYPES)
 py_allowed_magsystems = Enum("magsystems", ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum("bandpasses", ALLOWED_BANDPASSES)
@@ -185,9 +192,6 @@ py_allowed_external_authentication_types = Enum(
     "authenticationtypes", AUTHENTICATION_TYPES
 )
 py_allowed_webbook_status_types = Enum("webhookstatustypes", WEBHOOK_STATUS_TYPES)
-
-sources_in_gcn_status = Enum("sources_in_gcn_status", SOURCES_IN_GCN_STATUS)
-
 
 sqla_enum_types = [
     allowed_spectrum_types,
@@ -202,6 +206,7 @@ sqla_enum_types = [
     allowed_analysis_input_types,
     allowed_external_authentication_types,
     allowed_webbook_status_types,
+    sources_in_gcn_status,
 ]
 
 GCN_NOTICE_TYPES = tuple(
