@@ -163,8 +163,8 @@ from skyportal.handlers.api import (
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
-    SourcesConfirmedInGCNHandler,
     SourcesConfirmedInGCNTNSHandler,
+    SourcesInGCNHandler,
     SpatialCatalogASCIIFileHandler,
     SpatialCatalogHandler,
     SpectrumASCIIFileHandler,
@@ -363,7 +363,7 @@ skyportal_handlers = [
     (r"/api/gcn_event/properties", GcnEventPropertiesHandler),
     (r"/api/gcn_event(/.*)?", GcnEventHandler),
     (r"/api/sources_in_gcn/(.*)/tns", SourcesConfirmedInGCNTNSHandler),
-    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", SourcesConfirmedInGCNHandler),
+    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", SourcesInGCNHandler),
     (r"/api/associated_gcns/(.*)", GCNsAssociatedWithSourceHandler),
     (
         r"/api/localization(/[0-9]+)/observability",

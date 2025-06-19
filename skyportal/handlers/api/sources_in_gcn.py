@@ -11,7 +11,7 @@ from baselayer.log import make_log
 from ...models import (
     GcnEvent,
     Localization,
-    SourcesConfirmedInGCN,
+    SourcesInGCN,
     TNSRobot,
     TNSRobotSubmission,
 )
@@ -75,7 +75,7 @@ class Validator(Schema):
                 raise ValidationError("Missing required fields")
 
 
-class SourcesConfirmedInGCNHandler(BaseHandler):
+class SourcesInGCNHandler(BaseHandler):
     @auth_or_token
     async def get(self, dateobs, source_id=None):
         """
@@ -215,13 +215,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
 
                 if len(sources_id_list) == 0:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs
+                    stmt = SourcesInGCN.select(session.user_or_token).where(
+                        SourcesInGCN.dateobs == dateobs
                     )
                 else:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                        SourcesConfirmedInGCN.obj_id.in_(sources_id_list),
+                    stmt = SourcesInGCN.select(session.user_or_token).where(
+                        SourcesInGCN.dateobs == dateobs,
+                        SourcesInGCN.obj_id.in_(sources_id_list),
                     )
                 sources_in_gcn = session.scalars(stmt).all()
             except Exception as e:
@@ -343,9 +343,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 if not localization:
                     return self.error("Localization not found")
 
-                stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                    SourcesConfirmedInGCN.dateobs == dateobs,
-                    SourcesConfirmedInGCN.obj_id == source_id,
+                stmt = SourcesInGCN.select(session.user_or_token).where(
+                    SourcesInGCN.dateobs == dateobs,
+                    SourcesInGCN.obj_id == source_id,
                 )
                 source_in_gcn = session.scalars(stmt).first()
                 if source_in_gcn:
@@ -397,7 +397,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                                     )
                                 session.commit()
                 else:
-                    source_in_gcn = SourcesConfirmedInGCN(
+                    source_in_gcn = SourcesInGCN(
                         obj_id=source_id,
                         dateobs=dateobs,
                         confirmed=confirmed,
@@ -531,9 +531,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 if not gcn_event:
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
 
-                stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                    SourcesConfirmedInGCN.dateobs == dateobs,
-                    SourcesConfirmedInGCN.obj_id == source_id,
+                stmt = SourcesInGCN.select(session.user_or_token).where(
+                    SourcesInGCN.dateobs == dateobs,
+                    SourcesInGCN.obj_id == source_id,
                 )
                 source_in_gcn = session.scalars(stmt).first()
                 if not source_in_gcn:
@@ -649,9 +649,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 gcn_event = session.scalars(stmt).first()
                 if not gcn_event:
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
-                stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                    SourcesConfirmedInGCN.obj_id == source_id,
-                    SourcesConfirmedInGCN.dateobs == dateobs,
+                stmt = SourcesInGCN.select(session.user_or_token).where(
+                    SourcesInGCN.obj_id == source_id,
+                    SourcesInGCN.dateobs == dateobs,
                 )
                 source_in_gcn = session.scalars(stmt).first()
                 if not source_in_gcn:
@@ -783,16 +783,16 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
 
                 if len(sources_id_list) == 0:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs
+                    stmt = SourcesInGCN.select(session.user_or_token).where(
+                        SourcesInGCN.dateobs == dateobs
                     )
                 else:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                        SourcesConfirmedInGCN.obj_id.in_(sources_id_list),
+                    stmt = SourcesInGCN.select(session.user_or_token).where(
+                        SourcesInGCN.dateobs == dateobs,
+                        SourcesInGCN.obj_id.in_(sources_id_list),
                     )
                 if confirmed:
-                    stmt = stmt.where(SourcesConfirmedInGCN.confirmed.is_(True))
+                    stmt = stmt.where(SourcesInGCN.confirmed.is_(True))
                 sources_in_gcn = session.scalars(stmt).all()
 
                 tnsrobot = session.scalars(
@@ -915,9 +915,9 @@ class GCNsAssociatedWithSourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                    SourcesConfirmedInGCN.obj_id == source_id,
-                    SourcesConfirmedInGCN.confirmed.is_(True),
+                stmt = SourcesInGCN.select(session.user_or_token).where(
+                    SourcesInGCN.obj_id == source_id,
+                    SourcesInGCN.confirmed.is_(True),
                 )
                 source_confirmed_in_gcns = session.scalars(stmt.distinct()).all()
                 gcns = [

@@ -455,7 +455,7 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     sources_in_gcns = relationship(
-        "SourcesConfirmedInGCN",
+        "SourcesInGCN",
         back_populates="obj",
         passive_deletes=True,
         doc="Sources in a localization.",

@@ -176,10 +176,10 @@ from .source import (
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
 from .source_labels import SourceLabelsHandler
-from .sources_confirmed_in_gcn import (
+from .sources_in_gcn import (
     GCNsAssociatedWithSourceHandler,
-    SourcesConfirmedInGCNHandler,
     SourcesConfirmedInGCNTNSHandler,
+    SourcesInGCNHandler,
 )
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
