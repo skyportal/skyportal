@@ -1,6 +1,6 @@
 # this is the model of a table that has: a source id, a localization id, a flag to indicate if the source is confirmed or rejected
 
-__all__ = ["SourcesConfirmedInGCN"]
+__all__ = ["SourcesInGCN"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -8,20 +8,22 @@ from sqlalchemy.orm import relationship
 from baselayer.app.env import load_env
 from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 
+from ..enum_types import sources_in_gcn_status
+
 _, cfg = load_env()
 
 
-def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
+def manage_sources_in_gcn_access_logic(cls, user_or_token):
     if user_or_token.is_admin or "Manage GCNs" in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
         return DBSession().query(cls).filter(sa.false())
 
 
-class SourcesConfirmedInGCN(Base):
+class SourcesInGCN(Base):
     read = public
     create = update = delete = CustomUserAccessControl(
-        manage_sources_confirmed_in_gcn_access_logic
+        manage_sources_in_gcn_access_logic
     )
 
     obj_id = sa.Column(
@@ -44,24 +46,31 @@ class SourcesConfirmedInGCN(Base):
         doc="UTC event timestamp",
     )
 
-    confirmed = sa.Column(
-        sa.Boolean,
-        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
-        "If undefined, the source is not yet confirmed or rejected in the GCN.",
+    # confirmed = sa.Column(
+    #     sa.Boolean,
+    #     doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
+    #     "If undefined, the source is not yet confirmed or rejected in the GCN.",
+    # )
+
+    status = sa.Column(
+        sources_in_gcn_status,
+        nullable=False,
+        default="pending",
+        doc="Status of the source related to a GCN event.",
     )
 
     # the person who uploaded the confirmation
     confirmer = relationship(
         "User",
         back_populates="sources_in_gcn",
-        doc="The User who created this SourcesConfirmedInGCN.",
-        foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+        doc="The User who created this SourcesInGCN.",
+        foreign_keys="SourcesInGCN.confirmer_id",
     )
     confirmer_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this SourcesConfirmedInGCN.",
+        doc="The ID of the User who created this SourcesInGCN.",
     )
 
     explanation = sa.Column(

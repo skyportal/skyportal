@@ -105,6 +105,14 @@ ALLOWED_ALLOCATION_TYPES = (
     "forced_photometry",
     "observation_plan",
 )
+
+SOURCES_IN_GCN_STATUS = (
+    "confirmed",
+    "rejected",
+    "ambiguous",
+    "pending",
+)
+
 allowed_webbook_status_types = sa.Enum(
     *WEBHOOK_STATUS_TYPES, name="webhookstatustypes", validate_strings=True
 )
@@ -177,6 +185,8 @@ py_allowed_external_authentication_types = Enum(
     "authenticationtypes", AUTHENTICATION_TYPES
 )
 py_allowed_webbook_status_types = Enum("webhookstatustypes", WEBHOOK_STATUS_TYPES)
+
+sources_in_gcn_status = Enum("sources_in_gcn_status", SOURCES_IN_GCN_STATUS)
 
 
 sqla_enum_types = [
