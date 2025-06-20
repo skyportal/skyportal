@@ -71,12 +71,21 @@ def upgrade():
             nullable=False,
         ),
     )
+    op.rename_table("instrument_tnsrobots", "instrument_external_publishing_bots")
     op.alter_column(
-        "instruments",
-        "tns_id",
+        "instrument_external_publishing_bots",
+        "tnsrobot_id",
         new_column_name="external_publishing_bot_id",
         existing_type=sa.Integer(),
-        existing_nullable=True,
+        existing_nullable=False,
+    )
+    op.rename_table("stream_tnsrobots", "stream_external_publishing_bots")
+    op.alter_column(
+        "stream_external_publishing_bots",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+        existing_nullable=False,
     )
     # op.drop_constraint('tnsrobot_group_users_tnsrobot_group_id_fkey', 'external_publishing_bot_group_users',
     #                    type_='foreignkey')
@@ -396,6 +405,23 @@ def downgrade():
     op.rename_table("external_publishing_bot_coauthors", "tnsrobot_coauthors")
 
     ##########
+    op.alter_column(
+        "stream_external_publishing_bots",
+        "external_publishing_bot_id",
+        new_column_name="tnsrobot_id",
+        existing_type=sa.Integer(),
+        existing_nullable=False,
+    )
+    op.rename_table("stream_external_publishing_bots", "stream_tnsrobots")
+    op.alter_column(
+        "instrument_external_publishing_bots",
+        "external_publishing_bot_id",
+        new_column_name="tnsrobot_id",
+        existing_type=sa.Integer(),
+        existing_nullable=False,
+    )
+    op.rename_table("instrument_external_publishing_bots", "instrument_tnsrobots")
+
     op.drop_column("external_publishing_bots", "enable_publish_to_hermes")
     op.drop_column("external_publishing_bots", "enable_publish_to_tns")
     op.alter_column(
