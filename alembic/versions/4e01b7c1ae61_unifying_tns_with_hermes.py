@@ -37,12 +37,14 @@ def upgrade():
         "external_publishing_bots",
         "bot_id",
         existing_type=sa.Integer(),
+        existing_nullable=False,
         nullable=True,
     )
     op.alter_column(
         "external_publishing_bots",
         "source_group_id",
         existing_type=sa.Integer(),
+        existing_nullable=False,
         nullable=True,
     )
     op.alter_column(
@@ -65,9 +67,16 @@ def upgrade():
         sa.Column(
             "enable_publish_to_tns",
             sa.Boolean(),
-            server_default="false",
+            server_default="true",
             nullable=False,
         ),
+    )
+    op.alter_column(
+        "instruments",
+        "tns_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+        existing_nullable=True,
     )
     # op.drop_constraint('tnsrobot_group_users_tnsrobot_group_id_fkey', 'external_publishing_bot_group_users',
     #                    type_='foreignkey')
@@ -199,7 +208,7 @@ def upgrade():
         "status",
         new_column_name="tns_status",
         existing_type=sa.String(),
-        existing_nullable=True,
+        existing_nullable=False,
         existing_server_default=None,
         nullable=True,
     )
@@ -210,21 +219,18 @@ def upgrade():
         existing_type=sa.Integer(),
         existing_nullable=True,
         existing_server_default=None,
-        nullable=True,
     )
     op.alter_column(
         "external_publishing_submissions",
         "payload",
         new_column_name="tns_payload",
         existing_type=postgresql.JSONB(),
-        existing_nullable=True,
     )
     op.alter_column(
         "external_publishing_submissions",
         "response",
         new_column_name="tns_response",
         existing_type=postgresql.JSONB(),
-        existing_nullable=True,
     )
     op.add_column(
         "external_publishing_submissions",
@@ -267,14 +273,12 @@ def downgrade():
         "tns_response",
         new_column_name="response",
         existing_type=postgresql.JSONB(),
-        existing_nullable=True,
     )
     op.alter_column(
         "external_publishing_submissions",
         "tns_payload",
         new_column_name="payload",
         existing_type=postgresql.JSONB(),
-        existing_nullable=True,
     )
     op.alter_column(
         "external_publishing_submissions",
@@ -282,7 +286,6 @@ def downgrade():
         new_column_name="submission_id",
         existing_type=sa.Integer(),
         existing_nullable=True,
-        nullable=False,
     )
     op.alter_column(
         "external_publishing_submissions",
@@ -329,14 +332,6 @@ def downgrade():
     op.rename_table("external_publishing_bot_group_users", "tnsrobot_group_users")
 
     op.create_foreign_key(
-        "tnsrobot_group_users_tnsrobot_group_id_fkey",
-        "tnsrobot_group_users",
-        "tnsrobot_groups",
-        ["tnsrobot_group_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
         "tnsrobot_group_users_group_user_id_fkey",
         "tnsrobot_group_users",
         "group_users",
@@ -375,10 +370,10 @@ def downgrade():
     op.rename_table("external_publishing_bot_groups", "tnsrobot_groups")
 
     op.create_foreign_key(
-        "tnsrobot_groups_tnsrobot_id_fkey",
+        "tnsrobot_group_users_tnsrobot_group_id_fkey",
+        "tnsrobot_group_users",
         "tnsrobot_groups",
-        "tnsrobots",
-        ["tnsrobot_id"],
+        ["tnsrobot_group_id"],
         ["id"],
         ondelete="CASCADE",
     )
@@ -413,12 +408,14 @@ def downgrade():
         "external_publishing_bots",
         "source_group_id",
         existing_type=sa.Integer(),
+        existing_nullable=True,
         nullable=False,
     )
     op.alter_column(
         "external_publishing_bots",
         "bot_id",
         existing_type=sa.Integer(),
+        existing_nullable=True,
         nullable=False,
     )
     op.alter_column(
@@ -438,3 +435,12 @@ def downgrade():
         unique=False,
     )
     op.rename_table("external_publishing_bots", "tnsrobots")
+
+    op.create_foreign_key(
+        "tnsrobot_groups_tnsrobot_id_fkey",
+        "tnsrobot_groups",
+        "tnsrobots",
+        ["tnsrobot_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
