@@ -146,7 +146,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
     // Set publish to
     if (sendToTNS !== selectedBot.enable_publish_to_tns) {
-      setSendToTNS(selectedBot.enable_publish_to_tns);
+      setSendToTNS(selectedBot.enable_publish_to_tns && !isNoAffiliation);
     }
     if (sendToHermes !== selectedBot.enable_publish_to_hermes) {
       setSendToHermes(selectedBot.enable_publish_to_hermes);
