@@ -66,7 +66,7 @@ from ...models import (
     Source,
     SourceLabel,
     SourceNotification,
-    SourcesConfirmedInGCN,
+    SourcesInGCN,
     SourceView,
     Spectrum,
     Telescope,
@@ -527,9 +527,9 @@ async def get_source(
         ):
             source_info["gcn_crossmatch"] = []
         confirmed_in_gcn = session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
-                SourcesConfirmedInGCN.confirmed.is_not(False),
+            SourcesInGCN.select(user).where(
+                SourcesInGCN.obj_id == obj_id,
+                SourcesInGCN.confirmed.is_not(False),
             )
         ).all()
         if len(confirmed_in_gcn) > 0:
@@ -564,8 +564,8 @@ async def get_source(
         ):
             source_info["gcn_notes"] = []
         confirmed_in_gcn = session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
+            SourcesInGCN.select(user).where(
+                SourcesInGCN.obj_id == obj_id,
             )
         ).all()
         if len(confirmed_in_gcn) > 0:
@@ -749,7 +749,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     # we want to allow admins to save sources as another user(s).
     # it's optional, and we default to saving to the current user unless specified otherwise.
-    saver_per_group_id = {gid: user for gid in group_ids}
+    saver_per_group_id = dict.fromkeys(group_ids, user)
     if "saver_per_group_id" in data:
         if not user.is_admin:
             raise AttributeError(
