@@ -384,7 +384,7 @@ def submit_to_tns(
     except TNSWarning as e:
         notif_type = "warning"
         notif_text = f"TNS warning: {e}"
-        status = f"Warning: {e}"
+        status = f"Error: {e}"
         log(str(e))
 
     except Exception as e:
