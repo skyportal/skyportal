@@ -68,7 +68,7 @@ def upgrade():
     )
     op.drop_index("ix_tnsrobots_created_at", table_name="external_publishing_bots")
     op.create_index(
-        op.f("ix_external_publishing_bots_created_at"),
+        "ix_external_publishing_bots_created_at",
         "external_publishing_bots",
         ["created_at"],
         unique=False,
@@ -122,7 +122,7 @@ def upgrade():
         table_name="instrument_external_publishing_bots",
     )
     op.create_index(
-        op.f("ix_instrument_external_publishing_bots_created_at"),
+        "ix_instrument_external_publishing_bots_created_at",
         "instrument_external_publishing_bots",
         ["created_at"],
         unique=False,
@@ -185,7 +185,7 @@ def upgrade():
         "stream_tnsrobots_reverse_ind", table_name="stream_external_publishing_bots"
     )
     op.create_index(
-        op.f("ix_stream_external_publishing_bots_created_at"),
+        "ix_stream_external_publishing_bots_created_at",
         "stream_external_publishing_bots",
         ["created_at"],
         unique=False,
@@ -242,7 +242,7 @@ def upgrade():
         table_name="external_publishing_bot_coauthors",
     )
     op.create_index(
-        op.f("ix_external_publishing_bot_coauthors_created_at"),
+        "ix_external_publishing_bot_coauthors_created_at",
         "external_publishing_bot_coauthors",
         ["created_at"],
         unique=False,
@@ -309,7 +309,7 @@ def upgrade():
         "ix_tnsrobot_groups_created_at", table_name="external_publishing_bot_groups"
     )
     op.create_index(
-        op.f("ix_external_publishing_bot_groups_created_at"),
+        "ix_external_publishing_bot_groups_created_at",
         "external_publishing_bot_groups",
         ["created_at"],
         unique=False,
@@ -354,7 +354,7 @@ def upgrade():
         table_name="external_publishing_bot_group_users",
     )
     op.create_index(
-        op.f("ix_external_publishing_bot_group_users_created_at"),
+        "ix_external_publishing_bot_group_users_created_at",
         "external_publishing_bot_group_users",
         ["created_at"],
         unique=False,
@@ -453,7 +453,7 @@ def upgrade():
         table_name="external_publishing_submissions",
     )
     op.create_index(
-        op.f("ix_external_publishing_submissions_created_at"),
+        "ix_external_publishing_submissions_created_at",
         "external_publishing_submissions",
         ["created_at"],
         unique=False,
@@ -488,6 +488,10 @@ def upgrade():
 
 def downgrade():
     # external_publishing_submissions
+    op.drop_index(
+        "ix_external_publishing_submissions_created_at",
+        table_name="external_publishing_submissions",
+    )
     op.drop_constraint(
         "external_publishing_submissions_user_id_fkey",
         "external_publishing_submissions",
@@ -561,8 +565,18 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_tnsrobot_submissions_created_at",
+        "tnsrobot_submissions",
+        ["created_at"],
+        unique=False,
+    )
 
     # external_publishing_bot_group_users
+    op.drop_index(
+        "ix_external_publishing_bot_group_users_created_at",
+        table_name="external_publishing_bot_group_users",
+    )
     op.drop_constraint(
         "bot_group_users_group_user_id_fkey",
         "external_publishing_bot_group_users",
@@ -588,8 +602,18 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_tnsrobot_group_users_created_at",
+        "tnsrobot_group_users",
+        ["created_at"],
+        unique=False,
+    )
 
     # external_publishing_bot_groups
+    op.drop_index(
+        "ix_external_publishing_bot_groups_created_at",
+        table_name="external_publishing_bot_groups",
+    )
     op.drop_constraint(
         "bot_groups_group_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
     )
@@ -634,8 +658,18 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_tnsrobot_groups_created_at",
+        "tnsrobot_groups",
+        ["created_at"],
+        unique=False,
+    )
 
     # external_publishing_bot_coauthors
+    op.drop_index(
+        "ix_external_publishing_bot_coauthors_created_at",
+        table_name="external_publishing_bot_coauthors",
+    )
     op.drop_constraint(
         "bot_coauthors_user_id_fkey",
         "external_publishing_bot_coauthors",
@@ -661,8 +695,26 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_tnsrobot_coauthors_created_at",
+        "tnsrobot_coauthors",
+        ["created_at"],
+        unique=False,
+    )
 
     # stream_external_publishing_bots
+    op.drop_index(
+        "ix_stream_external_publishing_bots_created_at",
+        table_name="stream_external_publishing_bots",
+    )
+    op.drop_index(
+        "stream_external_publishing_bots_reverse_ind",
+        table_name="stream_external_publishing_bots",
+    )
+    op.drop_index(
+        "stream_external_publishing_bots_forward_ind",
+        table_name="stream_external_publishing_bots",
+    )
     op.drop_constraint(
         "stream_external_publishing_bots_stream_id_fkey",
         "stream_external_publishing_bots",
@@ -688,8 +740,38 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_stream_tnsrobots_created_at",
+        "stream_tnsrobots",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "stream_tnsrobots_reverse_ind",
+        "stream_tnsrobots",
+        ["tnsrobot_id", "stream_id"],
+        unique=False,
+    )
+    op.create_index(
+        "stream_tnsrobots_forward_ind",
+        "stream_tnsrobots",
+        ["stream_id", "tnsrobot_id"],
+        unique=True,
+    )
 
     # instrument_external_publishing_bots
+    op.drop_index(
+        "ix_instrument_external_publishing_bots_created_at",
+        table_name="instrument_external_publishing_bots",
+    )
+    op.drop_index(
+        "instrument_external_publishing_bots_reverse_ind",
+        table_name="instrument_external_publishing_bots",
+    )
+    op.drop_index(
+        "instrument_external_publishing_bots_forward_ind",
+        table_name="instrument_external_publishing_bots",
+    )
     op.drop_constraint(
         "instrument_external_publishing_bots_instrument_id_fkey",
         "instrument_external_publishing_bots",
@@ -715,8 +797,29 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    op.create_index(
+        "ix_instrument_tnsrobots_created_at",
+        "instrument_tnsrobots",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "instrument_tnsrobots_reverse_ind",
+        "instrument_tnsrobots",
+        ["tnsrobot_id", "instrument_id"],
+        unique=False,
+    )
+    op.create_index(
+        "instrument_tnsrobots_forward_ind",
+        "instrument_tnsrobots",
+        ["instrument_id", "tnsrobot_id"],
+        unique=True,
+    )
 
     # external_publishing_bots
+    op.drop_index(
+        "ix_external_publishing_bots_created_at", table_name="external_publishing_bots"
+    )
     op.drop_column("external_publishing_bots", "enable_publish_to_tns")
     op.drop_column("external_publishing_bots", "enable_publish_to_hermes")
     op.alter_column(
@@ -780,4 +883,7 @@ def downgrade():
         ["tnsrobot_id"],
         ["id"],
         ondelete="CASCADE",
+    )
+    op.create_index(
+        "ix_tnsrobots_created_at", "tnsrobots", ["created_at"], unique=False
     )
