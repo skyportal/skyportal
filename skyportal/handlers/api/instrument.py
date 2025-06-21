@@ -146,10 +146,15 @@ class InstrumentHandler(BaseHandler):
                     )
                 if not field_fov_type.lower() in ["circle", "rectangle"]:
                     return self.error("field_fov_type must be circle or rectangle")
-                if isinstance(field_fov_attributes, list):
-                    field_fov_attributes = [float(x) for x in field_fov_attributes]
-                else:
-                    field_fov_attributes = [float(field_fov_attributes)]
+                try:
+                    if isinstance(field_fov_attributes, list):
+                        field_fov_attributes = [float(x) for x in field_fov_attributes]
+                    else:
+                        field_fov_attributes = [float(field_fov_attributes)]
+                except ValueError:
+                    raise ValueError(
+                        "field_fov_attributes must be a list of floats or a float"
+                    )
 
                 center = SkyCoord(0.0, 0.0, unit="deg", frame="icrs")
                 if field_fov_type.lower() == "circle":
