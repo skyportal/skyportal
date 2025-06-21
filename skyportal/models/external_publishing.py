@@ -81,7 +81,7 @@ class ExternalPublishingBot(Base):
     enable_publish_to_tns = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default="false",
+        server_default="true",
         doc="Whether to enable publishing to TNS or not.",
     )
     # Fields specific to TNS
@@ -260,7 +260,7 @@ class ExternalPublishingSubmission(Base):
     publish_to_tns = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default="false",
         doc="Whether to publish to TNS or not.",
     )
 
@@ -284,7 +284,7 @@ class ExternalPublishingSubmission(Base):
     publish_to_hermes = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default="false",
         doc="Whether to publish to Hermes or not.",
     )
 

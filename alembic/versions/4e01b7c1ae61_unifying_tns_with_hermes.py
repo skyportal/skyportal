@@ -258,17 +258,17 @@ def upgrade():
     )
     op.alter_column(
         "external_publishing_bot_groups",
-        "auto_report",
-        new_column_name="auto_publish_to_tns",
+        "auto_report_allow_bots",
+        new_column_name="auto_publish_allow_bots",
         existing_type=sa.Boolean(),
         existing_server_default=sa.text("false"),
     )
     op.alter_column(
         "external_publishing_bot_groups",
-        "auto_report_allow_bots",
-        new_column_name="auto_publish_allow_bots",
+        "auto_report",
+        new_column_name="auto_publish_to_tns",
         existing_type=sa.Boolean(),
-        existing_server_default=sa.text("false"),
+        server_default=sa.text("false"),
     )
     op.add_column(
         "external_publishing_bot_groups",
@@ -485,19 +485,55 @@ def upgrade():
         ondelete="CASCADE",
     )
 
-    ############## Manage sequences
-    # Add new sequences
-    op.execute(sa.schema.CreateSequence(sa.Sequence("external_publishing_bots_id_seq")))
-    op.alter_column(
-        "external_publishing_bots",
-        "id",
-        server_default=sa.text("nextval('external_publishing_bots_id_seq'::regclass)"),
+    # Manage sequences
+    op.execute(
+        "ALTER SEQUENCE tnsrobots_id_seq RENAME TO external_publishing_bots_id_seq"
     )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_groups_id_seq RENAME TO external_publishing_bot_groups_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_coauthors_id_seq RENAME TO external_publishing_bot_coauthors_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_group_users_id_seq RENAME TO external_publishing_bot_group_users_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_submissions_id_seq RENAME TO external_publishing_submissions_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE stream_tnsrobots_id_seq RENAME TO stream_external_publishing_bots_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE instrument_tnsrobots_id_seq RENAME TO instrument_external_publishing_bots_id_seq"
+    )
+
     op.execute(
         "ALTER SEQUENCE external_publishing_bots_id_seq OWNED BY external_publishing_bots.id"
     )
     op.execute(
-        sa.schema.CreateSequence(sa.Sequence("external_publishing_bot_groups_id_seq"))
+        "ALTER SEQUENCE external_publishing_bot_groups_id_seq OWNED BY external_publishing_bot_groups.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq OWNED BY external_publishing_bot_coauthors.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq OWNED BY external_publishing_bot_group_users.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_submissions_id_seq OWNED BY external_publishing_submissions.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE stream_external_publishing_bots_id_seq OWNED BY stream_external_publishing_bots.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq OWNED BY instrument_external_publishing_bots.id"
+    )
+
+    op.alter_column(
+        "external_publishing_bots",
+        "id",
+        server_default=sa.text("nextval('external_publishing_bots_id_seq'::regclass)"),
     )
     op.alter_column(
         "external_publishing_bot_groups",
@@ -506,28 +542,12 @@ def upgrade():
             "nextval('external_publishing_bot_groups_id_seq'::regclass)"
         ),
     )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_groups_id_seq OWNED BY external_publishing_bot_groups.id"
-    )
-    op.execute(
-        sa.schema.CreateSequence(
-            sa.Sequence("external_publishing_bot_coauthors_id_seq")
-        )
-    )
     op.alter_column(
         "external_publishing_bot_coauthors",
         "id",
         server_default=sa.text(
             "nextval('external_publishing_bot_coauthors_id_seq'::regclass)"
         ),
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq OWNED BY external_publishing_bot_coauthors.id"
-    )
-    op.execute(
-        sa.schema.CreateSequence(
-            sa.Sequence("external_publishing_bot_group_users_id_seq")
-        )
     )
     op.alter_column(
         "external_publishing_bot_group_users",
@@ -536,24 +556,12 @@ def upgrade():
             "nextval('external_publishing_bot_group_users_id_seq'::regclass)"
         ),
     )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq OWNED BY external_publishing_bot_group_users.id"
-    )
-    op.execute(
-        sa.schema.CreateSequence(sa.Sequence("external_publishing_submissions_id_seq"))
-    )
     op.alter_column(
         "external_publishing_submissions",
         "id",
         server_default=sa.text(
             "nextval('external_publishing_submissions_id_seq'::regclass)"
         ),
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_submissions_id_seq OWNED BY external_publishing_submissions.id"
-    )
-    op.execute(
-        sa.schema.CreateSequence(sa.Sequence("stream_external_publishing_bots_id_seq"))
     )
     op.alter_column(
         "stream_external_publishing_bots",
@@ -562,14 +570,6 @@ def upgrade():
             "nextval('stream_external_publishing_bots_id_seq'::regclass)"
         ),
     )
-    op.execute(
-        "ALTER SEQUENCE stream_external_publishing_bots_id_seq OWNED BY stream_external_publishing_bots.id"
-    )
-    op.execute(
-        sa.schema.CreateSequence(
-            sa.Sequence("instrument_external_publishing_bots_id_seq")
-        )
-    )
     op.alter_column(
         "instrument_external_publishing_bots",
         "id",
@@ -577,17 +577,27 @@ def upgrade():
             "nextval('instrument_external_publishing_bots_id_seq'::regclass)"
         ),
     )
+
+    # Rename primary keys
     op.execute(
-        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq OWNED BY instrument_external_publishing_bots.id"
+        "ALTER INDEX tnsrobot_coauthors_pkey RENAME TO external_publishing_bot_coauthors_pkey"
     )
-    # Drop old sequences
-    op.execute("DROP SEQUENCE IF EXISTS tnsrobots_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_groups_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_coauthors_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_group_users_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_submissions_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS stream_tnsrobots_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS instrument_tnsrobots_id_seq")
+    op.execute(
+        "ALTER INDEX tnsrobot_group_users_pkey RENAME TO external_publishing_bot_group_users_pkey"
+    )
+    op.execute(
+        "ALTER INDEX tnsrobot_groups_pkey RENAME TO external_publishing_bot_groups_pkey"
+    )
+    op.execute("ALTER INDEX tnsrobots_pkey RENAME TO external_publishing_bots_pkey")
+    op.execute(
+        "ALTER INDEX tnsrobot_submissions_pkey RENAME TO external_publishing_submissions_pkey"
+    )
+    op.execute(
+        "ALTER INDEX instrument_tnsrobots_pkey RENAME TO instrument_external_publishing_bots_pkey"
+    )
+    op.execute(
+        "ALTER INDEX stream_tnsrobots_pkey RENAME TO stream_external_publishing_bots_pkey"
+    )
 
 
 def downgrade():
@@ -737,7 +747,7 @@ def downgrade():
         "auto_publish_to_tns",
         new_column_name="auto_report",
         existing_type=sa.Boolean(),
-        existing_server_default=sa.text("false"),
+        server_default=sa.text("false"),
     )
     op.alter_column(
         "external_publishing_bot_groups",
@@ -993,67 +1003,97 @@ def downgrade():
     )
 
     # Manage sequences
-    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobots_id_seq")))
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bots_id_seq RENAME TO tnsrobots_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_groups_id_seq RENAME TO tnsrobot_groups_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq RENAME TO tnsrobot_coauthors_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq RENAME TO tnsrobot_group_users_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_submissions_id_seq RENAME TO tnsrobot_submissions_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE stream_external_publishing_bots_id_seq RENAME TO stream_tnsrobots_id_seq"
+    )
+    op.execute(
+        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq RENAME TO instrument_tnsrobots_id_seq"
+    )
+
+    op.execute("ALTER SEQUENCE tnsrobots_id_seq OWNED BY tnsrobots.id")
+    op.execute("ALTER SEQUENCE tnsrobot_groups_id_seq OWNED BY tnsrobot_groups.id")
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_coauthors_id_seq OWNED BY tnsrobot_coauthors.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_group_users_id_seq OWNED BY tnsrobot_group_users.id"
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_submissions_id_seq OWNED BY tnsrobot_submissions.id"
+    )
+    op.execute("ALTER SEQUENCE stream_tnsrobots_id_seq OWNED BY stream_tnsrobots.id")
+    op.execute(
+        "ALTER SEQUENCE instrument_tnsrobots_id_seq OWNED BY instrument_tnsrobots.id"
+    )
+
     op.alter_column(
         "tnsrobots",
         "id",
         server_default=sa.text("nextval('tnsrobots_id_seq'::regclass)"),
     )
-    op.execute("ALTER SEQUENCE tnsrobots_id_seq OWNED BY tnsrobots.id")
-    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_groups_id_seq")))
     op.alter_column(
         "tnsrobot_groups",
         "id",
         server_default=sa.text("nextval('tnsrobot_groups_id_seq'::regclass)"),
     )
-    op.execute("ALTER SEQUENCE tnsrobot_groups_id_seq OWNED BY tnsrobot_groups.id")
-    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_coauthors_id_seq")))
     op.alter_column(
         "tnsrobot_coauthors",
         "id",
         server_default=sa.text("nextval('tnsrobot_coauthors_id_seq'::regclass)"),
     )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_coauthors_id_seq OWNED BY tnsrobot_coauthors.id"
-    )
-    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_group_users_id_seq")))
     op.alter_column(
         "tnsrobot_group_users",
         "id",
         server_default=sa.text("nextval('tnsrobot_group_users_id_seq'::regclass)"),
     )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_group_users_id_seq OWNED BY tnsrobot_group_users.id"
-    )
-    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_submissions_id_seq")))
     op.alter_column(
         "tnsrobot_submissions",
         "id",
         server_default=sa.text("nextval('tnsrobot_submissions_id_seq'::regclass)"),
     )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_submissions_id_seq OWNED BY tnsrobot_submissions.id"
-    )
-    op.execute(sa.schema.CreateSequence(sa.Sequence("stream_tnsrobots_id_seq")))
     op.alter_column(
         "stream_tnsrobots",
         "id",
         server_default=sa.text("nextval('stream_tnsrobots_id_seq'::regclass)"),
     )
-    op.execute("ALTER SEQUENCE stream_tnsrobots_id_seq OWNED BY stream_tnsrobots.id")
-    op.execute(sa.schema.CreateSequence(sa.Sequence("instrument_tnsrobots_id_seq")))
     op.alter_column(
         "instrument_tnsrobots",
         "id",
         server_default=sa.text("nextval('instrument_tnsrobots_id_seq'::regclass)"),
     )
+
+    # Rename primary keys
     op.execute(
-        "ALTER SEQUENCE instrument_tnsrobots_id_seq OWNED BY instrument_tnsrobots.id"
+        "ALTER INDEX external_publishing_bot_coauthors_pkey RENAME TO tnsrobot_coauthors_pkey"
     )
-    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bots_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_groups_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_coauthors_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_group_users_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS external_publishing_submissions_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS stream_external_publishing_bots_id_seq")
-    op.execute("DROP SEQUENCE IF EXISTS instrument_external_publishing_bots_id_seq")
+    op.execute(
+        "ALTER INDEX external_publishing_bot_group_users_pkey RENAME TO tnsrobot_group_users_pkey"
+    )
+    op.execute(
+        "ALTER INDEX external_publishing_bot_groups_pkey RENAME TO tnsrobot_groups_pkey"
+    )
+    op.execute("ALTER INDEX external_publishing_bots_pkey RENAME TO tnsrobots_pkey")
+    op.execute(
+        "ALTER INDEX external_publishing_submissions_pkey RENAME TO tnsrobot_submissions_pkey"
+    )
+    op.execute(
+        "ALTER INDEX instrument_external_publishing_bots_pkey RENAME TO instrument_tnsrobots_pkey"
+    )
+    op.execute(
+        "ALTER INDEX stream_external_publishing_bots_pkey RENAME TO stream_tnsrobots_pkey"
+    )
