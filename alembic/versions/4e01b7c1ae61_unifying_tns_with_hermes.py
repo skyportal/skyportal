@@ -485,6 +485,110 @@ def upgrade():
         ondelete="CASCADE",
     )
 
+    ############## Manage sequences
+    # Add new sequences
+    op.execute(sa.schema.CreateSequence(sa.Sequence("external_publishing_bots_id_seq")))
+    op.alter_column(
+        "external_publishing_bots",
+        "id",
+        server_default=sa.text("nextval('external_publishing_bots_id_seq'::regclass)"),
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bots_id_seq OWNED BY external_publishing_bots.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(sa.Sequence("external_publishing_bot_groups_id_seq"))
+    )
+    op.alter_column(
+        "external_publishing_bot_groups",
+        "id",
+        server_default=sa.text(
+            "nextval('external_publishing_bot_groups_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_groups_id_seq OWNED BY external_publishing_bot_groups.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(
+            sa.Sequence("external_publishing_bot_coauthors_id_seq")
+        )
+    )
+    op.alter_column(
+        "external_publishing_bot_coauthors",
+        "id",
+        server_default=sa.text(
+            "nextval('external_publishing_bot_coauthors_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq OWNED BY external_publishing_bot_coauthors.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(
+            sa.Sequence("external_publishing_bot_group_users_id_seq")
+        )
+    )
+    op.alter_column(
+        "external_publishing_bot_group_users",
+        "id",
+        server_default=sa.text(
+            "nextval('external_publishing_bot_group_users_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq OWNED BY external_publishing_bot_group_users.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(sa.Sequence("external_publishing_submissions_id_seq"))
+    )
+    op.alter_column(
+        "external_publishing_submissions",
+        "id",
+        server_default=sa.text(
+            "nextval('external_publishing_submissions_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE external_publishing_submissions_id_seq OWNED BY external_publishing_submissions.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(sa.Sequence("stream_external_publishing_bots_id_seq"))
+    )
+    op.alter_column(
+        "stream_external_publishing_bots",
+        "id",
+        server_default=sa.text(
+            "nextval('stream_external_publishing_bots_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE stream_external_publishing_bots_id_seq OWNED BY stream_external_publishing_bots.id"
+    )
+    op.execute(
+        sa.schema.CreateSequence(
+            sa.Sequence("instrument_external_publishing_bots_id_seq")
+        )
+    )
+    op.alter_column(
+        "instrument_external_publishing_bots",
+        "id",
+        server_default=sa.text(
+            "nextval('instrument_external_publishing_bots_id_seq'::regclass)"
+        ),
+    )
+    op.execute(
+        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq OWNED BY instrument_external_publishing_bots.id"
+    )
+    # Drop old sequences
+    op.execute("DROP SEQUENCE IF EXISTS tnsrobots_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_groups_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_coauthors_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_group_users_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS tnsrobot_submissions_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS stream_tnsrobots_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS instrument_tnsrobots_id_seq")
+
 
 def downgrade():
     # external_publishing_submissions
@@ -887,3 +991,69 @@ def downgrade():
     op.create_index(
         "ix_tnsrobots_created_at", "tnsrobots", ["created_at"], unique=False
     )
+
+    # Manage sequences
+    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobots_id_seq")))
+    op.alter_column(
+        "tnsrobots",
+        "id",
+        server_default=sa.text("nextval('tnsrobots_id_seq'::regclass)"),
+    )
+    op.execute("ALTER SEQUENCE tnsrobots_id_seq OWNED BY tnsrobots.id")
+    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_groups_id_seq")))
+    op.alter_column(
+        "tnsrobot_groups",
+        "id",
+        server_default=sa.text("nextval('tnsrobot_groups_id_seq'::regclass)"),
+    )
+    op.execute("ALTER SEQUENCE tnsrobot_groups_id_seq OWNED BY tnsrobot_groups.id")
+    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_coauthors_id_seq")))
+    op.alter_column(
+        "tnsrobot_coauthors",
+        "id",
+        server_default=sa.text("nextval('tnsrobot_coauthors_id_seq'::regclass)"),
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_coauthors_id_seq OWNED BY tnsrobot_coauthors.id"
+    )
+    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_group_users_id_seq")))
+    op.alter_column(
+        "tnsrobot_group_users",
+        "id",
+        server_default=sa.text("nextval('tnsrobot_group_users_id_seq'::regclass)"),
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_group_users_id_seq OWNED BY tnsrobot_group_users.id"
+    )
+    op.execute(sa.schema.CreateSequence(sa.Sequence("tnsrobot_submissions_id_seq")))
+    op.alter_column(
+        "tnsrobot_submissions",
+        "id",
+        server_default=sa.text("nextval('tnsrobot_submissions_id_seq'::regclass)"),
+    )
+    op.execute(
+        "ALTER SEQUENCE tnsrobot_submissions_id_seq OWNED BY tnsrobot_submissions.id"
+    )
+    op.execute(sa.schema.CreateSequence(sa.Sequence("stream_tnsrobots_id_seq")))
+    op.alter_column(
+        "stream_tnsrobots",
+        "id",
+        server_default=sa.text("nextval('stream_tnsrobots_id_seq'::regclass)"),
+    )
+    op.execute("ALTER SEQUENCE stream_tnsrobots_id_seq OWNED BY stream_tnsrobots.id")
+    op.execute(sa.schema.CreateSequence(sa.Sequence("instrument_tnsrobots_id_seq")))
+    op.alter_column(
+        "instrument_tnsrobots",
+        "id",
+        server_default=sa.text("nextval('instrument_tnsrobots_id_seq'::regclass)"),
+    )
+    op.execute(
+        "ALTER SEQUENCE instrument_tnsrobots_id_seq OWNED BY instrument_tnsrobots.id"
+    )
+    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bots_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_groups_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_coauthors_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS external_publishing_bot_group_users_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS external_publishing_submissions_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS stream_external_publishing_bots_id_seq")
+    op.execute("DROP SEQUENCE IF EXISTS instrument_external_publishing_bots_id_seq")
