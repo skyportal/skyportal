@@ -1,114 +1,217 @@
 import sqlalchemy as sa
 
 from baselayer.log import make_log
-from .parse import get_list_typed
-from .tns import TNS_INSTRUMENT_IDS
-
+from .asynchronous import run_async
 from ..models import (
     Obj,
-    TNSRobot,
-    InstrumentTNSRobot,
-    StreamTNSRobot,
     Source,
     Instrument,
+    GroupUser,
     Stream,
     Photometry,
     StreamPhotometry,
+    PublicRelease,
+    ExternalPublishingBotGroupAutoPublisher,
+    ExternalPublishingSubmission,
+    ExternalPublishingBotGroup,
+    ExternalPublishingBot,
+    Thumbnail,
+    InstrumentExternalPublishingBot,
+    StreamExternalPublishingBot,
 )
+from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
 
+EXTERNAL_PUBLISHING_INSTRUMENT_IDS = {
+    "alfosc": 41,
+    "asas-sn": 195,
+    "atlas": [153, 159, 160, 255, 256, 167],
+    "decam": 172,
+    "efosc2": 30,
+    "gaia": 163,
+    "goodman": 136,
+    "goto": [218, 264, 265, 266],
+    "ps1": [98, 154, 155, 257],
+    "sedm": [149, 225],
+    "sprat": 156,
+    "ztf": 196,
+}
+
 PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,
-    "autoreport_allow_archival": bool,
+    "auto_publish_allow_archival": bool,
 }
 
 
-def process_instrument_ids(session, instrument_ids, accessible_instrument_ids=None):
+def check_access_to_external_publishing_bot(session, user, external_publishing_bot_id):
+    """Check if the user has access to the external_publishing_bot.
+    Returns the publishing bot object if the user has access, otherwise raises ValueError.
+
+    Parameters
+    ----------
+    session : `baselayer.app.models.Session`
+        Database session, which contains the user or token
+    user : `baselayer.app.models.User`
+        The user to check access for
+    external_publishing_bot_id : int
+        The ID of the external_publishing_bot to check access for
+
+    Returns
+    -------
+    external_publishing_bot : `ExternalPublishingBot`
+        The ExternalPublishingBot object if the user has access, otherwise raises ValueError
+    """
+    external_publishing_bot = session.scalar(
+        ExternalPublishingBot.select(user).where(
+            ExternalPublishingBot.id == external_publishing_bot_id
+        )
+    )
+    if external_publishing_bot is None:
+        raise ValueError(
+            f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
+        )
+    return external_publishing_bot
+
+
+def is_existing_submission_request(
+    session, obj, external_publishing_bot_id, service, is_bot=False
+):
+    """Check if there is an existing submission request for the given object and bot and external service.
+    session: SQLAlchemy
+        session
+    obj: Obj
+        object to check
+    external_publishing_bot_id: int
+        ID of the external publishing bot
+    service: str
+        Name of the external service to check (TNS or Hermes)
+    is_bot: bool
+        If True, checks for bot-specific submissions; otherwise, checks for all submissions.
+
+    Returns:
+        ExternalPublishingSubmission or None:
+            The existing submission request if found, None otherwise.
+    """
+    if service not in ["TNS", "Hermes"]:
+        raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
+    if service == "TNS":
+        service_status = ExternalPublishingSubmission.tns_status
+    else:
+        service_status = ExternalPublishingSubmission.hermes_status
+
+    stmt = ExternalPublishingSubmission.select(session.user_or_token).where(
+        ExternalPublishingSubmission.obj_id == obj.id,
+        ExternalPublishingSubmission.external_publishing_bot_id
+        == external_publishing_bot_id,
+        sa.or_(
+            service_status == "pending",
+            service_status == "processing",
+            service_status.like("submitted%"),
+            service_status.like("complete%"),
+        ),
+    )
+    if is_bot:
+        stmt = stmt.where(ExternalPublishingBotGroup.auto_publish_allow_bots.is_(True))
+    return session.scalars(stmt).first()
+
+
+def process_instrument_ids(
+    session, user, instrument_ids, accessible_instrument_ids=None
+):
     """
     Retrieve the list of instruments from the database and
-    check that they are valid and supported for TNS publishing.
+    check that they are valid and supported for external publishing.
 
     Parameters
     ----------
     session : `~sqlalchemy.orm.Session`
         The database session to use.
+    user : `~skyportal.models.User`
+        The user to check access for.
     instrument_ids : list of str or list of int
         The list of instrument IDs to check and retrieve.
     accessible_instrument_ids : list of str, optional
         The list of accessible instrument IDs to check against.
+
+    Returns
+    -------
+    instruments : list of `~skyportal.models.Instrument` or None
+        The list of instruments that are valid and supported for external publishing.
     """
-    if instrument_ids and len(instrument_ids) > 0:
+    if instrument_ids:
         instrument_ids = get_list_typed(
             instrument_ids,
             int,
             "instrument_ids must be a comma-separated list of integers",
         )
-        if accessible_instrument_ids is not None:
+        if accessible_instrument_ids:
             # Only keep the instrument IDs that are in the list of accessible instrument IDs
             instrument_ids = list(set(instrument_ids) & set(accessible_instrument_ids))
         else:
             instrument_ids = list(set(instrument_ids))
         instruments = session.scalars(
-            Instrument.select(session.user_or_token).where(
-                Instrument.id.in_(instrument_ids)
-            )
+            Instrument.select(user).where(Instrument.id.in_(instrument_ids))
         ).all()
         if len(instruments) != len(instrument_ids):
             raise ValueError(f"One or more instruments not found: {instrument_ids}")
         for instrument in instruments:
-            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
+            if instrument.name.lower() not in EXTERNAL_PUBLISHING_INSTRUMENT_IDS:
                 raise ValueError(
-                    f"Instrument {instrument.name} not supported for TNS reporting"
+                    f"Instrument {instrument.name} not supported for external publishing"
                 )
         return instruments
     else:
         return None
 
 
-def filter_accessible_instrument_ids(session, instrument_ids, tns_robot):
+def filter_accessible_instrument_ids(session, user, instrument_ids, publishing_bot):
     """
-    Filter the instrument IDs based on the TNSRobot and the user access.
+    Filter the instrument IDs based on the publishing bot and the user access.
 
     Parameters
     ----------
     session : `~sqlalchemy.orm.Session`
         The database session to use.
-    instrument_ids : list of str
+    user : `~skyportal.models.User`
+        The user to check access for.
+    instrument_ids : list of str or list of int
         The list of instrument IDs to filter.
-    tns_robot : `~skyportal.models.TNSRobot`
-        The TNSRobot to submit with.
+    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+        The publishing bot to submit with.
 
     Returns
     -------
     instrument_ids : list of int
-        The instrument IDs accessible to the TNSRobot and the user.
+        The instrument IDs publishable and accessible to the publishing bot and the user.
     """
-    tns_robot = tns_robot.id
-
-    # get the list of instrument IDs that the TNSRobot has access to
-    accessible_instrument_ids = session.scalars(
-        sa.select(InstrumentTNSRobot.instrument_id).where(
-            InstrumentTNSRobot.tnsrobot_id == tns_robot
+    # get the list of instrument IDs that the publishing bot has access to
+    bot_instrument_ids = session.scalars(
+        sa.select(InstrumentExternalPublishingBot.instrument_id).where(
+            InstrumentExternalPublishingBot.external_publishing_bot_id
+            == publishing_bot.id
         )
     ).all()
-    if len(accessible_instrument_ids) == 0:
+    if not bot_instrument_ids:
         raise ValueError(
-            f"Must specify instruments for TNSRobot {tns_robot} before submitting source."
+            f"Must specify instruments for Publishing Bot {publishing_bot.id} before submitting source."
         )
+    # if instrument_ids are not specified, we use the publishing bot list of instruments
+    if not instrument_ids:
+        instrument_ids = bot_instrument_ids
 
     instruments = process_instrument_ids(
-        session, instrument_ids, accessible_instrument_ids
+        session, user, instrument_ids, bot_instrument_ids
     )
-    if len(instruments) == 0:
+    if not instruments:
         raise ValueError(
-            f"None of the instruments specified for the submission request are accessible to TNSRobot {tns_robot}."
+            f"None of the instruments specified for the submission request are accessible to publishing bot {publishing_bot.id}."
         )
 
     return [instrument.id for instrument in instruments]
 
 
-def process_stream_ids(session, stream_ids, accessible_stream_ids=None):
+def process_stream_ids(session, user, stream_ids, accessible_stream_ids=None):
     """
     Retrieve the list of streams from the database and
     check that they are valid.
@@ -117,12 +220,19 @@ def process_stream_ids(session, stream_ids, accessible_stream_ids=None):
     ----------
     session : `~sqlalchemy.orm.Session`
         The database session to use.
+    user : `~skyportal.models.User`
+        The user to check access for.
     stream_ids : list of str or list of int
         The list of stream IDs to check and retrieve.
     accessible_stream_ids : list of str, optional
         The list of accessible stream IDs to check against.
+
+    Returns
+    -------
+    streams : list of `~skyportal.models.Stream` or None
+        The list of streams that are publishable and accessible for the user.
     """
-    if stream_ids and len(stream_ids) > 0:
+    if stream_ids:
         stream_ids = get_list_typed(
             stream_ids, int, "stream_ids must be a comma-separated list of integers"
         )
@@ -132,7 +242,7 @@ def process_stream_ids(session, stream_ids, accessible_stream_ids=None):
         else:
             stream_ids = list(set(stream_ids))
         streams = session.scalars(
-            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
+            Stream.select(user).where(Stream.id.in_(stream_ids))
         ).all()
         if len(streams) != len(stream_ids):
             raise ValueError(f"One or more streams not found: {stream_ids}")
@@ -141,58 +251,59 @@ def process_stream_ids(session, stream_ids, accessible_stream_ids=None):
         return None
 
 
-def filter_accessible_stream_ids(session, stream_ids, tns_robot, auto_submission=False):
+def filter_accessible_stream_ids(
+    session, user, stream_ids, publishing_bot, auto_submission=False
+):
     """
-    Filter the stream IDs based on the TNSRobot and the user access.
+    Filter the stream IDs based on the publishing bot and the user access.
 
     Parameters
     ----------
     session : `~sqlalchemy.orm.Session`
         The database session to use.
-    stream_ids : list of str
+    stream_ids : list of str or list of int
         The list of stream IDs to filter.
-    tns_robot : `~skyportal.models.TNSRobot`
-        The TNSRobot to submit with.
+    user : `~skyportal.models.User`
+        The user to check access for.
+    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+        The publishing bot to submit with.
     auto_submission : bool, optional
         Whether the submission is an auto-submission, by default False
 
     Returns
     -------
-    stream_ids : list of int
-        The stream IDs accessible to the TNSRobot and the user.
+    stream_ids : list of int or None
+        The stream IDs accessible to the publishing bot and the user or None.
     """
-    tns_robot_id = tns_robot.id
-
-    # if it is auto_submission or if stream_ids are not specified
-    # we use the TNSRobot list of stream
-    if auto_submission or stream_ids is None or len(stream_ids) == 0:
-        accessible_stream_ids = session.scalars(
-            sa.select(StreamTNSRobot.stream_id).where(
-                StreamTNSRobot.tnsrobot_id == tns_robot_id
-            )
-        ).all()
-
-        if len(accessible_stream_ids) == 0 and auto_submission is True:
-            raise ValueError(
-                f"Must specify streams for TNSRobot {tns_robot_id} when auto-submitting source to TNS."
-            )
-    else:
-        # if it is not auto_submission and stream_ids are specified,
-        # we use all the specified stream not filtered by the TNSRobot stream
-        accessible_stream_ids = None
-
-    streams = process_stream_ids(session, stream_ids, accessible_stream_ids)
-    if len(streams) == 0:
+    # specifying streams to use being optional, we return None if no streams are specified
+    if not auto_submission and not stream_ids:
         return None
+
+    bot_stream_ids = session.scalars(
+        sa.select(StreamExternalPublishingBot.stream_id).where(
+            StreamExternalPublishingBot.external_publishing_bot_id == publishing_bot.id
+        )
+    ).all()
+    # if it is auto_submission we use the publishing bot list of stream
+    if auto_submission:
+        if not bot_stream_ids:
+            raise ValueError(
+                f"Must specify streams for Publishing Bot {publishing_bot.id} when auto-submitting source."
+            )
+        stream_ids = bot_stream_ids
+
+    streams = process_stream_ids(session, user, stream_ids, bot_stream_ids)
     return [stream.id for stream in streams]
 
 
-def validate_photometry_options(photometry_options, existing_photometry_options=None):
+def validate_photometry_options(
+    photometry_options=None, existing_photometry_options=None
+):
     """Validate the photometry options and their values
 
     Parameters
     ----------
-    photometry_options : dict
+    photometry_options : dict, optional
         Dictionary containing the photometry options
     existing_photometry_options : dict, optional
         Dictionary containing the existing photometry options, by default None
@@ -255,11 +366,11 @@ def get_photometry_by_instruments_stream_and_options(
         Photometry.select(user).where(
             Photometry.obj_id == obj_id,
             Photometry.instrument_id.in_(instrument_ids),
-            # make sure that the origin does not contain 'fp' (for forced photometry)
-            # as we only want to submit alert-based photometry for surveys
-            # like ZTF that also provide a forced photometry service,
-            # which detections might have lower SNR and be less reliable or not real
-            ~Photometry.origin.ilike("%fp%"),
+            # keep all non-detections, reject detections with SNR < 5
+            sa.or_(
+                Photometry.flux / Photometry.fluxerr > 5,
+                Photometry.flux.is_(None),
+            ),
         )
     ).all()
 
@@ -269,30 +380,29 @@ def get_photometry_by_instruments_stream_and_options(
         )
 
     # Filter the photometry by stream IDs
-    photometry = [
-        phot
-        for phot in photometry
-        if session.scalar(
-            sa.select(StreamPhotometry.stream_id).where(
-                StreamPhotometry.photometr_id == phot.id,
-                StreamPhotometry.stream_id.in_(stream_ids),
+    if stream_ids:
+        photometry = [
+            phot
+            for phot in photometry
+            if session.scalar(
+                sa.select(StreamPhotometry.stream_id).where(
+                    StreamPhotometry.photometr_id == phot.id,
+                    StreamPhotometry.stream_id.in_(stream_ids),
+                )
             )
-        )
-        is not None
-    ]
-    detections = [
-        phot for phot in photometry if phot.mag not in {None, "", "None", "nan"}
-    ]
+            is not None
+        ]
+    detections = [phot for phot in photometry if not is_null(phot.mag)]
 
     # if no photometry or only non-detections photometry is found, raise an error
-    if len(detections) == 0:
+    if not detections:
         stream_names = (
             session.scalars(sa.select(Stream.name).where(Stream.id.in_(stream_ids)))
             .unique()
             .all()
         )
         raise ValueError(
-            f"No photometry for {obj_id} with streams {', '.join(stream_names)}, cannot submit"
+            f"No photometry for {obj_id} with {'streams ' + ', '.join(stream_names) if stream_names else 'unspecified streams'}, cannot submit"
         )
 
     # Filter the photometry by the photometry options
@@ -305,8 +415,15 @@ def get_photometry_by_instruments_stream_and_options(
     return photometry
 
 
-def get_publishable_obj_photometry(
-    session, user, tns_robot_id, obj_id, instrument_ids, stream_ids, photometry_options
+def get_publishable_source_and_photometry(
+    session,
+    user,
+    publishing_bot_id,
+    obj_id,
+    instrument_ids,
+    stream_ids,
+    photometry_options,
+    is_auto_submission,
 ):
     """Get publishable source and photometry after checking the access and the options.
 
@@ -316,8 +433,8 @@ def get_publishable_obj_photometry(
         Database session
     user : User
         The user trying to publish the data
-    tns_robot_id : str
-        The ID of the TNSRobot to use for restricting the data
+    publishing_bot_id : int
+        The ID of the publishing bot to use for restricting the data
     obj_id : str
         Object ID
     instrument_ids : list of str
@@ -326,67 +443,239 @@ def get_publishable_obj_photometry(
         List of stream IDs to restrict the data from
     photometry_options : dict
         Photometry options to use for the data
+    is_auto_submission : bool
+        Whether the submission is an auto-submission
 
     Returns
     -------
-    obj : Obj
-        The publishable object
+    source : Source
+        The publishable source
     photometry : list of Photometry
         The list of publishable photometry
+    stream_ids : list of int
+        The list of stream IDs used to filter the photometry
     """
-    process_stream_ids(session, stream_ids)
-
-    obj = session.scalar(
-        Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
-    )
+    obj = session.scalar(Obj.select(user, mode="read").where(Obj.id == obj_id))
     if not obj:
         raise ValueError(f"Object {obj_id} not found")
 
-    tns_robot = session.scalars(
-        TNSRobot.select(session.user_or_token).where(TNSRobot.id == tns_robot_id)
-    ).first()
-    if tns_robot is None:
-        return ValueError(f"TNSRobot {tns_robot_id} not found")
+    publishing_bot = check_access_to_external_publishing_bot(
+        session, user, publishing_bot_id
+    )
 
-    # Check if the user has access to the TNSRobot
-    accessible_group_ids = [g.id for g in user.accessible_groups]
-    tns_robot_groups = [
-        tns_robot_group
-        for tns_robot_group in tns_robot.groups
-        if tns_robot_group.group_id in accessible_group_ids
+    # Filter publishing bot groups the user has access to
+    user_accessible_group_ids = [group.id for group in user.accessible_groups]
+    valid_bot_groups = [
+        bot_group
+        for bot_group in publishing_bot.groups
+        if bot_group.group_id in user_accessible_group_ids
     ]
-    if len(tns_robot_groups) == 0:
-        raise ValueError(
-            f"User {user.id} does not have access to any group with TNSRobot {tns_robot_id}"
-        )
+
+    # if auto_submission, check if the group has auto-publish enabled for TNS or Hermes
+    # and if the user is an auto-publisher for that group
+    if is_auto_submission:
+        valid_bot_groups = [
+            g
+            for g in valid_bot_groups
+            if g.auto_publish_to_tns or g.auto_publish_to_hermes
+        ]
+        if not valid_bot_groups:
+            raise ValueError(
+                f"No group with publishing bot {publishing_bot_id} set to auto-publish."
+            )
+
+        # we filter out the groups that this user is not an auto-publisher for
+        valid_bot_groups = [
+            group
+            for group in valid_bot_groups
+            if session.scalar(
+                sa.select(ExternalPublishingBotGroupAutoPublisher).where(
+                    ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id
+                    == group.id,
+                    ExternalPublishingBotGroupAutoPublisher.group_user_id.in_(
+                        sa.select(GroupUser.id).where(
+                            GroupUser.user_id == user.id,
+                            GroupUser.group_id == group.group_id,
+                        )
+                    ),
+                )
+            )
+        ]
+        if not valid_bot_groups:
+            raise ValueError(
+                f"User {user.id} is not an auto-publisher for any group with publishing bot {publishing_bot_id}."
+            )
+
+        # if the user is a bot, filter out the groups that are not set to auto-publish with bots
+        if user.is_bot:
+            valid_bot_groups = [
+                g for g in valid_bot_groups if g.auto_publish_allow_bots
+            ]
+
+            if not valid_bot_groups:
+                raise ValueError(
+                    f"No group with publishing bot {publishing_bot_id} set to auto-publish with bot users."
+                )
 
     photometry_options = validate_photometry_options(
-        photometry_options, tns_robot.photometry_options
+        photometry_options, publishing_bot.photometry_options
     )
 
     source = session.scalar(
-        Source.select(session.user_or_token)
+        Source.select(user)
         .where(
             Source.obj_id == obj_id,
             Source.active.is_(True),
-            Source.group_id.in_([group.group_id for group in tns_robot_groups]),
+            Source.group_id.in_([group.group_id for group in valid_bot_groups]),
         )
         .order_by(Source.saved_at.asc())
     )
     if source is None:
         raise ValueError(
-            f"Source {obj_id} not saved to any group with TNSRobot {tns_robot_id}."
+            f"Source {obj_id} not saved to any group with publishing bot {publishing_bot_id}."
         )
 
     instrument_ids = filter_accessible_instrument_ids(
-        session, instrument_ids, tns_robot
+        session, user, instrument_ids, publishing_bot
     )
     stream_ids = filter_accessible_stream_ids(
-        session, stream_ids, tns_robot, auto_submission=False
+        session, user, stream_ids, publishing_bot, auto_submission=is_auto_submission
     )
 
     photometry = get_photometry_by_instruments_stream_and_options(
         session, user, obj_id, instrument_ids, stream_ids, photometry_options
     )
 
-    return obj, photometry
+    return source, photometry, stream_ids
+
+
+def auto_source_publishing(session, saver, group_id, obj, publish_to):
+    """Check for every auto publishing procedure for a source that is saved to a group.
+
+    Parameters
+    ----------
+    session : Session
+        Database session
+    saver : User
+        The user who saved the source
+    group_id : int
+        The ID of the group to which the source is saved
+    obj : Obj
+        The source object to check for auto-publishing
+    publish_to : list of str
+        The procedures to check for auto-publishing (e.g., ["TNS", "Hermes", "Public page"])
+    """
+    tns, hermes = "TNS", "Hermes"
+    if tns in publish_to or hermes in publish_to:
+        # Check if group auto publish is enabled to TNS or Hermes and a user is auto publisher
+        stmt = (
+            ExternalPublishingBotGroup.select(saver)
+            .join(
+                ExternalPublishingBotGroupAutoPublisher,
+                ExternalPublishingBotGroup.id
+                == ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id,
+            )
+            .where(
+                ExternalPublishingBotGroup.group_id == group_id,
+                sa.or_(
+                    ExternalPublishingBotGroup.auto_publish_to_tns,
+                    ExternalPublishingBotGroup.auto_publish_to_hermes,
+                ),
+                ExternalPublishingBotGroupAutoPublisher.group_user_id.in_(
+                    sa.select(GroupUser.id).where(
+                        GroupUser.user_id == saver.id,
+                        GroupUser.group_id == group_id,
+                    )
+                ),
+            )
+        )
+        if saver.is_bot:
+            stmt = stmt.where(
+                ExternalPublishingBotGroup.auto_publish_allow_bots.is_(True)
+            )
+        bot_groups_with_auto_publisher = session.scalars(stmt).all()
+        if bot_groups_with_auto_publisher:
+            services = {}
+            # Determine which services (TNS, Hermes) can be auto-published and the corresponding bot id
+            for bot_group in bot_groups_with_auto_publisher:
+                bot = bot_group.external_publishing_bot
+                if (
+                    tns in publish_to
+                    and bot_group.auto_publish_to_tns
+                    and not services.get(tns)
+                    and not is_existing_submission_request(session, obj, bot.id, tns)
+                ):
+                    services[tns] = bot.id
+                    publish_to.remove(
+                        tns
+                    )  # Remove TNS from publish_to to avoid duplicate processing
+
+                if (
+                    hermes in publish_to
+                    and bot_group.auto_publish_to_hermes
+                    and not services.get(hermes)
+                    and not is_existing_submission_request(session, obj, bot.id, hermes)
+                ):
+                    services[hermes] = bot.id
+                    publish_to.remove(
+                        hermes
+                    )  # Remove Hermes from publish_to to avoid duplicate processing
+                if len(services) == 2:
+                    break
+
+            if services:
+                # Merge if same bot is used for both
+                if services.get(tns) == services.get(hermes):
+                    services = {f"{tns}/{hermes}": services[tns]}
+
+                # Create submission requests
+                for service_name, bot_id in services.items():
+                    submission_request = ExternalPublishingSubmission(
+                        external_publishing_bot_id=bot_id,
+                        obj_id=obj.id,
+                        user_id=saver.id,
+                        auto_submission=True,
+                        publish_to_tns=tns in service_name,
+                        tns_status="pending" if tns in service_name else None,
+                        publish_to_hermes=hermes in service_name,
+                        hermes_status="pending" if hermes in service_name else None,
+                    )
+                    session.add(submission_request)
+                    session.commit()
+                    log(
+                        f"Added ExternalPublishingSubmission for obj_id {obj.id}, group {group_id}, bot_id {bot_id}, user_id {saver.id}, services {service_name}"
+                    )
+            else:
+                log(
+                    "No auto-publishing bots associated with this group are selected to auto publish to TNS or Hermes."
+                )
+
+    if "Public page" in publish_to:
+        # if there is releases with auto_publish_enabled and one of the source groups,
+        # a public page is published
+        releases = session.scalars(
+            sa.select(PublicRelease).where(
+                PublicRelease.groups.any(id=group_id),
+                PublicRelease.auto_publish_enabled,
+            )
+        ).all()
+        if releases:
+            from ..handlers.api.public_pages.public_source_page import (
+                async_post_public_source_page,
+            )
+
+            dict_obj = obj.to_dict()
+            dict_obj["thumbnails"] = [
+                thumbnail.to_dict()
+                for thumbnail in session.scalars(
+                    sa.select(Thumbnail).where(Thumbnail.obj_id == obj.id)
+                ).all()
+            ]
+            for release in releases:
+                run_async(
+                    async_post_public_source_page,
+                    options=release.options,
+                    source=dict_obj,
+                    release=release,
+                    user_id=saver.id,
+                )
