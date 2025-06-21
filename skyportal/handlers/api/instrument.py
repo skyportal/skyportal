@@ -152,7 +152,7 @@ class InstrumentHandler(BaseHandler):
                     else:
                         field_fov_attributes = [float(field_fov_attributes)]
                 except ValueError:
-                    raise ValueError(
+                    return self.error(
                         "field_fov_attributes must be a list of floats or a float"
                     )
 
