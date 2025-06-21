@@ -458,6 +458,14 @@ def upgrade():
         ["created_at"],
         unique=False,
     )
+    op.create_foreign_key(
+        "external_publishing_submissions_bot_id_fkey",
+        "external_publishing_submissions",
+        "external_publishing_bots",
+        ["external_publishing_bot_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
 
     # foreign key constraints
     op.create_foreign_key(
@@ -465,14 +473,6 @@ def upgrade():
         "external_publishing_submissions",
         "objs",
         ["obj_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
-        "external_publishing_submissions_bot_id_fkey",
-        "external_publishing_submissions",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
         ["id"],
         ondelete="CASCADE",
     )

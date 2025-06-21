@@ -138,7 +138,12 @@ class ExternalPublishingBotCoauthor(Base):
     __tablename__ = "external_publishing_bot_coauthors"
 
     external_publishing_bot_id = sa.Column(
-        sa.ForeignKey("external_publishing_bots.id", ondelete="CASCADE"), nullable=False
+        sa.ForeignKey(
+            "external_publishing_bots.id",
+            name="bot_coauthors_bot_id_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
     )
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
@@ -161,7 +166,12 @@ class ExternalPublishingBotGroup(Base):
     __tablename__ = "external_publishing_bot_groups"
 
     external_publishing_bot_id = sa.Column(
-        sa.ForeignKey("external_publishing_bots.id", ondelete="CASCADE"), nullable=False
+        sa.ForeignKey(
+            "external_publishing_bots.id",
+            name="bot_groups_bot_id_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
     )
     group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
 
@@ -206,7 +216,11 @@ class ExternalPublishingBotGroupAutoPublisher(Base):
     __tablename__ = "external_publishing_bot_group_users"
 
     external_publishing_bot_group_id = sa.Column(
-        sa.ForeignKey("external_publishing_bot_groups.id", ondelete="CASCADE"),
+        sa.ForeignKey(
+            "external_publishing_bot_groups.id",
+            name="bot_group_users_bot_group_id_fkey",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
     group_user_id = sa.Column(
