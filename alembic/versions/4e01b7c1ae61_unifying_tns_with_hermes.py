@@ -53,7 +53,7 @@ def upgrade():
         sa.Column(
             "enable_publish_to_hermes",
             sa.Boolean(),
-            server_default="false",
+            server_default=sa.text("false"),
             nullable=False,
         ),
     )
@@ -62,7 +62,7 @@ def upgrade():
         sa.Column(
             "enable_publish_to_tns",
             sa.Boolean(),
-            server_default="true",
+            server_default=sa.text("true"),
             nullable=False,
         ),
     )
@@ -94,7 +94,7 @@ def upgrade():
         type_="foreignkey",
     )
     op.create_foreign_key(
-        "instrument_external_publishing_bots_bot_id_fkey",
+        "instrument_external_publishing__external_publishing_bot_id_fkey",
         "instrument_external_publishing_bots",
         "external_publishing_bots",
         ["external_publishing_bot_id"],
@@ -160,7 +160,7 @@ def upgrade():
         type_="foreignkey",
     )
     op.create_foreign_key(
-        "stream_external_publishing_bots_bot_id_fkey",
+        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
         "stream_external_publishing_bots",
         "external_publishing_bots",
         ["external_publishing_bot_id"],
@@ -230,7 +230,7 @@ def upgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "bot_coauthors_user_id_fkey",
+        "external_publishing_bot_coauthors_user_id_fkey",
         "external_publishing_bot_coauthors",
         "users",
         ["user_id"],
@@ -298,7 +298,7 @@ def upgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "bot_groups_group_id_fkey",
+        "external_publishing_bot_groups_group_id_fkey",
         "external_publishing_bot_groups",
         "groups",
         ["group_id"],
@@ -342,7 +342,7 @@ def upgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "bot_group_users_group_user_id_fkey",
+        "external_publishing_bot_group_users_group_user_id_fkey",
         "external_publishing_bot_group_users",
         "group_users",
         ["group_user_id"],
@@ -459,7 +459,7 @@ def upgrade():
         unique=False,
     )
     op.create_foreign_key(
-        "external_publishing_submissions_bot_id_fkey",
+        "submissions_bot_id_fkey",
         "external_publishing_submissions",
         "external_publishing_bots",
         ["external_publishing_bot_id"],
@@ -612,7 +612,7 @@ def downgrade():
         type_="foreignkey",
     )
     op.drop_constraint(
-        "external_publishing_submissions_bot_id_fkey",
+        "submissions_bot_id_fkey",
         "external_publishing_submissions",
         type_="foreignkey",
     )
@@ -692,7 +692,7 @@ def downgrade():
         table_name="external_publishing_bot_group_users",
     )
     op.drop_constraint(
-        "bot_group_users_group_user_id_fkey",
+        "external_publishing_bot_group_users_group_user_id_fkey",
         "external_publishing_bot_group_users",
         type_="foreignkey",
     )
@@ -729,7 +729,9 @@ def downgrade():
         table_name="external_publishing_bot_groups",
     )
     op.drop_constraint(
-        "bot_groups_group_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
+        "external_publishing_bot_groups_group_id_fkey",
+        "external_publishing_bot_groups",
+        type_="foreignkey",
     )
     op.drop_constraint(
         "bot_groups_bot_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
@@ -785,7 +787,7 @@ def downgrade():
         table_name="external_publishing_bot_coauthors",
     )
     op.drop_constraint(
-        "bot_coauthors_user_id_fkey",
+        "external_publishing_bot_coauthors_user_id_fkey",
         "external_publishing_bot_coauthors",
         type_="foreignkey",
     )
@@ -835,7 +837,7 @@ def downgrade():
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_external_publishing_bots_bot_id_fkey",
+        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
         "stream_external_publishing_bots",
         type_="foreignkey",
     )
@@ -892,7 +894,7 @@ def downgrade():
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_external_publishing_bots_bot_id_fkey",
+        "instrument_external_publishing__external_publishing_bot_id_fkey",
         "instrument_external_publishing_bots",
         type_="foreignkey",
     )

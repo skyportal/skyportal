@@ -253,7 +253,12 @@ class ExternalPublishingSubmission(Base):
     __tablename__ = "external_publishing_submissions"
 
     external_publishing_bot_id = sa.Column(
-        sa.ForeignKey("external_publishing_bots.id", ondelete="CASCADE"), nullable=False
+        sa.ForeignKey(
+            "external_publishing_bots.id",
+            name="submissions_bot_id_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
     )
     obj_id = sa.Column(sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False)
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
