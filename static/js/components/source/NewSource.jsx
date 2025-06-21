@@ -29,37 +29,37 @@ const NewSource = ({ classes, onClose }) => {
   });
 
   const handleSubmit = async ({ formData }) => {
-    let data = null;
-    if (formData?.ra?.includes(":")) {
-      formData.ra = hours_to_ra(formData?.ra);
+    const dataToSend = {
+      ...formData,
+    };
+    if (dataToSend?.ra?.includes(":")) {
+      dataToSend.ra = hours_to_ra(dataToSend?.ra);
     } else {
-      formData.ra = parseFloat(formData?.ra);
+      dataToSend.ra = parseFloat(dataToSend?.ra);
     }
-    if (formData?.dec?.includes(":")) {
-      formData.dec = dms_to_dec(formData?.dec);
+    if (dataToSend?.dec?.includes(":")) {
+      dataToSend.dec = dms_to_dec(dataToSend?.dec);
     } else {
-      formData.dec = parseFloat(formData?.dec);
+      dataToSend.dec = parseFloat(dataToSend?.dec);
     }
     if (
-      formData?.id === "" ||
-      formData?.id === null ||
-      formData?.id === undefined ||
-      !formData?.id
+      dataToSend?.id === "" ||
+      dataToSend?.id === null ||
+      dataToSend?.id === undefined ||
+      !dataToSend?.id
     ) {
       dispatch(showNotification("Please enter a source ID.", "error"));
     } else {
-      data = await dispatch(checkSource(formData?.id, formData));
-      if (data.data !== "A source of that name does not exist.") {
-        dispatch(showNotification(data.data, "error"));
-      } else {
+      const data = await dispatch(checkSource(dataToSend?.id, dataToSend));
+      if (data.status === "success") {
         if (selectedGroupIds.length > 0) {
-          formData.group_ids = selectedGroupIds;
+          dataToSend.group_ids = selectedGroupIds;
         }
-        const result = await dispatch(saveSource(formData));
+        const result = await dispatch(saveSource(dataToSend));
         if (result.status === "success") {
           onClose();
           dispatch(showNotification("Source saved"));
-          navigate(`/source/${formData.id}`);
+          navigate(`/source/${dataToSend.id}`);
         }
       }
     }
