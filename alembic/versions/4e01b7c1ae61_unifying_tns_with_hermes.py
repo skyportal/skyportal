@@ -17,210 +17,270 @@ down_revision = "6f853af1e900"
 branch_labels = None
 depends_on = None
 
+tables_to_rename = [
+    ("tnsrobots", "external_publishing_bots"),
+    ("instrument_tnsrobots", "instrument_external_publishing_bots"),
+    ("stream_tnsrobots", "stream_external_publishing_bots"),
+    ("tnsrobot_coauthors", "external_publishing_bot_coauthors"),
+    ("tnsrobot_groups", "external_publishing_bot_groups"),
+    ("tnsrobot_group_users", "external_publishing_bot_group_users"),
+    ("tnsrobot_submissions", "external_publishing_submissions"),
+]
+
 
 def upgrade():
-    op.rename_table("tnsrobots", "external_publishing_bots")
-    op.alter_column(
-        "external_publishing_bots",
-        "report_existing",
-        new_column_name="publish_existing_tns_objects",
-        existing_type=sa.Boolean(),
-        nullable=True,
-        existing_server_default=sa.text("false"),
-    )
-    op.alter_column(
-        "external_publishing_bots",
-        "bot_id",
-        existing_type=sa.Integer(),
-        existing_nullable=False,
-        nullable=True,
-    )
-    op.alter_column(
-        "external_publishing_bots",
-        "source_group_id",
-        existing_type=sa.Integer(),
-        existing_nullable=False,
-        nullable=True,
-    )
-    op.alter_column(
-        "external_publishing_bots",
-        "_altdata",
-        new_column_name="_tns_altdata",
-        existing_type=postgresql.BYTEA(),
-    )
-    op.add_column(
-        "external_publishing_bots",
-        sa.Column(
-            "enable_publish_to_hermes",
-            sa.Boolean(),
-            server_default=sa.text("false"),
-            nullable=False,
-        ),
-    )
-    op.add_column(
-        "external_publishing_bots",
-        sa.Column(
-            "enable_publish_to_tns",
-            sa.Boolean(),
-            server_default=sa.text("true"),
-            nullable=False,
-        ),
-    )
-    op.drop_index("ix_tnsrobots_created_at", table_name="external_publishing_bots")
-    op.create_index(
-        "ix_external_publishing_bots_created_at",
-        "external_publishing_bots",
-        ["created_at"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("instrument_tnsrobots", "instrument_external_publishing_bots")
-    op.alter_column(
-        "instrument_external_publishing_bots",
-        "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
-        existing_type=sa.Integer(),
-        existing_nullable=False,
-    )
+    # Drop foreign key constraints
     op.drop_constraint(
-        "instrument_tnsrobots_tnsrobot_id_fkey",
-        "instrument_external_publishing_bots",
+        "tnsrobot_submissions_obj_id_fkey",
+        "tnsrobot_submissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_tnsrobots_instrument_id_fkey",
-        "instrument_external_publishing_bots",
-        type_="foreignkey",
-    )
-    op.create_foreign_key(
-        "instrument_external_publishing__external_publishing_bot_id_fkey",
-        "instrument_external_publishing_bots",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
-        "instrument_external_publishing_bots_instrument_id_fkey",
-        "instrument_external_publishing_bots",
-        "instruments",
-        ["instrument_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.drop_index(
-        "ix_instrument_tnsrobots_created_at",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.drop_index(
-        "instrument_tnsrobots_forward_ind",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.drop_index(
-        "instrument_tnsrobots_reverse_ind",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.create_index(
-        "ix_instrument_external_publishing_bots_created_at",
-        "instrument_external_publishing_bots",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "instrument_external_publishing_bots_forward_ind",
-        "instrument_external_publishing_bots",
-        ["instrument_id", "external_publishing_bot_id"],
-        unique=True,
-    )
-    op.create_index(
-        "instrument_external_publishing_bots_reverse_ind",
-        "instrument_external_publishing_bots",
-        ["external_publishing_bot_id", "instrument_id"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("stream_tnsrobots", "stream_external_publishing_bots")
-    op.alter_column(
-        "stream_external_publishing_bots",
-        "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
-        existing_type=sa.Integer(),
-        existing_nullable=False,
-    )
-    op.drop_constraint(
-        "stream_tnsrobots_tnsrobot_id_fkey",
-        "stream_external_publishing_bots",
+        "tnsrobot_submissions_user_id_fkey",
+        "tnsrobot_submissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_tnsrobots_stream_id_fkey",
-        "stream_external_publishing_bots",
+        "tnsrobot_submissions_tnsrobot_id_fkey",
+        "tnsrobot_submissions",
         type_="foreignkey",
     )
-    op.create_foreign_key(
-        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
-        "stream_external_publishing_bots",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
-        "stream_external_publishing_bots_stream_id_fkey",
-        "stream_external_publishing_bots",
-        "streams",
-        ["stream_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.drop_index(
-        "ix_stream_tnsrobots_created_at", table_name="stream_external_publishing_bots"
-    )
-    op.drop_index(
-        "stream_tnsrobots_forward_ind", table_name="stream_external_publishing_bots"
-    )
-    op.drop_index(
-        "stream_tnsrobots_reverse_ind", table_name="stream_external_publishing_bots"
-    )
-    op.create_index(
-        "ix_stream_external_publishing_bots_created_at",
-        "stream_external_publishing_bots",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "stream_external_publishing_bots_forward_ind",
-        "stream_external_publishing_bots",
-        ["stream_id", "external_publishing_bot_id"],
-        unique=True,
-    )
-    op.create_index(
-        "stream_external_publishing_bots_reverse_ind",
-        "stream_external_publishing_bots",
-        ["external_publishing_bot_id", "stream_id"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("tnsrobot_coauthors", "external_publishing_bot_coauthors")
-    op.alter_column(
-        "external_publishing_bot_coauthors",
-        "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
-        existing_type=sa.Integer(),
+    op.drop_constraint(
+        "tnsrobot_group_users_group_user_id_fkey",
+        "tnsrobot_group_users",
+        type_="foreignkey",
     )
     op.drop_constraint(
-        "tnsrobot_coauthors_tnsrobot_id_fkey",
-        "external_publishing_bot_coauthors",
+        "tnsrobot_group_users_tnsrobot_group_id_fkey",
+        "tnsrobot_group_users",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "tnsrobot_groups_group_id_fkey",
+        "tnsrobot_groups",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "tnsrobot_groups_tnsrobot_id_fkey",
+        "tnsrobot_groups",
         type_="foreignkey",
     )
     op.drop_constraint(
         "tnsrobot_coauthors_user_id_fkey",
-        "external_publishing_bot_coauthors",
+        "tnsrobot_coauthors",
         type_="foreignkey",
     )
+    op.drop_constraint(
+        "tnsrobot_coauthors_tnsrobot_id_fkey",
+        "tnsrobot_coauthors",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "stream_tnsrobots_stream_id_fkey",
+        "stream_tnsrobots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "stream_tnsrobots_tnsrobot_id_fkey",
+        "stream_tnsrobots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "instrument_tnsrobots_instrument_id_fkey",
+        "instrument_tnsrobots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "instrument_tnsrobots_tnsrobot_id_fkey",
+        "instrument_tnsrobots",
+        type_="foreignkey",
+    )
+
+    # external_publishing_bots
+    op.add_column(
+        "tnsrobots",
+        sa.Column(
+            "enable_publish_to_hermes", sa.Boolean(), server_default=sa.text("false")
+        ),
+    )
+    op.add_column(
+        "tnsrobots",
+        sa.Column(
+            "enable_publish_to_tns", sa.Boolean(), server_default=sa.text("false")
+        ),
+    )
+    op.alter_column(
+        "tnsrobots",
+        "report_existing",
+        new_column_name="publish_existing_tns_objects",
+        existing_type=sa.Boolean(),
+    )
+    op.alter_column("tnsrobots", "bot_id", existing_type=sa.Integer(), nullable=True)
+    op.alter_column(
+        "tnsrobots", "source_group_id", existing_type=sa.Integer(), nullable=True
+    )
+    op.alter_column(
+        "tnsrobots",
+        "_altdata",
+        new_column_name="_tns_altdata",
+        existing_type=postgresql.BYTEA(),
+    )
+
+    # instrument_external_publishing_bots
+    op.alter_column(
+        "instrument_tnsrobots",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+    )
+
+    # stream_external_publishing_bots
+    op.alter_column(
+        "stream_tnsrobots",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+    )
+
+    # external_publishing_bot_coauthors
+    op.alter_column(
+        "tnsrobot_coauthors",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+    )
+
+    # external_publishing_bot_groups
+    op.alter_column(
+        "tnsrobot_groups",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+    )
+    op.alter_column(
+        "tnsrobot_groups",
+        "auto_report",
+        new_column_name="auto_publish_to_tns",
+        existing_type=sa.Boolean(),
+        server_default=sa.text("false"),
+    )
+    op.alter_column(
+        "tnsrobot_groups",
+        "auto_report_allow_bots",
+        new_column_name="auto_publish_allow_bots",
+        existing_type=sa.Boolean(),
+    )
+    op.add_column(
+        "tnsrobot_groups",
+        sa.Column(
+            "auto_publish_to_hermes", sa.Boolean(), server_default=sa.text("false")
+        ),
+    )
+
+    # external_publishing_bot_group_users
+    op.alter_column(
+        "tnsrobot_group_users",
+        "tnsrobot_group_id",
+        new_column_name="external_publishing_bot_group_id",
+        existing_type=sa.Integer(),
+    )
+
+    # external_publishing_submissions
+    op.alter_column(
+        "tnsrobot_submissions",
+        "tnsrobot_id",
+        new_column_name="external_publishing_bot_id",
+        existing_type=sa.Integer(),
+    )
+    op.alter_column(
+        "tnsrobot_submissions",
+        "custom_reporting_string",
+        new_column_name="custom_publishing_string",
+        existing_type=sa.String(),
+    )
+    op.alter_column(
+        "tnsrobot_submissions",
+        "status",
+        new_column_name="tns_status",
+        existing_type=sa.String(),
+        nullable=True,
+    )
+    op.alter_column(
+        "tnsrobot_submissions",
+        "submission_id",
+        new_column_name="tns_submission_id",
+        existing_type=sa.Integer(),
+    )
+    op.alter_column(
+        "tnsrobot_submissions",
+        "payload",
+        new_column_name="tns_payload",
+        existing_type=postgresql.JSONB(),
+    )
+    op.alter_column(
+        "tnsrobot_submissions",
+        "response",
+        new_column_name="tns_response",
+        existing_type=postgresql.JSONB(),
+    )
+    op.add_column(
+        "tnsrobot_submissions",
+        sa.Column("publish_to_tns", sa.Boolean(), server_default=sa.text("false")),
+    )
+    op.add_column(
+        "tnsrobot_submissions",
+        sa.Column("publish_to_hermes", sa.Boolean(), server_default=sa.text("false")),
+    )
+    op.add_column("tnsrobot_submissions", sa.Column("hermes_status", sa.String()))
+    op.add_column(
+        "tnsrobot_submissions", sa.Column("hermes_response", postgresql.JSONB())
+    )
+
+    for old, new in tables_to_rename:
+        # Rename tables
+        op.rename_table(old, new)
+
+        # Manage index
+        op.drop_index(f"ix_{old}_created_at", table_name=new)
+        op.create_index(
+            f"ix_{new}_created_at",
+            new,
+            ["created_at"],
+            unique=False,
+        )
+        if "instrument" in new or "stream" in new:
+            op.drop_index(f"{old}_reverse_ind", table_name=new)
+            op.drop_index(f"{old}_forward_ind", table_name=new)
+            op.create_index(
+                f"{new}_reverse_ind",
+                new,
+                [
+                    "external_publishing_bot_id",
+                    f"{'instrument' if 'instrument' in new else 'stream'}_id",
+                ],
+                unique=False,
+            )
+            op.create_index(
+                f"{new}_forward_ind",
+                new,
+                [
+                    f"{'instrument' if 'instrument' in new else 'stream'}_id",
+                    "external_publishing_bot_id",
+                ],
+                unique=True,
+            )
+
+        op.execute(f"ALTER SEQUENCE {old}_id_seq RENAME TO {new}_id_seq")
+        op.execute(f"ALTER SEQUENCE {new}_id_seq OWNED BY {new}.id")
+        op.alter_column(
+            new,
+            "id",
+            server_default=sa.text(f"nextval('{new}_id_seq'::regclass)"),
+        )
+
+        op.execute(f"ALTER INDEX {old}_pkey RENAME TO {new}_pkey")
+
+    # Foreign Keys
     op.create_foreign_key(
         "bot_coauthors_bot_id_fkey",
         "external_publishing_bot_coauthors",
@@ -236,58 +296,6 @@ def upgrade():
         ["user_id"],
         ["id"],
         ondelete="CASCADE",
-    )
-    op.drop_index(
-        "ix_tnsrobot_coauthors_created_at",
-        table_name="external_publishing_bot_coauthors",
-    )
-    op.create_index(
-        "ix_external_publishing_bot_coauthors_created_at",
-        "external_publishing_bot_coauthors",
-        ["created_at"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("tnsrobot_groups", "external_publishing_bot_groups")
-    op.alter_column(
-        "external_publishing_bot_groups",
-        "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
-        existing_type=sa.Integer(),
-    )
-    op.alter_column(
-        "external_publishing_bot_groups",
-        "auto_report_allow_bots",
-        new_column_name="auto_publish_allow_bots",
-        existing_type=sa.Boolean(),
-        existing_server_default=sa.text("false"),
-    )
-    op.alter_column(
-        "external_publishing_bot_groups",
-        "auto_report",
-        new_column_name="auto_publish_to_tns",
-        existing_type=sa.Boolean(),
-        server_default=sa.text("false"),
-    )
-    op.add_column(
-        "external_publishing_bot_groups",
-        sa.Column(
-            "auto_publish_to_hermes",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-    )
-    op.drop_constraint(
-        "tnsrobot_groups_tnsrobot_id_fkey",
-        "external_publishing_bot_groups",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "tnsrobot_groups_group_id_fkey",
-        "external_publishing_bot_groups",
-        type_="foreignkey",
     )
     op.create_foreign_key(
         "bot_groups_bot_id_fkey",
@@ -305,34 +313,6 @@ def upgrade():
         ["id"],
         ondelete="CASCADE",
     )
-    op.drop_index(
-        "ix_tnsrobot_groups_created_at", table_name="external_publishing_bot_groups"
-    )
-    op.create_index(
-        "ix_external_publishing_bot_groups_created_at",
-        "external_publishing_bot_groups",
-        ["created_at"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("tnsrobot_group_users", "external_publishing_bot_group_users")
-    op.alter_column(
-        "external_publishing_bot_group_users",
-        "tnsrobot_group_id",
-        new_column_name="external_publishing_bot_group_id",
-        existing_type=sa.Integer(),
-    )
-    op.drop_constraint(
-        "tnsrobot_group_users_tnsrobot_group_id_fkey",
-        "external_publishing_bot_group_users",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "tnsrobot_group_users_group_user_id_fkey",
-        "external_publishing_bot_group_users",
-        type_="foreignkey",
-    )
     op.create_foreign_key(
         "bot_group_users_bot_group_id_fkey",
         "external_publishing_bot_group_users",
@@ -349,130 +329,19 @@ def upgrade():
         ["id"],
         ondelete="CASCADE",
     )
-    op.drop_index(
-        "ix_tnsrobot_group_users_created_at",
-        table_name="external_publishing_bot_group_users",
-    )
-    op.create_index(
-        "ix_external_publishing_bot_group_users_created_at",
-        "external_publishing_bot_group_users",
-        ["created_at"],
-        unique=False,
-    )
-
-    ##########
-    op.rename_table("tnsrobot_submissions", "external_publishing_submissions")
-    op.alter_column(
+    op.create_foreign_key(
+        "external_publishing_submissions_obj_id_fkey",
         "external_publishing_submissions",
-        "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
-        existing_type=sa.Integer(),
-        existing_nullable=False,
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "custom_reporting_string",
-        new_column_name="custom_publishing_string",
-        existing_type=sa.String(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "status",
-        new_column_name="tns_status",
-        existing_type=sa.String(),
-        existing_nullable=False,
-        existing_server_default=None,
-        nullable=True,
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "submission_id",
-        new_column_name="tns_submission_id",
-        existing_type=sa.Integer(),
-        existing_nullable=True,
-        existing_server_default=None,
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "payload",
-        new_column_name="tns_payload",
-        existing_type=postgresql.JSONB(),
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "response",
-        new_column_name="tns_response",
-        existing_type=postgresql.JSONB(),
-    )
-    op.add_column(
-        "external_publishing_submissions",
-        sa.Column(
-            "publish_to_tns",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-    )
-    op.add_column(
-        "external_publishing_submissions",
-        sa.Column(
-            "publish_to_hermes",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-    )
-    op.add_column(
-        "external_publishing_submissions",
-        sa.Column("hermes_status", sa.String(), nullable=True),
-    )
-    op.add_column(
-        "external_publishing_submissions",
-        sa.Column(
-            "hermes_response", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-    )
-    op.drop_constraint(
-        "tnsrobot_submissions_obj_id_fkey",
-        "external_publishing_submissions",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "tnsrobot_submissions_tnsrobot_id_fkey",
-        "external_publishing_submissions",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "tnsrobot_submissions_user_id_fkey",
-        "external_publishing_submissions",
-        type_="foreignkey",
-    )
-    op.drop_index(
-        "ix_tnsrobot_submissions_created_at",
-        table_name="external_publishing_submissions",
-    )
-    op.create_index(
-        "ix_external_publishing_submissions_created_at",
-        "external_publishing_submissions",
-        ["created_at"],
-        unique=False,
+        "objs",
+        ["obj_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
         "submissions_bot_id_fkey",
         "external_publishing_submissions",
         "external_publishing_bots",
         ["external_publishing_bot_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-
-    # foreign key constraints
-    op.create_foreign_key(
-        "external_publishing_submissions_obj_id_fkey",
-        "external_publishing_submissions",
-        "objs",
-        ["obj_id"],
         ["id"],
         ondelete="CASCADE",
     )
@@ -484,128 +353,42 @@ def upgrade():
         ["id"],
         ondelete="CASCADE",
     )
-
-    # Manage sequences
-    op.execute(
-        "ALTER SEQUENCE tnsrobots_id_seq RENAME TO external_publishing_bots_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_groups_id_seq RENAME TO external_publishing_bot_groups_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_coauthors_id_seq RENAME TO external_publishing_bot_coauthors_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_group_users_id_seq RENAME TO external_publishing_bot_group_users_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_submissions_id_seq RENAME TO external_publishing_submissions_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE stream_tnsrobots_id_seq RENAME TO stream_external_publishing_bots_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE instrument_tnsrobots_id_seq RENAME TO instrument_external_publishing_bots_id_seq"
-    )
-
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bots_id_seq OWNED BY external_publishing_bots.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_groups_id_seq OWNED BY external_publishing_bot_groups.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq OWNED BY external_publishing_bot_coauthors.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq OWNED BY external_publishing_bot_group_users.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_submissions_id_seq OWNED BY external_publishing_submissions.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE stream_external_publishing_bots_id_seq OWNED BY stream_external_publishing_bots.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq OWNED BY instrument_external_publishing_bots.id"
-    )
-
-    op.alter_column(
-        "external_publishing_bots",
-        "id",
-        server_default=sa.text("nextval('external_publishing_bots_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "external_publishing_bot_groups",
-        "id",
-        server_default=sa.text(
-            "nextval('external_publishing_bot_groups_id_seq'::regclass)"
-        ),
-    )
-    op.alter_column(
-        "external_publishing_bot_coauthors",
-        "id",
-        server_default=sa.text(
-            "nextval('external_publishing_bot_coauthors_id_seq'::regclass)"
-        ),
-    )
-    op.alter_column(
-        "external_publishing_bot_group_users",
-        "id",
-        server_default=sa.text(
-            "nextval('external_publishing_bot_group_users_id_seq'::regclass)"
-        ),
-    )
-    op.alter_column(
-        "external_publishing_submissions",
-        "id",
-        server_default=sa.text(
-            "nextval('external_publishing_submissions_id_seq'::regclass)"
-        ),
-    )
-    op.alter_column(
+    op.create_foreign_key(
+        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
         "stream_external_publishing_bots",
-        "id",
-        server_default=sa.text(
-            "nextval('stream_external_publishing_bots_id_seq'::regclass)"
-        ),
+        "external_publishing_bots",
+        ["external_publishing_bot_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
-    op.alter_column(
+    op.create_foreign_key(
+        "stream_external_publishing_bots_stream_id_fkey",
+        "stream_external_publishing_bots",
+        "streams",
+        ["stream_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "instrument_external_publishing__external_publishing_bot_id_fkey",
         "instrument_external_publishing_bots",
-        "id",
-        server_default=sa.text(
-            "nextval('instrument_external_publishing_bots_id_seq'::regclass)"
-        ),
+        "external_publishing_bots",
+        ["external_publishing_bot_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
-
-    # Rename primary keys
-    op.execute(
-        "ALTER INDEX tnsrobot_coauthors_pkey RENAME TO external_publishing_bot_coauthors_pkey"
-    )
-    op.execute(
-        "ALTER INDEX tnsrobot_group_users_pkey RENAME TO external_publishing_bot_group_users_pkey"
-    )
-    op.execute(
-        "ALTER INDEX tnsrobot_groups_pkey RENAME TO external_publishing_bot_groups_pkey"
-    )
-    op.execute("ALTER INDEX tnsrobots_pkey RENAME TO external_publishing_bots_pkey")
-    op.execute(
-        "ALTER INDEX tnsrobot_submissions_pkey RENAME TO external_publishing_submissions_pkey"
-    )
-    op.execute(
-        "ALTER INDEX instrument_tnsrobots_pkey RENAME TO instrument_external_publishing_bots_pkey"
-    )
-    op.execute(
-        "ALTER INDEX stream_tnsrobots_pkey RENAME TO stream_external_publishing_bots_pkey"
+    op.create_foreign_key(
+        "instrument_external_publishing_bots_instrument_id_fkey",
+        "instrument_external_publishing_bots",
+        "instruments",
+        ["instrument_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
 
 
 def downgrade():
-    # external_publishing_submissions
-    op.drop_index(
-        "ix_external_publishing_submissions_created_at",
-        table_name="external_publishing_submissions",
-    )
+    # Drop foreign key constraints
     op.drop_constraint(
         "external_publishing_submissions_user_id_fkey",
         "external_publishing_submissions",
@@ -621,6 +404,56 @@ def downgrade():
         "external_publishing_submissions",
         type_="foreignkey",
     )
+    op.drop_constraint(
+        "external_publishing_bot_group_users_group_user_id_fkey",
+        "external_publishing_bot_group_users",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "bot_group_users_bot_group_id_fkey",
+        "external_publishing_bot_group_users",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "external_publishing_bot_groups_group_id_fkey",
+        "external_publishing_bot_groups",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "bot_groups_bot_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
+    )
+    op.drop_constraint(
+        "external_publishing_bot_coauthors_user_id_fkey",
+        "external_publishing_bot_coauthors",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "bot_coauthors_bot_id_fkey",
+        "external_publishing_bot_coauthors",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "stream_external_publishing_bots_stream_id_fkey",
+        "stream_external_publishing_bots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
+        "stream_external_publishing_bots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "instrument_external_publishing_bots_instrument_id_fkey",
+        "instrument_external_publishing_bots",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "instrument_external_publishing__external_publishing_bot_id_fkey",
+        "instrument_external_publishing_bots",
+        type_="foreignkey",
+    )
+
+    # external_publishing_submissions
     op.drop_column("external_publishing_submissions", "hermes_response")
     op.drop_column("external_publishing_submissions", "hermes_status")
     op.drop_column("external_publishing_submissions", "publish_to_hermes")
@@ -662,80 +495,16 @@ def downgrade():
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
-    op.rename_table("external_publishing_submissions", "tnsrobot_submissions")
-    op.create_foreign_key(
-        "tnsrobot_submissions_obj_id_fkey",
-        "tnsrobot_submissions",
-        "objs",
-        ["obj_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
-        "tnsrobot_submissions_user_id_fkey",
-        "tnsrobot_submissions",
-        "users",
-        ["user_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_tnsrobot_submissions_created_at",
-        "tnsrobot_submissions",
-        ["created_at"],
-        unique=False,
-    )
 
     # external_publishing_bot_group_users
-    op.drop_index(
-        "ix_external_publishing_bot_group_users_created_at",
-        table_name="external_publishing_bot_group_users",
-    )
-    op.drop_constraint(
-        "external_publishing_bot_group_users_group_user_id_fkey",
-        "external_publishing_bot_group_users",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "bot_group_users_bot_group_id_fkey",
-        "external_publishing_bot_group_users",
-        type_="foreignkey",
-    )
     op.alter_column(
         "external_publishing_bot_group_users",
         "external_publishing_bot_group_id",
         new_column_name="tnsrobot_group_id",
         existing_type=sa.Integer(),
     )
-    op.rename_table("external_publishing_bot_group_users", "tnsrobot_group_users")
-    op.create_foreign_key(
-        "tnsrobot_group_users_group_user_id_fkey",
-        "tnsrobot_group_users",
-        "group_users",
-        ["group_user_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_tnsrobot_group_users_created_at",
-        "tnsrobot_group_users",
-        ["created_at"],
-        unique=False,
-    )
 
     # external_publishing_bot_groups
-    op.drop_index(
-        "ix_external_publishing_bot_groups_created_at",
-        table_name="external_publishing_bot_groups",
-    )
-    op.drop_constraint(
-        "external_publishing_bot_groups_group_id_fkey",
-        "external_publishing_bot_groups",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "bot_groups_bot_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
-    )
     op.drop_column("external_publishing_bot_groups", "auto_publish_to_hermes")
     op.alter_column(
         "external_publishing_bot_groups",
@@ -757,185 +526,32 @@ def downgrade():
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
-    op.rename_table("external_publishing_bot_groups", "tnsrobot_groups")
-    op.create_foreign_key(
-        "tnsrobot_groups_group_id_fkey",
-        "tnsrobot_groups",
-        "groups",
-        ["group_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_foreign_key(
-        "tnsrobot_group_users_tnsrobot_group_id_fkey",
-        "tnsrobot_group_users",
-        "tnsrobot_groups",
-        ["tnsrobot_group_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_tnsrobot_groups_created_at",
-        "tnsrobot_groups",
-        ["created_at"],
-        unique=False,
-    )
 
     # external_publishing_bot_coauthors
-    op.drop_index(
-        "ix_external_publishing_bot_coauthors_created_at",
-        table_name="external_publishing_bot_coauthors",
-    )
-    op.drop_constraint(
-        "external_publishing_bot_coauthors_user_id_fkey",
-        "external_publishing_bot_coauthors",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "bot_coauthors_bot_id_fkey",
-        "external_publishing_bot_coauthors",
-        type_="foreignkey",
-    )
     op.alter_column(
         "external_publishing_bot_coauthors",
         "external_publishing_bot_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
-    )
-    op.rename_table("external_publishing_bot_coauthors", "tnsrobot_coauthors")
-    op.create_foreign_key(
-        "tnsrobot_coauthors_user_id_fkey",
-        "tnsrobot_coauthors",
-        "users",
-        ["user_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_tnsrobot_coauthors_created_at",
-        "tnsrobot_coauthors",
-        ["created_at"],
-        unique=False,
     )
 
     # stream_external_publishing_bots
-    op.drop_index(
-        "ix_stream_external_publishing_bots_created_at",
-        table_name="stream_external_publishing_bots",
-    )
-    op.drop_index(
-        "stream_external_publishing_bots_reverse_ind",
-        table_name="stream_external_publishing_bots",
-    )
-    op.drop_index(
-        "stream_external_publishing_bots_forward_ind",
-        table_name="stream_external_publishing_bots",
-    )
-    op.drop_constraint(
-        "stream_external_publishing_bots_stream_id_fkey",
-        "stream_external_publishing_bots",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
-        "stream_external_publishing_bots",
-        type_="foreignkey",
-    )
     op.alter_column(
         "stream_external_publishing_bots",
         "external_publishing_bot_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
-    )
-    op.rename_table("stream_external_publishing_bots", "stream_tnsrobots")
-    op.create_foreign_key(
-        "stream_tnsrobots_stream_id_fkey",
-        "stream_tnsrobots",
-        "streams",
-        ["stream_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_stream_tnsrobots_created_at",
-        "stream_tnsrobots",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "stream_tnsrobots_reverse_ind",
-        "stream_tnsrobots",
-        ["tnsrobot_id", "stream_id"],
-        unique=False,
-    )
-    op.create_index(
-        "stream_tnsrobots_forward_ind",
-        "stream_tnsrobots",
-        ["stream_id", "tnsrobot_id"],
-        unique=True,
     )
 
     # instrument_external_publishing_bots
-    op.drop_index(
-        "ix_instrument_external_publishing_bots_created_at",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.drop_index(
-        "instrument_external_publishing_bots_reverse_ind",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.drop_index(
-        "instrument_external_publishing_bots_forward_ind",
-        table_name="instrument_external_publishing_bots",
-    )
-    op.drop_constraint(
-        "instrument_external_publishing_bots_instrument_id_fkey",
-        "instrument_external_publishing_bots",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "instrument_external_publishing__external_publishing_bot_id_fkey",
-        "instrument_external_publishing_bots",
-        type_="foreignkey",
-    )
     op.alter_column(
         "instrument_external_publishing_bots",
         "external_publishing_bot_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
-    op.rename_table("instrument_external_publishing_bots", "instrument_tnsrobots")
-    op.create_foreign_key(
-        "instrument_tnsrobots_instrument_id_fkey",
-        "instrument_tnsrobots",
-        "instruments",
-        ["instrument_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_instrument_tnsrobots_created_at",
-        "instrument_tnsrobots",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "instrument_tnsrobots_reverse_ind",
-        "instrument_tnsrobots",
-        ["tnsrobot_id", "instrument_id"],
-        unique=False,
-    )
-    op.create_index(
-        "instrument_tnsrobots_forward_ind",
-        "instrument_tnsrobots",
-        ["instrument_id", "tnsrobot_id"],
-        unique=True,
-    )
 
     # external_publishing_bots
-    op.drop_index(
-        "ix_external_publishing_bots_created_at", table_name="external_publishing_bots"
-    )
     op.drop_column("external_publishing_bots", "enable_publish_to_tns")
     op.drop_column("external_publishing_bots", "enable_publish_to_hermes")
     op.alter_column(
@@ -959,12 +575,98 @@ def downgrade():
         new_column_name="report_existing",
         existing_type=sa.Boolean(),
     )
-    op.rename_table("external_publishing_bots", "tnsrobots")
+
+    for old, new in tables_to_rename:
+        # Rename tables
+        op.rename_table(new, old)
+
+        # Manage index
+        op.drop_index(f"ix_{new}_created_at", table_name=old)
+        op.create_index(
+            f"ix_{old}_created_at",
+            old,
+            ["created_at"],
+            unique=False,
+        )
+        if "instrument" in new or "stream" in new:
+            op.drop_index(f"{new}_reverse_ind", table_name=old)
+            op.drop_index(f"{new}_forward_ind", table_name=old)
+            op.create_index(
+                f"{old}_reverse_ind",
+                old,
+                [
+                    "tnsrobot_id",
+                    f"{'instrument' if 'instrument' in new else 'stream'}_id",
+                ],
+                unique=False,
+            )
+            op.create_index(
+                f"{old}_forward_ind",
+                old,
+                [
+                    f"{'instrument' if 'instrument' in new else 'stream'}_id",
+                    "tnsrobot_id",
+                ],
+                unique=True,
+            )
+
+        # Manage sequences
+        op.execute(f"ALTER SEQUENCE {new}_id_seq RENAME TO {old}_id_seq")
+        op.execute(f"ALTER SEQUENCE {old}_id_seq OWNED BY {old}.id")
+        op.alter_column(
+            old,
+            "id",
+            server_default=sa.text(f"nextval('{old}_id_seq'::regclass)"),
+        )
+
+        # Rename primary keys
+        op.execute(f"ALTER INDEX {new}_pkey RENAME TO {old}_pkey")
+
+    op.create_foreign_key(
+        "tnsrobot_submissions_obj_id_fkey",
+        "tnsrobot_submissions",
+        "objs",
+        ["obj_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "tnsrobot_submissions_user_id_fkey",
+        "tnsrobot_submissions",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
     op.create_foreign_key(
         "tnsrobot_submissions_tnsrobot_id_fkey",
         "tnsrobot_submissions",
         "tnsrobots",
         ["tnsrobot_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "tnsrobot_group_users_group_user_id_fkey",
+        "tnsrobot_group_users",
+        "group_users",
+        ["group_user_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "tnsrobot_group_users_tnsrobot_group_id_fkey",
+        "tnsrobot_group_users",
+        "tnsrobot_groups",
+        ["tnsrobot_group_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "tnsrobot_groups_group_id_fkey",
+        "tnsrobot_groups",
+        "groups",
+        ["group_id"],
         ["id"],
         ondelete="CASCADE",
     )
@@ -977,10 +679,26 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
+        "tnsrobot_coauthors_user_id_fkey",
+        "tnsrobot_coauthors",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
         "tnsrobot_coauthors_tnsrobot_id_fkey",
         "tnsrobot_coauthors",
         "tnsrobots",
         ["tnsrobot_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "stream_tnsrobots_stream_id_fkey",
+        "stream_tnsrobots",
+        "streams",
+        ["stream_id"],
         ["id"],
         ondelete="CASCADE",
     )
@@ -993,109 +711,18 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
+        "instrument_tnsrobots_instrument_id_fkey",
+        "instrument_tnsrobots",
+        "instruments",
+        ["instrument_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
         "instrument_tnsrobots_tnsrobot_id_fkey",
         "instrument_tnsrobots",
         "tnsrobots",
         ["tnsrobot_id"],
         ["id"],
         ondelete="CASCADE",
-    )
-    op.create_index(
-        "ix_tnsrobots_created_at", "tnsrobots", ["created_at"], unique=False
-    )
-
-    # Manage sequences
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bots_id_seq RENAME TO tnsrobots_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_groups_id_seq RENAME TO tnsrobot_groups_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_coauthors_id_seq RENAME TO tnsrobot_coauthors_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_bot_group_users_id_seq RENAME TO tnsrobot_group_users_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE external_publishing_submissions_id_seq RENAME TO tnsrobot_submissions_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE stream_external_publishing_bots_id_seq RENAME TO stream_tnsrobots_id_seq"
-    )
-    op.execute(
-        "ALTER SEQUENCE instrument_external_publishing_bots_id_seq RENAME TO instrument_tnsrobots_id_seq"
-    )
-
-    op.execute("ALTER SEQUENCE tnsrobots_id_seq OWNED BY tnsrobots.id")
-    op.execute("ALTER SEQUENCE tnsrobot_groups_id_seq OWNED BY tnsrobot_groups.id")
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_coauthors_id_seq OWNED BY tnsrobot_coauthors.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_group_users_id_seq OWNED BY tnsrobot_group_users.id"
-    )
-    op.execute(
-        "ALTER SEQUENCE tnsrobot_submissions_id_seq OWNED BY tnsrobot_submissions.id"
-    )
-    op.execute("ALTER SEQUENCE stream_tnsrobots_id_seq OWNED BY stream_tnsrobots.id")
-    op.execute(
-        "ALTER SEQUENCE instrument_tnsrobots_id_seq OWNED BY instrument_tnsrobots.id"
-    )
-
-    op.alter_column(
-        "tnsrobots",
-        "id",
-        server_default=sa.text("nextval('tnsrobots_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "tnsrobot_groups",
-        "id",
-        server_default=sa.text("nextval('tnsrobot_groups_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "tnsrobot_coauthors",
-        "id",
-        server_default=sa.text("nextval('tnsrobot_coauthors_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "tnsrobot_group_users",
-        "id",
-        server_default=sa.text("nextval('tnsrobot_group_users_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "tnsrobot_submissions",
-        "id",
-        server_default=sa.text("nextval('tnsrobot_submissions_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "stream_tnsrobots",
-        "id",
-        server_default=sa.text("nextval('stream_tnsrobots_id_seq'::regclass)"),
-    )
-    op.alter_column(
-        "instrument_tnsrobots",
-        "id",
-        server_default=sa.text("nextval('instrument_tnsrobots_id_seq'::regclass)"),
-    )
-
-    # Rename primary keys
-    op.execute(
-        "ALTER INDEX external_publishing_bot_coauthors_pkey RENAME TO tnsrobot_coauthors_pkey"
-    )
-    op.execute(
-        "ALTER INDEX external_publishing_bot_group_users_pkey RENAME TO tnsrobot_group_users_pkey"
-    )
-    op.execute(
-        "ALTER INDEX external_publishing_bot_groups_pkey RENAME TO tnsrobot_groups_pkey"
-    )
-    op.execute("ALTER INDEX external_publishing_bots_pkey RENAME TO tnsrobots_pkey")
-    op.execute(
-        "ALTER INDEX external_publishing_submissions_pkey RENAME TO tnsrobot_submissions_pkey"
-    )
-    op.execute(
-        "ALTER INDEX instrument_external_publishing_bots_pkey RENAME TO instrument_tnsrobots_pkey"
-    )
-    op.execute(
-        "ALTER INDEX stream_external_publishing_bots_pkey RENAME TO stream_tnsrobots_pkey"
     )
