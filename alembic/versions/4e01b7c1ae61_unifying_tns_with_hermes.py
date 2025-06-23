@@ -100,19 +100,26 @@ def upgrade():
     op.add_column(
         "tnsrobots",
         sa.Column(
-            "enable_publish_to_hermes", sa.Boolean(), server_default=sa.text("false")
+            "enable_publish_to_hermes",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
         ),
     )
     op.add_column(
         "tnsrobots",
         sa.Column(
-            "enable_publish_to_tns", sa.Boolean(), server_default=sa.text("false")
+            "enable_publish_to_tns",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
         ),
     )
     op.alter_column(
         "tnsrobots",
         "report_existing",
         new_column_name="publish_existing_tns_objects",
+        nullable=True,
         existing_type=sa.Boolean(),
     )
     op.alter_column("tnsrobots", "bot_id", existing_type=sa.Integer(), nullable=True)
@@ -162,6 +169,7 @@ def upgrade():
         "auto_report",
         new_column_name="auto_publish_to_tns",
         existing_type=sa.Boolean(),
+        nullable=False,
         server_default=sa.text("false"),
     )
     op.alter_column(
@@ -173,7 +181,10 @@ def upgrade():
     op.add_column(
         "tnsrobot_groups",
         sa.Column(
-            "auto_publish_to_hermes", sa.Boolean(), server_default=sa.text("false")
+            "auto_publish_to_hermes",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
         ),
     )
 
@@ -225,11 +236,21 @@ def upgrade():
     )
     op.add_column(
         "tnsrobot_submissions",
-        sa.Column("publish_to_tns", sa.Boolean(), server_default=sa.text("false")),
+        sa.Column(
+            "publish_to_tns",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
     )
     op.add_column(
         "tnsrobot_submissions",
-        sa.Column("publish_to_hermes", sa.Boolean(), server_default=sa.text("false")),
+        sa.Column(
+            "publish_to_hermes",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
     )
     op.add_column("tnsrobot_submissions", sa.Column("hermes_status", sa.String()))
     op.add_column(
@@ -573,6 +594,7 @@ def downgrade():
         "external_publishing_bots",
         "publish_existing_tns_objects",
         new_column_name="report_existing",
+        nullable=False,
         existing_type=sa.Boolean(),
     )
 
