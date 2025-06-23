@@ -112,7 +112,7 @@ def upgrade():
             "enable_publish_to_tns",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("false"),
+            server_default=sa.text("true"),
         ),
     )
     op.alter_column(
