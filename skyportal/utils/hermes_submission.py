@@ -15,7 +15,7 @@ env, cfg = load_env()
 HERMES_URL = cfg.get("app.hermes.endpoint")
 HERMES_TOKEN = cfg.get("app.hermes.token")
 HERMES_TOPIC = cfg.get("app.hermes.topic")
-HERMES_TEST_TOPIC = cfg.get("app.hermes.test_topic", "Skyportal_test")
+HERMES_TEST_TOPIC = cfg.get("app.hermes.test_topic", "skyportal.skyportal_test")
 
 
 def check_hermes_configuration():
@@ -109,7 +109,7 @@ def submit_to_hermes(
         obj = session.scalar(Obj.select(user).where(Obj.id == obj_id))
 
         if publishing_bot.testing:
-            topic = "skyportal.Skyportal_test"  # HERMES_TEST_TOPIC
+            topic = HERMES_TEST_TOPIC
         elif HERMES_TOPIC is None:
             raise ValueError(
                 "Hermes topic is not configured. Please set 'app.hermes.topic' in the configuration. Skipping Hermes submission."
@@ -126,17 +126,17 @@ def submit_to_hermes(
             timeout=5.0,
         )
         if response.status_code != 200:
-            status = f"Error: Failed to publish with status code {response.status_code}"
-            notif_text = f"Hermes error: Failed to publish with status code {response.status_code}"
+            status = f"Error: Failed to publish to topic '{topic}' with status code {response.status_code}"
+            notif_text = f"Hermes error: Failed to publish to topic '{topic}' with status code {response.status_code}"
         else:
             if publishing_bot.testing:
                 log(
                     f"Successfully submitted {obj_id} to Hermes test topic {topic} for publishing bot {publishing_bot.id}"
                 )
                 notif_text = (
-                    f"Successfully submitted {obj_id} to Hermes test topic {topic}"
+                    f"Successfully submitted {obj_id} to Hermes test topic '{topic}'"
                 )
-                status = f"Testing mode, submitted to Hermes test topic {topic}."
+                status = f"Testing mode, submitted to Hermes test topic '{topic}'."
             else:
                 log(
                     f"Successfully submitted {obj_id} to Hermes with request ID {submission_request.id} for publishing bot {publishing_bot.id}"

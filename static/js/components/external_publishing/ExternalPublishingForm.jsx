@@ -441,9 +441,10 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                       title={
                         <h3>
                           This bot is currently in testing mode. It will not
-                          publish any data but will store the payload in the
-                          database instead (useful for debugging purposes). You
-                          can remove it from the External Publishing Bots page.
+                          publish any data to TNS but will store the payload in
+                          the database instead (useful for debugging purposes).
+                          For Hermes, it will publish to the test topic. You can
+                          remove it from the external publishing bots page.
                         </h3>
                       }
                       placement="right"

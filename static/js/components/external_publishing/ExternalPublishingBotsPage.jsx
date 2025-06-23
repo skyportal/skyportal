@@ -893,8 +893,9 @@ const ExternalPublishingBotsPage = () => {
             title={
               <h2>
                 This bot is currently in testing mode. It will not publish any
-                data but will store the payload in the database instead (useful
-                for debugging purposes).
+                data to TNS but will store the payload in the database instead
+                (useful for debugging purposes). For Hermes, it will publish to
+                the test topic.
               </h2>
             }
             placement="right"
