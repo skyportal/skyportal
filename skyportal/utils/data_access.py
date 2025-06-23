@@ -194,7 +194,7 @@ def filter_accessible_instrument_ids(session, user, instrument_ids, publishing_b
     ).all()
     if not bot_instrument_ids:
         raise ValueError(
-            f"Must specify instruments for Publishing Bot {publishing_bot.id} before submitting source."
+            f"Must specify instruments on the publishing bot '{publishing_bot.id}' before submitting source."
         )
     # if instrument_ids are not specified, we use the publishing bot list of instruments
     if not instrument_ids:
@@ -205,7 +205,7 @@ def filter_accessible_instrument_ids(session, user, instrument_ids, publishing_b
     )
     if not instruments:
         raise ValueError(
-            f"None of the instruments specified for the submission request are accessible to publishing bot {publishing_bot.id}."
+            f"None of the instruments specified for the submission request are accessible to publishing bot '{publishing_bot.id}'."
         )
 
     return [instrument.id for instrument in instruments]
@@ -600,9 +600,9 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
             for bot_group in bot_groups_with_auto_publisher:
                 bot = bot_group.external_publishing_bot
                 if (
-                    tns in publish_to
+                    not services.get(tns)  # TNS not already assigned
+                    and tns in publish_to
                     and bot_group.auto_publish_to_tns
-                    and not services.get(tns)
                     and not is_existing_submission_request(session, obj, bot.id, tns)
                 ):
                     services[tns] = bot.id
