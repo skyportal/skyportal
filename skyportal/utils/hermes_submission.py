@@ -15,6 +15,7 @@ env, cfg = load_env()
 HERMES_URL = cfg.get("app.hermes.endpoint")
 HERMES_TOKEN = cfg.get("app.hermes.token")
 HERMES_TOPIC = cfg.get("app.hermes.topic")
+HERMES_TEST_TOPIC = cfg.get("app.hermes.test_topic", "Skyportal_test")
 
 
 def check_hermes_configuration():
@@ -31,13 +32,8 @@ def check_hermes_configuration():
             "Hermes token is not configured. Please set 'app.hermes.token' in the configuration. Skipping Hermes submission."
         )
 
-    if not HERMES_TOPIC:
-        raise ValueError(
-            "Hermes topic is not configured. Please set 'app.hermes.topic' in the configuration. Skipping Hermes submission."
-        )
 
-
-def create_payload_and_header(obj, photometry, reporters):
+def create_payload_and_header(obj, photometry, reporters, topic):
     """
     Create the payload and the header for Hermes and validate it by using the Hermes API
     """
@@ -65,7 +61,7 @@ def create_payload_and_header(obj, photometry, reporters):
         )
 
     payload = {
-        "topic": HERMES_TOPIC,
+        "topic": topic,
         "title": f"SkyPortal report for {obj.id}",
         "submitter": reporters,
         "data": {
@@ -111,27 +107,36 @@ def submit_to_hermes(
 
         obj_id = submission_request.obj_id
         obj = session.scalar(Obj.select(user).where(Obj.id == obj_id))
-        payload, header = create_payload_and_header(obj, photometry, reporters)
-        validate_payload_and_header(payload, header)
 
         if publishing_bot.testing:
-            log(
-                f"Publishing bot {publishing_bot.id} is in testing mode, skipping Hermes submission for {obj_id}."
+            topic = "skyportal.Skyportal_test"  # HERMES_TEST_TOPIC
+        elif HERMES_TOPIC is None:
+            raise ValueError(
+                "Hermes topic is not configured. Please set 'app.hermes.topic' in the configuration. Skipping Hermes submission."
             )
-            notif_text = f"Successfully created Hermes report for {obj_id} (testing mode, not submitted)."
-            status = f"Testing mode, not submitted"
         else:
-            response = requests.post(
-                f"{HERMES_URL}/submit_message/",
-                data=payload,
-                headers=header,
-                timeout=5.0,
-            )
-            if response.status_code != 200:
-                status = (
-                    f"Error: Failed to publish with status code {response.status_code}"
+            topic = HERMES_TOPIC
+
+        payload, header = create_payload_and_header(obj, photometry, reporters, topic)
+        validate_payload_and_header(payload, header)
+        response = requests.post(
+            f"{HERMES_URL}/submit_message/",
+            data=payload,
+            headers=header,
+            timeout=5.0,
+        )
+        if response.status_code != 200:
+            status = f"Error: Failed to publish with status code {response.status_code}"
+            notif_text = f"Hermes error: Failed to publish with status code {response.status_code}"
+        else:
+            if publishing_bot.testing:
+                log(
+                    f"Successfully submitted {obj_id} to Hermes test topic {topic} for publishing bot {publishing_bot.id}"
                 )
-                notif_text = f"Hermes error: Failed to publish with status code {response.status_code}"
+                notif_text = (
+                    f"Successfully submitted {obj_id} to Hermes test topic {topic}"
+                )
+                status = f"Testing mode, submitted to Hermes test topic {topic}."
             else:
                 log(
                     f"Successfully submitted {obj_id} to Hermes with request ID {submission_request.id} for publishing bot {publishing_bot.id}"
@@ -139,10 +144,10 @@ def submit_to_hermes(
                 status = f"Successfully submitted {obj_id} to Hermes."
                 notif_text = status
 
-            if isinstance(response, requests.models.Response):
-                # we store the request's TNS response in the database for bookkeeping and debugging
-                serialized_response = serialize_requests_response(response)
-                submission_request.hermes_response = serialized_response
+        if isinstance(response, requests.models.Response):
+            # we store the request's TNS response in the database for bookkeeping and debugging
+            serialized_response = serialize_requests_response(response)
+            submission_request.hermes_response = serialized_response
     except Exception as e:
         log(str(e))
         status = f"Error: {e}"
@@ -159,7 +164,7 @@ def submit_to_hermes(
             action_type="baselayer/SHOW_NOTIFICATION",
             payload={
                 "note": notif_text,
-                "type": "error" if "Hermes error:" in status else "info",
+                "type": "error" if "Error:" in status else "info",
                 "duration": 8000,
             },
         )

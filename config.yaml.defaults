@@ -97,8 +97,9 @@ app:
 
   hermes:
       endpoint: https://hermes.lco.global/api/v0
-      topic: hermes.test
       token:
+      topic: Skyportal
+      test_topic: Skyportal_test
 
   winter:
     protocol: http
