@@ -600,8 +600,9 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
             for bot_group in bot_groups_with_auto_publisher:
                 bot = bot_group.external_publishing_bot
                 if (
-                    not services.get(tns)  # TNS not already assigned
+                    not services.get(tns)
                     and tns in publish_to
+                    and bot.enable_publish_to_tns
                     and bot_group.auto_publish_to_tns
                     and not is_existing_submission_request(session, obj, bot.id, tns)
                 ):
@@ -611,9 +612,10 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                     )  # Remove TNS from publish_to to avoid duplicate processing
 
                 if (
-                    hermes in publish_to
+                    not services.get(hermes)
+                    and hermes in publish_to
+                    and bot.enable_publish_to_hermes
                     and bot_group.auto_publish_to_hermes
-                    and not services.get(hermes)
                     and not is_existing_submission_request(session, obj, bot.id, hermes)
                 ):
                     services[hermes] = bot.id

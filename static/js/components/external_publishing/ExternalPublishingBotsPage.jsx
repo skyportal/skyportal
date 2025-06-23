@@ -60,6 +60,7 @@ const useStyles = makeStyles(() => ({
 
 const ExternalPublishingBotGroup = ({
   botGroup,
+  bot,
   groupsLookup,
   usersLookup,
 }) => {
@@ -274,24 +275,42 @@ const ExternalPublishingBotGroup = ({
           />
           <FormLabel component="legend">Auto publish to</FormLabel>
           <FormGroup row>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={autoPublishTns}
-                  onChange={(e) => setAutoPublishTns(e.target.checked)}
-                />
+            <Tooltip
+              title={
+                bot.enable_publish_to_tns
+                  ? ""
+                  : "TNS publishing is disabled for this bot."
               }
-              label="TNS"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={autoPublishHermes}
-                  onChange={(e) => setAutoPublishHermes(e.target.checked)}
-                />
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={autoPublishTns}
+                    onChange={(e) => setAutoPublishTns(e.target.checked)}
+                  />
+                }
+                label="TNS"
+                disabled={!bot.enable_publish_to_tns}
+              />
+            </Tooltip>
+            <Tooltip
+              title={
+                bot.enable_publish_to_hermes
+                  ? ""
+                  : "Hermes publishing is disabled for this bot."
               }
-              label="Hermes"
-            />
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={autoPublishHermes}
+                    onChange={(e) => setAutoPublishHermes(e.target.checked)}
+                  />
+                }
+                label="Hermes"
+                disabled={!bot.enable_publish_to_hermes}
+              />
+            </Tooltip>
           </FormGroup>
           {(autoPublishTns || autoPublishHermes) && (
             <>
@@ -367,6 +386,11 @@ ExternalPublishingBotGroup.propTypes = {
         user_id: PropTypes.number,
       }),
     ),
+  }).isRequired,
+  bot: PropTypes.shape({
+    id: PropTypes.number,
+    enable_publish_to_tns: PropTypes.bool,
+    enable_publish_to_hermes: PropTypes.bool,
   }).isRequired,
   groupsLookup: PropTypes.shape({}).isRequired,
   usersLookup: PropTypes.shape({}).isRequired,
@@ -971,6 +995,7 @@ const ExternalPublishingBotsPage = () => {
           <ExternalPublishingBotGroup
             key={`${botGroup.group_id}-${idx}`}
             botGroup={botGroup}
+            bot={externalPublishingBotList[dataIndex]}
             groupsLookup={allGroupsLookup}
             usersLookup={usersLookup}
           />
