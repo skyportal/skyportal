@@ -363,15 +363,20 @@ def login_to_tarot(request, session, altdata):
         timeout=10.0,
     )
 
-    error = ""
-    if login_response.status_code == 200 and "hashuser" in login_response.text:
+    error = None
+    if login_response.status_code == 401:
+        if "Authentication required" in login_response.text:
+            error = "unauthorized access to tarot. Update tarot credentials of this allocation."
+        else:
+            error = (
+                "unauthorized access to Icare. Update Icare token of this allocation."
+            )
+    elif login_response.status_code == 200 and "hashuser" in login_response.text:
         hash_user = login_response.text.split("hashuser=")[1][:20]
         if hash_user is not None and len(hash_user) == 20:
             return hash_user
         else:
-            error = ", hashuser not found in login response"
-    if "Authentication required" in login_response.text:
-        error = ", Authentication required"
+            error = "tarot hashuser not found in login response"
 
     transaction = FacilityTransaction(
         request=http.serialize_requests_request(login_response.request),
@@ -380,7 +385,7 @@ def login_to_tarot(request, session, altdata):
         initiator_id=request.last_modified_by_id,
     )
     session.add(transaction)
-    raise ValueError(f"Error trying to login to TAROT{error}")
+    raise ValueError(error if error else f"unexpected error trying to login to TAROT")
 
 
 class TAROTAPI(FollowUpAPI):
@@ -822,7 +827,6 @@ class TAROTAPI(FollowUpAPI):
             "request_id": {
                 "type": "string",
                 "title": "Request ID to add scene to (2282 for skyportal)",
-                "default": "2282",
             },
             "icare_token": {
                 "type": "string",
