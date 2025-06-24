@@ -57,6 +57,28 @@ def upgrade():
     )
 
     op.drop_column("sourcesingcns", "confirmed")
+    op.drop_index("ix_sourcesconfirmedingcns_confirmer_id", table_name="sourcesingcns")
+    op.drop_index("ix_sourcesconfirmedingcns_created_at", table_name="sourcesingcns")
+    op.drop_index("ix_sourcesconfirmedingcns_dateobs", table_name="sourcesingcns")
+    op.drop_index("ix_sourcesconfirmedingcns_obj_id", table_name="sourcesingcns")
+    op.create_index(
+        op.f("ix_sourcesingcns_confirmer_id"),
+        "sourcesingcns",
+        ["confirmer_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_sourcesingcns_created_at"),
+        "sourcesingcns",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_sourcesingcns_dateobs"), "sourcesingcns", ["dateobs"], unique=False
+    )
+    op.create_index(
+        op.f("ix_sourcesingcns_obj_id"), "sourcesingcns", ["obj_id"], unique=False
+    )
 
 
 def downgrade():
@@ -84,3 +106,25 @@ def downgrade():
     sources_in_gcn_status_enum.drop(op.get_bind(), checkfirst=True)
 
     op.rename_table("sourcesingcns", "sourcesconfirmedingcns")
+    op.drop_index(op.f("ix_sourcesingcns_obj_id"), table_name="sourcesingcns")
+    op.drop_index(op.f("ix_sourcesingcns_dateobs"), table_name="sourcesingcns")
+    op.drop_index(op.f("ix_sourcesingcns_created_at"), table_name="sourcesingcns")
+    op.drop_index(op.f("ix_sourcesingcns_confirmer_id"), table_name="sourcesingcns")
+    op.create_index(
+        "ix_sourcesconfirmedingcns_obj_id", "sourcesingcns", ["obj_id"], unique=False
+    )
+    op.create_index(
+        "ix_sourcesconfirmedingcns_dateobs", "sourcesingcns", ["dateobs"], unique=False
+    )
+    op.create_index(
+        "ix_sourcesconfirmedingcns_created_at",
+        "sourcesingcns",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_sourcesconfirmedingcns_confirmer_id",
+        "sourcesingcns",
+        ["confirmer_id"],
+        unique=False,
+    )
