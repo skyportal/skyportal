@@ -2564,8 +2564,10 @@ class SourceOffsetsHandler(BaseHandler):
                     noffsets,
                     used_ztfref,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
-            except ValueError:
-                return self.error("Error querying for nearby offset stars")
+            except ValueError as e:
+                traceback.print_exc()
+                log(f"Error querying for nearby offset stars: {e}")
+                return self.error(f"Error querying for nearby offset stars: {e}")
 
             starlist_str = "\n".join(
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
