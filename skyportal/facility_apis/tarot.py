@@ -360,7 +360,7 @@ def login_to_tarot(request, session, altdata):
         f"{tarot_proxy_endpoint}/manage/manage/login.php",
         data=data,
         headers=get_header(altdata),
-        timeout=10.0,
+        timeout=5.0,
     )
 
     error = None
