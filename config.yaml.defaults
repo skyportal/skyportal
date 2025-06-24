@@ -41,10 +41,7 @@ app:
   lco_archive_endpoint: https://archive-api.lco.global
 
   # Tarot API endpoints
-  tarot_endpoint: http://cador.tarotnet.org/ros
-  calern_endpoint: http://tca4.tarotnet.org/ros/klotz
-  chili_endpoint: http://tch4.tarotnet.org/ros/klotz
-  reunion_endpoint: http://tre4.tarotnet.org/ros/klotz
+  tarot_proxy_endpoint: https://skyportal-icare.ijclab.in2p3.fr/api/tarot_proxy
 
   # MMT API endpoint
   mmt_endpoint: https://scheduler.mmto.arizona.edu/APIv2
