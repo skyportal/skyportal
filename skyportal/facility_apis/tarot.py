@@ -360,7 +360,7 @@ def login_to_tarot(request, session, altdata):
         f"{tarot_proxy_endpoint}/manage/manage/login.php",
         data=data,
         headers=get_header(altdata),
-        timeout=5.0,
+        timeout=7.0,
     )
 
     error = None
@@ -443,7 +443,7 @@ class TAROTAPI(FollowUpAPI):
             f"{tarot_proxy_endpoint}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
             headers=get_header(altdata),
-            timeout=5.0,
+            timeout=7.0,
         )
 
         if "New Scene Inserted" not in response.text:
@@ -519,7 +519,7 @@ class TAROTAPI(FollowUpAPI):
             response = requests.get(
                 f"{tarot_proxy_endpoint}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
                 headers=get_header(altdata),
-                timeout=5.0,
+                timeout=7.0,
             )
 
             if response.status_code != 200:
@@ -561,7 +561,7 @@ class TAROTAPI(FollowUpAPI):
             response_sequenced = requests.get(
                 f"{tarot_proxy_endpoint}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
                 headers=get_header(altdata),
-                timeout=5.0,
+                timeout=7.0,
             )
             if response_sequenced.status_code != 200:
                 transaction = FacilityTransaction(
@@ -595,7 +595,7 @@ class TAROTAPI(FollowUpAPI):
             response_observation = requests.get(
                 f"{tarot_proxy_endpoint}/{specific_config['station_name'].lower()}/",
                 headers=get_header(altdata),
-                timeout=5.0,
+                timeout=7.0,
             )
 
             if response_observation.status_code != 200:
@@ -687,7 +687,7 @@ class TAROTAPI(FollowUpAPI):
                     f"{tarot_proxy_endpoint}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
                     data=data,
                     headers=get_header(altdata),
-                    timeout=5.0,
+                    timeout=7.0,
                 )
                 if response.status_code != 200:
                     is_error_on_delete = response.content
