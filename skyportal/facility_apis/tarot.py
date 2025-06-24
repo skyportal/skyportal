@@ -364,6 +364,8 @@ def login_to_tarot(request, session, altdata):
     )
 
     error = None
+    if login_response.status_code == 500 and "timeout" in login_response.text:
+        error = "impossible to connect to TAROT, timeout error."
     if login_response.status_code == 401:
         if "Authentication required" in login_response.text:
             error = "unauthorized access to tarot. Update tarot credentials of this allocation."
