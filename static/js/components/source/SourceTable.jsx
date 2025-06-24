@@ -125,7 +125,7 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "wrap",
     alignItems: "center",
     gap: "0.25rem",
-    maxWidth: "100%",
+    maxWidth: "120px",
   },
 }));
 
@@ -1599,7 +1599,7 @@ const SourceTable = ({
         sort: false,
         display: displayedColumns.includes("Tags"),
         customBodyRenderLite: renderTags,
-        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
       },
     },
     {
@@ -1611,7 +1611,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
       },
     },
     {

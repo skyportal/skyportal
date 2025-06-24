@@ -18,6 +18,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
 import Tooltip from "@mui/material/Tooltip";
+import DynamicTagDisplay from "./DynamicTagDisplay";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -33,7 +34,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   stamp: () => ({
     transition: "transform 0.1s",
-    width: "5em",
+    width: "110px",
     height: "auto",
     display: "block",
     "&:hover": {
@@ -60,7 +61,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "row nowrap",
     alignItems: "center",
-    padding: "0 0.325rem",
+    padding: "2px",
+    height: "120px",
   },
   sourceInfo: {
     display: "flex",
@@ -73,7 +75,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
   sourceNameContainer: {
     display: "flex",
     flexDirection: "column",
-    minWidth: "300px",
+    minWidth: "280px",
+    width: "85%",
   },
   sourceName: {
     fontSize: "1rem",
@@ -111,7 +114,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   bottomContainer: {
     display: "flex",
     flexDirection: "column",
-    width: "100%",
+    width: "15%",
     alignItems: "flex-end",
     justifyContent: "space-between",
     minWidth: "110px",
@@ -396,51 +399,11 @@ const RecentSourcesList = ({
                           {`\u03B4: ${dec_to_dms(source.dec)}`}
                         </span>
                       </div>
-                      {displayTags && source.tags && source.tags.length > 0 && (
-                        <div className={styles.tagsContainer}>
-                          {source.tags.slice(0, 2).map((tag) => (
-                            <Chip
-                              key={tag.id}
-                              label={tag.name}
-                              size="small"
-                              className={styles.tagChip}
-                              color="default"
-                              variant="filled"
-                            />
-                          ))}
-                          {source.tags.length > 2 && (
-                            <Tooltip
-                              title={
-                                <div>
-                                  <strong>Additional tags:</strong>
-                                  <br />
-                                  {source.tags.slice(2).map((tag, index) => (
-                                    <span key={tag.id}>
-                                      {tag.name}
-                                      {index < source.tags.slice(2).length - 1
-                                        ? ", "
-                                        : ""}
-                                    </span>
-                                  ))}
-                                </div>
-                              }
-                            >
-                              <Chip
-                                key="more-tags"
-                                label={`+${source.tags.length - 2}`}
-                                size="small"
-                                className={styles.tagChip}
-                                color="default"
-                                variant="filled"
-                                style={{
-                                  fontStyle: "italic",
-                                  opacity: 0.7,
-                                }}
-                              />
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
+                      <DynamicTagDisplay
+                        source={source}
+                        styles={styles}
+                        displayTags={displayTags}
+                      />
                       {source.resaved && <span>(Source was re-saved)</span>}
                     </div>
                     <div className={styles.bottomContainer}>
