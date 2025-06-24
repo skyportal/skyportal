@@ -324,7 +324,7 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
 def ngps_defaults(mag, magfilter):
     try:  # if numerical, format to 2 decimal places
         mag = f"{mag:<0.02f}"
-    except TypeError:
+    except (TypeError, ValueError):
         pass
     return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5"
 
