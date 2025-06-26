@@ -33,7 +33,7 @@ def check_hermes_configuration():
         )
 
 
-def create_payload_and_header(obj, photometry, reporters, topic):
+def create_payload_and_header(obj, photometry, reporters, remarks, topic):
     """
     Create the payload and the header for Hermes and validate it by using the Hermes API
     """
@@ -64,6 +64,7 @@ def create_payload_and_header(obj, photometry, reporters, topic):
         "topic": topic,
         "title": f"SkyPortal report for {obj.id}",
         "submitter": reporters,
+        "message_text": remarks,
         "data": {
             "targets": [
                 {
@@ -99,6 +100,7 @@ def submit_to_hermes(
     user,
     photometry,
     reporters,
+    remarks,
     session,
 ):
     flow = Flow()
@@ -117,7 +119,9 @@ def submit_to_hermes(
         else:
             topic = HERMES_TOPIC
 
-        payload, header = create_payload_and_header(obj, photometry, reporters, topic)
+        payload, header = create_payload_and_header(
+            obj, photometry, reporters, remarks, topic
+        )
         validate_payload_and_header(payload, header)
         response = requests.post(
             f"{HERMES_URL}/submit_message/",

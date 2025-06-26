@@ -256,7 +256,13 @@ def process_submission_request(submission_request, session):
 
     if submission_request.hermes_status == "processing":
         submit_to_hermes(
-            submission_request, publishing_bot, user, photometry, reporters, session
+            submission_request,
+            publishing_bot,
+            user,
+            photometry,
+            reporters,
+            remarks,
+            session,
         )
 
     if submission_request.tns_status == "processing":
