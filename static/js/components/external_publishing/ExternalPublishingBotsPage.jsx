@@ -832,7 +832,7 @@ const ExternalPublishingBotsPage = () => {
 
   const deleteExternalPublishingBot = () => {
     dispatch(
-      externalPublishingActions.deleteExternalPublishingBot(botToManage),
+      externalPublishingActions.deleteExternalPublishingBot(botToManage.id),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Publishing Bot deleted successfully."));
