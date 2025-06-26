@@ -31,12 +31,16 @@ const NewShift = () => {
   });
 
   useEffect(() => {
-    setAvailableUsers(
-      users.filter(
-        (user) =>
-          user.groups?.some((g) => g.id === formData.group_id) && !user.is_bot,
-      ),
-    );
+    if (!availableUsers.length) {
+      setAvailableUsers(
+        users.filter(
+          (user) =>
+            user.groups?.some((g) => g.id === formData.group_id) &&
+            !user.is_bot,
+        ),
+      );
+      formData.shift_admins = [currentUser.id];
+    }
   }, [users, formData.group_id]);
 
   if (!groups || groups?.length === 0) {
