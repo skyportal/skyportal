@@ -33,6 +33,10 @@ def upgrade():
 
     op.rename_table("sourcesconfirmedingcns", "sourcesingcns")
 
+    op.execute(
+        "ALTER SEQUENCE sourcesconfirmedingcns_id_seq RENAME TO sourcesingcns_id_seq"
+    )
+
     op.add_column(
         "sourcesingcns",
         sa.Column(
@@ -130,6 +134,10 @@ def downgrade():
         "confirmed", "rejected", "ambiguous", "pending", name="sources_in_gcn_status"
     )
     sources_in_gcn_status_enum.drop(op.get_bind(), checkfirst=True)
+
+    op.execute(
+        "ALTER SEQUENCE sourcesingcns_id_seq RENAME TO sourcesconfirmedingcns_id_seq"
+    )
 
     op.rename_table("sourcesingcns", "sourcesconfirmedingcns")
     # ### end Alembic commands ###
