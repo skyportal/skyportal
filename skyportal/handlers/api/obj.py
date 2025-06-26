@@ -14,7 +14,7 @@ from ...models import (
     Obj,
     PhotometricSeries,
     Photometry,
-    SourcesConfirmedInGCN,
+    SourcesInGCN,
     Spectrum,
 )
 from ...utils.calculations import great_circle_distance
@@ -106,9 +106,7 @@ class ObjHandler(BaseHandler):
                     f"Please remove all associated classifications on object with ID {obj_id} before removing."
                 )
 
-            stmt = sa.select(SourcesConfirmedInGCN).where(
-                SourcesConfirmedInGCN.obj_id == obj.id
-            )
+            stmt = sa.select(SourcesInGCN).where(SourcesInGCN.obj_id == obj.id)
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
             total_sources_in_gcn = session.execute(count_stmt).scalar()
             if total_sources_in_gcn > 0:

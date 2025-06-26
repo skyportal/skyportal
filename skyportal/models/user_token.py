@@ -402,11 +402,11 @@ User.observing_runs = relationship(
     foreign_keys="ObservingRun.owner_id",
 )
 User.sources_in_gcn = relationship(
-    "SourcesConfirmedInGCN",
+    "SourcesInGCN",
     cascade="save-update, merge, refresh-expire, expunge",
     passive_deletes=True,
-    doc="SourcesConfirmedInGCN this User has created.",
-    foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+    doc="SourcesInGCN this User has created.",
+    foreign_keys="SourcesInGCN.confirmer_id",
 )
 User.photometryvalidations = relationship(
     "PhotometryValidation",
