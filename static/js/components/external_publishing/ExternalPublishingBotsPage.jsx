@@ -85,6 +85,14 @@ const ExternalPublishingBotGroup = ({
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
+    if (!botGroup) return;
+    setOwner(botGroup.owner);
+    setAutoPublishTns(botGroup.auto_publish_to_tns);
+    setAutoPublishHermes(botGroup.auto_publish_to_hermes);
+    setAutoPublishAllowBots(botGroup.auto_publish_allow_bots);
+  }, [botGroup]);
+
+  useEffect(() => {
     if (open) {
       // we have the groupsLookup and usersLookup, that we'll use to find the users of the selected group
       const group = groupsLookup[botGroup.group_id];
