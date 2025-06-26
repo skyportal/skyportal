@@ -18,6 +18,7 @@ import Notes from "../Notes";
 import hydrate from "../../actions";
 
 import QuickSearchBar from "../QuickSearchBar";
+import {alpha} from "@mui/material/styles";
 
 const useStyles = makeStyles((theme) => ({
   topBannerContent: {
@@ -60,6 +61,13 @@ const useStyles = makeStyles((theme) => ({
       },
     },
   },
+  date: {
+    fontSize: "0.9rem",
+    fontWeight: "bold",
+    background: alpha(theme.palette.primary.light, 0.4),
+    padding: "0.3rem 0.6rem",
+    borderRadius: "0.5rem",
+  },
 }));
 
 const HeaderContent = () => {
@@ -70,6 +78,7 @@ const HeaderContent = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   const handleRefresh = () => {
     dispatch(hydrate());
@@ -81,6 +90,25 @@ const HeaderContent = () => {
     if (isDesktop) {
       setOpenSearch(false);
     }
+  }, [isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+
+    const updateNow = () => setNow(new Date());
+    const delay = (60 - new Date().getSeconds()) * 1000; // the number of seconds to wait until the next minute
+
+    updateNow();
+    let interval;
+    const timeout = setTimeout(() => {
+      updateNow(); // after the delay, update now
+      interval = setInterval(updateNow, 60000); // then set an interval to update every minute
+    }, delay);
+
+    return () => { // cleanup
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, [isDesktop]);
 
   return (
@@ -97,6 +125,16 @@ const HeaderContent = () => {
           {{ app.title }}
         </p>
       </Link>
+      <Box className={classes.date} display={{"{{ xs: 'none', lg: 'inline-flex' }}"}}>
+        {now.toLocaleString('en-US', {
+          timeZone: 'UTC',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })} UTC
+      </Box>
       <div style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', paddingRight: '1rem' }}"}}>
         <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
           <QuickSearchBar />

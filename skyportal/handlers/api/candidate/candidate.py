@@ -861,12 +861,18 @@ class CandidateHandler(BaseHandler):
                 "null",
                 "undefined",
             }:
-                start_date = arrow.get(start_date).datetime
+                try:
+                    start_date = arrow.get(start_date).datetime
+                except Exception as e:
+                    return self.error(f"Invalid startDate value: {e}")
                 candidate_query = candidate_query.where(
                     Candidate.passed_at >= start_date
                 )
             if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
-                end_date = arrow.get(end_date).datetime
+                try:
+                    end_date = arrow.get(end_date).datetime
+                except Exception as e:
+                    return self.error(f"Invalid endDate value: {e}")
                 candidate_query = candidate_query.where(Candidate.passed_at <= end_date)
             candidate_subquery = candidate_query.subquery()
             # We'll join in the nested data for Obj (like photometry) later
@@ -1261,7 +1267,10 @@ class CandidateHandler(BaseHandler):
                             f"Localization {localization_dateobs} not found",
                         )
 
-                partition_key = arrow.get(localization.dateobs).datetime
+                try:
+                    partition_key = arrow.get(localization.dateobs).datetime
+                except Exception as e:
+                    return self.error(f"Invalid localization dateobs value: {e}")
                 localizationtile_partition_name = (
                     f"{partition_key.year}_{partition_key.month:02d}"
                 )
@@ -1535,7 +1544,10 @@ class CandidateHandler(BaseHandler):
             passed_at = data.pop("passed_at", None)
             if passed_at is None:
                 return self.error("Missing required parameter: `passed_at`.")
-            passed_at = arrow.get(passed_at).datetime
+            try:
+                passed_at = arrow.get(passed_at).datetime
+            except Exception as e:
+                return self.error(f"Invalid passedAt value: {e}")
             try:
                 filter_ids = data.pop("filter_ids")
             except KeyError:

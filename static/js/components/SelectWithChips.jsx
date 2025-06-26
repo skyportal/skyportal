@@ -86,9 +86,9 @@ const SelectWithChips = (props) => {
           )}
           MenuProps={MenuProps}
         >
-          {options?.map((option) => (
+          {options?.map((option, index) => (
             <MenuItem
-              key={option}
+              key={index}
               value={option}
               style={getStyles(option, opts, theme)}
             >

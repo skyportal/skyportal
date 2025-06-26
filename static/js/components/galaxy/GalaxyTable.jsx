@@ -54,7 +54,6 @@ const GalaxyTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
-  showTitle = false,
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -346,7 +345,7 @@ const GalaxyTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={showTitle ? "Galaxies" : ""}
+              title="Galaxies"
               data={galaxies}
               options={options}
               columns={columns}
@@ -389,7 +388,6 @@ GalaxyTable.propTypes = {
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  showTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
@@ -398,7 +396,6 @@ GalaxyTable.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
-  showTitle: false,
   serverSide: true,
 };
 
