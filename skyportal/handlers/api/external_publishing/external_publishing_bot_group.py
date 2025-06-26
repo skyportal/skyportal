@@ -124,7 +124,7 @@ class ExternalPublishingBotGroupHandler(BaseHandler):
                     )
                 if (
                     auto_publish_to_tns is not None
-                    and auto_publish_to_hermes != bot_group.auto_publish_to_tns
+                    and auto_publish_to_tns != bot_group.auto_publish_to_tns
                 ):
                     bot_group.auto_publish_to_tns = auto_publish_to_tns
                 if (
