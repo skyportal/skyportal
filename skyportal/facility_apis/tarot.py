@@ -49,7 +49,7 @@ tarot_proxy_endpoint = cfg.get("app.tarot_proxy_endpoint")
 
 def get_header(altdata):
     return {
-        "Authorization": f"token {altdata['icare_token']}",
+        "Authorization": f"token {altdata['proxy_token']}",
         "X-Browser-Username": altdata["browser_username"],
         "X-Browser-Password": altdata["browser_password"],
     }
@@ -318,7 +318,7 @@ def create_request_string(obj, payload, observation_time, station_name):
 def check_altdata(altdata):
     required_altdata_keys = {
         "request_id",
-        "icare_token",
+        "proxy_token",
         "browser_username",
         "browser_password",
         "username",
@@ -826,13 +826,14 @@ class TAROTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
+            "proxy_token": {
+                "type": "string",
+                "title": "Icare Token",
+                "description": "This is the token used to authenticate with the TAROT proxy server.",
+            },
             "request_id": {
                 "type": "string",
                 "title": "Request ID to add scene to (2282 for skyportal)",
-            },
-            "icare_token": {
-                "type": "string",
-                "title": "Icare Token",
             },
             "browser_username": {
                 "type": "string",
