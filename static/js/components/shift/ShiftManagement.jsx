@@ -30,6 +30,9 @@ import { userLabel } from "../../utils/user";
 const useStyles = makeStyles((theme) => ({
   root: {
     marginBottom: theme.spacing(2),
+    "& b": {
+      fontWeight: 500,
+    },
   },
   shiftinfo: {
     margin: "0",
@@ -38,12 +41,6 @@ const useStyles = makeStyles((theme) => ({
   shiftgroup: {
     margin: "0",
     padding: "0",
-  },
-  shift_content: {
-    padding: "1rem",
-    paddingBottom: "0",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
   },
   content: {
     padding: "1rem",
@@ -692,12 +689,6 @@ const ShiftManagement = ({ currentShift }) => {
       .includes(currentUser.id);
   }
 
-  let [shiftDateStartEnd, shiftTimeStartEnd] = [null, null];
-  if (currentShift.name != null && repeatedShiftStartEnd(currentShift)) {
-    [shiftDateStartEnd, shiftTimeStartEnd] =
-      repeatedShiftStartEnd(currentShift);
-  }
-
   let currentUserIsAdminOfShift = false;
   if (currentShift.name != null) {
     if (
@@ -709,103 +700,117 @@ const ShiftManagement = ({ currentShift }) => {
     }
   }
 
-  const currentUserIsAdminOfGroup = currentShiftGroup?.has_admin_access;
-
+  const [shiftStartAndEnd, shiftDuration] = repeatedShiftStartEnd(
+    currentShift,
+  ) || [null, null];
+  const isAdmin =
+    currentUserIsAdminOfShift ||
+    currentShiftGroup?.has_admin_access ||
+    currentUser?.permissions.includes("System admin");
   return (
     currentShift.name != null && (
-      <div id="current_shift" className={classes.root}>
-        <div className={classes.shift_content}>
+      <div className={classes.root}>
+        <div
+          style={{
+            padding: "1rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+          }}
+        >
+          {isAdmin && <UpdateShift shift={currentShift} />}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: "100%",
+              marginBottom: "1rem",
+            }}
+          >
+            <div>
+              <h2 className={classes.shiftinfo}>
+                {`${currentShift.name}${
+                  currentShift.description
+                    ? `: ${currentShift.description}`
+                    : ""
+                }`}
+              </h2>
+              <h3 className={classes.shiftgroup}>
+                Group: {currentShiftGroup?.name}
+              </h3>
+            </div>
+            <div className={classes.buttons}>
+              {!participating ? (
+                <Button
+                  id="join_button"
+                  onClick={() => joinShift(currentShift)}
+                >
+                  Join
+                </Button>
+              ) : (
+                <Button
+                  variant="outlined"
+                  primary
+                  id="leave_button"
+                  onClick={() => leaveShift(currentShift)}
+                >
+                  Leave
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  id="delete_button"
+                  onClick={() => deleteAShift(currentShift)}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
           <div>
-            {(currentUserIsAdminOfShift ||
-              currentUserIsAdminOfGroup ||
-              currentUser?.permissions.includes("System admin")) && (
-              <UpdateShift shift={currentShift} />
-            )}
-            {currentShift.description ? (
-              <h2 id="current_shift_title" className={classes.shiftinfo}>
-                {currentShift.name}: {currentShift.description}
-              </h2>
-            ) : (
-              <h2
-                id="current_shift_title"
-                className={classes.shiftinfo}
-                key="shift_info"
-              >
-                {currentShift.name}
-              </h2>
-            )}
-            <h3 id="current_shift_group" className={classes.shiftgroup}>
-              {" "}
-              Group: {currentShiftGroup?.name}
-            </h3>
+            <b>Admins: </b>
+            {admins.map((admin) => (
+              <Chip key={admin} label={admin} />
+            ))}
+          </div>
+          <div>
+            <b>Members: </b>
+            {members.map((member) => (
+              <Chip key={member} label={member} />
+            ))}
+          </div>
+          {currentShift.required_users_number && (
             <div>
-              <i id="current_shift_admins">{`\n Admins : ${admins.join(
-                ", ",
-              )}`}</i>
+              <b>Number of members: </b>
+              {currentShift.shift_users.length}/
+              {currentShift.required_users_number}
             </div>
-            <div>
-              <i id="current_shift_members">{`\n Members : ${members.join(
-                ", ",
-              )}`}</i>
-            </div>
-            {currentShift.required_users_number && (
+          )}
+          {shiftDuration ? (
+            <>
               <div>
-                <i id="total_shift_members">{`\n Number of Members : ${currentShift.shift_users.length}/${currentShift.required_users_number}`}</i>
+                <b>Repeated shift from:</b> {shiftStartAndEnd}
               </div>
-            )}
-            {shiftDateStartEnd ? (
-              <>
-                <p id="current_shift_date" className={classes.shiftgroup}>
-                  {shiftDateStartEnd}
-                </p>
-                <p id="current_shift_time" className={classes.shiftgroup}>
-                  {shiftTimeStartEnd}
-                </p>
-              </>
-            ) : (
-              <>
-                <p id="current_shift_start_date" className={classes.shiftgroup}>
-                  Start: {new Date(currentShift.start_date).toLocaleString()}
-                </p>
-                <p id="current_shift_end_date" className={classes.shiftgroup}>
-                  End: {new Date(currentShift.end_date).toLocaleString()}
-                </p>
-              </>
-            )}
-          </div>
-          <div className={classes.buttons}>
-            {!participating && (
-              <Button id="join_button" onClick={() => joinShift(currentShift)}>
-                Join
-              </Button>
-            )}
-            {participating && (
-              <Button
-                id="leave_button"
-                onClick={() => leaveShift(currentShift)}
-              >
-                Leave
-              </Button>
-            )}
-            {(currentUserIsAdminOfShift ||
-              currentUserIsAdminOfGroup ||
-              currentUser?.permissions.includes("System admin")) && (
-              <Button
-                secondary
-                id="delete_button"
-                onClick={() => deleteAShift(currentShift)}
-              >
-                Delete
-              </Button>
-            )}
-          </div>
+              <div>
+                <b>Shift duration:</b> {shiftDuration}
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <b>Start:</b>{" "}
+                {new Date(currentShift.start_date).toLocaleString()}
+              </div>
+              <div>
+                <b>End:</b> {new Date(currentShift.end_date).toLocaleString()}
+              </div>
+            </>
+          )}
         </div>
         <div className={classes.addUsersElements}>
-          {(currentUserIsAdminOfShift ||
-            currentUserIsAdminOfGroup ||
-            currentUser?.permissions.includes("System admin")) && (
-            <MultipleGroupSelectChip />
-          )}
+          {isAdmin && <MultipleGroupSelectChip />}
         </div>
         <ReplaceUserMenu
           currentUserIsAdminOfShift={currentUserIsAdminOfShift}
