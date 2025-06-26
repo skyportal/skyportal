@@ -25,8 +25,12 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.paper,
   },
   paperContent: {
+    padding: theme.spacing(2),
     marginBottom: theme.spacing(2),
-    padding: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: theme.spacing(1),
   },
   comments: {
     paddingTop: "0.5rem",
@@ -111,11 +115,11 @@ const ShiftPage = ({ route }) => {
         <Paper>
           <div className={classes.paperContent}>
             <Button
-              primary
+              secondary
               name="add_shift_button"
               onClick={() => setShow((prev) => !prev)}
             >
-              Add New Shift
+              {show ? "Hide " : "Create "}New Shift
             </Button>
             {show ? <NewShift /> : null}
           </div>
