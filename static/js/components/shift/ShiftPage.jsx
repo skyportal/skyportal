@@ -119,7 +119,7 @@ const ShiftPage = ({ route }) => {
               name="add_shift_button"
               onClick={() => setShow((prev) => !prev)}
             >
-              {show ? "Hide " : "Create "}New Shift
+              {show ? "Hide" : "Create New Shift"}
             </Button>
             {show ? <NewShift /> : null}
           </div>
