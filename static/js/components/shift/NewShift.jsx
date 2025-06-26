@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,179 +9,169 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { fetchShift, submitShift } from "../../ducks/shift";
+import { userLabel } from "../../utils/user";
 
 dayjs.extend(utc);
 
-function isDailyShift(shiftName) {
-  const regex = /\d+\/\d+$/;
-  return regex.test(shiftName);
-}
-
 const NewShift = () => {
+  const currentUser = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
+  const now = dayjs();
+  const defaultStartDate = now.format("YYYY-MM-DDTHH:mm:ss");
+  const defaultEndDate = now.add(1, "day").format("YYYY-MM-DDTHH:mm:ss");
+  const timezoneString = now.format("Z");
+  const { users } = useSelector((state) => state.users);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [formData, setFormData] = useState({
+    localTime: "local",
+    start_date: defaultStartDate,
+    end_date: defaultEndDate,
+    divider: 6,
+  });
 
-  const nowDate = dayjs().local().format("YYYY-MM-DDTHH:mm:ss");
-  const defaultStartDate = dayjs().local().format("YYYY-MM-DDTHH:mm:ss");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .local()
-    .format("YYYY-MM-DDTHH:mm:ss");
-  const timezoneString = dayjs()
-    .local()
-    .format("YYYY-MM-DDTHH:mm:ssZ")
-    .slice(-6);
-
-  const nowDateUTC = dayjs
-    .utc()
-    .utcOffset(0, true)
-    .format("YYYY-MM-DDTHH:mm:ss");
-  const defaultStartDateUTC = dayjs
-    .utc()
-    .utcOffset(0, true)
-    .format("YYYY-MM-DDTHH:mm:ss");
-  const defaultEndDateUTC = dayjs
-    .utc()
-    .add(1, "day")
-    .utcOffset(0, true)
-    .format("YYYY-MM-DDTHH:mm:ss");
+  useEffect(() => {
+    setAvailableUsers(
+      users.filter(
+        (user) =>
+          user.groups?.some((g) => g.id === formData.group_id) && !user.is_bot,
+      ),
+    );
+  }, [users, formData.group_id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
   }
 
-  const handleSubmit = async ({ formData }) => {
-    const { localTime, divide } = formData;
-    delete formData.localTime;
-    delete formData.divide;
+  const handleSubmit = async () => {
+    const dataToSubmit = {
+      group_id: formData.group_id,
+      shift_admins: formData.shift_admins,
+      name: formData.name,
+      required_users_number: formData.required_users_number,
+      description: formData.description,
+      start_date: formData.start_date,
+      end_date: formData.end_date,
+    };
 
-    if (localTime === "local") {
-      formData.start_date = dayjs(
-        formData.start_date_local.concat("", timezoneString),
+    // Convert dates to UTC format
+    if (formData.localTime === "local") {
+      dataToSubmit.start_date = dayjs(
+        `${dataToSubmit.start_date}${timezoneString}`,
       )
         .utc()
-        .format("YYYY-MM-DDTHH:mm:ss")
-        .replace("+00:00", "")
-        .replace(".000Z", "");
-      formData.end_date = dayjs(
-        formData.end_date_local.concat("", timezoneString),
-      )
+        .format("YYYY-MM-DDTHH:mm:ss");
+      dataToSubmit.end_date = dayjs(`${dataToSubmit.end_date}${timezoneString}`)
         .utc()
-        .format("YYYY-MM-DDTHH:mm:ss")
-        .replace("+00:00", "")
-        .replace(".000Z", "");
-    } else if (localTime === "UTC") {
-      formData.start_date = formData.start_date_utc;
-      formData.end_date = formData.end_date_utc;
+        .format("YYYY-MM-DDTHH:mm:ss");
     }
 
-    delete formData.start_date_local;
-    delete formData.end_date_local;
-    delete formData.start_date_utc;
-    delete formData.end_date_utc;
+    const startDate = dayjs(dataToSubmit.start_date);
+    const endDate = dayjs(dataToSubmit.end_date);
+    const shifts = [];
 
-    const startDate = dayjs(formData.start_date);
-    const endDate = dayjs(formData.end_date);
-
-    let days = 0;
-    let weeks = 0;
-    switch (divide) {
-      case "Don't divide, just create one shift":
-        dispatch(submitShift(formData)).then((response) => {
-          if (response.status === "success") {
-            dispatch(showNotification("Shift saved"));
-            const new_shift_id = response?.data?.id;
-            if (new_shift_id) {
-              dispatch(fetchShift(new_shift_id));
-            }
-          }
-        });
-        break;
-      case "Divide per Day":
-        days = endDate.diff(startDate, "days");
-        for (let i = 0; i <= days; i += 1) {
-          const newFormData = { ...formData };
-          newFormData.name = `${newFormData.name} ${i + 1}/${days + 1}`;
-          newFormData.start_date = startDate
-            .add(i, "day")
-            .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace(/[-+]\d\d:\d\d$/, "");
-          newFormData.end_date = endDate
-            .subtract(days - i, "day")
-            .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace(/[-+]\d\d:\d\d$/, "");
-          dispatch(submitShift(newFormData)).then((response) => {
-            if (response.status === "success") {
-              dispatch(showNotification("Shift saved"));
-              const new_shift_id = response?.data?.id;
-              if (new_shift_id) {
-                dispatch(fetchShift(new_shift_id));
-              }
-            }
+    switch (formData.divide) {
+      case "Divide per Day": {
+        const days = endDate.diff(startDate, "day");
+        for (let i = 0; i <= days; i++) {
+          shifts.push({
+            ...dataToSubmit,
+            name: `${dataToSubmit.name} ${i + 1}/${days + 1}`,
+            start_date: startDate.add(i, "day").format("YYYY-MM-DDTHH:mm:ss"),
+            end_date: startDate.add(i + 1, "day").format("YYYY-MM-DDTHH:mm:ss"),
           });
         }
         break;
-      case "Divide per Week":
-        days = endDate.diff(startDate, "days");
-        weeks = Math.ceil(days / 7);
-        for (let i = 0; i < weeks; i += 1) {
-          const newFormData = { ...formData };
-          newFormData.name = `${newFormData.name} ${i + 1}/${weeks}`;
-          newFormData.start_date = startDate
-            .add(i * 7, "day")
-            .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace(/[-+]\d\d:\d\d$/, "");
-          if (i === weeks - 1) {
-            newFormData.end_date = endDate
-              .format("YYYY-MM-DDTHH:mm:ssZ")
-              .replace(/[-+]\d\d:\d\d$/, "");
-          } else {
-            newFormData.end_date = startDate
-              .add((i + 1) * 7, "day")
-              .format("YYYY-MM-DDTHH:mm:ssZ")
-              .replace(/[-+]\d\d:\d\d$/, "");
-          }
-          dispatch(submitShift(newFormData)).then((response) => {
-            if (response.status === "success") {
-              dispatch(showNotification("Shift saved"));
-              const new_shift_id = response?.data?.id;
-              if (new_shift_id) {
-                dispatch(fetchShift(new_shift_id));
-              }
-            }
+      }
+
+      case "Divide per Week": {
+        const totalDays = endDate.diff(startDate, "day");
+        const weeks = Math.ceil(totalDays / 7);
+        for (let i = 0; i < weeks; i++) {
+          const start = startDate.add(i * 7, "day");
+          const end =
+            i === weeks - 1 ? endDate : startDate.add((i + 1) * 7, "day");
+          shifts.push({
+            ...dataToSubmit,
+            name: `${dataToSubmit.name} ${i + 1}/${weeks}`,
+            start_date: start.format("YYYY-MM-DDTHH:mm:ss"),
+            end_date: end.format("YYYY-MM-DDTHH:mm:ss"),
           });
         }
         break;
+      }
+
+      case "Divide per Hour": {
+        const hourCount = Number(formData.divider);
+        if (!hourCount || hourCount <= 0) {
+          dispatch(
+            showNotification(
+              "Please provide a valid number of hours per shift.",
+            ),
+          );
+          return;
+        }
+        const totalHours = endDate.diff(startDate, "hour");
+        const segments = Math.ceil(totalHours / hourCount);
+        for (let i = 0; i < segments; i++) {
+          const start = startDate.add(i * hourCount, "hour");
+          const end =
+            i === segments - 1
+              ? endDate
+              : startDate.add((i + 1) * hourCount, "hour");
+          shifts.push({
+            ...dataToSubmit,
+            name: `${dataToSubmit.name} ${i + 1}/${segments}`,
+            start_date: start.format("YYYY-MM-DDTHH:mm:ss"),
+            end_date: end.format("YYYY-MM-DDTHH:mm:ss"),
+          });
+        }
+        break;
+      }
+
       default:
+        shifts.push(dataToSubmit);
         break;
+    }
+
+    // Dispatch all shifts
+    for (const shift of shifts) {
+      const response = await dispatch(submitShift(shift));
+      if (response.status === "success") {
+        dispatch(showNotification("Shift saved"));
+        const new_shift_id = response?.data?.id;
+        if (new_shift_id) {
+          dispatch(fetchShift(new_shift_id));
+        }
+      }
     }
   };
 
-  function validate(formData, errors) {
-    if (isDailyShift(formData.name)) {
+  function validate(_, errors) {
+    if (/\d+\/\d+$/.test(formData.name)) {
       errors.name.addError(
         'Shift name cannot contain "number/number" at the end of the name, please fix.',
       );
     }
     if (formData.localTime === "local") {
-      if (nowDate > formData.end_date_local) {
-        errors.end_date_local.addError(
+      if (now.format("YYYY-MM-DDTHH:mm:ss") > formData.end_date) {
+        errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
       }
-      if (formData.start_date_local > formData.end_date_local) {
-        errors.start_date_local.addError(
+      if (formData.start_date > formData.end_date) {
+        errors.start_date.addError(
           "Start date must be before end date, please fix.",
         );
       }
     } else if (formData.localTime === "UTC") {
-      if (nowDateUTC > formData.end_date_utc) {
-        errors.end_date_utc.addError(
+      if (now.utc().format("YYYY-MM-DDTHH:mm:ss") > formData.end_date) {
+        errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
       }
-      if (formData.start_date_utc > formData.end_date_utc) {
-        errors.start_date_utc.addError(
+      if (formData.start_date > formData.end_date) {
+        errors.start_date.addError(
           "Start date must be before end date, please fix.",
         );
       }
@@ -210,6 +199,19 @@ const NewShift = () => {
         title: "Group",
         default: groups ? groups[0]?.id : null,
       },
+      shift_admins: {
+        type: "array",
+        title: "Shift admins",
+        items: {
+          type: "integer",
+          oneOf: availableUsers.map((user) => ({
+            enum: [user.id],
+            title: userLabel(user),
+          })),
+        },
+        default: [currentUser.id],
+        uniqueItems: true,
+      },
       name: {
         type: "string",
         title: "Shift name (ie. the Night Shift)",
@@ -222,17 +224,6 @@ const NewShift = () => {
         type: "string",
         title: "Shift's description",
       },
-      divide: {
-        type: "string",
-        title:
-          "Do you want to divide the selected period in multiple shifts, daily or weekly?",
-        enum: [
-          "Divide per Week",
-          "Divide per Day",
-          "Don't divide, just create one shift",
-        ],
-        default: "Don't divide, just create one shift",
-      },
       localTime: {
         type: "string",
         oneOf: [
@@ -242,9 +233,37 @@ const NewShift = () => {
         default: "local",
         title: "Use local or UTC time?",
       },
+      divide: {
+        type: "string",
+        title:
+          "Do you want to divide the selected period in multiple shifts, daily or weekly?",
+        enum: [
+          "Don't divide, just create one shift",
+          "Divide per Week",
+          "Divide per Day",
+          "Divide per Hour",
+        ],
+      },
     },
-    required: ["group_id", "name"],
+    required: ["group_id", "shift_admins", "name"],
     dependencies: {
+      divide: {
+        oneOf: [
+          {
+            properties: {
+              divide: {
+                enum: ["Divide per Hour"],
+              },
+              divider: {
+                type: "integer",
+                title: "How many hours per shift?",
+                default: 6,
+              },
+            },
+            required: ["divider"],
+          },
+        ],
+      },
       localTime: {
         oneOf: [
           {
@@ -252,15 +271,13 @@ const NewShift = () => {
               localTime: {
                 enum: ["local"],
               },
-              start_date_local: {
+              start_date: {
                 type: "string",
                 title: "Start Date (Local Time)",
-                default: defaultStartDate,
               },
-              end_date_local: {
+              end_date: {
                 type: "string",
                 title: "End Date (Local Time)",
-                default: defaultEndDate,
               },
             },
           },
@@ -269,15 +286,13 @@ const NewShift = () => {
               localTime: {
                 enum: ["UTC"],
               },
-              start_date_utc: {
+              start_date: {
                 type: "string",
                 title: "Start Date (UTC Time)",
-                default: defaultStartDateUTC,
               },
-              end_date_utc: {
+              end_date: {
                 type: "string",
                 title: "End Date (UTC Time)",
-                default: defaultEndDateUTC,
               },
             },
           },
@@ -286,15 +301,38 @@ const NewShift = () => {
     },
   };
 
+  const handleChange = (e) => {
+    // Manage time conversion
+    if (e.formData.localTime !== formData.localTime) {
+      if (e.formData.localTime === "local") {
+        e.formData.start_date = dayjs(`${e.formData.start_date}Z`)
+          .local()
+          .format("YYYY-MM-DDTHH:mm:ss");
+        e.formData.end_date = dayjs(`${e.formData.end_date}Z`)
+          .local()
+          .format("YYYY-MM-DDTHH:mm:ss");
+      } else {
+        e.formData.start_date = dayjs(e.formData.start_date)
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss");
+        e.formData.end_date = dayjs(e.formData.end_date)
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss");
+      }
+    }
+
+    setFormData(e.formData);
+  };
+
   return (
     <Form
       schema={shiftFormSchema}
       validator={validator}
       uiSchema={uiSchema}
+      formData={formData}
+      onChange={handleChange}
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
-      liveValidate
     />
   );
 };
