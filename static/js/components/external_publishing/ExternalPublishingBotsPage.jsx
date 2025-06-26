@@ -794,12 +794,11 @@ const ExternalPublishingBotsPage = () => {
       publish_existing_tns_objects,
       bot_id,
       source_group_id,
-      ...(!isEdit ||
-        (api_key?.length > 0 && {
-          _tns_altdata: {
-            api_key,
-          },
-        })),
+      ...((!isEdit || api_key?.length > 0) && {
+        _tns_altdata: {
+          api_key,
+        },
+      }),
       enable_publish_to_tns: enablePublishToTNS,
       enable_publish_to_hermes: enablePublishToHermes,
     };
