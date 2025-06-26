@@ -40,7 +40,10 @@ app:
 
   lco_archive_endpoint: https://archive-api.lco.global
 
-  # Tarot API endpoints
+  # The Tarot API is not publicly accessible.
+  # To interact with it, we use a proxy hosted on the Icare instance of SkyPortal.
+  # Access to the proxy requires an Icare account and a valid token specified in each allocation using the Tarot API.
+  # This URL points to the Tarot API proxy endpoint:
   tarot_proxy_endpoint: https://skyportal-icare.ijclab.in2p3.fr/api/tarot_proxy
 
   # MMT API endpoint
