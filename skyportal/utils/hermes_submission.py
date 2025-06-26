@@ -63,7 +63,8 @@ def create_payload_and_header(obj, photometry, reporters, remarks, topic):
     payload = {
         "topic": topic,
         "title": f"SkyPortal report for {obj.id}",
-        "submitter": reporters,
+        "authors": reporters,
+        "submitter": cfg.get("app.title", "SkyPortal"),
         "message_text": remarks,
         "data": {
             "targets": [
