@@ -252,8 +252,8 @@ const ObjectTags = ({ source }) => {
                       onChange(data);
                       setSelectedTag(data);
                     }}
-                    renderOption={(option) => (
-                      <div>
+                    renderOption={(props, option) => (
+                      <li {...props}>
                         <Chip
                           label={option.name}
                           size="small"
@@ -263,7 +263,7 @@ const ObjectTags = ({ source }) => {
                             marginRight: 8,
                           }}
                         />
-                      </div>
+                      </li>
                     )}
                     renderInput={(params) => (
                       <TextField
