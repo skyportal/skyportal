@@ -1097,10 +1097,10 @@ const ExternalPublishingBotsPage = () => {
               },
               auto_publish_allow_archival: {
                 type: "boolean",
-                title: "Allow archival auto-publishing",
+                title: "Allow TNS archival auto-publishing",
                 default: false,
                 description:
-                  "If enabled, the bot will submit auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
+                  "If enabled, the bot will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
               },
             }
           : {}),
