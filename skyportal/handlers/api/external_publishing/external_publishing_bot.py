@@ -34,8 +34,8 @@ def validate_tns_fields(external_publishing_bot):
                 "bot_id must be provided when enable_publish_to_tns is True"
             )
         if not (
-            isinstance(external_publishing_bot._tns_altdata, dict)
-            and "api_key" in external_publishing_bot._tns_altdata
+            isinstance(external_publishing_bot.tns_altdata, dict)
+            and "api_key" in external_publishing_bot.tns_altdata
         ):
             raise ValueError(
                 "TNS API key must be provided when enable_publish_to_tns is True"
