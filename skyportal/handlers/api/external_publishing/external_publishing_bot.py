@@ -22,6 +22,26 @@ from ...base import BaseHandler
 log = make_log("api/external_publishing_bot")
 
 
+def validate_tns_fields(external_publishing_bot):
+    if external_publishing_bot.enable_publish_to_tns:
+        # source_group_id, bot_id, and tns_api_key are required
+        if external_publishing_bot.source_group_id is None:
+            raise ValueError(
+                "source_group_id must be provided when enable_publish_to_tns is True"
+            )
+        if external_publishing_bot.bot_id is None:
+            raise ValueError(
+                "bot_id must be provided when enable_publish_to_tns is True"
+            )
+        if not (
+            isinstance(external_publishing_bot._tns_altdata, dict)
+            and "api_key" in external_publishing_bot._tns_altdata
+        ):
+            raise ValueError(
+                "TNS API key must be provided when enable_publish_to_tns is True"
+            )
+
+
 def create_external_publishing_bot(
     data,
     owner_group_ids,
@@ -62,6 +82,7 @@ def create_external_publishing_bot(
 
     try:
         external_publishing_bot = ExternalPublishingBot.__schema__().load(data=data)
+        validate_tns_fields(external_publishing_bot)
     except ValidationError as e:
         raise ValueError(
             f'Error parsing posted publishing bot: "{e.normalized_messages()}"'
@@ -170,6 +191,8 @@ def update_external_publishing_bot(
     external_publishing_bot.streams = (
         process_stream_ids(session, session.user_or_token, stream_ids) or []
     )
+
+    validate_tns_fields(external_publishing_bot)
 
     session.commit()
     return external_publishing_bot.id
