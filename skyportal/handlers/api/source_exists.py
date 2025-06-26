@@ -66,11 +66,19 @@ class SourceExistsHandler(BaseHandler):
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
                 ).first()
                 if s is not None:
-                    return self.error(
-                        f"A source with the name {obj_id} already exists."
+                    return self.success(
+                        {
+                            "source_exists": True,
+                            "message": f"A source with the name {obj_id} already exists.",
+                        }
                     )
                 if not all([ra, dec, radius]):
-                    return self.success(f"No sources exist with the name {obj_id}.")
+                    return self.success(
+                        {
+                            "source_exists": False,
+                            "message": f"No sources exist with the name {obj_id}.",
+                        }
+                    )
 
             source_query = Source.select(session.user_or_token)
             try:
