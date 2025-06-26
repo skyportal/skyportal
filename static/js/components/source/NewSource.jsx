@@ -52,6 +52,11 @@ const NewSource = ({ classes, onClose }) => {
     } else {
       const data = await dispatch(checkSource(dataToSend?.id, dataToSend));
       if (data.status === "success") {
+        if (data.data?.source_exists === true) {
+          dispatch(showNotification(data.data.message, "error"));
+          return;
+        }
+
         if (selectedGroupIds.length > 0) {
           dataToSend.group_ids = selectedGroupIds;
         }

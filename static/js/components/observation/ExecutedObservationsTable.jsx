@@ -187,10 +187,14 @@ const ExecutedObservationsTable = ({
     setIsSaving(formData.id);
     const data = await dispatch(checkSource(formData.id, formData));
     if (data.status === "success") {
-      const result = await dispatch(saveSource(formData));
-      if (result.status === "success") {
-        dispatch(showNotification("Source saved"));
-        navigate(`/source/${formData.id}`);
+      if (data.data?.source_exists === true) {
+        dispatch(showNotification(data.data.message, "error"));
+      } else {
+        const result = await dispatch(saveSource(formData));
+        if (result.status === "success") {
+          dispatch(showNotification("Source saved"));
+          navigate(`/source/${formData.id}`);
+        }
       }
     }
     setIsSaving(null);
