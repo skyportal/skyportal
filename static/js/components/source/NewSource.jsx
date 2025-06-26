@@ -29,48 +29,53 @@ const NewSource = ({ classes, onClose }) => {
   });
 
   const handleSubmit = async ({ formData }) => {
-    let data = null;
-    if (formData?.ra?.includes(":")) {
-      formData.ra = hours_to_ra(formData?.ra);
+    const dataToSend = {
+      ...formData,
+    };
+    if (dataToSend?.ra?.includes(":")) {
+      dataToSend.ra = hours_to_ra(dataToSend?.ra);
     } else {
-      formData.ra = parseFloat(formData?.ra);
+      dataToSend.ra = parseFloat(dataToSend?.ra);
     }
-    if (formData?.dec?.includes(":")) {
-      formData.dec = dms_to_dec(formData?.dec);
+    if (dataToSend?.dec?.includes(":")) {
+      dataToSend.dec = dms_to_dec(dataToSend?.dec);
     } else {
-      formData.dec = parseFloat(formData?.dec);
+      dataToSend.dec = parseFloat(dataToSend?.dec);
     }
     if (
-      formData?.id === "" ||
-      formData?.id === null ||
-      formData?.id === undefined ||
-      !formData?.id
+      dataToSend?.id === "" ||
+      dataToSend?.id === null ||
+      dataToSend?.id === undefined ||
+      !dataToSend?.id
     ) {
       dispatch(showNotification("Please enter a source ID.", "error"));
     } else {
-      data = await dispatch(checkSource(formData?.id, formData));
-      if (data.data !== "A source of that name does not exist.") {
-        dispatch(showNotification(data.data, "error"));
-      } else {
-        if (selectedGroupIds.length > 0) {
-          formData.group_ids = selectedGroupIds;
+      const data = await dispatch(checkSource(dataToSend?.id, dataToSend));
+      if (data.status === "success") {
+        if (data.data?.source_exists === true) {
+          dispatch(showNotification(data.data.message, "error"));
+          return;
         }
-        const result = await dispatch(saveSource(formData));
+
+        if (selectedGroupIds.length > 0) {
+          dataToSend.group_ids = selectedGroupIds;
+        }
+        const result = await dispatch(saveSource(dataToSend));
         if (result.status === "success") {
           onClose();
           dispatch(showNotification("Source saved"));
-          navigate(`/source/${formData.id}`);
+          navigate(`/source/${dataToSend.id}`);
         }
       }
     }
   };
 
   function validate(formData, errors) {
+    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
+      errors.__errors.push("Select at least one group.");
+    }
     if ((formData?.ra !== "" || formData?.dec !== "") && formData?.id === "") {
       errors.id.addError("Please enter a source ID.");
-    }
-    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
-      errors.id.addError("Select at least one group.");
     }
     if ((formData?.id || "").indexOf(" ") >= 0) {
       errors.id.addError("IDs are not allowed to have spaces, please fix.");
@@ -132,7 +137,6 @@ const NewSource = ({ classes, onClose }) => {
             validator={validator}
             onSubmit={handleSubmit}
             customValidate={validate}
-            liveValidate
           />
         </div>
       </div>

@@ -185,15 +185,16 @@ const ExecutedObservationsTable = ({
   const [isSaving, setIsSaving] = useState(null);
   const handleSave = async (formData) => {
     setIsSaving(formData.id);
-    let data = null;
-    data = await dispatch(checkSource(formData.id, formData));
-    if (data.data !== "A source of that name does not exist.") {
-      dispatch(showNotification(data.data, "error"));
-    } else {
-      const result = await dispatch(saveSource(formData));
-      if (result.status === "success") {
-        dispatch(showNotification("Source saved"));
-        navigate(`/source/${formData.id}`);
+    const data = await dispatch(checkSource(formData.id, formData));
+    if (data.status === "success") {
+      if (data.data?.source_exists === true) {
+        dispatch(showNotification(data.data.message, "error"));
+      } else {
+        const result = await dispatch(saveSource(formData));
+        if (result.status === "success") {
+          dispatch(showNotification("Source saved"));
+          navigate(`/source/${formData.id}`);
+        }
       }
     }
     setIsSaving(null);
