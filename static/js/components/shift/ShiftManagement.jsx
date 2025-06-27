@@ -109,37 +109,28 @@ const MenuProps = {
   },
 };
 
-function isRepeatedShift(shiftName) {
-  const regex = /\d+\/\d+/;
-  return regex.test(shiftName)
-    ? [
-        parseInt(shiftName.match(/\d+/)[0], 10),
-        parseInt(shiftName.match(/\/\d+/)[0].slice(1), 10),
-      ]
-    : null;
-}
+function repeatedShiftInfos(shift) {
+  const start = new Date(shift.start_date);
+  const end = new Date(shift.end_date);
 
-function repeatedShiftStartEnd(shift) {
-  const startDate = new Date(shift.start_date);
-  const endDate = new Date(shift.end_date);
-  const day = isRepeatedShift(shift.name);
-  if (day) {
-    // if there is more than 24 hours between start and end date, its a weekly shift
-    if (endDate.getTime() - startDate.getTime() > 86400000) {
-      return [
-        `Weekly repeated shift`,
-        `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()} (UTC)`,
-      ];
-    }
-    startDate.setDate(startDate.getDate() - day[0]);
-    endDate.setDate(endDate.getDate() - day[0] + day[1]);
-    // return a string with start and end date, and a string with start and end time
-    return [
-      `Daily repeated shifts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
-      `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()} (UTC)`,
-    ];
-  }
-  return null;
+  const match = shift.name?.match(/(\d+)\/(\d+)/);
+  if (!match) return null;
+
+  const durationInHours = (end - start) / (60 * 60 * 1000);
+
+  const shiftIndex = parseInt(match[1], 10);
+  const totalRepetitions = parseInt(match[2], 10);
+  // Move start date back to the first shift based on this shift's index in the series
+  start.setHours(start.getHours() - (shiftIndex - 1) * durationInHours);
+  // Move end date forward to the last shift based on the total number of repetitions
+  end.setHours(
+    start.getHours() + (totalRepetitions - shiftIndex) * durationInHours,
+  );
+  const repeatedShiftRange = `shifts from ${start.toLocaleDateString()} to ${end.toLocaleDateString()} (UTC)`;
+
+  if (durationInHours === 168) return `Weekly ${repeatedShiftRange}`;
+  if (durationInHours === 24) return `Daily ${repeatedShiftRange}`;
+  return `${durationInHours} hours ${repeatedShiftRange}`;
 }
 
 const ShiftManagement = ({ currentShift }) => {
@@ -700,9 +691,7 @@ const ShiftManagement = ({ currentShift }) => {
     }
   }
 
-  const [shiftStartAndEnd, shiftDuration] = repeatedShiftStartEnd(
-    currentShift,
-  ) || [null, null];
+  const repeatedShiftDuration = repeatedShiftInfos(currentShift);
   const isAdmin =
     currentUserIsAdminOfShift ||
     currentShiftGroup?.has_admin_access ||
@@ -788,25 +777,16 @@ const ShiftManagement = ({ currentShift }) => {
               {currentShift.required_users_number}
             </div>
           )}
-          {shiftDuration ? (
-            <>
-              <div>
-                <b>Repeated shift from:</b> {shiftStartAndEnd}
-              </div>
-              <div>
-                <b>Shift duration:</b> {shiftDuration}
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <b>Start:</b>{" "}
-                {new Date(currentShift.start_date).toLocaleString()}
-              </div>
-              <div>
-                <b>End:</b> {new Date(currentShift.end_date).toLocaleString()}
-              </div>
-            </>
+          <div>
+            <b>Start:</b> {new Date(currentShift.start_date).toLocaleString()}
+          </div>
+          <div>
+            <b>End:</b> {new Date(currentShift.end_date).toLocaleString()}
+          </div>
+          {repeatedShiftDuration && (
+            <div>
+              <b>Repeated shift:</b> {repeatedShiftDuration}
+            </div>
           )}
         </div>
         <div className={classes.addUsersElements}>
