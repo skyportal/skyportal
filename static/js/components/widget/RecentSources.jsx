@@ -17,6 +17,8 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
+import Tooltip from "@mui/material/Tooltip";
+import DynamicTagDisplay from "./DynamicTagDisplay";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -32,7 +34,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   stamp: () => ({
     transition: "transform 0.1s",
-    width: "5em",
+    width: "110px",
     height: "auto",
     display: "block",
     "&:hover": {
@@ -59,7 +61,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "row nowrap",
     alignItems: "center",
-    padding: "0 0.325rem",
+    padding: "2px",
+    height: "120px",
   },
   sourceInfo: {
     display: "flex",
@@ -72,6 +75,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
   sourceNameContainer: {
     display: "flex",
     flexDirection: "column",
+    minWidth: "280px",
+    width: "85%",
   },
   sourceName: {
     fontSize: "1rem",
@@ -109,9 +114,10 @@ export const useSourceListStyles = makeStyles((theme) => ({
   bottomContainer: {
     display: "flex",
     flexDirection: "column",
-    width: "100%",
+    width: "15%",
     alignItems: "flex-end",
     justifyContent: "space-between",
+    minWidth: "110px",
   },
   sourceItemWithButton: {
     display: "flex",
@@ -155,6 +161,24 @@ export const useSourceListStyles = makeStyles((theme) => ({
       marginLeft: theme.spacing(2),
     },
   },
+  tagsContainer: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.25rem",
+    marginTop: "0.25rem",
+    justifyContent: "flex-start",
+    width: "100%",
+  },
+  tagChip: {
+    padding: "0",
+    margin: "0",
+    "& > div": {
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: "0.05rem",
+      marginRight: "0.05rem",
+    },
+  },
 }));
 
 const defaultPrefs = {
@@ -162,6 +186,7 @@ const defaultPrefs = {
   groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
+  displayTags: true,
 };
 
 function containsSpecialCharacters(str) {
@@ -263,6 +288,7 @@ const RecentSourcesList = ({
   styles,
   search = false,
   displayTNS = true,
+  displayTags = true,
 }) => {
   const [thumbnailIdxs, setThumbnailIdxs] = useState({});
 
@@ -373,6 +399,11 @@ const RecentSourcesList = ({
                           {`\u03B4: ${dec_to_dms(source.dec)}`}
                         </span>
                       </div>
+                      <DynamicTagDisplay
+                        source={source}
+                        styles={styles}
+                        displayTags={displayTags}
+                      />
                       {source.resaved && <span>(Source was re-saved)</span>}
                     </div>
                     <div className={styles.bottomContainer}>
@@ -451,17 +482,26 @@ RecentSourcesList.propTypes = {
           created_at: PropTypes.string,
         }),
       ),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number.isRequired,
+          name: PropTypes.string.isRequired,
+          objtagoption_id: PropTypes.number,
+        }),
+      ),
     }),
   ),
   styles: PropTypes.shape(Object).isRequired,
   search: PropTypes.bool,
   displayTNS: PropTypes.bool,
+  displayTags: PropTypes.bool,
 };
 
 RecentSourcesList.defaultProps = {
   sources: undefined,
   search: false,
   displayTNS: true,
+  displayTags: true,
 };
 
 const RecentSources = ({ classes }) => {
@@ -489,7 +529,10 @@ const RecentSources = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
-              initialValues={recentSourcesPrefs}
+              initialValues={{
+                ...recentSourcesPrefs,
+                displayTags: recentSourcesPrefs.displayTags,
+              }}
               stateBranchName="recentSources"
               title="Recent Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}
@@ -500,6 +543,7 @@ const RecentSources = ({ classes }) => {
           sources={recentSources}
           styles={styles}
           displayTNS={recentSourcesPrefs?.displayTNS !== false}
+          displayTags={recentSourcesPrefs?.displayTags !== false}
         />
       </div>
     </Paper>
