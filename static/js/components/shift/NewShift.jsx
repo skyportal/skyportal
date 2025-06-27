@@ -32,17 +32,19 @@ const NewShift = () => {
   });
 
   useEffect(() => {
-    if (!availableUsers.length) {
-      setAvailableUsers(
-        users.filter(
-          (user) =>
-            user.groups?.some((g) => g.id === formData.group_id) &&
-            !user.is_bot,
-        ),
-      );
+    setAvailableUsers(
+      users.filter(
+        (user) =>
+          user.groups?.some((g) => g.id === formData.group_id) && !user.is_bot,
+      ),
+    );
+  }, [users, formData.group_id]);
+
+  useEffect(() => {
+    if (!formData.shift_admins.length || formData.shift_admins[0] === null) {
       formData.shift_admins = [currentUser.id];
     }
-  }, [users, formData.group_id]);
+  }, [formData.shift_admins, currentUser.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
