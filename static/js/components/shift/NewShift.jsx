@@ -9,7 +9,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { fetchShift, submitShift } from "../../ducks/shift";
-import { userLabel } from "../../utils/user";
+import { userLabel } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -210,7 +210,7 @@ const NewShift = () => {
           type: "integer",
           oneOf: availableUsers.map((user) => ({
             enum: [user.id],
-            title: userLabel(user),
+            title: userLabel(user, true, true),
           })),
         },
         default: [currentUser.id],

@@ -25,7 +25,7 @@ import {
   updateShiftUser,
 } from "../../ducks/shifts";
 import { deleteShift } from "../../ducks/shift";
-import { userLabel } from "../../utils/user";
+import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -388,7 +388,7 @@ const ShiftManagement = ({ currentShift }) => {
                     <Chip
                       key={user.id}
                       id={user.id}
-                      label={userLabel(user)}
+                      label={userLabel(user, true, true)}
                       sx={{
                         backgroundColor: userInShift(
                           user,
@@ -416,7 +416,7 @@ const ShiftManagement = ({ currentShift }) => {
                   <ListItemText
                     className={classes.userListItem}
                     id={user.id}
-                    primary={userLabel(user)}
+                    primary={userLabel(user, true, true)}
                   />
                 </MenuItem>
               ))}
@@ -611,7 +611,7 @@ const ShiftManagement = ({ currentShift }) => {
                       <Chip
                         key={`${selectedToReplaceValue.id}_selected_to_replace`}
                         id={selectedToReplaceValue.id}
-                        label={userLabel(selectedToReplaceValue)}
+                        label={userLabel(selectedToReplaceValue, true, true)}
                       />
                     )}
                   </Box>
@@ -633,7 +633,7 @@ const ShiftManagement = ({ currentShift }) => {
                     <ListItemText
                       className={classes.userListItem}
                       id={user.id}
-                      primary={userLabel(user)}
+                      primary={userLabel(user, true, true)}
                     />
                   </MenuItem>
                 ))}
@@ -675,14 +675,14 @@ const ShiftManagement = ({ currentShift }) => {
       .map((shift_user) => shift_user?.user_id);
     admins = users
       .filter((user) => admins.includes(user.id))
-      .map((user) => `${userLabel(user)}`);
+      .map((user) => `${userLabel(user, true, true)}`);
 
     members = currentShift.shift_users
       .filter((shift_user) => !shift_user.admin)
       .map((shift_user) => shift_user?.user_id);
     members = users
       .filter((user) => members.includes(user.id))
-      .map((user) => `${userLabel(user)}`);
+      .map((user) => `${userLabel(user, true, true)}`);
 
     participating = currentShift.shift_users
       .map((user) => user.user_id)
