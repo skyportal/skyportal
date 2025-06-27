@@ -24,6 +24,7 @@ const NewShift = () => {
   const { users } = useSelector((state) => state.users);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [formData, setFormData] = useState({
+    shift_admins: [currentUser.id],
     localTime: "local",
     start_date: defaultStartDate,
     end_date: defaultEndDate,
