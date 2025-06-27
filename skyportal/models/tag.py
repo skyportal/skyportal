@@ -17,7 +17,7 @@ class ObjTagOption(Base):
     )
 
     color = sa.Column(
-        sa.String(7),
+        sa.String,
         nullable=True,
         default=None,
         doc="Hex color code for the tag display (e.g., #3a87ad)",
