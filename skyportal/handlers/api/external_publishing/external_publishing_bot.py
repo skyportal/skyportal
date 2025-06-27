@@ -157,6 +157,18 @@ def update_external_publishing_bot(
             f"No publishing bot with specified ID: {existing_id}, or you are not authorized to update it"
         )
 
+    if "enable_publish_to_tns" in data or "enable_publish_to_hermes" in data:
+        for group in external_publishing_bot.groups:
+            if data.get("enable_publish_to_tns") is False:
+                group.auto_publish_to_tns = False
+            if data.get("enable_publish_to_hermes") is False:
+                group.auto_publish_to_hermes = False
+            if (
+                group.auto_publish_to_hermes is False
+                and group.auto_publish_to_tns is False
+            ):
+                group.auto_publish_allow_bots = False
+
     # Fields to update as-is if present
     for field in [
         "bot_name",
