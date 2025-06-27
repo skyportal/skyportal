@@ -97,8 +97,9 @@ app:
 
   hermes:
       endpoint: https://hermes.lco.global/api/v0
-      topic: hermes.test
       token:
+      topic: skyportal.skyportal
+      test_topic: skyportal.skyportal_test
 
   winter:
     protocol: http
@@ -204,10 +205,10 @@ app:
       component: summary/SummarySearch
     - path: "/taxonomies"
       component: taxonomy/TaxonomyPage
-    - path: "/tns_robots"
-      component: tns/TNSRobotsPage
-    - path: "/tns_robot/:id/submissions"
-      component: tns/TNSRobotSubmissionsPage
+    - path: "/external_publishing_bots"
+      component: external_publishing/ExternalPublishingBotsPage
+    - path: "/external_publishing/:bot_id/submissions"
+      component: external_publishing/ExternalPublishingSubmissionsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
 
@@ -282,9 +283,9 @@ app:
           icon: ZoomInOutlined
           url: /observations
 
-        - name: TNS Robots
-          icon: Assignment
-          url: /tns_robots
+        - name: Publishing bots
+          icon: SmartToy
+          url: /external_publishing_bots
 
         - name: Moving Objects
           icon: Animation
@@ -723,7 +724,7 @@ ports:
   notification_queue: 64610
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  tns_submission_queue: 64812
+  external_publishing_submission_queue: 64812
 
 gcn:
   server: gcn.nasa.gov
