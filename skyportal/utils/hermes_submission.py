@@ -65,7 +65,7 @@ def create_payload_and_header(obj, photometry, reporters, remarks, topic):
         "title": f"SkyPortal report for {obj.id}",
         "authors": reporters,
         "submitter": cfg.get("app.title", "SkyPortal"),
-        "message_text": remarks,
+        "message_text": remarks or "",
         "data": {
             "targets": [
                 {
@@ -131,6 +131,9 @@ def submit_to_hermes(
             timeout=5.0,
         )
         if response.status_code != 200:
+            log(
+                f"Failed to publish to topic '{topic}' with status code {response.status_code}: {response.text}"
+            )
             status = f"Error: Failed to publish to topic '{topic}' with status code {response.status_code}"
             notif_text = f"Hermes error: Failed to publish to topic '{topic}' with status code {response.status_code}"
         else:
