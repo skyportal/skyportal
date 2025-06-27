@@ -121,34 +121,30 @@ const ShiftPage = ({ route }) => {
             >
               {show ? "Hide" : "Create New Shift"}
             </Button>
-            {show ? <NewShift /> : null}
+            {show && <NewShift />}
           </div>
         </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
-            <ShiftManagement currentShift={currentShift} />
-          ) : null}
-        </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
-            <div id="current_shift_comment" className={classes.comments}>
-              <Suspense fallback={<CircularProgress />}>
-                <CommentList
-                  associatedResourceType="shift"
-                  shiftID={currentShift?.id}
-                />
-              </Suspense>
-            </div>
-          ) : null}
-        </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
+        {shiftList && !show && currentShift?.id && (
+          <>
+            <Paper>
+              <ShiftManagement currentShift={currentShift} />
+            </Paper>
+            <Paper>
+              <div className={classes.comments}>
+                <Suspense fallback={<CircularProgress />}>
+                  <CommentList
+                    associatedResourceType="shift"
+                    shiftID={currentShift?.id}
+                  />
+                </Suspense>
+              </div>
+            </Paper>
             <Reminders
               resourceId={currentShift.id.toString()}
               resourceType="shift"
             />
-          ) : null}
-        </Paper>
+          </>
+        )}
       </Grid>
       <Grid item md={12} sm={12}>
         <ShiftSummary />
