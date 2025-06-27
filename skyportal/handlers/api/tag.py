@@ -19,7 +19,7 @@ class ObjTagOptionHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         name = data.get("name")
-        color = data.get("color", "#dddfe2")
+        color = data.get("color")
 
         if not name or not isinstance(name, str):
             return self.error("`name` must be provided as a non-empty string")
