@@ -38,9 +38,6 @@ def test_shift(
     assert status == 200
     assert data["status"] == "success"
 
-    start_date = date.today().strftime("%m/%d/%Y")
-    end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
-
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{data['data']['id']}")
 
@@ -217,7 +214,8 @@ def test_shift(
     time.sleep(1)
 
     shift_on_calendar = f'//div[@role="button"][.//strong[contains(text(), "{name}")]]'
-    driver.wait_for_xpath(shift_on_calendar).click()
+    element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
+    element.click()
 
     # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
@@ -299,18 +297,6 @@ def test_shift_summary(
     )
     assert status == 200
     assert data["status"] == "success"
-
-    shift_name_2 = str(uuid.uuid4())
-    start_date = "2018-01-17T12:00:00"
-    end_date = "2018-01-18T12:00:00"
-    request_data = {
-        "name": shift_name_2,
-        "group_id": public_group.id,
-        "start_date": start_date,
-        "end_date": end_date,
-        "description": "Shift not during GCN",
-        "shift_admins": [super_admin_user.id],
-    }
 
     status, data = api(
         "GET", f"shifts?group_id={public_group.id}", token=super_admin_token
