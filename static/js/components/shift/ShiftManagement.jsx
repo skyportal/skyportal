@@ -64,11 +64,6 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     height: "100%",
   },
-  deactivatedButton: {
-    margin: "0",
-    width: "15%",
-    backgroundColor: "#e8eaf6",
-  },
   userListItem: {
     display: "flex",
     flexDirection: "row",
@@ -294,9 +289,7 @@ const ShiftManagement = ({ currentShift }) => {
             <Button
               sx={{ height: "100%" }}
               primary
-              id={`${
-                usersToAdd.length > 0 ? "" : "deactivated-"
-              }add-users-button`}
+              id={`add-${asAdmin ? "admins" : "members"}-button`}
               disabled={usersToAdd.length === 0}
               onClick={() => {
                 if (usersToAdd.length > 0) {
@@ -336,9 +329,7 @@ const ShiftManagement = ({ currentShift }) => {
             <Button
               sx={{ height: "100%" }}
               secondary
-              id={`${
-                usersToRemove.length > 0 ? "" : "deactivated-"
-              }remove-users-button`}
+              id={`remove-${asAdmin ? "admins" : "members"}-button`}
               disabled={usersToRemove.length === 0}
               onClick={() => {
                 if (usersToRemove.length > 0) {
@@ -357,7 +348,7 @@ const ShiftManagement = ({ currentShift }) => {
     }
 
     const manageShiftUsers = ({
-      usersType = "users",
+      usersType = "members",
       selected,
       setSelected,
     }) => {
@@ -395,7 +386,7 @@ const ShiftManagement = ({ currentShift }) => {
               MenuProps={MenuProps}
             >
               {users.map((user) => (
-                <MenuItem id="select_users" key={user.id} value={user}>
+                <MenuItem id={`select-${usersType}`} key={user.id} value={user}>
                   <Checkbox checked={selected.some((s) => s.id === user.id)} />
                   <ListItemIcon>
                     {userInShift(user, usersType === "admins") ? (
@@ -495,37 +486,27 @@ const ShiftManagement = ({ currentShift }) => {
     }
 
     const userReplacementButton = () => {
-      let button;
-      if (Object.keys(selectedToReplace).length > 0) {
-        button = (
-          <Tooltip title="Replace selected users">
-            <Button
-              primary
-              id="replace-users-button"
-              className={classes.activatedButton}
-              onClick={() => {
-                replaceUserInShift(selectedToReplace);
-                setSelectedToReplace({});
-              }}
-            >
-              Replace
-            </Button>
-          </Tooltip>
-        );
-      } else {
-        button = (
-          <Tooltip title="No users selected, select users to replace them">
-            <Button
-              secondary
-              id="deactivated-replace-users-button"
-              className={classes.deactivatedButton}
-            >
-              Replace
-            </Button>
-          </Tooltip>
-        );
-      }
-      return button;
+      const nothingSelected = Object.keys(selectedToReplace).length === 0;
+      return (
+        <Tooltip
+          title={
+            nothingSelected
+              ? "No users selected, select users to replace them"
+              : "Replace selected users"
+          }
+        >
+          <Button
+            primary
+            disabled={nothingSelected}
+            onClick={() => {
+              replaceUserInShift(selectedToReplace);
+              setSelectedToReplace({});
+            }}
+          >
+            Replace
+          </Button>
+        </Tooltip>
+      );
     };
 
     const askForReplacementButton = () => {
@@ -661,29 +642,27 @@ const ShiftManagement = ({ currentShift }) => {
   let participating = false;
 
   if (users.length > 0) {
-    admins = currentShift.shift_users
-      .filter((shift_user) => shift_user.admin)
-      .map((shift_user) => shift_user?.user_id);
-    admins = users
-      .filter((user) => admins.includes(user.id))
-      .map((user) => `${userLabel(user, true, true)}`);
-
-    members = currentShift.shift_users
-      .filter((shift_user) => !shift_user.admin)
-      .map((shift_user) => shift_user?.user_id);
-    members = users
-      .filter((user) => members.includes(user.id))
-      .map((user) => `${userLabel(user, true, true)}`);
-
-    participating = currentShift.shift_users
-      .map((user) => user.user_id)
-      .includes(currentUser.id);
+    users.forEach((user) => {
+      const match = currentShift.shift_users.find(
+        (su) => su.user_id === user.id,
+      );
+      if (match) {
+        if (match.admin) {
+          admins.push(user);
+        } else {
+          members.push(user);
+        }
+      }
+    });
+    participating = currentShift.shift_users.some(
+      (su) => su.user_id === currentUser.id,
+    );
   }
 
   let currentUserIsAdminOfShift = false;
   if (
     currentShift.shift_users.filter(
-      (user) => user.user_id === currentUser.id && user.admin,
+      (u) => u.user_id === currentUser.id && u.admin,
     ).length > 0
   ) {
     currentUserIsAdminOfShift = true;
@@ -753,13 +732,21 @@ const ShiftManagement = ({ currentShift }) => {
         <div>
           <b>Admins: </b>
           {admins.map((admin) => (
-            <Chip key={admin} label={admin} />
+            <Chip
+              key={admin.id}
+              label={userLabel(admin, true, true)}
+              data-testid="shift-admin-chip"
+            />
           ))}
         </div>
         <div>
           <b>Members: </b>
           {members.map((member) => (
-            <Chip key={member} label={member} />
+            <Chip
+              key={member.id}
+              label={userLabel(member, true, true)}
+              data-testid={`shift-member-chip-${member.id}`}
+            />
           ))}
         </div>
         {currentShift.required_users_number && (
