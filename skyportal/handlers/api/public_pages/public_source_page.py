@@ -72,10 +72,15 @@ def get_photometry(source_id, group_ids, stream_ids, session):
     stmt = Photometry.select(session.user_or_token, mode="read").where(
         Photometry.obj_id == source_id
     )
-    if len(group_ids) > 0:
-        stmt = stmt.where(Photometry.groups.any(Group.id.in_(group_ids)))
-    if len(stream_ids) > 0:
-        stmt = stmt.where(Photometry.streams.any(Stream.id.in_(stream_ids)))
+
+    filters = []
+    if group_ids:
+        filters.append(Photometry.groups.any(Group.id.in_(group_ids)))
+    if stream_ids:
+        filters.append(Photometry.streams.any(Stream.id.in_(stream_ids)))
+    if filters:
+        stmt = stmt.where(or_(*filters))
+
     return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
 
 
