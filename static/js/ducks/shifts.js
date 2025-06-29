@@ -23,7 +23,6 @@ function datestringToDate(shiftList) {
   return newShiftList;
 }
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
 
 export function addShiftUser({ userID, admin, shiftID }) {
@@ -35,10 +34,10 @@ export function addShiftUser({ userID, admin, shiftID }) {
 }
 
 export const updateShiftUser = ({
+  shiftID,
   userID,
   admin,
   needs_replacement,
-  shiftID,
 }) =>
   API.PATCH(`/api/shifts/${shiftID}/users/${userID}`, UPDATE_SHIFT_USER, {
     admin,

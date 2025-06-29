@@ -15,7 +15,6 @@ const Button = ({ primary, secondary, async, ...muiButtonProps }) => {
         loadingIndicator="Loading..."
         variant="contained"
         color="primary"
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...muiButtonProps}
       />
     );
@@ -25,12 +24,10 @@ const Button = ({ primary, secondary, async, ...muiButtonProps }) => {
       <MuiButton
         variant="contained"
         color={primary ? "primary" : "grey"}
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...muiButtonProps}
       />
     );
   }
-  // eslint-disable-next-line react/jsx-props-no-spreading
   return <MuiButton {...muiButtonProps} />;
 };
 

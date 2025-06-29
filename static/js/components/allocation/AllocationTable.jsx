@@ -24,6 +24,7 @@ import * as allocationActions from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAllocation from "./NewAllocation";
 import ModifyAllocation from "./ModifyAllocation";
+import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -141,20 +142,6 @@ const AllocationTable = ({
     );
   };
 
-  const userLabel = (user) => {
-    let label = user.username;
-    if (user.first_name && user.last_name) {
-      label = `${user.first_name} ${user.last_name} (${user.username})`;
-      if (user.contact_email) {
-        label = `${label} (${user.contact_email})`;
-      }
-      if (user.affiliations && user.affiliations.length > 0) {
-        label = `${label} (${user.affiliations.join()})`;
-      }
-    }
-    return label;
-  };
-
   const renderAllocationID = (dataIndex) => {
     const allocation = allocations[dataIndex];
 
@@ -221,7 +208,7 @@ const AllocationTable = ({
     const allocation_users = [];
     if (allocation.allocation_users?.length > 0) {
       allocation.allocation_users.forEach((user) => {
-        allocation_users.push(userLabel(user));
+        allocation_users.push(userLabel(user, true, true, true));
       });
     }
 

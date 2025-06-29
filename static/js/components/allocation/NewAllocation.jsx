@@ -18,6 +18,7 @@ import { submitAllocation } from "../../ducks/allocation";
 import { fetchAllocations } from "../../ducks/allocations";
 import * as groupActions from "../../ducks/group";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { userLabel } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -118,17 +119,6 @@ const NewAllocation = ({ onClose }) => {
         onClose();
       }
     }
-  };
-
-  const userLabel = (user) => {
-    let label = user.username;
-    if (user.first_name && user.last_name) {
-      label = `${user.first_name} ${user.last_name} (${user.username})`;
-      if (user.affiliations && user.affiliations.length > 0) {
-        label = `${label} (${user.affiliations.join()})`;
-      }
-    }
-    return label;
   };
 
   function validate(formData, validationErrors) {
@@ -280,7 +270,7 @@ const NewAllocation = ({ onClose }) => {
                   }}
                   value={value}
                   options={group?.users}
-                  getOptionLabel={(user) => userLabel(user)}
+                  getOptionLabel={(user) => userLabel(user, true, true)}
                   filterSelectedOptions
                   data-testid="addUsersFromGroupSelect"
                   renderInput={(field) => (
