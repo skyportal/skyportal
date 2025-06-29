@@ -213,7 +213,7 @@ def test_shift(
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(1)
 
-    shift_on_calendar = f'//div[@role="button"][.//strong[contains(text(), "{name}")]]'
+    shift_on_calendar = f'//*/strong[contains(.,"{name}")]/../../../../*'
     element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
     element.click()
 
