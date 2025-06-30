@@ -33,10 +33,6 @@ def upgrade():
 
     op.rename_table("sourcesconfirmedingcns", "sourcesingcns")
 
-    op.execute(
-        "ALTER SEQUENCE sourcesconfirmedingcns_id_seq RENAME TO sourcesingcns_id_seq"
-    )
-
     op.add_column(
         "sourcesingcns",
         sa.Column(
@@ -66,24 +62,6 @@ def upgrade():
     op.drop_index("ix_sourcesconfirmedingcns_created_at", table_name="sourcesingcns")
     op.drop_index("ix_sourcesconfirmedingcns_dateobs", table_name="sourcesingcns")
     op.drop_index("ix_sourcesconfirmedingcns_obj_id", table_name="sourcesingcns")
-    op.create_index(
-        op.f("ix_sourcesingcns_confirmer_id"),
-        "sourcesingcns",
-        ["confirmer_id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_sourcesingcns_created_at"),
-        "sourcesingcns",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_sourcesingcns_dateobs"), "sourcesingcns", ["dateobs"], unique=False
-    )
-    op.create_index(
-        op.f("ix_sourcesingcns_obj_id"), "sourcesingcns", ["obj_id"], unique=False
-    )
     # ### end Alembic commands ###
 
 
@@ -93,24 +71,6 @@ def downgrade():
     op.drop_index(op.f("ix_sourcesingcns_dateobs"), table_name="sourcesingcns")
     op.drop_index(op.f("ix_sourcesingcns_created_at"), table_name="sourcesingcns")
     op.drop_index(op.f("ix_sourcesingcns_confirmer_id"), table_name="sourcesingcns")
-    op.create_index(
-        "ix_sourcesconfirmedingcns_obj_id", "sourcesingcns", ["obj_id"], unique=False
-    )
-    op.create_index(
-        "ix_sourcesconfirmedingcns_dateobs", "sourcesingcns", ["dateobs"], unique=False
-    )
-    op.create_index(
-        "ix_sourcesconfirmedingcns_created_at",
-        "sourcesingcns",
-        ["created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_sourcesconfirmedingcns_confirmer_id",
-        "sourcesingcns",
-        ["confirmer_id"],
-        unique=False,
-    )
 
     op.add_column("sourcesingcns", sa.Column("confirmed", sa.Boolean(), nullable=True))
 
@@ -134,10 +94,6 @@ def downgrade():
         "confirmed", "rejected", "ambiguous", "pending", name="sources_in_gcn_status"
     )
     sources_in_gcn_status_enum.drop(op.get_bind(), checkfirst=True)
-
-    op.execute(
-        "ALTER SEQUENCE sourcesingcns_id_seq RENAME TO sourcesconfirmedingcns_id_seq"
-    )
 
     op.rename_table("sourcesingcns", "sourcesconfirmedingcns")
     # ### end Alembic commands ###
