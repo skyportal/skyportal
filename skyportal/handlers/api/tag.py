@@ -3,6 +3,7 @@ import re
 from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.custom_exceptions import AccessError
 
 from ...models import Obj, ObjTag, ObjTagOption
 from ..base import BaseHandler
@@ -44,7 +45,12 @@ class ObjTagOptionHandler(BaseHandler):
 
             new_tag = ObjTagOption(name=name)
             session.add(new_tag)
-            session.commit()
+            try:
+                session.commit()
+            except AccessError as e:
+                return self.error(
+                    "Insufficient permissions. 'Manage sources' permission required to add tag options. (Original exception: {e})"
+                )
 
             return self.success(new_tag)
 
@@ -101,7 +107,12 @@ class ObjTagOptionHandler(BaseHandler):
                 return self.error("Tag not found", status=404)
 
             session.delete(tag)
-            session.commit()
+            try:
+                session.commit()
+            except AccessError as e:
+                return self.error(
+                    "Insufficient permissions. 'Manage sources' permission required to delete tag options. (Original exception: {e})"
+                )
 
             return self.success(f"Successfully deleted tag {tag}")
 
