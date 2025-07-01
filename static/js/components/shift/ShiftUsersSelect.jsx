@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   addShiftUser,
   deleteShiftUser,
@@ -37,6 +37,10 @@ const getShiftGroupUsersFiltered = (shift) => {
 function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
   const dispatch = useDispatch();
   const [selected, setSelected] = useState([]);
+  useEffect(() => {
+    setSelected([]);
+  }, [shiftsToManage]);
+
   if (!shiftsToManage || shiftsToManage.length === 0) return;
   // We use only the first shift to populate the users list
   const users = getShiftGroupUsersFiltered(shiftsToManage[0]);
@@ -47,15 +51,15 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     );
   }
 
-  const addUsersToShift = (selected_users, asAdmin = false) => {
+  const addUsersToShift = (usersToAdd, asAdmin = false) => {
     shiftsToManage.forEach((shift) => {
       let users_to_add = [];
       const users_to_update = [];
-      selected_users.forEach((user) => {
+      usersToAdd.forEach((user) => {
         (userInShift(user) ? users_to_update : users_to_add).push(user);
       });
 
-      if (!asAdmin) {
+      if (!asAdmin && shift.required_users_number) {
         const remainingSlots =
           shift.required_users_number - (shift.shift_users_ids?.length || 0);
         if (users_to_add.length > remainingSlots) {
@@ -103,34 +107,34 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     });
   };
 
-  function removeUsersFromShift(selected_users, asAdmin = false) {
-    Object.keys(selected_users).forEach((user) => {
+  function removeUsersFromShift(usersToRemove, asAdmin = false) {
+    usersToRemove.forEach((user) => {
       shiftsToManage.forEach((shift) => {
         const functionToDispatch = asAdmin
           ? updateShiftUser({
               shiftID: shift.id,
-              userID: selected_users[user].id,
+              userID: user.id,
               admin: false,
             })
           : deleteShiftUser({
-              userID: selected_users[user].id,
+              userID: user.id,
               shiftID: shift.id,
             });
         dispatch(functionToDispatch).then((result) => {
           if (result.status === "success") {
             dispatch(
               showNotification(
-                `User ${selected_users[user]?.username} removed from shift '${
-                  shift.name
-                }'${asAdmin ? " as admin" : ""}`,
+                `User ${user?.username} removed from shift '${shift.name}'${
+                  asAdmin ? " as admin" : ""
+                }`,
               ),
             );
           } else {
             dispatch(
               showNotification(
-                `Error removing user ${
-                  selected_users[user]?.username
-                } from shift '${shift.name}'${asAdmin ? " as admin" : ""}`,
+                `Error removing user ${user?.username} from shift '${
+                  shift.name
+                }'${asAdmin ? " as admin" : ""}`,
                 "error",
               ),
             );
@@ -140,23 +144,16 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     });
   }
 
-  function addUserButton(selected_users, asAdmin = false) {
-    const usersToAdd =
-      selected_users.length > 0
-        ? selected_users.filter((user) => !userInShift(user, asAdmin))
-        : [];
-    let tooltipText;
-
-    if (selected_users.length > 0) {
-      tooltipText =
-        usersToAdd.length > 0
-          ? "Adds selected users to shift"
-          : "All the users you selected are already in the shift";
-    } else {
-      tooltipText = `No users selected, select users to add them to the shift`;
-    }
+  function addUserButton(usersToAdd, asAdmin = false) {
+    usersToAdd = usersToAdd.filter((user) => !userInShift(user, asAdmin));
     return (
-      <Tooltip title={tooltipText}>
+      <Tooltip
+        title={
+          usersToAdd.length === 0
+            ? "No users selected, select users not already in the shift to add them"
+            : ""
+        }
+      >
         <span>
           <Button
             sx={{ height: "100%" }}
@@ -182,24 +179,16 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     );
   }
 
-  function removeUserButton(selected_users, asAdmin = false) {
-    const usersToRemove =
-      selected_users.length > 0
-        ? selected_users.filter((user) => userInShift(user, asAdmin))
-        : [];
-    let tooltipText;
-
-    if (selected_users.length > 0) {
-      tooltipText =
-        usersToRemove.length > 0
-          ? "Removes selected users from shift"
-          : "None of the users you selected are in the shift";
-    } else {
-      tooltipText = `No users selected, select users to remove them from the shift`;
-    }
-
+  function removeUserButton(usersToRemove, asAdmin = false) {
+    usersToRemove = usersToRemove.filter((user) => userInShift(user, asAdmin));
     return (
-      <Tooltip title={tooltipText}>
+      <Tooltip
+        title={
+          usersToRemove.length === 0
+            ? "No users selected, select users in the shift to remove them"
+            : ""
+        }
+      >
         <span>
           <Button
             sx={{ height: "100%" }}
