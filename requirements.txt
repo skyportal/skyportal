@@ -12,7 +12,7 @@ pytest-randomly==3.16.0
 factory-boy==3.3.3
 astropy==6.1.4
 distributed>=2024.5.2
-dustmaps==1.0.13
+dustmaps==1.0.14
 reproject==0.14.1
 avro-python3==1.10.2
 fastavro>=1.9.4,<2.0.0
