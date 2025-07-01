@@ -14,13 +14,10 @@ import Button from "../Button";
 import * as shiftActions from "../../ducks/shift";
 
 const useStyles = makeStyles(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
   editIcon: {
-    height: "0.75rem",
+    margin: "0 1rem",
     cursor: "pointer",
+    color: "gray",
   },
 }));
 
@@ -125,7 +122,9 @@ const UpdateShift = ({ shift }) => {
       >
         <DialogTitle>Update Shift Info</DialogTitle>
         <DialogContent>
-          <div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+          >
             <TextField
               data-testid="updateShiftNameTextfield"
               size="small"
@@ -134,10 +133,8 @@ const UpdateShift = ({ shift }) => {
               name="name"
               onChange={handleChange}
               variant="outlined"
+              sx={{ mt: 1 }}
             />
-          </div>
-          <p />
-          <div>
             <TextField
               data-testid="updateShiftDescriptionTextfield"
               size="small"
@@ -147,9 +144,6 @@ const UpdateShift = ({ shift }) => {
               onChange={handleChange}
               variant="outlined"
             />
-          </div>
-          <p />
-          <div>
             <TextField
               data-testid="updateShiftRequiredTextfield"
               size="small"
@@ -160,20 +154,20 @@ const UpdateShift = ({ shift }) => {
               type="number"
               variant="outlined"
             />
-          </div>
-          <div className={classes.saveButton}>
-            <Button
-              secondary
-              onClick={() => {
-                handleSubmit(state);
-              }}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateShiftSubmitButton"
-              disabled={isSubmitting}
-            >
-              Save
-            </Button>
+            <div style={{ textAlign: "center" }}>
+              <Button
+                secondary
+                onClick={() => {
+                  handleSubmit(state);
+                }}
+                endIcon={<SaveIcon />}
+                size="large"
+                data-testid="updateShiftSubmitButton"
+                disabled={isSubmitting}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
