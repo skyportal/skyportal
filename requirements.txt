@@ -87,7 +87,7 @@ shapely==2.0.7
 openai==1.82.1
 tiktoken==0.9.0
 simplejson==3.20.1
-langchain==0.3.25
+langchain==0.3.26
 langchain-openai==0.3.19
 pinecone==7.0.2
 pydantic==2.11.4
