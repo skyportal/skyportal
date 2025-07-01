@@ -202,6 +202,8 @@ app:
       component: shift/ShiftWithId
     - path: "/summary_search"
       component: summary/SummarySearch
+    - path: "/tag_management"
+      component: TagManagement
     - path: "/taxonomies"
       component: taxonomy/TaxonomyPage
     - path: "/tns_robots"
@@ -313,6 +315,11 @@ app:
         - name: Taxonomies
           icon: WallpaperOutlined
           url: /taxonomies
+
+        - name: Tag Management
+          icon: LocalOffer
+          permissions: ["Manage sources", "System admin"]
+          url: /tag_management
 
         - name: Scanning report
           icon: Summarize
