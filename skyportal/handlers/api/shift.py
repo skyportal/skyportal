@@ -438,7 +438,6 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        # if the shift has no admins, we add the user as an admin
         try:
             shift_id = int(shift_id)
         except (ValueError, TypeError):
@@ -451,8 +450,6 @@ class ShiftUserHandler(BaseHandler):
                     options=[joinedload(Shift.shift_users)],
                 ).where(Shift.id == shift_id)
             ).first()
-            if not any(su.admin for su in shift.shift_users):
-                admin = True
 
             user = session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)
