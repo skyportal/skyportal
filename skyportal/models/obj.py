@@ -461,11 +461,11 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
-    tns_submissions = relationship(
-        "TNSRobotSubmission",
+    external_publishing_submissions = relationship(
+        "ExternalPublishingSubmission",
         back_populates="obj",
         passive_deletes=True,
-        doc="TNS auto-submissions associated with this obj.",
+        doc="External publishing auto-submissions associated with this obj.",
     )
 
     def add_linked_thumbnails(self, thumbnails, session=None):
