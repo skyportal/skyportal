@@ -11,6 +11,7 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
 import makeStyles from "@mui/styles/makeStyles";
 import {
   createTheme,
@@ -21,7 +22,6 @@ import {
 import MUIDataTable from "mui-datatables";
 
 import Button from "./Button";
-import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import { showNotification } from "baselayer/components/Notifications";
 import * as objectTagsActions from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
@@ -111,16 +111,13 @@ const TagManagement = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", color: "#dddfe2" });
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", color: "#dddfe2" });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const tagOptions = useSelector((state) => state.objectTags || []);
-  const currentUser = useSelector((state) => state.profile);
-
-  const hasManagePermission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage sources");
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
@@ -133,6 +130,41 @@ const TagManagement = () => {
       color: tag.color || "#dddfe2",
     });
     setEditDialogOpen(true);
+  };
+
+  const handleCreateClick = () => {
+    setCreateForm({ name: "", color: "#dddfe2" });
+    setCreateDialogOpen(true);
+  };
+
+  const handleCreateSave = async () => {
+    if (!createForm.name.trim()) {
+      dispatch(showNotification("Tag name cannot be empty", "error"));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await dispatch(
+        objectTagsActions.createTagOption({
+          name: createForm.name,
+          color: createForm.color,
+        }),
+      );
+
+      if (result.status === "success") {
+        dispatch(showNotification("Tag created successfully"));
+        setCreateDialogOpen(false);
+        setCreateForm({ name: "", color: "#dddfe2" });
+        dispatch(objectTagsActions.fetchTagOptions());
+      } else {
+        dispatch(showNotification("Failed to create tag", "error"));
+      }
+    } catch (error) {
+      dispatch(showNotification("Failed to create tag", "error"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditSave = async () => {
@@ -180,8 +212,7 @@ const TagManagement = () => {
 
       if (result.status === "success") {
         dispatch(showNotification("Tag deleted successfully"));
-        setDeleteDialogOpen(false);
-        setTagToDelete(null);
+        closeDeleteDialog();
         dispatch(objectTagsActions.fetchTagOptions());
       } else {
         dispatch(showNotification("Failed to delete tag", "error"));
@@ -297,6 +328,14 @@ const TagManagement = () => {
     },
   ];
 
+  const customToolbar = () => (
+    <Tooltip title="Create new tag">
+      <IconButton onClick={handleCreateClick} disabled={loading}>
+        <AddIcon />
+      </IconButton>
+    </Tooltip>
+  );
+
   const options = {
     draggableColumns: { enabled: false },
     expandableRows: false,
@@ -305,6 +344,7 @@ const TagManagement = () => {
     download: true,
     responsive: "standard",
     rowsPerPageOptions: [10, 25, 50, 100],
+    customToolbar,
     textLabels: {
       body: {
         noMatch: "No tags found",
@@ -404,12 +444,113 @@ const TagManagement = () => {
         </DialogActions>
       </Dialog>
 
-      <ConfirmDeletionDialog
-        deleteFunction={handleDeleteConfirm}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
-        resourceName={`tag: ${tagToDelete?.name || ""}`}
-      />
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        className={classes.editDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Create new tag</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Tag Name"
+            value={createForm.name}
+            onChange={(e) =>
+              setCreateForm({ ...createForm, name: e.target.value })
+            }
+            fullWidth
+            margin="normal"
+            variant="outlined"
+            disabled={loading}
+            helperText="Only letters and numbers, no spaces or special characters"
+          />
+
+          <div className={classes.colorPicker}>
+            <Typography variant="body2">Color:</Typography>
+            <input
+              type="color"
+              value={createForm.color}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, color: e.target.value })
+              }
+              disabled={loading}
+              style={{
+                width: 40,
+                height: 40,
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            />
+            <Typography variant="body2">{createForm.color}</Typography>
+          </div>
+
+          <div style={{ marginTop: "16px" }}>
+            <Typography variant="subtitle2">Preview:</Typography>
+            <Chip
+              label={createForm.name || "Tag Preview"}
+              style={{
+                backgroundColor: createForm.color,
+                color: getContrastColor(createForm.color),
+                marginTop: 8,
+              }}
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setCreateDialogOpen(false)}
+            color="secondary"
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleCreateSave} color="primary" disabled={loading}>
+            {loading ? "Creating..." : "Create"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={closeDeleteDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete tag: {tagToDelete?.name}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Are you sure you want to delete the tag{" "}
+            <strong>&quot;{tagToDelete?.name}&quot;</strong>?
+          </Typography>
+          <Typography
+            variant="body2"
+            color="error"
+            style={{ marginTop: "12px" }}
+          >
+            <strong>Warning:</strong> Deleting this tag will also remove all tag
+            associations with sources.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={closeDeleteDialog}
+            color="secondary"
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="primary"
+            disabled={loading}
+            style={{ backgroundColor: "#d32f2f", color: "white" }}
+          >
+            {loading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
