@@ -25,11 +25,11 @@ function datestringToDate(shiftList) {
 
 export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
 
-export function addShiftUser({ userID, admin, shiftID }) {
+export function addShiftUser({ userID, shiftID, admin }) {
   return API.POST(`/api/shifts/${shiftID}/users`, ADD_SHIFT_USER, {
     userID,
-    admin,
     shiftID,
+    admin,
   });
 }
 

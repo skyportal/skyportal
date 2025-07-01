@@ -105,7 +105,7 @@ const ShiftPage = ({ route }) => {
       <Grid item md={4} sm={12}>
         <Paper>
           <div className={classes.paperContent}>
-            <div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
               <Button
                 secondary
                 name="add_shift_button"
@@ -118,7 +118,6 @@ const ShiftPage = ({ route }) => {
               <Button
                 secondary
                 name="update_shifts_button"
-                style={{ marginLeft: "0.5rem" }}
                 onClick={() => {
                   setShow("manage recurring shifts");
                 }}
