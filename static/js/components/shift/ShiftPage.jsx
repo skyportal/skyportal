@@ -12,18 +12,13 @@ import MyCalendar from "./ShiftCalendar";
 import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
-
+import ManageRecurringShifts from "./ManageRecurringShifts";
 import { fetchShift, getShiftsSummary } from "../../ducks/shift";
 import * as shiftsActions from "../../ducks/shifts";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "23.5rem",
-    backgroundColor: theme.palette.background.paper,
-  },
   paperContent: {
     padding: theme.spacing(2),
     marginBottom: theme.spacing(2),
@@ -46,12 +41,14 @@ const ShiftPage = ({ route }) => {
   const dispatch = useDispatch();
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shift.currentShift);
-  const [show, setShow] = useState(true);
   const [loadedFromRoute, setLoadedFromRoute] = useState(false);
+
+  // show "new shift", "manage shift" or "manage recurring shifts"
+  const [show, setShow] = useState("new shift");
 
   useEffect(() => {
     dispatch(shiftsActions.fetchShifts());
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (
@@ -68,7 +65,7 @@ const ShiftPage = ({ route }) => {
             shiftID: parseInt(route.id, 10),
           }),
         );
-        setShow(false);
+        setShow("manage shift");
       } else {
         dispatch(showNotification("Shift not found", "warning"));
       }
@@ -89,12 +86,6 @@ const ShiftPage = ({ route }) => {
     }
   }, [route, shiftList]);
 
-  useEffect(() => {
-    if (currentShift?.id) {
-      setShow(false);
-    }
-  }, [currentShift]);
-
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
@@ -114,20 +105,37 @@ const ShiftPage = ({ route }) => {
       <Grid item md={4} sm={12}>
         <Paper>
           <div className={classes.paperContent}>
-            <Button
-              secondary
-              name="add_shift_button"
-              onClick={() => setShow((prev) => !prev)}
-            >
-              {show ? "Hide" : "Create New Shift"}
-            </Button>
-            {show && <NewShift />}
+            <div>
+              <Button
+                secondary
+                name="add_shift_button"
+                onClick={() => {
+                  setShow("new shift");
+                }}
+              >
+                Create New Shift
+              </Button>
+              <Button
+                secondary
+                name="update_shifts_button"
+                style={{ marginLeft: "0.5rem" }}
+                onClick={() => {
+                  setShow("manage recurring shifts");
+                }}
+              >
+                Update recurring shifts
+              </Button>
+            </div>
+            {show === "new shift" && <NewShift />}
+            {show === "manage recurring shifts" && (
+              <ManageRecurringShifts shiftList={shiftList} />
+            )}
           </div>
         </Paper>
-        {shiftList && !show && currentShift?.id && (
+        {show === "manage shift" && shiftList && currentShift?.id && (
           <>
-            <Paper>
-              <ShiftManagement currentShift={currentShift} />
+            <Paper style={{ marginBottom: "1rem", padding: "1rem" }}>
+              <ShiftManagement shiftToManage={currentShift} />
             </Paper>
             <Paper>
               <div className={classes.comments}>

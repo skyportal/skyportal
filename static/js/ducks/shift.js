@@ -23,7 +23,6 @@ const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW";
 const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK";
-const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
 
 const FETCH_SHIFT_SUMMARY = "skyportal/FETCH_SHIFT_SUMMARY";
 
@@ -138,10 +137,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (
-  state = { currentShift: {}, selectedUsers: [], shiftsSummary: [] },
-  action,
-) => {
+const reducer = (state = { currentShift: {}, shiftsSummary: [] }, action) => {
   switch (action.type) {
     case FETCH_SHIFT_OK: {
       const shift = action.data;
@@ -160,13 +156,6 @@ const reducer = (
           attachment,
           attachment_name,
         },
-      };
-    }
-    case CURRENT_SHIFT_SELECTED_USERS: {
-      const selectedUsers = action.data;
-      return {
-        ...state,
-        selectedUsers,
       };
     }
     case FETCH_SHIFT_SUMMARY_OK: {

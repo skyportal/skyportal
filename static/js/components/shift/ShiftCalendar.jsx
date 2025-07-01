@@ -174,13 +174,12 @@ async function handleSelectSlot({ start, end }) {
 
 function setCurrentShift({ event, setShow }) {
   dispatch(shiftActions.fetchShift(event?.id));
-  dispatch({ type: "skyportal/CURRENT_SHIFT_SELECTED_USERS", data: [] });
   dispatch(
     shiftActions.getShiftsSummary({
       shiftID: event.id,
     }),
   );
-  setShow(false);
+  setShow("manage shift");
 }
 
 function MyCalendar({ events, currentShift, setShow }) {
