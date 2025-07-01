@@ -260,14 +260,7 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
               ))}
             </Box>
           )}
-          MenuProps={{
-            PaperProps: {
-              style: {
-                // maxHeight: "25vh",
-                // overflow: "scroll",
-              },
-            },
-          }}
+          MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
         >
           {users.map((user) => (
             <MenuItem id={`select-${usersType}`} key={user.id} value={user}>
