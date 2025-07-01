@@ -303,7 +303,7 @@ const ShiftManagement = ({ shiftToManage }) => {
           <Chip
             key={admin.id}
             label={userLabel(admin, true, true)}
-            data-testid="shift-admin-chip"
+            data-testid={`shift-admin-chip-${admin.user_id}`}
             style={{ margin: "0.1rem" }}
           />
         ))}
@@ -314,7 +314,7 @@ const ShiftManagement = ({ shiftToManage }) => {
           <Chip
             key={member.id}
             label={userLabel(member, true, true)}
-            data-testid={`shift-member-chip-${member.id}`}
+            data-testid={`shift-member-chip-${member.user_id}`}
             style={{ margin: "0.1rem" }}
           />
         ))}
