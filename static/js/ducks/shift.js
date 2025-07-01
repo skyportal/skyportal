@@ -2,6 +2,7 @@ import messageHandler from "baselayer/MessageHandler";
 
 import * as API from "../API";
 import store from "../store";
+import { fetchShifts } from "./shifts";
 
 const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
 const FETCH_SHIFT_OK = "skyportal/FETCH_SHIFT_OK";
@@ -133,6 +134,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     if (shift?.currentShift?.id === payload?.shift_id) {
       dispatch(fetchShift(shift?.currentShift.id));
     }
+    dispatch(fetchShifts());
   }
 });
 
