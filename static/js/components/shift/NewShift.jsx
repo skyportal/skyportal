@@ -10,26 +10,45 @@ import utc from "dayjs/plugin/utc";
 
 import { submitShift } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
+import PropTypes from "prop-types";
 
 dayjs.extend(utc);
 
-const NewShift = () => {
+const format = (date) => date.format("YYYY-MM-DDTHH:mm:ss");
+const fromUtcToLocal = (date) => format(dayjs(`${date}Z`).local());
+const fromLocalToUtc = (date) => format(dayjs(date).utc());
+
+const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.userAccessible);
   const now = dayjs();
-  const defaultStartDate = now.format("YYYY-MM-DDTHH:mm:ss");
-  const defaultEndDate = now.add(1, "day").format("YYYY-MM-DDTHH:mm:ss");
-  const timezoneString = now.format("Z");
   const { users } = useSelector((state) => state.users);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [formData, setFormData] = useState({
     shift_admins: [currentUser.id],
     localTime: "local",
-    start_date: defaultStartDate,
-    end_date: defaultEndDate,
+    start_date: format(now),
+    end_date: format(now.add(1, "day")),
     divider: 6,
   });
+
+  useEffect(() => {
+    if (preSelectedRange) {
+      setFormData((prevData) => ({
+        ...prevData,
+        ...(prevData.localTime === "local"
+          ? {
+              start_date: format(dayjs(preSelectedRange.start_date)),
+              end_date: format(dayjs(preSelectedRange.end_date)),
+            }
+          : {
+              start_date: fromUtcToLocal(preSelectedRange.start_date),
+              end_date: fromUtcToLocal(preSelectedRange.end_date),
+            }),
+      }));
+    }
+  }, [preSelectedRange]);
 
   useEffect(() => {
     setAvailableUsers(
@@ -60,14 +79,8 @@ const NewShift = () => {
 
     // Convert dates to UTC format
     if (formData.localTime === "local") {
-      dataToSubmit.start_date = dayjs(
-        `${dataToSubmit.start_date}${timezoneString}`,
-      )
-        .utc()
-        .format("YYYY-MM-DDTHH:mm:ss");
-      dataToSubmit.end_date = dayjs(`${dataToSubmit.end_date}${timezoneString}`)
-        .utc()
-        .format("YYYY-MM-DDTHH:mm:ss");
+      dataToSubmit.start_date = fromLocalToUtc(dataToSubmit.start_date);
+      dataToSubmit.end_date = fromLocalToUtc(dataToSubmit.end_date);
     }
 
     const startDate = dayjs(dataToSubmit.start_date);
@@ -81,8 +94,8 @@ const NewShift = () => {
           shifts.push({
             ...dataToSubmit,
             name: `${dataToSubmit.name} ${i + 1}/${days + 1}`,
-            start_date: startDate.add(i, "day").format("YYYY-MM-DDTHH:mm:ss"),
-            end_date: startDate.add(i + 1, "day").format("YYYY-MM-DDTHH:mm:ss"),
+            start_date: format(startDate.add(i, "day")),
+            end_date: format(startDate.add(i + 1, "day")),
           });
         }
         break;
@@ -98,8 +111,8 @@ const NewShift = () => {
           shifts.push({
             ...dataToSubmit,
             name: `${dataToSubmit.name} ${i + 1}/${weeks}`,
-            start_date: start.format("YYYY-MM-DDTHH:mm:ss"),
-            end_date: end.format("YYYY-MM-DDTHH:mm:ss"),
+            start_date: format(start),
+            end_date: format(end),
           });
         }
         break;
@@ -126,8 +139,8 @@ const NewShift = () => {
           shifts.push({
             ...dataToSubmit,
             name: `${dataToSubmit.name} ${i + 1}/${segments}`,
-            start_date: start.format("YYYY-MM-DDTHH:mm:ss"),
-            end_date: end.format("YYYY-MM-DDTHH:mm:ss"),
+            start_date: format(start),
+            end_date: format(end),
           });
         }
         break;
@@ -145,6 +158,7 @@ const NewShift = () => {
         dispatch(showNotification("Shift created successfully"));
       }
     }
+    setPreSelectedRange(null);
   };
 
   function validate(_, errors) {
@@ -154,7 +168,7 @@ const NewShift = () => {
       );
     }
     if (formData.localTime === "local") {
-      if (now.format("YYYY-MM-DDTHH:mm:ss") > formData.end_date) {
+      if (format(now) > formData.end_date) {
         errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
@@ -165,7 +179,7 @@ const NewShift = () => {
         );
       }
     } else if (formData.localTime === "UTC") {
-      if (now.utc().format("YYYY-MM-DDTHH:mm:ss") > formData.end_date) {
+      if (format(now.utc()) > formData.end_date) {
         errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
@@ -305,24 +319,14 @@ const NewShift = () => {
 
   const handleChange = (e) => {
     // Manage time conversion
-    if (e.formData.localTime !== formData.localTime) {
-      if (e.formData.localTime === "local") {
-        e.formData.start_date = dayjs(`${e.formData.start_date}Z`)
-          .local()
-          .format("YYYY-MM-DDTHH:mm:ss");
-        e.formData.end_date = dayjs(`${e.formData.end_date}Z`)
-          .local()
-          .format("YYYY-MM-DDTHH:mm:ss");
-      } else {
-        e.formData.start_date = dayjs(e.formData.start_date)
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss");
-        e.formData.end_date = dayjs(e.formData.end_date)
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss");
-      }
+    const { start_date, end_date, localTime } = e.formData;
+    if (formData.localTime === "local" && localTime === "UTC") {
+      e.formData.start_date = fromLocalToUtc(start_date);
+      e.formData.end_date = fromLocalToUtc(end_date);
+    } else if (formData.localTime === "UTC" && localTime === "local") {
+      e.formData.start_date = fromUtcToLocal(start_date);
+      e.formData.end_date = fromUtcToLocal(end_date);
     }
-
     setFormData(e.formData);
   };
 
@@ -339,6 +343,14 @@ const NewShift = () => {
       />
     </div>
   );
+};
+
+NewShift.propTypes = {
+  preSelectedRange: PropTypes.shape({
+    start_date: PropTypes.string,
+    end_date: PropTypes.string,
+  }),
+  setPreSelectedRange: PropTypes.func,
 };
 
 export default NewShift;
