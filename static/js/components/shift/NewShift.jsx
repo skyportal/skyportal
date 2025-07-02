@@ -35,16 +35,13 @@ const NewShift = () => {
     setAvailableUsers(
       users.filter(
         (user) =>
-          user.groups?.some((g) => g.id === formData.group_id) && !user.is_bot,
+          user.id === currentUser.id ||
+          (user.groups?.some((g) => g.id === formData.group_id) &&
+            !user.is_bot),
       ),
     );
+    formData.shift_admins = [currentUser.id];
   }, [users, formData.group_id]);
-
-  useEffect(() => {
-    if (!formData.shift_admins.length || formData.shift_admins[0] === null) {
-      formData.shift_admins = [currentUser.id];
-    }
-  }, [formData.shift_admins, currentUser.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
@@ -252,7 +249,7 @@ const NewShift = () => {
         ],
       },
     },
-    required: ["group_id", "shift_admins", "name"],
+    required: ["group_id", "name"],
     dependencies: {
       divide: {
         oneOf: [
