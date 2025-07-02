@@ -20,7 +20,7 @@ import {
   deleteShiftUser,
   updateShiftUser,
 } from "../../ducks/shifts";
-import { deleteShift } from "../../ducks/shift";
+import { deleteShift } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 
 function repeatedShiftInfos(shift) {
@@ -52,7 +52,6 @@ const ShiftManagement = ({ shiftToManage }) => {
   const dispatch = useDispatch();
 
   const deleteAShift = (shift) => {
-    dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
     dispatch(deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Shift deleted"));
@@ -161,7 +160,7 @@ const ShiftManagement = ({ shiftToManage }) => {
           <Select
             labelId="select-user-replace-label"
             label="Replace user"
-            value={selectedId}
+            value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
             renderValue={(selectedIdValue) => {
               const user = usersToReplace.find((u) => u.id === selectedIdValue);
@@ -363,21 +362,19 @@ ShiftManagement.propTypes = {
     name: PropTypes.string,
     description: PropTypes.string,
     group_id: PropTypes.number,
-    group: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        name: PropTypes.string,
-        has_admin_access: PropTypes.bool,
-        group_users: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            first_name: PropTypes.string,
-            last_name: PropTypes.string,
-            username: PropTypes.string,
-          }),
-        ),
-      }),
-    ),
+    group: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      has_admin_access: PropTypes.bool,
+      group_users: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          first_name: PropTypes.string,
+          last_name: PropTypes.string,
+          username: PropTypes.string,
+        }),
+      ),
+    }),
     start_date: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.instanceOf(Date),
