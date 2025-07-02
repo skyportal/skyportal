@@ -11,7 +11,7 @@ import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 const useStyles = makeStyles(() => ({
   editIcon: {
@@ -92,7 +92,7 @@ const UpdateShift = ({ shift }) => {
       newState.required_users_number = subState.required_users_number;
     }
     const result = await dispatch(
-      shiftActions.updateShift(shift.id, {
+      shiftsActions.updateShift(shift.id, {
         ...newState,
       }),
     );
@@ -129,7 +129,7 @@ const UpdateShift = ({ shift }) => {
               data-testid="updateShiftNameTextfield"
               size="small"
               label="name"
-              value={state.name}
+              value={state.name || ""}
               name="name"
               onChange={handleChange}
               variant="outlined"
@@ -139,7 +139,7 @@ const UpdateShift = ({ shift }) => {
               data-testid="updateShiftDescriptionTextfield"
               size="small"
               label="description"
-              value={state.description}
+              value={state.description || ""}
               name="description"
               onChange={handleChange}
               variant="outlined"
@@ -148,7 +148,7 @@ const UpdateShift = ({ shift }) => {
               data-testid="updateShiftRequiredTextfield"
               size="small"
               label="required_users_number"
-              value={state.required_users_number}
+              value={state.required_users_number || ""}
               name="required_users_number"
               onChange={handleChange}
               type="number"
@@ -177,13 +177,13 @@ const UpdateShift = ({ shift }) => {
 
 UpdateShift.propTypes = {
   shift: PropTypes.shape({
-    id: PropTypes.string,
+    id: PropTypes.number,
     name: PropTypes.string,
     required_users_number: PropTypes.number,
     description: PropTypes.string,
     shift_users: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.string,
+        id: PropTypes.number,
       }),
     ),
   }).isRequired,

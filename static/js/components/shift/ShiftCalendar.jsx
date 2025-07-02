@@ -13,7 +13,7 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import GroupsSelect from "../group/GroupsSelect";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 /* eslint-disable react/prop-types */
 
@@ -129,7 +129,7 @@ async function handleSelectSlot({ start, end }) {
         }
         if (!Number.isNaN(required_users_number)) {
           dispatch(
-            shiftActions.submitShift({
+            shiftsActions.submitShift({
               name,
               description,
               start_date,
@@ -142,7 +142,7 @@ async function handleSelectSlot({ start, end }) {
               dispatch(showNotification("Shift saved"));
               const new_shift_id = result?.data?.id;
               if (new_shift_id) {
-                dispatch(shiftActions.fetchShift(new_shift_id));
+                dispatch(shiftsActions.fetchShift(new_shift_id));
               }
             }
           });
@@ -170,16 +170,6 @@ async function handleSelectSlot({ start, end }) {
       ),
     );
   }
-}
-
-function setCurrentShift({ event, setShow }) {
-  dispatch(shiftActions.fetchShift(event?.id));
-  dispatch(
-    shiftActions.getShiftsSummary({
-      shiftID: event.id,
-    }),
-  );
-  setShow("manage shift");
 }
 
 function MyCalendar({ events, currentShift, setShow }) {
@@ -386,7 +376,15 @@ function MyCalendar({ events, currentShift, setShow }) {
             endAccessor="end_date"
             titleAccessor="name"
             selectable
-            onSelectEvent={(event) => setCurrentShift({ event, setShow })}
+            onSelectEvent={(event) => {
+              dispatch(shiftsActions.setCurrentShift(event.id));
+              dispatch(
+                shiftsActions.getShiftsSummary({
+                  shiftID: event.id,
+                }),
+              );
+              setShow("manage shift");
+            }}
             onSelectSlot={handleSelectSlot}
             eventPropGetter={(event) => shiftStatus(event)}
           />

@@ -13,7 +13,6 @@ import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
 import ManageRecurringShifts from "./ManageRecurringShifts";
-import { fetchShift, getShiftsSummary } from "../../ducks/shift";
 import * as shiftsActions from "../../ducks/shifts";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
@@ -40,7 +39,7 @@ const ShiftPage = ({ route }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const shiftList = useSelector((state) => state.shifts.shiftList);
-  const currentShift = useSelector((state) => state.shift.currentShift);
+  const currentShift = useSelector((state) => state.shifts.currentShift);
   const [loadedFromRoute, setLoadedFromRoute] = useState(false);
 
   // show "new shift", "manage shift" or "manage recurring shifts"
@@ -59,9 +58,9 @@ const ShiftPage = ({ route }) => {
     ) {
       const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
       if (shift) {
-        dispatch(fetchShift(shift?.id));
+        dispatch(shiftsActions.fetchShift(shift?.id));
         dispatch(
-          getShiftsSummary({
+          shiftsActions.getShiftsSummary({
             shiftID: parseInt(route.id, 10),
           }),
         );
@@ -75,13 +74,13 @@ const ShiftPage = ({ route }) => {
       // if the current shift is not in the shift list, then we need to set the currentShift back to null
       const shift = shiftList.find((s) => s.id === currentShift?.id);
       if (!shift) {
+        dispatch(shiftsActions.setCurrentShift(null));
         dispatch(
           showNotification(
             "The shift currently selected has been deleted",
             "warning",
           ),
         );
-        dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
       }
     }
   }, [route, shiftList]);
