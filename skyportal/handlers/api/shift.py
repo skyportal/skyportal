@@ -115,7 +115,7 @@ class ShiftHandler(BaseHandler):
                 action="skyportal/REFRESH_SHIFT",
                 payload={"shift_id": shift.id},
             )
-            return self.success()
+            return self.success(data={"id": shift.id})
 
     @auth_or_token
     def get(self, shift_id=None):
