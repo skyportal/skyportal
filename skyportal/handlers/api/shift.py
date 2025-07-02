@@ -39,8 +39,7 @@ class ShiftHandler(BaseHandler):
                         items:
                           type: integer
                         description: |
-                          List of IDs of users to be shift admins. Current user will
-                          automatically be added as a shift admin.
+                          List of IDs of users to be shift admins.
         responses:
           200:
             content:
@@ -97,11 +96,6 @@ class ShiftHandler(BaseHandler):
             shift_admins = session.scalars(
                 User.select(self.current_user).where(User.id.in_(shift_admin_ids))
             ).all()
-            # get the list of ids from the shift_admins list
-            if self.current_user.id not in [
-                e.id for e in shift_admins
-            ] and not isinstance(self.current_user, Token):
-                shift_admins.append(self.current_user)
             schema = Shift.__schema__()
 
             try:
