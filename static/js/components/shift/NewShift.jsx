@@ -8,15 +8,15 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { fetchShift, submitShift } from "../../ducks/shift";
+import { submitShift } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 
 dayjs.extend(utc);
 
 const NewShift = () => {
+  const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.userAccessible);
-  const dispatch = useDispatch();
   const now = dayjs();
   const defaultStartDate = now.format("YYYY-MM-DDTHH:mm:ss");
   const defaultEndDate = now.add(1, "day").format("YYYY-MM-DDTHH:mm:ss");
@@ -142,11 +142,7 @@ const NewShift = () => {
     for (const shift of shifts) {
       const response = await dispatch(submitShift(shift));
       if (response.status === "success") {
-        dispatch(showNotification("Shift saved"));
-        const new_shift_id = response?.data?.id;
-        if (new_shift_id) {
-          dispatch(fetchShift(new_shift_id));
-        }
+        dispatch(showNotification("Shift created successfully"));
       }
     }
   };
@@ -207,11 +203,13 @@ const NewShift = () => {
         type: "array",
         title: "Shift admins",
         items: {
-          type: "integer",
-          oneOf: availableUsers.map((user) => ({
-            enum: [user.id],
-            title: userLabel(user, true, true),
-          })),
+          oneOf:
+            availableUsers.length === 0
+              ? [{ const: null, title: "No users available" }]
+              : availableUsers.map((user) => ({
+                  const: user.id,
+                  title: userLabel(user, true, true),
+                })),
         },
         default: [currentUser.id],
         uniqueItems: true,
