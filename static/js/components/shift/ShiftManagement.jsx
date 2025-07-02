@@ -273,13 +273,16 @@ const ShiftManagement = ({ shiftToManage }) => {
         </div>
         <div style={{ display: "flex", gap: "0.3rem" }}>
           {!participating ? (
-            <Button id="join_button" onClick={() => joinShift(shiftToManage)}>
+            <Button
+              variant="outlined"
+              id="join_button"
+              onClick={() => joinShift(shiftToManage)}
+            >
               Join
             </Button>
           ) : (
             <Button
               variant="outlined"
-              primary
               id="leave_button"
               onClick={() => leaveShift(shiftToManage)}
             >
