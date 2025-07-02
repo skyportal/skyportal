@@ -8,9 +8,7 @@ import FormControl from "@mui/material/FormControl";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ShiftUsersSelect from "./ShiftUsersSelect";
-import { deleteShift } from "../../ducks/shift";
-
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 const ManageRecurringShifts = ({ shiftList }) => {
   const [recurringShiftToUpdate, setRecurringShiftToUpdate] = useState(null);
@@ -20,14 +18,17 @@ const ManageRecurringShifts = ({ shiftList }) => {
 
   // Load the details of the first shift of the selected recurring group of shifts
   useEffect(() => {
-    if (!shiftIdSelect) return;
-    dispatch(shiftActions.fetchShift(shiftIdSelect)).then((result) => {
-      if (result.status === "success") {
-        setRecurringShiftToUpdate(result.data);
-      } else {
-        dispatch(showNotification("Failed to fetch shift", "error"));
-      }
-    });
+    if (!shiftIdSelect) setRecurringShiftToUpdate(null);
+
+    const selectedShift = shiftList.find((shift) => shift.id === shiftIdSelect);
+    // If the selected shift has not the group property, we fetch the shift details
+    if (selectedShift && !selectedShift.group) {
+      dispatch(shiftsActions.fetchShift(shiftIdSelect));
+    }
+    // If the selected shift has the group property, we set it as the recurring shift to update
+    if (selectedShift?.group) {
+      setRecurringShiftToUpdate(selectedShift);
+    }
   }, [dispatch, shiftIdSelect, shiftList]);
 
   const getBaseName = (shift) => {
@@ -42,7 +43,7 @@ const ManageRecurringShifts = ({ shiftList }) => {
       oneRecurringShift,
       ...shiftList.filter(
         (shift) =>
-          shift.name !== oneRecurringShift.name &&
+          shift.id !== oneRecurringShift.id &&
           shift.name.startsWith(baseName) &&
           /\s\d+\/\d+$/.test(shift.name),
       ),
@@ -63,12 +64,11 @@ const ManageRecurringShifts = ({ shiftList }) => {
       return;
     }
     const shiftsToDelete = getRecurringShifts(oneRecurringShift);
+    setShiftIdSelect(null);
     if (!shiftsToDelete?.length) return;
 
-    dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
-
     shiftsToDelete.forEach((shift) => {
-      dispatch(deleteShift(shift.id)).then((result) => {
+      dispatch(shiftsActions.deleteShift(shift.id)).then((result) => {
         if (result.status === "success") {
           dispatch(showNotification("Shift deleted"));
         }
@@ -93,7 +93,7 @@ const ManageRecurringShifts = ({ shiftList }) => {
         <Select
           labelId="recurring-shift-select-label"
           label="Select the recurring shift to update"
-          value={shiftIdSelect}
+          value={shiftIdSelect || ""}
           onChange={(e) => setShiftIdSelect(e.target.value)}
           style={{ minWidth: "100%" }}
         >
@@ -130,7 +130,10 @@ ManageRecurringShifts.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
-      end_date: PropTypes.string,
+      end_date: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.instanceOf(Date),
+      ]),
     }),
   ).isRequired,
 };
