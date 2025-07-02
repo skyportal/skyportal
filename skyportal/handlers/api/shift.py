@@ -111,8 +111,11 @@ class ShiftHandler(BaseHandler):
             )
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_SHIFTS")
-            return self.success(data={"id": shift.id})
+            self.push_all(
+                action="skyportal/REFRESH_SHIFT",
+                payload={"shift_id": shift.id},
+            )
+            return self.success()
 
     @auth_or_token
     def get(self, shift_id=None):
