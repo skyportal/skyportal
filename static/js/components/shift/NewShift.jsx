@@ -332,15 +332,17 @@ const NewShift = () => {
   };
 
   return (
-    <Form
-      schema={shiftFormSchema}
-      validator={validator}
-      uiSchema={uiSchema}
-      formData={formData}
-      onChange={handleChange}
-      onSubmit={handleSubmit}
-      customValidate={validate}
-    />
+    <div style={{ width: "100%" }}>
+      <Form
+        schema={shiftFormSchema}
+        validator={validator}
+        uiSchema={uiSchema}
+        formData={formData}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+        customValidate={validate}
+      />
+    </div>
   );
 };
 
