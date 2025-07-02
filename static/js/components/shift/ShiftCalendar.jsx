@@ -11,7 +11,6 @@ import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import makeStyles from "@mui/styles/makeStyles";
-import { showNotification } from "baselayer/components/Notifications";
 import GroupsSelect from "../group/GroupsSelect";
 import * as shiftsActions from "../../ducks/shifts";
 
@@ -27,9 +26,6 @@ const useStyles = makeStyles((theme) => ({
   content: {
     padding: theme.spacing(2),
     paddingBottom: "0",
-  },
-  typography: {
-    padding: theme.spacing(2),
   },
   pref: {
     display: "flex",
@@ -95,84 +91,13 @@ const green = "#359d73";
 const grey = "#95a5a6";
 const blue = "#357ec7";
 
-function isDailyShift(shiftName) {
-  const regex = /\d+\/\d+$/;
-  return regex.test(shiftName);
-}
-
-async function handleSelectSlot({ start, end }) {
-  const name = window.prompt("New Shift name");
-  if (name !== "" && name !== null && !isDailyShift(name)) {
-    const description = window.prompt("New Shift description");
-    if (description === "" || description !== null) {
-      const group_ids = groups
-        .map((group) => `   ${group.name}: ${group.id}`)
-        .join("\n");
-      let group_id = await window.prompt(
-        `Choose shift group ID : \n${group_ids}`,
-      );
-      if (group_id === "") {
-        group_id = groups[0].id;
-        dispatch(
-          showNotification(
-            `Shift group not selected, defaulting to: ${groups[0].name}`,
-            "warning",
-          ),
-        );
-      }
-      if (groups.find((group) => group.id === parseInt(group_id, 10))) {
-        const start_date = start.toISOString().replace("Z", "");
-        const end_date = end.toISOString().replace("Z", "");
-        let required_users_number = window.prompt("Number of users");
-        if (required_users_number !== "") {
-          required_users_number = parseInt(required_users_number, 10);
-        }
-        if (!Number.isNaN(required_users_number)) {
-          dispatch(
-            shiftsActions.submitShift({
-              name,
-              description,
-              start_date,
-              end_date,
-              group_id,
-              required_users_number: parseInt(required_users_number, 10),
-            }),
-          ).then((result) => {
-            if (result.status === "success") {
-              dispatch(showNotification("Shift saved"));
-              const new_shift_id = result?.data?.id;
-              if (new_shift_id) {
-                dispatch(shiftsActions.fetchShift(new_shift_id));
-              }
-            }
-          });
-        } else {
-          dispatch(
-            showNotification(
-              "Shift not created. Required users number needs to be a number",
-              "error",
-            ),
-          );
-        }
-      } else {
-        dispatch(
-          showNotification("Shift not created, Incorrect Group ID.", "error"),
-        );
-      }
-    }
-  } else if (name === "") {
-    dispatch(showNotification("Shift not created, no name given", "error"));
-  } else if (isDailyShift(name)) {
-    dispatch(
-      showNotification(
-        'Shift not created, invalid name (dont use "number/number" at end of name)',
-        "error",
-      ),
-    );
-  }
-}
-
-function MyCalendar({ events, currentShift, setShow }) {
+function MyCalendar({
+  events,
+  currentShift,
+  setShow,
+  preSelectedRange,
+  setPreSelectedRange,
+}) {
   const classes = useStyles();
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
@@ -232,6 +157,14 @@ function MyCalendar({ events, currentShift, setShow }) {
   };
 
   const shiftStatus = (event) => {
+    if (event.isPreview) {
+      return {
+        style: {
+          backgroundColor: "rgba(0,0,0,0.3)",
+          border: "dashed gray",
+        },
+      };
+    }
     const currentUserInShift = (event.shift_users_ids || []).includes(
       currentUser.id,
     );
@@ -353,7 +286,7 @@ function MyCalendar({ events, currentShift, setShow }) {
       ) : (
         <div className={classes.content}>
           <Calendar
-            events={events}
+            events={[...events, preSelectedRange]}
             date={defaultDate}
             onNavigate={handleNavigate}
             views={allViews}
@@ -377,6 +310,7 @@ function MyCalendar({ events, currentShift, setShow }) {
             titleAccessor="name"
             selectable
             onSelectEvent={(event) => {
+              if (event.isPreview) return;
               dispatch(shiftsActions.setCurrentShift(event.id));
               dispatch(
                 shiftsActions.getShiftsSummary({
@@ -385,7 +319,18 @@ function MyCalendar({ events, currentShift, setShow }) {
               );
               setShow("manage shift");
             }}
-            onSelectSlot={handleSelectSlot}
+            onSelectSlot={(slotInfo) => {
+              if (slotInfo) {
+                setPreSelectedRange({
+                  id: "__preview__",
+                  start_date: slotInfo.start,
+                  end_date: slotInfo.end,
+                  name: "- Preview -",
+                  isPreview: true,
+                });
+                setShow("new shift");
+              }
+            }}
             eventPropGetter={(event) => shiftStatus(event)}
           />
           <div className={classes.optionsHeader}>
@@ -448,7 +393,7 @@ MyCalendar.propTypes = {
       description: PropTypes.string,
       start_date: PropTypes.instanceOf(Date),
       end_date: PropTypes.instanceOf(Date),
-      reauired_users_number: PropTypes.number,
+      required_users_number: PropTypes.number,
       shift_users: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
@@ -459,5 +404,21 @@ MyCalendar.propTypes = {
       ),
     }).isRequired,
   ).isRequired,
+  currentShift: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    description: PropTypes.string,
+    start_date: PropTypes.instanceOf(Date),
+    end_date: PropTypes.instanceOf(Date),
+    required_users_number: PropTypes.number,
+  }),
+  setShow: PropTypes.func.isRequired,
+  preSelectedRange: PropTypes.shape({
+    id: PropTypes.string,
+    start_date: PropTypes.instanceOf(Date),
+    end_date: PropTypes.instanceOf(Date),
+    isPreview: PropTypes.bool,
+  }).isRequired,
+  setPreSelectedRange: PropTypes.func.isRequired,
 };
 export default MyCalendar;
