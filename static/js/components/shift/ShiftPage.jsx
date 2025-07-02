@@ -40,6 +40,7 @@ const ShiftPage = ({ route }) => {
   const dispatch = useDispatch();
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shifts.currentShift);
+  const [preSelectedRange, setPreSelectedRange] = useState(null);
   const [loadedFromRoute, setLoadedFromRoute] = useState(false);
 
   // show "new shift", "manage shift" or "manage recurring shifts"
@@ -94,6 +95,8 @@ const ShiftPage = ({ route }) => {
               events={shiftList}
               currentShift={currentShift}
               setShow={setShow}
+              preSelectedRange={preSelectedRange}
+              setPreSelectedRange={setPreSelectedRange}
             />
           ) : (
             <CircularProgress />
@@ -124,7 +127,12 @@ const ShiftPage = ({ route }) => {
                 Update recurring shifts
               </Button>
             </div>
-            {show === "new shift" && <NewShift />}
+            {show === "new shift" && (
+              <NewShift
+                preSelectedRange={preSelectedRange}
+                setPreSelectedRange={setPreSelectedRange}
+              />
+            )}
             {show === "manage recurring shifts" && (
               <ManageRecurringShifts shiftList={shiftList} />
             )}
