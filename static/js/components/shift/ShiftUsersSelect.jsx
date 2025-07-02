@@ -47,7 +47,7 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     users.push(currentUser);
 
   function userInShift(userId, asAdmin = false) {
-    return shiftsToManage[0].shift_users.find(
+    return shiftsToManage[0].shift_users.some(
       (shiftUser) =>
         shiftUser.user_id === userId && (!asAdmin || shiftUser.admin),
     );
@@ -56,10 +56,8 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
   const addUsersToShift = (userIdsToAdd, asAdmin = false) => {
     shiftsToManage.forEach((shift) => {
       // If the user is already in the shift, we don't add them, but we update their admin status
-      let userIdsToUpdate = userIdsToAdd.filter(userInShift);
-      let userIdsToCreate = userIdsToAdd.filter(
-        (userId) => !userInShift(userId),
-      );
+      let userIdsToUpdate = userIdsToAdd.filter((uId) => userInShift(uId));
+      let userIdsToCreate = userIdsToAdd.filter((uId) => !userInShift(uId));
 
       if (!asAdmin && shift.required_users_number) {
         const remainingSlots =
@@ -142,9 +140,6 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
     // For 'add', keep users not in the shift; for 'remove', keep users in the shift
     userIdsToManage = userIdsToManage.filter(
       (userId) => userInShift(userId, asAdmin) !== isAdd,
-    );
-    console.log(
-      `userIdsToManage: ${userIdsToManage}, asAdmin: ${asAdmin}, isAdd: ${isAdd}`,
     );
     return (
       <Tooltip
@@ -253,21 +248,21 @@ function ShiftUsersSelect({ shiftsToManage, usersType = "members" }) {
 ShiftUsersSelect.propTypes = {
   shiftsToManage: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
       group: PropTypes.shape({
         group_users: PropTypes.arrayOf(
           PropTypes.shape({
-            id: PropTypes.string.isRequired,
+            id: PropTypes.number.isRequired,
             username: PropTypes.string.isRequired,
             expiration_date: PropTypes.string,
           }),
         ),
       }),
-      group_id: PropTypes.string,
-      required_users_number: PropTypes.number.isRequired,
+      group_id: PropTypes.number,
+      required_users_number: PropTypes.number,
       shift_users: PropTypes.arrayOf(
         PropTypes.shape({
-          user_id: PropTypes.string.isRequired,
+          user_id: PropTypes.number.isRequired,
           admin: PropTypes.bool.isRequired,
         }),
       ).isRequired,
