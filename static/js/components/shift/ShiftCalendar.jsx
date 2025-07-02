@@ -310,7 +310,10 @@ function MyCalendar({
             titleAccessor="name"
             selectable
             onSelectEvent={(event) => {
-              if (event.isPreview) return;
+              if (event.isPreview) {
+                setPreSelectedRange(null);
+                return;
+              }
               dispatch(shiftsActions.setCurrentShift(event.id));
               dispatch(
                 shiftsActions.getShiftsSummary({
