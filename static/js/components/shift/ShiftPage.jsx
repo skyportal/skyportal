@@ -81,19 +81,6 @@ const ShiftPage = ({ route }) => {
       }
       setLoadedFromRoute(true);
     }
-    if (currentShift?.id && shiftList?.length > 0) {
-      // if the current shift is not in the shift list, then we need to set the currentShift back to null
-      const shift = shiftList.find((s) => s.id === currentShift?.id);
-      if (!shift) {
-        dispatch(shiftsActions.setCurrentShift(null));
-        dispatch(
-          showNotification(
-            "The shift currently selected has been deleted",
-            "warning",
-          ),
-        );
-      }
-    }
   }, [route, shiftList]);
 
   const isNewShift = show === "new shift";

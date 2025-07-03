@@ -184,7 +184,6 @@ export const setCurrentShift = (shiftId) => async (dispatch) => {
     });
     return;
   }
-
   const response = await dispatch(fetchShift(shiftId));
   if (response?.status === "success") {
     dispatch({
@@ -209,15 +208,6 @@ const reducer = (
   action,
 ) => {
   switch (action.type) {
-    case DELETE_SHIFT: {
-      if (action.data && action.data.shift_id === state.currentShift?.id) {
-        return {
-          ...state,
-          currentShift: {},
-        };
-      }
-      return state;
-    }
     case SET_CURRENT_SHIFT: {
       return {
         ...state,
@@ -226,33 +216,41 @@ const reducer = (
     }
     case FETCH_SHIFT_OK: {
       if (!action.data) return state;
+      let newState = { ...state };
       const shift = action.data;
-      let updatedShift;
-      if (state.shiftList?.some((s) => s.id === shift.id)) {
-        updatedShift = state.shiftList.map((s) =>
-          s.id === shift.id ? shiftStringDateToDate(action.data) : s,
-        );
-      } else {
-        updatedShift = [
-          ...(state.shiftList || []),
-          shiftStringDateToDate(action.data),
-        ];
+
+      // Update or add the shift in shiftList
+      const formatedShift = shiftStringDateToDate(action.data);
+      newState.shiftList = state.shiftList.some(
+        (s) => s.id === formatedShift.id,
+      )
+        ? state.shiftList.map((s) =>
+            s.id === formatedShift.id ? formatedShift : s,
+          )
+        : [...state.shiftList, formatedShift];
+
+      // Sync currentShift with the fetched shift
+      if (shift.id === state.currentShift?.id) {
+        newState.currentShift = shift;
       }
       return {
-        ...state,
-        // Update the current shift if it matches the fetched shift
-        ...(shift.id === state.currentShift?.id ? { currentShift: shift } : {}),
-        // Update the shift list with the new fetched shift or add this shift if it doesn't exist in the list
-        shiftList: updatedShift,
+        ...newState,
       };
     }
     case FETCH_SHIFTS_OK: {
-      const shiftList = action.data.map((shift) =>
-        shiftStringDateToDate(shift),
-      );
-      return {
+      let newState = {
         ...state,
-        shiftList,
+        shiftList: action.data.map((shift) => shiftStringDateToDate(shift)),
+      };
+      // Sync currentShift with the fetched shifts or reset if missing
+      if (state.currentShift?.id) {
+        const currentShift = newState.shiftList.find(
+          (s) => s.id === state.currentShift.id,
+        );
+        newState.currentShift = currentShift || {};
+      }
+      return {
+        ...newState,
       };
     }
     case GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK: {
