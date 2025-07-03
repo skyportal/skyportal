@@ -209,7 +209,7 @@ const ShiftPage = ({ route }) => {
               <ManageRecurringShifts shiftList={shiftList} />
             )}
             {show === "manage shift" && (
-              <div style={{ marginTop: "1rem" }}>
+              <div style={{ marginTop: "1rem", width: "100%" }}>
                 {shiftList && currentShift?.id ? (
                   <ShiftManagement shiftToManage={currentShift} />
                 ) : (

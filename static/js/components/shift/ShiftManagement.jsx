@@ -55,7 +55,7 @@ function repeatedShiftInfos(shift) {
 
   if (durationInHours === 168) return `Weekly ${repeatedShiftRange}`;
   if (durationInHours === 24) return `Daily ${repeatedShiftRange}`;
-  return `${durationInHours} hours ${repeatedShiftRange}`;
+  return `${durationInHours.toFixed(1)} hours ${repeatedShiftRange}`;
 }
 
 const ShiftManagement = ({ shiftToManage }) => {
