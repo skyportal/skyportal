@@ -188,7 +188,7 @@ export const setCurrentShift = (shiftId) => async (dispatch) => {
   if (response?.status === "success") {
     dispatch({
       type: SET_CURRENT_SHIFT,
-      data: shiftStringDateToDate(response.data),
+      data: response.data,
     });
   }
 };
