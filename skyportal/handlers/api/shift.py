@@ -121,34 +121,64 @@ class ShiftHandler(BaseHandler):
     def get(self, shift_id=None):
         """
         ---
-        summary: Retrieve shifts
-        description: Retrieve shifts
-        tags:
-          - shifts
-        parameters:
-          - in: path
-            name: shift_id
-            required: false
-            schema:
-              type: integer
-          - in: query
-            name: group_id
-            nullable: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfShifts
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          summary: Get a shift
+          description: Retrieve a single shift by its ID.
+          tags:
+            - shifts
+          parameters:
+            - in: path
+              name: shift_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the shift to retrieve
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Shift
+            400:
+              content:
+                application/json:
+                  schema: Error
+
+        multiple:
+          summary: Get all shifts
+          description: Retrieve all shifts, optionally filtered by group ID or date limits
+          tags:
+            - shifts
+          parameters:
+            - in: query
+              name: group_id
+              required: false
+              schema:
+                type: integer
+              description: Filter shifts by group ID
+            - in: query
+              name: start_date_limit
+              required: false
+              schema:
+                type: string
+                format: date-time
+              description: Return shifts that start after or at this datetime
+            - in: query
+              name: end_date_limit
+              required: false
+              schema:
+                type: string
+                format: date-time
+              description: Return shifts that end after or at this datetime
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfShifts
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-
-        group_id = self.get_query_argument("group_id", None)
-
         with self.Session() as session:
             try:
                 if shift_id is not None:
@@ -215,15 +245,38 @@ class ShiftHandler(BaseHandler):
                         },
                     }
                     return self.success(data)
-
                 else:
-                    query = Shift.select(
+                    group_id = self.get_query_argument("group_id", None)
+                    start_date_limit = self.get_query_argument("start_date_limit", None)
+                    end_date_limit = self.get_query_argument("end_date_limit", None)
+
+                    stmt = Shift.select(
                         session.user_or_token,
                     )
                     if group_id is not None:
-                        query = query.where(Shift.group_id == group_id)
+                        stmt = stmt.where(Shift.group_id == group_id)
+                    if start_date_limit is not None:
+                        try:
+                            start_date_limit = arrow.get(
+                                start_date_limit
+                            ).datetime.replace(tzinfo=None)
+                        except ValueError:
+                            return self.error(
+                                "Invalid start_date_limit; unable to parse to datetime"
+                            )
+                        stmt = stmt.where(Shift.start_date >= start_date_limit)
+                    if end_date_limit is not None:
+                        try:
+                            end_date_limit = arrow.get(end_date_limit).datetime.replace(
+                                tzinfo=None
+                            )
+                        except ValueError:
+                            return self.error(
+                                "Invalid end_date_limit; unable to parse to datetime"
+                            )
+                        stmt = stmt.where(Shift.end_date >= end_date_limit)
 
-                    shifts = session.scalars(query).unique().all()
+                    shifts = session.scalars(stmt).unique().all()
                     return self.success(data=shifts)
             except Exception as e:
                 return self.error(f"Failed to get shift(s): {e}")

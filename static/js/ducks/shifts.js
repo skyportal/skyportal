@@ -59,7 +59,8 @@ export function deleteShift(shiftID) {
 export const updateShift = (id, payload) =>
   API.PATCH(`/api/shifts/${id}`, UPDATE_SHIFT, payload);
 
-export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
+export const fetchShifts = (params = {}) =>
+  API.GET("/api/shifts", FETCH_SHIFTS, params);
 
 export function addShiftUser({ userID, shiftID, admin }) {
   return API.POST(`/api/shifts/${shiftID}/users`, ADD_SHIFT_USER, {
