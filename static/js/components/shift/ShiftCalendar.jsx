@@ -13,6 +13,8 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import makeStyles from "@mui/styles/makeStyles";
 import GroupsSelect from "../group/GroupsSelect";
 import * as shiftsActions from "../../ducks/shifts";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 /* eslint-disable react/prop-types */
 
@@ -90,6 +92,7 @@ const orange = "#e46828";
 const green = "#359d73";
 const grey = "#95a5a6";
 const blue = "#357ec7";
+const transparent = "rgba(53,126,199,0.6)";
 
 function MyCalendar({
   events,
@@ -130,13 +133,28 @@ function MyCalendar({
     // find the group in the groups array which id matches the event.group_id
     const group_name =
       groups.find((group) => group.id === event.group_id)?.name || "";
+
+    const match = event.name.match(/^(.*)\s+(\d+\/\d+)$/);
+    const baseName = match ? match[1].trim() : event.name;
+    const counter = match ? match[2] : null;
     return (
-      <div id={`event_${event.id}`}>
-        <span>
-          <strong>{event.name}</strong>
-          <p>{group_name}</p>
-        </span>
-      </div>
+      <Box id={`event_${event.id}`}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: 1 }}>
+          <Typography variant="body1" fontWeight="bold">
+            {baseName}
+          </Typography>
+          {counter !== null && (
+            <Typography variant="body2">{counter}</Typography>
+          )}
+        </Box>
+        <Typography variant="body2" sx={{ mb: 0.2 }}>
+          {group_name}
+        </Typography>
+        <Typography variant="body2">
+          Users: {(event.shift_users_ids || []).length}
+          {event.required_users_number ? `/${event.required_users_number}` : ""}
+        </Typography>
+      </Box>
     );
   }
 
@@ -165,7 +183,8 @@ function MyCalendar({
       currentUser.id,
     );
     const style = {
-      background: blue,
+      background:
+        (event.shift_users_ids || []).length === 0 ? transparent : blue,
     };
     if (event?.end_date < new Date()) {
       style.background = grey;
