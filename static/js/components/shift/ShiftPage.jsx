@@ -47,8 +47,6 @@ const ShiftPage = ({ route }) => {
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shifts.currentShift);
   const [preSelectedRange, setPreSelectedRange] = useState(null);
-  const [loadedFromRoute, setLoadedFromRoute] = useState(false);
-
   // show "new shift", "manage shift" or "manage recurring shifts"
   const [show, setShow] = useState("new shift");
 
@@ -61,27 +59,13 @@ const ShiftPage = ({ route }) => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (
-      route &&
-      shiftList?.length > 0 &&
-      !currentShift?.id &&
-      !loadedFromRoute
-    ) {
-      const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
-      if (shift) {
-        dispatch(shiftsActions.fetchShift(shift?.id));
-        dispatch(
-          shiftsActions.getShiftsSummary({
-            shiftID: parseInt(route.id, 10),
-          }),
-        );
-        setShow("manage shift");
-      } else {
-        dispatch(showNotification("Shift not found", "warning"));
-      }
-      setLoadedFromRoute(true);
+    const shiftId = parseInt(route?.id, 10);
+    if (!isNaN(shiftId)) {
+      dispatch(shiftsActions.setCurrentShift(shiftId));
+      dispatch(shiftsActions.getShiftsSummary({ shiftID: shiftId }));
+      setShow("manage shift");
     }
-  }, [route, shiftList]);
+  }, [route?.id, dispatch]);
 
   const isNewShift = show === "new shift";
   const isRecurring = show === "manage recurring shifts";
