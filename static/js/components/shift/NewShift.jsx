@@ -30,7 +30,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
     localTime: "local",
     start_date: format(now),
     end_date: format(now.add(1, "day")),
-    divider: 6,
+    divider: 8,
   });
 
   useEffect(() => {
@@ -228,7 +228,6 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
                   title: userLabel(user, true, true),
                 })),
         },
-        default: [currentUser.id],
         uniqueItems: true,
       },
       name: {
@@ -249,7 +248,6 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
           { enum: ["local"], title: "Local Time" },
           { enum: ["UTC"], title: "UTC Time" },
         ],
-        default: "local",
         title: "Use local or UTC time?",
       },
       divide: {
@@ -276,7 +274,6 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
               divider: {
                 type: "integer",
                 title: "How many hours per shift?",
-                default: 6,
               },
             },
             required: ["divider"],
