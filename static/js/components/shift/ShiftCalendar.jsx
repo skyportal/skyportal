@@ -93,12 +93,12 @@ const blue = "#357ec7";
 
 function MyCalendar({
   events,
-  currentShift,
   setShow,
   preSelectedRange,
   setPreSelectedRange,
 }) {
   const classes = useStyles();
+  const currentShift = useSelector((state) => state.shifts.currentShift);
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
@@ -140,16 +140,12 @@ function MyCalendar({
     );
   }
 
-  if (currentShift && !defaultDate) {
-    if (currentShift.start_date) {
-      if (typeof currentShift.start_date === "string") {
-        setDefaultDate(new Date(`${currentShift.start_date}Z`));
-      } else {
-        setDefaultDate(new Date(currentShift.start_date.getTime()));
-      }
-    }
-  } else if (!defaultDate) {
-    setDefaultDate(new Date());
+  if (!defaultDate) {
+    setDefaultDate(
+      currentShift?.start_date
+        ? new Date(`${currentShift.start_date}Z`)
+        : new Date(),
+    );
   }
 
   const handleNavigate = (date) => {
@@ -310,6 +306,7 @@ function MyCalendar({
             titleAccessor="name"
             selectable
             onSelectEvent={(event) => {
+              if (event.id === currentShift.id) return;
               if (event.isPreview) {
                 setPreSelectedRange(null);
                 return;
@@ -407,21 +404,13 @@ MyCalendar.propTypes = {
       ),
     }).isRequired,
   ).isRequired,
-  currentShift: PropTypes.shape({
-    id: PropTypes.number,
-    name: PropTypes.string,
-    description: PropTypes.string,
-    start_date: PropTypes.instanceOf(Date),
-    end_date: PropTypes.instanceOf(Date),
-    required_users_number: PropTypes.number,
-  }),
   setShow: PropTypes.func.isRequired,
   preSelectedRange: PropTypes.shape({
     id: PropTypes.string,
     start_date: PropTypes.instanceOf(Date),
     end_date: PropTypes.instanceOf(Date),
     isPreview: PropTypes.bool,
-  }).isRequired,
+  }),
   setPreSelectedRange: PropTypes.func.isRequired,
 };
 export default MyCalendar;
