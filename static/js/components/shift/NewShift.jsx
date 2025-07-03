@@ -59,7 +59,10 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
             !user.is_bot),
       ),
     );
-    formData.shift_admins = [currentUser.id];
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      shift_admins: [currentUser.id],
+    }));
   }, [users, formData.group_id, currentUser.id]);
 
   if (!groups || groups?.length === 0) {
