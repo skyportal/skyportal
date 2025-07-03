@@ -170,7 +170,7 @@ const ShiftPage = ({ route }) => {
             </Button>
             <Button
               secondary
-              name="update_shifts_button"
+              name="manage_recurring_shifts_button"
               onClick={() => {
                 setShow("manage recurring shifts");
               }}
