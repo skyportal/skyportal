@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
@@ -9,14 +9,13 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import makeStyles from "@mui/styles/makeStyles";
 import GroupsSelect from "../group/GroupsSelect";
 import * as shiftsActions from "../../ducks/shifts";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-
-/* eslint-disable react/prop-types */
+import { getLastDayOfMonthTwoMonthsAgo } from "./ShiftPage";
 
 const allViews = Object.keys(Views).map((k) => Views[k]);
 let dispatch;
@@ -44,7 +43,7 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     gap: "10px",
     width: "100%",
-    height: "4rem",
+    height: "4.7rem",
   },
   options: {
     display: "flex",
@@ -95,20 +94,23 @@ const blue = "#357ec7";
 const transparent = "rgba(53,126,199,0.6)";
 
 function MyCalendar({
-  events,
+  shifts,
   setShow,
   preSelectedRange,
   setPreSelectedRange,
 }) {
+  dispatch = useDispatch();
   const classes = useStyles();
   const currentShift = useSelector((state) => state.shifts.currentShift);
   currentUser = useSelector((state) => state.profile);
-  dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
-  const [defaultDate, setDefaultDate] = React.useState();
-  const [showAllShifts, setShowAllShifts] = React.useState(false);
-  const [sortByGroups, setSortByGroups] = React.useState(false);
-  const [selectedGroups, setSelectedGroups] = React.useState([]);
+  const [defaultDate, setDefaultDate] = useState();
+  const [showAllShifts, setShowAllShifts] = useState(false);
+  const [sortByGroups, setSortByGroups] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [endDateLimit, setEndDateLimit] = useState(
+    getLastDayOfMonthTwoMonthsAgo(new Date()),
+  );
 
   useEffect(() => {
     if (groups[0]) {
@@ -117,23 +119,22 @@ function MyCalendar({
   }, [groups]);
 
   if (!showAllShifts) {
-    events = events.filter((event) =>
+    shifts = shifts.filter((event) =>
       (event.shift_users_ids || []).includes(currentUser.id),
     );
   }
   if (sortByGroups) {
-    events = events.filter(
+    shifts = shifts.filter(
       (event) =>
         selectedGroups.filter((group) => group.id === event.group_id)?.length >
         0,
     );
   }
 
-  function Event({ event }) {
+  const eventBlock = ({ event }) => {
     // find the group in the groups array which id matches the event.group_id
     const group_name =
       groups.find((group) => group.id === event.group_id)?.name || "";
-
     const match = event.name.match(/^(.*)\s+(\d+\/\d+)$/);
     const baseName = match ? match[1].trim() : event.name;
     const counter = match ? match[2] : null;
@@ -160,7 +161,7 @@ function MyCalendar({
         </Typography>
       </Box>
     );
-  }
+  };
 
   if (!defaultDate) {
     setDefaultDate(
@@ -171,6 +172,16 @@ function MyCalendar({
   }
 
   const handleNavigate = (date) => {
+    const lastDayOfMonthTwoMonthsAgo = getLastDayOfMonthTwoMonthsAgo(date);
+    // If the user navigates to the past, we fetch the shifts accordingly
+    if (lastDayOfMonthTwoMonthsAgo < endDateLimit) {
+      setEndDateLimit(lastDayOfMonthTwoMonthsAgo);
+      dispatch(
+        shiftsActions.fetchShifts({
+          end_date_limit: lastDayOfMonthTwoMonthsAgo.toISOString(),
+        }),
+      );
+    }
     setDefaultDate(moment(date).toDate());
   };
 
@@ -252,6 +263,10 @@ function MyCalendar({
         <p> Shift that did not happen yet, or is happening right now</p>
       </div>
       <div className={classes.legend}>
+        <div style={{ background: transparent }} className={classes.circle} />
+        <p>Shift with no users assigned</p>
+      </div>
+      <div className={classes.legend}>
         <div style={{ background: red }} className={classes.circle} />
         <p>
           {" "}
@@ -300,12 +315,12 @@ function MyCalendar({
 
   return (
     <div>
-      {!events ? (
+      {!shifts ? (
         <CircularProgress />
       ) : (
         <div className={classes.content}>
           <Calendar
-            events={[...events, preSelectedRange]}
+            events={[...shifts, preSelectedRange]}
             date={defaultDate}
             onNavigate={handleNavigate}
             views={allViews}
@@ -315,7 +330,7 @@ function MyCalendar({
             localizer={localizer}
             style={{ height: "77vh", width: "100%" }}
             components={{
-              event: Event,
+              event: eventBlock,
             }}
             formats={{
               timeGutterFormat: (date) => {
@@ -363,7 +378,7 @@ function MyCalendar({
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={showAllShifts === true}
+                        checked={showAllShifts}
                         name="show_all_shifts"
                         onChange={() => {
                           handleChangeShowAllShifts();
@@ -380,7 +395,7 @@ function MyCalendar({
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={sortByGroups === true}
+                        checked={sortByGroups}
                         name="sort_by_groups"
                         onChange={() => {
                           handleChangeSortByGroups();
@@ -409,7 +424,7 @@ function MyCalendar({
 }
 
 MyCalendar.propTypes = {
-  events: PropTypes.arrayOf(
+  shifts: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
