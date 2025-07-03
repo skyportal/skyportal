@@ -90,9 +90,10 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     driver.wait_for_xpath(f'//*[text()="{reminder_text}"]', timeout=10)
     search_bar.clear()
 
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(f'//button[@name="new_reminder_{resource_id}"]')
+    new_reminder_button = driver.wait_for_xpath(
+        f'//button[@name="new_reminder_{resource_id}"]'
     )
+    driver.scroll_to_element_and_click(new_reminder_button)
 
     # timeout to let the form load with default values
     time.sleep(2)
@@ -141,11 +142,12 @@ def test_reminder_on_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{shift_id}")
-    # check that the shift has been created and is visible in the calendar
+    # check that the shift has been created and is visible in the calendar and click on it
     driver.wait_for_xpath(
-        f'//*/p[contains(.,"{shift_name}")]',
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..',
         timeout=30,
-    )
+    ).click()
+
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
     driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
