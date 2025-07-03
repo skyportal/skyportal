@@ -17,7 +17,6 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
-import Tooltip from "@mui/material/Tooltip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -34,13 +33,14 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   stamp: () => ({
     transition: "transform 0.1s",
-    width: "110px",
-    height: "auto",
+    width: "6.6em",
+    height: "6.6em",
     display: "block",
     "&:hover": {
       color: "rgba(255, 255, 255, 1)",
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
+    borderRadius: "4px",
   }),
   inverted: ({ invertThumbnails }) => ({
     filter: invertThumbnails ? "invert(1)" : "unset",
@@ -59,24 +59,14 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   sourceItem: {
     display: "flex",
-    flexFlow: "row nowrap",
-    alignItems: "center",
-    padding: "2px",
-    height: "120px",
+    padding: "0.4rem",
+    height: "100%",
   },
-  sourceInfo: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    margin: "10px",
-    marginRight: 0,
-    width: "100%",
-  },
-  sourceNameContainer: {
+  sourceInfoContainer: {
     display: "flex",
     flexDirection: "column",
-    minWidth: "280px",
-    width: "85%",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
   sourceName: {
     fontSize: "1rem",
@@ -89,8 +79,35 @@ export const useSourceListStyles = makeStyles((theme) => ({
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
+  sourceContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    marginLeft: "8px",
+    minHeight: "100%",
+    alignItems: "flex-start",
+  },
+  sourceHeaderContainer: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  sourceChipContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    marginTop: "auto",
+    width: "100%",
+  },
+  sourceSavedSince: {
+    display: "flex",
+    justifyContent: "flex-end",
+    flexDirection: "column",
+    marginRight: "0.5rem",
+  },
   classification: {
-    fontSize: "0.95rem",
+    fontSize: "0.90rem",
     color:
       theme.palette.mode === "dark"
         ? theme.palette.secondary.main
@@ -98,7 +115,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     fontWeight: "bold",
     fontStyle: "italic",
     marginLeft: "-0.09rem",
-    marginTop: "-0.4rem",
+    marginTop: "-0.3rem",
   },
   sourceCoordinates: {
     marginTop: "0.1rem",
@@ -108,27 +125,16 @@ export const useSourceListStyles = makeStyles((theme) => ({
       marginTop: "-0.2rem",
     },
   },
-  link: {
-    color: theme.palette.warning.main,
-  },
-  bottomContainer: {
-    display: "flex",
-    flexDirection: "column",
-    width: "15%",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    minWidth: "110px",
-  },
   sourceItemWithButton: {
     display: "flex",
     flexFlow: "column nowrap",
     justifyContent: "center",
-    // marginBottom: "1rem",
     transition: "all 0.3s ease",
     "&:hover": {
       backgroundColor:
         theme.palette.mode === "light" ? theme.palette.secondary.light : null,
     },
+    marginBottom: "0.4rem",
   },
   root: {
     "& .MuiOutlinedInput-root": {
@@ -165,7 +171,6 @@ export const useSourceListStyles = makeStyles((theme) => ({
     display: "flex",
     flexWrap: "wrap",
     gap: "0.25rem",
-    marginTop: "0.25rem",
     justifyContent: "flex-start",
     width: "100%",
   },
@@ -186,7 +191,6 @@ const defaultPrefs = {
   groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
-  displayTags: true,
 };
 
 function containsSpecialCharacters(str) {
@@ -288,7 +292,6 @@ const RecentSourcesList = ({
   styles,
   search = false,
   displayTNS = true,
-  displayTags = true,
 }) => {
   const [thumbnailIdxs, setThumbnailIdxs] = useState({});
 
@@ -320,10 +323,16 @@ const RecentSourcesList = ({
           const recentSourceName = `${source.obj_id}`;
           let classification = null;
           if (source.classifications.length > 0) {
-            // Display the most recent non-zero probability class
-            const filteredClasses = source.classifications?.filter(
-              (i) => i.probability > 0,
+            // Display the most recent non-zero probability class, and that isn't a ml classifier
+            // if there are no results, then consider ML classifications too
+            let filteredClasses = source.classifications?.filter(
+              (i) => i.probability > 0 && i.ml === false,
             );
+            if (filteredClasses.length === 0) {
+              filteredClasses = source.classifications?.filter(
+                (i) => i.probability > 0,
+              );
+            }
             const sortedClasses = filteredClasses.sort((a, b) =>
               a.modified < b.modified ? 1 : -1,
             );
@@ -339,7 +348,9 @@ const RecentSourcesList = ({
             : `${styles.stamp}`;
           return (
             <li key={`recentSources_${source.obj_id}_${source.created_at}`}>
-              <div
+              <Paper
+                variant="outlined"
+                square={false}
                 data-testid={`recentSourceItem_${source.obj_id}_${source.created_at}`}
                 className={styles.sourceItemWithButton}
               >
@@ -372,50 +383,70 @@ const RecentSourcesList = ({
                       }}
                     />
                   </Link>
-                  <div className={styles.sourceInfo}>
-                    <div className={styles.sourceNameContainer}>
-                      <Link
-                        to={`/source/${source.obj_id}`}
-                        className={styles.sourceName}
-                      >
-                        <span className={styles.sourceNameLink}>
-                          {recentSourceName}
-                        </span>
-                      </Link>
-                      {classification && (
-                        <span className={styles.classification}>
-                          {classification}
-                        </span>
-                      )}
-                      <div className={styles.sourceCoordinates}>
-                        <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                  <div className={styles.sourceContainer}>
+                    <div className={styles.sourceHeaderContainer}>
+                      <div className={styles.sourceInfoContainer}>
+                        <Link
+                          to={`/source/${source.obj_id}`}
+                          className={styles.sourceName}
                         >
-                          {`\u03B1: ${ra_to_hours(source.ra)}`}
+                          <span className={styles.sourceNameLink}>
+                            {recentSourceName}
+                          </span>
+                        </Link>
+                        {classification && (
+                          <span className={styles.classification}>
+                            {classification}
+                          </span>
+                        )}
+                        <div className={styles.sourceCoordinates}>
+                          <span
+                            style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                          >
+                            {`\u03B1: ${ra_to_hours(source.ra)}`}
+                          </span>
+                          <span
+                            style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                          >
+                            {`\u03B4: ${dec_to_dms(source.dec)}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={styles.sourceSavedSince}>
+                        <span
+                          style={{
+                            textAlign: "right",
+                            fontSize: "0.95rem",
+                            fontStyle: "italic",
+                            padding: 0,
+                            margin: 0,
+                          }}
+                        >
+                          {`${dayjs().to(dayjs.utc(`${source.created_at}Z`))}`
+                            .replace("ago", "")
+                            .replace("minutes", "min")
+                            .replace("minute", "min")
+                            .replace("a few", "few")}
                         </span>
                         <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                          style={{
+                            textAlign: "right",
+                            fontSize: "0.95rem",
+                            fontStyle: "italic",
+                            padding: 0,
+                            margin: 0,
+                            marginTop: "-0.3rem",
+                          }}
                         >
-                          {`\u03B4: ${dec_to_dms(source.dec)}`}
+                          {` ago`}
                         </span>
                       </div>
-                      <DynamicTagDisplay
-                        source={source}
-                        styles={styles}
-                        displayTags={displayTags}
-                      />
-                      {source.resaved && <span>(Source was re-saved)</span>}
                     </div>
-                    <div className={styles.bottomContainer}>
-                      <span style={{ textAlign: "right" }}>
-                        {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
-                      </span>
+                    <div className={styles.sourceChipContainer}>
                       {displayTNS && source?.tns_name?.length > 0 && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-end",
+                            marginTop: source?.tags?.length > 0 ? "-3rem" : "0",
                           }}
                         >
                           <Chip
@@ -442,10 +473,13 @@ const RecentSourcesList = ({
                           />
                         </div>
                       )}
+                      <div style={{ width: "100%" }}>
+                        <DynamicTagDisplay source={source} styles={styles} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Paper>
             </li>
           );
         })}
@@ -482,26 +516,17 @@ RecentSourcesList.propTypes = {
           created_at: PropTypes.string,
         }),
       ),
-      tags: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number.isRequired,
-          name: PropTypes.string.isRequired,
-          objtagoption_id: PropTypes.number,
-        }),
-      ),
     }),
   ),
   styles: PropTypes.shape(Object).isRequired,
   search: PropTypes.bool,
   displayTNS: PropTypes.bool,
-  displayTags: PropTypes.bool,
 };
 
 RecentSourcesList.defaultProps = {
   sources: undefined,
   search: false,
   displayTNS: true,
-  displayTags: true,
 };
 
 const RecentSources = ({ classes }) => {
@@ -529,10 +554,7 @@ const RecentSources = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
-              initialValues={{
-                ...recentSourcesPrefs,
-                displayTags: recentSourcesPrefs.displayTags,
-              }}
+              initialValues={recentSourcesPrefs}
               stateBranchName="recentSources"
               title="Recent Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}
@@ -543,7 +565,6 @@ const RecentSources = ({ classes }) => {
           sources={recentSources}
           styles={styles}
           displayTNS={recentSourcesPrefs?.displayTNS !== false}
-          displayTags={recentSourcesPrefs?.displayTags !== false}
         />
       </div>
     </Paper>
