@@ -135,6 +135,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
         theme.palette.mode === "light" ? theme.palette.secondary.light : null,
     },
     marginBottom: "0.4rem",
+    borderRadius: "8px",
   },
   root: {
     "& .MuiOutlinedInput-root": {
