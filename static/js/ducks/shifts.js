@@ -242,12 +242,12 @@ const reducer = (
         ...state,
         shiftList: action.data.map((shift) => shiftStringDateToDate(shift)),
       };
-      // Sync currentShift with the fetched shifts or reset if missing
-      if (state.currentShift?.id) {
-        const currentShift = newState.shiftList.find(
-          (s) => s.id === state.currentShift.id,
-        );
-        newState.currentShift = currentShift || {};
+      // reset currentShift if it is not in the new shiftList
+      if (
+        state.currentShift?.id &&
+        !newState.shiftList.some((s) => s.id === state.currentShift.id)
+      ) {
+        newState.currentShift = {};
       }
       return {
         ...newState,
