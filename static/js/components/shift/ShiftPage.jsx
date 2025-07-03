@@ -38,6 +38,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+export const getLastDayOfMonthTwoMonthsAgo = (date) =>
+  new Date(date.getFullYear(), date.getMonth() - 2 + 1, 0);
+
 const ShiftPage = ({ route }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -50,7 +53,11 @@ const ShiftPage = ({ route }) => {
   const [show, setShow] = useState("new shift");
 
   useEffect(() => {
-    dispatch(shiftsActions.fetchShifts());
+    dispatch(
+      shiftsActions.fetchShifts({
+        end_date_limit: getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
+      }),
+    );
   }, [dispatch]);
 
   useEffect(() => {
@@ -98,7 +105,7 @@ const ShiftPage = ({ route }) => {
         <Paper elevation={1}>
           {shiftList ? (
             <MyCalendar
-              events={shiftList}
+              shifts={shiftList}
               setShow={setShow}
               preSelectedRange={preSelectedRange}
               setPreSelectedRange={setPreSelectedRange}
