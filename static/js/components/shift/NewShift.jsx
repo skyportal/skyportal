@@ -350,8 +350,14 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
 
 NewShift.propTypes = {
   preSelectedRange: PropTypes.shape({
-    start_date: PropTypes.string,
-    end_date: PropTypes.string,
+    start_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
+    end_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
   }),
   setPreSelectedRange: PropTypes.func,
 };
