@@ -140,7 +140,11 @@ function MyCalendar({
     return (
       <Box id={`event_${event.id}`}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: 1 }}>
-          <Typography variant="body1" fontWeight="bold">
+          <Typography
+            variant="body1"
+            fontWeight="bold"
+            data-testid="event_shift_name"
+          >
             {baseName}
           </Typography>
           {counter !== null && (

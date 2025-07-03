@@ -43,7 +43,7 @@ def test_shift(
 
     # check for API shift
     driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{name}")]',
+        f'//*/p[contains(.,"{name}")]',
         timeout=30,
     )
 
@@ -86,7 +86,8 @@ def test_shift(
 
     # check for shift in calendar and click it
     driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{form_name}")]/../../../../*', timeout=30
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{form_name}")]/..',
+        timeout=30,
     ).click()
 
     # add a comment to the shift
@@ -213,7 +214,9 @@ def test_shift(
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(1)
 
-    shift_on_calendar = f'//*/strong[contains(.,"{name}")]/../../../../*'
+    shift_on_calendar = (
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{name}")]/..'
+    )
     element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
     element.click()
 
