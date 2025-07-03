@@ -33,8 +33,9 @@ const formatUTC = (date) =>
   });
 
 function repeatedShiftInfos(shift) {
-  const start = new Date(shift.start_date);
-  const end = new Date(shift.end_date);
+  // Add Z to the date to ensure it is treated as UTC
+  const start = new Date(`${shift.start_date}Z`);
+  const end = new Date(`${shift.end_date}Z`);
 
   const match = shift.name?.match(/(\d+)\/(\d+)/);
   if (!match) return null;
@@ -208,6 +209,7 @@ const ShiftManagement = ({ shiftToManage }) => {
             <Button
               sx={{ width: "100%", height: "100%" }}
               primary
+              variant="outlined"
               disabled={!selectedId}
               onClick={() => {
                 replaceUserInShift(selectedId);
@@ -339,10 +341,10 @@ const ShiftManagement = ({ shiftToManage }) => {
         </div>
       )}
       <div>
-        <b>Start:</b> {formatUTC(new Date(shiftToManage.start_date))}
+        <b>Start:</b> {formatUTC(new Date(`${shiftToManage.start_date}Z`))}
       </div>
       <div>
-        <b>End:</b> {formatUTC(new Date(shiftToManage.end_date))}
+        <b>End:</b> {formatUTC(new Date(`${shiftToManage.end_date}Z`))}
       </div>
       {repeatedShiftDuration && (
         <div>
