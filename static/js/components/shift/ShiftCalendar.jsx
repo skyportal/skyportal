@@ -113,6 +113,12 @@ function MyCalendar({
   );
 
   useEffect(() => {
+    if (!defaultDate && currentShift?.start_date) {
+      setDefaultDate(new Date(`${currentShift.start_date}Z`));
+    }
+  }, [currentShift]);
+
+  useEffect(() => {
     if (groups[0]) {
       setSelectedGroups([groups[0]]);
     }
@@ -171,14 +177,6 @@ function MyCalendar({
       </Box>
     );
   };
-
-  if (!defaultDate) {
-    setDefaultDate(
-      currentShift?.start_date
-        ? new Date(`${currentShift.start_date}Z`)
-        : new Date(),
-    );
-  }
 
   const handleNavigate = (date) => {
     const lastDayOfMonthTwoMonthsAgo = getLastDayOfMonthTwoMonthsAgo(date);
@@ -330,7 +328,7 @@ function MyCalendar({
         <div className={classes.content}>
           <Calendar
             events={[...shifts, preSelectedRange]}
-            date={defaultDate}
+            date={defaultDate || new Date()}
             onNavigate={handleNavigate}
             views={allViews}
             step={60}
