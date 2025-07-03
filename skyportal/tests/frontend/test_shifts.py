@@ -41,7 +41,7 @@ def test_shift(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{data['data']['id']}")
 
-    # check for API shift
+    # check that the shift has been created and is visible in the calendar
     driver.wait_for_xpath(
         f'//*/p[contains(.,"{name}")]',
         timeout=30,

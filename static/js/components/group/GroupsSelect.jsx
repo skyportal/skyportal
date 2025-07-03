@@ -51,7 +51,8 @@ const GroupsSelect = (props) => {
           <FormControl className={classes.groupsMenu}>
             <InputLabel id="groups-input-label">Groups</InputLabel>
             <Select
-              labelId="groups-select-label"
+              labelId="groups-input-label"
+              label="Groups"
               id="groups-select"
               multiple
               value={selectedGroups}

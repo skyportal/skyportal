@@ -141,8 +141,9 @@ def test_reminder_on_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{shift_id}")
+    # check that the shift has been created and is visible in the calendar
     driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{shift_name}")]',
+        f'//*/p[contains(.,"{shift_name}")]',
         timeout=30,
     )
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
