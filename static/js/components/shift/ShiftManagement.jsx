@@ -22,6 +22,15 @@ import {
 } from "../../ducks/shifts";
 import { deleteShift } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
+import Typography from "@mui/material/Typography";
+
+const formatUTC = (date) =>
+  date.toLocaleString("en-US", {
+    timeZone: "UTC",
+    dateStyle: "short",
+    timeStyle: "short",
+    hour12: false,
+  });
 
 function repeatedShiftInfos(shift) {
   const start = new Date(shift.start_date);
@@ -30,17 +39,18 @@ function repeatedShiftInfos(shift) {
   const match = shift.name?.match(/(\d+)\/(\d+)/);
   if (!match) return null;
 
-  const durationInHours = (end - start) / (60 * 60 * 1000);
+  const oneHour = 60 * 60 * 1000; // milliseconds in an hour
+  const durationInHours = (end - start) / oneHour;
 
   const shiftIndex = parseInt(match[1], 10);
   const totalRepetitions = parseInt(match[2], 10);
   // Move start date back to the first shift based on this shift's index in the series
-  start.setHours(start.getHours() - (shiftIndex - 1) * durationInHours);
+  start.setTime(start.getTime() - (shiftIndex - 1) * durationInHours * oneHour);
   // Move end date forward to the last shift based on the total number of repetitions
-  end.setHours(
-    start.getHours() + (totalRepetitions - shiftIndex) * durationInHours,
-  );
-  const repeatedShiftRange = `shifts from ${start.toLocaleDateString()} to ${end.toLocaleDateString()} (UTC)`;
+  end.setTime(start.getTime() + totalRepetitions * durationInHours * oneHour);
+  const repeatedShiftRange = `shifts from ${formatUTC(start)} to ${formatUTC(
+    end,
+  )}`;
 
   if (durationInHours === 168) return `Weekly ${repeatedShiftRange}`;
   if (durationInHours === 24) return `Daily ${repeatedShiftRange}`;
@@ -329,10 +339,10 @@ const ShiftManagement = ({ shiftToManage }) => {
         </div>
       )}
       <div>
-        <b>Start:</b> {new Date(shiftToManage.start_date).toLocaleString()}
+        <b>Start:</b> {formatUTC(new Date(shiftToManage.start_date))}
       </div>
       <div>
-        <b>End:</b> {new Date(shiftToManage.end_date).toLocaleString()}
+        <b>End:</b> {formatUTC(new Date(shiftToManage.end_date))}
       </div>
       {repeatedShiftDuration && (
         <div>
@@ -352,6 +362,18 @@ const ShiftManagement = ({ shiftToManage }) => {
         </>
       )}
       <ReplaceUserMenu />
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{
+          fontSize: "0.75rem",
+          mt: 0.5,
+          fontStyle: "italic",
+          textAlign: "right",
+        }}
+      >
+        Dates are shown in UTC
+      </Typography>
     </div>
   );
 };
