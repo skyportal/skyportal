@@ -174,13 +174,15 @@ const ShiftManagement = ({ shiftToManage }) => {
             value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
             renderValue={(selectedIdValue) => {
-              const user = usersToReplace.find((u) => u.id === selectedIdValue);
+              const shiftUser = usersToReplace.find(
+                (u) => u.id === selectedIdValue,
+              );
               return (
                 <Box>
                   {selectedIdValue && (
                     <Chip
                       id={selectedIdValue.id}
-                      label={userLabel(user, true, true)}
+                      label={userLabel(shiftUser, true)}
                     />
                   )}
                 </Box>
