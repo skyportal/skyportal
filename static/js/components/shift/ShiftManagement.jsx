@@ -275,15 +275,10 @@ const ShiftManagement = ({ shiftToManage }) => {
           marginBottom: "1rem",
         }}
       >
-        <div>
-          <h2 style={{ margin: "0" }}>
-            {`${shiftToManage.name}${
-              shiftToManage.description ? `: ${shiftToManage.description}` : ""
-            }`}
-            {isAdmin && <UpdateShift shift={shiftToManage} />}
-          </h2>
-          <h3 style={{ margin: "0" }}>Group: {shiftToManage.group?.name}</h3>
-        </div>
+        <h2 style={{ margin: "0" }}>
+          {shiftToManage.name}
+          {isAdmin && <UpdateShift shift={shiftToManage} />}
+        </h2>
         <div style={{ display: "flex", gap: "0.3rem" }}>
           {!participating ? (
             <Button
@@ -312,6 +307,20 @@ const ShiftManagement = ({ shiftToManage }) => {
             </Button>
           )}
         </div>
+      </div>
+      {shiftToManage.description && (
+        <div>
+          <b>Description: </b>
+          {shiftToManage.description}
+        </div>
+      )}
+      <div>
+        <b>Group: </b>
+        <Chip
+          label={shiftToManage.group?.name}
+          color="primary"
+          variant="outlined"
+        />
       </div>
       <div>
         <b>Admins: </b>
