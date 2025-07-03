@@ -316,7 +316,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
 };
 
 ModifyAllocation.propTypes = {
-  allocation_id: PropTypes.number.isRequired,
+  allocation_id: PropTypes.number,
   onClose: PropTypes.func,
 };
 
