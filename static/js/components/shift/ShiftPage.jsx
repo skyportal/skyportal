@@ -14,6 +14,9 @@ import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
 import ManageRecurringShifts from "./ManageRecurringShifts";
 import * as shiftsActions from "../../ducks/shifts";
+import Box from "@mui/material/Box";
+import AddIcon from "@mui/icons-material/Add";
+import Typography from "@mui/material/Typography";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -86,6 +89,9 @@ const ShiftPage = ({ route }) => {
     }
   }, [route, shiftList]);
 
+  const isNewShift = show === "new shift";
+  const isRecurring = show === "manage recurring shifts";
+  const isManageShift = show === "manage shift";
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
@@ -93,7 +99,6 @@ const ShiftPage = ({ route }) => {
           {shiftList ? (
             <MyCalendar
               events={shiftList}
-              currentShift={currentShift}
               setShow={setShow}
               preSelectedRange={preSelectedRange}
               setPreSelectedRange={setPreSelectedRange}
@@ -106,27 +111,94 @@ const ShiftPage = ({ route }) => {
 
       <Grid item md={4} sm={12}>
         <Paper>
+          <Box display="flex" width="100%">
+            <Button
+              secondary
+              name="add_shift_button"
+              onClick={() => {
+                setShow("new shift");
+              }}
+              sx={{
+                color: "text.secondary",
+                flex: "0 0 50px",
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+                borderBottomLeftRadius: 0,
+                transition: "background-color 0.3s ease",
+                "&:hover": {
+                  boxShadow: isNewShift
+                    ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
+                    : "none",
+                  backgroundColor: isNewShift ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isNewShift && {
+                  boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  zIndex: 3,
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
+            >
+              <AddIcon />
+            </Button>
+            <Button
+              secondary
+              name="manage_shift_button"
+              onClick={() => {
+                setShow("manage shift");
+              }}
+              sx={{
+                flex: 2,
+                borderRadius: 0,
+                textTransform: "none",
+                transition: "background-color 0.3s ease",
+                boxShadow:
+                  "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                zIndex: 2,
+                "&:hover": {
+                  boxShadow:
+                    "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  backgroundColor: isManageShift ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isManageShift && {
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
+            >
+              Manage Shift
+            </Button>
+            <Button
+              secondary
+              name="update_shifts_button"
+              onClick={() => {
+                setShow("manage recurring shifts");
+              }}
+              sx={{
+                flex: 3,
+                borderTopLeftRadius: 0,
+                borderBottomRightRadius: 0,
+                borderBottomLeftRadius: 0,
+                textTransform: "none",
+                transition: "background-color 0.3s ease",
+                "&:hover": {
+                  boxShadow: isRecurring
+                    ? "-4px 0 4px -3px rgba(0, 0, 0, 0.2)"
+                    : "none",
+                  backgroundColor: isRecurring ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isRecurring && {
+                  boxShadow: "-4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  zIndex: 3,
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
+            >
+              Manage Recurring Shifts
+            </Button>
+          </Box>
           <div className={classes.paperContent}>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <Button
-                secondary
-                name="add_shift_button"
-                onClick={() => {
-                  setShow("new shift");
-                }}
-              >
-                Create New Shift
-              </Button>
-              <Button
-                secondary
-                name="update_shifts_button"
-                onClick={() => {
-                  setShow("manage recurring shifts");
-                }}
-              >
-                Update recurring shifts
-              </Button>
-            </div>
             {show === "new shift" && (
               <NewShift
                 preSelectedRange={preSelectedRange}
@@ -136,13 +208,21 @@ const ShiftPage = ({ route }) => {
             {show === "manage recurring shifts" && (
               <ManageRecurringShifts shiftList={shiftList} />
             )}
+            {show === "manage shift" && (
+              <div style={{ marginTop: "1rem" }}>
+                {shiftList && currentShift?.id ? (
+                  <ShiftManagement shiftToManage={currentShift} />
+                ) : (
+                  <Typography variant="body1" color="text.secondary">
+                    Please select a shift to manage from the calendar.
+                  </Typography>
+                )}
+              </div>
+            )}
           </div>
         </Paper>
         {show === "manage shift" && shiftList && currentShift?.id && (
           <>
-            <Paper style={{ marginBottom: "1rem", padding: "1rem" }}>
-              <ShiftManagement shiftToManage={currentShift} />
-            </Paper>
             <Paper>
               <div className={classes.comments}>
                 <Suspense fallback={<CircularProgress />}>
