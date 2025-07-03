@@ -190,12 +190,12 @@ const ShiftManagement = ({ shiftToManage }) => {
             }}
             MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
           >
-            {usersToReplace.map((user) => (
-              <MenuItem key={user.id} value={user.id}>
-                <Checkbox checked={selectedId === user.id} />
+            {usersToReplace.map((shiftUser) => (
+              <MenuItem key={shiftUser.id} value={shiftUser.id}>
+                <Checkbox checked={selectedId === shiftUser.id} />
                 <ListItemText
-                  id={user.id}
-                  primary={userLabel(user, true, true)}
+                  id={shiftUser.id}
+                  primary={userLabel(shiftUser, true)}
                 />
               </MenuItem>
             ))}
