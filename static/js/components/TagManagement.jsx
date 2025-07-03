@@ -238,6 +238,7 @@ const TagManagement = () => {
             size="small"
             onClick={() => handleEditClick(tag)}
             disabled={loading}
+            data-testid={`edit-tag-button-${tag.id}`}
           >
             <EditIcon />
           </IconButton>
@@ -248,6 +249,7 @@ const TagManagement = () => {
             onClick={() => handleDeleteClick(tag)}
             disabled={loading}
             color="error"
+            data-testid={`delete-tag-button-${tag.id}`}
           >
             <DeleteIcon />
           </IconButton>
@@ -330,7 +332,11 @@ const TagManagement = () => {
 
   const customToolbar = () => (
     <Tooltip title="Create new tag">
-      <IconButton onClick={handleCreateClick} disabled={loading}>
+      <IconButton
+        onClick={handleCreateClick}
+        disabled={loading}
+        data-testid="create-tag-button"
+      >
         <AddIcon />
       </IconButton>
     </Tooltip>
@@ -342,6 +348,9 @@ const TagManagement = () => {
     selectableRows: "none",
     filter: true,
     download: true,
+    print: false,
+    viewColumns: true,
+    search: true,
     responsive: "standard",
     rowsPerPageOptions: [10, 25, 50, 100],
     customToolbar,
@@ -367,7 +376,7 @@ const TagManagement = () => {
   };
 
   return (
-    <div className={classes.root}>
+    <div className={classes.root} data-testid="tag-management-page">
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={getMuiTheme(theme)}>
           <MUIDataTable
@@ -385,6 +394,7 @@ const TagManagement = () => {
         className={classes.editDialog}
         maxWidth="sm"
         fullWidth
+        data-testid="edit-tag-dialog"
       >
         <DialogTitle>Edit tag</DialogTitle>
         <DialogContent>
@@ -396,6 +406,7 @@ const TagManagement = () => {
             margin="normal"
             variant="outlined"
             disabled={loading}
+            inputProps={{ "data-testid": "edit-tag-name-input" }}
           />
 
           <div className={classes.colorPicker}>
@@ -406,6 +417,7 @@ const TagManagement = () => {
               onChange={(e) =>
                 setEditForm({ ...editForm, color: e.target.value })
               }
+              data-testid="edit-tag-color-input"
               disabled={loading}
               style={{
                 width: 40,
@@ -427,6 +439,7 @@ const TagManagement = () => {
                 color: getContrastColor(editForm.color),
                 marginTop: 8,
               }}
+              data-testid="edit-tag-preview-chip"
             />
           </div>
         </DialogContent>
@@ -438,7 +451,12 @@ const TagManagement = () => {
           >
             Cancel
           </Button>
-          <Button onClick={handleEditSave} color="primary" disabled={loading}>
+          <Button
+            onClick={handleEditSave}
+            color="primary"
+            disabled={loading}
+            data-testid="edit-tag-save-button"
+          >
             {loading ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
@@ -450,6 +468,7 @@ const TagManagement = () => {
         className={classes.editDialog}
         maxWidth="sm"
         fullWidth
+        data-testid="create-tag-dialog"
       >
         <DialogTitle>Create new tag</DialogTitle>
         <DialogContent>
@@ -464,6 +483,7 @@ const TagManagement = () => {
             variant="outlined"
             disabled={loading}
             helperText="Only letters and numbers, no spaces or special characters"
+            inputProps={{ "data-testid": "create-tag-name-input" }}
           />
 
           <div className={classes.colorPicker}>
@@ -475,6 +495,7 @@ const TagManagement = () => {
                 setCreateForm({ ...createForm, color: e.target.value })
               }
               disabled={loading}
+              data-testid="create-tag-color-input"
               style={{
                 width: 40,
                 height: 40,
@@ -495,6 +516,7 @@ const TagManagement = () => {
                 color: getContrastColor(createForm.color),
                 marginTop: 8,
               }}
+              data-testid="create-tag-preview-chip"
             />
           </div>
         </DialogContent>
@@ -506,7 +528,12 @@ const TagManagement = () => {
           >
             Cancel
           </Button>
-          <Button onClick={handleCreateSave} color="primary" disabled={loading}>
+          <Button
+            onClick={handleCreateSave}
+            color="primary"
+            disabled={loading}
+            data-testid="create-tag-save-button"
+          >
             {loading ? "Creating..." : "Create"}
           </Button>
         </DialogActions>
@@ -516,11 +543,18 @@ const TagManagement = () => {
         open={deleteDialogOpen}
         onClose={closeDeleteDialog}
         maxWidth="sm"
+        data-testid="delete-tag-dialog"
         fullWidth
       >
-        <DialogTitle>Delete tag: {tagToDelete?.name}</DialogTitle>
+        <DialogTitle data-testid="delete-tag-title">
+          Delete tag: {tagToDelete?.name}
+        </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
+          <Typography
+            variant="body1"
+            gutterBottom
+            data-testid="delete-tag-confirmation-text"
+          >
             Are you sure you want to delete the tag{" "}
             <strong>&quot;{tagToDelete?.name}&quot;</strong>?
           </Typography>
@@ -528,6 +562,7 @@ const TagManagement = () => {
             variant="body2"
             color="error"
             style={{ marginTop: "12px" }}
+            data-testid="delete-tag-warning-text"
           >
             <strong>Warning:</strong> Deleting this tag will also remove all tag
             associations with sources.
@@ -538,6 +573,7 @@ const TagManagement = () => {
             onClick={closeDeleteDialog}
             color="secondary"
             disabled={loading}
+            data-testid="delete-tag-cancel-button"
           >
             Cancel
           </Button>
@@ -545,7 +581,7 @@ const TagManagement = () => {
             onClick={handleDeleteConfirm}
             color="primary"
             disabled={loading}
-            style={{ backgroundColor: "#d32f2f", color: "white" }}
+            data-testid="delete-tag-confirm-button"
           >
             {loading ? "Deleting..." : "Delete"}
           </Button>
