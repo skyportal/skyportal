@@ -60,7 +60,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
       ),
     );
     formData.shift_admins = [currentUser.id];
-  }, [users, formData.group_id]);
+  }, [users, formData.group_id, currentUser.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
