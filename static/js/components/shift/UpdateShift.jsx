@@ -11,16 +11,13 @@ import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 const useStyles = makeStyles(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
   editIcon: {
-    height: "0.75rem",
+    margin: "0 1rem",
     cursor: "pointer",
+    color: "gray",
   },
 }));
 
@@ -95,7 +92,7 @@ const UpdateShift = ({ shift }) => {
       newState.required_users_number = subState.required_users_number;
     }
     const result = await dispatch(
-      shiftActions.updateShift(shift.id, {
+      shiftsActions.updateShift(shift.id, {
         ...newState,
       }),
     );
@@ -125,55 +122,52 @@ const UpdateShift = ({ shift }) => {
       >
         <DialogTitle>Update Shift Info</DialogTitle>
         <DialogContent>
-          <div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+          >
             <TextField
               data-testid="updateShiftNameTextfield"
               size="small"
               label="name"
-              value={state.name}
+              value={state.name || ""}
               name="name"
               onChange={handleChange}
               variant="outlined"
+              sx={{ mt: 1 }}
             />
-          </div>
-          <p />
-          <div>
             <TextField
               data-testid="updateShiftDescriptionTextfield"
               size="small"
               label="description"
-              value={state.description}
+              value={state.description || ""}
               name="description"
               onChange={handleChange}
               variant="outlined"
             />
-          </div>
-          <p />
-          <div>
             <TextField
               data-testid="updateShiftRequiredTextfield"
               size="small"
               label="required_users_number"
-              value={state.required_users_number}
+              value={state.required_users_number || ""}
               name="required_users_number"
               onChange={handleChange}
               type="number"
               variant="outlined"
             />
-          </div>
-          <div className={classes.saveButton}>
-            <Button
-              secondary
-              onClick={() => {
-                handleSubmit(state);
-              }}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateShiftSubmitButton"
-              disabled={isSubmitting}
-            >
-              Save
-            </Button>
+            <div style={{ textAlign: "center" }}>
+              <Button
+                secondary
+                onClick={() => {
+                  handleSubmit(state);
+                }}
+                endIcon={<SaveIcon />}
+                size="large"
+                data-testid="updateShiftSubmitButton"
+                disabled={isSubmitting}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -183,13 +177,13 @@ const UpdateShift = ({ shift }) => {
 
 UpdateShift.propTypes = {
   shift: PropTypes.shape({
-    id: PropTypes.string,
+    id: PropTypes.number,
     name: PropTypes.string,
     required_users_number: PropTypes.number,
     description: PropTypes.string,
     shift_users: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.string,
+        id: PropTypes.number,
       }),
     ),
   }).isRequired,

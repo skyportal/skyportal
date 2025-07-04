@@ -8,11 +8,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import AddGcnAlias from "./AddGcnAlias";
 import Button from "../Button";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -49,17 +48,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const userLabel = (user) => {
-  if (!user) {
-    return "";
-  }
-  let label = user.username;
-  if (user.first_name && user.last_name) {
-    label = `${user.first_name} ${user.last_name} (${user.username})`;
-  }
-  return label;
-};
-
 const GcnAdvocates = ({ gcnEvent, show_title = false }) => {
   const styles = useStyles();
 
@@ -87,10 +75,10 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }) => {
   return (
     <div className={styles.root}>
       {show_title && <h4 className={styles.title}>Advocates:</h4>}
-      <div className={styles.chips} name="gcn_advocates">
+      <div className={styles.chips}>
         {gcnEvent?.event_users?.map((event_user) => (
           <Tooltip
-            key={userLabel(event_user)}
+            key={userLabel(event_user, true)}
             title={
               <>
                 <Button
@@ -105,22 +93,15 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }) => {
               </>
             }
           >
-            <Chip
-              size="small"
-              label={userLabel(event_user)}
-              key={userLabel(event_user)}
-            />
+            <Chip size="small" label={userLabel(event_user, true)} />
           </Tooltip>
         ))}
       </div>
       <div>
         <AddIcon
-          data-testid="addGcnEventAdvocateIconButton"
           fontSize="small"
           className={styles.addIcon}
-          onClick={() => {
-            addUser();
-          }}
+          onClick={addUser}
         />
       </div>
     </div>

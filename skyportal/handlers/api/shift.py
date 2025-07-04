@@ -39,8 +39,7 @@ class ShiftHandler(BaseHandler):
                         items:
                           type: integer
                         description: |
-                          List of IDs of users to be shift admins. Current user will
-                          automatically be added as a shift admin.
+                          List of IDs of users to be shift admins.
         responses:
           200:
             content:
@@ -97,11 +96,6 @@ class ShiftHandler(BaseHandler):
             shift_admins = session.scalars(
                 User.select(self.current_user).where(User.id.in_(shift_admin_ids))
             ).all()
-            # get the list of ids from the shift_admins list
-            if self.current_user.id not in [
-                e.id for e in shift_admins
-            ] and not isinstance(self.current_user, Token):
-                shift_admins.append(self.current_user)
             schema = Shift.__schema__()
 
             try:
@@ -117,41 +111,74 @@ class ShiftHandler(BaseHandler):
             )
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_SHIFTS")
+            self.push_all(
+                action="skyportal/REFRESH_SHIFT",
+                payload={"shift_id": shift.id},
+            )
             return self.success(data={"id": shift.id})
 
     @auth_or_token
     def get(self, shift_id=None):
         """
         ---
-        summary: Retrieve shifts
-        description: Retrieve shifts
-        tags:
-          - shifts
-        parameters:
-          - in: path
-            name: shift_id
-            required: false
-            schema:
-              type: integer
-          - in: query
-            name: group_id
-            nullable: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfShifts
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          summary: Get a shift
+          description: Retrieve a single shift by its ID.
+          tags:
+            - shifts
+          parameters:
+            - in: path
+              name: shift_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the shift to retrieve
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Shift
+            400:
+              content:
+                application/json:
+                  schema: Error
+
+        multiple:
+          summary: Get all shifts
+          description: Retrieve all shifts, optionally filtered by group ID or date limits
+          tags:
+            - shifts
+          parameters:
+            - in: query
+              name: group_id
+              required: false
+              schema:
+                type: integer
+              description: Filter shifts by group ID
+            - in: query
+              name: start_date_limit
+              required: false
+              schema:
+                type: string
+                format: date-time
+              description: Return shifts that start after or at this datetime
+            - in: query
+              name: end_date_limit
+              required: false
+              schema:
+                type: string
+                format: date-time
+              description: Return shifts that end after or at this datetime
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfShifts
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-
-        group_id = self.get_query_argument("group_id", None)
-
         with self.Session() as session:
             try:
                 if shift_id is not None:
@@ -218,15 +245,38 @@ class ShiftHandler(BaseHandler):
                         },
                     }
                     return self.success(data)
-
                 else:
-                    query = Shift.select(
+                    group_id = self.get_query_argument("group_id", None)
+                    start_date_limit = self.get_query_argument("start_date_limit", None)
+                    end_date_limit = self.get_query_argument("end_date_limit", None)
+
+                    stmt = Shift.select(
                         session.user_or_token,
                     )
                     if group_id is not None:
-                        query = query.where(Shift.group_id == group_id)
+                        stmt = stmt.where(Shift.group_id == group_id)
+                    if start_date_limit is not None:
+                        try:
+                            start_date_limit = arrow.get(
+                                start_date_limit
+                            ).datetime.replace(tzinfo=None)
+                        except ValueError:
+                            return self.error(
+                                "Invalid start_date_limit; unable to parse to datetime"
+                            )
+                        stmt = stmt.where(Shift.start_date >= start_date_limit)
+                    if end_date_limit is not None:
+                        try:
+                            end_date_limit = arrow.get(end_date_limit).datetime.replace(
+                                tzinfo=None
+                            )
+                        except ValueError:
+                            return self.error(
+                                "Invalid end_date_limit; unable to parse to datetime"
+                            )
+                        stmt = stmt.where(Shift.end_date >= end_date_limit)
 
-                    shifts = session.scalars(query).unique().all()
+                    shifts = session.scalars(stmt).unique().all()
                     return self.success(data=shifts)
             except Exception as e:
                 return self.error(f"Failed to get shift(s): {e}")
@@ -438,7 +488,6 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        # if the shift has no admins, we add the user as an admin
         try:
             shift_id = int(shift_id)
         except (ValueError, TypeError):
@@ -451,8 +500,6 @@ class ShiftUserHandler(BaseHandler):
                     options=[joinedload(Shift.shift_users)],
                 ).where(Shift.id == shift_id)
             ).first()
-            if not any(su.admin for su in shift.shift_users):
-                admin = True
 
             user = session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)
@@ -662,7 +709,7 @@ class ShiftUserHandler(BaseHandler):
             ).first()
             if su is None:
                 return self.error(
-                    "ShiftUser does not exist, or you don't have the right to delete them.",
+                    "User is not a member of this shift, or you don't have the right to delete them.",
                     status=403,
                 )
 

@@ -17,7 +17,7 @@ import ReactJson from "react-json-view";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 import * as earthquakeActions from "../../ducks/earthquake";
 
 const useStyles = makeStyles((theme) => ({
@@ -187,7 +187,7 @@ const CommentAttachmentPreview = ({
     if (associatedResourceType === "gcn_event") {
       type = state.gcnEvent.commentAttachment;
     } else if (associatedResourceType === "shift") {
-      type = state.shift.commentAttachment;
+      type = state.shifts.commentAttachment;
     } else if (associatedResourceType === "earthquake") {
       type = state.earthquake.commentAttachment;
     } else {
@@ -248,7 +248,7 @@ const CommentAttachmentPreview = ({
         );
       } else if (associatedResourceType === "shift") {
         dispatch(
-          shiftActions.getCommentOnShiftTextAttachment(shiftID, commentId),
+          shiftsActions.getCommentOnShiftTextAttachment(shiftID, commentId),
         );
       }
     }

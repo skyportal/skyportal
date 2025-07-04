@@ -28,7 +28,6 @@ const logger = createLogger({
 // Compose function that hooks up the Chrome/FF developer plugin
 // https://github.com/zalmoxisus/redux-devtools-extension
 
-// eslint-disable-next-line no-underscore-dangle
 const composeWithDevTools =
   window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 

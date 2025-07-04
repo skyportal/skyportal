@@ -12,21 +12,22 @@ import MyCalendar from "./ShiftCalendar";
 import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
-
-import { fetchShift, getShiftsSummary } from "../../ducks/shift";
+import ManageRecurringShifts from "./ManageRecurringShifts";
 import * as shiftsActions from "../../ducks/shifts";
+import Box from "@mui/material/Box";
+import AddIcon from "@mui/icons-material/Add";
+import Typography from "@mui/material/Typography";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "23.5rem",
-    backgroundColor: theme.palette.background.paper,
-  },
   paperContent: {
+    padding: theme.spacing(2),
     marginBottom: theme.spacing(2),
-    padding: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: theme.spacing(1),
   },
   comments: {
     paddingTop: "0.5rem",
@@ -37,69 +38,48 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+export const getLastDayOfMonthTwoMonthsAgo = (date) =>
+  new Date(date.getFullYear(), date.getMonth() - 2 + 1, 0);
+
 const ShiftPage = ({ route }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const shiftList = useSelector((state) => state.shifts.shiftList);
-  const currentShift = useSelector((state) => state.shift.currentShift);
-  const [show, setShow] = useState(true);
-  const [loadedFromRoute, setLoadedFromRoute] = useState(false);
+  const currentShift = useSelector((state) => state.shifts.currentShift);
+  const [preSelectedRange, setPreSelectedRange] = useState(null);
+  // show "new shift", "manage shift" or "manage recurring shifts"
+  const [show, setShow] = useState("new shift");
 
   useEffect(() => {
-    dispatch(shiftsActions.fetchShifts());
-  }, []);
+    dispatch(
+      shiftsActions.fetchShifts({
+        end_date_limit: getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
+      }),
+    );
+  }, [dispatch]);
 
   useEffect(() => {
-    if (
-      route &&
-      shiftList?.length > 0 &&
-      !currentShift?.id &&
-      !loadedFromRoute
-    ) {
-      const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
-      if (shift) {
-        dispatch(fetchShift(shift?.id));
-        dispatch(
-          getShiftsSummary({
-            shiftID: parseInt(route.id, 10),
-          }),
-        );
-        setShow(false);
-      } else {
-        dispatch(showNotification("Shift not found", "warning"));
-      }
-      setLoadedFromRoute(true);
+    const shiftId = parseInt(route?.id, 10);
+    if (!isNaN(shiftId)) {
+      dispatch(shiftsActions.setCurrentShift(shiftId));
+      dispatch(shiftsActions.getShiftsSummary({ shiftID: shiftId }));
+      setShow("manage shift");
     }
-    if (currentShift?.id && shiftList?.length > 0) {
-      // if the current shift is not in the shift list, then we need to set the currentShift back to null
-      const shift = shiftList.find((s) => s.id === currentShift?.id);
-      if (!shift) {
-        dispatch(
-          showNotification(
-            "The shift currently selected has been deleted",
-            "warning",
-          ),
-        );
-        dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
-      }
-    }
-  }, [route, shiftList]);
+  }, [route?.id, dispatch]);
 
-  useEffect(() => {
-    if (currentShift?.id) {
-      setShow(false);
-    }
-  }, [currentShift]);
-
+  const isNewShift = show === "new shift";
+  const isRecurring = show === "manage recurring shifts";
+  const isManageShift = show === "manage shift";
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
         <Paper elevation={1}>
           {shiftList ? (
             <MyCalendar
-              events={shiftList}
-              currentShift={currentShift}
+              shifts={shiftList}
               setShow={setShow}
+              preSelectedRange={preSelectedRange}
+              setPreSelectedRange={setPreSelectedRange}
             />
           ) : (
             <CircularProgress />
@@ -109,42 +89,134 @@ const ShiftPage = ({ route }) => {
 
       <Grid item md={4} sm={12}>
         <Paper>
-          <div className={classes.paperContent}>
+          <Box display="flex" width="100%">
             <Button
-              primary
+              secondary
               name="add_shift_button"
-              onClick={() => setShow((prev) => !prev)}
+              onClick={() => {
+                setShow("new shift");
+              }}
+              sx={{
+                color: "text.secondary",
+                flex: "0 0 50px",
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+                borderBottomLeftRadius: 0,
+                transition: "background-color 0.3s ease",
+                "&:hover": {
+                  boxShadow: isNewShift
+                    ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
+                    : "none",
+                  backgroundColor: isNewShift ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isNewShift && {
+                  boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  zIndex: 3,
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
             >
-              Add New Shift
+              <AddIcon />
             </Button>
-            {show ? <NewShift /> : null}
+            <Button
+              secondary
+              name="manage_shift_button"
+              onClick={() => {
+                setShow("manage shift");
+              }}
+              sx={{
+                flex: 2,
+                borderRadius: 0,
+                textTransform: "none",
+                transition: "background-color 0.3s ease",
+                boxShadow:
+                  "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                zIndex: 2,
+                "&:hover": {
+                  boxShadow:
+                    "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  backgroundColor: isManageShift ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isManageShift && {
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
+            >
+              Manage Shift
+            </Button>
+            <Button
+              secondary
+              name="manage_recurring_shifts_button"
+              onClick={() => {
+                setShow("manage recurring shifts");
+              }}
+              sx={{
+                flex: 3,
+                borderTopLeftRadius: 0,
+                borderBottomRightRadius: 0,
+                borderBottomLeftRadius: 0,
+                textTransform: "none",
+                transition: "background-color 0.3s ease",
+                "&:hover": {
+                  boxShadow: isRecurring
+                    ? "-4px 0 4px -3px rgba(0, 0, 0, 0.2)"
+                    : "none",
+                  backgroundColor: isRecurring ? "#f0f2f5" : "#e0e0e0",
+                },
+                ...(isRecurring && {
+                  boxShadow: "-4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                  zIndex: 3,
+                  backgroundColor: "#f0f2f5",
+                  borderBottom: "none",
+                }),
+              }}
+            >
+              Manage Recurring Shifts
+            </Button>
+          </Box>
+          <div className={classes.paperContent}>
+            {show === "new shift" && (
+              <NewShift
+                preSelectedRange={preSelectedRange}
+                setPreSelectedRange={setPreSelectedRange}
+              />
+            )}
+            {show === "manage recurring shifts" && (
+              <ManageRecurringShifts shiftList={shiftList} />
+            )}
+            {show === "manage shift" && (
+              <div style={{ marginTop: "1rem", width: "100%" }}>
+                {shiftList && currentShift?.id ? (
+                  <ShiftManagement shiftToManage={currentShift} />
+                ) : (
+                  <Typography variant="body1" color="text.secondary">
+                    Please select a shift to manage from the calendar.
+                  </Typography>
+                )}
+              </div>
+            )}
           </div>
         </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
-            <ShiftManagement currentShift={currentShift} />
-          ) : null}
-        </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
-            <div id="current_shift_comment" className={classes.comments}>
-              <Suspense fallback={<CircularProgress />}>
-                <CommentList
-                  associatedResourceType="shift"
-                  shiftID={currentShift?.id}
-                />
-              </Suspense>
-            </div>
-          ) : null}
-        </Paper>
-        <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? (
+        {show === "manage shift" && shiftList && currentShift?.id && (
+          <>
+            <Paper>
+              <div className={classes.comments}>
+                <Suspense fallback={<CircularProgress />}>
+                  <CommentList
+                    associatedResourceType="shift"
+                    shiftID={currentShift?.id}
+                  />
+                </Suspense>
+              </div>
+            </Paper>
             <Reminders
               resourceId={currentShift.id.toString()}
               resourceType="shift"
             />
-          ) : null}
-        </Paper>
+          </>
+        )}
       </Grid>
       <Grid item md={12} sm={12}>
         <ShiftSummary />

@@ -401,7 +401,7 @@ const CommentEntry = ({
                   render={({ field: { onChange, value } }) => (
                     <Checkbox
                       onChange={(event) => onChange(event.target.checked)}
-                      checked={value}
+                      checked={value || false}
                       data-testid={`commentGroupCheckBox${userGroup.id}`}
                     />
                   )}

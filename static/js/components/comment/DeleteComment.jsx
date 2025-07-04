@@ -8,7 +8,7 @@ import Button from "../Button";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 const DeleteComment = ({
   associatedResourceType = "object",
@@ -35,7 +35,7 @@ const DeleteComment = ({
   };
 
   const deleteCommentOnShift = (shift_id, commentID) => {
-    dispatch(shiftActions.deleteCommentOnShift(shift_id, commentID));
+    dispatch(shiftsActions.deleteCommentOnShift(shift_id, commentID));
   };
 
   const deleteComment = (resourceType) => {

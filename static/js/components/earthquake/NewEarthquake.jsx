@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -83,7 +83,6 @@ const NewEarthquake = () => {
       schema={earthquakeFormSchema}
       validator={validator}
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
     />
   );

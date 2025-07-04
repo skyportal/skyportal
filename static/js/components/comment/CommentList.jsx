@@ -13,7 +13,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 import * as earthquakeActions from "../../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
@@ -193,7 +193,7 @@ const CommentList = ({
   const earthquake = useSelector((state) => state.earthquake);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
-  const { currentShift } = useSelector((state) => state.shift);
+  const { currentShift } = useSelector((state) => state.shifts);
   const { showBotComments } = useSelector((state) => state.profile.preferences);
 
   const [includeBots, setIncludeBots] = useState(false);
@@ -248,7 +248,7 @@ const CommentList = ({
 
   const addShiftComment = (formData) => {
     dispatch(
-      shiftActions.addCommentOnShift({
+      shiftsActions.addCommentOnShift({
         shiftID,
         ...formData,
       }),

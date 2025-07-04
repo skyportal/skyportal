@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -70,13 +70,13 @@ const AnalysisForm = ({ obj_id }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const analysisServiceLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   analysisServiceList?.forEach((analysisService) => {
     analysisServiceLookUp[analysisService.id] = analysisService;
   });
@@ -350,7 +350,6 @@ const AnalysisForm = ({ obj_id }) => {
             schema={AnalysisSelectionFormSchema}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             disabled={isSubmitting}
             liveValidate
           />

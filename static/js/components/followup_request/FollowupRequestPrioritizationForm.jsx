@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Select from "@mui/material/Select";
@@ -57,7 +57,6 @@ const FollowupRequestPrioritizationForm = () => {
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedGcnEventId]);
 
   if (!Array.isArray(followupRequestList)) {
@@ -89,13 +88,13 @@ const FollowupRequestPrioritizationForm = () => {
   });
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
@@ -214,7 +213,6 @@ const FollowupRequestPrioritizationForm = () => {
           schema={FollowupRequestPrioritizationFormSchema}
           validator={validator}
           onSubmit={handleSubmitPrioritization}
-          // eslint-disable-next-line react/jsx-no-bind
           validate={validatePrioritization}
           disabled={isSubmittingPrioritization}
           liveValidate

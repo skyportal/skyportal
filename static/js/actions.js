@@ -49,7 +49,6 @@ import * as catalogQueriesActions from "./ducks/catalog_query";
 import * as surveyEfficiencyObservationsActions from "./ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "./ducks/survey_efficiency_observation_plans";
 import * as localizationActions from "./ducks/localization";
-import * as shiftActions from "./ducks/shift";
 import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
 import * as groupActions from "./ducks/group";

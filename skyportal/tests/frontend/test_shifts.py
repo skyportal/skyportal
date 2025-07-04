@@ -38,15 +38,12 @@ def test_shift(
     assert status == 200
     assert data["status"] == "success"
 
-    start_date = date.today().strftime("%m/%d/%Y")
-    end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
-
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{data['data']['id']}")
 
-    # check for API shift
+    # check that the shift has been created and is visible in the calendar
     driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{name}")]',
+        f'//*/p[contains(.,"{name}")]',
         timeout=30,
     )
 
@@ -63,27 +60,20 @@ def test_shift(
 
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
     driver.click_xpath('//*[@id="root_group_id"]')
+    driver.wait_for_xpath('//li[contains(text(), "Sitewide Group")]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
     driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys("5")
     # first empty the start date field
-    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
-        Keys.COMMAND + "a"
-    )
-    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
-        Keys.CONTROL + "a"
-    )
-    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(Keys.DELETE)
-    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(start_date)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.COMMAND + "a")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.CONTROL + "a")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.DELETE)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
 
     # first empty the end date field
-    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(
-        Keys.COMMAND + "a"
-    )
-    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(
-        Keys.CONTROL + "a"
-    )
-    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(Keys.DELETE)
-    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(end_date)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.COMMAND + "a")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.CONTROL + "a")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.DELETE)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date)
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
@@ -96,7 +86,8 @@ def test_shift(
 
     # check for shift in calendar and click it
     driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{form_name}")]/../../../../*', timeout=30
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{form_name}")]/..',
+        timeout=30,
     ).click()
 
     # add a comment to the shift
@@ -125,87 +116,74 @@ def test_shift(
         == 0
     )
 
-    # check for deactivated button to add users
-    deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
-    driver.wait_for_xpath(deactivated_add_user_button)
+    # xpath for the button to add and remove users as shift members
+    remove_members_button_xpath = '//*[@id="remove-members-button"]'
+    add_members_button_xpath = '//*[@id="add-members-button"]'
 
-    # check for the dropdown to add a user
-    select_users = '//*[@id="select-users--multiple-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    # check that add button is disabled because no user has been selected yet
+    button = driver.wait_for_xpath(add_members_button_xpath)
+    assert button.get_attribute("disabled"), "The add button should be disabled"
+
+    # check for the dropdown to add a user as a shift member
+    select_members = '//*[@aria-labelledby="select-members-label"]'
+    driver.wait_for_xpath(select_members)
+    driver.click_xpath(select_members)
+    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{user.id}"]')
     driver.click_xpath(
-        f'//li[@id="select_users"]/*[@id="{user.id}"]', scroll_parent=True
+        f'//li[@id="select-members"]/*[@id="{user.id}"]', scroll_parent=True
     )
+
+    # check that remove button is disabled because no added user has been selected yet
+    button = driver.wait_for_xpath(remove_members_button_xpath)
+    assert button.get_attribute("disabled"), "The remove button should be disabled"
 
     # check for button to add users
-    remove_users_button = '//*[@id="deactivated-remove-users-button"]'
-    driver.wait_for_xpath(remove_users_button)
-    add_users_button = '//*[@id="add-users-button"]'
-    driver.wait_for_xpath(add_users_button)
-    driver.click_xpath(add_users_button)
+    driver.wait_for_xpath(add_members_button_xpath)
+    driver.click_xpath(add_members_button_xpath)
 
     # check if user has been added
-    shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath(shift_members + f'[contains(text(), "{user.username}")]')
+    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{user.id}"]')
 
-    # check for the dropdown to add and remove users
-    select_users = '//*[@id="select-users--multiple-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    # check for the dropdown to remove the user as a shift member and add another user
+    driver.wait_for_xpath(select_members)
+    driver.click_xpath(select_members)
+    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{user.id}"]')
     driver.click_xpath(
-        f'//li[@id="select_users"]/*[@id="{user.id}"]', scroll_parent=True
+        f'//li[@id="select-members"]/*[@id="{user.id}"]', scroll_parent=True
     )
+    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
+    driver.click_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
 
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
-
-    # check for button to add and remove users
-    add_users_button = '//*[@id="add-users-button"]'
-    driver.wait_for_xpath(add_users_button)
-    driver.click_xpath(add_users_button)
-
-    remove_users_button = '//*[@id="remove-users-button"]'
-    # As the component rerenders, the remove button will be deactivated for a bit, so we wait for the xpath to stay for a second to allow the button to be clickable
-    # if we checked for the xpath right now, it might disappear right after when we try to click it. So we add a little delay before clicking the button
-    time.sleep(1)
-    driver.click_xpath(remove_users_button)
+    # check for button to add and remove users as shift members
+    driver.wait_for_xpath(add_members_button_xpath)
+    driver.click_xpath(add_members_button_xpath)
+    driver.wait_for_xpath(remove_members_button_xpath)
+    driver.click_xpath(remove_members_button_xpath)
 
     # check if user has been added and other user has been removed
-    shift_members = '//*[@id="current_shift_members"]'
-
     driver.wait_for_xpath_to_disappear(
-        shift_members + f'[contains(text(), "{user.username}")]'
+        f'//*[@data-testid="shift-member-chip-{user.id}"]'
     )
-
-    driver.wait_for_xpath(
-        shift_members + f'[contains(text(), "{view_only_user.username}")]'
-    )
+    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]')
 
     # check for the dropdown to remove users
-    select_users = '//*[@id="select-users--multiple-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
-
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.wait_for_xpath(select_members)
+    driver.click_xpath(select_members)
+    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
     driver.click_xpath(
-        f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]', scroll_parent=True
+        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]', scroll_parent=True
     )
+
+    # check that add button is disabled because no more user has been selected
+    button = driver.wait_for_xpath(add_members_button_xpath)
+    assert button.get_attribute("disabled"), "The add button should be disabled"
 
     # check for button to remove users
-    deactivated_add_users_button = '//*[@id="deactivated-add-users-button"]'
-    driver.wait_for_xpath(deactivated_add_users_button)
-    remove_users_button = '//*[@id="remove-users-button"]'
-    driver.wait_for_xpath(remove_users_button)
-    driver.click_xpath(remove_users_button)
+    driver.wait_for_xpath(remove_members_button_xpath)
+    driver.click_xpath(remove_members_button_xpath)
 
     # check if user has been removed
-    shift_members = '//*[@id="current_shift_members"]'
-
-    driver.wait_for_xpath(
-        shift_members + f'[not(contains(text(), "{view_only_user.username}"))]'
-    )
+    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]')
 
     # check for leave shift button
     leave_button_xpath = '//*[@id="leave_button"]'
@@ -236,9 +214,11 @@ def test_shift(
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(1)
 
-    shift_on_calendar = f'//*/strong[contains(.,"{name}")]/../../../../*'
-
-    driver.wait_for_xpath(shift_on_calendar, timeout=30).click()
+    shift_on_calendar = (
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{name}")]/..'
+    )
+    element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
+    element.click()
 
     # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
@@ -248,10 +228,7 @@ def test_shift(
     driver.wait_for_xpath_to_disappear(join_button_xpath)
 
     # check if user has been added
-    shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath(
-        shift_members + f'[contains(text(), "{shift_user.username}")]'
-    )
+    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{shift_user.id}"]')
 
     # check for button to ask for replacement
     ask_for_replacement_button_xpath = '//*[@id="ask-for-replacement-button"]'
@@ -323,18 +300,6 @@ def test_shift_summary(
     )
     assert status == 200
     assert data["status"] == "success"
-
-    shift_name_2 = str(uuid.uuid4())
-    start_date = "2018-01-17T12:00:00"
-    end_date = "2018-01-18T12:00:00"
-    request_data = {
-        "name": shift_name_2,
-        "group_id": public_group.id,
-        "start_date": start_date,
-        "end_date": end_date,
-        "description": "Shift not during GCN",
-        "shift_admins": [super_admin_user.id],
-    }
 
     status, data = api(
         "GET", f"shifts?group_id={public_group.id}", token=super_admin_token
