@@ -216,20 +216,19 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
         title: "Group",
         default: groups ? groups[0]?.id : null,
       },
-      shift_admins: {
-        type: "array",
-        title: "Shift admins",
-        items: {
-          oneOf:
-            availableUsers.length === 0
-              ? [{ const: null, title: "No users available" }]
-              : availableUsers.map((user) => ({
-                  const: user.id,
-                  title: userLabel(user, true, true),
-                })),
+      ...(availableUsers.length > 0 && {
+        shift_admins: {
+          type: "array",
+          title: "Shift admins",
+          items: {
+            oneOf: availableUsers.map((user) => ({
+              const: user.id,
+              title: userLabel(user, true, true),
+            })),
+          },
+          uniqueItems: true,
         },
-        uniqueItems: true,
-      },
+      }),
       name: {
         type: "string",
         title: "Shift name (ie. the Night Shift)",
