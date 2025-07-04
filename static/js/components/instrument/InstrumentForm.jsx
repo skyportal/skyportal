@@ -248,7 +248,7 @@ const InstrumentForm = ({ onClose, instrumentId = null }) => {
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
-        description: "Rectangle [width,height]; Circle [radius]",
+        description: "Rectangle: width,height; Circle: radius",
       },
       sensitivity_data: {
         type: "string",
