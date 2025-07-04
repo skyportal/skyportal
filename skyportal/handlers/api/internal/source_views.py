@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 
 import tornado.web
 from sqlalchemy import desc, func
@@ -6,10 +7,13 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import Obj, SourceView
+from ....models import Obj, ObjTag, SourceView
 from ...base import BaseHandler
 
-default_prefs = {"maxNumSources": 10, "sinceDaysAgo": 7}
+default_prefs = {
+    "maxNumSources": 10,
+    "sinceDaysAgo": 7,
+}
 
 
 class SourceViewsHandler(BaseHandler):
@@ -49,6 +53,17 @@ class SourceViewsHandler(BaseHandler):
             query_results = SourceViewsHandler.get_top_source_views_and_ids(
                 self.current_user, session
             )
+            tags = session.scalars(
+                ObjTag.select(session.user_or_token).where(
+                    ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results}))
+                )
+            ).all()
+            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+            # make it a hashmap of obj_id to tags
+            tags_dict = defaultdict(list)
+            for tag in tags:
+                tags_dict[tag["obj_id"]].append(tag)
+
             sources = []
             for view, obj_id in query_results:
                 s = session.scalars(
@@ -72,6 +87,7 @@ class SourceViewsHandler(BaseHandler):
                         ],
                         "classifications": s.classifications,
                         "tns_name": s.tns_name,
+                        "tags": tags_dict.get(s.id, []),
                     }
                 )
 

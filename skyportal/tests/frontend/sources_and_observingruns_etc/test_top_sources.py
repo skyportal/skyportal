@@ -51,7 +51,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
     time.sleep(2)
     driver.get("/")
-    driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
+    driver.wait_for_xpath("//*[contains(.,'1 view')]")
 
     # Test that token requests (which register source views) do not increment the view count in the UI
     # (we used to show token views, but periodic scripts ran by users with tokens would artificially inflate the view count)
@@ -59,7 +59,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     time.sleep(1)
     assert status == 200
     driver.refresh()
-    driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
+    driver.wait_for_xpath("//*[contains(.,'1 view')]")
 
 
 @pytest.mark.flaky(reruns=2)
@@ -115,7 +115,7 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     driver.scroll_to_element_and_click(submit_button)
 
     # Test that source doesn't show up in last 7 days of views
-    source_view_xpath = f"//div[@data-testid='topSourceItem_{obj_id}']"
+    source_view_xpath = f"//div[starts-with(@data-testid, 'topSourceItem_{obj_id}')]"
     driver.wait_for_xpath_to_disappear(source_view_xpath)
 
     # Test that source does show up in last 30 days of views
