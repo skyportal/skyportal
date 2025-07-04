@@ -105,6 +105,14 @@ ALLOWED_ALLOCATION_TYPES = (
     "forced_photometry",
     "observation_plan",
 )
+
+SOURCES_IN_GCN_STATUS = (
+    "confirmed",
+    "rejected",
+    "ambiguous",
+    "pending",
+)
+
 allowed_webbook_status_types = sa.Enum(
     *WEBHOOK_STATUS_TYPES, name="webhookstatustypes", validate_strings=True
 )
@@ -166,6 +174,13 @@ listener_classnames = sa.Enum(
     validate_strings=True,
 )
 
+sources_in_gcn_status = sa.Enum(
+    *SOURCES_IN_GCN_STATUS,
+    name="sources_in_gcn_status",
+    validate_strings=True,
+)
+
+
 py_allowed_spectrum_types = Enum("spectrumtypes", ALLOWED_SPECTRUM_TYPES)
 py_allowed_magsystems = Enum("magsystems", ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum("bandpasses", ALLOWED_BANDPASSES)
@@ -177,6 +192,7 @@ py_allowed_external_authentication_types = Enum(
     "authenticationtypes", AUTHENTICATION_TYPES
 )
 py_allowed_webbook_status_types = Enum("webhookstatustypes", WEBHOOK_STATUS_TYPES)
+py_sources_in_gcn_status = Enum("sources_in_gcn_status", SOURCES_IN_GCN_STATUS)
 
 
 sqla_enum_types = [
@@ -192,6 +208,7 @@ sqla_enum_types = [
     allowed_analysis_input_types,
     allowed_external_authentication_types,
     allowed_webbook_status_types,
+    sources_in_gcn_status,
 ]
 
 GCN_NOTICE_TYPES = tuple(

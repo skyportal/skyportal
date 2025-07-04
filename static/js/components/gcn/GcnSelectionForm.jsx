@@ -249,7 +249,7 @@ const GcnEventSourcesPage = ({
       dispatch(showNotification("Sources downloaded successfully"));
     }
 
-    // for all of the sources, fetch the sourcesconfirmedingcn status
+    // for all of the sources, fetch the sourcesingcn status
     const response = await dispatch(
       sourcesingcnActions.fetchSourcesInGcn(dateobs, {
         localizationName,

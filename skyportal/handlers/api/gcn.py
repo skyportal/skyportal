@@ -74,7 +74,7 @@ from ...models import (
     Obj,
     ObservationPlanRequest,
     Source,
-    SourcesConfirmedInGCN,
+    SourcesInGCN,
     SurveyEfficiencyForObservations,
     User,
     UserNotification,
@@ -3045,9 +3045,9 @@ def add_gcn_summary(
             if len(sources) > 0:
                 obj_ids = [source["id"] for source in sources]
                 sources_with_status = session.scalars(
-                    SourcesConfirmedInGCN.select(user).where(
-                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                        SourcesConfirmedInGCN.dateobs == dateobs,
+                    SourcesInGCN.select(user).where(
+                        SourcesInGCN.obj_id.in_(obj_ids),
+                        SourcesInGCN.dateobs == dateobs,
                     )
                 ).all()
 
@@ -4049,9 +4049,9 @@ def add_gcn_report(
                 if len(sources) > 0:
                     obj_ids = [source["id"] for source in sources]
                     sources_with_status = session.scalars(
-                        SourcesConfirmedInGCN.select(user).where(
-                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                            SourcesConfirmedInGCN.dateobs == dateobs,
+                        SourcesInGCN.select(user).where(
+                            SourcesInGCN.obj_id.in_(obj_ids),
+                            SourcesInGCN.dateobs == dateobs,
                         )
                     ).all()
                     for source in sources:
@@ -4621,11 +4621,9 @@ class GcnReportHandler(BaseHandler):
                                     source["photometry"] = []
 
                                 source["source_in_gcn"] = session.scalar(
-                                    SourcesConfirmedInGCN.select(
-                                        session.user_or_token
-                                    ).where(
-                                        SourcesConfirmedInGCN.obj_id == source_id,
-                                        SourcesConfirmedInGCN.dateobs == dateobs,
+                                    SourcesInGCN.select(session.user_or_token).where(
+                                        SourcesInGCN.obj_id == source_id,
+                                        SourcesInGCN.dateobs == dateobs,
                                     )
                                 )
 
