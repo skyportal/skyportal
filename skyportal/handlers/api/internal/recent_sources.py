@@ -21,7 +21,6 @@ default_prefs = {
     "maxNumSources": 25,
     "includeSitewideSources": False,
     "groupIds": [],
-    "displayTags": True,
 }
 
 env, cfg = load_env()
@@ -61,7 +60,7 @@ class RecentSourcesHandler(BaseHandler):
             Source.obj_id, Source.created_at
         )
         query_results = session.scalars(stmt.limit(max_num_sources)).all()
-        ids = (src.obj_id for src in query_results)
+        ids = [src.obj_id for src in query_results]
         return ids
 
     @auth_or_token
@@ -70,6 +69,17 @@ class RecentSourcesHandler(BaseHandler):
             query_results = RecentSourcesHandler.get_recent_source_ids(
                 self.current_user, session
             )
+            tags = session.scalars(
+                ObjTag.select(session.user_or_token).where(
+                    ObjTag.obj_id.in_(list(set(query_results)))
+                )
+            ).all()
+            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+            # make it a hashmap of obj_id to tags
+            tags_dict = defaultdict(list)
+            for tag in tags:
+                tags_dict[tag["obj_id"]].append(tag)
+
             sources = []
             sources_seen = defaultdict(lambda: 1)
             for obj_id in query_results:
@@ -96,12 +106,9 @@ class RecentSourcesHandler(BaseHandler):
                     .offset(recency_index)
                 ).first()
 
-                tags = session.scalars(
-                    ObjTag.select(session.user_or_token).where(ObjTag.obj_id == obj_id)
-                ).all()
-                tags = [
-                    {**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags
-                ]
+                if s is None or source_entry is None:
+                    log(f"Source with obj_id {obj_id} not found.")
+                    continue
 
                 sources.append(
                     {
@@ -120,7 +127,7 @@ class RecentSourcesHandler(BaseHandler):
                         "classifications": s.classifications,
                         "recency_index": recency_index,
                         "tns_name": s.tns_name,
-                        "tags": tags,
+                        "tags": tags_dict.get(s.id, []),
                     }
                 )
 

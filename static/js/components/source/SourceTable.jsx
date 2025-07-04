@@ -1249,7 +1249,7 @@ const SourceTable = ({
     const tags = source.tags || [];
 
     if (tags.length === 0) {
-      return <div>-</div>;
+      return null;
     }
 
     return (
