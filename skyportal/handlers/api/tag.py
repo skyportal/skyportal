@@ -19,7 +19,7 @@ class ObjTagOptionHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         name = data.get("name")
-        color = data.get("color", "#dddfe2")
+        color = data.get("color")
 
         if not name or not isinstance(name, str):
             return self.error("`name` must be provided as a non-empty string")
@@ -30,7 +30,7 @@ class ObjTagOptionHandler(BaseHandler):
                 status=400,
             )
 
-        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        if color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
             return self.error(
                 "`color` must be a valid hex color code (e.g., #3a87ad)",
                 status=400,
