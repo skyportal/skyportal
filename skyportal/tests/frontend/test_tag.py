@@ -41,7 +41,8 @@ def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_us
     )
 
     option = driver.wait_for_xpath_to_be_clickable(
-        f'//li[contains(text(), "{tag_name}")]', timeout=10
+        f'//li//span[contains(@class, "MuiChip-label") and contains(text(), "{tag_name}")]',
+        timeout=10,
     )
     option.click()
 
