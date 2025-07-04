@@ -121,7 +121,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
           title: `${group.name}`,
         })),
         title: "Group",
-        default: allocationToEdit?.group_id || null,
+        default: allocationToEdit?.group_id || "",
       },
       ...(availableUsers.length > 0 && {
         allocation_admin_ids: {
@@ -172,7 +172,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
       hours_allocated: {
         type: "number",
         title: "Hours allocated",
-        default: allocationToEdit?.hours_allocated || 0,
+        default: allocationToEdit?.hours_allocated,
       },
       instrument_id: {
         type: "integer",
@@ -181,7 +181,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
           title: instrument.label,
         })),
         title: "Instrument",
-        default: allocationToEdit?.instrument_id || null,
+        default: allocationToEdit?.instrument_id || "",
       },
       ...(instrumentForm?.formSchemaAltdata?.properties
         ? {
