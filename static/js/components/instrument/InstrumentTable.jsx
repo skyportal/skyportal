@@ -502,7 +502,7 @@ const InstrumentTable = ({
           <DialogContent dividers>
             <InstrumentForm
               onClose={closeEditDialog}
-              instrumentID={instrumentToEditDelete}
+              instrumentId={instrumentToEditDelete}
             />
           </DialogContent>
         </Dialog>

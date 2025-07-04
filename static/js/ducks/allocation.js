@@ -22,8 +22,8 @@ const EDIT_FOLLOWUP_REQUEST_COMMENT = "skyportal/EDIT_FOLLOWUP_REQUEST_COMMENT";
 export const fetchAllocation = (id, params = {}) =>
   API.GET(`/api/allocation/${id}`, FETCH_ALLOCATION, params);
 
-export const modifyAllocation = (id, run) =>
-  API.PUT(`/api/allocation/${id}`, MODIFY_ALLOCATION, run);
+export const modifyAllocation = (id, payload) =>
+  API.PUT(`/api/allocation/${id}`, MODIFY_ALLOCATION, payload);
 
 export const editFollowupRequestComment = (params, id) =>
   API.PUT(
@@ -32,8 +32,8 @@ export const editFollowupRequestComment = (params, id) =>
     params,
   );
 
-export const submitAllocation = (run) =>
-  API.POST(`/api/allocation`, SUBMIT_ALLOCATION, run);
+export const submitAllocation = (payload) =>
+  API.POST(`/api/allocation`, SUBMIT_ALLOCATION, payload);
 
 export function deleteAllocation(allocationID) {
   return API.DELETE(`/api/allocation/${allocationID}`, DELETE_ALLOCATION);

@@ -662,9 +662,9 @@ class AllocationHandler(BaseHandler):
                     data["_altdata"] = json.dumps(data["_altdata"])
             allocation_admin_ids = data.pop("allocation_admin_ids", [])
 
-            if not isinstance(allocation_admin_ids, list):
-                return self.error("allocation_admin_ids must be a list of user IDs")
-            if not all(isinstance(x, int) for x in allocation_admin_ids):
+            if not isinstance(allocation_admin_ids, list) or not all(
+                isinstance(x, int) for x in allocation_admin_ids
+            ):
                 return self.error("allocation_admin_ids must be a list of user IDs")
 
             schema = Allocation.__schema__()

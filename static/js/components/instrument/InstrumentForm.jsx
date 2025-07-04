@@ -11,7 +11,7 @@ import { submitInstrument } from "../../ducks/instrument";
 import { modifyInstrument } from "../../ducks/instrument";
 import { fetchFollowupApis } from "../../ducks/followupApis";
 
-const InstrumentForm = ({ onClose, instrumentID = null }) => {
+const InstrumentForm = ({ onClose, instrumentId = null }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { followupApis } = useSelector((state) => state.followupApis);
@@ -68,8 +68,8 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
     }
 
     const result = await dispatch(
-      instrumentID
-        ? modifyInstrument(instrumentID, dataToSubmit)
+      instrumentId
+        ? modifyInstrument(instrumentId, dataToSubmit)
         : submitInstrument(dataToSubmit),
     );
     if (result.status === "success") {
@@ -91,10 +91,10 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
   const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
   const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
 
-  const instrumentToEdit = instrumentID
-    ? instrumentList.find((inst) => inst.id === instrumentID)
+  const instrumentToEdit = instrumentId
+    ? instrumentList.find((inst) => inst.id === instrumentId)
     : null;
-  if (instrumentID && !instrumentToEdit) {
+  if (instrumentId && !instrumentToEdit) {
     return <h3>Instrument not found !</h3>;
   }
 
@@ -109,7 +109,7 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
       }
     }
     if (
-      instrumentID === null &&
+      instrumentId === null &&
       instrumentList?.some((instrument) => dataToCheck.name === instrument.name)
     ) {
       errors.name.addError("Instrument name matches another, please change.");
@@ -280,7 +280,7 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
           }
         : {}),
     },
-    ...(instrumentID
+    ...(instrumentId
       ? {}
       : { required: ["name", "type", "band", "telescope_id"] }),
   };
@@ -312,11 +312,11 @@ const InstrumentForm = ({ onClose, instrumentID = null }) => {
 
 InstrumentForm.propTypes = {
   onClose: PropTypes.func.isRequired,
-  instrumentID: PropTypes.number,
+  instrumentId: PropTypes.number,
 };
 
 InstrumentForm.defaultProps = {
-  instrumentID: null,
+  instrumentId: null,
 };
 
 export default InstrumentForm;
