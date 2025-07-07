@@ -30,7 +30,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
     localTime: "local",
     start_date: format(now),
     end_date: format(now.add(1, "day")),
-    divider: 8,
+    divider: 8, // Default duration of each shift in hours
   });
 
   useEffect(() => {
@@ -270,6 +270,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }) => {
               divide: {
                 enum: ["Divide per Hour"],
               },
+              // If dividing by hour, ask how many hours each shift should last
               divider: {
                 type: "integer",
                 title: "How many hours per shift?",
