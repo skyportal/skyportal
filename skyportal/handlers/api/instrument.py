@@ -578,8 +578,9 @@ class InstrumentHandler(BaseHandler):
                             field_ids = np.load(cache_filename).tolist()
                             tiles = (
                                 session.scalars(
-                                    sa.select(InstrumentField).filter(
-                                        InstrumentField.field_id.in_(field_ids)
+                                    sa.select(InstrumentField).where(
+                                        InstrumentField.field_id.in_(field_ids),
+                                        InstrumentField.instrument_id == instrument.id,
                                     )
                                 )
                                 .unique()
@@ -589,7 +590,7 @@ class InstrumentHandler(BaseHandler):
                             tiles = (
                                 (
                                     session.scalars(
-                                        sa.select(InstrumentField).filter(
+                                        sa.select(InstrumentField).where(
                                             localizationtilescls.localization_id
                                             == localization.id,
                                             localizationtilescls.probdensity
