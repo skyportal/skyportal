@@ -1141,6 +1141,11 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
+
         with self.Session() as session:
             event = session.scalars(
                 GcnEvent.select(
@@ -1180,13 +1185,18 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             name: gcnevent_id
             required: true
             schema:
-              type: string
+              type: integer
         responses:
           200:
             content:
               application/json:
                 schema: ArrayOfObservationPlanRequests
         """
+
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             event = session.scalars(
@@ -1251,6 +1261,11 @@ class GcnEventCatalogQueryHandler(BaseHandler):
               application/json:
                 schema: ArrayOfCatalogQuerys
         """
+
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             queries = session.scalars(
