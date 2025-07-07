@@ -80,7 +80,6 @@ const DefaultObservationPlanTable = ({
   totalMatches,
   sortingCallback,
   deletePermission,
-  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -311,7 +310,7 @@ const DefaultObservationPlanTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={hideTitle === true ? "" : "Default Observation Plans"}
+              title="Default Observation Plans"
               data={default_observation_plans || []}
               options={options}
               columns={columns}
@@ -350,14 +349,12 @@ DefaultObservationPlanTable.propTypes = {
   sortingCallback: PropTypes.func,
   deletePermission: PropTypes.bool,
   totalMatches: PropTypes.number,
-  hideTitle: PropTypes.bool,
 };
 
 DefaultObservationPlanTable.defaultProps = {
   totalMatches: 0,
   sortingCallback: null,
   deletePermission: false,
-  hideTitle: false,
 };
 
 export default DefaultObservationPlanTable;

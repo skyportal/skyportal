@@ -55,7 +55,8 @@ suds-py3==1.4.5.0
 vcrpy==7.0.0
 aiosmtpd==1.4.6
 ligo.skymap==2.0.1
-lalsuite<7.26
+python-ligo-lw==1.8.4
+lalsuite<7.27
 healpy==1.18.0
 pygcn==1.1.2
 pysedm==0.31.1
@@ -84,12 +85,12 @@ iminuit==2.30.1
 watchdog==6.0.0
 PyAstronomy==0.22.0
 shapely==2.0.7
-openai==1.77.0
+openai==1.82.1
 tiktoken==0.9.0
 simplejson==3.20.1
 langchain==0.3.25
-langchain-openai==0.3.16
-pinecone==6.0.2
+langchain-openai==0.3.19
+pinecone==7.0.2
 pydantic==2.11.4
 sentry-sdk==2.29.1
 typing-inspect==0.9.0

@@ -604,7 +604,7 @@ RenderShowLabelling.propTypes = {
 // This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
-  title,
+  title = "Sources",
   sourceStatus = "saved",
   groupID,
   paginateCallback,
@@ -613,10 +613,10 @@ const SourceTable = ({
   numPerPage,
   sortingCallback,
   favoritesRemoveButton = false,
-  hideTitle = false,
   downloadCallback,
   includeGcnStatus = false,
   sourceInGcnFilter,
+  fixedHeader = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -1774,6 +1774,9 @@ const SourceTable = ({
   }
 
   const options = {
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
+      : {}),
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
@@ -2053,7 +2056,7 @@ const SourceTable = ({
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
                   <MUIDataTable
-                    title={!hideTitle ? title : ""}
+                    title={title}
                     columns={columns}
                     data={sources}
                     options={options}
@@ -2179,7 +2182,6 @@ SourceTable.propTypes = {
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
-  hideTitle: PropTypes.bool,
   downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
@@ -2188,21 +2190,22 @@ SourceTable.propTypes = {
     localizationName: PropTypes.string,
     localizationCumprob: PropTypes.number,
   }),
+  fixedHeader: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
   sourceStatus: "saved",
   groupID: undefined,
-  title: "",
+  title: "Sources",
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
   favoritesRemoveButton: false,
-  hideTitle: false,
   downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},
+  fixedHeader: false,
 };
 
 export default SourceTable;

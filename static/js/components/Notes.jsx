@@ -14,10 +14,12 @@ import { useSelector } from "react-redux";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    paddingTop: "0.1em",
     width: "100%",
     maxWidth: 480,
     backgroundColor: theme.palette.background.paper,
+  },
+  list: {
+    padding: "0.3em",
   },
   centered: {
     display: "flex",
@@ -28,26 +30,30 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "space-between",
     color: "white",
-    fontWeight: "bold",
-    padding: "0.5em",
-    borderRadius: "0.5em",
-    marginBottom: 5,
+    fontWeight: 500,
+    padding: "0.5em 1em",
+    marginBottom: "0.3em",
     width: "100%",
-    WebkitBoxShadow: "0 2px 3px black",
-    MozBoxShadow: "0 2px 3px black",
-    boxShadow: "0 2px 3px black",
-  },
-  noteText: {
-    display: "flex",
-    alignItems: "center",
-    columnGap: "0.5em",
-    marginRight: "1em",
+    borderRadius: "12px",
+    WebkitBoxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+    MozBoxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+    fontSize: "0.95rem",
+    columnGap: "1em",
   },
   duplicateNoteBadge: {
     "& .MuiBadge-badge": {
       color: theme.palette.primary.main,
       backgroundColor: theme.palette.primary.contrastText,
     },
+  },
+  cancelButton: {
+    background: "transparent",
+    color: "#ffffff",
+    fontSize: "1.2rem",
+    fontWeight: 400,
+    padding: 0,
+    lineHeight: 1,
   },
 }));
 
@@ -59,9 +65,9 @@ const Notes = () => {
   let sameNoteCount = 0;
 
   const noteColor = {
-    error: "Crimson",
-    warning: "Orange",
-    info: "MediumAquaMarine",
+    error: "rgba(244,67,54,0.95)",
+    warning: "rgba(255,152,0,0.95)",
+    info: "rgba(11,181,119,0.95)",
   };
 
   useEffect(() => {
@@ -130,7 +136,7 @@ const Notes = () => {
         disableScrollLock
       >
         <div className={classes.root}>
-          <List className={classes.root}>
+          <List className={classes.list}>
             {notes?.map((note, index) => {
               if (
                 index + 1 === notes.length ||
@@ -144,10 +150,7 @@ const Notes = () => {
                       className={classes.note}
                       style={{ background: noteColor[note.type] }}
                     >
-                      <div className={classes.noteText}>
-                        <InfoIcon />
-                        {note.note}
-                      </div>
+                      {note.note}
                       <div style={{ display: "flex", alignItems: "center" }}>
                         {noteCount > 0 && (
                           <Badge
@@ -165,10 +168,9 @@ const Notes = () => {
                           deleteNote(index, noteCount);
                         }}
                       >
-                        <CancelIcon style={{ color: "white" }} />
+                        <CancelIcon className={classes.cancelButton} />
                       </Button>
                     </div>
-                    <Divider />
                   </div>
                 );
               } else {
@@ -176,14 +178,17 @@ const Notes = () => {
               }
             })}
             {notes && notes.length > 0 && (
-              <div className={classes.centered}>
-                <Button
-                  onClick={deleteAllNotes}
-                  data-testid="deleteAllNotesButton"
-                >
-                  Delete all
-                </Button>
-              </div>
+              <>
+                <Divider />
+                <div className={classes.centered}>
+                  <Button
+                    onClick={deleteAllNotes}
+                    data-testid="deleteAllNotesButton"
+                  >
+                    Delete all
+                  </Button>
+                </div>
+              </>
             )}
             {(!notes || notes.length === 0) && (
               <ListItem className={classes.centered}>

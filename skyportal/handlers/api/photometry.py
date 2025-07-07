@@ -669,7 +669,10 @@ def standardize_photometry_data(data):
 
     # convert to microjanskies, AB for DB storage as a vectorized operation
     pdata = PhotometricData(phot_table)
-    standardized = pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+    try:
+        standardized = pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+    except Exception as e:
+        raise ValidationError(f"Error standardizing photometry data: {e}.")
 
     df["standardized_flux"] = standardized.flux
     df["standardized_fluxerr"] = standardized.fluxerr
@@ -677,7 +680,12 @@ def standardize_photometry_data(data):
     # convert the reference flux to microjanskies, AB
     if ref_phot_table:
         ref_pdata = PhotometricData(ref_phot_table)
-        ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+        try:
+            ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+        except Exception as e:
+            raise ValidationError(
+                f"Error standardizing reference photometry data: {e}."
+            )
         df["ref_standardized_flux"] = ref_standardized.flux
         df["ref_standardized_fluxerr"] = ref_standardized.fluxerr
 
