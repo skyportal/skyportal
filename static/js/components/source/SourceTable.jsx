@@ -125,7 +125,7 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "wrap",
     alignItems: "center",
     gap: "0.25rem",
-    maxWidth: "100%",
+    maxWidth: "120px",
   },
 }));
 
@@ -245,6 +245,7 @@ let defaultDisplayedColumns = [
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
+  "Tags",
   "Classification",
   " ",
   "Groups",
@@ -1243,6 +1244,23 @@ const SourceTable = ({
     return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
   };
 
+  const renderTags = (dataIndex) => {
+    const source = sources[dataIndex];
+    const tags = source.tags || [];
+
+    if (tags.length === 0) {
+      return null;
+    }
+
+    return (
+      <div key={`${source.id}_tags`} className={classes.groupChips}>
+        {tags.map((tag) => (
+          <Chip key={tag.id} label={tag.name} size="small" />
+        ))}
+      </div>
+    );
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1574,6 +1592,17 @@ const SourceTable = ({
       },
     },
     {
+      name: "tags",
+      label: "Tags",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Tags"),
+        customBodyRenderLite: renderTags,
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
+      },
+    },
+    {
       name: "classification",
       label: "Classification",
       options: {
@@ -1582,7 +1611,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
       },
     },
     {
@@ -2133,6 +2162,13 @@ SourceTable.propTypes = {
           peak_mjd_global: PropTypes.number,
           last_detected_mag: PropTypes.number,
           last_detected_mjd: PropTypes.number,
+        }),
+      ),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number.isRequired,
+          name: PropTypes.string.isRequired,
+          objtagoption_id: PropTypes.number,
         }),
       ),
     }),
