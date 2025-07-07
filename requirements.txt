@@ -74,7 +74,7 @@ noaodatalab==2.20.0
 black==25.1.0
 click==8.1.7
 arviz==0.19.0
-corner==2.2.2
+corner==2.2.3
 penquins==2.4.2
 selenium==4.8.3
 selenium-requests==2.0.4
