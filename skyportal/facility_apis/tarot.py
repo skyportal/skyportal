@@ -551,8 +551,10 @@ class TAROTAPI(FollowUpAPI):
             if not match_status or not match_status.groups():
                 if observing_time > datetime.utcnow() + timedelta(days=1):
                     request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
-                else:
+                elif observing_time >= datetime.utcnow():
+                    # If the status is not found, it means the tarot server is not yet aware of the request
                     return
+                # if observing time is in the past, we pass here and will check the observation status in a future step
             else:
                 request.status = status_dict.get(
                     match_status.group(1), "rejected: not planified"
