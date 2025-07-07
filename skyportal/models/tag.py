@@ -27,6 +27,13 @@ class ObjTagOption(Base):
         unique=True,
     )
 
+    color = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Hex color code for the tag display (e.g., #3a87ad)",
+    )
+
 
 ObjTag = join_model("obj_tags", Obj, ObjTagOption)
 
