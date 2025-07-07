@@ -113,7 +113,7 @@
           </div>
           {% if data.get('summary') %}
             <p>
-                {{ data['summary'] | e }}
+              {{ data['summary_markdown'] | safe }}
             </p>
           {% endif %}
         </div>

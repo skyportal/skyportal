@@ -3,7 +3,9 @@ __all__ = ["PublicSourcePage"]
 import datetime
 import json
 
+import bleach
 import jinja2
+import markdown
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
@@ -158,6 +160,30 @@ class PublicSourcePage(Base):
             ):
                 thumbnails_filtered.append(thumbnail)
         public_data["thumbnails"] = thumbnails_filtered
+
+        if public_data.get("summary"):
+            allowed_tags = [
+                "p",
+                "strong",
+                "em",
+                "ul",
+                "ol",
+                "li",
+                "a",
+                "code",
+                "pre",
+                "blockquote",
+            ]
+            allowed_attrs = {"a": ["href", "title", "rel"]}
+            # Convert the summary markdown to HTML
+            raw_html = markdown.markdown(public_data["summary"])
+            # Clean the html to allow only certain tags and attributes to prevent XSS attacks
+            public_data["summary_markdown"] = bleach.clean(
+                raw_html,
+                tags=allowed_tags,
+                attributes=allowed_attrs,
+                strip=True,  # Strip disallowed tags
+            )
 
         html = template.render(
             source_id=self.source_id,
