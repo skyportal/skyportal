@@ -2564,8 +2564,10 @@ class SourceOffsetsHandler(BaseHandler):
                     noffsets,
                     used_ztfref,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
-            except ValueError:
-                return self.error("Error querying for nearby offset stars")
+            except ValueError as e:
+                log(f"Error querying for nearby offset stars: {e}")
+                traceback.print_exc()
+                return self.error(f"Error querying for nearby offset stars: {e}")
 
             starlist_str = "\n".join(
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
@@ -2824,10 +2826,19 @@ class SourceFinderHandler(BaseHandler):
             self.push_notification(
                 "Finding chart generation in progress. Download will start soon."
             )
-            rez = await IOLoop.current().run_in_executor(None, finder)
+            try:
+                rez = await IOLoop.current().run_in_executor(None, finder)
+                filename = rez["name"]
+                data = io.BytesIO(rez["data"])
+            except Exception as e:
+                # if its a value error with text "Source not found", we return a 404
+                if isinstance(e, ValueError) and str(e) == "Source not found":
+                    return self.error("Source not found", status=404)
 
-            filename = rez["name"]
-            data = io.BytesIO(rez["data"])
+                # otherwise, we log the error and return a 500
+                log(f"Error generating finding chart for {obj_id}: {str(e)}")
+                traceback.print_exc()
+                return self.error(f"Error generating finding chart: {str(e)}")
 
             await self.send_file(data, filename, output_type=output_type)
 

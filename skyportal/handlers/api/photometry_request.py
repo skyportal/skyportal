@@ -69,4 +69,4 @@ class PhotometryRequestHandler(BaseHandler):
             )
         except Exception as e:
             # Remove this catch-all once we identify a more specific cause of uncaught errors
-            return self.error(f"Error retrieving photometry request: {e}")
+            return self.error(f"Error retrieving request: {e}")
