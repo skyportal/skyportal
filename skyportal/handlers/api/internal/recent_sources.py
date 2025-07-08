@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, Source
+from ....models import Obj, ObjTag, Source
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
@@ -17,7 +17,11 @@ from .source_views import t_index
 # maxNumSources is the maximum number of sources to return
 # includeSitewide is a boolean that determines whether to include
 # sources that are only in the sitewide group
-default_prefs = {"maxNumSources": 25, "includeSitewideSources": False, "groupIds": []}
+default_prefs = {
+    "maxNumSources": 25,
+    "includeSitewideSources": False,
+    "groupIds": [],
+}
 
 env, cfg = load_env()
 log = make_log("api/recent_sources")
@@ -56,7 +60,7 @@ class RecentSourcesHandler(BaseHandler):
             Source.obj_id, Source.created_at
         )
         query_results = session.scalars(stmt.limit(max_num_sources)).all()
-        ids = (src.obj_id for src in query_results)
+        ids = [src.obj_id for src in query_results]
         return ids
 
     @auth_or_token
@@ -65,6 +69,17 @@ class RecentSourcesHandler(BaseHandler):
             query_results = RecentSourcesHandler.get_recent_source_ids(
                 self.current_user, session
             )
+            tags = session.scalars(
+                ObjTag.select(session.user_or_token).where(
+                    ObjTag.obj_id.in_(list(set(query_results)))
+                )
+            ).all()
+            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+            # make it a hashmap of obj_id to tags
+            tags_dict = defaultdict(list)
+            for tag in tags:
+                tags_dict[tag["obj_id"]].append(tag)
+
             sources = []
             sources_seen = defaultdict(lambda: 1)
             for obj_id in query_results:
@@ -91,6 +106,10 @@ class RecentSourcesHandler(BaseHandler):
                     .offset(recency_index)
                 ).first()
 
+                if s is None or source_entry is None:
+                    log(f"Source with obj_id {obj_id} not found.")
+                    continue
+
                 sources.append(
                     {
                         "obj_id": s.id,
@@ -108,6 +127,7 @@ class RecentSourcesHandler(BaseHandler):
                         "classifications": s.classifications,
                         "recency_index": recency_index,
                         "tns_name": s.tns_name,
+                        "tags": tags_dict.get(s.id, []),
                     }
                 )
 

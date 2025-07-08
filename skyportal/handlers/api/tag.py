@@ -19,6 +19,7 @@ class ObjTagOptionHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         name = data.get("name")
+        color = data.get("color")
 
         if not name or not isinstance(name, str):
             return self.error("`name` must be provided as a non-empty string")
@@ -26,6 +27,12 @@ class ObjTagOptionHandler(BaseHandler):
         if not re.fullmatch(r"[A-Za-z0-9]+", name):
             return self.error(
                 "`name` must contain only letters and numbers (no spaces, underscores, or special characters)",
+                status=400,
+            )
+
+        if color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+            return self.error(
+                "`color` must be a valid hex color code (e.g., #3a87ad)",
                 status=400,
             )
 
@@ -42,7 +49,7 @@ class ObjTagOptionHandler(BaseHandler):
                     status=409,
                 )
 
-            new_tag = ObjTagOption(name=name)
+            new_tag = ObjTagOption(name=name, color=color)
             session.add(new_tag)
             session.commit()
 
@@ -52,6 +59,7 @@ class ObjTagOptionHandler(BaseHandler):
     def patch(self, tag_id):
         data = self.get_json()
         new_name = data.get("name")
+        new_color = data.get("color")
 
         try:
             tag_id = int(tag_id)
@@ -60,6 +68,12 @@ class ObjTagOptionHandler(BaseHandler):
 
         if not new_name or not isinstance(new_name, str):
             return self.error("`name` must be provided as a non-empty string")
+
+        if new_color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", new_color):
+            return self.error(
+                "`color` must be a valid hex color code (e.g., #3a87ad)",
+                status=400,
+            )
 
         with self.Session() as session:
             tag = session.scalars(
@@ -79,6 +93,8 @@ class ObjTagOptionHandler(BaseHandler):
                 return self.error("This tag name already exists for another tag")
 
             tag.name = new_name
+            if new_color:
+                tag.color = new_color
             session.commit()
 
             return self.success()
