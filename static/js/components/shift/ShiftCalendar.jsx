@@ -351,17 +351,17 @@ function MyCalendar({
             titleAccessor="name"
             selectable
             onSelectEvent={(event) => {
-              if (event.id === currentShift.id) return;
               if (event.isPreview) {
                 setPreSelectedRange(null);
                 return;
+              } else if (event.id !== currentShift.id) {
+                dispatch(shiftsActions.setCurrentShift(event.id));
+                dispatch(
+                  shiftsActions.getShiftsSummary({
+                    shiftID: event.id,
+                  }),
+                );
               }
-              dispatch(shiftsActions.setCurrentShift(event.id));
-              dispatch(
-                shiftsActions.getShiftsSummary({
-                  shiftID: event.id,
-                }),
-              );
               setShow("manage shift");
             }}
             onSelectSlot={(slotInfo) => {
