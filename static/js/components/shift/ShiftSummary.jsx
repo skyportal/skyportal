@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import dayjs from "dayjs";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
@@ -15,7 +15,7 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import HelpOutlineOutlined from "@mui/icons-material/HelpOutlineOutlined";
 import { showNotification } from "baselayer/components/Notifications";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
 import * as sourcesActions from "../../ducks/sources";
 
@@ -63,8 +63,9 @@ const ShiftSummary = () => {
   const sources = useSelector((state) => state?.sources?.gcnEventSources);
 
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
-  // return a react json schema form where the user can select a start date and end date, and then click submit to get  json document that summarizes the activity during shifts between the start and end dates
-  const shiftsSummary = useSelector((state) => state.shift.shiftsSummary);
+  // return a React json schema form where the user can select a start date and end date, and then click submit to get
+  // json document that summarizes the activity during shifts between the start and end dates
+  const shiftsSummary = useSelector((state) => state.shifts.shiftsSummary);
 
   const defaultStartDate = dayjs()
     .subtract(1, "day")
@@ -115,7 +116,7 @@ const ShiftSummary = () => {
       .replace(".000Z", "");
     if (formData.end_date && formData.start_date) {
       dispatch(
-        shiftActions.getShiftsSummary({
+        shiftsActions.getShiftsSummary({
           startDate: formData.start_date,
           endDate: formData.end_date,
         }),
@@ -308,7 +309,6 @@ const ShiftSummary = () => {
           schema={shiftFormSchema}
           validator={validator}
           onSubmit={handleSubmit}
-          // eslint-disable-next-line react/jsx-no-bind
           customValidate={validate}
           liveValidate
         />
