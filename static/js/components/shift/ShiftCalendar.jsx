@@ -354,7 +354,8 @@ function MyCalendar({
               if (event.isPreview) {
                 setPreSelectedRange(null);
                 return;
-              } else if (event.id !== currentShift.id) {
+              }
+              if (event.id !== currentShift.id) {
                 dispatch(shiftsActions.setCurrentShift(event.id));
                 dispatch(
                   shiftsActions.getShiftsSummary({
