@@ -12,6 +12,7 @@ import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import DynamicTagDisplay from "./DynamicTagDisplay";
 
 import Button from "../Button";
 
@@ -134,9 +135,15 @@ const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
           let classification = null;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class, and that isn't a ml classifier
-            const filteredClasses = source.classifications?.filter(
+            // if there are no results, then consider ML classifications too
+            let filteredClasses = source.classifications?.filter(
               (i) => i.probability > 0 && i.ml === false,
             );
+            if (filteredClasses.length === 0) {
+              filteredClasses = source.classifications?.filter(
+                (i) => i.probability > 0,
+              );
+            }
             const sortedClasses = filteredClasses.sort((a, b) =>
               a.modified < b.modified ? 1 : -1,
             );
@@ -153,8 +160,10 @@ const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
 
           return (
             <li key={`topSources_${source.obj_id}`}>
-              <div
-                data-testid={`topSourceItem_${source.obj_id}`}
+              <Paper
+                variant="outlined"
+                square={false}
+                data-testid={`topSourceItem_${source.obj_id}_${source.created_at}`}
                 className={styles.sourceItemWithButton}
               >
                 <div className={styles.sourceItem}>
@@ -185,44 +194,52 @@ const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
                       }}
                     />
                   </Link>
-                  <div className={styles.sourceInfo}>
-                    <div className={styles.sourceNameContainer}>
-                      <Link
-                        to={`/source/${source.obj_id}`}
-                        className={styles.sourceName}
-                      >
-                        <span className={styles.sourceNameLink}>
-                          {topsourceName}
-                        </span>
-                      </Link>
-                      {classification && (
-                        <span className={styles.classification}>
-                          {classification}
-                        </span>
-                      )}
-                      <div className={styles.sourceCoordinates}>
-                        <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                  <div className={styles.sourceContainer}>
+                    <div className={styles.sourceHeaderContainer}>
+                      <div className={styles.sourceInfoContainer}>
+                        <Link
+                          to={`/source/${source.obj_id}`}
+                          className={styles.sourceName}
                         >
-                          {`\u03B1: ${ra_to_hours(source.ra)}`}
-                        </span>
-                        <span
-                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
-                        >
-                          {`\u03B4: ${dec_to_dms(source.dec)}`}
-                        </span>
+                          <span className={styles.sourceNameLink}>
+                            {topsourceName}
+                          </span>
+                        </Link>
+                        {classification && (
+                          <span className={styles.classification}>
+                            {classification}
+                          </span>
+                        )}
+                        <div className={styles.sourceCoordinates}>
+                          <span
+                            style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                          >
+                            {`\u03B1: ${ra_to_hours(source.ra)}`}
+                          </span>
+                          <span
+                            style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                          >
+                            {`\u03B4: ${dec_to_dms(source.dec)}`}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className={styles.bottomContainer}>
-                      <span style={{ textAlign: "right" }}>
-                        <em>{`${source.views} view(s)`}</em>
+                      <span
+                        style={{
+                          textAlign: "right",
+                          fontSize: "0.95rem",
+                          fontStyle: "italic",
+                          padding: 0,
+                          margin: 0,
+                        }}
+                      >
+                        {`${source.views} view${source.views !== 1 ? "s" : ""}`}
                       </span>
+                    </div>
+                    <div className={styles.sourceChipContainer}>
                       {displayTNS && source?.tns_name?.length > 0 && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-end",
+                            marginTop: source?.tags?.length > 0 ? "-3rem" : "0",
                           }}
                         >
                           <Chip
@@ -249,10 +266,13 @@ const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
                           />
                         </div>
                       )}
+                      <div style={{ width: "100%" }}>
+                        <DynamicTagDisplay source={source} styles={styles} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Paper>
             </li>
           );
         })}
