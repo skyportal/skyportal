@@ -61,7 +61,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const getContrastColor = (hexColor) => {
+export const getContrastColor = (hexColor) => {
   if (!hexColor || hexColor.length !== 7) return "#000000";
 
   const r = parseInt(hexColor.substr(1, 2), 16);
