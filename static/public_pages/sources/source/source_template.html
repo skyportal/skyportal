@@ -27,6 +27,20 @@
       let subtitle_date = document.getElementById('subtitle_date')
       subtitle_date.innerHTML = "<b>" + radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + "</b>" + subtitle_date.innerHTML
     </script>
+    <!-- Load Marked and DOMPurify and render summary as markdown if available -->
+    {% if data.get('summary') %}
+      <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+      <script type="module">
+        const summary = document.getElementById("summary");
+        if (summary) {
+          const markdownContent = JSON.parse(summary.textContent);
+          const html = DOMPurify.sanitize(marked.parse(markdownContent));
+          document.getElementById("markdown-summary").innerHTML = html;
+        }
+      </script>
+    {% endif %}
+    <!-- Load Plotly and other scripts if photometry or spectroscopy data is available -->
     {% if data.get('photometry') or data.get('spectroscopy') %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       {% if data.get('photometry') %}
@@ -112,9 +126,10 @@
             {% endif %}
           </div>
           {% if data.get('summary') %}
-            <p>
-              {{ data['summary_markdown'] | safe }}
-            </p>
+            <div id="summary" style="display: none;">
+              {{ data['summary'] | tojson }}
+            </div>
+            <div id="markdown-summary"></div>
           {% endif %}
         </div>
         <div class="images">
