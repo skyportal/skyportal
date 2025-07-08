@@ -1,12 +1,16 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useSelector } from "react-redux";
 import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
+import { getContrastColor } from "../ObjectTags";
 
 const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
   const measureRef = useRef(null);
+
+  const tagOptions = useSelector((state) => state.objectTags || []);
 
   const measureTextWidth = (text) => {
     if (!measureRef.current) return 0;
@@ -100,6 +104,26 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
   const visibleTags = source.tags.slice(0, visibleTagsCount);
   const hiddenTags = source.tags.slice(visibleTagsCount);
 
+  const visibleTagsWithColors = visibleTags.map((tag) => {
+    const tagOption = tagOptions.find(
+      (option) => option.id === tag.objtagoption_id,
+    );
+    return {
+      ...tag,
+      color: tagOption?.color || "#dddfe2",
+    };
+  });
+
+  const hiddenTagsWithColors = hiddenTags.map((tag) => {
+    const tagOption = tagOptions.find(
+      (option) => option.id === tag.objtagoption_id,
+    );
+    return {
+      ...tag,
+      color: tagOption?.color || "#dddfe2",
+    };
+  });
+
   return (
     <div className={styles.tagsContainer} ref={containerRef}>
       <span
@@ -107,14 +131,17 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
         style={{ visibility: "hidden", position: "absolute" }}
       />
 
-      {visibleTags.map((tag) => (
+      {visibleTagsWithColors.map((tag) => (
         <Chip
           key={tag.id}
           label={tag.name}
           size="small"
           className={styles.tagChip}
-          color="default"
           variant="filled"
+          style={{
+            backgroundColor: tag.color,
+            color: getContrastColor(tag.color),
+          }}
         />
       ))}
 
@@ -124,10 +151,18 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
             <div>
               <strong>Additional tags:</strong>
               <br />
-              {hiddenTags.map((tag, index) => (
+              {hiddenTagsWithColors.map((tag, index) => (
                 <span key={tag.id}>
-                  {tag.name}
-                  {index < hiddenTags.length - 1 ? ", " : ""}
+                  <Chip
+                    label={tag.name}
+                    size="small"
+                    style={{
+                      backgroundColor: tag.color,
+                      color: getContrastColor(tag.color),
+                      margin: "2px",
+                    }}
+                  />
+                  {index < hiddenTagsWithColors.length - 1 ? " " : ""}
                 </span>
               ))}
             </div>

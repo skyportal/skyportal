@@ -22,6 +22,7 @@ import DynamicTagDisplay from "./DynamicTagDisplay";
 import { showNotification } from "baselayer/components/Notifications";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
+import * as objectTagsActions from "../../ducks/objectTags";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -531,6 +532,7 @@ RecentSourcesList.defaultProps = {
 };
 
 const RecentSources = ({ classes }) => {
+  const dispatch = useDispatch();
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
@@ -540,6 +542,9 @@ const RecentSources = ({ classes }) => {
   const prefs =
     useSelector((state) => state.profile.preferences.recentSources) ||
     defaultPrefs;
+  useEffect(() => {
+    dispatch(objectTagsActions.fetchTagOptions());
+  }, [dispatch]);
 
   const recentSourcesPrefs = prefs
     ? { ...defaultPrefs, ...prefs }
