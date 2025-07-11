@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "../Button";
@@ -64,7 +64,17 @@ const EditFollowupRequestDialog = ({
     // Set the form value for "key" to the value in the existing request's
     // payload, which is the form data sent to the external follow-up API
     if (followupRequest.payload[key]) {
-      formCopy.properties[key].default = followupRequest.payload[key];
+      // if the format is "date" but the value has time info, make sure to only include the date part
+      if (
+        formCopy.properties[key].format === "date" &&
+        followupRequest.payload[key]
+      ) {
+        formCopy.properties[key].default = followupRequest.payload[key]
+          .split("T")[0]
+          .split(" ")[0];
+      } else {
+        formCopy.properties[key].default = followupRequest.payload[key];
+      }
     }
   });
 
