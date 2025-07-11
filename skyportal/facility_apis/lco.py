@@ -93,8 +93,8 @@ class SINISTRORequest:
                 }
             )
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = request.payload["start_date"] + "+00:00Z"
+        tend = request.payload["end_date"] + "+00:00Z"
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -194,8 +194,8 @@ class SPECTRALRequest:
                 }
             )
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = request.payload["start_date"] + "+00:00Z"
+        tend = request.payload["end_date"] + "+00:00Z"
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -302,8 +302,8 @@ class MUSCATRequest:
             }
         ]
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = request.payload["start_date"] + "+00:00Z"
+        tend = request.payload["end_date"] + "+00:00Z"
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -466,8 +466,8 @@ class FLOYDSRequest:
             },
         ]
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = request.payload["start_date"] + "+00:00Z"
+        tend = request.payload["end_date"] + "+00:00Z"
 
         windows = [{"start": tstart, "end": tend}]
 
