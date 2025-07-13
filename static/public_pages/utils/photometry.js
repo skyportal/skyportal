@@ -1,15 +1,19 @@
+const daysToSec = (days) => days * 24 * 60 * 60;
+
 function photometryPlot(
   photometry_data,
   div_id,
   filters_used_mapper,
   isMobile,
+  t0,
+  displayXAxisSinceT0,
+  displayInLog,
 ) {
   function getBaseLayout() {
     return {
       zeroline: false,
       automargin: true,
       showline: true,
-      autorange: "reversed",
       titlefont: { size: 18 },
       tickfont: { size: 14 },
       ticklen: 12,
@@ -24,21 +28,39 @@ function photometryPlot(
   }
 
   function getLayoutGraphPart() {
+    let title;
+    if (t0 && displayXAxisSinceT0 && displayInLog) {
+      title = "T - T0 (s)";
+    } else if (t0 && displayXAxisSinceT0 && !displayInLog) {
+      title = "T - T0 (days)";
+    } else {
+      title = "Days Ago";
+    }
     return {
       autosize: true,
       xaxis: {
         title: {
-          text: "Days Ago",
+          text: title,
         },
         overlaying: "x",
         side: "bottom",
         tickformat: ".6~f",
+        autorange: t0 && displayXAxisSinceT0 ? true : "reversed",
+        ...(t0 &&
+          displayXAxisSinceT0 &&
+          displayInLog && {
+            type: "log",
+            showexponent: "all",
+            exponentformat: "power",
+            tickformat: false,
+          }),
         ...getBaseLayout(),
       },
       yaxis: {
         title: {
           text: "AB Mag",
         },
+        autorange: "reversed",
         ...getBaseLayout(),
       },
       margin: {
@@ -107,22 +129,27 @@ function photometryPlot(
     };
   }
 
-  function getHoverTexts(photometry) {
-    return photometry.map(
-      (point) =>
-        `MJD: ${point.mjd.toFixed(6)}<br>${
-          point.mag !== null ? `Mag: ${point.mag.toFixed(4)}<br>` : ""
-        }${
-          point.magerr !== null ? `Magerr: ${point.magerr.toFixed(4)}<br>` : ""
-        }${
-          point.limiting_mag !== null
-            ? `Limiting Mag: ${point.limiting_mag.toFixed(4)}<br>`
-            : ""
-        }Filter: ${point.filter}<br>Instrument: ${point.instrument_name}`,
-    );
+  function getHoverText(point) {
+    let text = `MJD: ${point.mjd.toFixed(6)}<br>`;
+    if (t0) {
+      text += `T - T0: ${daysToSec(point.mjd - t0).toLocaleString("en-US", {
+        maximumFractionDigits: 0,
+      })}<br>`;
+    }
+    if (point.mag !== null) {
+      text += `Mag: ${point.mag.toFixed(4)}<br>`;
+    }
+    if (point.magerr !== null) {
+      text += `Magerr: ${point.magerr.toFixed(4)}<br>`;
+    }
+    if (point.limiting_mag !== null) {
+      text += `Limiting Mag: ${point.limiting_mag.toFixed(4)}<br>`;
+    }
+    return `${text}Filter: ${point.filter}<br>Instrument: ${point.instrument_name}`;
   }
 
-  function getGroupedPhotometry(photometry) {
+  function getUpdatedGroupedPhotometry(photometry) {
+    const now = new Date().getTime() / 86400000 + 40587;
     return photometry.reduce((acc, point) => {
       const key = `${point.instrument_name}/${point.filter}${
         point.origin !== "None" ? `/${point.origin}` : ""
@@ -130,19 +157,25 @@ function photometryPlot(
       if (!acc[key]) {
         acc[key] = [];
       }
+      if (!t0 || !displayXAxisSinceT0) {
+        point.days_ago = now - point.mjd;
+      } else if (displayInLog) {
+        point.sec_since_t0 = daysToSec(point.mjd - t0);
+      } else {
+        point.sec_since_t0 = point.mjd - t0;
+      }
       acc[key].push(point);
       return acc;
     }, {});
   }
 
   function getTrace(data, isDetection, key, color) {
-    const now = new Date().getTime() / 86400000 + 40587;
     const rgba = (rgb, alpha) =>
       `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
     const dataType = isDetection ? "detections" : "upperLimits";
     return {
       dataType,
-      x: data.map((point) => now - point.mjd),
+      x: data.map((point) => point.days_ago || point.sec_since_t0),
       y: data.map((point) => (isDetection ? point.mag : point.limiting_mag)),
       ...(isDetection
         ? {
@@ -156,7 +189,7 @@ function photometryPlot(
             },
           }
         : {}),
-      text: getHoverTexts(data),
+      text: data.map((point) => getHoverText(point)),
       mode: "markers",
       type: "scatter",
       name: key + (isDetection ? "" : " (UL)"),
@@ -182,7 +215,7 @@ function photometryPlot(
   const photometry_tab = JSON.parse(photometry_data);
   const mapper = JSON.parse(filters_used_mapper);
   const plotData = [];
-  const groupedPhotometry = getGroupedPhotometry(photometry_tab);
+  const groupedPhotometry = getUpdatedGroupedPhotometry(photometry_tab);
   Object.keys(groupedPhotometry).forEach((key) => {
     const photometry = groupedPhotometry[key];
     const color = mapper[photometry[0].filter] || [0, 0, 0];
