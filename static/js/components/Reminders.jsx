@@ -22,7 +22,6 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import grey from "@mui/material/colors/grey";
 
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
@@ -208,7 +207,6 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
       validator={validator}
       id="reminder-form"
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
       liveValidate
     />
@@ -436,17 +434,19 @@ const Reminders = ({ resourceId, resourceType }) => {
     }
   }, [resourceType, resourceId]);
 
+  if (
+    !reminders ||
+    reminders.resourceType !== resourceType ||
+    reminders.resourceId !== resourceId
+  )
+    return null;
+
   return (
-    <div>
-      {resourceType === reminders.resourceType &&
-      resourceId === reminders.resourceId ? (
-        <RemindersTable
-          reminders={reminders.remindersList}
-          resourceId={resourceId}
-          resourceType={resourceType}
-        />
-      ) : null}
-    </div>
+    <RemindersTable
+      reminders={reminders.remindersList}
+      resourceId={resourceId}
+      resourceType={resourceType}
+    />
   );
 };
 

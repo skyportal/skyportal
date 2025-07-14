@@ -63,7 +63,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const spectrumPreviewSpec = (data) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
+  $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
   width: "container",
   height: 200,
   data: { values: data },

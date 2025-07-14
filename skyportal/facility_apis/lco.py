@@ -2,8 +2,9 @@ import base64
 import functools
 import json
 import urllib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
+import arrow
 import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -22,6 +23,14 @@ requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_
 archivepath = f"{cfg['app.lco_archive_endpoint']}/frames/"
 
 log = make_log("facility_apis/lco")
+
+
+def format_date(date_str: str) -> str:
+    """Format date string to LCO API expected format."""
+    return (
+        arrow.get(date_str, tzinfo=timezone.utc).format("YYYY-MM-DDTHH:mm:ss.SSSSSS")
+        + "+00:00Z"
+    )
 
 
 class SINISTRORequest:
@@ -93,8 +102,8 @@ class SINISTRORequest:
                 }
             )
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = format_date(request.payload["start_date"])
+        tend = format_date(request.payload["end_date"])
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -194,8 +203,8 @@ class SPECTRALRequest:
                 }
             )
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = format_date(request.payload["start_date"])
+        tend = format_date(request.payload["end_date"])
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -302,8 +311,8 @@ class MUSCATRequest:
             }
         ]
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = format_date(request.payload["start_date"])
+        tend = format_date(request.payload["end_date"])
 
         windows = [{"start": tstart, "end": tend}]
 
@@ -466,8 +475,8 @@ class FLOYDSRequest:
             },
         ]
 
-        tstart = request.payload["start_date"] + " 00:00:00"
-        tend = request.payload["end_date"] + " 00:00:00"
+        tstart = format_date(request.payload["start_date"])
+        tend = format_date(request.payload["end_date"])
 
         windows = [{"start": tstart, "end": tend}]
 

@@ -63,6 +63,8 @@ import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import * as objectTagsActions from "../../ducks/objectTags";
+import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
@@ -623,6 +625,7 @@ const SourceTable = ({
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   const classes = useStyles();
   const theme = useTheme();
 
@@ -660,6 +663,12 @@ const SourceTable = ({
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   const photometry = useSelector((state) => state.photometry);
+
+  const tagOptions = useSelector((state) => state.objectTags || []);
+
+  useEffect(() => {
+    dispatch(objectTagsActions.fetchTagOptions());
+  }, [dispatch]);
 
   useEffect(() => {
     if (sources) {
@@ -1252,10 +1261,28 @@ const SourceTable = ({
       return null;
     }
 
+    const tagsWithColors = tags.map((tag) => {
+      const tagOption = tagOptions.find(
+        (option) => option.id === tag.objtagoption_id,
+      );
+      return {
+        ...tag,
+        color: tagOption?.color || "#dddfe2",
+      };
+    });
+
     return (
       <div key={`${source.id}_tags`} className={classes.groupChips}>
-        {tags.map((tag) => (
-          <Chip key={tag.id} label={tag.name} size="small" />
+        {tagsWithColors.map((tag) => (
+          <Chip
+            key={tag.id}
+            label={tag.name}
+            size="small"
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
+          />
         ))}
       </div>
     );
