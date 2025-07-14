@@ -125,13 +125,13 @@ header {
       margin: 1rem 0;
     }
     .plotOptions {
-      padding: 1rem;
+      padding: 0.5rem 4rem;
       display: flex;
+      gap: 1.5rem;
+      flex-direction: column;
       .switchContainer {
-        width: 50%;
         gap: 0.5rem;
         display: flex;
-        justify-content: center;
         align-items: center;
         &.hide {
           display: none;
