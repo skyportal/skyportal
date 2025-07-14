@@ -53,7 +53,24 @@ const useStyles = makeStyles((theme) => ({
   newTagField: {
     width: "100%",
   },
+  colorPicker: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+  },
 }));
+
+export const getContrastColor = (hexColor) => {
+  if (!hexColor || hexColor.length !== 7) return "#000000";
+
+  const r = parseInt(hexColor.substr(1, 2), 16);
+  const g = parseInt(hexColor.substr(3, 2), 16);
+  const b = parseInt(hexColor.substr(5, 2), 16);
+
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#000000" : "#ffffff";
+};
 
 const ObjectTags = ({ source }) => {
   const styles = useStyles();
@@ -62,6 +79,7 @@ const ObjectTags = ({ source }) => {
   const [selectedTag, setSelectedTag] = useState(null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#dddfe2");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState("");
   const tagOptions = useSelector((state) => state.objectTags || []);
@@ -81,6 +99,7 @@ const ObjectTags = ({ source }) => {
     setNewTagName("");
     setSelectedTag(null);
     setValue("tag", null);
+    setNewTagColor("#dddfe2");
   };
 
   const handleCloseDialog = () => {
@@ -88,6 +107,7 @@ const ObjectTags = ({ source }) => {
     setSelectedTag(null);
     setValue("tag", null);
     setNewTagName("");
+    setNewTagColor("#dddfe2");
   };
 
   const handleNewTagNameChange = (event) => {
@@ -106,6 +126,7 @@ const ObjectTags = ({ source }) => {
     dispatch(
       objectTagsActions.createTagOption({
         name: newTagName,
+        color: newTagColor,
       }),
     ).then((result) => {
       setIsCreatingTag(false);
@@ -119,6 +140,7 @@ const ObjectTags = ({ source }) => {
           }
         });
         setNewTagName("");
+        setNewTagColor("#dddfe2");
       } else {
         const errorMsg = result.message || "Failed to create tag";
         setTagError(errorMsg);
@@ -166,10 +188,20 @@ const ObjectTags = ({ source }) => {
     (tag) => !usedTagIds.includes(tag.id),
   );
 
+  const sourceTagsWithColors = (source.tags || []).map((tag) => {
+    const tagOption = tagOptions.find(
+      (option) => option.id === tag.objtagoption_id,
+    );
+    return {
+      ...tag,
+      color: tagOption?.color || "#dddfe2",
+    };
+  });
+
   return (
     <div className={styles.root}>
       <div className={styles.chips}>
-        {(source.tags || []).map((tag) => (
+        {sourceTagsWithColors.map((tag) => (
           <Chip
             className={styles.chip}
             key={tag.id}
@@ -177,6 +209,10 @@ const ObjectTags = ({ source }) => {
             size="small"
             onDelete={() => handleDeleteTag(tag.id)}
             data-testid={`tag-chip-${tag.id}`}
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
           />
         ))}
       </div>
@@ -216,6 +252,19 @@ const ObjectTags = ({ source }) => {
                       onChange(data);
                       setSelectedTag(data);
                     }}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Chip
+                          label={option.name}
+                          size="small"
+                          style={{
+                            backgroundColor: option.color || "#dddfe2",
+                            color: getContrastColor(option.color || "#dddfe2"),
+                            marginRight: 8,
+                          }}
+                        />
+                      </li>
+                    )}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -264,7 +313,22 @@ const ObjectTags = ({ source }) => {
                     "data-testid": "new-tag-input",
                   }}
                 />
-
+                <div className={styles.colorPicker}>
+                  <Typography variant="body2">Color:</Typography>
+                  <input
+                    type="color"
+                    value={newTagColor}
+                    onChange={(e) => setNewTagColor(e.target.value)}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  />
+                  <Typography variant="body2">{newTagColor}</Typography>
+                </div>
                 <Button
                   color="primary"
                   onClick={handleCreateTag}

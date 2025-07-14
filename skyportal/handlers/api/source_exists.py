@@ -66,11 +66,19 @@ class SourceExistsHandler(BaseHandler):
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
                 ).first()
                 if s is not None:
-                    return self.error(
-                        f"A source with the name {obj_id} already exists."
+                    return self.success(
+                        {
+                            "source_exists": True,
+                            "message": f"A source with the name {obj_id} already exists.",
+                        }
                     )
                 if not all([ra, dec, radius]):
-                    return self.success(f"No sources exist with the name {obj_id}.")
+                    return self.success(
+                        {
+                            "source_exists": False,
+                            "message": f"No sources exist with the name {obj_id}.",
+                        }
+                    )
 
             source_query = Source.select(session.user_or_token)
             try:
@@ -97,14 +105,22 @@ class SourceExistsHandler(BaseHandler):
             )
             source_names = list({source.obj_id for source in sources})
             if len(source_names) == 1:
-                return self.error(
-                    f"A source at that location already exists: {source_names[0]}."
+                return self.success(
+                    {
+                        "source_exists": True,
+                        "message": f"A source at that location already exists: {source_names[0]}.",
+                    }
                 )
             elif len(source_names) > 1:
-                return self.error(
-                    f"Sources at that location already exist: {','.join(source_names)}."
-                )
-            else:
                 return self.success(
-                    f"No sources exist at this location{f' or with the name {obj_id}' if obj_id else ''}."
+                    {
+                        "source_exists": True,
+                        "message": f"Sources at that location already exist: {','.join(source_names)}.",
+                    }
                 )
+            return self.success(
+                {
+                    "source_exists": False,
+                    "message": f"No sources exist at this location{f' or with the name {obj_id}' if obj_id else ''}.",
+                }
+            )
