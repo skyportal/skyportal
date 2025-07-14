@@ -6,7 +6,7 @@ import { useTheme } from "@mui/material/styles";
 
 const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
   const specJSON = {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
     background: "transparent",
     layer: [
       {

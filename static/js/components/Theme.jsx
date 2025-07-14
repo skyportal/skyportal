@@ -118,6 +118,10 @@ const Theme = ({ disableTransitions, children }) => {
               },
             },
           },
+          ".rbc-current-time-indicator": {
+            backgroundColor: "#87ea12 !important",
+            height: "2px !important",
+          },
           ".MuiMenuItem-root[data-value='']": {
             color: "grey",
           },

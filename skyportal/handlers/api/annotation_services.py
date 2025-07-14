@@ -164,8 +164,6 @@ class GaiaQueryHandler(BaseHandler):
                     f"No Gaia sources available within {(radius_degrees * 3600):.2f} arcseconds of the candidate."
                 )
 
-            df = df.to_pandas()
-
             # first remove rows that have faint magnitudes
             if limmag:  # do not remove if limmag is None or zero
                 df = df[df["phot_g_mean_mag"] < limmag]
