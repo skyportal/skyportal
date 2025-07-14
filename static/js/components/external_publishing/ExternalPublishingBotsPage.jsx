@@ -26,20 +26,20 @@ import validator from "@rjsf/validator-ajv8";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
-import TransferList from "../TransferList";
-
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as externalPublishingActions from "../../ducks/externalPublishing";
-import * as streamsActions from "../../ducks/streams";
-import { userLabelWithAffiliations } from "../../utils/user";
-import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import FormGroup from "@mui/material/FormGroup";
 import FormLabel from "@mui/material/FormLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+
+import Button from "../Button";
+import TransferList from "../TransferList";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as streamsActions from "../../ducks/streams";
+import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
+import { userLabel } from "../../utils/format";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
@@ -122,7 +122,7 @@ const ExternalPublishingBotGroup = ({
         newLeft
           .map((user) => ({
             id: user.id,
-            label: userLabelWithAffiliations(user),
+            label: userLabel(user, false, true),
           }))
           .sort((a, b) => a?.label?.localeCompare(b?.label)),
       );
@@ -130,7 +130,7 @@ const ExternalPublishingBotGroup = ({
         newRight
           .map((user) => ({
             id: user.id,
-            label: userLabelWithAffiliations(user),
+            label: userLabel(user, false, true),
           }))
           .sort((a, b) => a?.label?.localeCompare(b?.label)),
       );
@@ -561,7 +561,7 @@ const ExternalPublishingBotCoauthor = ({
 
   const label = (
     <div>
-      {userLabelWithAffiliations(user)}
+      {userLabel(user, false, true)}
       <IconButton onClick={() => setDeleteOpen(true)}>
         <DeleteIcon fontSize="small" />
       </IconButton>
@@ -654,8 +654,8 @@ const NewExternalPublishingBotCoauthor = ({
             >
               {userOptions
                 .sort((a, b) =>
-                  userLabelWithAffiliations(a).localeCompare(
-                    userLabelWithAffiliations(b),
+                  userLabel(a, false, true).localeCompare(
+                    userLabel(b, false, true),
                   ),
                 )
                 .map(
@@ -663,7 +663,7 @@ const NewExternalPublishingBotCoauthor = ({
                     user, // eslint-disable-line no-shadow
                   ) => (
                     <MenuItem key={user.id} value={user.id}>
-                      {userLabelWithAffiliations(user)}
+                      userLabel(user, false, true)
                     </MenuItem>
                   ),
                 )}
@@ -946,8 +946,8 @@ const ExternalPublishingBotsPage = () => {
       ...(externalPublishingBotList[dataIndex]?.coauthors || []),
     ];
     coauthors.sort((a, b) =>
-      userLabelWithAffiliations(usersLookup[a.user_id] || "").localeCompare(
-        userLabelWithAffiliations(usersLookup[b.user_id] || ""),
+      userLabel(usersLookup[a.user_id] || "", false, true).localeCompare(
+        userLabel(usersLookup[b.user_id] || "", false, true),
       ),
     );
     return (

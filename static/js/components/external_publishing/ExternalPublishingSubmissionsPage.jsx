@@ -22,7 +22,7 @@ import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
 import * as externalPublishingActions from "../../ducks/externalPublishing";
-import { userLabelWithAffiliations } from "../../utils/user";
+import { userLabel } from "../../utils/format";
 
 function getStatusColors(status) {
   if (status.toLowerCase().startsWith("complete")) {
@@ -177,7 +177,7 @@ const ExternalPublishingSubmissionsPage = () => {
                     isBot={usersLookup[user_id]?.is_bot || false}
                   />
                 )}
-              {userLabelWithAffiliations(usersLookup[user_id])}
+              {userLabel(usersLookup[user_id], false, true)}
               {publishingBotSubmissions[dataIndex].auto_submission && (
                 <Tooltip
                   title={`This submission was triggered automatically when the ${

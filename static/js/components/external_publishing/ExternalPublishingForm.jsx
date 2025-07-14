@@ -19,12 +19,12 @@ import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "../Spinner";
-import { userLabelWithAffiliations } from "../../utils/user";
 import FormValidationError from "../FormValidationError";
 
 import * as externalPublishingActions from "../../ducks/externalPublishing";
 import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
+import { userLabel } from "../../utils/format";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
@@ -120,11 +120,13 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       const coauthors = (selectedBot?.coauthors || []).filter(
         (coauthor) => coauthor.user_id !== currentUser.id,
       );
-      const authorString = userLabelWithAffiliations(currentUser);
+      const authorString = userLabel(currentUser, false, true);
       const coauthorsString = coauthors
         .map((coauthor) =>
-          userLabelWithAffiliations(
+          userLabel(
             allUsers.find((user) => user.id === coauthor.user_id),
+            false,
+            true,
           ),
         )
         .join(", ");
