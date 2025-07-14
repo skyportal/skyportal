@@ -1,3 +1,4 @@
+const MJD_OFFSET = 40587;
 const daysToSec = (days) => days * 24 * 60 * 60;
 
 function photometryPlot(
@@ -149,7 +150,7 @@ function photometryPlot(
   }
 
   function getUpdatedGroupedPhotometry(photometry) {
-    const now = new Date().getTime() / 86400000 + 40587;
+    const now = new Date().getTime() / 86400000 + MJD_OFFSET;
     return photometry.reduce((acc, point) => {
       const key = `${point.instrument_name}/${point.filter}${
         point.origin !== "None" ? `/${point.origin}` : ""
@@ -162,7 +163,7 @@ function photometryPlot(
       } else if (displayInLog) {
         point.sec_since_t0 = daysToSec(point.mjd - t0);
       } else {
-        point.sec_since_t0 = point.mjd - t0;
+        point.days_since_t0 = point.mjd - t0;
       }
       acc[key].push(point);
       return acc;
@@ -175,7 +176,9 @@ function photometryPlot(
     const dataType = isDetection ? "detections" : "upperLimits";
     return {
       dataType,
-      x: data.map((point) => point.days_ago || point.sec_since_t0),
+      x: data.map(
+        (point) => point.days_ago || point.sec_since_t0 || point.days_since_t0,
+      ),
       y: data.map((point) => (isDetection ? point.mag : point.limiting_mag)),
       ...(isDetection
         ? {

@@ -223,7 +223,6 @@
             const photometryData = {{ photometry | tojson }};
             const filtersMapper = {{ data.get('filters_mapper') | tojson }};
             const divId = "{{ photometry_div_id }}";
-            // const t0 = {{ data.get('t0') if data.get('t0') else 'null' }};
 
             function renderPlot() {
               const displaySinceT0 = document.getElementById("switch-since-t0")?.checked;
