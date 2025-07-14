@@ -11,7 +11,7 @@ import CommentEntry from "./CommentEntry";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftActions from "../../ducks/shift";
+import * as shiftsActions from "../../ducks/shifts";
 
 const EditComment = ({
   associatedResourceType = "object",
@@ -47,7 +47,7 @@ const EditComment = ({
 
   const editCommentOnShift = (shift_id, commentID, formData) => {
     formData.shift_id = shift_id;
-    dispatch(shiftActions.editCommentOnShift(commentID, formData));
+    dispatch(shiftsActions.editCommentOnShift(commentID, formData));
   };
 
   const editComment = (data) => {

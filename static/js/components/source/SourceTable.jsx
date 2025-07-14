@@ -63,6 +63,8 @@ import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import * as objectTagsActions from "../../ducks/objectTags";
+import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
@@ -125,7 +127,7 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "wrap",
     alignItems: "center",
     gap: "0.25rem",
-    maxWidth: "100%",
+    maxWidth: "120px",
   },
 }));
 
@@ -245,6 +247,7 @@ let defaultDisplayedColumns = [
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
+  "Tags",
   "Classification",
   " ",
   "Groups",
@@ -622,6 +625,7 @@ const SourceTable = ({
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   const classes = useStyles();
   const theme = useTheme();
 
@@ -659,6 +663,12 @@ const SourceTable = ({
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   const photometry = useSelector((state) => state.photometry);
+
+  const tagOptions = useSelector((state) => state.objectTags || []);
+
+  useEffect(() => {
+    dispatch(objectTagsActions.fetchTagOptions());
+  }, [dispatch]);
 
   useEffect(() => {
     if (sources) {
@@ -1243,6 +1253,41 @@ const SourceTable = ({
     return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
   };
 
+  const renderTags = (dataIndex) => {
+    const source = sources[dataIndex];
+    const tags = source.tags || [];
+
+    if (tags.length === 0) {
+      return null;
+    }
+
+    const tagsWithColors = tags.map((tag) => {
+      const tagOption = tagOptions.find(
+        (option) => option.id === tag.objtagoption_id,
+      );
+      return {
+        ...tag,
+        color: tagOption?.color || "#dddfe2",
+      };
+    });
+
+    return (
+      <div key={`${source.id}_tags`} className={classes.groupChips}>
+        {tagsWithColors.map((tag) => (
+          <Chip
+            key={tag.id}
+            label={tag.name}
+            size="small"
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1574,6 +1619,17 @@ const SourceTable = ({
       },
     },
     {
+      name: "tags",
+      label: "Tags",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Tags"),
+        customBodyRenderLite: renderTags,
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
+      },
+    },
+    {
       name: "classification",
       label: "Classification",
       options: {
@@ -1582,7 +1638,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
       },
     },
     {
@@ -2133,6 +2189,13 @@ SourceTable.propTypes = {
           peak_mjd_global: PropTypes.number,
           last_detected_mag: PropTypes.number,
           last_detected_mjd: PropTypes.number,
+        }),
+      ),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number.isRequired,
+          name: PropTypes.string.isRequired,
+          objtagoption_id: PropTypes.number,
         }),
       ),
     }),

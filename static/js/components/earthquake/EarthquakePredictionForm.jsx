@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -66,13 +66,13 @@ const EarthquakePredictionForm = ({ earthquake }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const mmadetectorLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   mmadetectorList?.forEach((mmadetector) => {
     mmadetectorLookUp[mmadetector.id] = mmadetector;
   });
@@ -93,7 +93,6 @@ const EarthquakePredictionForm = ({ earthquake }) => {
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedMMADetectorId, earthquake]);
 
   if (!allGroups || allGroups.length === 0 || mmadetectorList.length === 0) {
@@ -183,7 +182,6 @@ const EarthquakePredictionForm = ({ earthquake }) => {
             schema={EarthquakePredictionFormSchema}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
             disabled={isSubmitting}
             liveValidate

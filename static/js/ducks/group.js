@@ -10,7 +10,6 @@ const FETCH_GROUP_OK = "skyportal/FETCH_GROUP_OK";
 const FETCH_GROUP_ERROR = "skyportal/FETCH_GROUP_ERROR";
 const FETCH_GROUP_FAIL = "skyportal/FETCH_GROUP_FAIL";
 
-// eslint-disable-next-line import/prefer-default-export
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }

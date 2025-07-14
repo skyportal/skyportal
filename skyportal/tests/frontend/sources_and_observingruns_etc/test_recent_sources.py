@@ -36,7 +36,7 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     # Wait for just added source to show up in added sources
     recent_source_dataid = "recentSourceItem"
     driver.wait_for_xpath(
-        f'//div[starts-with(@data-testid, "{recent_source_dataid}")][.//span[text()="a few seconds ago"]][.//span[contains(text(), "{obj_id}")]]'
+        f'//div[starts-with(@data-testid, "{recent_source_dataid}")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
     )
 
 
@@ -70,7 +70,7 @@ def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_
     with pytest.raises(TimeoutException):
         recent_source_class = "makeStyles-recentSourceItemWithButton"
         driver.wait_for_xpath(
-            f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//span[contains(text(), "{obj_id}")]]'
+            f'//div[starts-with(@class, "{recent_source_class}")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
         )
 
 
@@ -108,5 +108,5 @@ def test_recently_saved_candidate(
     driver.get(f"/become_user/{user.id}")
     driver.get("/")
     driver.wait_for_xpath(
-        f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[text()="a few seconds ago"]][.//span[contains(text(), "{obj_id}")]]'
+        f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
     )
