@@ -4,7 +4,7 @@ __all__ = [
     "StreamPhotometry",
     "StreamPhotometricSeries",
     "StreamInvitation",
-    "StreamTNSRobot",
+    "StreamExternalPublishingBot",
 ]
 
 import sqlalchemy as sa
@@ -21,11 +21,11 @@ from baselayer.app.models import (
     restricted,
 )
 
+from .external_publishing import ExternalPublishingBot
 from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
 from .photometry import Photometry
-from .tns import TNSRobot
 
 
 class Stream(Base):
@@ -81,13 +81,13 @@ class Stream(Base):
         doc="Photometric series associated with this stream.",
     )
 
-    tnsrobots = relationship(
-        "TNSRobot",
-        secondary="stream_tnsrobots",
+    external_publishing_bots = relationship(
+        "ExternalPublishingBot",
+        secondary="stream_external_publishing_bots",
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="TNS robots associated with this stream, used for auto-reporting.",
+        doc="External publishing bots associated with this stream, used for auto-publishing.",
     )
 
 
@@ -136,6 +136,10 @@ StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
-StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
-StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
-StreamTNSRobot.create = accessible_by_stream_members
+StreamExternalPublishingBot = join_model(
+    "stream_external_publishing_bots", Stream, ExternalPublishingBot
+)
+StreamExternalPublishingBot.__doc__ = (
+    "Join table mapping Streams to ExternalPublishingBots."
+)
+StreamExternalPublishingBot.create = accessible_by_stream_members

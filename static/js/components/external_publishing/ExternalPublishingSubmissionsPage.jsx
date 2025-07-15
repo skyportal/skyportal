@@ -1,9 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
@@ -22,72 +21,58 @@ import ReactJson from "react-json-view";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import { userLabel } from "./TNSRobotsPage";
-
-import * as tnsrobotsActions from "../../ducks/tnsrobots";
-
-const useStyles = makeStyles(() => ({
-  tnsrobots: {
-    width: "100%",
-  },
-  manageButtons: {
-    display: "flex",
-    flexDirection: "row",
-  },
-}));
+import * as externalPublishingActions from "../../ducks/externalPublishing";
+import { userLabel } from "../../utils/format";
 
 function getStatusColors(status) {
-  // if it starts with success, green
-  if (status.startsWith("complete")) {
-    return ["black", "MediumAquaMarine"];
+  if (status.toLowerCase().startsWith("complete")) {
+    return ["white", "rgba(11,181,119,0.90)"];
   }
-  // if any of these strings are present, yellow
-  if (status.includes("already posted to TNS")) {
-    return ["black", "Orange"];
+  if (status.toLowerCase().includes("already posted to TNS")) {
+    return ["#212121", "rgba(255,152,0,0.90)"];
   }
-  // if it starts with error, red
-  if (status.startsWith("error")) {
-    return ["white", "Crimson"];
+  if (status.toLowerCase().startsWith("error")) {
+    return ["white", "rgba(244,67,54,0.90)"];
   }
-  // else grey
+  if (status.toLowerCase().startsWith("testing mode")) {
+    return ["white", "rgba(125,163,227,0.9)"];
+  }
   return ["black", "LightGrey"];
 }
 
-const TNSRobotSubmissionsPage = () => {
-  const classes = useStyles();
+const ExternalPublishingSubmissionsPage = () => {
   const dispatch = useDispatch();
 
-  const { id } = useParams();
+  const { bot_id } = useParams();
 
   const { users: allUsers } = useSelector((state) => state.users);
+  const submissions = useSelector(
+    (state) => state.externalPublishingBots.submissions,
+  );
 
-  const submissions = useSelector((state) => state.tnsrobots.submissions);
-
-  const tnsrobot_submissions =
-    submissions && submissions[id] ? submissions[id]?.submissions : [];
-
-  const [page, setPage] = React.useState(1);
-  const [rowsPerPage, setRowsPerPage] = React.useState(100);
-
-  const [loading, setLoading] = React.useState(false);
-
-  const [showPayload, setShowPayload] = React.useState(null);
+  const publishingBotSubmissions =
+    submissions && submissions[bot_id] ? submissions[bot_id]?.submissions : [];
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [showTNSPayload, setShowTNSPayload] = useState(null);
 
   useEffect(() => {
-    if (id && !loading) {
+    if (bot_id && !loading) {
       setLoading(true);
       const params = {
+        external_publishing_bot_id: bot_id,
         pageNumber: page,
         numPerPage: rowsPerPage,
       };
-      dispatch(tnsrobotsActions.fetchTNSRobotSubmissions(id, params)).then(
-        () => {
-          setLoading(false);
-        },
-      );
+      dispatch(
+        externalPublishingActions.fetchExternalPublishingSubmissions(params),
+      ).then(() => {
+        setLoading(false);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, page, rowsPerPage, id]);
+  }, [dispatch, page, rowsPerPage, bot_id]);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -108,6 +93,26 @@ const TNSRobotSubmissionsPage = () => {
       usersLookup[u.id] = u;
     });
   }
+
+  const handleStatusRender = (status) => {
+    if (!status) return;
+    const colors = getStatusColors(status);
+    return (
+      <Typography
+        variant="body2"
+        style={{
+          backgroundColor: colors[1],
+          color: colors[0],
+          padding: "1.3em",
+          borderRadius: "1rem",
+          maxWidth: "fit-content",
+          fontWeight: 500,
+        }}
+      >
+        {status ?? "NA"}
+      </Typography>
+    );
+  };
 
   const columns = [
     {
@@ -135,7 +140,7 @@ const TNSRobotSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { obj_id } = tnsrobot_submissions[dataIndex];
+          const { obj_id } = publishingBotSubmissions[dataIndex];
           return (
             <Link to={`/source/${obj_id}`} target="_blank">
               {obj_id}
@@ -145,42 +150,13 @@ const TNSRobotSubmissionsPage = () => {
       },
     },
     {
-      name: "tns_name",
-      label: "TNS",
+      name: "publisher",
+      label: "Publisher",
       options: {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { tns_name } = tnsrobot_submissions[dataIndex];
-          if (tns_name) {
-            return (
-              <a
-                key={tns_name}
-                href={`https://www.wis-tns.org/object/${
-                  tns_name.trim().includes(" ")
-                    ? tns_name.split(" ")[1]
-                    : tns_name
-                }`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ whiteSpace: "nowrap" }}
-              >
-                {`${tns_name} `}
-              </a>
-            );
-          }
-          return null;
-        },
-      },
-    },
-    {
-      name: "reporter",
-      label: "Reporter",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { user_id } = tnsrobot_submissions[dataIndex];
+          const { user_id } = publishingBotSubmissions[dataIndex];
           return (
             <div
               style={{
@@ -201,8 +177,8 @@ const TNSRobotSubmissionsPage = () => {
                     isBot={usersLookup[user_id]?.is_bot || false}
                   />
                 )}
-              {userLabel(usersLookup[user_id])}
-              {tnsrobot_submissions[dataIndex].auto_submission && (
+              {userLabel(usersLookup[user_id], false, true)}
+              {publishingBotSubmissions[dataIndex].auto_submission && (
                 <Tooltip
                   title={`This submission was triggered automatically when the ${
                     usersLookup[user_id]?.is_bot === true ? "BOT" : ""
@@ -217,8 +193,64 @@ const TNSRobotSubmissionsPage = () => {
       },
     },
     {
-      name: "custom_reporting_string",
-      label: "Custom Reporting String",
+      name: "Hermes status",
+      label: "Hermes status",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) =>
+          handleStatusRender(publishingBotSubmissions[dataIndex].hermes_status),
+      },
+    },
+    {
+      name: "TNS status",
+      label: "TNS status",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) =>
+          handleStatusRender(publishingBotSubmissions[dataIndex].tns_status),
+      },
+    },
+    {
+      name: "tns_name",
+      label: "TNS name (ID)",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { tns_name, tns_submission_id } =
+            publishingBotSubmissions[dataIndex];
+          if (!tns_name) return null;
+          return (
+            <a
+              key={tns_name}
+              href={`https://www.wis-tns.org/object/${
+                tns_name.trim().includes(" ")
+                  ? tns_name.split(" ")[1]
+                  : tns_name
+              }`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {tns_name}
+              {tns_submission_id && (
+                <Tooltip
+                  title="ID of the submission returned by TNS"
+                  style={{ marginLeft: "0.5rem" }}
+                >
+                  ({tns_submission_id})
+                </Tooltip>
+              )}
+            </a>
+          );
+        },
+      },
+    },
+    {
+      name: "custom_publishing_string",
+      label: "Custom Publishing String",
       options: {
         display: false,
         filter: false,
@@ -233,52 +265,18 @@ const TNSRobotSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          tnsrobot_submissions[dataIndex].archival.toString(),
+          publishingBotSubmissions[dataIndex].archival.toString(),
       },
     },
     {
-      name: "status",
-      label: "Status",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { status } = tnsrobot_submissions[dataIndex];
-          const colors = getStatusColors(status);
-          return (
-            <Typography
-              variant="body2"
-              style={{
-                backgroundColor: colors[1],
-                color: colors[0],
-                padding: "0.25rem 0.75rem 0.25rem 0.75rem",
-                borderRadius: "1rem",
-                maxWidth: "fit-content",
-              }}
-            >
-              {status}
-            </Typography>
-          );
-        },
-      },
-    },
-    {
-      name: "submission_id",
-      label: "Submission ID (on TNS)",
-      options: {
-        filter: false,
-        sort: false,
-      },
-    },
-    {
-      name: "payload",
-      label: "Payload",
+      name: "tns_payload",
+      label: "TNS payload",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: (dataIndex) => {
-          const { payload } = tnsrobot_submissions[dataIndex];
-          if (payload === null) {
+          const { tns_payload } = publishingBotSubmissions[dataIndex];
+          if (tns_payload === null) {
             return null;
           }
           return (
@@ -287,7 +285,7 @@ const TNSRobotSubmissionsPage = () => {
             >
               <IconButton
                 onClick={() => {
-                  setShowPayload(dataIndex);
+                  setShowTNSPayload(dataIndex);
                 }}
               >
                 <HistoryEduIcon />
@@ -305,9 +303,9 @@ const TNSRobotSubmissionsPage = () => {
         <CircularProgress />
       ) : (
         <MUIDataTable
-          className={classes.tnsrobots}
-          title="TNS Robot Submissions"
-          data={tnsrobot_submissions}
+          style={{ width: "100%" }}
+          title="External Publishing Submissions"
+          data={publishingBotSubmissions}
           columns={columns}
           options={{
             selectableRows: "none",
@@ -322,31 +320,32 @@ const TNSRobotSubmissionsPage = () => {
             rowsPerPage,
             rowsPerPageOptions: [1, 25, 50, 100, 200],
             jumpToPage: true,
-            count: submissions[id]?.totalMatches || 0,
+            count: submissions[bot_id]?.totalMatches || 0,
             onTableChange: handleTableChange,
           }}
         />
       )}
-      {tnsrobot_submissions?.length > 0 && (
+      {publishingBotSubmissions?.length > 0 && (
         <Dialog
-          open={showPayload !== null}
-          onClose={() => setShowPayload(null)}
+          open={showTNSPayload !== null}
+          onClose={() => setShowTNSPayload(null)}
           maxWidth="lg"
         >
           <DialogTitle
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            <Typography variant="h6">Payload</Typography>
+            <Typography variant="h6">TNS payload</Typography>
             <Tooltip title="Copy to clipboard">
               <span>
                 <IconButton
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      typeof tnsrobot_submissions[showPayload]?.payload ===
-                        "string"
-                        ? tnsrobot_submissions[showPayload]?.payload
+                      typeof publishingBotSubmissions[showTNSPayload]
+                        ?.tns_payload === "string"
+                        ? publishingBotSubmissions[showTNSPayload]?.tns_payload
                         : JSON.stringify(
-                            tnsrobot_submissions[showPayload]?.payload,
+                            publishingBotSubmissions[showTNSPayload]
+                              ?.tns_payload,
                           ),
                     );
                   }}
@@ -359,16 +358,19 @@ const TNSRobotSubmissionsPage = () => {
           <DialogContent>
             <ReactJson
               src={
-                typeof tnsrobot_submissions[showPayload]?.payload === "string"
-                  ? JSON.parse(tnsrobot_submissions[showPayload]?.payload)
-                  : tnsrobot_submissions[showPayload]?.payload
+                typeof publishingBotSubmissions[showTNSPayload]?.tns_payload ===
+                "string"
+                  ? JSON.parse(
+                      publishingBotSubmissions[showTNSPayload]?.tns_payload,
+                    )
+                  : publishingBotSubmissions[showTNSPayload]?.tns_payload
               }
               displayDataTypes={false}
               displayObjectSize={false}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowPayload(null)} color="primary">
+            <Button onClick={() => setShowTNSPayload(null)} color="primary">
               Close
             </Button>
           </DialogActions>
@@ -378,10 +380,10 @@ const TNSRobotSubmissionsPage = () => {
   );
 };
 
-TNSRobotSubmissionsPage.propTypes = {
+ExternalPublishingSubmissionsPage.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default TNSRobotSubmissionsPage;
+export default ExternalPublishingSubmissionsPage;
