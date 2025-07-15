@@ -92,7 +92,7 @@ const AllocationTable = ({
 
   const [setRowsPerPage] = useState(numPerPage);
 
-  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [newAllocationDialog, setNewAllocationDialog] = useState(false);
   const [allocationToEdit, setAllocationToEdit] = useState(null);
   const [allocationToDelete, setAllocationToDelete] = useState(null);
 
@@ -404,7 +404,10 @@ const AllocationTable = ({
     filter: true,
     sort: true,
     customToolbar: () => (
-      <IconButton name="new_allocation" onClick={() => setNewDialogOpen(true)}>
+      <IconButton
+        name="new_allocation"
+        onClick={() => setNewAllocationDialog(true)}
+      >
         <AddIcon />
       </IconButton>
     ),
@@ -425,14 +428,14 @@ const AllocationTable = ({
         </StyledEngineProvider>
       </Paper>
       <Dialog
-        open={newDialogOpen}
-        onClose={() => setNewDialogOpen(false)}
+        open={newAllocationDialog}
+        onClose={() => setNewAllocationDialog(false)}
         style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Allocation</DialogTitle>
         <DialogContent dividers>
-          <AllocationForm onClose={() => setNewDialogOpen(false)} />
+          <AllocationForm onClose={() => setNewAllocationDialog(false)} />
         </DialogContent>
       </Dialog>
       <Dialog
