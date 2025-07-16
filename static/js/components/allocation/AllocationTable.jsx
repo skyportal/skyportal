@@ -17,6 +17,9 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -25,7 +28,15 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
 
-const useStyles = makeStyles((theme) => ({
+export const isSomeActiveRange = (ranges) => {
+  return ranges?.length && ranges.some((range) => rangeIsActive(range));
+};
+
+const rangeIsActive = (range) =>
+  range.start_date <= new Date().toISOString() &&
+  range.end_date >= new Date().toISOString();
+
+const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -184,31 +195,53 @@ const AllocationTable = ({
     );
   };
 
-  const renderStartDate = (dataIndex) => {
-    const allocation = allocations[dataIndex];
+  const renderValidityRanges = (dataIndex) => {
+    const validity_ranges = (
+      allocations[dataIndex]?.validity_ranges || []
+    ).filter((range) => range.end_date >= new Date().toISOString());
+    if (validity_ranges.length === 0) return <Chip label="Inactive" disabled />;
 
+    const formatOptions = {
+      hour12: false,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
     return (
-      <div>
-        {allocation
-          ? new Date(`${allocation.start_date}Z`).toLocaleString("en-US", {
-              hour12: false,
-            })
-          : ""}
-      </div>
-    );
-  };
-
-  const renderEndDate = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    return (
-      <div>
-        {allocation
-          ? new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
-              hour12: false,
-            })
-          : ""}
-      </div>
+      <Tooltip
+        title={
+          <>
+            {validity_ranges.map((range) => (
+              <Typography
+                key={`${range.start_date}`}
+                variant="body1"
+                sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
+              >
+                {new Date(range.start_date).toLocaleString(
+                  "en-US",
+                  formatOptions,
+                )}{" "}
+                -{" "}
+                {new Date(range.end_date).toLocaleString(
+                  "en-US",
+                  formatOptions,
+                )}
+              </Typography>
+            ))}
+          </>
+        }
+      >
+        {isSomeActiveRange(validity_ranges) ? (
+          <Chip label="Active" color="success" />
+        ) : (
+          <Chip
+            label="Inactive"
+            sx={{ color: theme.palette.action.disabled }}
+          />
+        )}
+      </Tooltip>
     );
   };
 
@@ -307,23 +340,13 @@ const AllocationTable = ({
     });
   }
   columns.push({
-    name: "start_date",
-    label: "Start Date",
+    name: "validity_ranges",
+    label: "Validity Ranges",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderStartDate,
-    },
-  });
-  columns.push({
-    name: "end_date",
-    label: "End Date",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderEndDate,
+      customBodyRenderLite: renderValidityRanges,
     },
   });
   columns.push({
@@ -469,8 +492,12 @@ AllocationTable.propTypes = {
       id: PropTypes.number.isRequired,
       instrument_id: PropTypes.number.isRequired,
       group_id: PropTypes.number.isRequired,
-      start_date: PropTypes.string.isRequired,
-      end_date: PropTypes.string.isRequired,
+      validity_ranges: PropTypes.arrayOf(
+        PropTypes.shape({
+          start_date: PropTypes.string.isRequired,
+          end_date: PropTypes.string.isRequired,
+        }),
+      ),
       pi: PropTypes.string.isRequired,
       types: PropTypes.arrayOf(PropTypes.string).isRequired,
       default_share_group_ids: PropTypes.arrayOf(PropTypes.number),

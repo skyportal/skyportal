@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
@@ -13,6 +14,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -21,8 +23,7 @@ import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
-
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
+import { isSomeActiveRange } from "../allocation/AllocationTable";
 
 const useStyles = makeStyles(() => ({
   marginTop: {
@@ -354,20 +355,34 @@ const FollowupRequestForm = ({
         }
         className={classes.allocationSelect}
       >
-        {filteredAllocationList?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.allocationSelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
-                ?.name
-            } / ${instLookUp[allocation.instrument_id]?.name} - ${
-              groupLookUp[allocation.group_id]?.name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
+        {filteredAllocationList?.map((allocation) => {
+          const isActive = isSomeActiveRange(allocation.validity_ranges);
+          const label = `${
+            telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
+          } / ${instLookUp[allocation.instrument_id]?.name} - ${
+            groupLookUp[allocation.group_id]?.name
+          } (PI ${allocation.pi})`;
+          return isActive ? (
+            <MenuItem
+              value={allocation.id}
+              key={allocation.id}
+              className={classes.allocationSelectItem}
+            >
+              {label}
+            </MenuItem>
+          ) : (
+            <Tooltip
+              title="This allocation has no active validity range."
+              arrow
+            >
+              <span>
+                <MenuItem className={classes.allocationSelectItem} disabled>
+                  {label} <i> (inactive)</i>
+                </MenuItem>
+              </span>
+            </Tooltip>
+          );
+        })}
       </Select>
       <br />
       <GroupShareSelect
