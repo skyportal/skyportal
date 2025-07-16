@@ -15,6 +15,10 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -23,7 +27,10 @@ import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
-import { isSomeActiveRange } from "../allocation/AllocationTable";
+import {
+  isSomeActiveRange,
+  rangeIsActive,
+} from "../allocation/AllocationTable";
 
 const useStyles = makeStyles(() => ({
   marginTop: {
@@ -31,6 +38,7 @@ const useStyles = makeStyles(() => ({
   },
   allocationSelect: {
     width: "100%",
+    marginBottom: "1rem",
   },
   allocationSelectItem: {
     whiteSpace: "break-spaces",
@@ -276,6 +284,26 @@ const FollowupRequestForm = ({
         errors.start_date.addError("Start Date must come before End Date");
       }
     }
+    if (
+      !isSomeActiveRange(
+        allocationLookUp[selectedAllocationId].validity_ranges,
+        new Date(formData.start_date),
+      )
+    ) {
+      errors.start_date.addError(
+        "Start Date must be within an active allocation range",
+      );
+    }
+    if (
+      !isSomeActiveRange(
+        allocationLookUp[selectedAllocationId].validity_ranges,
+        new Date(formData.end_date),
+      )
+    ) {
+      errors.end_date.addError(
+        "End Date must be within an active allocation range",
+      );
+    }
 
     return errors;
   };
@@ -356,40 +384,73 @@ const FollowupRequestForm = ({
         className={classes.allocationSelect}
       >
         {filteredAllocationList?.map((allocation) => {
-          const isActive = isSomeActiveRange(allocation.validity_ranges);
           const label = `${
             telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
           } / ${instLookUp[allocation.instrument_id]?.name} - ${
             groupLookUp[allocation.group_id]?.name
           } (PI ${allocation.pi})`;
-          return isActive ? (
+          return (
             <MenuItem
               value={allocation.id}
               key={allocation.id}
               className={classes.allocationSelectItem}
             >
               {label}
+              {!isSomeActiveRange(allocation.validity_ranges) && (
+                <Tooltip
+                  title="This allocation is currently inactive. You can still submit requests for valid future dates."
+                  arrow
+                >
+                  <Typography
+                    component="span"
+                    style={{ fontStyle: "italic", color: "grey" }}
+                  >
+                    {" "}
+                    (inactive)
+                  </Typography>
+                </Tooltip>
+              )}
             </MenuItem>
-          ) : (
-            <Tooltip
-              title="This allocation has no active validity range."
-              arrow
-            >
-              <span>
-                <MenuItem className={classes.allocationSelectItem} disabled>
-                  {label} <i> (inactive)</i>
-                </MenuItem>
-              </span>
-            </Tooltip>
           );
         })}
       </Select>
-      <br />
-      <GroupShareSelect
-        groupList={allGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
-      />
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <GroupShareSelect
+          groupList={allGroups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
+        <Tooltip
+          title={
+            allocationLookUp[selectedAllocationId]?.validity_ranges?.length
+              ? allocationLookUp[selectedAllocationId]?.validity_ranges?.map(
+                  (range) => (
+                    <Typography
+                      key={range.start_date}
+                      variant="body1"
+                      color={rangeIsActive(range) ? "lightgreen" : "default"}
+                    >
+                      {new Date(range.start_date).toLocaleDateString()} –{" "}
+                      {new Date(range.end_date).toLocaleDateString()}
+                    </Typography>
+                  ),
+                )
+              : "No validity ranges defined for this allocation."
+          }
+        >
+          <Chip
+            label="Validity Ranges"
+            size="small"
+            icon={<HelpOutlineIcon />}
+          />
+        </Tooltip>
+      </Box>
       <div
         data-testid={
           requestType === "forced_photometry"

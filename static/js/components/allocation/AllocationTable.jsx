@@ -28,13 +28,13 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
 
-export const isSomeActiveRange = (ranges) => {
-  return ranges?.length && ranges.some((range) => rangeIsActive(range));
+export const isSomeActiveRange = (ranges, date = new Date()) => {
+  return ranges?.length && ranges.some((range) => rangeIsActive(range, date));
 };
 
-const rangeIsActive = (range) =>
-  range.start_date <= new Date().toISOString() &&
-  range.end_date >= new Date().toISOString();
+export const rangeIsActive = (range, date = new Date()) =>
+  range.start_date <= date.toISOString() &&
+  range.end_date >= date.toISOString();
 
 const useStyles = makeStyles(() => ({
   container: {
