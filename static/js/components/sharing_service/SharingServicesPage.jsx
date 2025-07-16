@@ -653,7 +653,7 @@ const NewSharingServiceCoauthor = ({ sharingService, usersLookup }) => {
                     user, // eslint-disable-line no-shadow
                   ) => (
                     <MenuItem key={user.id} value={user.id}>
-                      userLabel(user, false, true)
+                      {userLabel(user, false, true)}
                     </MenuItem>
                   ),
                 )}
