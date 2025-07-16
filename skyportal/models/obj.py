@@ -461,8 +461,8 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
-    external_publishing_submissions = relationship(
-        "ExternalPublishingSubmission",
+    sharing_service_submissions = relationship(
+        "SharingServicesSubmission",
         back_populates="obj",
         passive_deletes=True,
         doc="External publishing auto-submissions associated with this obj.",

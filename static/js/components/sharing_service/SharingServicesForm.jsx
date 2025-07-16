@@ -21,7 +21,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "../Spinner";
 import FormValidationError from "../FormValidationError";
 
-import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as sharingServicesActions from "../../ducks/sharingServices";
 import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
@@ -29,10 +29,10 @@ import { userLabel } from "../../utils/format";
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
 const useStyles = makeStyles(() => ({
-  externalPublishingBotSelect: {
+  sharingServiceSelect: {
     width: "100%",
   },
-  externalPublishingBotSelectItem: {
+  sharingServiceSelectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
@@ -41,63 +41,62 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
+const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { users: allUsers } = useSelector((state) => state.users);
   const currentUser = useSelector((state) => state.profile);
   const streams = useSelector((state) => state.streams);
-  const allowedInstrumentsForPublishing = useSelector(
-    (state) => state.config.allowedInstrumentsForPublishing,
+  const allowedInstrumentsForSharing = useSelector(
+    (state) => state.config.allowedInstrumentsForSharing,
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { externalPublishingBotList } = useSelector(
-    (state) => state.externalPublishingBots,
-  );
-  const [selectedBotId, setSelectedBotId] = useState(null);
-  const [defaultPublishersString, setDefaultPublishersString] = useState(null);
+  const { sharingServicesList } = useSelector((state) => state.sharingServices);
+  const [selectedSharingServiceId, setselectedSharingServiceId] =
+    useState(null);
+  const [defaultSharersString, setdefaultSharersString] = useState(null);
   const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
   const [defaultStreamIds, setDefaultStreamIds] = useState([]);
   const [sendToTNS, setSendToTNS] = useState(false);
   const [sendToHermes, setSendToHermes] = useState(false);
   // request in process
-  const [publishRequestInProcess, setPublishRequestInProcess] = useState(false);
+  const [SharingRequestInProcess, setSharingRequestInProcess] = useState(false);
   const [dataFetched, setDataFetched] = useState(false);
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
 
-  const selectedBot = externalPublishingBotList?.find(
-    (b) => b.id === selectedBotId,
+  const selectedSharingService = sharingServicesList?.find(
+    (b) => b.id === selectedSharingServiceId,
   );
-  const allowedInstruments = selectedBot?.instruments
+  const allowedInstruments = selectedSharingService?.instruments
     ? instrumentList.filter((instrument) =>
-        selectedBot.instruments.some((i) => i.id === instrument.id),
+        selectedSharingService.instruments.some((i) => i.id === instrument.id),
       )
     : [];
 
   instrumentList.filter((instrument) =>
-    (allowedInstrumentsForPublishing || []).includes(
+    (allowedInstrumentsForSharing || []).includes(
       instrument.name?.toLowerCase(),
     ),
   );
 
   useEffect(() => {
-    const getPublishingBots = async () => {
+    const getSharingServices = async () => {
       const result = await dispatch(
-        externalPublishingActions.fetchExternalPublishingBots(),
+        sharingServicesActions.fetchSharingServices(),
       );
       const { data } = result;
-      setSelectedBotId(data[0]?.id);
+      setselectedSharingServiceId(data[0]?.id);
     };
-    if (!externalPublishingBotList) {
-      getPublishingBots();
-    } else if (externalPublishingBotList?.length > 0 && !selectedBotId) {
-      setSelectedBotId(externalPublishingBotList[0]?.id);
+    if (!sharingServicesList) {
+      getSharingServices();
+    } else if (sharingServicesList?.length > 0 && !selectedSharingServiceId) {
+      setselectedSharingServiceId(sharingServicesList[0]?.id);
     }
-  }, [dispatch, externalPublishingBotList, selectedBotId]);
+  }, [dispatch, sharingServicesList, selectedSharingServiceId]);
 
   useEffect(() => {
     const fetchData = () => {
@@ -112,12 +111,12 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
   useEffect(() => {
     if (
-      externalPublishingBotList?.length > 0 &&
-      selectedBotId &&
+      sharingServicesList?.length > 0 &&
+      selectedSharingServiceId &&
       currentUser &&
       allUsers?.length > 0
     ) {
-      const coauthors = (selectedBot?.coauthors || []).filter(
+      const coauthors = (selectedSharingService?.coauthors || []).filter(
         (coauthor) => coauthor.user_id !== currentUser.id,
       );
       const authorString = userLabel(currentUser, false, true);
@@ -131,38 +130,44 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         )
         .join(", ");
       const acknowledgments =
-        selectedBot?.acknowledgments || "on the behalf of ...";
+        selectedSharingService?.acknowledgments || "on the behalf of ...";
 
       const finalString = `${authorString}${
         coauthorsString ? `, ${coauthorsString}` : ""
       } ${acknowledgments}`.replace(/\s+/g, " ");
 
-      setDefaultPublishersString(finalString);
+      setdefaultSharersString(finalString);
     }
-  }, [externalPublishingBotList, selectedBotId, currentUser, allUsers]);
+  }, [sharingServicesList, selectedSharingServiceId, currentUser, allUsers]);
 
   useEffect(() => {
-    if (!externalPublishingBotList?.length || !selectedBotId || !selectedBot)
+    if (
+      !sharingServicesList?.length ||
+      !selectedSharingServiceId ||
+      !selectedSharingService
+    )
       return;
     let archivalComment = "No non-detections prior to first detection";
 
     // Set publish to
-    if (sendToTNS !== selectedBot.enable_publish_to_tns) {
-      setSendToTNS(selectedBot.enable_publish_to_tns && !isNoAffiliation);
+    if (sendToTNS !== selectedSharingService.enable_sharing_with_tns) {
+      setSendToTNS(
+        selectedSharingService.enable_sharing_with_tns && !isNoAffiliation,
+      );
     }
-    if (sendToHermes !== selectedBot.enable_publish_to_hermes) {
-      setSendToHermes(selectedBot.enable_publish_to_hermes);
+    if (sendToHermes !== selectedSharingService.enable_sharing_with_hermes) {
+      setSendToHermes(selectedSharingService.enable_sharing_with_hermes);
     }
 
     // Set instruments
-    if (instrumentList?.length && selectedBot.instruments?.length) {
-      const instrumentIds = selectedBot.instruments.map((i) => i.id);
+    if (instrumentList?.length && selectedSharingService.instruments?.length) {
+      const instrumentIds = selectedSharingService.instruments.map((i) => i.id);
       setDefaultInstrumentIds(instrumentIds);
     }
 
     // Set streams
-    if (streams?.length && selectedBot.streams?.length) {
-      const streamIds = selectedBot.streams
+    if (streams?.length && selectedSharingService.streams?.length) {
+      const streamIds = selectedSharingService.streams
         .map((s) => s.id)
         .sort((a, b) => a - b);
 
@@ -180,15 +185,15 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     setDefaultArchivalComment(archivalComment);
-  }, [externalPublishingBotList, selectedBotId, instrumentList, streams]);
+  }, [sharingServicesList, selectedSharingServiceId, instrumentList, streams]);
 
   const handleSubmit = async ({ formData }) => {
-    setPublishRequestInProcess(true);
+    setSharingRequestInProcess(true);
 
     const payload = {
       ...formData,
       obj_id: obj_id,
-      external_publishing_bot_id: selectedBotId,
+      sharing_service_id: selectedSharingServiceId,
       photometry_options: {
         first_and_last_detections: formData.first_and_last_detections,
       },
@@ -202,22 +207,22 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     const result = await dispatch(
-      externalPublishingActions.addExternalPublishingSubmission(payload),
+      sharingServicesActions.addSharingServicesSubmission(payload),
     );
-    setPublishRequestInProcess(false);
+    setSharingRequestInProcess(false);
     if (result.status === "success") {
-      dispatch(showNotification("Successfully added to the publish queue"));
+      dispatch(showNotification("Successfully queued for submission."));
     }
     setDialogOpen(false);
   };
 
-  if (!externalPublishingBotList?.length || !streams?.length) {
+  if (!sharingServicesList?.length || !streams?.length) {
     return (
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        {!externalPublishingBotList?.length ? (
+        {!sharingServicesList?.length ? (
           <DialogTitle>
             <h4 style={{ textAlign: "center" }}>
-              No external publishing bots available...
+              No sharing services available...
             </h4>
           </DialogTitle>
         ) : (
@@ -237,7 +242,7 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       publishers: {
         type: "string",
         title: "Publishers",
-        default: defaultPublishersString,
+        default: defaultSharersString,
       },
       instrument_ids: {
         type: "array",
@@ -281,9 +286,10 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "boolean",
         title: "Mandatory first and last detection",
         default:
-          selectedBot?.photometry_options?.first_and_last_detections ?? true,
+          selectedSharingService?.photometry_options
+            ?.first_and_last_detections ?? true,
         description:
-          "If enabled, the bot will not publish the data if there is no first and last detection (at least 2 detections).",
+          "If enabled, the sharing service will not publish the data if there is no first and last detection (at least 2 detections).",
       },
       ...(sendToTNS && {
         archival: {
@@ -385,7 +391,8 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                 color={sendToTNS ? "primary" : "default"}
                 variant={sendToTNS ? "filled" : "outlined"}
                 disabled={
-                  isNoAffiliation || !selectedBot?.enable_publish_to_tns
+                  isNoAffiliation ||
+                  !selectedSharingService?.enable_sharing_with_tns
                 }
               />
             </div>
@@ -413,40 +420,41 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               onClick={() => setSendToHermes(!sendToHermes)}
               color={sendToHermes ? "primary" : "default"}
               variant={sendToHermes ? "filled" : "outlined"}
-              disabled={!selectedBot?.enable_publish_to_hermes}
+              disabled={!selectedSharingService?.enable_sharing_with_hermes}
             />
           </Tooltip>
         </Box>
       </DialogTitle>
       <DialogContent>
         <div className={classes.container}>
-          <InputLabel id="externalPublishingBotSelectLabel">
-            External publishing bot
+          <InputLabel id="sharingServiceSelectLabel">
+            Sharing Service
           </InputLabel>
           <Select
             inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="externalPublishingBotSelectLabel"
-            value={selectedBotId}
-            onChange={(e) => setSelectedBotId(e.target.value)}
-            name="externalPublishingBotSelect"
-            className={classes.externalPublishingBotSelect}
+            labelId="sharingServiceSelectLabel"
+            value={selectedSharingServiceId}
+            onChange={(e) => setselectedSharingServiceId(e.target.value)}
+            name="sharingServiceSelect"
+            className={classes.sharingServiceSelect}
           >
-            {externalPublishingBotList?.map((publishingBot) => (
+            {sharingServicesList?.map((sharingService) => (
               <MenuItem
-                value={publishingBot.id}
-                key={publishingBot.id}
-                className={classes.externalPublishingBotSelectItem}
+                value={sharingService.id}
+                key={sharingService.id}
+                className={classes.sharingServiceSelectItem}
               >
                 <div style={{ display: "flex", alignItems: "center" }}>
-                  {publishingBot.testing === true && (
+                  {sharingService.testing === true && (
                     <Tooltip
                       title={
                         <h3>
-                          This bot is currently in testing mode. It will not
-                          publish any data to TNS but will store the payload in
-                          the database instead (useful for debugging purposes).
-                          For Hermes, it will publish to the test topic. You can
-                          remove it from the external publishing bots page.
+                          This Sharing Service is currently in testing mode. It
+                          will not publish any data to TNS but will store the
+                          payload in the database instead (useful for debugging
+                          purposes). For Hermes, it will publish to the test
+                          topic. You can remove it from the sharing services
+                          page.
                         </h3>
                       }
                       placement="right"
@@ -455,24 +463,24 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                     </Tooltip>
                   )}
                   <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-                    {publishingBot.bot_name}
+                    {sharingService.name}
                   </Typography>
                 </div>
               </MenuItem>
             ))}
           </Select>
-          {selectedBotId &&
-            externalPublishingBotList &&
+          {selectedSharingServiceId &&
+            sharingServicesList &&
             (allowedInstruments.length === 0 ? (
-              <FormValidationError message="This publishing bot has no allowed instruments, edit this bot before submitting" />
+              <FormValidationError message="This sharing service has no allowed instruments, edit it before submitting" />
             ) : (
               <div data-testid="external-publishing-form">
-                {defaultPublishersString ? (
+                {defaultSharersString ? (
                   <Form
                     schema={formSchema}
                     validator={validator}
                     onSubmit={handleSubmit}
-                    disabled={publishRequestInProcess}
+                    disabled={SharingRequestInProcess}
                     customValidate={validate}
                   />
                 ) : (
@@ -486,10 +494,10 @@ const ExternalPublishingDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   );
 };
 
-ExternalPublishingDialog.propTypes = {
+SharingServicesDialog.propTypes = {
   obj_id: PropTypes.string.isRequired,
   dialogOpen: PropTypes.bool.isRequired,
   setDialogOpen: PropTypes.func.isRequired,
 };
 
-export default ExternalPublishingDialog;
+export default SharingServicesDialog;

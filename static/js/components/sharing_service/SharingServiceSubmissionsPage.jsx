@@ -21,7 +21,7 @@ import ReactJson from "react-json-view";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as sharingServicesActions from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
 
 function getStatusColors(status) {
@@ -40,39 +40,37 @@ function getStatusColors(status) {
   return ["black", "LightGrey"];
 }
 
-const ExternalPublishingSubmissionsPage = () => {
+const SharingServicesSubmissionsPage = () => {
   const dispatch = useDispatch();
 
-  const { bot_id } = useParams();
+  const { id } = useParams();
 
   const { users: allUsers } = useSelector((state) => state.users);
-  const submissions = useSelector(
-    (state) => state.externalPublishingBots.submissions,
-  );
+  const submissions = useSelector((state) => state.sharingServices.submissions);
 
-  const publishingBotSubmissions =
-    submissions && submissions[bot_id] ? submissions[bot_id]?.submissions : [];
+  const sharingServiceSubmissions =
+    submissions && submissions[id] ? submissions[id]?.submissions : [];
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [loading, setLoading] = useState(false);
   const [showTNSPayload, setShowTNSPayload] = useState(null);
 
   useEffect(() => {
-    if (bot_id && !loading) {
+    if (id && !loading) {
       setLoading(true);
       const params = {
-        external_publishing_bot_id: bot_id,
+        sharing_service_id: id,
         pageNumber: page,
         numPerPage: rowsPerPage,
       };
       dispatch(
-        externalPublishingActions.fetchExternalPublishingSubmissions(params),
+        sharingServicesActions.fetchSharingServicesSubmissions(params),
       ).then(() => {
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, page, rowsPerPage, bot_id]);
+  }, [dispatch, page, rowsPerPage, id]);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -140,7 +138,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { obj_id } = publishingBotSubmissions[dataIndex];
+          const { obj_id } = sharingServiceSubmissions[dataIndex];
           return (
             <Link to={`/source/${obj_id}`} target="_blank">
               {obj_id}
@@ -156,7 +154,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { user_id } = publishingBotSubmissions[dataIndex];
+          const { user_id } = sharingServiceSubmissions[dataIndex];
           return (
             <div
               style={{
@@ -178,7 +176,7 @@ const ExternalPublishingSubmissionsPage = () => {
                   />
                 )}
               {userLabel(usersLookup[user_id], false, true)}
-              {publishingBotSubmissions[dataIndex].auto_submission && (
+              {sharingServiceSubmissions[dataIndex].auto_submission && (
                 <Tooltip
                   title={`This submission was triggered automatically when the ${
                     usersLookup[user_id]?.is_bot === true ? "BOT" : ""
@@ -199,7 +197,9 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(publishingBotSubmissions[dataIndex].hermes_status),
+          handleStatusRender(
+            sharingServiceSubmissions[dataIndex].hermes_status,
+          ),
       },
     },
     {
@@ -209,7 +209,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(publishingBotSubmissions[dataIndex].tns_status),
+          handleStatusRender(sharingServiceSubmissions[dataIndex].tns_status),
       },
     },
     {
@@ -220,7 +220,7 @@ const ExternalPublishingSubmissionsPage = () => {
         sort: true,
         customBodyRenderLite: (dataIndex) => {
           const { tns_name, tns_submission_id } =
-            publishingBotSubmissions[dataIndex];
+            sharingServiceSubmissions[dataIndex];
           if (!tns_name) return null;
           return (
             <a
@@ -265,7 +265,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          publishingBotSubmissions[dataIndex].archival.toString(),
+          sharingServiceSubmissions[dataIndex].archival.toString(),
       },
     },
     {
@@ -275,7 +275,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: false,
         customBodyRenderLite: (dataIndex) => {
-          const { tns_payload } = publishingBotSubmissions[dataIndex];
+          const { tns_payload } = sharingServiceSubmissions[dataIndex];
           if (tns_payload === null) {
             return null;
           }
@@ -305,7 +305,7 @@ const ExternalPublishingSubmissionsPage = () => {
         <MUIDataTable
           style={{ width: "100%" }}
           title="External Publishing Submissions"
-          data={publishingBotSubmissions}
+          data={sharingServiceSubmissions}
           columns={columns}
           options={{
             selectableRows: "none",
@@ -320,12 +320,12 @@ const ExternalPublishingSubmissionsPage = () => {
             rowsPerPage,
             rowsPerPageOptions: [1, 25, 50, 100, 200],
             jumpToPage: true,
-            count: submissions[bot_id]?.totalMatches || 0,
+            count: submissions[id]?.totalMatches || 0,
             onTableChange: handleTableChange,
           }}
         />
       )}
-      {publishingBotSubmissions?.length > 0 && (
+      {sharingServiceSubmissions?.length > 0 && (
         <Dialog
           open={showTNSPayload !== null}
           onClose={() => setShowTNSPayload(null)}
@@ -340,11 +340,11 @@ const ExternalPublishingSubmissionsPage = () => {
                 <IconButton
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      typeof publishingBotSubmissions[showTNSPayload]
+                      typeof sharingServiceSubmissions[showTNSPayload]
                         ?.tns_payload === "string"
-                        ? publishingBotSubmissions[showTNSPayload]?.tns_payload
+                        ? sharingServiceSubmissions[showTNSPayload]?.tns_payload
                         : JSON.stringify(
-                            publishingBotSubmissions[showTNSPayload]
+                            sharingServiceSubmissions[showTNSPayload]
                               ?.tns_payload,
                           ),
                     );
@@ -358,12 +358,12 @@ const ExternalPublishingSubmissionsPage = () => {
           <DialogContent>
             <ReactJson
               src={
-                typeof publishingBotSubmissions[showTNSPayload]?.tns_payload ===
-                "string"
+                typeof sharingServiceSubmissions[showTNSPayload]
+                  ?.tns_payload === "string"
                   ? JSON.parse(
-                      publishingBotSubmissions[showTNSPayload]?.tns_payload,
+                      sharingServiceSubmissions[showTNSPayload]?.tns_payload,
                     )
-                  : publishingBotSubmissions[showTNSPayload]?.tns_payload
+                  : sharingServiceSubmissions[showTNSPayload]?.tns_payload
               }
               displayDataTypes={false}
               displayObjectSize={false}
@@ -380,10 +380,10 @@ const ExternalPublishingSubmissionsPage = () => {
   );
 };
 
-ExternalPublishingSubmissionsPage.propTypes = {
+SharingServicesSubmissionsPage.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default ExternalPublishingSubmissionsPage;
+export default SharingServicesSubmissionsPage;

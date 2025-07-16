@@ -5,7 +5,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ....models import ExternalPublishingBot, ExternalPublishingSubmission, Obj
+from ....models import Obj, SharingService, SharingServicesSubmission
 from ....utils.data_access import (
     is_existing_submission_request,
     process_instrument_ids,
@@ -17,7 +17,7 @@ from ...base import BaseHandler
 
 _, cfg = load_env()
 
-log = make_log("api/external_publishing_submission")
+log = make_log("api/sharing_service_submission")
 
 is_configured = (
     cfg.get("app.hermes.endpoint")
@@ -26,13 +26,13 @@ is_configured = (
 )
 
 
-class ExternalPublishingSubmissionHandler(BaseHandler):
+class SharingServicesSubmissionHandler(BaseHandler):
     @auth_or_token
     def post(self):
         """
         ---
-        summary: Create an ExternalPublishingSubmission to publish an Obj to TNS or Hermes with a bot
-        description: Create an ExternalPublishingSubmission to publish an Obj to TNS or Hermes with a bot.
+        summary: Create an SharingServicesSubmission to publish an Obj to TNS or Hermes with a bot
+        description: Create an SharingServicesSubmission to publish an Obj to TNS or Hermes with a bot.
         tags:
           - external publishing submission
         parameter:
@@ -46,9 +46,9 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                     type: string
                     description: ID of the object to publish
                     required: true
-                  external_publishing_bot_id:
+                  sharing_service_id:
                     type: integer
-                    description: ID of the external publishing bot to use for submission
+                    description: ID of the external sharing service to use for submission
                     required: true
                   publishers:
                     type: string
@@ -95,7 +95,7 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
         data = self.get_json()
 
         obj_id = data.get("obj_id")
-        external_publishing_bot_id = data.get("external_publishing_bot_id")
+        sharing_service_id = data.get("sharing_service_id")
         publishers = data.get("publishers", "")
         remarks = data.get("remarks", "")
         archival = data.get("archival", False)
@@ -106,8 +106,8 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
         publish_to_tns = data.get("publish_to_tns", False)
         publish_to_hermes = data.get("publish_to_hermes", False)
 
-        if external_publishing_bot_id is None:
-            return self.error("Publishing bot id is required")
+        if sharing_service_id is None:
+            return self.error("Sharing service id is required")
         if not obj_id:
             return self.error("obj_id is required")
         if not publish_to_tns and not publish_to_hermes:
@@ -128,22 +128,22 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
             if obj is None:
                 return self.error(f"No object available with ID {obj_id}")
 
-            external_publishing_bot = session.scalars(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
+            sharing_service = session.scalars(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == sharing_service_id
                 )
             ).first()
 
             if publish_to_tns:
-                tns_altdata = external_publishing_bot.tns_altdata
+                tns_altdata = sharing_service.tns_altdata
                 if not tns_altdata:
                     return self.error("Missing TNS information.")
                 if "api_key" not in tns_altdata:
                     return self.error("Missing TNS API key.")
 
-            if external_publishing_bot is None:
+            if sharing_service is None:
                 return self.error(
-                    f"No publishing bot available with ID {external_publishing_bot_id}"
+                    f"No sharing service available with ID {sharing_service_id}"
                 )
 
             if archival is True:
@@ -153,29 +153,29 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                     )
 
             photometry_options = validate_photometry_options(
-                photometry_options, external_publishing_bot.photometry_options
+                photometry_options, sharing_service.photometry_options
             )
 
             if publish_to_tns:
                 existing_submission_request = is_existing_submission_request(
-                    session, obj, external_publishing_bot_id, "TNS"
+                    session, obj, sharing_service_id, "TNS"
                 )
                 if existing_submission_request is not None:
                     return self.error(
-                        f"Submission request for TNS for obj_id {obj.id} and bot_id {external_publishing_bot.id} already exists and is: {existing_submission_request.tns_status}"
+                        f"Submission request for TNS for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.tns_status}"
                     )
             if publish_to_hermes:
                 existing_submission_request = is_existing_submission_request(
-                    session, obj, external_publishing_bot_id, "Hermes"
+                    session, obj, sharing_service_id, "Hermes"
                 )
                 if existing_submission_request is not None:
                     return self.error(
-                        f"Submission request for Hermes for obj_id {obj.id} and bot_id {external_publishing_bot.id} already exists and is: {existing_submission_request.hermes_status}"
+                        f"Submission request for Hermes for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.hermes_status}"
                     )
 
-            # create a ExternalPublishingSubmission entry with that information
-            external_publishing_submission = ExternalPublishingSubmission(
-                external_publishing_bot_id=external_publishing_bot.id,
+            # create a SharingServicesSubmission entry with that information
+            sharing_service_submission = SharingServicesSubmission(
+                sharingservice_id=sharing_service.id,
                 obj_id=obj.id,
                 user_id=self.associated_user_object.id,
                 custom_publishing_string=publishers,
@@ -191,61 +191,61 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                 publish_to_hermes=publish_to_hermes,
                 hermes_status="pending" if publish_to_hermes else None,
             )
-            session.add(external_publishing_submission)
+            session.add(sharing_service_submission)
             session.commit()
             log(
-                f"Added external publishing request for obj_id {obj.id} (manual submission) with bot_id {external_publishing_bot.id} for user_id {self.associated_user_object.id}"
+                f"Added external publishing request for obj_id {obj.id} (manual submission) with sharing service id {sharing_service.id} for user_id {self.associated_user_object.id}"
             )
 
             self.push_all(
-                action="skyportal/REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS",
-                payload={"external_publishing_bot_id": external_publishing_bot.id},
+                action="skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                payload={"sharing_service_id": sharing_service.id},
             )
             return self.success()
 
     @auth_or_token
-    def get(self, external_publishing_submission_id=None):
+    def get(self, sharing_service_submission_id=None):
         """
         ---
         single:
-            summary: Retrieve a ExternalPublishingSubmission
-            description: Retrieve a ExternalPublishingSubmission
+            summary: Retrieve a SharingServicesSubmission
+            description: Retrieve a SharingServicesSubmission
             tags:
                 - external publishing submission
             parameters:
                 - in: path
-                  name: external_publishing_submission_id
+                  name: sharing_service_submission_id
                   required: true
                   schema:
                     type: integer
                   description: The ID of the external publishing submission
                 - in: query
-                  name: external_publishing_bot_id
+                  name: sharing_service_id
                   required: true
                   schema:
                     type: integer
-                  description: The ID of the external publishing bot to which the submission belongs
+                  description: The ID of the external sharing service to which the submission belongs
             responses:
                 200:
                     content:
                         application/json:
-                            schema: ExternalPublishingSubmission
+                            schema: SharingServicesSubmission
                 400:
                     content:
                         application/json:
                             schema: Error
         multiple:
-            summary: Retrieve all ExternalPublishingSubmissions
-            description: Retrieve all ExternalPublishingSubmissions
+            summary: Retrieve all SharingServicesSubmissions
+            description: Retrieve all SharingServicesSubmissions
             tags:
-                - external publishing bot
+                - external sharing service
             parameters:
                 - in: path
-                  name: external_publishing_bot_id
+                  name: sharing_service_id
                   required: true
                   schema:
                     type: integer
-                  description: The ID of the ExternalPublishingBot to which the submissions belong
+                  description: The ID of the SharingService to which the submissions belong
                 - in: query
                   name: pageNumber
                   required: false
@@ -280,17 +280,15 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: ArrayOfExternalPublishingSubmissions
+                            schema: ArrayOfSharingServicesSubmissions
                 400:
                     content:
                         application/json:
                             schema: Error
         """
-        external_publishing_bot_id = self.get_query_argument(
-            "external_publishing_bot_id", None
-        )
-        if external_publishing_bot_id is None:
-            return self.error("Publishing bot id is required")
+        sharing_service_id = self.get_query_argument("sharing_service_id", None)
+        if sharing_service_id is None:
+            return self.error("Sharing service id is required")
         include_payload = str_to_bool(self.get_query_argument("include_payload", False))
         include_response = str_to_bool(
             self.get_query_argument("include_response", False)
@@ -305,26 +303,25 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                 obj_id = None
 
         with self.Session() as session:
-            external_publishing_bot = session.scalar(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
+            sharing_service = session.scalar(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == sharing_service_id
                 )
             )
-            if external_publishing_bot is None:
-                return self.error(f"Bot {external_publishing_bot_id} not found")
+            if sharing_service is None:
+                return self.error(f"Bot {sharing_service_id} not found")
 
-            if external_publishing_submission_id is not None:
+            if sharing_service_submission_id is not None:
                 submission = session.scalar(
-                    ExternalPublishingSubmission.select(session.user_or_token).where(
-                        ExternalPublishingSubmission.external_publishing_bot_id
-                        == external_publishing_bot_id,
-                        ExternalPublishingSubmission.id
-                        == external_publishing_submission_id,
+                    SharingServicesSubmission.select(session.user_or_token).where(
+                        SharingServicesSubmission.sharingservice_id
+                        == sharing_service_id,
+                        SharingServicesSubmission.id == sharing_service_submission_id,
                     )
                 )
                 if submission is None:
                     return self.error(
-                        f"Submission {external_publishing_submission_id} not found for bot {external_publishing_bot_id}"
+                        f"Submission {sharing_service_submission_id} not found for bot {sharing_service_id}"
                     )
                 submission = {
                     "tns_name": submission.obj.tns_name,
@@ -332,27 +329,26 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
                 }
                 return self.success(data=submission)
             else:
-                stmt = ExternalPublishingSubmission.select(session.user_or_token).where(
-                    ExternalPublishingSubmission.external_publishing_bot_id
-                    == external_publishing_bot_id
+                stmt = SharingServicesSubmission.select(session.user_or_token).where(
+                    SharingServicesSubmission.sharingservice_id == sharing_service_id
                 )
                 if obj_id is not None:
-                    stmt = stmt.where(ExternalPublishingSubmission.obj_id == obj_id)
+                    stmt = stmt.where(SharingServicesSubmission.obj_id == obj_id)
 
                 # run a count query to get the total number of results
                 total_matches = session.execute(
                     sa.select(sa.func.count()).select_from(stmt)
                 ).scalar()
 
-                stmt = stmt.order_by(ExternalPublishingSubmission.created_at.desc())
+                stmt = stmt.order_by(SharingServicesSubmission.created_at.desc())
 
                 if include_payload:
                     stmt = stmt.options(
-                        sa.orm.undefer(ExternalPublishingSubmission.tns_payload)
+                        sa.orm.undefer(SharingServicesSubmission.tns_payload)
                     )
                 if include_response:
                     stmt = stmt.options(
-                        sa.orm.undefer(ExternalPublishingSubmission.response)
+                        sa.orm.undefer(SharingServicesSubmission.response)
                     )
 
                 submissions = session.scalars(
@@ -361,7 +357,7 @@ class ExternalPublishingSubmissionHandler(BaseHandler):
 
                 return self.success(
                     data={
-                        "external_publishing_bot_id": external_publishing_bot.id,
+                        "sharing_service_id": sharing_service.id,
                         "submissions": [
                             {"tns_name": s.obj.tns_name, **s.to_dict()}
                             for s in submissions

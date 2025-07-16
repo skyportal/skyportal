@@ -14,10 +14,10 @@ from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
-    ExternalPublishingBot,
-    ExternalPublishingBotCoauthor,
-    ExternalPublishingSubmission,
     Obj,
+    SharingService,
+    SharingServiceCoauthor,
+    SharingServicesSubmission,
     User,
 )
 from skyportal.utils.data_access import (
@@ -32,12 +32,12 @@ env, cfg = load_env()
 
 init_db(**cfg["database"])
 
-log = make_log("external_publishing_queue")
+log = make_log("sharing_service_queue")
 
 tns_retrieval_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
 
 
-class ExternalPublishingWarning(Warning):
+class SharingServicesWarning(Warning):
     pass
 
 
@@ -48,7 +48,7 @@ def build_reporters_and_remarks_string(
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.ExternalPublishingSubmission`
+    submission_request : `~skyportal.models.SharingServicesSubmission`
         The submission request.
     source : `~skyportal.models.Source`
         The source to submit.
@@ -66,7 +66,7 @@ def build_reporters_and_remarks_string(
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
-    bot_id = submission_request.external_publishing_bot_id
+    bot_id = submission_request.sharingservice_id
     user_id = submission_request.user_id
     obj_id = submission_request.obj_id
     remarks = []
@@ -95,8 +95,8 @@ def build_reporters_and_remarks_string(
         author_ids.append(user_id)
 
         coauthor_ids = session.scalars(
-            sa.select(ExternalPublishingBotCoauthor.user_id).where(
-                ExternalPublishingBotCoauthor.external_publishing_bot_id == bot_id
+            sa.select(SharingServiceCoauthor.user_id).where(
+                SharingServiceCoauthor.sharingservice_id == bot_id
             )
         ).all()
         author_ids += [uid for uid in coauthor_ids if uid not in author_ids]
@@ -109,7 +109,7 @@ def build_reporters_and_remarks_string(
 
         if not authors:
             raise ValueError(
-                f"No authors found for publishing bot {bot_id} and source {obj_id}, cannot publish"
+                f"No authors found for sharing service {bot_id} and source {obj_id}, cannot publish"
             )
 
         # Sort authors by appearance order
@@ -119,13 +119,13 @@ def build_reporters_and_remarks_string(
             a.username for a in authors if not a.first_name or not a.last_name
         ]
         if missing_names:
-            raise ExternalPublishingWarning(
+            raise SharingServicesWarning(
                 f"Missing first or last name: {', '.join(missing_names)}, cannot publish {obj_id}."
             )
 
         missing_affiliation = [a.username for a in authors if not any(a.affiliations)]
         if missing_affiliation:
-            raise ExternalPublishingWarning(
+            raise SharingServicesWarning(
                 f"Missing affiliation: {', '.join(missing_affiliation)}, cannot publish {obj_id}."
             )
 
@@ -135,7 +135,7 @@ def build_reporters_and_remarks_string(
             if a.is_bot and not (10 <= len((a.bio or "").strip()) <= 1000)
         ]
         if invalid_bio_bots:
-            raise ExternalPublishingWarning(
+            raise SharingServicesWarning(
                 f"Invalid bio (missing, too short, or too long) for bot(s): {', '.join(invalid_bio_bots)}, cannot publish {obj_id}."
             )
 
@@ -181,13 +181,13 @@ def process_submission_request(submission_request, session):
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.ExternalPublishingSubmission`
+    submission_request : `~skyportal.models.SharingServicesSubmission`
         The submission request.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
     obj_id = submission_request.obj_id
-    publishing_bot_id = submission_request.external_publishing_bot_id
+    publishing_bot_id = submission_request.sharingservice_id
     user_id = submission_request.user_id
 
     try:
@@ -204,13 +204,11 @@ def process_submission_request(submission_request, session):
             raise ValueError(f"No user found with ID {user_id}.")
 
         publishing_bot = session.scalar(
-            ExternalPublishingBot.select(user).where(
-                ExternalPublishingBot.id == publishing_bot_id
-            )
+            SharingService.select(user).where(SharingService.id == publishing_bot_id)
         )
         if publishing_bot is None:
             raise ValueError(
-                f"No publishing bot found with ID {publishing_bot_id} or user {user_id} does not have access to it."
+                f"No sharing service found with ID {publishing_bot_id} or user {user_id} does not have access to it."
             )
 
         photometry_options = validate_photometry_options(
@@ -237,7 +235,7 @@ def process_submission_request(submission_request, session):
         submission_request.custom_remarks_string = remarks
 
     except Exception as e:
-        notif_type = "Warning" if isinstance(e, ExternalPublishingWarning) else "Error"
+        notif_type = "Warning" if isinstance(e, SharingServicesWarning) else "Error"
         log(str(e))
         try:
             flow = Flow()
@@ -282,7 +280,7 @@ def process_submission_request(submission_request, session):
 def process_submission_requests():
     """
     Service to publish data to external services, such as TNS and Hermes,
-    by processing the ExternalPublishingSubmission table.
+    by processing the SharingServicesSubmission table.
     """
     session_context_id.set(uuid.uuid4().hex)
 
@@ -290,27 +288,25 @@ def process_submission_requests():
         with DBSession() as session:
             try:
                 submission_request = session.scalar(
-                    sa.select(ExternalPublishingSubmission)
+                    sa.select(SharingServicesSubmission)
                     .where(
                         or_(
                             and_(
-                                ExternalPublishingSubmission.publish_to_tns == True,
-                                ExternalPublishingSubmission.tns_status.in_(
+                                SharingServicesSubmission.publish_to_tns == True,
+                                SharingServicesSubmission.tns_status.in_(
                                     ["pending", "processing"]
                                 ),
-                                ExternalPublishingSubmission.tns_submission_id.is_(
-                                    None
-                                ),
+                                SharingServicesSubmission.tns_submission_id.is_(None),
                             ),
                             and_(
-                                ExternalPublishingSubmission.publish_to_hermes == True,
-                                ExternalPublishingSubmission.hermes_status.in_(
+                                SharingServicesSubmission.publish_to_hermes == True,
+                                SharingServicesSubmission.hermes_status.in_(
                                     ["pending", "processing"]
                                 ),
                             ),
                         )
                     )
-                    .order_by(ExternalPublishingSubmission.created_at.asc())
+                    .order_by(SharingServicesSubmission.created_at.asc())
                 )
                 if submission_request is None:
                     time.sleep(5)
@@ -341,8 +337,8 @@ def process_submission_requests():
                             f"Error processing external publishing submission request {submission_request_id}: {str(e)}"
                         )
                         submission_request = session.scalar(
-                            sa.select(ExternalPublishingSubmission).where(
-                                ExternalPublishingSubmission.id == submission_request_id
+                            sa.select(SharingServicesSubmission).where(
+                                SharingServicesSubmission.id == submission_request_id
                             )
                         )
                         if submission_request.publish_to_hermes:
@@ -353,9 +349,9 @@ def process_submission_requests():
                         flow = Flow()
                         flow.push(
                             "*",
-                            "skyportal/REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS",
+                            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
                             payload={
-                                "external_publishing_bot_id": submission_request.external_publishing_bot_id
+                                "sharing_service_id": submission_request.sharingservice_id
                             },
                         )
                     except Exception as e:
@@ -365,7 +361,7 @@ def process_submission_requests():
 
 
 def validate_submission_requests():
-    """Service to query TNS for the status of submitted AT reports and update the ExternalPublishingSubmission table."""
+    """Service to query TNS for the status of submitted AT reports and update the SharingServicesSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
     while True:
         time.sleep(5)
@@ -375,11 +371,11 @@ def validate_submission_requests():
             # and label them appropriately if a more recent submission request successfully publish the object with the same bot
             try:
                 failed_submission_requests = session.scalars(
-                    sa.select(ExternalPublishingSubmission).where(
-                        ExternalPublishingSubmission.tns_status.ilike(
+                    sa.select(SharingServicesSubmission).where(
+                        SharingServicesSubmission.tns_status.ilike(
                             "%504 - Gateway Time-out%"
                         ),
-                        ExternalPublishingSubmission.modified
+                        SharingServicesSubmission.modified
                         < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
                     )
                 ).all()
@@ -390,18 +386,18 @@ def validate_submission_requests():
                     # check if there is a more recent submission request for the same object and bot that is submitted or confirmed,
                     # in which case we don't want to re-set the status of this one but label it appropriately
                     recent_submission_request = session.scalar(
-                        sa.select(ExternalPublishingSubmission).where(
-                            ExternalPublishingSubmission.obj_id
+                        sa.select(SharingServicesSubmission).where(
+                            SharingServicesSubmission.obj_id
                             == submission_request.obj_id,
-                            ExternalPublishingSubmission.external_publishing_bot_id
-                            == submission_request.external_publishing_bot_id,
-                            ExternalPublishingSubmission.created_at
+                            SharingServicesSubmission.sharingservice_id
+                            == submission_request.sharingservice_id,
+                            SharingServicesSubmission.created_at
                             > submission_request.created_at,
                             sa.or_(
-                                ExternalPublishingSubmission.tns_status.ilike(
+                                SharingServicesSubmission.tns_status.ilike(
                                     "%submitted%"
                                 ),
-                                ExternalPublishingSubmission.tns_status.ilike(
+                                SharingServicesSubmission.tns_status.ilike(
                                     "%confirmed%"
                                 ),
                             ),
@@ -420,12 +416,12 @@ def validate_submission_requests():
                         and isinstance(obj.tns_info, dict)
                         and obj.tns_info.get("reporterid") is not None
                         and obj.tns_info.get("reporterid")
-                        == submission_request.external_publishing_bot.bot_id
+                        == submission_request.sharing_service_bot.tns_bot_id
                         and isinstance(obj.tns_info.get("reporting_group", {}), dict)
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
                         is not None
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
-                        == submission_request.external_publishing_bot.source_group_id
+                        == submission_request.sharing_service_bot.tns_source_group_id
                         and obj.tns_info.get("discoverer") is not None
                         and (
                             (
@@ -461,17 +457,17 @@ def validate_submission_requests():
             try:
                 # grab the first TNS bot submission request that has a submission ID that's not null
                 submission_request = session.scalar(
-                    sa.select(ExternalPublishingSubmission)
+                    sa.select(SharingServicesSubmission)
                     .where(
-                        ExternalPublishingSubmission.tns_status.like("submitted"),
-                        ExternalPublishingSubmission.tns_submission_id.isnot(None),
-                        ExternalPublishingSubmission.external_publishing_bot_id.notin_(
-                            sa.select(ExternalPublishingBot.id).where(
-                                ExternalPublishingBot.testing.is_(True)
+                        SharingServicesSubmission.tns_status.like("submitted"),
+                        SharingServicesSubmission.tns_submission_id.isnot(None),
+                        SharingServicesSubmission.sharingservice_id.notin_(
+                            sa.select(SharingService.id).where(
+                                SharingService.testing.is_(True)
                             )
                         ),
                     )
-                    .order_by(ExternalPublishingSubmission.created_at.asc())
+                    .order_by(SharingServicesSubmission.created_at.asc())
                 )
                 if submission_request is None:
                     # here we add an extra sleep to avoid hammering the TNS API
@@ -486,13 +482,12 @@ def validate_submission_requests():
                 tns_submission_id = submission_request.tns_submission_id
 
                 publishing_bot = session.scalar(
-                    sa.select(ExternalPublishingBot).where(
-                        ExternalPublishingBot.id
-                        == submission_request.external_publishing_bot_id
+                    sa.select(SharingService).where(
+                        SharingService.id == submission_request.sharingservice_id
                     )
                 )
                 if publishing_bot is None:
-                    log("Could not find publishing bot for this submission request")
+                    log("Could not find sharing service for this submission request")
                     continue
 
                 tns_source, serialized_response, err = check_at_report(

@@ -4,7 +4,7 @@ __all__ = [
     "StreamPhotometry",
     "StreamPhotometricSeries",
     "StreamInvitation",
-    "StreamExternalPublishingBot",
+    "StreamSharingService",
 ]
 
 import sqlalchemy as sa
@@ -21,11 +21,11 @@ from baselayer.app.models import (
     restricted,
 )
 
-from .external_publishing import ExternalPublishingBot
 from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
 from .photometry import Photometry
+from .sharing_service import SharingService
 
 
 class Stream(Base):
@@ -81,13 +81,13 @@ class Stream(Base):
         doc="Photometric series associated with this stream.",
     )
 
-    external_publishing_bots = relationship(
-        "ExternalPublishingBot",
-        secondary="stream_external_publishing_bots",
+    sharing_services = relationship(
+        "SharingService",
+        secondary="stream_sharingservices",
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External publishing bots associated with this stream, used for auto-publishing.",
+        doc="External sharing services associated with this stream, used for auto-publishing.",
     )
 
 
@@ -136,10 +136,6 @@ StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
-StreamExternalPublishingBot = join_model(
-    "stream_external_publishing_bots", Stream, ExternalPublishingBot
-)
-StreamExternalPublishingBot.__doc__ = (
-    "Join table mapping Streams to ExternalPublishingBots."
-)
-StreamExternalPublishingBot.create = accessible_by_stream_members
+StreamSharingService = join_model("stream_sharingservices", Stream, SharingService)
+StreamSharingService.__doc__ = "Join table mapping Streams to SharingServices."
+StreamSharingService.create = accessible_by_stream_members

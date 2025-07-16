@@ -18,13 +18,13 @@ branch_labels = None
 depends_on = None
 
 tables_to_rename = [
-    ("tnsrobots", "external_publishing_bots"),
-    ("instrument_tnsrobots", "instrument_external_publishing_bots"),
-    ("stream_tnsrobots", "stream_external_publishing_bots"),
-    ("tnsrobot_coauthors", "external_publishing_bot_coauthors"),
-    ("tnsrobot_groups", "external_publishing_bot_groups"),
-    ("tnsrobot_group_users", "external_publishing_bot_group_users"),
-    ("tnsrobot_submissions", "external_publishing_submissions"),
+    ("tnsrobots", "sharing_service_bots"),
+    ("instrument_tnsrobots", "instrument_sharing_service_bots"),
+    ("stream_tnsrobots", "stream_sharing_service_bots"),
+    ("tnsrobot_coauthors", "sharing_service_coauthors"),
+    ("tnsrobot_groups", "sharing_service_groups"),
+    ("tnsrobot_group_users", "sharing_service_group_users"),
+    ("tnsrobot_submissions", "sharing_service_submissions"),
 ]
 
 
@@ -96,11 +96,11 @@ def upgrade():
         type_="foreignkey",
     )
 
-    # external_publishing_bots
+    # sharing_service_bots
     op.add_column(
         "tnsrobots",
         sa.Column(
-            "enable_publish_to_hermes",
+            "enable_sharing_with_hermes",
             sa.Boolean(),
             nullable=False,
             server_default=sa.text("false"),
@@ -109,7 +109,7 @@ def upgrade():
     op.add_column(
         "tnsrobots",
         sa.Column(
-            "enable_publish_to_tns",
+            "enable_sharing_with_tns",
             sa.Boolean(),
             nullable=False,
             server_default=sa.text("true"),
@@ -133,41 +133,41 @@ def upgrade():
         existing_type=postgresql.BYTEA(),
     )
 
-    # instrument_external_publishing_bots
+    # instrument_sharing_service_bots
     op.alter_column(
         "instrument_tnsrobots",
         "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
+        new_column_name="sharingservice_id",
         existing_type=sa.Integer(),
     )
 
-    # stream_external_publishing_bots
+    # stream_sharing_service_bots
     op.alter_column(
         "stream_tnsrobots",
         "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
+        new_column_name="sharingservice_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bot_coauthors
+    # sharing_service_coauthors
     op.alter_column(
         "tnsrobot_coauthors",
         "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
+        new_column_name="sharingservice_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bot_groups
+    # sharing_service_groups
     op.alter_column(
         "tnsrobot_groups",
         "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
+        new_column_name="sharingservice_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
         "tnsrobot_groups",
         "auto_report",
-        new_column_name="auto_publish_to_tns",
+        new_column_name="auto_share_to_tns",
         existing_type=sa.Boolean(),
         nullable=False,
         server_default=sa.text("false"),
@@ -175,32 +175,32 @@ def upgrade():
     op.alter_column(
         "tnsrobot_groups",
         "auto_report_allow_bots",
-        new_column_name="auto_publish_allow_bots",
+        new_column_name="auto_sharing_allow_bots",
         existing_type=sa.Boolean(),
     )
     op.add_column(
         "tnsrobot_groups",
         sa.Column(
-            "auto_publish_to_hermes",
+            "auto_share_to_hermes",
             sa.Boolean(),
             nullable=False,
             server_default=sa.text("false"),
         ),
     )
 
-    # external_publishing_bot_group_users
+    # sharing_service_group_users
     op.alter_column(
         "tnsrobot_group_users",
         "tnsrobot_group_id",
-        new_column_name="external_publishing_bot_group_id",
+        new_column_name="sharing_service_group_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_submissions
+    # sharing_service_submissions
     op.alter_column(
         "tnsrobot_submissions",
         "tnsrobot_id",
-        new_column_name="external_publishing_bot_id",
+        new_column_name="sharingservice_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
@@ -276,7 +276,7 @@ def upgrade():
                 f"{new}_reverse_ind",
                 new,
                 [
-                    "external_publishing_bot_id",
+                    "sharingservice_id",
                     f"{'instrument' if 'instrument' in new else 'stream'}_id",
                 ],
                 unique=False,
@@ -286,7 +286,7 @@ def upgrade():
                 new,
                 [
                     f"{'instrument' if 'instrument' in new else 'stream'}_id",
-                    "external_publishing_bot_id",
+                    "sharingservice_id",
                 ],
                 unique=True,
             )
@@ -304,15 +304,15 @@ def upgrade():
     # Foreign Keys
     op.create_foreign_key(
         "bot_coauthors_bot_id_fkey",
-        "external_publishing_bot_coauthors",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
+        "sharing_service_coauthors",
+        "sharing_service_bots",
+        ["sharingservice_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "external_publishing_bot_coauthors_user_id_fkey",
-        "external_publishing_bot_coauthors",
+        "sharing_service_coauthors_user_id_fkey",
+        "sharing_service_coauthors",
         "users",
         ["user_id"],
         ["id"],
@@ -320,15 +320,15 @@ def upgrade():
     )
     op.create_foreign_key(
         "bot_groups_bot_id_fkey",
-        "external_publishing_bot_groups",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
+        "sharing_service_groups",
+        "sharing_service_bots",
+        ["sharingservice_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "external_publishing_bot_groups_group_id_fkey",
-        "external_publishing_bot_groups",
+        "sharing_service_groups_group_id_fkey",
+        "sharing_service_groups",
         "groups",
         ["group_id"],
         ["id"],
@@ -336,23 +336,23 @@ def upgrade():
     )
     op.create_foreign_key(
         "bot_group_users_bot_group_id_fkey",
-        "external_publishing_bot_group_users",
-        "external_publishing_bot_groups",
-        ["external_publishing_bot_group_id"],
+        "sharing_service_group_users",
+        "sharing_service_groups",
+        ["sharing_service_group_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "external_publishing_bot_group_users_group_user_id_fkey",
-        "external_publishing_bot_group_users",
+        "sharing_service_group_users_group_user_id_fkey",
+        "sharing_service_group_users",
         "group_users",
         ["group_user_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "external_publishing_submissions_obj_id_fkey",
-        "external_publishing_submissions",
+        "sharing_service_submissions_obj_id_fkey",
+        "sharing_service_submissions",
         "objs",
         ["obj_id"],
         ["id"],
@@ -360,47 +360,47 @@ def upgrade():
     )
     op.create_foreign_key(
         "submissions_bot_id_fkey",
-        "external_publishing_submissions",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
+        "sharing_service_submissions",
+        "sharing_service_bots",
+        ["sharingservice_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "external_publishing_submissions_user_id_fkey",
-        "external_publishing_submissions",
+        "sharing_service_submissions_user_id_fkey",
+        "sharing_service_submissions",
         "users",
         ["user_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
-        "stream_external_publishing_bots",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
+        "stream_sharing_service_bots_sharingservice_id_fkey",
+        "stream_sharing_service_bots",
+        "sharing_service_bots",
+        ["sharingservice_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_external_publishing_bots_stream_id_fkey",
-        "stream_external_publishing_bots",
+        "stream_sharing_service_bots_stream_id_fkey",
+        "stream_sharing_service_bots",
         "streams",
         ["stream_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_external_publishing__external_publishing_bot_id_fkey",
-        "instrument_external_publishing_bots",
-        "external_publishing_bots",
-        ["external_publishing_bot_id"],
+        "instrument_sharing_service__sharingservice_id_fkey",
+        "instrument_sharing_service_bots",
+        "sharing_service_bots",
+        ["sharingservice_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_external_publishing_bots_instrument_id_fkey",
-        "instrument_external_publishing_bots",
+        "instrument_sharing_service_bots_instrument_id_fkey",
+        "instrument_sharing_service_bots",
         "instruments",
         ["instrument_id"],
         ["id"],
@@ -411,187 +411,187 @@ def upgrade():
 def downgrade():
     # Drop foreign key constraints
     op.drop_constraint(
-        "external_publishing_submissions_user_id_fkey",
-        "external_publishing_submissions",
+        "sharing_service_submissions_user_id_fkey",
+        "sharing_service_submissions",
         type_="foreignkey",
     )
     op.drop_constraint(
         "submissions_bot_id_fkey",
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "external_publishing_submissions_obj_id_fkey",
-        "external_publishing_submissions",
+        "sharing_service_submissions_obj_id_fkey",
+        "sharing_service_submissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "external_publishing_bot_group_users_group_user_id_fkey",
-        "external_publishing_bot_group_users",
+        "sharing_service_group_users_group_user_id_fkey",
+        "sharing_service_group_users",
         type_="foreignkey",
     )
     op.drop_constraint(
         "bot_group_users_bot_group_id_fkey",
-        "external_publishing_bot_group_users",
+        "sharing_service_group_users",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "external_publishing_bot_groups_group_id_fkey",
-        "external_publishing_bot_groups",
+        "sharing_service_groups_group_id_fkey",
+        "sharing_service_groups",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "bot_groups_bot_id_fkey", "external_publishing_bot_groups", type_="foreignkey"
+        "bot_groups_bot_id_fkey", "sharing_service_groups", type_="foreignkey"
     )
     op.drop_constraint(
-        "external_publishing_bot_coauthors_user_id_fkey",
-        "external_publishing_bot_coauthors",
+        "sharing_service_coauthors_user_id_fkey",
+        "sharing_service_coauthors",
         type_="foreignkey",
     )
     op.drop_constraint(
         "bot_coauthors_bot_id_fkey",
-        "external_publishing_bot_coauthors",
+        "sharing_service_coauthors",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_external_publishing_bots_stream_id_fkey",
-        "stream_external_publishing_bots",
+        "stream_sharing_service_bots_stream_id_fkey",
+        "stream_sharing_service_bots",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_external_publishing_bots_external_publishing_bot_id_fkey",
-        "stream_external_publishing_bots",
+        "stream_sharing_service_bots_sharingservice_id_fkey",
+        "stream_sharing_service_bots",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_external_publishing_bots_instrument_id_fkey",
-        "instrument_external_publishing_bots",
+        "instrument_sharing_service_bots_instrument_id_fkey",
+        "instrument_sharing_service_bots",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_external_publishing__external_publishing_bot_id_fkey",
-        "instrument_external_publishing_bots",
+        "instrument_sharing_service__sharingservice_id_fkey",
+        "instrument_sharing_service_bots",
         type_="foreignkey",
     )
 
-    # external_publishing_submissions
-    op.drop_column("external_publishing_submissions", "hermes_response")
-    op.drop_column("external_publishing_submissions", "hermes_status")
-    op.drop_column("external_publishing_submissions", "publish_to_hermes")
-    op.drop_column("external_publishing_submissions", "publish_to_tns")
+    # sharing_service_submissions
+    op.drop_column("sharing_service_submissions", "hermes_response")
+    op.drop_column("sharing_service_submissions", "hermes_status")
+    op.drop_column("sharing_service_submissions", "publish_to_hermes")
+    op.drop_column("sharing_service_submissions", "publish_to_tns")
     op.alter_column(
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         "tns_response",
         new_column_name="response",
         existing_type=postgresql.JSONB(),
     )
     op.alter_column(
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         "tns_payload",
         new_column_name="payload",
         existing_type=postgresql.JSONB(),
     )
     op.alter_column(
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         "tns_submission_id",
         new_column_name="submission_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         "tns_status",
         new_column_name="status",
         existing_type=sa.String(),
         nullable=False,
     )
     op.alter_column(
-        "external_publishing_submissions",
+        "sharing_service_submissions",
         "custom_publishing_string",
         new_column_name="custom_reporting_string",
         existing_type=sa.String(),
     )
     op.alter_column(
-        "external_publishing_submissions",
-        "external_publishing_bot_id",
+        "sharing_service_submissions",
+        "sharingservice_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bot_group_users
+    # sharing_service_group_users
     op.alter_column(
-        "external_publishing_bot_group_users",
-        "external_publishing_bot_group_id",
+        "sharing_service_group_users",
+        "sharing_service_group_id",
         new_column_name="tnsrobot_group_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bot_groups
-    op.drop_column("external_publishing_bot_groups", "auto_publish_to_hermes")
+    # sharing_service_groups
+    op.drop_column("sharing_service_groups", "auto_share_to_hermes")
     op.alter_column(
-        "external_publishing_bot_groups",
-        "auto_publish_allow_bots",
+        "sharing_service_groups",
+        "auto_sharing_allow_bots",
         new_column_name="auto_report_allow_bots",
         existing_type=sa.Boolean(),
         existing_server_default=sa.text("false"),
     )
     op.alter_column(
-        "external_publishing_bot_groups",
-        "auto_publish_to_tns",
+        "sharing_service_groups",
+        "auto_share_to_tns",
         new_column_name="auto_report",
         existing_type=sa.Boolean(),
         server_default=sa.text("false"),
     )
     op.alter_column(
-        "external_publishing_bot_groups",
-        "external_publishing_bot_id",
+        "sharing_service_groups",
+        "sharingservice_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bot_coauthors
+    # sharing_service_coauthors
     op.alter_column(
-        "external_publishing_bot_coauthors",
-        "external_publishing_bot_id",
+        "sharing_service_coauthors",
+        "sharingservice_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # stream_external_publishing_bots
+    # stream_sharing_service_bots
     op.alter_column(
-        "stream_external_publishing_bots",
-        "external_publishing_bot_id",
+        "stream_sharing_service_bots",
+        "sharingservice_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # instrument_external_publishing_bots
+    # instrument_sharing_service_bots
     op.alter_column(
-        "instrument_external_publishing_bots",
-        "external_publishing_bot_id",
+        "instrument_sharing_service_bots",
+        "sharingservice_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # external_publishing_bots
-    op.drop_column("external_publishing_bots", "enable_publish_to_tns")
-    op.drop_column("external_publishing_bots", "enable_publish_to_hermes")
+    # sharing_service_bots
+    op.drop_column("sharing_service_bots", "enable_sharing_with_tns")
+    op.drop_column("sharing_service_bots", "enable_sharing_with_hermes")
     op.alter_column(
-        "external_publishing_bots",
+        "sharing_service_bots",
         "_tns_altdata",
         new_column_name="_altdata",
         existing_type=postgresql.BYTEA(),
     )
     op.alter_column(
-        "external_publishing_bots",
+        "sharing_service_bots",
         "source_group_id",
         existing_type=sa.Integer(),
         nullable=False,
     )
     op.alter_column(
-        "external_publishing_bots", "bot_id", existing_type=sa.Integer(), nullable=False
+        "sharing_service_bots", "bot_id", existing_type=sa.Integer(), nullable=False
     )
     op.alter_column(
-        "external_publishing_bots",
+        "sharing_service_bots",
         "publish_existing_tns_objects",
         new_column_name="report_existing",
         nullable=False,

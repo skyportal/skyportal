@@ -26,7 +26,7 @@ _, cfg = load_env()
 
 TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
-ALLOWED_INSTRUMENTS_FOR_PUBLISHING = list(TNS_INSTRUMENT_IDS.keys())
+ALLOWED_INSTRUMENTS_FOR_SHARING = list(TNS_INSTRUMENT_IDS.keys())
 
 cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
 
@@ -105,7 +105,7 @@ class ConfigHandler(BaseHandler):
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "tnsAllowedInstruments": TNS_INSTRUMENTS,
-                "allowedInstrumentsForPublishing": ALLOWED_INSTRUMENTS_FOR_PUBLISHING,
+                "allowedInstrumentsForSharing": ALLOWED_INSTRUMENTS_FOR_SHARING,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": cmap,
                 "bandpassesColors": BANDPASSES_COLORS,

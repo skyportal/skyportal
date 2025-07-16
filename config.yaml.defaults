@@ -207,10 +207,10 @@ app:
       component: TagManagement
     - path: "/taxonomies"
       component: taxonomy/TaxonomyPage
-    - path: "/external_publishing_bots"
-      component: external_publishing/ExternalPublishingBotsPage
-    - path: "/external_publishing/:bot_id/submissions"
-      component: external_publishing/ExternalPublishingSubmissionsPage
+    - path: "/sharing_services"
+      component: sharing_service/SharingServicesPage
+    - path: "/sharing_service/:id/submissions"
+      component: sharing_service/SharingServiceSubmissionsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
 
@@ -285,9 +285,9 @@ app:
           icon: ZoomInOutlined
           url: /observations
 
-        - name: Publishing bots
+        - name: Sharing Services
           icon: SmartToy
-          url: /external_publishing_bots
+          url: /sharing_services
 
         - name: Moving Objects
           icon: Animation
@@ -731,7 +731,7 @@ ports:
   notification_queue: 64610
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  external_publishing_submission_queue: 64812
+  sharing_service_submission_queue: 64812
 
 gcn:
   server: gcn.nasa.gov

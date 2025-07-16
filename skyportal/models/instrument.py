@@ -3,7 +3,7 @@ __all__ = [
     "InstrumentField",
     "InstrumentFieldTile",
     "InstrumentLog",
-    "InstrumentExternalPublishingBot",
+    "InstrumentSharingService",
 ]
 
 import re
@@ -34,7 +34,7 @@ from ..enum_types import (
     instrument_types,
     listener_classnames,
 )
-from .external_publishing import ExternalPublishingBot
+from .sharing_service import SharingService
 
 _, cfg = load_env()
 
@@ -502,13 +502,13 @@ class Instrument(Base):
 
     logs = relationship("InstrumentLog")
 
-    external_publishing_bots = relationship(
-        "ExternalPublishingBot",
-        secondary="instrument_external_publishing_bots",
+    sharing_services = relationship(
+        "SharingService",
+        secondary="instrument_sharingservices",
         back_populates="instruments",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External publishing bots associated with this instrument, used for auto-publishing.",
+        doc="External sharing services associated with this instrument, used for auto-publishing.",
     )
 
 
@@ -525,9 +525,7 @@ def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 
 
-InstrumentExternalPublishingBot = join_model(
-    "instrument_external_publishing_bots", Instrument, ExternalPublishingBot
+InstrumentSharingService = join_model(
+    "instrument_sharingservices", Instrument, SharingService
 )
-InstrumentExternalPublishingBot.__doc__ = (
-    "Join table mapping Instruments to ExternalPublishingBots."
-)
+InstrumentSharingService.__doc__ = "Join table mapping Instruments to SharingServices."

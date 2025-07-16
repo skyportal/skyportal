@@ -34,14 +34,14 @@ class TNSWarning(Exception):
     pass
 
 
-def apply_existing_tns_report_rules(publishing_bot, submission_request):
+def apply_existing_tns_report_rules(sharing_service, submission_request):
     """Apply the rules for existing TNS reports to the submission request.
 
     Parameters
     ----------
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+    sharing_service : `~skyportal.models.SharingService`
         The bot to use for the submission.
-    submission_request : `~skyportal.models.ExternalPublishingSubmission`
+    submission_request : `~skyportal.models.SharingServicesSubmission`
         The submission request.
     """
     # if the bot is set up to only report objects to TNS if they are not already there,
@@ -49,12 +49,14 @@ def apply_existing_tns_report_rules(publishing_bot, submission_request):
     # and if it is, we skip the submission
     # otherwise, we submit as long as there are no reports with the same internal source name
     # (i.e. the same obj_id from the same survey)
-    altdata = publishing_bot.tns_altdata
+    altdata = sharing_service.tns_altdata
     obj_id = submission_request.obj_id
-    tns_headers = get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name)
+    tns_headers = get_tns_headers(
+        sharing_service.tns_bot_id, sharing_service.tns_bot_name
+    )
 
     # if the bot is in test mode, we skip the existing TNS report check
-    if publishing_bot.testing:
+    if sharing_service.testing:
         log(f"Skipping existing TNS report check for {obj_id} in test mode.")
         return
 
@@ -62,7 +64,7 @@ def apply_existing_tns_report_rules(publishing_bot, submission_request):
         altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
     )
     if existing_tns_name is not None:
-        if not publishing_bot.publish_existing_tns_objects:
+        if not sharing_service.publish_existing_tns_objects:
             raise TNSWarning(f"{obj_id} already posted to TNS as {existing_tns_name}.")
         else:
             # look if the object on TNS has already been reported by the same survey (same internal name, here being the obj_id)
@@ -77,7 +79,7 @@ def apply_existing_tns_report_rules(publishing_bot, submission_request):
 
 def build_tns_report(
     submission_request,
-    publishing_bot,
+    sharing_service,
     reporters,
     remarks,
     photometry,
@@ -89,9 +91,9 @@ def build_tns_report(
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.ExternalPublishingSubmission`
+    submission_request : `~skyportal.models.SharingServicesSubmission`
         The submission request.
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+    sharing_service : `~skyportal.models.SharingService`
         The bot to use for the submission.
     reporters : str
         The reporters to use for the submission.
@@ -159,7 +161,7 @@ def build_tns_report(
     if (
         not non_detections
         and submission_request.auto_submission
-        and photometry_options.get("auto_publish_allow_archival")
+        and photometry_options.get("auto_sharing_allow_archival")
     ):
         archival = True
         if stream_ids:
@@ -174,7 +176,7 @@ def build_tns_report(
 
     if not non_detections and not archival:
         raise TNSWarning(
-            f"To publish to TNS the bot {publishing_bot.id} requires at least one non-detection before the first detection, but none are available."
+            f"To publish to TNS the bot {sharing_service.id} requires at least one non-detection before the first detection, but none are available."
         )
 
     if archival:
@@ -202,8 +204,8 @@ def build_tns_report(
     at_report = {
         "ra": {"value": obj.ra},
         "dec": {"value": obj.dec},
-        "reporting_group_id": publishing_bot.source_group_id,
-        "discovery_data_source_id": publishing_bot.source_group_id,
+        "reporting_group_id": sharing_service.tns_source_group_id,
+        "discovery_data_source_id": sharing_service.tns_source_group_id,
         "internal_name_format": {
             "prefix": phot_first["instrument_value"],
             "year_format": "YY",
@@ -215,7 +217,7 @@ def build_tns_report(
             "%Y-%m-%d %H:%M:%S.%f"
         ),
         "at_type": 1,  # allow other options?
-        "proprietary_period_groups": [publishing_bot.source_group_id],
+        "proprietary_period_groups": [sharing_service.tns_source_group_id],
         "proprietary_period": proprietary_period,
         "non_detection": non_detection,
         "photometry": {"photometry_group": {"0": phot_first}},
@@ -230,14 +232,14 @@ def build_tns_report(
     return {"at_report": {"0": at_report}}
 
 
-def send_tns_report(submission_request, publishing_bot, report):
+def send_tns_report(submission_request, sharing_service, report):
     """Build and send an AT report to TNS.
 
     Parameters
     ----------
     submission_request : `~skyportal.models.SubmissionRequest`
         The submission request to send to TNS.
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+    sharing_service : `~skyportal.models.SharingService`
         The bot to use for the submission.
     report : dict
         The AT report to send to TNS.
@@ -251,19 +253,21 @@ def send_tns_report(submission_request, publishing_bot, report):
     serialized_response : str or None
         The serialized response from the TNS API if the submission was successful, otherwise None.
     """
-    tns_headers = get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name)
+    tns_headers = get_tns_headers(
+        sharing_service.tns_bot_id, sharing_service.tns_bot_name
+    )
     obj_id = submission_request.obj_id
     data = {
-        "api_key": publishing_bot.tns_altdata["api_key"],
+        "api_key": sharing_service.tns_altdata["api_key"],
         "data": json.dumps(report),
     }
 
     submission_id = None
     serialized_response = None
 
-    if publishing_bot.testing:
+    if sharing_service.testing:
         log(
-            f"Publishing bot {publishing_bot.id} is in testing mode, skipping TNS submission for {obj_id}."
+            f"Publishing bot {sharing_service.id} is in testing mode, skipping TNS submission for {obj_id}."
         )
         return "Testing mode, not submitted", None, None
 
@@ -271,7 +275,7 @@ def send_tns_report(submission_request, publishing_bot, report):
     max_retries = 24
     retry_delay = 10
     r = None
-    exceeded_rate_message = f"Exceeded TNS API rate limit when submitting {obj_id} with publishing bot {publishing_bot.id}"
+    exceeded_rate_message = f"Exceeded TNS API rate limit when submitting {obj_id} with sharing service {sharing_service.id}"
     for attempt in range(max_retries):
         r = requests.post(get_tns_url("report"), headers=tns_headers, data=data)
         if r.status_code != 429:
@@ -285,15 +289,15 @@ def send_tns_report(submission_request, publishing_bot, report):
     if r.status_code == 200:
         submission_id = r.json()["data"]["report_id"]
         log(
-            f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for publishing bot {publishing_bot.id}"
+            f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for sharing service {sharing_service.id}"
         )
         status = "submitted"
     elif r.status_code == 401:
-        status = f"Error: Unauthorized to submit {obj_id} to TNS with publishing bot {publishing_bot.id}, credentials may be invalid"
+        status = f"Error: Unauthorized to submit {obj_id} to TNS with sharing service {sharing_service.id}, credentials may be invalid"
     elif r.status_code == 429:
         status = f"Error: {exceeded_rate_message}, and exceeded number of retries ({max_retries})"
     else:
-        status = f"Error: Failed to submit {obj_id} to TNS with publishing bot {publishing_bot.id}: {r.content}"
+        status = f"Error: Failed to submit {obj_id} to TNS with sharing service {sharing_service.id}: {r.content}"
 
     if isinstance(r, requests.models.Response):
         # we store the request's TNS response in the database for bookkeeping and debugging
@@ -304,7 +308,7 @@ def send_tns_report(submission_request, publishing_bot, report):
 
 def submit_to_tns(
     submission_request,
-    publishing_bot,
+    sharing_service,
     photometry,
     photometry_options,
     stream_ids,
@@ -321,27 +325,30 @@ def submit_to_tns(
             )
 
         obj_id = submission_request.obj_id
-        tns_altdata = publishing_bot.tns_altdata
+        tns_altdata = sharing_service.tns_altdata
 
         if not tns_altdata or "api_key" not in tns_altdata:
             raise ValueError(
-                f"No TNS API key found for publishing bot {publishing_bot.id}."
+                f"No TNS API key found for sharing service {sharing_service.id}."
             )
 
         # Validate that the object ID is valid for submission to TNS with the given TNS source group ID.
-        if publishing_bot.source_group_id not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS:
+        if (
+            sharing_service.tns_source_group_id
+            not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS
+        ):
             raise ValueError(
-                f"Unknown naming convention for TNS source group ID {publishing_bot.source_group_id}, cannot validate object ID."
+                f"Unknown naming convention for TNS source group ID {sharing_service.tns_source_group_id}, cannot validate object ID."
             )
         regex_pattern = TNS_SOURCE_GROUP_NAMING_CONVENTIONS[
-            publishing_bot.source_group_id
+            sharing_service.tns_source_group_id
         ]
         if not re.match(regex_pattern, obj_id):
             raise ValueError(
-                f"Object ID {obj_id} does not match the expected naming convention for TNS source group ID {publishing_bot.source_group_id}."
+                f"Object ID {obj_id} does not match the expected naming convention for TNS source group ID {sharing_service.tns_source_group_id}."
             )
 
-        apply_existing_tns_report_rules(publishing_bot, submission_request)
+        apply_existing_tns_report_rules(sharing_service, submission_request)
 
         archival = submission_request.archival
         archival_comment = submission_request.archival_comment
@@ -353,7 +360,7 @@ def submit_to_tns(
         photometry = [serialize(phot, "ab", "mag") for phot in photometry]
         tns_report = build_tns_report(
             submission_request,
-            publishing_bot,
+            sharing_service,
             reporters,
             remarks,
             photometry,
@@ -365,7 +372,7 @@ def submit_to_tns(
 
         # submit the report to TNS
         status, submission_id, serialized_response = send_tns_report(
-            submission_request, publishing_bot, tns_report
+            submission_request, sharing_service, tns_report
         )
         submission_request.tns_submission_id = submission_id
         submission_request.tns_response = serialized_response
@@ -397,8 +404,8 @@ def submit_to_tns(
         flow = Flow()
         flow.push(
             "*",
-            "skyportal/REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS",
-            payload={"external_publishing_bot_id": publishing_bot.id},
+            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+            payload={"sharing_service_id": sharing_service.id},
         )
         flow.push(
             user_id=submission_request.user_id,
@@ -416,14 +423,14 @@ def submit_to_tns(
     session.commit()
 
 
-def check_at_report(submission_id, publishing_bot):
+def check_at_report(submission_id, sharing_service):
     """Check the status of a report submission to TNS, verifying that the submission was successful (or not).
 
     Parameters
     ----------
     submission_id : int
         The ID of the submission request to check on TNS.
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
+    sharing_service : `~skyportal.models.SharingService`
         The bot to use for the check.
 
     Returns
@@ -437,7 +444,7 @@ def check_at_report(submission_id, publishing_bot):
     obj_name, response = None, None
 
     data = {
-        "api_key": publishing_bot.tns_altdata["api_key"],
+        "api_key": sharing_service.tns_altdata["api_key"],
         "report_id": submission_id,
     }
 
@@ -448,7 +455,9 @@ def check_at_report(submission_id, publishing_bot):
     for _ in range(max_retries):
         r = requests.post(
             get_tns_url("report_reply"),
-            headers=get_tns_headers(publishing_bot.bot_id, publishing_bot.bot_name),
+            headers=get_tns_headers(
+                sharing_service.tns_bot_id, sharing_service.tns_bot_name
+            ),
             data=data,
         )
         if r.status_code != 429:

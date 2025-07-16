@@ -36,7 +36,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Button from "../Button";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as sharingServicesActions from "../../ducks/sharingServices";
 import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
@@ -44,7 +44,7 @@ import { userLabel } from "../../utils/format";
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
 const useStyles = makeStyles(() => ({
-  publishingBotList: {
+  sharingServicesList: {
     width: "100%",
   },
   manageButtons: {
@@ -58,9 +58,9 @@ const useStyles = makeStyles(() => ({
   groupChip: {},
 }));
 
-const ExternalPublishingBotGroup = ({
-  botGroup,
-  bot,
+const SharingServiceGroup = ({
+  sharingServiceGroup,
+  sharingService,
   groupsLookup,
   usersLookup,
 }) => {
@@ -69,15 +69,15 @@ const ExternalPublishingBotGroup = ({
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const [owner, setOwner] = useState(botGroup.owner || false);
+  const [owner, setOwner] = useState(sharingServiceGroup.owner || false);
   const [autoPublishTns, setAutoPublishTns] = useState(
-    botGroup.auto_publish_to_tns,
+    sharingServiceGroup.auto_share_to_tns,
   );
   const [autoPublishHermes, setAutoPublishHermes] = useState(
-    botGroup.auto_publish_to_hermes,
+    sharingServiceGroup.auto_share_to_hermes,
   );
   const [autoPublishAllowBots, setAutoPublishAllowBots] = useState(
-    botGroup.auto_publish_allow_bots || false,
+    sharingServiceGroup.auto_sharing_allow_bots || false,
   );
   const [left, setLeft] = useState([]);
   const [right, setRight] = useState([]);
@@ -85,35 +85,35 @@ const ExternalPublishingBotGroup = ({
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!botGroup) return;
-    setOwner(botGroup.owner);
-    setAutoPublishTns(botGroup.auto_publish_to_tns);
-    setAutoPublishHermes(botGroup.auto_publish_to_hermes);
-    setAutoPublishAllowBots(botGroup.auto_publish_allow_bots);
-  }, [botGroup]);
+    if (!sharingServiceGroup) return;
+    setOwner(sharingServiceGroup.owner);
+    setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
+    setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
+    setAutoPublishAllowBots(sharingServiceGroup.auto_sharing_allow_bots);
+  }, [sharingServiceGroup]);
 
   useEffect(() => {
     if (open) {
       // we have the groupsLookup and usersLookup, that we'll use to find the users of the selected group
-      const group = groupsLookup[botGroup.group_id];
+      const group = groupsLookup[sharingServiceGroup.group_id];
       // the users in usersLookup have a "groups" field that contain all the groups that the user is part of
       const group_users = Object.values(usersLookup || {}).filter((user) =>
         // groups is a list of group objects, so we check if it includes a group with that id
         user.groups.some((userGroup) => userGroup.id === group.id),
       );
 
-      // on the left are the users that are not auto publishers of the botGroup
+      // on the left are the users that are not auto publishers of the sharingServiceGroup
       // meaning there are no auto publishers with user_id equal to the user.id
       const newLeft = group_users.filter(
         (user) =>
-          !botGroup.auto_publishers.some(
+          !sharingServiceGroup.auto_publishers.some(
             (autoPublisher) => autoPublisher.user_id === user.id,
           ),
       );
-      // on the right are the users that are auto publishers of the botGroup
+      // on the right are the users that are auto publishers of the sharingServiceGroup
       // meaning there are auto publishers with user_id equal to the user.id
       const newRight = group_users.filter((user) =>
-        botGroup.auto_publishers.some(
+        sharingServiceGroup.auto_publishers.some(
           (autoPublisher) => autoPublisher.user_id === user.id,
         ),
       );
@@ -139,36 +139,38 @@ const ExternalPublishingBotGroup = ({
         setInitialized(true);
       }
     }
-  }, [botGroup, groupsLookup, usersLookup, open, initialized]);
+  }, [sharingServiceGroup, groupsLookup, usersLookup, open, initialized]);
 
   const updateGroup = async () => {
     setUpdating(true);
     if (
-      owner !== botGroup.owner ||
-      autoPublishTns !== botGroup.auto_publish_to_tns ||
-      autoPublishHermes !== botGroup.auto_publish_to_hermes ||
-      autoPublishAllowBots !== botGroup.auto_publish_allow_bots
+      owner !== sharingServiceGroup.owner ||
+      autoPublishTns !== sharingServiceGroup.auto_share_to_tns ||
+      autoPublishHermes !== sharingServiceGroup.auto_share_to_hermes ||
+      autoPublishAllowBots !== sharingServiceGroup.auto_sharing_allow_bots
     ) {
       await dispatch(
-        externalPublishingActions.editExternalPublishingBotGroup(
-          botGroup.external_publishing_bot_id,
-          botGroup.group_id,
+        sharingServicesActions.editSharingServiceGroup(
+          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.group_id,
           {
             owner,
-            auto_publish_to_tns: autoPublishTns,
-            auto_publish_to_hermes: autoPublishHermes,
-            auto_publish_allow_bots: autoPublishAllowBots,
+            auto_share_to_tns: autoPublishTns,
+            auto_share_to_hermes: autoPublishHermes,
+            auto_sharing_allow_bots: autoPublishAllowBots,
           },
         ),
       ).then((response) => {
         if (response.status === "success") {
           dispatch(
-            showNotification(`Successfully updated group ${botGroup.group_id}`),
+            showNotification(
+              `Successfully updated group ${sharingServiceGroup.group_id}`,
+            ),
           );
         } else {
           dispatch(
             showNotification(
-              `Failed to update group ${botGroup.group_id}`,
+              `Failed to update group ${sharingServiceGroup.group_id}`,
               "error",
             ),
           );
@@ -180,7 +182,7 @@ const ExternalPublishingBotGroup = ({
     // for that we want to find the users that are in the right list but not in the existing auto publishers
     // and the users that are in the existing auto publishers but not in the right list
     const newAutoPublishers = right.map((user) => user.id);
-    const oldAutoPublishers = botGroup.auto_publishers.map(
+    const oldAutoPublishers = sharingServiceGroup.auto_publishers.map(
       (auto_publisher) => auto_publisher.user_id,
     );
     const toAdd = newAutoPublishers.filter(
@@ -193,9 +195,9 @@ const ExternalPublishingBotGroup = ({
     // ADD
     if (toAdd?.length > 0) {
       await dispatch(
-        externalPublishingActions.addExternalPublishingBotGroupAutoPublishers(
-          botGroup.external_publishing_bot_id,
-          botGroup.group_id,
+        sharingServicesActions.addSharingServiceGroupAutoPublishers(
+          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.group_id,
           toAdd,
         ),
       ).then((response) => {
@@ -210,9 +212,9 @@ const ExternalPublishingBotGroup = ({
     // REMOVE
     if (toRemove?.length > 0) {
       await dispatch(
-        externalPublishingActions.deleteExternalPublishingBotGroupAutoPublishers(
-          botGroup.external_publishing_bot_id,
-          botGroup.group_id,
+        sharingServicesActions.deleteSharingServiceGroupAutoPublishers(
+          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.group_id,
           toRemove,
         ),
       ).then((response) => {
@@ -231,22 +233,22 @@ const ExternalPublishingBotGroup = ({
 
   const deleteGroup = () => {
     dispatch(
-      externalPublishingActions.deleteExternalPublishingBotGroup(
-        botGroup.external_publishing_bot_id,
-        botGroup.group_id,
+      sharingServicesActions.deleteSharingServiceGroup(
+        sharingServiceGroup.sharingservice_id,
+        sharingServiceGroup.group_id,
       ),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(
           showNotification(
-            `Group access to publishing bot removed successfully`,
+            `Group access to sharing service removed successfully`,
           ),
         );
         setOpen(false);
       } else {
         dispatch(
           showNotification(
-            `Failed to remove group access to publishing bot`,
+            `Failed to remove group access to sharing service`,
             "error",
           ),
         );
@@ -255,11 +257,13 @@ const ExternalPublishingBotGroup = ({
   };
 
   return (
-    <div key={botGroup.id}>
+    <div key={sharingServiceGroup.id}>
       <Chip
         size="small"
-        label={groupsLookup[botGroup.group_id]?.name || "loading..."}
-        className={botGroup.owner ? classes.groupChipOwner : classes.groupChip}
+        label={groupsLookup[sharingServiceGroup.group_id]?.name || "loading..."}
+        className={
+          sharingServiceGroup.owner ? classes.groupChipOwner : classes.groupChip
+        }
         onClick={() => {
           setOpen(true);
         }}
@@ -285,9 +289,9 @@ const ExternalPublishingBotGroup = ({
           <FormGroup row>
             <Tooltip
               title={
-                bot.enable_publish_to_tns
+                sharingService.enable_sharing_with_tns
                   ? ""
-                  : "TNS publishing is disabled for this bot."
+                  : "TNS publishing is disabled for this sharingService."
               }
             >
               <FormControlLabel
@@ -298,14 +302,14 @@ const ExternalPublishingBotGroup = ({
                   />
                 }
                 label="TNS"
-                disabled={!bot.enable_publish_to_tns}
+                disabled={!sharingService.enable_sharing_with_tns}
               />
             </Tooltip>
             <Tooltip
               title={
-                bot.enable_publish_to_hermes
+                sharingService.enable_sharing_with_hermes
                   ? ""
-                  : "Hermes publishing is disabled for this bot."
+                  : "Hermes publishing is disabled for this sharingService."
               }
             >
               <FormControlLabel
@@ -316,13 +320,13 @@ const ExternalPublishingBotGroup = ({
                   />
                 }
                 label="Hermes"
-                disabled={!bot.enable_publish_to_hermes}
+                disabled={!sharingService.enable_sharing_with_hermes}
               />
             </Tooltip>
           </FormGroup>
           {(autoPublishTns || autoPublishHermes) && (
             <>
-              <InputLabel>Allow bots to auto publish</InputLabel>
+              <InputLabel>Allow Sharing Service to auto publish</InputLabel>
               <Switch
                 checked={autoPublishAllowBots}
                 onChange={(e) => setAutoPublishAllowBots(e.target.checked)}
@@ -371,47 +375,44 @@ const ExternalPublishingBotGroup = ({
           deleteFunction={deleteGroup}
           dialogOpen={deleteOpen}
           closeDialog={() => setDeleteOpen(false)}
-          resourceName="publishing bot group"
+          resourceName="sharing service group"
         />
       </Dialog>
     </div>
   );
 };
 
-ExternalPublishingBotGroup.propTypes = {
-  botGroup: PropTypes.shape({
+SharingServiceGroup.propTypes = {
+  sharingServiceGroup: PropTypes.shape({
     id: PropTypes.number,
-    external_publishing_bot_id: PropTypes.number,
+    sharingservice_id: PropTypes.number,
     group_id: PropTypes.number,
     owner: PropTypes.bool,
-    auto_publish_to_tns: PropTypes.bool,
-    auto_publish_to_hermes: PropTypes.bool,
-    auto_publish_allow_bots: PropTypes.bool,
+    auto_share_to_tns: PropTypes.bool,
+    auto_share_to_hermes: PropTypes.bool,
+    auto_sharing_allow_bots: PropTypes.bool,
     auto_publishers: PropTypes.arrayOf(
       PropTypes.shape({
-        botGroup_id: PropTypes.number,
+        sharingServiceGroup_id: PropTypes.number,
         group_user_id: PropTypes.number,
         user_id: PropTypes.number,
       }),
     ),
   }).isRequired,
-  bot: PropTypes.shape({
+  sharingService: PropTypes.shape({
     id: PropTypes.number,
-    enable_publish_to_tns: PropTypes.bool,
-    enable_publish_to_hermes: PropTypes.bool,
+    enable_sharing_with_tns: PropTypes.bool,
+    enable_sharing_with_hermes: PropTypes.bool,
   }).isRequired,
   groupsLookup: PropTypes.shape({}).isRequired,
   usersLookup: PropTypes.shape({}).isRequired,
 };
 
-const NewExternalPublishingBotGroup = ({
-  externalPublishingBot,
-  groupsLookup,
-}) => {
-  // here we want to have a chip with a + sign that opens a dialog to create a new externalPublishingBot group
+const NewSharingServiceGroup = ({ sharingService, groupsLookup }) => {
+  // here we want to have a chip with a + sign that opens a dialog to create a new sharingService group
   // the dialog will show a dropdown with all the groups that the user has access to
   // a switch to set the owner
-  // and that are not already in the externalPublishingBot group list
+  // and that are not already in the sharingService group list
   // and ADD and CANCEL buttons
   const [open, setOpen] = useState(false);
   const [group, setGroup] = useState(null);
@@ -421,24 +422,21 @@ const NewExternalPublishingBotGroup = ({
 
   const groupOptions = Object.values(groupsLookup).filter(
     (g) =>
-      !externalPublishingBot.groups.some(
-        (botGroup) => botGroup.group_id === g.id,
+      !sharingService.groups.some(
+        (sharingServiceGroup) => sharingServiceGroup.group_id === g.id,
       ),
   );
 
   const handleAdd = () => {
     setLoading(true);
     dispatch(
-      externalPublishingActions.addExternalPublishingBotGroup(
-        externalPublishingBot.id,
-        {
-          group_id: group,
-          owner,
-          auto_publish_to_tns: false,
-          auto_publish_to_hermes: false,
-          auto_publish_allow_bots: false,
-        },
-      ),
+      sharingServicesActions.addSharingServiceGroup(sharingService.id, {
+        group_id: group,
+        owner,
+        auto_share_to_tns: false,
+        auto_share_to_hermes: false,
+        auto_sharing_allow_bots: false,
+      }),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification(`Successfully added group`));
@@ -516,37 +514,37 @@ const NewExternalPublishingBotGroup = ({
   );
 };
 
-NewExternalPublishingBotGroup.propTypes = {
-  externalPublishingBot: PropTypes.shape({
+NewSharingServiceGroup.propTypes = {
+  sharingService: PropTypes.shape({
     id: PropTypes.number,
     groups: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-        external_publishing_bot_id: PropTypes.number,
+        sharingservice_id: PropTypes.number,
         group_id: PropTypes.number,
         owner: PropTypes.bool,
-        auto_publish_to_tns: PropTypes.bool,
-        auto_publish_to_hermes: PropTypes.bool,
-        auto_publish_allow_bots: PropTypes.bool,
+        auto_share_to_tns: PropTypes.bool,
+        auto_share_to_hermes: PropTypes.bool,
+        auto_sharing_allow_bots: PropTypes.bool,
       }),
     ),
   }).isRequired,
   groupsLookup: PropTypes.shape({}).isRequired,
 };
 
-const ExternalPublishingBotCoauthor = ({
-  external_publishing_bot_id,
-  external_publishing_bot_coauthor,
+const SharingServiceCoauthor = ({
+  sharing_service_id,
+  sharing_service_coauthor,
   usersLookup,
 }) => {
   const dispatch = useDispatch();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const user = usersLookup[external_publishing_bot_coauthor.user_id];
+  const user = usersLookup[sharing_service_coauthor.user_id];
 
   const deleteCoauthor = () => {
     dispatch(
-      externalPublishingActions.deleteExternalPublishingBotCoauthor(
-        external_publishing_bot_id,
+      sharingServicesActions.deleteSharingServiceCoauthor(
+        sharing_service_id,
         user.id,
       ),
     ).then((response) => {
@@ -581,20 +579,17 @@ const ExternalPublishingBotCoauthor = ({
   );
 };
 
-ExternalPublishingBotCoauthor.propTypes = {
-  external_publishing_bot_id: PropTypes.number.isRequired,
-  external_publishing_bot_coauthor: PropTypes.shape({
+SharingServiceCoauthor.propTypes = {
+  sharing_service_id: PropTypes.number.isRequired,
+  sharing_service_coauthor: PropTypes.shape({
     id: PropTypes.number,
-    botGroup_id: PropTypes.number,
+    sharingServiceGroup_id: PropTypes.number,
     user_id: PropTypes.number,
   }).isRequired,
   usersLookup: PropTypes.shape({}).isRequired,
 };
 
-const NewExternalPublishingBotCoauthor = ({
-  externalPublishingBot,
-  usersLookup,
-}) => {
+const NewSharingServiceCoauthor = ({ sharingService, usersLookup }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -602,18 +597,13 @@ const NewExternalPublishingBotCoauthor = ({
 
   const userOptions = Object.values(usersLookup).filter(
     (u) =>
-      !externalPublishingBot.coauthors.some(
-        (coauthor) => coauthor.user_id === u.id,
-      ),
+      !sharingService.coauthors.some((coauthor) => coauthor.user_id === u.id),
   );
 
   const handleAdd = () => {
     setLoading(true);
     dispatch(
-      externalPublishingActions.addExternalPublishingBotCoauthor(
-        externalPublishingBot.id,
-        user,
-      ),
+      sharingServicesActions.addSharingServiceCoauthor(sharingService.id, user),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification(`Successfully added user`));
@@ -688,13 +678,13 @@ const NewExternalPublishingBotCoauthor = ({
   );
 };
 
-NewExternalPublishingBotCoauthor.propTypes = {
-  externalPublishingBot: PropTypes.shape({
+NewSharingServiceCoauthor.propTypes = {
+  sharingService: PropTypes.shape({
     id: PropTypes.number,
     coauthors: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-        external_publishing_bot_id: PropTypes.number,
+        sharingservice_id: PropTypes.number,
         user_id: PropTypes.number,
       }),
     ),
@@ -702,33 +692,32 @@ NewExternalPublishingBotCoauthor.propTypes = {
   usersLookup: PropTypes.shape({}).isRequired,
 };
 
-const ExternalPublishingBotsPage = () => {
+const SharingServicesPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
-  const manageBotPermission = currentUser.permissions?.includes(
-    "Manage external publishing bots",
-  );
-  const [openManageBotDialog, setOpenManageBotDialog] = useState(false);
+  const manageSharingServicePermission =
+    currentUser?.permissions?.includes("Manage sharing services") ||
+    currentUser?.permissions?.includes("System admin");
+  const [openManageSharingServiceDialog, setOpenManageBotDialog] =
+    useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [botToManage, setBotToManage] = useState(null);
+  const [sharingServiceToManage, setBotToManage] = useState(null);
   const [enablePublishToTNS, setEnablePublishToTNS] = useState(true);
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
 
   const groups = useSelector((state) => state.groups.userAccessible);
   const allGroups = useSelector((state) => state.groups.all);
   const { users: allUsers } = useSelector((state) => state.users);
-  const { externalPublishingBotList } = useSelector(
-    (state) => state.externalPublishingBots,
-  );
+  const { sharingServicesList } = useSelector((state) => state.sharingServices);
   const { instrumentList } = useSelector((state) => state.instruments);
-  const allowedInstrumentsForPublishing = useSelector(
-    (state) => state.config.allowedInstrumentsForPublishing,
+  const allowedInstrumentsForSharing = useSelector(
+    (state) => state.config.allowedInstrumentsForSharing,
   );
   const streams = useSelector((state) => state.streams);
 
   const allowedInstruments = instrumentList.filter((instrument) =>
-    (allowedInstrumentsForPublishing || []).includes(
+    (allowedInstrumentsForSharing || []).includes(
       instrument.name?.toLowerCase(),
     ),
   );
@@ -736,16 +725,15 @@ const ExternalPublishingBotsPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       dispatch(streamsActions.fetchStreams());
-      dispatch(externalPublishingActions.fetchExternalPublishingBots());
+      dispatch(sharingServicesActions.fetchSharingServices());
     };
     fetchData();
   }, [dispatch]);
 
-  const externalPublishingBotListLookup = {};
-  if (externalPublishingBotList) {
-    externalPublishingBotList.forEach((externalPublishingBot) => {
-      externalPublishingBotListLookup[externalPublishingBot.id] =
-        externalPublishingBot;
+  const sharingServicesListLookup = {};
+  if (sharingServicesList) {
+    sharingServicesList.forEach((sharingService) => {
+      sharingServicesListLookup[sharingService.id] = sharingService;
     });
   }
 
@@ -772,24 +760,26 @@ const ExternalPublishingBotsPage = () => {
     });
   }
 
-  const submitExternalPublishingBot = (formData, isEdit) => {
+  const submitSharingService = (formData, isEdit) => {
     const {
-      bot_name,
+      name,
+      tns_bot_name,
       owner_group_ids,
       acknowledgments,
       instrument_ids,
       stream_ids,
       testing,
       first_and_last_detections,
-      auto_publish_allow_archival,
+      auto_sharing_allow_archival,
       publish_existing_tns_objects,
-      bot_id,
-      source_group_id,
-      api_key,
+      tns_bot_id,
+      tns_source_group_id,
+      tns_api_key,
     } = formData.formData;
 
     const data = {
-      bot_name,
+      name,
+      tns_bot_name,
       acknowledgments,
       owner_group_ids,
       instrument_ids,
@@ -797,26 +787,26 @@ const ExternalPublishingBotsPage = () => {
       testing,
       photometry_options: {
         first_and_last_detections,
-        auto_publish_allow_archival,
+        auto_sharing_allow_archival,
       },
       publish_existing_tns_objects,
-      bot_id,
-      source_group_id,
-      ...((!isEdit || api_key?.length > 0) && {
+      tns_bot_id,
+      tns_source_group_id,
+      ...((!isEdit || tns_api_key?.length > 0) && {
         _tns_altdata: {
-          api_key,
+          api_key: tns_api_key,
         },
       }),
-      enable_publish_to_tns: enablePublishToTNS,
-      enable_publish_to_hermes: enablePublishToHermes,
+      enable_sharing_with_tns: enablePublishToTNS,
+      enable_sharing_with_hermes: enablePublishToHermes,
     };
 
     const submitBot = isEdit
-      ? externalPublishingActions.editExternalPublishingBot(
-          botToManage.id,
+      ? sharingServicesActions.editSharingService(
+          sharingServiceToManage.id,
           data,
         )
-      : externalPublishingActions.addExternalPublishingBot(data);
+      : sharingServicesActions.addSharingService(data);
 
     dispatch(submitBot).then((result) => {
       if (result.status === "success") {
@@ -830,7 +820,7 @@ const ExternalPublishingBotsPage = () => {
       } else {
         dispatch(
           showNotification(
-            `Error ${isEdit ? "editing" : "adding"} publishing Bot.`,
+            `Error ${isEdit ? "editing" : "adding"} publishing sharingService.`,
             "error",
           ),
         );
@@ -838,16 +828,21 @@ const ExternalPublishingBotsPage = () => {
     });
   };
 
-  const deleteExternalPublishingBot = () => {
+  const deleteSharingService = () => {
     dispatch(
-      externalPublishingActions.deleteExternalPublishingBot(botToManage.id),
+      sharingServicesActions.deleteSharingService(sharingServiceToManage.id),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Publishing Bot deleted successfully."));
         setBotToManage(null);
         setDeleteDialogOpen(false);
       } else {
-        dispatch(showNotification("Error deleting publishing Bot.", "error"));
+        dispatch(
+          showNotification(
+            "Error deleting publishing sharingService.",
+            "error",
+          ),
+        );
       }
     });
   };
@@ -855,7 +850,7 @@ const ExternalPublishingBotsPage = () => {
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
     if (source_group_id !== "" && Number.isNaN(source_group_id)) {
-      errors.source_group_id.addError("Source group ID must be a number.");
+      errors.tns_source_group_id.addError("Source group ID must be a number.");
     }
     return errors;
   };
@@ -863,14 +858,14 @@ const ExternalPublishingBotsPage = () => {
   const publishingSubmissionsLink = (dataIndex) => {
     return (
       <Link
-        to={`/external_publishing/${externalPublishingBotList[dataIndex].id}/submissions`}
+        to={`/sharing_service/${sharingServicesList[dataIndex].id}/submissions`}
         id="submissions_button"
         target="_blank"
       >
         <Tooltip title="View publishing submissions">
           <IconButton
             classes={{
-              root: classes.externalPublishingBotSubmissions,
+              root: classes.sharingServiceSubmissions,
             }}
           >
             <ChecklistIcon />
@@ -884,15 +879,15 @@ const ExternalPublishingBotsPage = () => {
     <IconButton
       id="edit_button"
       classes={{
-        root: classes.externalPublishingBotEdit,
+        root: classes.sharingServiceEdit,
       }}
       onClick={() => {
-        setBotToManage(externalPublishingBotList[dataIndex]);
+        setBotToManage(sharingServicesList[dataIndex]);
         setEnablePublishToTNS(
-          externalPublishingBotList[dataIndex].enable_publish_to_tns,
+          sharingServicesList[dataIndex].enable_sharing_with_tns,
         );
         setEnablePublishToHermes(
-          externalPublishingBotList[dataIndex].enable_publish_to_hermes,
+          sharingServicesList[dataIndex].enable_sharing_with_hermes,
         );
         setOpenManageBotDialog(true);
       }}
@@ -906,7 +901,7 @@ const ExternalPublishingBotsPage = () => {
       <IconButton
         id="delete_button"
         onClick={() => {
-          setBotToManage(externalPublishingBotList[dataIndex]);
+          setBotToManage(sharingServicesList[dataIndex]);
           setDeleteDialogOpen(true);
         }}
       >
@@ -915,18 +910,18 @@ const ExternalPublishingBotsPage = () => {
     );
   };
 
-  const renderBotName = (dataIndex) => {
-    const bot = externalPublishingBotList[dataIndex];
+  const renderName = (dataIndex) => {
+    const sharingService = sharingServicesList[dataIndex];
     return (
       <div style={{ display: "flex", alignItems: "center" }}>
-        {bot.testing === true && (
+        {sharingService.testing === true && (
           <Tooltip
             title={
               <h2>
-                This bot is currently in testing mode. It will not publish any
-                data to TNS but will store the payload in the database instead
-                (useful for debugging purposes). For Hermes, it will publish to
-                the test topic.
+                This sharing service is currently in testing mode. It will not
+                publish any data to TNS but will store the payload in the
+                database instead (useful for debugging purposes). For Hermes, it
+                will publish to the test topic.
               </h2>
             }
             placement="right"
@@ -935,16 +930,14 @@ const ExternalPublishingBotsPage = () => {
           </Tooltip>
         )}
         <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-          {bot.bot_name}
+          {sharingService.name}
         </Typography>
       </div>
     );
   };
 
   const renderCoauthors = (dataIndex) => {
-    const coauthors = [
-      ...(externalPublishingBotList[dataIndex]?.coauthors || []),
-    ];
+    const coauthors = [...(sharingServicesList[dataIndex]?.coauthors || [])];
     coauthors.sort((a, b) =>
       userLabel(usersLookup[a.user_id] || "", false, true).localeCompare(
         userLabel(usersLookup[b.user_id] || "", false, true),
@@ -953,17 +946,15 @@ const ExternalPublishingBotsPage = () => {
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
         {coauthors.map((coauthor, idx) => (
-          <ExternalPublishingBotCoauthor
+          <SharingServiceCoauthor
             key={`${coauthor.user_id}-${idx}`}
-            external_publishing_bot_id={
-              externalPublishingBotList[dataIndex]?.id
-            }
-            external_publishing_bot_coauthor={coauthor}
+            sharing_service_id={sharingServicesList[dataIndex]?.id}
+            sharing_service_coauthor={coauthor}
             usersLookup={usersLookup}
           />
         ))}
-        <NewExternalPublishingBotCoauthor
-          externalPublishingBot={externalPublishingBotList[dataIndex]}
+        <NewSharingServiceCoauthor
+          sharingService={sharingServicesList[dataIndex]}
           usersLookup={usersLookup}
         />
       </div>
@@ -971,16 +962,16 @@ const ExternalPublishingBotsPage = () => {
   };
 
   const renderAcknowledgments = (dataIndex) => {
-    const externalPublishingBot = externalPublishingBotList[dataIndex];
+    const sharingService = sharingServicesList[dataIndex];
     return (
       <Tooltip
         title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
-          externalPublishingBot?.acknowledgments || "..."
+          sharingService?.acknowledgments || "..."
         }`}
         placement="top"
       >
         <Typography variant="body1">
-          {externalPublishingBot.acknowledgments}
+          {sharingService.acknowledgments}
         </Typography>
       </Tooltip>
     );
@@ -988,8 +979,10 @@ const ExternalPublishingBotsPage = () => {
 
   const renderGroups = (dataIndex) => {
     // order alphabetically by group name, then by owner status
-    const botGroups = [...(externalPublishingBotList[dataIndex]?.groups || [])];
-    botGroups.sort((a, b) => {
+    const sharingServiceGroups = [
+      ...(sharingServicesList[dataIndex]?.groups || []),
+    ];
+    sharingServiceGroups.sort((a, b) => {
       const nameA = allGroupsLookup[a.group_id]?.name || "";
       const nameB = allGroupsLookup[b.group_id]?.name || "";
       if (a.owner !== b.owner) return b.owner - a.owner;
@@ -998,17 +991,17 @@ const ExternalPublishingBotsPage = () => {
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
-        {botGroups.map((botGroup, idx) => (
-          <ExternalPublishingBotGroup
-            key={`${botGroup.group_id}-${idx}`}
-            botGroup={botGroup}
-            bot={externalPublishingBotList[dataIndex]}
+        {sharingServiceGroups.map((sharingServiceGroup, idx) => (
+          <SharingServiceGroup
+            key={`${sharingServiceGroup.group_id}-${idx}`}
+            sharingServiceGroup={sharingServiceGroup}
+            sharingService={sharingServicesList[dataIndex]}
             groupsLookup={allGroupsLookup}
             usersLookup={usersLookup}
           />
         ))}
-        <NewExternalPublishingBotGroup
-          externalPublishingBot={externalPublishingBotList[dataIndex]}
+        <NewSharingServiceGroup
+          sharingService={sharingServicesList[dataIndex]}
           groupsLookup={groupsLookup}
         />
       </div>
@@ -1019,7 +1012,7 @@ const ExternalPublishingBotsPage = () => {
     return {
       type: "object",
       properties: {
-        bot_name: { type: "string", title: "Bot name" },
+        name: { type: "string", title: "Sharing Service Name (unique)" },
         ...(isNewBot
           ? {
               owner_group_ids: {
@@ -1058,7 +1051,7 @@ const ExternalPublishingBotsPage = () => {
             })),
           },
           uniqueItems: true,
-          default: botToManage?.instruments?.map((i) => i.id) || [],
+          default: sharingServiceToManage?.instruments?.map((i) => i.id) || [],
           title: "Instruments to restrict photometry to",
         },
         ...(streams?.length > 0 && {
@@ -1073,7 +1066,7 @@ const ExternalPublishingBotsPage = () => {
               })),
             },
             uniqueItems: true,
-            default: botToManage?.streams?.map((s) => s.id) || [],
+            default: sharingServiceToManage?.streams?.map((s) => s.id) || [],
             title: "Streams to restrict photometry to (optional)",
           },
         }),
@@ -1093,9 +1086,13 @@ const ExternalPublishingBotsPage = () => {
         },
         ...(enableTNS
           ? {
-              bot_id: { type: "number", title: "Bot ID" },
-              source_group_id: { type: "integer", title: "Source group ID" },
-              api_key: { type: "string", title: "TNS API Key" },
+              tns_bot_name: { type: "string", title: "TNS Bot Name" },
+              tns_bot_id: { type: "number", title: "TNS Bot ID" },
+              tns_source_group_id: {
+                type: "integer",
+                title: "TNS Source Group ID",
+              },
+              tns_api_key: { type: "string", title: "TNS API Key" },
               publish_existing_tns_objects: {
                 type: "boolean",
                 title: "Publish existing TNS objects",
@@ -1103,7 +1100,7 @@ const ExternalPublishingBotsPage = () => {
                 description:
                   "If disabled, skips objects within 2 arcsec already in TNS. If enabled, publish if not yet submitted under this internal name.",
               },
-              auto_publish_allow_archival: {
+              auto_sharing_allow_archival: {
                 type: "boolean",
                 title: "Allow TNS archival auto-publishing",
                 default: false,
@@ -1114,13 +1111,15 @@ const ExternalPublishingBotsPage = () => {
           : {}),
       },
       required: [
-        "bot_name",
+        "name",
         "acknowledgments",
         "instrument_ids",
         "first_and_last_detections",
         ...((isNewBot && ["owner_group_ids"]) || []),
-        ...(enableTNS ? ["bot_id", "source_group_id"] : []),
-        ...(isNewBot && enableTNS ? ["api_key"] : []),
+        ...(enableTNS
+          ? ["tns_bot_name", "tns_bot_id", "tns_source_group_id"]
+          : []),
+        ...(isNewBot && enableTNS ? ["tns_api_key"] : []),
       ],
     };
   };
@@ -1128,9 +1127,9 @@ const ExternalPublishingBotsPage = () => {
   const columns = [
     { name: "id", label: "ID", options: { display: false } },
     {
-      name: "bot_name",
-      label: "Bot name",
-      options: { customBodyRenderLite: renderBotName },
+      name: "Name",
+      label: "Name",
+      options: { customBodyRenderLite: renderName },
     },
     {
       name: "publish_to",
@@ -1139,18 +1138,18 @@ const ExternalPublishingBotsPage = () => {
         sort: false,
         customBodyRenderLite: (dataIndex) => (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
-            {externalPublishingBotList[dataIndex].enable_publish_to_tns && (
+            {sharingServicesList[dataIndex].enable_sharing_with_tns && (
               <Tooltip
                 title={
                   <div style={{ fontSize: "0.8rem", fontWeight: "500" }}>
                     TNS config:
-                    <br />- Bot ID:{" "}
-                    {externalPublishingBotList[dataIndex].bot_id}
+                    <br />- Bot Name:{" "}
+                    {sharingServicesList[dataIndex].tns_bot_name}
+                    <br />- Bot ID: {sharingServicesList[dataIndex].tns_bot_id}
                     <br />- Source Group ID:{" "}
-                    {externalPublishingBotList[dataIndex].source_group_id}
+                    {sharingServicesList[dataIndex].tns_source_group_id}
                     <br />- Publish existing TNS objects:{" "}
-                    {externalPublishingBotList[dataIndex]
-                      .publish_existing_tns_objects
+                    {sharingServicesList[dataIndex].publish_existing_tns_objects
                       ? "Yes"
                       : "No"}
                     <br />
@@ -1178,7 +1177,7 @@ const ExternalPublishingBotsPage = () => {
                 />
               </Tooltip>
             )}
-            {externalPublishingBotList[dataIndex].enable_publish_to_hermes && (
+            {sharingServicesList[dataIndex].enable_sharing_with_hermes && (
               <Chip label="Hermes" color="primary" variant="outlined" />
             )}
           </div>
@@ -1205,7 +1204,7 @@ const ExternalPublishingBotsPage = () => {
       label: "Instruments",
       options: {
         customBodyRenderLite: (dataIndex) => {
-          const { instruments } = externalPublishingBotList[dataIndex];
+          const { instruments } = sharingServicesList[dataIndex];
           return (
             <span>
               {instruments?.length
@@ -1221,7 +1220,7 @@ const ExternalPublishingBotsPage = () => {
       label: "Streams (optional)",
       options: {
         customBodyRenderLite: (dataIndex) => {
-          const { streams } = externalPublishingBotList[dataIndex]; // eslint-disable-line no-shadow
+          const { streams } = sharingServicesList[dataIndex]; // eslint-disable-line no-shadow
           return (
             <span>
               {streams?.length > 0
@@ -1239,8 +1238,8 @@ const ExternalPublishingBotsPage = () => {
         customBodyRenderLite: (dataIndex) => (
           <div className={classes.manageButtons}>
             {publishingSubmissionsLink(dataIndex)}
-            {manageBotPermission && renderEdit(dataIndex)}
-            {manageBotPermission && renderDelete(dataIndex)}
+            {manageSharingServicePermission && renderEdit(dataIndex)}
+            {manageSharingServicePermission && renderDelete(dataIndex)}
           </div>
         ),
       },
@@ -1250,10 +1249,10 @@ const ExternalPublishingBotsPage = () => {
   return (
     <div>
       <MUIDataTable
-        className={classes.publishingBotList}
-        title="Publishing Bots"
-        data={externalPublishingBotList.sort((a, b) =>
-          a?.bot_name?.localeCompare(b?.bot_name),
+        className={classes.sharingServicesList}
+        title="Sharing Services"
+        data={sharingServicesList.sort((a, b) =>
+          a?.name?.localeCompare(b?.name),
         )}
         columns={columns}
         options={{
@@ -1265,9 +1264,9 @@ const ExternalPublishingBotsPage = () => {
           pagination: false,
           search: false,
           customToolbar: () =>
-            manageBotPermission && (
+            manageSharingServicePermission && (
               <IconButton
-                name="new_externalPublishingBot"
+                name="new_sharingService"
                 onClick={() => {
                   setBotToManage(null);
                   setEnablePublishToTNS(true);
@@ -1281,7 +1280,7 @@ const ExternalPublishingBotsPage = () => {
         }}
       />
       <Dialog
-        open={openManageBotDialog}
+        open={openManageSharingServiceDialog}
         onClose={() => {
           setBotToManage(null);
           setOpenManageBotDialog(false);
@@ -1294,7 +1293,7 @@ const ExternalPublishingBotsPage = () => {
             gap={1}
             style={{ alignItems: "center", justifyContent: "space-between" }}
           >
-            {botToManage ? "Edit" : "New"} publishing bot
+            {sharingServiceToManage ? "Edit" : "New"} sharing service
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
@@ -1345,10 +1344,10 @@ const ExternalPublishingBotsPage = () => {
         </DialogTitle>
         <DialogContent>
           <Form
-            formData={botToManage}
-            schema={getFormSchema(!botToManage, enablePublishToTNS)}
+            formData={sharingServiceToManage}
+            schema={getFormSchema(!sharingServiceToManage, enablePublishToTNS)}
             onSubmit={(formData) =>
-              submitExternalPublishingBot(formData, !!botToManage)
+              submitSharingService(formData, !!sharingServiceToManage)
             }
             validator={validator}
             customValidate={validate}
@@ -1356,7 +1355,7 @@ const ExternalPublishingBotsPage = () => {
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
-        deleteFunction={deleteExternalPublishingBot}
+        deleteFunction={deleteSharingService}
         dialogOpen={deleteDialogOpen}
         closeDialog={() => {
           setBotToManage(null);
@@ -1368,4 +1367,4 @@ const ExternalPublishingBotsPage = () => {
   );
 };
 
-export default ExternalPublishingBotsPage;
+export default SharingServicesPage;

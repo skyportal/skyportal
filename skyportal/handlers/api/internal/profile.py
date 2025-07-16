@@ -10,10 +10,10 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 
 from ....models import (
-    ExternalPublishingBotCoauthor,
-    ExternalPublishingBotGroup,
-    ExternalPublishingBotGroupAutoPublisher,
     GroupUser,
+    SharingServiceCoauthor,
+    SharingServiceGroup,
+    SharingServiceGroupAutoPublisher,
     User,
 )
 from ...base import BaseHandler
@@ -230,24 +230,22 @@ class ProfileHandler(BaseHandler):
                     )
 
                 # check that the user isn't in any groups that have auto-publish enabled but do not allow bots to be auto-publishers
-                groups_no_auto_publish_allow_bots = session.scalars(
-                    ExternalPublishingBotGroup.select(session.user_or_token).where(
-                        ExternalPublishingBotGroup.group_id.in_(
-                            user.accessible_group_ids
-                        ),
+                groups_no_auto_sharing_allow_bots = session.scalars(
+                    SharingServiceGroup.select(session.user_or_token).where(
+                        SharingServiceGroup.group_id.in_(user.accessible_group_ids),
                         sa.or_(
-                            ExternalPublishingBotGroup.auto_publish_to_tns.is_(True),
-                            ExternalPublishingBotGroup.auto_publish_to_hermes.is_(True),
+                            SharingServiceGroup.auto_share_to_tns.is_(True),
+                            SharingServiceGroup.auto_share_to_hermes.is_(True),
                         ),
-                        ExternalPublishingBotGroup.auto_publish_allow_bots.is_(False),
+                        SharingServiceGroup.auto_sharing_allow_bots.is_(False),
                     )
                 ).all()
-                for group in groups_no_auto_publish_allow_bots:
+                for group in groups_no_auto_sharing_allow_bots:
                     auto_publisher = session.scalars(
-                        sa.select(ExternalPublishingBotGroupAutoPublisher).where(
-                            ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id
+                        sa.select(SharingServiceGroupAutoPublisher).where(
+                            SharingServiceGroupAutoPublisher.sharingservices_group_id
                             == group.id,
-                            ExternalPublishingBotGroupAutoPublisher.group_user_id.in_(
+                            SharingServiceGroupAutoPublisher.group_user_id.in_(
                                 sa.select(GroupUser.id).where(
                                     GroupUser.user_id == user.id,
                                     GroupUser.group_id == group.group_id,
@@ -261,13 +259,13 @@ class ProfileHandler(BaseHandler):
                         )
                 # check that the user isn't a coauthor of any bot, in which case they can't be a bot
                 bot_coauthors = session.scalars(
-                    ExternalPublishingBotCoauthor.select(session.user_or_token).where(
-                        ExternalPublishingBotCoauthor.user_id == user.id
+                    SharingServiceCoauthor.select(session.user_or_token).where(
+                        SharingServiceCoauthor.user_id == user.id
                     )
                 ).first()
                 if bot_coauthors:
                     return self.error(
-                        "User is a coauthor of a publishing bot and cannot be flagged as a bot."
+                        "User is a coauthor of a sharing service and cannot be flagged as a bot."
                     )
 
             if data.get("contact_phone") is not None:
