@@ -18,13 +18,13 @@ branch_labels = None
 depends_on = None
 
 tables_to_rename = [
-    ("tnsrobots", "sharing_service_bots"),
-    ("instrument_tnsrobots", "instrument_sharing_service_bots"),
-    ("stream_tnsrobots", "stream_sharing_service_bots"),
-    ("tnsrobot_coauthors", "sharing_service_coauthors"),
-    ("tnsrobot_groups", "sharing_service_groups"),
-    ("tnsrobot_group_users", "sharing_service_group_users"),
-    ("tnsrobot_submissions", "sharing_service_submissions"),
+    ("tnsrobots", "sharingservices"),
+    ("instrument_tnsrobots", "instrument_sharingservices"),
+    ("stream_tnsrobots", "stream_sharingservices"),
+    ("tnsrobot_coauthors", "sharingservices_coauthors"),
+    ("tnsrobot_groups", "sharingservices_groups"),
+    ("tnsrobot_group_users", "sharingservices_group_users"),
+    ("tnsrobot_submissions", "sharingservices_submissions"),
 ]
 
 
