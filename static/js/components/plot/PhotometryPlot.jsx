@@ -512,6 +512,7 @@ const PhotometryPlot = ({
     }
     if (plotType === "mag" || plotType === "flux") {
       const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
         .map((key) => {
           const detections = groupedPhotometry[key].filter(
             (point) => point.mag !== null,
@@ -694,6 +695,7 @@ const PhotometryPlot = ({
     }
     if (plotType === "period") {
       const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
         .map((key) => {
           // using the period state variable, calculate the phase of each point
           // and then plot the phase vs mag
