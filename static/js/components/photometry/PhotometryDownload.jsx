@@ -52,6 +52,7 @@ const PhotometryDownload = ({
     columns: DEFAULT_DOWNLOAD_COLUMNS,
     validationFilter: DEFAULT_VALIDATION_FILTER,
   });
+  const [downloadMode, setDownloadMode] = useState("default");
 
   let availableDownloadColumns = [];
   if (data && data.length > 0) {
@@ -121,6 +122,13 @@ const PhotometryDownload = ({
     });
   };
 
+  const formatNMMAFilter = (filter) => {
+    if (filter === "swiftxrt") {
+      return "X-ray-10keV";
+    }
+    return filter;
+  };
+
   const performDownload = (buildHead, buildBody, cols, tableData) => {
     const filteredTableData = filterDataByValidation(
       tableData,
@@ -135,50 +143,81 @@ const PhotometryDownload = ({
       return;
     }
 
-    const body = filteredTableData
-      .map((x) => {
-        const phot = data[x.index];
-        const { fluxValue, fluxerrValue } = calculateFluxFromMag(
-          phot.mag,
-          phot.magerr,
-          phot.limiting_mag,
-          PHOT_ZP,
-        );
+    let body;
+    let selectedHeaders;
 
-        const utcValue = mjd_to_utc(phot.mjd);
-        const ownerData = phot.owner?.username || "";
-        const streamsData =
-          phot.streams?.length > 0
-            ? phot.streams.map((s) => s.name).join(";")
-            : "";
+    if (downloadMode === "nmma") {
+      // NMMA format : utc, filter, mag, magerr
+      body = filteredTableData
+        .map((x) => {
+          const phot = data[x.index];
 
-        return downloadFormData.columns
-          .map((colKey) => {
-            switch (colKey) {
-              case "owner":
-                return ownerData;
-              case "streams":
-                return streamsData;
-              case "flux":
-                return fluxValue;
-              case "fluxerr":
-                return fluxerrValue;
-              case "snr":
-                return phot.snr;
-              case "utc":
-                return utcValue;
-              default:
-                return phot[colKey];
-            }
-          })
-          .join(",");
-      })
-      .join("\n");
+          const utcValue = mjd_to_utc(phot.mjd);
+          let filter = formatNMMAFilter(phot.filter);
+          let mag = phot.mag;
+          let magerr = phot.magerr;
 
-    const selectedHeaders = downloadFormData.columns.map((colKey) => ({
-      name: colKey,
-      download: true,
-    }));
+          if (isNaN(mag) || mag === null || mag === undefined) {
+            mag = phot.limiting_mag || "";
+            magerr = "inf";
+          }
+
+          return [utcValue, filter, mag, magerr].join(",");
+        })
+        .join("\n");
+
+      selectedHeaders = [
+        { name: "utc", download: true },
+        { name: "filter", download: true },
+        { name: "mag", download: true },
+        { name: "magerr", download: true },
+      ];
+    } else {
+      body = filteredTableData
+        .map((x) => {
+          const phot = data[x.index];
+          const { fluxValue, fluxerrValue } = calculateFluxFromMag(
+            phot.mag,
+            phot.magerr,
+            phot.limiting_mag,
+            PHOT_ZP,
+          );
+
+          const utcValue = mjd_to_utc(phot.mjd);
+          const ownerData = phot.owner?.username || "";
+          const streamsData =
+            phot.streams?.length > 0
+              ? phot.streams.map((s) => s.name).join(";")
+              : "";
+
+          return downloadFormData.columns
+            .map((colKey) => {
+              switch (colKey) {
+                case "owner":
+                  return ownerData;
+                case "streams":
+                  return streamsData;
+                case "flux":
+                  return fluxValue;
+                case "fluxerr":
+                  return fluxerrValue;
+                case "snr":
+                  return phot.snr;
+                case "utc":
+                  return utcValue;
+                default:
+                  return phot[colKey];
+              }
+            })
+            .join(",");
+        })
+        .join("\n");
+
+      selectedHeaders = downloadFormData.columns.map((colKey) => ({
+        name: colKey,
+        download: true,
+      }));
+    }
 
     const result = buildHead(selectedHeaders) + body;
     const blob = new Blob([result], {
@@ -187,7 +226,8 @@ const PhotometryDownload = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${objId}_photometry.csv`;
+    const extension = downloadMode === "nmma" ? ".dat" : ".csv";
+    link.download = `${objId}_photometry${extension}`;
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -212,6 +252,7 @@ const PhotometryDownload = ({
   };
 
   const handleSetDefaultColumns = () => {
+    setDownloadMode("default");
     setDownloadFormData((prev) => ({
       ...prev,
       columns: DEFAULT_DOWNLOAD_COLUMNS.filter((col) =>
@@ -224,6 +265,7 @@ const PhotometryDownload = ({
   };
 
   const handleSetAllColumns = () => {
+    setDownloadMode("all");
     setDownloadFormData((prev) => ({
       ...prev,
       columns: availableDownloadColumns.map((col) => col.key),
@@ -238,6 +280,19 @@ const PhotometryDownload = ({
     }));
   };
 
+  const handleSetNMMAMode = () => {
+    setDownloadMode("nmma");
+    setDownloadFormData((prev) => ({
+      ...prev,
+      columns: ["utc", "filter", "mag", "magerr"].filter((col) =>
+        availableDownloadColumns.some((availCol) => availCol.key === col),
+      ),
+      ...(usePhotometryValidation && {
+        validationFilter: DEFAULT_VALIDATION_FILTER,
+      }),
+    }));
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
@@ -248,27 +303,52 @@ const PhotometryDownload = ({
         <div style={{ marginBottom: "16px" }}>
           <Button
             size="small"
-            variant="outlined"
+            variant={downloadMode === "default" ? "contained" : "outlined"}
             onClick={handleSetDefaultColumns}
             style={{ marginRight: "8px" }}
           >
             Default
           </Button>
-          <Button size="small" variant="outlined" onClick={handleSetAllColumns}>
+          <Button
+            size="small"
+            variant={downloadMode === "all" ? "contained" : "outlined"}
+            onClick={handleSetAllColumns}
+            style={{ marginRight: "8px" }}
+          >
             All
+          </Button>
+          <Button
+            size="small"
+            variant={downloadMode === "nmma" ? "contained" : "outlined"}
+            onClick={handleSetNMMAMode}
+          >
+            NMMA
           </Button>
         </div>
 
-        <Form
-          schema={downloadSchema}
-          uiSchema={downloadUiSchema}
-          formData={downloadFormData}
-          onChange={({ formData }) => setDownloadFormData(formData)}
-          validator={validator}
-          showErrorList={false}
-        >
-          <div></div>
-        </Form>
+        {downloadMode !== "nmma" && (
+          <Form
+            schema={downloadSchema}
+            uiSchema={downloadUiSchema}
+            formData={downloadFormData}
+            onChange={({ formData }) => setDownloadFormData(formData)}
+            validator={validator}
+            showErrorList={false}
+          >
+            <div></div>
+          </Form>
+        )}
+
+        {downloadMode === "nmma" && (
+          <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+            <Typography variant="body2" color="textSecondary">
+              NMMA format will download only utc, filter, mag, and magerr
+              columns. Upper limits (where mag is NaN) will use limiting_mag as
+              mag and set magerr to &quot;inf&quot;. SwiftXRT filters will be
+              converted to &quot;X-ray-10keV&quot; format.
+            </Typography>
+          </div>
+        )}
 
         {usePhotometryValidation && (
           <div style={{ marginTop: "16px", marginBottom: "16px" }}>
@@ -313,11 +393,13 @@ const PhotometryDownload = ({
             size="small"
             endIcon={<DownloadIcon />}
             disabled={
-              !downloadFormData.columns || downloadFormData.columns.length === 0
+              downloadMode !== "nmma" &&
+              (!downloadFormData.columns ||
+                downloadFormData.columns.length === 0)
             }
             data-testid="download-photometry-table-button"
           >
-            Download
+            Download {downloadMode === "nmma" ? "(.dat)" : "(.csv)"}
           </Button>
         </div>
       </DialogContent>
