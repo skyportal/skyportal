@@ -1008,8 +1008,14 @@ const PhotometryPlot = ({
         .map((duplicate) => photometry[duplicate] || [])
         .flat();
 
+      // Filter out SwiftXRT points as they are not relevant for in the vega system
+      const allPhotometry = [...objPhotometry, ...duplicatesPhotometry];
+      const photometryFiltered = allPhotometry.filter(
+        (point) => !(point.filter === "swiftxrt" && magsys === "vega"),
+      );
+
       const [newPhotometry, newPhotStats] = preparePhotometry(
-        [...objPhotometry, ...duplicatesPhotometry],
+        photometryFiltered,
         dm,
       );
       const groupedPhotometry = groupPhotometry(

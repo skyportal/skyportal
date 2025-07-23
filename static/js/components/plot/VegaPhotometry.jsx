@@ -193,8 +193,13 @@ const VegaPhotometry = (props) => {
           await dispatch(photometryActions.fetchSourcePhotometry(sourceId));
         }
         if (photometry && photometry?.length > 0 && filters.length === 0) {
+          // Filter out SwiftXRT points as they are not relevant for in the vega system
+          const photometryFiltered = photometry.filter(
+            (datum) => datum.filter !== "swiftxrt",
+          );
+
           const newFilters = [
-            ...new Set(photometry.map((datum) => datum.filter)),
+            ...new Set(photometryFiltered.map((datum) => datum.filter)),
           ];
           const newWavelengths = newFilters.map(
             (filter) => filter2color[filter] || [0, 0, 0],
@@ -207,7 +212,7 @@ const VegaPhotometry = (props) => {
           setFilters(newFilters);
           setWavelengths(newWavelengths);
           setHasForcedPhotometry(
-            photometry.some((datum) =>
+            photometryFiltered.some((datum) =>
               ["fp", "alert_fp"].includes(datum.origin),
             ),
           );
@@ -231,8 +236,15 @@ const VegaPhotometry = (props) => {
   }
 
   let photometryFiltered = photometry;
+
+  photometryFiltered = photometryFiltered.filter(
+    (datum) => datum.filter !== "swiftxrt",
+  );
+
   if (!showUpperLimits) {
-    photometryFiltered = photometry.filter((datum) => datum.mag !== null);
+    photometryFiltered = photometryFiltered.filter(
+      (datum) => datum.mag !== null,
+    );
   }
   if (!showForcedPhotometry) {
     photometryFiltered = photometryFiltered.filter(
