@@ -41,13 +41,16 @@ const UpdatePhotometry = ({ phot, magsys }) => {
     magerr: phot.magerr,
     limiting_mag: phot.limiting_mag,
     filter: phot.filter,
+    instrument_id: phot.instrument_id,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
 
-  const instrument = instrumentList.find((x) => x.id === phot.instrument_id);
+  const selectedInstrument = instrumentList.find(
+    (x) => x.id === state.instrument_id,
+  );
 
   useEffect(() => {
     setInvalid(!phot.mjd || isNaN(phot.mjd));
@@ -57,15 +60,33 @@ const UpdatePhotometry = ({ phot, magsys }) => {
       magerr: phot.magerr,
       limiting_mag: phot.limiting_mag,
       filter: phot.filter,
+      instrument_id: phot.instrument_id,
     });
   }, [phot, setInvalid]);
 
   const handleChange = (e) => {
     const newState = {};
-    if (Number.isNaN(parseFloat(e.target.value))) {
+
+    if (e.target.name === "instrument_id") {
+      const newInstrumentId = parseInt(e.target.value);
+      newState.instrument_id = newInstrumentId;
+
+      const newInstrument = instrumentList.find(
+        (x) => x.id === newInstrumentId,
+      );
+      if (newInstrument?.filters?.length > 0) {
+        newState.filter = newInstrument.filters[0];
+      } else {
+        newState.filter = "";
+      }
+    } else if (e.target.name === "filter") {
       newState[e.target.name] = e.target.value;
     } else {
-      newState[e.target.name] = parseFloat(e.target.value);
+      if (Number.isNaN(parseFloat(e.target.value))) {
+        newState[e.target.name] = e.target.value;
+      } else {
+        newState[e.target.name] = parseFloat(e.target.value);
+      }
     }
 
     setState({
@@ -84,6 +105,7 @@ const UpdatePhotometry = ({ phot, magsys }) => {
     newState.magerr = subState.magerr;
     newState.limiting_mag = subState.limiting_mag;
     newState.filter = subState.filter;
+    newState.instrument_id = subState.instrument_id;
     newState.magsys = magsys;
 
     Object.keys(newState).forEach((key) => {
@@ -127,7 +149,6 @@ const UpdatePhotometry = ({ phot, magsys }) => {
     newState.ra_unc = phot.ra_unc;
     newState.dec_unc = phot.dec_unc;
     newState.assignment_id = phot.assignment_id;
-    newState.instrument_id = phot.instrument_id;
 
     if (newState?.mag === undefined) {
       newState.mag = null;
@@ -227,7 +248,30 @@ const UpdatePhotometry = ({ phot, magsys }) => {
               variant="outlined"
             />
           </div>
-          <div>
+          <p />
+          <div className={classes.formField}>
+            <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+            <Select
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="instrumentSelectLabel"
+              value={state.instrument_id}
+              onChange={handleChange}
+              name="instrument_id"
+              data-testid="instrumentSelect"
+              className={classes.Select}
+            >
+              {instrumentList?.map((instrument) => (
+                <MenuItem
+                  value={instrument.id}
+                  key={instrument.id}
+                  className={classes.SelectItem}
+                >
+                  {instrument.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </div>
+          <div className={classes.formField}>
             <InputLabel id="filterSelectLabel">Filter</InputLabel>
             <Select
               inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -238,7 +282,7 @@ const UpdatePhotometry = ({ phot, magsys }) => {
               data-testid="filterSelect"
               className={classes.Select}
             >
-              {instrument?.filters?.map((filt) => (
+              {selectedInstrument?.filters?.map((filt) => (
                 <MenuItem
                   value={filt}
                   key={filt}
