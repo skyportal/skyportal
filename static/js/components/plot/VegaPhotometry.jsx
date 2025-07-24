@@ -195,7 +195,8 @@ const VegaPhotometry = (props) => {
         if (photometry && photometry?.length > 0 && filters.length === 0) {
           // Filter out SwiftXRT points as they are not relevant for in the vega system
           const photometryFiltered = photometry.filter(
-            (datum) => datum.filter !== "swiftxrt",
+            (datum) =>
+              !(datum.magsys === "vega" && datum.filter === "swiftxrt"),
           );
 
           const newFilters = [
@@ -238,7 +239,7 @@ const VegaPhotometry = (props) => {
   let photometryFiltered = photometry;
 
   photometryFiltered = photometryFiltered.filter(
-    (datum) => datum.filter !== "swiftxrt",
+    (datum) => !(datum.magsys === "vega" && datum.filter === "swiftxrt"),
   );
 
   if (!showUpperLimits) {
