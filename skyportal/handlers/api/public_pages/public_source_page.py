@@ -24,7 +24,7 @@ from ....models import (
     Stream,
     User,
 )
-from ....utils.safe_round import safe_round
+from ....utils.parse import safe_round
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 from ...base import BaseHandler
 from ..source import get_source
