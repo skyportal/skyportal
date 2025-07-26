@@ -70,21 +70,6 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     gap: "1rem",
   },
-  headerLeft: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    gap: "1rem",
-  },
-  headerRight: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    alignContent: "center",
-    gap: "1rem",
-  },
   headerName: {
     height: "2rem",
     fontSize: "2rem",
@@ -105,14 +90,6 @@ const useStyles = makeStyles((theme) => ({
     gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
     gap: "0.5rem",
   },
-  eventTags: {
-    marginLeft: "1rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
   accordionHeading: {
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
@@ -122,19 +99,8 @@ const useStyles = makeStyles((theme) => ({
     overflow: "hidden",
     flexDirection: "column",
   },
-  comments: {
-    width: "100%",
-  },
   columnItem: {
     marginBottom: theme.spacing(1),
-  },
-  noSources: {
-    padding: theme.spacing(2),
-    display: "flex",
-    flexDirection: "row",
-  },
-  sourceList: {
-    padding: "0",
   },
   noticeListElement: {
     display: "flex",

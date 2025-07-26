@@ -1760,9 +1760,13 @@ class ObservationPlanMovieHandler(BaseHandler):
             )
             observation_plan_request = session.scalars(stmt).first()
 
-            if observation_plan_request is None:
+            if not observation_plan_request:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
+                )
+            if not observation_plan_request.observation_plans:
+                return self.error(
+                    f"Observation plan request with ID {observation_plan_request_id} has no observation plans."
                 )
 
             localization = session.scalars(
