@@ -1016,79 +1016,82 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
                 data_out = observation_plan_request.to_dict()
-                if include_planned_observations:
-                    observation_plans = []
-                    for observation_plan in observation_plan_request.observation_plans:
-                        planned_observations = []
-                        fields = [
-                            planned_observation.field.to_dict()
-                            for planned_observation in observation_plan.planned_observations
-                        ]
-                        rise_times, set_times = get_rise_set_time(
-                            target=get_target(fields),
-                            observer=observation_plan.instrument.telescope.observer,
+
+                if not include_planned_observations:
+                    return self.success(data=data_out)
+
+                observation_plans = []
+                for observation_plan in observation_plan_request.observation_plans:
+                    planned_observations = []
+                    fields = [
+                        planned_observation.field.to_dict()
+                        for planned_observation in observation_plan.planned_observations
+                    ]
+                    rise_times, set_times = get_rise_set_time(
+                        target=get_target(fields),
+                        observer=observation_plan.instrument.telescope.observer,
+                    )
+                    for planned_observation, rise_time, set_time in zip(
+                        observation_plan.planned_observations, rise_times, set_times
+                    ):
+                        planned_observation_data = {
+                            **planned_observation.to_dict(),
+                            "field": planned_observation.field.to_dict(),
+                        }
+                        # rename the field_id key to field_db_id to avoid confusion
+                        planned_observation_data["field_db_id"] = (
+                            planned_observation_data.pop("field_id")
                         )
-                        for planned_observation, rise_time, set_time in zip(
-                            observation_plan.planned_observations, rise_times, set_times
-                        ):
-                            planned_observation_data = {
-                                **planned_observation.to_dict(),
-                                "field": planned_observation.field.to_dict(),
-                            }
-                            # rename the field_id key to field_db_id to avoid confusion
-                            planned_observation_data["field_db_id"] = (
-                                planned_observation_data.pop("field_id")
+                        planned_observation_data["field_id"] = planned_observation_data[
+                            "field"
+                        ]["field_id"]
+
+                        rt = rise_time.isot
+                        st = set_time.isot
+
+                        try:
+                            planned_observation_data["rise_time"] = (
+                                rt.item()  # 0-dimensional array (basically a scalar)
+                                if not (
+                                    isinstance(
+                                        rt, np.ma.core.MaskedArray | MaskedNDArray
+                                    )
+                                    and rt.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
+                                else ""
                             )
-                            planned_observation_data["field_id"] = (
-                                planned_observation_data["field"]["field_id"]
+                        except AttributeError:
+                            planned_observation_data["rise_time"] = ""
+
+                        try:
+                            planned_observation_data["set_time"] = (
+                                st.item()  # 0-dimensional array (basically a scalar)
+                                if not (
+                                    isinstance(
+                                        st, np.ma.core.MaskedArray | MaskedNDArray
+                                    )
+                                    and st.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
+                                else ""
                             )
+                        except AttributeError:
+                            planned_observation_data["set_time"] = ""
 
-                            rt = rise_time.isot
-                            st = set_time.isot
+                        planned_observations.append(planned_observation_data)
+                    # sort the planned observations by obstime
+                    planned_observations = sorted(
+                        planned_observations,
+                        key=lambda k: k["obstime"],
+                        reverse=False,
+                    )
 
-                            try:
-                                planned_observation_data["rise_time"] = (
-                                    rt.item()  # 0-dimensional array (basically a scalar)
-                                    if not (
-                                        isinstance(
-                                            rt, np.ma.core.MaskedArray | MaskedNDArray
-                                        )
-                                        and rt.mask.any()
-                                    )  # check that the value isn't masked (not rising at date)
-                                    else ""
-                                )
-                            except AttributeError:
-                                planned_observation_data["rise_time"] = ""
-
-                            try:
-                                planned_observation_data["set_time"] = (
-                                    st.item()  # 0-dimensional array (basically a scalar)
-                                    if not (
-                                        isinstance(
-                                            st, np.ma.core.MaskedArray | MaskedNDArray
-                                        )
-                                        and st.mask.any()
-                                    )  # check that the value isn't masked (not rising at date)
-                                    else ""
-                                )
-                            except AttributeError:
-                                planned_observation_data["set_time"] = ""
-
-                            planned_observations.append(planned_observation_data)
-                        # sort the planned observations by obstime
-                        planned_observations = sorted(
-                            planned_observations,
-                            key=lambda k: k["obstime"],
-                            reverse=False,
-                        )
-
-                        observation_plans.append(
-                            {
-                                **observation_plan.to_dict(),
-                                "planned_observations": planned_observations,
-                            }
-                        )
-                    data_out["observation_plans"] = observation_plans
+                    observation_plans.append(
+                        {
+                            **observation_plan.to_dict(),
+                            "planned_observations": planned_observations,
+                        }
+                    )
+                data_out["observation_plans"] = observation_plans
 
                 return self.success(data=data_out)
 
