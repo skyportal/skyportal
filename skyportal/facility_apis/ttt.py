@@ -23,6 +23,12 @@ env, cfg = load_env()
 log = make_log("facility_apis/ttt")
 
 
+def get_user_token(user, password):
+    url = f"{cfg['app.ttt_endpoint']}/auth/get-token/"
+    r = requests.post(url, data={"username": user, "password": password}, verify=False)
+    return r.json()["access"]
+
+
 def validate_request_to_ttt(request, proposal_id):
     """Validate FollowupRequest contents for TTT queue.
 
@@ -50,7 +56,7 @@ def validate_request_to_ttt(request, proposal_id):
         camera_model = "QHY600M Pro"
 
     if any(
-        filt not in ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+        filt not in ["SDSSu", "SDSSg", "SDSSr", "SDSSi", "SDSSz"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
@@ -64,21 +70,31 @@ def validate_request_to_ttt(request, proposal_id):
     tend = Time(request.payload["end_date"] + "T00:00:00", format="isot")
     expired = tend + TimeDelta(1 * u.day)
 
+    coord = SkyCoord(request.obj.ra, request.obj.dec, unit="deg")
+
+    photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
+    mag = 19
+    if len(photometry) > 0:
+        for p in photometry:
+            if p.mag is not None:
+                mag = p.mag
+                break
+
     requestgroup = {
         "proposal": proposal_id,
         "target_name": request.obj.id,
-        "ra": request.obj.ra,
+        "ra": coord.ra.hour,
         "dec": request.obj.dec,
-        "moving_target": "false",
+        "moving_target": False,
         "telescope_model": request.payload["station_name"],
         "camera_model": camera_model,
         "n_rep_block": request.payload["exposure_counts"],
         "t_rep_block": None,
         "min_cadence": 0,  # FIXME
-        "mag": 19,  # FIXME
-        "min_time": tstart.iso,
-        "max_time": tend.iso,
-        "full_interval": "false",
+        "mag": mag,
+        "min_time": tstart.isot,
+        "max_time": tend.isot,
+        "full_interval": False,
         "locked_dtos": 0,
         "estimated_dtos": 0,
         "locked_dtos_virtual": 0,
@@ -114,12 +130,13 @@ class TTTAPI(FollowUpAPI):
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            payload = validate_request_to_ttt(request, altdata.proposal_id)
+            payload = validate_request_to_ttt(request, altdata["proposal_id"])
+            token = get_user_token(altdata["username"], altdata["password"])
 
             headers = {
-                "Authorization": f"Bearer {altdata.token}",
+                "Authorization": f"Bearer {token}",
             }
-            url = f"{cfg['app.trt_endpoint']}/observing-runs/"
+            url = f"{cfg['app.ttt_endpoint']}/observing-runs/"
 
             r = requests.request(
                 "POST",
@@ -128,7 +145,7 @@ class TTTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200:
+            if r.status_code == 201:
                 request.status = "submitted"
             else:
                 request.status = f"rejected: {r.text}"
@@ -169,119 +186,7 @@ class TTTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f'Failed to submit TRT request: "{request.status}"',
-                        "type": "error",
-                    },
-                )
-        except Exception as e:
-            log(f"Failed to send notification: {e}")
-
-    @staticmethod
-    def get(request, session, **kwargs):
-        """Get a follow-up request from TTT queue (all instruments).
-
-        Parameters
-        ----------
-        request: skyportal.models.FollowupRequest
-            The request to update from the queue and the SkyPortal database.
-        session: sqlalchemy.Session
-            Database session for this transaction
-        """
-
-        from ..models import FacilityTransaction, FollowupRequest
-        from ..utils.asynchronous import run_async
-
-        if cfg["app.ttt_endpoint"] is not None:
-            altdata = request.allocation.altdata
-
-            if not altdata:
-                raise ValueError("Missing allocation information.")
-
-            req = session.scalar(
-                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
-            )
-
-            content = str(req.transactions[-1].response["content"])
-
-            try:
-                content = json.loads(content)
-            except json.JSONDecodeError:
-                raise ValueError(
-                    f"Unable to parse submission response from TRT: {content}"
-                )
-
-            uid = content[0]
-            if not uid:
-                raise ValueError("Unable to find observation ID in response from TTT.")
-
-            headers = {
-                "Authorization": f"Bearer {altdata.token}",
-            }
-            url = f"{cfg['app.trt_endpoint']}/observing-runs/{uid}"
-
-            r = requests.request("GET", url, headers=headers)
-
-            r.raise_for_status()
-
-            if r.status_code == 200:
-                try:
-                    data = r.json()
-                except json.JSONDecodeError:
-                    raise ValueError(
-                        f"Unable to parse retrieval response from TTT: {r.content}"
-                    )
-
-                request.status = data["status"]
-            else:
-                request.status = f"failed to retrieve: {r.content.decode()}"
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-        session.commit()
-
-        try:
-            flow = Flow()
-            if kwargs.get("refresh_source", False):
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": request.obj.internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow.push(
-                    request.last_modified_by_id,
-                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                )
-            if str(request.status) == "pending":
-                flow.push(
-                    request.last_modified_by_id,
-                    "baselayer/SHOW_NOTIFICATION",
-                    payload={
-                        "note": "TTT request is still pending.",
-                        "type": "warning",
-                    },
-                )
-            elif str(request.status).startswith("complete"):
-                flow.push(
-                    request.last_modified_by_id,
-                    "baselayer/SHOW_NOTIFICATION",
-                    payload={
-                        "note": "TTT request is complete, observations will be downloaded shortly.",
-                        "type": "info",
-                    },
-                )
-            else:
-                flow.push(
-                    request.last_modified_by_id,
-                    "baselayer/SHOW_NOTIFICATION",
-                    payload={
-                        "note": f'Failed to retrieve TRT request: "{request.status}"',
+                        "note": f'Failed to submit TTT request: "{request.status}"',
                         "type": "error",
                     },
                 )
@@ -320,15 +225,16 @@ class TTTAPI(FollowUpAPI):
                 content = json.loads(content)
             except json.JSONDecodeError:
                 raise ValueError(
-                    f"Unable to parse submission response from TRT: {content}"
+                    f"Unable to parse submission response from TTT: {content}"
                 )
 
-            uid = content[0]
+            uid = content["id"]
             if not uid:
-                raise ValueError("Unable to find observation ID in response from TRT.")
+                raise ValueError("Unable to find observation ID in response from TTT.")
 
+            token = get_user_token(altdata["username"], altdata["password"])
             headers = {
-                "Authorization": f"Bearer {altdata.token}",
+                "Authorization": f"Bearer {token}",
             }
             url = f"{cfg['app.ttt_endpoint']}/observing-runs/{uid}"
 
@@ -419,7 +325,7 @@ class TTTAPI(FollowUpAPI):
                                 "title": "Desired Observations",
                                 "items": {
                                     "type": "string",
-                                    "enum": ["sdssg", "sdssr", "sdssi"],
+                                    "enum": ["SDSSg", "SDSSr", "SDSSi"],
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
@@ -437,11 +343,11 @@ class TTTAPI(FollowUpAPI):
                                 "items": {
                                     "type": "string",
                                     "enum": [
-                                        "sdssu",
-                                        "sdssg",
-                                        "sdssr",
-                                        "sdssi",
-                                        "sdssz",
+                                        "SDSSu",
+                                        "SDSSg",
+                                        "SDSSr",
+                                        "SDSSi",
+                                        "SDSSz",
                                     ],
                                 },
                                 "uniqueItems": True,
@@ -457,9 +363,13 @@ class TTTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
-            "token": {
+            "username": {
                 "type": "string",
-                "title": "Token",
+                "title": "username",
+            },
+            "password": {
+                "type": "string",
+                "title": "password",
             },
             "proposal_id": {
                 "type": "string",
