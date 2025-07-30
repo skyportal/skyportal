@@ -337,10 +337,7 @@ def generate_plan(
     user_id,
 ):
     """Use gwemopt to construct multiple observing plans."""
-
-    import gwemopt
     import gwemopt.coverage
-    import gwemopt.io
     import gwemopt.segments
 
     from skyportal.handlers.api.instrument import add_tiles
@@ -917,3 +914,42 @@ def generate_plan(
 
     session.close()
     Session.remove()
+
+
+def convert_plans_to_rubin_format(plans):
+    """Convert an observation plan to the Rubin format.
+    Args:
+        plans (list): A list of observation plans, each containing
+                      plan_name and planned_observations.
+    Returns:
+        list: A list of dictionaries formatted for Rubin's observation plan.
+    """
+    rubin_plans = []
+    for plan in plans:
+        plan_name = plan["plan_name"]
+        observations = plan["planned_observations"]
+
+        scripts = []
+        for obs in observations:
+            script = {
+                "name": "track_and_take_image_lsstcam.py",
+                "standard": True,
+                "parameters": {
+                    "ra": obs["field"]["ra"],
+                    "dec": obs["field"]["dec"],
+                    "observation_time": obs["obstime"],
+                    "filter": obs["filt"],
+                    "exptime": obs["exposure_time"],
+                },
+            }
+            scripts.append(script)
+
+        rubin_plans.append(
+            {
+                "name": plan_name,
+                "program": plan_name,
+                "constraints": [],
+                "scripts": scripts,
+            }
+        )
+    return rubin_plans
