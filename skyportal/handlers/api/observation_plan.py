@@ -63,6 +63,7 @@ from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
+    convert_plans_to_rubin_format,
     generate_observation_plan_statistics,
 )
 
@@ -1084,14 +1085,19 @@ class ObservationPlanRequestHandler(BaseHandler):
                         key=lambda k: k["obstime"],
                         reverse=False,
                     )
-
                     observation_plans.append(
                         {
                             **observation_plan.to_dict(),
                             "planned_observations": planned_observations,
                         }
                     )
-                data_out["observation_plans"] = observation_plans
+
+                if rubin_format:
+                    data_out["observation_plans"] = convert_plans_to_rubin_format(
+                        observation_plans
+                    )
+                else:
+                    data_out["observation_plans"] = observation_plans
 
                 return self.success(data=data_out)
 

@@ -412,7 +412,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   <MenuItem
                     component="a"
                     href={downloadLink(true)}
-                    download={`observation-plan-${observationplanRequest.id}`}
+                    download={`rubin-observation-plan-${observationplanRequest.id}`}
                     onClick={() => setAnchorEl(null)}
                   >
                     Rubin compatible
