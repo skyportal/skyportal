@@ -300,20 +300,28 @@ class GEMINIAPI(FollowUpAPI):
             log(traceback.format_exc())
             raise ValueError(f"Error building Gemini request: {e}")
 
-        statuses = []
+        failed_requests = []
         for payload in gemini_request.payload:
             r = requests.post(API_URL, verify=False, params=payload)
-            statuses.append(r.status_code)
-            template_ids.append(payload["obsnum"])
+            if r.status_code != 200:
+                failed_requests.append(
+                    {
+                        "id": payload["obsnum"],
+                        "content": r.content.decode("utf-8"),
+                    }
+                )
 
-        if all(status_code == 200 for status_code in statuses):
+        if not failed_requests:
             request.status = "submitted"
         else:
-            failures = np.where(statuses != 200)[0]
-            failure_ids = ",".join(template_ids[failures])
-            request.status = f"rejected: {r.content}"
+            failure_ids = ",".join(fail["id"] for fail in failed_requests)
+            if len(failed_requests) == len(gemini_request.payload):
+                request.status = "rejected: all the templates failed to submit"
+            else:
+                request.status = f"submitted: not all templates were submitted successfully, {failure_ids} failed"
+
             log(
-                f"Failed to submit Gemini request for {request.id} (obj {request.obj.id}, template_ids {failure_ids}): {r.content}"
+                f"Failed to submit some Gemini request for {request.id} (obj {request.obj.id}, template_ids {failure_ids}): {' / '.join(fail['content'] for fail in failed_requests)}"
             )
             try:
                 flow = Flow()
@@ -321,7 +329,7 @@ class GEMINIAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"Failed to submit Gemini request: {r.content}",
+                        "note": f"Failed to submit Gemini request: {' / '.join(fail['content'] for fail in failed_requests)}",
                         "type": "error",
                     },
                 )
