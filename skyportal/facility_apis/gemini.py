@@ -202,7 +202,7 @@ class GeminiRequest:
                     f"Invalid template ID, must be one of: {str(template_ids)}"
                 )
 
-            obsnum = str(obsid).strip()
+            obsnum = str(obsid)
 
             payload = {
                 "prog": programid,
@@ -300,15 +300,20 @@ class GEMINIAPI(FollowUpAPI):
             log(traceback.format_exc())
             raise ValueError(f"Error building Gemini request: {e}")
 
+        statuses = []
         for payload in gemini_request.payload:
             r = requests.post(API_URL, verify=False, params=payload)
+            statuses.append(r.status_code)
+            template_ids.append(payload["obsnum"])
 
-        if r.status_code == 200:
+        if all(status_code == 200 for status_code in statuses):
             request.status = "submitted"
         else:
+            failures = np.where(statuses != 200)[0]
+            failure_ids = ",".join(template_ids[failures])
             request.status = f"rejected: {r.content}"
             log(
-                f"Failed to submit Gemini request for {request.id} (obj {request.obj.id}): {r.content}"
+                f"Failed to submit Gemini request for {request.id} (obj {request.obj.id}, template_ids {failure_ids}): {r.content}"
             )
             try:
                 flow = Flow()
