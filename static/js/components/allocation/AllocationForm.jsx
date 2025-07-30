@@ -280,7 +280,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
       formData.default_share_group_ids = selectedGroupIds;
     }
     const result = await dispatch(
-      allocationId === null
+      allocationId == null
         ? submitAllocation(formData)
         : modifyAllocation(allocationId, formData),
     );
@@ -369,9 +369,9 @@ const AllocationForm = ({ onClose, allocationId }) => {
               properties: instrumentForm.formSchemaAltdata.properties,
               // If allocation already exists, altdata is optional
               required:
-                (allocationId === null &&
-                  instrumentForm.formSchemaAltdata.required) ||
-                [],
+                allocationId === null
+                  ? instrumentForm.formSchemaAltdata.required
+                  : [],
               dependencies: instrumentForm.formSchemaAltdata.dependencies || {},
             },
             ...(allocationId !== null && {
