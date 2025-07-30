@@ -184,28 +184,23 @@ class GeminiRequest:
         spa = str(gspa).strip()
         sgsmag = str(gsmag).strip() + "/UC/Vega"
 
-        payloads = []
-        obsids = request.payload.get("template_ids").split(",")
-        for obsid in obsids:
-            # it needs to be castable to an int
-            try:
-                obsid = int(obsid)
-            except Exception:
-                raise ValueError("Invalid template ID")
+        template_ids = get_list_typed(
+            altdata.get("template_ids"),
+            int,
+            "Invalid template IDs specified in altdata",
+        )
+        obsids = get_list_typed(
+            request.payload.get("template_ids"),
+            int,
+            "Invalid template IDs specified in request",
+        )
 
-            if (
-                isinstance(altdata.get("template_ids"), str | list)
-                and len(altdata.get("template_ids")) > 0
-            ):
-                template_ids = get_list_typed(
-                    altdata.get("template_ids"),
-                    int,
-                    "Invalid template IDs specified in altdata",
+        payloads = []
+        for obsid in obsids:
+            if len(template_ids) > 0 and obsid not in template_ids:
+                raise ValueError(
+                    f"Invalid template ID, must be one of: {str(template_ids)}"
                 )
-                if len(template_ids) > 0 and obsid not in template_ids:
-                    raise ValueError(
-                        f"Invalid template ID, must be one of: {str(template_ids)}"
-                    )
 
             obsnum = str(obsid).strip()
 
@@ -357,7 +352,7 @@ class GEMINIAPI(FollowUpAPI):
             "template_ids": {
                 "title": "Template IDs",
                 "type": "string",
-                "description": "The template IDs can be found on the program's page on the OT",
+                "description": "Comma delimited string of template IDs to execute. The template IDs can be found on the program's page on the OT",
             },
             "start_date": {
                 "title": "Start Date (UT)",
