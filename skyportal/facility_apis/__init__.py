@@ -21,6 +21,7 @@ from .swift import UVOTXRTAPI, UVOTXRTMMAAPI
 from .tarot import TAROTAPI
 from .tess import TESSAPI
 from .trt import TRTAPI
+from .ttt import TTTAPI
 from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
 from .mmt.binospec import BINOSPECAPI
@@ -61,6 +62,7 @@ APIS = (
     GEMINIAPI,
     BINOSPECAPI,
     MMIRSAPI,
+    TTTAPI,
 )
 
 # Listeners, listed in implementation order, to keep matching enum in db stable

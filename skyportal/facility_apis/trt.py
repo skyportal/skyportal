@@ -52,7 +52,7 @@ def validate_request_to_trt(request):
         )
 
     if request.payload["station_name"] not in ["SRO", "GAO", "SBO", "CTO"]:
-        raise ValueError("observation_type must be SRO, GAO, SBO or CTO")
+        raise ValueError("station_name must be SRO, GAO, SBO or CTO")
 
     if request.payload["exposure_time"] < 0:
         raise ValueError("exposure_time must be positive.")
