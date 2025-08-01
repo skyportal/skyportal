@@ -328,6 +328,9 @@ def serialize(
 
     filter = phot.filter
 
+    if filter == "swiftxrt":
+        outsys = "ab"
+
     magsys_db = sncosmo.get_magsystem("ab")
     outsys = sncosmo.get_magsystem(outsys)
 

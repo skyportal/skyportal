@@ -200,11 +200,52 @@
         </div>
         {% if photometry %}
           {% set photometry_div_id = 'photometryPlot' %}
-          <div class="plot photometryPlot" id="{{ photometry_div_id }}">
-            <script>
-              photometryPlot(`{{ photometry | tojson }}`, `{{ photometry_div_id }}`, `{{ data.get('filters_mapper') | tojson }}`, window.isMobile);
-            </script>
+          <div class="plot" id="{{ photometry_div_id }}"></div>
+          <div class="plotOptions">
+            {% if data.get('t0') %}
+              <div class="switchContainer">
+                <label for="switch-since-t0" style="white-space: nowrap;">X axis since T0</label>
+                <label class="switch">
+                  <input type="checkbox" id="switch-since-t0" class="plot-switch"/>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="switchContainer hide" id="switch-log-container">
+                <label for="switch-log">T - T0 in log</label>
+                <label class="switch">
+                  <input type="checkbox" id="switch-log" class="plot-switch" checked/>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            {% endif %}
           </div>
+          <script>
+            const photometryData = {{ photometry | tojson }};
+            const filtersMapper = {{ data.get('filters_mapper') | tojson }};
+            const divId = "{{ photometry_div_id }}";
+
+            function renderPlot() {
+              const displaySinceT0 = document.getElementById("switch-since-t0")?.checked;
+              const displayInLog = document.getElementById("switch-log")?.checked;
+              document.getElementById("switch-log-container")?.classList.toggle("hide", !displaySinceT0);
+              photometryPlot(
+                JSON.stringify(photometryData),
+                divId,
+                JSON.stringify(filtersMapper),
+                window.isMobile,
+                {{ data.get('t0') if data.get('t0') is not none else 'null' }},
+                !!displaySinceT0,
+                !!displayInLog
+              );
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+              renderPlot();
+              document.querySelectorAll(".plot-switch").forEach((el) => {
+                el.addEventListener("change", renderPlot);
+              });
+            });
+          </script>
         {% else %}
           <h2 class="noDataMessage">No photometry available</h2>
         {% endif %}
