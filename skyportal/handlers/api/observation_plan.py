@@ -86,6 +86,7 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
+from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler
 
@@ -208,12 +209,12 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         raise ValueError(
             f"Cannot send observation plan with status {observation_plan_request.status}"
         )
-    if len(observation_plan_request.observation_plans) == 0:
+    if not observation_plan_request.observation_plans:
         log(
             f"No observation plans to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
         )
         return
-    if len(observation_plan_request.observation_plans[0].planned_observations) == 0:
+    if not observation_plan_request.observation_plans[0].planned_observations:
         log(
             f"No planned observations to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
         )
@@ -329,11 +330,6 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
                 )
                 return
 
-    # if the observation plan has no observations scheduled, don't send it
-    if not observation_plan_request.observation_plans[0].planned_observations:
-        log(f"No planned observations for observation plan {plan_id}, skipping send.")
-        return
-
     api = observation_plan_request.instrument.api_class_obsplan
     if not api.implements().get("send", False):
         return ValueError("Cannot send observation plans on this instrument.")
@@ -342,7 +338,6 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         raise ValueError("Cannot send observation plan without allocation information.")
 
     try:
-        # failures to send are already handled in the send method
         api.send(observation_plan_request, session)
     except Exception as e:
         raise ValueError(f"Error sending observation plan to telescope: {str(e)}")
@@ -419,6 +414,11 @@ def post_survey_efficiency_analysis(
         if not status_complete:
             time.sleep(30)
 
+        if not observation_plan_request.observation_plans:
+            raise ValueError(
+                f"Observation plan request {plan_id} has no observation plans."
+            )
+
     allocation = (
         session.scalars(
             sa.select(Allocation).where(
@@ -436,16 +436,14 @@ def post_survey_efficiency_analysis(
 
     instrument = allocation.instrument
 
-    observation_plan = observation_plan_request.observation_plans[0]
-    planned_observations = observation_plan.planned_observations
-    num_observations = len(observation_plan.planned_observations)
-    if num_observations == 0:
+    observation_plans = observation_plan_request.observation_plans
+    if not observation_plans or not observation_plans[0].planned_observations:
         raise ValueError("Need at least one observation to evaluate efficiency")
 
     unique_filters = list(
         {
             planned_observation.filt
-            for planned_observation in observation_plan.planned_observations
+            for planned_observation in observation_plans[0].planned_observations
         }
     )
 
@@ -470,7 +468,7 @@ def post_survey_efficiency_analysis(
 
     survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
         requester_id=user_id,
-        observation_plan_id=observation_plan.id,
+        observation_plan_id=observation_plans[0].id,
         payload=payload,
         groups=observation_plan_request.target_groups,
         status="running",
@@ -479,7 +477,7 @@ def post_survey_efficiency_analysis(
     session.commit()
 
     observations = []
-    for ii, o in enumerate(planned_observations):
+    for ii, o in enumerate(observation_plans[0].planned_observations):
         obs_dict = o.to_dict()
         obs_dict["field"] = obs_dict["field"].to_dict()
         observations.append(obs_dict)
@@ -885,6 +883,13 @@ class ObservationPlanRequestHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include associated planned observations. Defaults to false.
+            - in: query
+              name: rubinFormat
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to format the response in a way that is compatible with Rubin
           responses:
             200:
               content:
@@ -971,26 +976,15 @@ class ObservationPlanRequestHandler(BaseHandler):
         dateobs = self.get_query_argument("dateobs", None)
         instrumentID = self.get_query_argument("instrumentID", None)
         status = self.get_query_argument("status", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
-
         include_planned_observations = self.get_query_argument(
             "includePlannedObservations", False
         )
-
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except (ValueError, TypeError) as e:
-            return self.error(f"Invalid numPerPage value: {str(e)}")
-
-        if n_per_page > MAX_OBSERVATION_PLAN_REQUESTS:
-            return self.error(
-                f"numPerPage should be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}."
-            )
+        rubin_format = self.get_query_argument("rubinFormat", None)
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        page_number, n_per_page = get_page_and_n_per_page(
+            page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
+        )
 
         if include_planned_observations:
             options = [
@@ -1022,79 +1016,82 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
                 data_out = observation_plan_request.to_dict()
-                if include_planned_observations:
-                    observation_plans = []
-                    for observation_plan in observation_plan_request.observation_plans:
-                        planned_observations = []
-                        fields = [
-                            planned_observation.field.to_dict()
-                            for planned_observation in observation_plan.planned_observations
-                        ]
-                        rise_times, set_times = get_rise_set_time(
-                            target=get_target(fields),
-                            observer=observation_plan.instrument.telescope.observer,
+
+                if not include_planned_observations:
+                    return self.success(data=data_out)
+
+                observation_plans = []
+                for observation_plan in observation_plan_request.observation_plans:
+                    planned_observations = []
+                    fields = [
+                        planned_observation.field.to_dict()
+                        for planned_observation in observation_plan.planned_observations
+                    ]
+                    rise_times, set_times = get_rise_set_time(
+                        target=get_target(fields),
+                        observer=observation_plan.instrument.telescope.observer,
+                    )
+                    for planned_observation, rise_time, set_time in zip(
+                        observation_plan.planned_observations, rise_times, set_times
+                    ):
+                        planned_observation_data = {
+                            **planned_observation.to_dict(),
+                            "field": planned_observation.field.to_dict(),
+                        }
+                        # rename the field_id key to field_db_id to avoid confusion
+                        planned_observation_data["field_db_id"] = (
+                            planned_observation_data.pop("field_id")
                         )
-                        for planned_observation, rise_time, set_time in zip(
-                            observation_plan.planned_observations, rise_times, set_times
-                        ):
-                            planned_observation_data = {
-                                **planned_observation.to_dict(),
-                                "field": planned_observation.field.to_dict(),
-                            }
-                            # rename the field_id key to field_db_id to avoid confusion
-                            planned_observation_data["field_db_id"] = (
-                                planned_observation_data.pop("field_id")
+                        planned_observation_data["field_id"] = planned_observation_data[
+                            "field"
+                        ]["field_id"]
+
+                        rt = rise_time.isot
+                        st = set_time.isot
+
+                        try:
+                            planned_observation_data["rise_time"] = (
+                                rt.item()  # 0-dimensional array (basically a scalar)
+                                if not (
+                                    isinstance(
+                                        rt, np.ma.core.MaskedArray | MaskedNDArray
+                                    )
+                                    and rt.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
+                                else ""
                             )
-                            planned_observation_data["field_id"] = (
-                                planned_observation_data["field"]["field_id"]
+                        except AttributeError:
+                            planned_observation_data["rise_time"] = ""
+
+                        try:
+                            planned_observation_data["set_time"] = (
+                                st.item()  # 0-dimensional array (basically a scalar)
+                                if not (
+                                    isinstance(
+                                        st, np.ma.core.MaskedArray | MaskedNDArray
+                                    )
+                                    and st.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
+                                else ""
                             )
+                        except AttributeError:
+                            planned_observation_data["set_time"] = ""
 
-                            rt = rise_time.isot
-                            st = set_time.isot
+                        planned_observations.append(planned_observation_data)
+                    # sort the planned observations by obstime
+                    planned_observations = sorted(
+                        planned_observations,
+                        key=lambda k: k["obstime"],
+                        reverse=False,
+                    )
 
-                            try:
-                                planned_observation_data["rise_time"] = (
-                                    rt.item()  # 0-dimensional array (basically a scalar)
-                                    if not (
-                                        isinstance(
-                                            rt, np.ma.core.MaskedArray | MaskedNDArray
-                                        )
-                                        and rt.mask.any()
-                                    )  # check that the value isn't masked (not rising at date)
-                                    else ""
-                                )
-                            except AttributeError:
-                                planned_observation_data["rise_time"] = ""
-
-                            try:
-                                planned_observation_data["set_time"] = (
-                                    st.item()  # 0-dimensional array (basically a scalar)
-                                    if not (
-                                        isinstance(
-                                            st, np.ma.core.MaskedArray | MaskedNDArray
-                                        )
-                                        and st.mask.any()
-                                    )  # check that the value isn't masked (not rising at date)
-                                    else ""
-                                )
-                            except AttributeError:
-                                planned_observation_data["set_time"] = ""
-
-                            planned_observations.append(planned_observation_data)
-                        # sort the planned observations by obstime
-                        planned_observations = sorted(
-                            planned_observations,
-                            key=lambda k: k["obstime"],
-                            reverse=False,
-                        )
-
-                        observation_plans.append(
-                            {
-                                **observation_plan.to_dict(),
-                                "planned_observations": planned_observations,
-                            }
-                        )
-                    data_out["observation_plans"] = observation_plans
+                    observation_plans.append(
+                        {
+                            **observation_plan.to_dict(),
+                            "planned_observations": planned_observations,
+                        }
+                    )
+                data_out["observation_plans"] = observation_plans
 
                 return self.success(data=data_out)
 
@@ -1269,6 +1266,11 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             localization = session.scalars(stmt).first()
             if localization is None:
                 return self.error(message="Cannot find associated Localization")
+
+            if not json_data["observation_plans"]:
+                return self.error(
+                    "Observation plan request must have at least one observation plan"
+                )
 
             observation_plan_request = ObservationPlanRequest(
                 requester_id=self.associated_user_object.id,
@@ -1531,7 +1533,6 @@ class ObservationPlanGCNHandler(BaseHandler):
               application/json:
                 schema: SingleObservationPlanRequest
         """
-
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
@@ -1556,7 +1557,7 @@ class ObservationPlanGCNHandler(BaseHandler):
             ).first()
             if event is None:
                 return self.error(
-                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                    f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
                 )
 
             stmt = Allocation.select(session.user_or_token).where(
@@ -1565,17 +1566,16 @@ class ObservationPlanGCNHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
-            if len(observation_plan_request.observation_plans) == 0:
-                return self.error(message="Need an observation plan to produce a GCN")
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans:
+                return self.error("Need an observation plan to produce a GCN")
 
-            observation_plan = observation_plan_request.observation_plans[0]
-            statistics = observation_plan.statistics
-            if len(statistics) == 0:
+            if not observation_plans[0].statistics:
                 return self.error("Need statistics computed to produce a GCN")
-            statistics = statistics[0].statistics
 
-            if statistics["start_observation"] is None:
-                return self.success(data="No observation plan to report")
+            statistics = observation_plans[0].statistics[0].statistics
+            if not statistics["start_observation"]:
+                return self.success("No observation plan to report")
 
             start_observation = Time(statistics["start_observation"], format="isot")
             num_observations = statistics["num_observations"]
@@ -1760,9 +1760,13 @@ class ObservationPlanMovieHandler(BaseHandler):
             )
             observation_plan_request = session.scalars(stmt).first()
 
-            if observation_plan_request is None:
+            if not observation_plan_request:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
+                )
+            if not observation_plan_request.observation_plans:
+                return self.error(
+                    f"Observation plan request with ID {observation_plan_request_id} has no observation plans."
                 )
 
             localization = session.scalars(
@@ -1775,12 +1779,10 @@ class ObservationPlanMovieHandler(BaseHandler):
                     message=f"Invalid Localization dateobs: {observation_plan_request.localization_id}"
                 )
 
-            observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = len(observation_plan.planned_observations)
-            if num_observations == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans or not observation_plans[0].planned_observations:
                 return self.error("Need at least one observation to produce a movie")
-
-            observations = observation_plan.planned_observations
+            observations = observation_plans[0].planned_observations
 
             output_format = "gif"
             anim = functools.partial(
@@ -1883,12 +1885,11 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     "Missing TREASUREMAP_API_TOKEN in allocation information."
                 )
 
-            observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = len(observation_plan.planned_observations)
-            if num_observations == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans or not observation_plans[0].planned_observations:
                 return self.error("Need at least one observation to submit")
 
-            planned_observations = observation_plan.planned_observations
+            planned_observations = observation_plans[0].planned_observations
 
             graceid = event.graceid
             payload = {
@@ -2024,7 +2025,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
-            treasuremap_id = None
             if instrument.treasuremap_id is None:
                 if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
                     treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
@@ -2095,14 +2095,14 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            if len(observation_plan_request.observation_plans) == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans:
                 return self.error(
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
 
-            observation_plan = observation_plan_request.observation_plans[0]
             analysis_data = []
-            for analysis in observation_plan.survey_efficiency_analyses:
+            for analysis in observation_plans[0].survey_efficiency_analyses:
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
@@ -2156,19 +2156,18 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            if len(observation_plan_request.observation_plans) == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans:
                 return self.error(
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
 
-            observation_plan = observation_plan_request.observation_plans[0]
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.
-
             geojson = []
             fields_in = []
-            for observation in observation_plan.planned_observations:
+            for observation in observation_plans[0].planned_observations:
                 if observation.field_id not in fields_in:
                     fields_in.append(observation.field_id)
                     geojson.append(observation.field.contour_summary)
@@ -2234,15 +2233,13 @@ class ObservationPlanFieldsHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            if len(observation_plan_request.observation_plans) == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans:
                 return self.error(
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
 
-            observation_plan = observation_plan_request.observation_plans[0]
-            dateobs = observation_plan_request.gcnevent.dateobs
-
-            for observation in observation_plan.planned_observations:
+            for observation in observation_plans[0].planned_observations:
                 if observation.field_id in field_ids_to_remove:
                     session.delete(observation)
                 else:
@@ -2251,7 +2248,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                payload={"gcnEvent_dateobs": dateobs},
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
             return self.success()
@@ -2654,21 +2651,19 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
 
             instrument = allocation.instrument
 
-            if len(observation_plan_request.observation_plans) == 0:
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans:
                 return self.error(
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
-
-            observation_plan = observation_plan_request.observation_plans[0]
-            planned_observations = observation_plan.planned_observations
-
-            if len(planned_observations) == 0:
+            planned_observations = observation_plans[0].planned_observations
+            if not planned_observations:
                 return self.error("Cannot create observing run with no observations.")
 
             observing_run = {
                 "instrument_id": instrument.id,
                 "group_id": allocation.group_id,
-                "calendar_date": str(observation_plan.validity_window_end.date()),
+                "calendar_date": str(observation_plans[0].validity_window_end.date()),
             }
             run_id = post_observing_run(
                 observing_run, self.associated_user_object.id, session
@@ -3254,22 +3249,17 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             if instrument.sensitivity_data is None:
                 return self.error("Need sensitivity_data to evaluate efficiency")
 
-            observation_plan = observation_plan_request.observation_plans[0]
-            planned_observations = observation_plan.planned_observations
-            num_observations = len(observation_plan.planned_observations)
-            if num_observations == 0:
-                self.push_notification(
-                    "Need at least one observation to evaluate efficiency",
-                    notification_type="error",
-                )
+            observation_plans = observation_plan_request.observation_plans
+            if not observation_plans or not observation_plans[0].planned_observations:
                 return self.error(
                     "Need at least one observation to evaluate efficiency"
                 )
+            planned_observations = observation_plans[0].planned_observations
 
             unique_filters = list(
                 {
                     planned_observation.filt
-                    for planned_observation in observation_plan.planned_observations
+                    for planned_observation in planned_observations
                 }
             )
 
@@ -3298,7 +3288,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
                 requester_id=self.associated_user_object.id,
-                observation_plan_id=observation_plan.id,
+                observation_plan_id=observation_plans[0].id,
                 payload=payload,
                 groups=groups,
                 status="running",

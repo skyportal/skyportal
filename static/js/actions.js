@@ -53,6 +53,7 @@ import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
 import * as groupActions from "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
+import * as followupRequestActions from "./ducks/followupRequests";
 
 // this is used to keep track of what has been hydrated yet or not
 import * as hydrationActions from "./ducks/hydration";
