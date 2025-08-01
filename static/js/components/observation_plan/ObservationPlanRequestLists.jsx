@@ -384,6 +384,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   size="small"
                   type="submit"
                   data-testid={`gcnRequest_${observationplanRequest.id}`}
+                  disabled={!observationplanRequest.observation_plans?.length}
                 >
                   GCN
                 </Button>
@@ -414,6 +415,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                     href={downloadLink(true)}
                     download={`rubin-observation-plan-${observationplanRequest.id}`}
                     onClick={() => setAnchorEl(null)}
+                    disabled={!observationplanRequest.observation_plans?.length}
                   >
                     Rubin compatible
                   </MenuItem>
@@ -427,6 +429,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   size="small"
                   type="submit"
                   data-testid={`movieRequest_${observationplanRequest.id}`}
+                  disabled={!observationplanRequest.observation_plans?.length}
                 >
                   GIF
                 </Button>
