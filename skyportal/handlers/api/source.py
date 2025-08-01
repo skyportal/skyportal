@@ -655,7 +655,7 @@ def create_annotations_query(
 
 
 def post_source(data, user_id, session, refresh_source=True):
-    """Post source to database.
+    """Post source to the database.
     data: dict
         Source dictionary
     user_id : int
@@ -679,17 +679,12 @@ def post_source(data, user_id, session, refresh_source=True):
             "Only letters, numbers, underscores, semicolons, colons, +, -, and periods are allowed in source ID"
         )
 
-    obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
-    if obj is None:
-        obj_already_exists = False
-    else:
-        obj_already_exists = True
     schema = Obj.__schema__()
 
-    ra = data.get("ra", None)
-    dec = data.get("dec", None)
-
-    if ((ra is None) or (dec is None)) and not obj_already_exists:
+    ra = data.get("ra")
+    dec = data.get("dec")
+    existing_obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
+    if not existing_obj and (ra is None or dec is None):
         raise AttributeError("RA/Declination must not be null for a new Obj")
 
     user_group_ids = [g.id for g in user.groups]
@@ -790,7 +785,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     data.pop("saver_per_group_id", None)
 
-    if not obj_already_exists:
+    if not existing_obj:
         try:
             obj = schema.load(data)
         except ValidationError as e:
@@ -801,8 +796,10 @@ def post_source(data, user_id, session, refresh_source=True):
 
         # if the object doesn't exist, we can ignore the ignore_if_in_group_ids field
         ignore_if_in_group_ids = {}
+    else:
+        obj = existing_obj
 
-    if (ra is not None) and (dec is not None):
+    if ra is not None and dec is not None:
         # This adds a healpix index for a new object being created
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
@@ -838,11 +835,13 @@ def post_source(data, user_id, session, refresh_source=True):
                 )
                 not_saved_to_group_ids.append(group.id)
                 continue
+
         source = session.scalars(
             Source.select(user)
             .where(Source.obj_id == obj.id)
             .where(Source.group_id == group.id)
         ).first()
+
         if not user.is_admin:
             group_user = session.scalars(
                 GroupUser.select(user)
