@@ -83,13 +83,13 @@ gcn-kafka==0.3.3
 confluent_kafka==2.11.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
 iminuit==2.31.1
 watchdog==6.0.0
-PyAstronomy==0.22.0
+PyAstronomy==0.23.0
 shapely==2.0.7
 openai==1.93.1
 tiktoken==0.9.0
 simplejson==3.20.1
 langchain==0.3.25
-langchain-openai==0.3.19
+langchain-openai==0.3.28
 pinecone==7.0.2
 pydantic==2.11.4
 sentry-sdk==2.32.0

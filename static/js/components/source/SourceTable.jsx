@@ -2096,12 +2096,7 @@ const SourceTable = ({
       </div>
       <div>
         {openNew && (
-          <Dialog
-            open={openNew}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogContent dividers>
               <NewSource classes={classes} />
             </DialogContent>
