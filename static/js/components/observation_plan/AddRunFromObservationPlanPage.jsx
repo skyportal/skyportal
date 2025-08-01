@@ -5,6 +5,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Box from "@mui/material/Box";
 
 import * as Actions from "../../ducks/gcnEvent";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -46,43 +47,44 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
       >
         Create Observing Run
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Create Observing Run</DialogTitle>
         <DialogContent>
-          <div>
-            {isCreatingObservingRun === observationplanRequest.id ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <GroupShareSelect
-                  groupList={allGroups}
-                  setGroupIDs={setSelectedGroupIds}
-                  groupIDs={selectedGroupIds}
-                />
-
-                <Button
-                  secondary
-                  onClick={() => {
-                    handleCreateObservingRun(
-                      observationplanRequest.id,
-                      selectedGroupIds,
-                    );
-                  }}
-                  size="small"
-                  type="submit"
-                  data-testid={`observingRunRequest_${observationplanRequest.id}`}
-                >
-                  Create Observing Run
-                </Button>
-              </div>
-            )}
-          </div>
+          {isCreatingObservingRun === observationplanRequest.id ? (
+            <Box sx={{ textAlign: "center" }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <GroupShareSelect
+                groupList={allGroups}
+                setGroupIDs={setSelectedGroupIds}
+                groupIDs={selectedGroupIds}
+              />
+              <Button
+                secondary
+                onClick={() => {
+                  handleCreateObservingRun(
+                    observationplanRequest.id,
+                    selectedGroupIds,
+                  );
+                }}
+                size="small"
+                type="submit"
+                data-testid={`observingRunRequest_${observationplanRequest.id}`}
+              >
+                Create Observing Run
+              </Button>
+            </Box>
+          )}
         </DialogContent>
       </Dialog>
     </>
