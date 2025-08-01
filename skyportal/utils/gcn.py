@@ -819,7 +819,6 @@ def get_xml_notice_type(root):
     # but it's unclear if these will be used for future notices.
     # So we will just look at the ivorn which is guaranteed to be there
     ivorn = str(root.attrib.get("ivorn", ""))
-    print(f"ivorn: {ivorn}")
     if str(ivorn).startswith("ivo://org.svom/"):
         if "_eclairs" in ivorn:
             return "svom.voevent.eclairs"

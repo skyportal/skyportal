@@ -745,6 +745,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                     sa.select(FollowupRequest.id).where(
                         FollowupRequest.obj_id == obj_id,
                         FollowupRequest.allocation_id == allocation_id,
+                        FollowupRequest.status != "deleted",
                     )
                 ).first()
                 if existing_request is not None:
@@ -1679,7 +1680,10 @@ def observation_schedule(
             exposure_counts = 1
 
         if "too" in payload:
-            too = str_to_bool(payload["too"], default=False)
+            if type(payload["too"]) == bool:
+                too = payload["too"]
+            else:
+                too = str_to_bool(payload["too"], default=False)
         else:
             too = False
 

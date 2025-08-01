@@ -2,19 +2,15 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Typography from "@mui/material/Typography";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import Button from "../Button";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { checkSource, saveSource } from "../../ducks/source";
 import { dms_to_dec, hours_to_ra } from "../../units";
@@ -33,48 +29,53 @@ const NewSource = ({ classes, onClose }) => {
   });
 
   const handleSubmit = async ({ formData }) => {
-    let data = null;
-    if (formData?.ra?.includes(":")) {
-      formData.ra = hours_to_ra(formData?.ra);
+    const dataToSend = {
+      ...formData,
+    };
+    if (dataToSend?.ra?.includes(":")) {
+      dataToSend.ra = hours_to_ra(dataToSend?.ra);
     } else {
-      formData.ra = parseFloat(formData?.ra);
+      dataToSend.ra = parseFloat(dataToSend?.ra);
     }
-    if (formData?.dec?.includes(":")) {
-      formData.dec = dms_to_dec(formData?.dec);
+    if (dataToSend?.dec?.includes(":")) {
+      dataToSend.dec = dms_to_dec(dataToSend?.dec);
     } else {
-      formData.dec = parseFloat(formData?.dec);
+      dataToSend.dec = parseFloat(dataToSend?.dec);
     }
     if (
-      formData?.id === "" ||
-      formData?.id === null ||
-      formData?.id === undefined ||
-      !formData?.id
+      dataToSend?.id === "" ||
+      dataToSend?.id === null ||
+      dataToSend?.id === undefined ||
+      !dataToSend?.id
     ) {
       dispatch(showNotification("Please enter a source ID.", "error"));
     } else {
-      data = await dispatch(checkSource(formData?.id, formData));
-      if (data.data !== "A source of that name does not exist.") {
-        dispatch(showNotification(data.data, "error"));
-      } else {
-        if (selectedGroupIds.length > 0) {
-          formData.group_ids = selectedGroupIds;
+      const data = await dispatch(checkSource(dataToSend?.id, dataToSend));
+      if (data.status === "success") {
+        if (data.data?.source_exists === true) {
+          dispatch(showNotification(data.data.message, "error"));
+          return;
         }
-        const result = await dispatch(saveSource(formData));
+
+        if (selectedGroupIds.length > 0) {
+          dataToSend.group_ids = selectedGroupIds;
+        }
+        const result = await dispatch(saveSource(dataToSend));
         if (result.status === "success") {
           onClose();
           dispatch(showNotification("Source saved"));
-          navigate(`/source/${formData.id}`);
+          navigate(`/source/${dataToSend.id}`);
         }
       }
     }
   };
 
   function validate(formData, errors) {
+    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
+      errors.__errors.push("Select at least one group.");
+    }
     if ((formData?.ra !== "" || formData?.dec !== "") && formData?.id === "") {
       errors.id.addError("Please enter a source ID.");
-    }
-    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
-      errors.id.addError("Select at least one group.");
     }
     if ((formData?.id || "").indexOf(" ") >= 0) {
       errors.id.addError("IDs are not allowed to have spaces, please fix.");
@@ -135,9 +136,7 @@ const NewSource = ({ classes, onClose }) => {
             onChange={({ formData }) => setSelectedFormData(formData)}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
-            liveValidate
           />
         </div>
       </div>
@@ -148,8 +147,6 @@ const NewSource = ({ classes, onClose }) => {
 NewSource.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
-    widgetIcon: PropTypes.string.isRequired,
-    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
   onClose: PropTypes.func,
 };
@@ -158,30 +155,4 @@ NewSource.defaultProps = {
   onClose: () => ({}),
 };
 
-const NewSourceButton = () => {
-  // here we want a button with the text "Add a Source"
-  // to open a dialog that shows the form above
-
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div style={{ width: "100%", padding: "0.25rem" }}>
-      <Button
-        onClick={() => setOpen(true)}
-        variant="contained"
-        style={{ width: "100%" }}
-      >
-        Add a Source
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogContent>
-          <NewSource classes={{}} onClose={() => setOpen(false)} />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
 export default NewSource;
-
-export { NewSourceButton };

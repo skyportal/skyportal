@@ -417,6 +417,15 @@ telescope:
     robotic: false
     fixed_location: true
     =id: MMT
+  - name: TTT
+    nickname: TTT
+    lat: 28.301111
+    lon: -16.510556
+    elevation: 2390.0
+    diameter: 2.0
+    robotic: true
+    fixed_location: true
+    =id: TTT
 
 instrument:
   - name: ZTF
@@ -723,6 +732,13 @@ instrument:
     type: imaging spectrograph
     api_classname: MMIRSAPI
     =id: MMIRS
+  - band: optical
+    name: TTT
+    telescope_id: =TTT
+    type: imager
+    api_classname: TTTAPI
+    filters: [ "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    =id: TTT
 
 instrument/=SEDMv2/log:
   - start_date: "2023-06-02T22:00:00"
@@ -968,6 +984,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =MMIRS
+  - pi: Michael Coughlin
+    proposal_id: TTT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TTT
 
 galaxy_catalog:
   - catalog_name: CLU_mini
@@ -1485,7 +1508,7 @@ default_survey_efficiency:
 default_followup_request:
   - allocation_id: =SEDMv2_allocation
     default_followup_name: "SEDMv2-Default-Plan"
-    payload: {'priority': 1, 'exposure_time': 300, 'maximum_airmass': 2, 'observation_choice': 'g', 'minimum_lunar_distance': 30, 'too': 'Y', 'observation_type': 'transient'}
+    payload: {'priority': 1, 'exposure_time': 300, 'maximum_airmass': 2, 'observation_choice': 'g', 'minimum_lunar_distance': 30, 'too': True, 'observation_type': 'transient'}
     source_filter: {'classification': 'microlensing'}
 
 

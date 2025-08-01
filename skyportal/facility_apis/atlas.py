@@ -136,15 +136,26 @@ def commit_photometry(
          """
 
         try:
-            df = pd.read_csv(
-                StringIO(s.text.replace("###MJD", "mjd")), delim_whitespace=True
-            )
+            df = pd.read_csv(StringIO(s.text.replace("###MJD", "mjd")), sep="\s+")
         except Exception as e:
             raise ValueError(f"Format of response not understood: {e.message}")
 
-        desired_columns = {"mjd", "RA", "Dec", "m", "dm", "mag5sig", "F"}
+        desired_columns = {
+            "mjd",
+            "RA",
+            "Dec",
+            "m",
+            "dm",
+            "mag5sig",
+            "F",
+            "chi/N",
+            "uJy",
+            "duJy",
+        }
         if not desired_columns.issubset(set(df.columns)):
             raise ValueError("Missing expected column")
+
+        df = df[list(desired_columns)]
 
         df.rename(
             columns={
@@ -160,12 +171,15 @@ def commit_photometry(
         cyan = df["filter"] == "c"
         orange = df["filter"] == "o"
 
-        snr = df["uJy"] / df["duJy"] < 3
+        # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
+        reject = df["uJy"] / df["duJy"] < 3
+        reject |= df["chi/N"] > 10
+        reject |= df["mag"] > df["limiting_mag"]
 
         df.loc[cyan, "filter"] = "atlasc"
         df.loc[orange, "filter"] = "atlaso"
-        df.loc[snr, "mag"] = None
-        df.loc[snr, "magerr"] = None
+        df.loc[reject, "mag"] = None
+        df.loc[reject, "magerr"] = None
 
         iszero = df["duJy"] == 0.0
         df.loc[iszero, "mag"] = None

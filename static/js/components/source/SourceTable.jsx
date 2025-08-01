@@ -63,6 +63,8 @@ import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import * as objectTagsActions from "../../ducks/objectTags";
+import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
@@ -73,114 +75,14 @@ const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
-  comment: {
-    fontSize: "90%",
-    display: "flex",
-    flexDirection: "row",
-    padding: "0.125rem",
-    margin: "0 0.125rem 0.125rem 0",
-    borderRadius: "1rem",
-    "&:hover": {
-      backgroundColor: "#e0e0e0",
-    },
-    "& .commentDelete": {
-      "&:hover": {
-        color: "#e63946",
-      },
-    },
-  },
-  commentDark: {
-    fontSize: "90%",
-    display: "flex",
-    flexDirection: "row",
-    padding: "0.125rem",
-    margin: "0 0.125rem 0.125rem 0",
-    borderRadius: "1rem",
-    "&:hover": {
-      backgroundColor: "#3a3a3a",
-    },
-    "& .commentDelete": {
-      color: "#b1dae9",
-      "&:hover": {
-        color: "#e63946",
-      },
-    },
-  },
-  commentUserAvatar: {
-    display: "block",
-    margin: "0.5em",
-  },
-  commentContent: {
-    display: "flex",
-    flexFlow: "column nowrap",
-    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
-    borderRadius: "15px",
-    width: "100%",
-  },
-  commentHeader: {
-    display: "flex",
-    alignItems: "center",
-  },
-  commentUserName: {
-    fontWeight: "bold",
-    marginRight: "0.5em",
-    whiteSpace: "nowrap",
-    color: "#76aace",
-  },
-  commentTime: {
-    color: "gray",
-    fontSize: "80%",
-    marginRight: "1em",
-  },
-  commentUserGroup: {
-    display: "inline-block",
-    "& > svg": {
-      fontSize: "1rem",
-    },
-  },
-  commentMessage: {
-    maxWidth: "25em",
-    "& > p": {
-      margin: "0",
-    },
-  },
-  wrap: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: "27px",
-    maxWidth: "25em",
-  },
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  source: {},
-  commentListContainer: {
-    height: "15rem",
-    overflowY: "scroll",
-    padding: "0.5rem 0",
-  },
   tableGrid: {
     width: "100%",
-  },
-  groupSelect: {
-    maxWidth: "20rem",
-  },
-  filterFormRow: {
-    margin: "0.75rem 0",
-  },
-  sourceName: {
-    verticalAlign: "middle",
   },
   objId: {
     color:
       theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
-  },
-  starButton: {
-    verticalAlign: "middle",
   },
   filterAlert: {
     marginTop: "1rem",
@@ -219,20 +121,13 @@ const useStyles = makeStyles((theme) => ({
   widgetIcon: {
     display: "none",
   },
-  widgetPaperDiv: {
-    padding: "1rem",
-    height: "100%",
-  },
-  widgetPaperFillSpace: {
-    height: "100%",
-  },
   groupChips: {
     display: "flex",
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
     gap: "0.25rem",
-    maxWidth: "100%",
+    maxWidth: "120px",
   },
 }));
 
@@ -352,6 +247,7 @@ let defaultDisplayedColumns = [
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
+  "Tags",
   "Classification",
   " ",
   "Groups",
@@ -710,7 +606,7 @@ RenderShowLabelling.propTypes = {
 // This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
-  title,
+  title = "Sources",
   sourceStatus = "saved",
   groupID,
   paginateCallback,
@@ -719,16 +615,17 @@ const SourceTable = ({
   numPerPage,
   sortingCallback,
   favoritesRemoveButton = false,
-  hideTitle = false,
   downloadCallback,
   includeGcnStatus = false,
   sourceInGcnFilter,
+  fixedHeader = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   const classes = useStyles();
   const theme = useTheme();
 
@@ -766,6 +663,12 @@ const SourceTable = ({
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   const photometry = useSelector((state) => state.photometry);
+
+  const tagOptions = useSelector((state) => state.objectTags || []);
+
+  useEffect(() => {
+    dispatch(objectTagsActions.fetchTagOptions());
+  }, [dispatch]);
 
   useEffect(() => {
     if (sources) {
@@ -1025,7 +928,7 @@ const SourceTable = ({
               <ShowSummaries summaries={source.summary_history} />
               {source.summary_history?.length < 1 ||
               !source.summary_history ||
-              source.summary_history[0].summary === null ? ( // eslint-disable-line
+              source.summary_history[0].summary === null ? (
                 <div>
                   <b>Summarize: &nbsp;</b>
                 </div>
@@ -1350,6 +1253,41 @@ const SourceTable = ({
     return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
   };
 
+  const renderTags = (dataIndex) => {
+    const source = sources[dataIndex];
+    const tags = source.tags || [];
+
+    if (tags.length === 0) {
+      return null;
+    }
+
+    const tagsWithColors = tags.map((tag) => {
+      const tagOption = tagOptions.find(
+        (option) => option.id === tag.objtagoption_id,
+      );
+      return {
+        ...tag,
+        color: tagOption?.color || "#dddfe2",
+      };
+    });
+
+    return (
+      <div key={`${source.id}_tags`} className={classes.groupChips}>
+        {tagsWithColors.map((tag) => (
+          <Chip
+            key={tag.id}
+            label={tag.name}
+            size="small"
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1525,8 +1463,7 @@ const SourceTable = ({
       sourceFilterList?.forEach((filterChip) => {
         const [key, value] = filterChip.split(": ");
         if (key === "position") {
-          const fields = value.split(/\s*\(\D*\),*\s*/);
-          [data.ra, data.dec, data.radius] = fields;
+          [data.ra, data.dec, data.radius] = value.split(/\s*\(\D*\),*\s*/);
         } else {
           data[key] = value;
         }
@@ -1567,7 +1504,6 @@ const SourceTable = ({
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
-          // eslint-disable-next-line react/display-name
           display: () => <></>,
         },
         sort: true,
@@ -1683,6 +1619,17 @@ const SourceTable = ({
       },
     },
     {
+      name: "tags",
+      label: "Tags",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Tags"),
+        customBodyRenderLite: renderTags,
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
+      },
+    },
+    {
       name: "classification",
       label: "Classification",
       options: {
@@ -1691,7 +1638,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
+        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
       },
     },
     {
@@ -1854,6 +1801,9 @@ const SourceTable = ({
   }
 
   const options = {
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
+      : {}),
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
@@ -2133,7 +2083,7 @@ const SourceTable = ({
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
                   <MUIDataTable
-                    title={!hideTitle ? title : ""}
+                    title={title}
                     columns={columns}
                     data={sources}
                     options={options}
@@ -2146,12 +2096,7 @@ const SourceTable = ({
       </div>
       <div>
         {openNew && (
-          <Dialog
-            open={openNew}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogContent dividers>
               <NewSource classes={classes} />
             </DialogContent>
@@ -2241,6 +2186,13 @@ SourceTable.propTypes = {
           last_detected_mjd: PropTypes.number,
         }),
       ),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number.isRequired,
+          name: PropTypes.string.isRequired,
+          objtagoption_id: PropTypes.number,
+        }),
+      ),
     }),
   ).isRequired,
   sourceStatus: PropTypes.string,
@@ -2252,7 +2204,6 @@ SourceTable.propTypes = {
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
-  hideTitle: PropTypes.bool,
   downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
@@ -2261,21 +2212,22 @@ SourceTable.propTypes = {
     localizationName: PropTypes.string,
     localizationCumprob: PropTypes.number,
   }),
+  fixedHeader: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
   sourceStatus: "saved",
   groupID: undefined,
-  title: "",
+  title: "Sources",
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
   favoritesRemoveButton: false,
-  hideTitle: false,
   downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},
+  fixedHeader: false,
 };
 
 export default SourceTable;

@@ -28,6 +28,7 @@ from ...models import (
     UserNotification,
 )
 from ...utils.fits_display import get_fits_preview
+from ...utils.parse import get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 
@@ -240,8 +241,11 @@ class CommentHandler(BaseHandler):
         """
 
         text = self.get_query_argument("text", None)
-        pageNumber = self.get_query_argument("pageNumber", None)
-        numPerPage = self.get_query_argument("numPerPage", None)
+        pageNumber = self.get_query_argument("pageNumber", 1)
+        numPerPage = self.get_query_argument("numPerPage", 25)
+        pageNumber, numPerPage = get_page_and_n_per_page(
+            pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
+        )
 
         start = time.time()
 
@@ -251,7 +255,6 @@ class CommentHandler(BaseHandler):
                     return self.error(
                         "Please provide a resource_id or text to search for."
                     )
-                table, resource_id_col = None, None
                 if associated_resource_type.lower() == "sources":
                     table, resource_id_col = Comment, "obj_id"
                 elif associated_resource_type.lower() == "spectra":
@@ -271,19 +274,10 @@ class CommentHandler(BaseHandler):
                 if resource_id is not None:
                     stmt = stmt.where(getattr(table, resource_id_col) == resource_id)
                 if text is not None:
-                    pageNumber = 1 if pageNumber is None else int(pageNumber)
-                    if pageNumber < 1:
-                        return self.error("Page number must be greater than 0.")
-                    numPerPage = 25 if numPerPage is None else int(numPerPage)
-                    if numPerPage < 1:
-                        return self.error("Number per page must be greater than 0.")
-                    if numPerPage > MAX_COMMENTS_NO_RESOURCE_ID:
-                        return self.error(
-                            f"Number per page must be less than {MAX_COMMENTS_NO_RESOURCE_ID}."
-                        )
                     stmt = stmt.where(
                         table.text.ilike(f"%{str(text).lower()}%")
                     ).order_by(table.created_at.desc())
+                    stmt = stmt.offset((pageNumber - 1) * numPerPage).limit(numPerPage)
 
                 comments = session.scalars(stmt).unique().all()
 
@@ -527,7 +521,6 @@ class CommentHandler(BaseHandler):
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
-                existing = None
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
                     existing = session.scalars(
@@ -1298,7 +1291,6 @@ class CommentAttachmentHandler(BaseHandler):
                 "Cannot set both download and preview to True. Please set only one to True, or set both to False."
             )
 
-        table, resource_id_col = None, None
         if associated_resource_type.lower() == "sources":
             table, resource_id_col = Comment, "obj_id"
         elif associated_resource_type.lower() == "spectra":

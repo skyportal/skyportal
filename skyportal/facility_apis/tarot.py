@@ -8,7 +8,7 @@ import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -26,17 +26,14 @@ station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 1,
-        "observation_url": cfg["app.calern_endpoint"],
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 2,
-        "observation_url": cfg["app.chili_endpoint"],
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
         "status_url": 8,
-        "observation_url": cfg["app.reunion_endpoint"],
     },
 }
 
@@ -47,17 +44,26 @@ filters_value = {
     "i": 15,
 }
 
+tarot_proxy_endpoint = cfg.get("app.tarot_proxy_endpoint")
+
+
+def get_header(altdata):
+    return {
+        "Authorization": f"token {altdata['proxy_token']}",
+        "X-Browser-Username": altdata["browser_username"],
+        "X-Browser-Password": altdata["browser_password"],
+    }
+
 
 def catch_timeout_and_no_endpoint(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        if tarot_proxy_endpoint is None:
+            raise ValueError("TAROT proxy endpoint not configured")
         try:
             return func(*args, **kwargs)
         except requests.exceptions.Timeout:
             raise ValueError("Unable to reach the TAROT server")
-        except KeyError as e:
-            if "endpoint" in str(e):
-                raise ValueError("TAROT endpoint is missing from configuration")
 
     return wrapper
 
@@ -228,7 +234,7 @@ def get_filters_exposures(last_detected_mag, phase_angle, station_name):
                     "NoFilter": [12, 120],
                 }
 
-    elif station_name is "Tarot_Reunion":
+    elif station_name == "Tarot_Reunion":
         if last_detected_mag <= 17.0:
             filters_exposures = {
                 "NoFilter": [12, 120] if phase_angle > 60 else [8, 120]
@@ -312,6 +318,7 @@ def create_request_string(obj, payload, observation_time, station_name):
 def check_altdata(altdata):
     required_altdata_keys = {
         "request_id",
+        "proxy_token",
         "browser_username",
         "browser_password",
         "username",
@@ -350,16 +357,28 @@ def login_to_tarot(request, session, altdata):
     }
 
     login_response = requests.post(
-        f"{cfg['app.tarot_endpoint']}/manage/manage/login.php",
+        f"{tarot_proxy_endpoint}/manage/manage/login.php",
         data=data,
-        auth=(altdata["browser_username"], altdata["browser_password"]),
-        timeout=5.0,
+        headers=get_header(altdata),
+        timeout=7.0,
     )
 
-    if login_response.status_code == 200 and "hashuser" in login_response.text:
+    error = None
+    if login_response.status_code == 500 and "timeout" in login_response.text:
+        error = "impossible to connect to TAROT, timeout error."
+    if login_response.status_code == 401:
+        if "Authentication required" in login_response.text:
+            error = "unauthorized access to tarot. Update tarot credentials of this allocation."
+        else:
+            error = (
+                "unauthorized access to Icare. Update Icare token of this allocation."
+            )
+    elif login_response.status_code == 200 and "hashuser" in login_response.text:
         hash_user = login_response.text.split("hashuser=")[1][:20]
         if hash_user is not None and len(hash_user) == 20:
             return hash_user
+        else:
+            error = "tarot hashuser not found in login response"
 
     transaction = FacilityTransaction(
         request=http.serialize_requests_request(login_response.request),
@@ -368,7 +387,7 @@ def login_to_tarot(request, session, altdata):
         initiator_id=request.last_modified_by_id,
     )
     session.add(transaction)
-    raise ValueError(f"Error trying to login to TAROT")
+    raise ValueError(error if error else f"unexpected error trying to login to TAROT")
 
 
 class TAROTAPI(FollowUpAPI):
@@ -390,14 +409,18 @@ class TAROTAPI(FollowUpAPI):
         """
         from ..models import FacilityTransaction
 
-        if cfg["app.tarot_endpoint"] is None:
-            raise ValueError("TAROT endpoint not configured")
-
         altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
         check_payload(request.payload, specific_config["station_name"])
 
         hash_user = login_to_tarot(request, session, altdata)
+
+        # Set the start date to be at least 10 minutes in the future to avoid issues with the TAROT server
+        # This code is a workaround and should be removed after finding a solution
+        minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
+        if request.payload["start_date"] < minimum_observing_time:
+            request.payload["start_date"] = minimum_observing_time.iso
+
         observing_time = get_observing_time(session, request)
         observation_string = create_request_string(
             request.obj,
@@ -419,10 +442,10 @@ class TAROTAPI(FollowUpAPI):
         }
 
         response = requests.post(
-            f"{cfg['app.tarot_endpoint']}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+            f"{tarot_proxy_endpoint}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
             data=payload,
-            auth=(altdata["browser_username"], altdata["browser_password"]),
-            timeout=5.0,
+            headers=get_header(altdata),
+            timeout=7.0,
         )
 
         if "New Scene Inserted" not in response.text:
@@ -475,9 +498,6 @@ class TAROTAPI(FollowUpAPI):
         """
         from ..models import FacilityTransaction
 
-        if cfg["app.tarot_endpoint"] is None:
-            raise ValueError("TAROT endpoint not configured")
-
         altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
 
@@ -499,9 +519,9 @@ class TAROTAPI(FollowUpAPI):
         if not request.status.startswith("submitted: planified"):
             # if the request is not planified, check the status of the request
             response = requests.get(
-                f"{cfg['app.tarot_endpoint']}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
-                auth=(altdata["browser_username"], altdata["browser_password"]),
-                timeout=5.0,
+                f"{tarot_proxy_endpoint}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
+                headers=get_header(altdata),
+                timeout=7.0,
             )
 
             if response.status_code != 200:
@@ -531,8 +551,10 @@ class TAROTAPI(FollowUpAPI):
             if not match_status or not match_status.groups():
                 if observing_time > datetime.utcnow() + timedelta(days=1):
                     request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
-                else:
+                elif observing_time >= datetime.utcnow():
+                    # If the status is not found, it means the tarot server is not yet aware of the request
                     return
+                # if observing time is in the past, we pass here and will check the observation status in a future step
             else:
                 request.status = status_dict.get(
                     match_status.group(1), "rejected: not planified"
@@ -541,9 +563,9 @@ class TAROTAPI(FollowUpAPI):
         if "submitted: planified" in request.status:
             # try to retrieve the time of the planified request from the sequenced file
             response_sequenced = requests.get(
-                f"{cfg['app.tarot_endpoint']}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
-                auth=(altdata["browser_username"], altdata["browser_password"]),
-                timeout=5.0,
+                f"{tarot_proxy_endpoint}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
+                headers=get_header(altdata),
+                timeout=7.0,
             )
             if response_sequenced.status_code != 200:
                 transaction = FacilityTransaction(
@@ -575,8 +597,9 @@ class TAROTAPI(FollowUpAPI):
         ):
             # check if the scene has been observed
             response_observation = requests.get(
-                f"{station_dict[specific_config['station_name']]['observation_url']}/",
-                timeout=5.0,
+                f"{tarot_proxy_endpoint}/{specific_config['station_name'].lower()}/",
+                headers=get_header(altdata),
+                timeout=7.0,
             )
 
             if response_observation.status_code != 200:
@@ -589,7 +612,7 @@ class TAROTAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
                 session.add(transaction)
-                raise ValueError("Error trying to get the observation log")
+                raise ValueError("Observation log currently unavailable on TAROT")
 
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
@@ -655,49 +678,44 @@ class TAROTAPI(FollowUpAPI):
             ).delete()
             session.commit()
         else:
-            if cfg["app.tarot_endpoint"] is None:
-                raise ValueError("TAROT endpoint not configured")
-
-            altdata = check_altdata(request.allocation.altdata)
-            hash_user = login_to_tarot(request, session, altdata)
-
             insert_scene_ids = re.findall(
                 r"insert_id\s*=\s*(\d+)",
                 request.transactions[-1].response["content"],
             )
+            if insert_scene_ids:
+                altdata = check_altdata(request.allocation.altdata)
+                hash_user = login_to_tarot(request, session, altdata)
+                data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
 
-            data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
+                response = requests.post(
+                    f"{tarot_proxy_endpoint}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
+                    data=data,
+                    headers=get_header(altdata),
+                    timeout=7.0,
+                )
+                if response.status_code != 200:
+                    is_error_on_delete = response.content
+                else:
+                    for scene_id in insert_scene_ids:
+                        if f"Scene '{scene_id}' removed" not in response.text:
+                            is_error_on_delete = response.content
+                            break
 
-            response = requests.post(
-                f"{cfg['app.tarot_endpoint']}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
-                data=data,
-                auth=(altdata["browser_username"], altdata["browser_password"]),
-                timeout=5.0,
-            )
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(response.request),
+                    response=http.serialize_requests_response(response),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
 
-            if response.status_code != 200:
-                is_error_on_delete = response.content
-            else:
-                for scene_id in insert_scene_ids:
-                    if f"Scene '{scene_id}' removed" not in response.text:
-                        is_error_on_delete = response.content
-                        break
+                session.add(transaction)
+                session.commit()
 
             request.status = (
                 "deleted"
                 if is_error_on_delete is None
                 else f"rejected: deletion failed - {is_error_on_delete}"
             )
-
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(response.request),
-                response=http.serialize_requests_response(response),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-
-            session.add(transaction)
-            session.commit()
 
         try:
             flow = Flow()
@@ -810,10 +828,14 @@ class TAROTAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
+            "proxy_token": {
+                "type": "string",
+                "title": "Icare Token",
+                "description": "This is the token used to authenticate with the TAROT proxy server.",
+            },
             "request_id": {
                 "type": "string",
-                "title": "Request ID to add scene",
-                "default": "2282",
+                "title": "Request ID to add scene to (2282 for skyportal)",
             },
             "browser_username": {
                 "type": "string",

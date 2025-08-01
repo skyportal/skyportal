@@ -1,4 +1,7 @@
+import pytest
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
 from skyportal.tests import api
 
@@ -35,9 +38,17 @@ def one_request_comment_process(
     driver.find_element(
         By.XPATH, '//button[@data-testid="updateCommentSubmitButton"]'
     ).click()
+
+    WebDriverWait(driver, 10).until(
+        EC.invisibility_of_element_located(
+            (By.XPATH, '//div[@data-testid="updateCommentTextfield"]')
+        )
+    )
+
     assert driver.wait_for_xpath(request_comment_xpath).text == comment_to_put
 
 
+@pytest.mark.flaky(reruns=2)
 def test_allocation_comment_display(
     driver, super_admin_user, public_group, public_source, super_admin_token, sedm
 ):

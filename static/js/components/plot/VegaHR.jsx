@@ -13,7 +13,7 @@ const spec = (
   titleFontSize,
   labelFontSize,
 ) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
+  $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
   width,
   height,
   padding: 0.025 * Math.min(width, height),

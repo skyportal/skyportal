@@ -39,7 +39,7 @@ def calculate_hash(data):
 def process_thumbnails(thumbnails, ra, dec):
     if thumbnails is None or ra is None or dec is None:
         return []
-    # Sort thumbnails by type, and remove 'DR8' thumbnail if 'LS' (that corresponds to DR9) thumbnail are present
+    # Sort thumbnails by type, and remove 'DR8' thumbnail if 'LS' (that corresponds to DR10) thumbnail are present
     has_ls = any("ls" in thumbnail["type"] for thumbnail in thumbnails)
     thumbnails = sorted(
         [thumb for thumb in thumbnails if not (thumb["type"] == "dr8" and has_ls)],
@@ -72,13 +72,15 @@ def get_photometry(source_id, group_ids, stream_ids, session):
     stmt = Photometry.select(session.user_or_token, mode="read").where(
         Photometry.obj_id == source_id
     )
-    if len(group_ids) > 0 and len(stream_ids) > 0:
-        stmt = stmt.where(
-            or_(
-                Photometry.groups.any(Group.id.in_(group_ids)),
-                Photometry.streams.any(Stream.id.in_(stream_ids)),
-            )
-        )
+
+    filters = []
+    if group_ids:
+        filters.append(Photometry.groups.any(Group.id.in_(group_ids)))
+    if stream_ids:
+        filters.append(Photometry.streams.any(Stream.id.in_(stream_ids)))
+    if filters:
+        stmt = stmt.where(or_(*filters))
+
     return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
 
 

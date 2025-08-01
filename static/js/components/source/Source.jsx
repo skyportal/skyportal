@@ -48,6 +48,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
@@ -75,7 +76,7 @@ import Spinner from "../Spinner";
 import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
-
+import ObjectTags from "../ObjectTags";
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
@@ -87,9 +88,6 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
-const CommentListMobile = React.lazy(
-  () => import("../comment/CommentListMobile"),
-);
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -418,15 +416,7 @@ const SourceContent = ({ source }) => {
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              {downLarge ? (
-                <CommentListMobile />
-              ) : (
-                <CommentList
-                  maxHeightList={
-                    !(downLarge || isRightPanelVisible) ? "28.5vh" : "350px"
-                  }
-                />
-              )}
+              <CommentList maxHeightList={downLarge ? "28.5vh" : "350px"} />
             </Suspense>
           </AccordionDetails>
         </Accordion>
@@ -635,6 +625,9 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
+            <div style={{ marginBottom: "0.25rem" }}>
+              <ObjectTags source={source} />
+            </div>
             <SourceCoordinates classes={classes} source={source} />
             <div
               className={classes.flexRow}
@@ -744,12 +737,9 @@ const SourceContent = ({ source }) => {
                   <UpdateSourceGCNCrossmatch source={source} />
                 )}
               </div>
-              {source.alias ? (
-                <div className={classes.rowInfo}>
-                  <b>Aliases: &nbsp;</b>
-                  <div key="aliases"> {source.alias.join(", ")} </div>
-                </div>
-              ) : null}
+              <div className={classes.rowInfo}>
+                <SourceAlias source={source} />
+              </div>
             </div>
             {source.host && (
               <div className={classes.infoLine}>
@@ -886,14 +876,14 @@ const SourceContent = ({ source }) => {
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <a
-                      href={`/api/sources/${source.id}/finder`}
-                      download="finder-chart-pdf"
-                      className={classes.dropdownText}
-                    >
-                      PDF
-                    </a>
+                  <MenuItem
+                    component="a"
+                    href={`/api/sources/${source.id}/finder`}
+                    download="finder-chart"
+                    className={classes.dropdownText}
+                    onClick={() => setAnchorElFindingChart(null)}
+                  >
+                    PDF
                   </MenuItem>
                   <MenuItem onClick={() => setAnchorElFindingChart(null)}>
                     <Link
@@ -937,15 +927,15 @@ const SourceContent = ({ source }) => {
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <a
-                      href={`/api/sources/${source.id}/observability`}
-                      download={`observabilityChartRequest-${source.id}`}
-                      data-testid={`observabilityChartRequest_${source.id}`}
-                      className={classes.dropdownText}
-                    >
-                      PDF
-                    </a>
+                  <MenuItem
+                    component="a"
+                    href={`/api/sources/${source.id}/observability`}
+                    download={`observabilityChartRequest-${source.id}`}
+                    data-testid={`observabilityChartRequest_${source.id}`}
+                    className={classes.dropdownText}
+                    onClick={() => setAnchorElObservability(null)}
+                  >
+                    PDF
                   </MenuItem>
                   <MenuItem onClick={() => setAnchorElObservability(null)}>
                     <Link

@@ -24,6 +24,7 @@ import * as allocationActions from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAllocation from "./NewAllocation";
 import ModifyAllocation from "./ModifyAllocation";
+import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -80,6 +81,7 @@ const getMuiTheme = (theme) =>
   });
 
 const AllocationTable = ({
+  title = "Allocations",
   groups = [],
   allocations,
   telescopes,
@@ -89,8 +91,8 @@ const AllocationTable = ({
   totalMatches = 0,
   numPerPage = 10,
   deletePermission = false,
-  hideTitle = false,
   telescopeInfo = true,
+  fixedHeader = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -138,20 +140,6 @@ const AllocationTable = ({
         }
       },
     );
-  };
-
-  const userLabel = (user) => {
-    let label = user.username;
-    if (user.first_name && user.last_name) {
-      label = `${user.first_name} ${user.last_name} (${user.username})`;
-      if (user.contact_email) {
-        label = `${label} (${user.contact_email})`;
-      }
-      if (user.affiliations && user.affiliations.length > 0) {
-        label = `${label} (${user.affiliations.join()})`;
-      }
-    }
-    return label;
   };
 
   const renderAllocationID = (dataIndex) => {
@@ -220,7 +208,7 @@ const AllocationTable = ({
     const allocation_users = [];
     if (allocation.allocation_users?.length > 0) {
       allocation.allocation_users.forEach((user) => {
-        allocation_users.push(userLabel(user));
+        allocation_users.push(userLabel(user, true, true, true));
       });
     }
 
@@ -436,6 +424,9 @@ const AllocationTable = ({
   }
 
   const options = {
+    ...(fixedHeader
+      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
+      : {}),
     search: false,
     draggableColumns: { enabled: true },
     selectableRows: "none",
@@ -465,7 +456,7 @@ const AllocationTable = ({
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
-              title={!hideTitle ? "Allocations" : ""}
+              title={title}
               data={allocations || []}
               options={options}
               columns={columns}
@@ -509,6 +500,7 @@ const AllocationTable = ({
 };
 
 AllocationTable.propTypes = {
+  title: PropTypes.string,
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
   telescopes: PropTypes.arrayOf(PropTypes.any),
@@ -518,19 +510,20 @@ AllocationTable.propTypes = {
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
+  fixedHeader: PropTypes.bool,
 };
 
 AllocationTable.defaultProps = {
+  title: "Allocations",
   groups: [],
   deletePermission: false,
   paginateCallback: null,
   sortingCallback: null,
   totalMatches: 0,
   numPerPage: 10,
-  hideTitle: false,
   telescopeInfo: true,
+  fixedHeader: false,
 };
 
 export default AllocationTable;

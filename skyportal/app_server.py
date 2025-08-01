@@ -105,6 +105,8 @@ from skyportal.handlers.api import (
     ObjPhotometryHandler,
     ObjPositionHandler,
     ObjSpectraHandler,
+    ObjTagHandler,
+    ObjTagOptionHandler,
     ObjTNSHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
@@ -330,15 +332,15 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/observation_plan_requests",
+        r"/api/gcn_event(/[0-9]+)/observation_plan_requests",
         GcnEventObservationPlanRequestsHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency",
+        r"/api/gcn_event(/[0-9]+)/survey_efficiency",
         GcnEventSurveyEfficiencyHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/catalog_query",
+        r"/api/gcn_event(/[0-9]+)/catalog_query",
         GcnEventCatalogQueryHandler,
     ),
     (
@@ -457,6 +459,8 @@ skyportal_handlers = [
         ObservationPlanFieldsHandler,
     ),
     (r"/api/objs(/[0-9A-Za-z-_\.\+]+)", ObjHandler),
+    (r"/api/objtagoption(/[0-9]+)?", ObjTagOptionHandler),
+    (r"/api/objtag(/[0-9]+)?", ObjTagHandler),
     (r"/api/photometry(/[0-9]+)?", PhotometryHandler),
     (r"/api/photometry(/[0-9]+)/validation", PhotometryValidationHandler),
     (r"/api/photometric_series(/[0-9]+)?", PhotometricSeriesHandler),

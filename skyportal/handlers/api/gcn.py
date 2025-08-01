@@ -154,21 +154,26 @@ def post_gcn_source(
             else:
                 event_tags = get_tags(root, notice_type)
             tags_formatted = [tag.upper().strip() for tag in event_tags]
+
+            # set the origin
+            if "LVC" in tags_formatted:
+                source["origin"] = "LVC"
+            elif "SWIFT" in tags_formatted:
+                source["origin"] = "Swift"
+            elif "FERMI" in tags_formatted:
+                source["origin"] = "Fermi"
+            elif "SVOM" in tags_formatted:
+                source["origin"] = "SVOM"
+            elif "EINSTEIN PROBE" in tags_formatted:
+                source["origin"] = "Einstein Probe"
+
+            # set the id/name
             if "GRB" in tags_formatted:
                 source["id"] = f"GRB-{source_name}"
-                if "SWIFT" in tags_formatted:
-                    source["origin"] = "Swift"
-                elif "FERMI" in tags_formatted:
-                    source["origin"] = "Fermi"
-                elif "SVOM" in tags_formatted:
-                    source["origin"] = "SVOM"
             elif "GW" in tags_formatted:
                 source["id"] = f"GW-{source_name}"
-                if "LVC" in tags_formatted:
-                    source["origin"] = "LVC"
             elif "EINSTEIN PROBE" in tags_formatted:
                 source["id"] = f"EP-{source_name}"
-                source["origin"] = "Einstein Probe"
             else:
                 source["id"] = f"GCN-{source_name}"
 
@@ -1141,6 +1146,11 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
+
         with self.Session() as session:
             event = session.scalars(
                 GcnEvent.select(
@@ -1180,13 +1190,18 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             name: gcnevent_id
             required: true
             schema:
-              type: string
+              type: integer
         responses:
           200:
             content:
               application/json:
                 schema: ArrayOfObservationPlanRequests
         """
+
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             event = session.scalars(
@@ -1251,6 +1266,11 @@ class GcnEventCatalogQueryHandler(BaseHandler):
               application/json:
                 schema: ArrayOfCatalogQuerys
         """
+
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             queries = session.scalars(

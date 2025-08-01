@@ -23,6 +23,7 @@ from skyportal.models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjTag,
     PhotStat,
     Source,
     SourceLabel,
@@ -481,6 +482,7 @@ async def get_sources(
     include_detection_stats=False,
     include_labellers=False,
     include_hosts=False,
+    include_tags=True,
     exclude_forced_photometry=False,
     require_detections=False,
     is_token_request=False,
@@ -593,6 +595,10 @@ async def get_sources(
                 sort_by = "gcn_status"
             else:
                 sort_by = "saved_at"
+        elif sort_by.startswith("altdata."):
+            sort_by_parts = sort_by.split(".")
+            if not all(sort_by_parts):
+                raise ValueError(f"Invalid sort_by: {sort_by}")
         elif sort_by not in SORT_BY:
             raise ValueError(f"Invalid sort_by: {sort_by}")
 
@@ -1846,6 +1852,17 @@ async def get_sources(
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    elif sort_by.startswith("altdata."):
+                        fields = sort_by.split(".")[1:]
+                        altdata_substatement = "altdata->>:altdata_field_0"
+                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+                        for i, field in enumerate(fields[1:]):
+                            # For nested json data, we cast the values we access to JSONB so we can access their keys
+                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
+                            query_params.append(
+                                sa.bindparam(f"altdata_field_{i + 1}", field)
+                            )
+                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
@@ -1896,6 +1913,17 @@ async def get_sources(
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    elif sort_by.startswith("altdata."):
+                        fields = sort_by.split(".")[1:]
+                        altdata_substatement = "altdata->>:altdata_field_0"
+                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+                        # For nested json data, we cast the values we access to JSONB so we can access their keys
+                        for i, field in enumerate(fields[1:]):
+                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
+                            query_params.append(
+                                sa.bindparam(f"altdata_field_{i + 1}", field)
+                            )
+                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
                     else:
                         statement += (
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
@@ -2419,6 +2447,45 @@ async def get_sources(
                     log_verbose(
                         f"17. Color Mag Query took {endTime - startTime} seconds."
                     )
+            if include_tags:
+                startTime = time.time()
+
+                query_str, bindparams = array2sql(
+                    obj_ids, type=sa.String, prefix="obj_ids"
+                )
+                stmt = f"""
+                SELECT obj_tags.obj_id, obj_tags.id, objtagoptions.name, obj_tags.objtagoption_id
+                FROM obj_tags
+                JOIN objtagoptions ON obj_tags.objtagoption_id = objtagoptions.id
+                WHERE obj_tags.obj_id IN {query_str}
+                """
+
+                tags_result = session.execute(text(stmt).bindparams(*bindparams))
+                tags_by_obj = {}
+
+                for row in tags_result:
+                    obj_id = row[0]
+                    tag_id = row[1]
+                    tag_name = row[2]
+                    objtagoption_id = row[3]
+
+                    if obj_id not in tags_by_obj:
+                        tags_by_obj[obj_id] = []
+
+                    tags_by_obj[obj_id].append(
+                        {
+                            "id": tag_id,
+                            "name": tag_name,
+                            "objtagoption_id": objtagoption_id,
+                        }
+                    )
+
+                for obj in objs:
+                    obj["tags"] = tags_by_obj.get(obj["id"], [])
+
+                endTime = time.time()
+                if verbose:
+                    log_verbose(f"18. Tags Query took {endTime - startTime} seconds.")
 
             data["sources"] = objs
 

@@ -38,7 +38,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
@@ -109,6 +109,8 @@ jobs:
           pip install black
           pip install fiona==1.9.6 # 1.10.0 breaks geopandas
           pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
+          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
+          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
 
       - name: Save current Alembic head on main
         run: |
@@ -190,6 +192,9 @@ jobs:
           # First make sure the dependencies are up-to-date
           npm i --legacy-peer-deps
           make dependencies
+          # Make sure to remove python packages from the reference commit that conflict
+          # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
+          pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]

@@ -146,10 +146,15 @@ class InstrumentHandler(BaseHandler):
                     )
                 if not field_fov_type.lower() in ["circle", "rectangle"]:
                     return self.error("field_fov_type must be circle or rectangle")
-                if isinstance(field_fov_attributes, list):
-                    field_fov_attributes = [float(x) for x in field_fov_attributes]
-                else:
-                    field_fov_attributes = [float(field_fov_attributes)]
+                try:
+                    if isinstance(field_fov_attributes, list):
+                        field_fov_attributes = [float(x) for x in field_fov_attributes]
+                    else:
+                        field_fov_attributes = [float(field_fov_attributes)]
+                except ValueError:
+                    return self.error(
+                        "field_fov_attributes must be a list of floats or a float"
+                    )
 
                 center = SkyCoord(0.0, 0.0, unit="deg", frame="icrs")
                 if field_fov_type.lower() == "circle":
@@ -573,8 +578,9 @@ class InstrumentHandler(BaseHandler):
                             field_ids = np.load(cache_filename).tolist()
                             tiles = (
                                 session.scalars(
-                                    sa.select(InstrumentField).filter(
-                                        InstrumentField.field_id.in_(field_ids)
+                                    sa.select(InstrumentField).where(
+                                        InstrumentField.field_id.in_(field_ids),
+                                        InstrumentField.instrument_id == instrument.id,
                                     )
                                 )
                                 .unique()
@@ -584,7 +590,7 @@ class InstrumentHandler(BaseHandler):
                             tiles = (
                                 (
                                     session.scalars(
-                                        sa.select(InstrumentField).filter(
+                                        sa.select(InstrumentField).where(
                                             localizationtilescls.localization_id
                                             == localization.id,
                                             localizationtilescls.probdensity

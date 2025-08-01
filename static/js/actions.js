@@ -28,6 +28,7 @@ import * as analysisServicesActions from "./ducks/analysis_services";
 import * as recentGcnEventsActions from "./ducks/recentGcnEvents";
 import * as followupApisActions from "./ducks/followupApis";
 import * as galaxiesActions from "./ducks/galaxies";
+import * as objTagActions from "./ducks/objectTags";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
@@ -48,7 +49,6 @@ import * as catalogQueriesActions from "./ducks/catalog_query";
 import * as surveyEfficiencyObservationsActions from "./ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "./ducks/survey_efficiency_observation_plans";
 import * as localizationActions from "./ducks/localization";
-import * as shiftActions from "./ducks/shift";
 import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
 import * as groupActions from "./ducks/group";
@@ -216,6 +216,11 @@ export default function hydrate(
       if (ducks_to_hydrate.includes("followupApis")) {
         dispatch(followupApisActions.fetchFollowupApis()).then(() => {
           dispatch(hydrationActions.finishedHydrating("followupApis"));
+        });
+      }
+      if (ducks_to_hydrate.includes("objectTags")) {
+        dispatch(objTagActions.fetchTagOptions()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("objectTags"));
         });
       }
     }

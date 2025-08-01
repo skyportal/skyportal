@@ -17,8 +17,6 @@ const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
 const ADD_CLASSIFICATION_VOTE = "skyportal/ADD_CLASSIFICATION_VOTE";
 
-const DELETE_CLASSIFICATION_VOTE = "skyportal/DELETE_CLASSIFICATION_VOTE";
-
 const DELETE_CLASSIFICATIONS = "skyportal/DELETE_CLASSIFICATIONS";
 
 const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
@@ -35,8 +33,6 @@ const EDIT_COMMENT = "skyportal/EDIT_COMMENT";
 
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
-
-const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
 const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
 
 const GET_COMMENT_ATTACHMENT_PREVIEW =
@@ -44,8 +40,6 @@ const GET_COMMENT_ATTACHMENT_PREVIEW =
 const GET_COMMENT_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ATTACHMENT_PREVIEW_OK";
 
-const GET_COMMENT_ON_SPECTRUM_ATTACHMENT =
-  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT";
 const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK";
 
@@ -238,13 +232,6 @@ export function deleteClassification(classification_id) {
   );
 }
 
-export function deleteClassificationVote(classification_id) {
-  return API.DELETE(
-    `/api/classification/votes/${classification_id}`,
-    DELETE_CLASSIFICATION_VOTE,
-  );
-}
-
 export function deleteClassifications(source_id) {
   return API.DELETE(
     `/api/sources/${source_id}/classifications`,
@@ -377,24 +364,10 @@ export function editComment(commentID, formData) {
   );
 }
 
-export function getCommentAttachment(sourceID, commentID) {
-  return API.GET(
-    `/api/sources/${sourceID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ATTACHMENT,
-  );
-}
-
 export function getCommentTextAttachment(sourceID, commentID) {
   return API.GET(
     `/api/sources/${sourceID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ATTACHMENT_PREVIEW,
-  );
-}
-
-export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
-  return API.GET(
-    `/api/spectra/${spectrumID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_SPECTRUM_ATTACHMENT,
   );
 }
 
@@ -423,13 +396,10 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
-  if ("nameOnly" in params && params.nameOnly === true) {
-    return API.GET(`/api/source_exists/${id}`, actionType);
-  }
-  return API.GET(
-    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
-    actionType,
-  );
+  const queryParams = params.nameOnly
+    ? ""
+    : `?ra=${params.ra}&dec=${params.dec}&radius=0.0003`;
+  return API.GET(`/api/source_exists/${id}${queryParams}`, actionType);
 }
 
 export function addSourceView(id) {

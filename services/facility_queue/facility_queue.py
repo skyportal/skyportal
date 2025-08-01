@@ -47,6 +47,7 @@ request_session.trust_env = (
 )
 
 WAIT_TIME_BETWEEN_QUERIES = 120  # in seconds
+CUTOFF_TIME_DAYS = 7  # max lookback time for requests to be processed
 
 
 def service():
@@ -54,7 +55,7 @@ def service():
         queue = []
         try:
             with DBSession() as session:
-                cutoff_time = Time.now() - TimeDelta(3 * u.day)
+                cutoff_time = Time.now() - TimeDelta(CUTOFF_TIME_DAYS * u.day)
                 last_query_dt = Time.now() - TimeDelta(WAIT_TIME_BETWEEN_QUERIES * u.s)
                 requests = (
                     session.query(FacilityTransactionRequest)

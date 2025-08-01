@@ -30,6 +30,17 @@ const defaultExplanations = defaultExplanationsHighlight.concat(
   defaultExplanationsReject,
 );
 
+export const getValidationStatus = (phot) => {
+  if (!phot?.validations || phot.validations.length === 0) {
+    return "not_vetted";
+  }
+
+  const validation = phot.validations[0];
+  if (validation.validated === true) return "validated";
+  if (validation.validated === false) return "rejected";
+  return "ambiguous";
+};
+
 const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
@@ -91,7 +102,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   ),
 );
 
-const PhotometryValidation = ({ phot }) => {
+const PhotometryValidation = ({ phot, magsys }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const { permissions } = useSelector((state) => state.profile);
@@ -140,6 +151,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: true,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -152,6 +164,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: true,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -169,6 +182,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: false,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -181,6 +195,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: false,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -198,6 +213,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: null,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -210,6 +226,7 @@ const PhotometryValidation = ({ phot }) => {
           validated: null,
           explanation: data.explanation,
           notes: data.notes,
+          magsys: magsys,
         }),
       ).then((response) => {
         if (response.status === "success") {
@@ -220,13 +237,13 @@ const PhotometryValidation = ({ phot }) => {
   };
 
   const handleNotVetted = () => {
-    dispatch(PhotometryValidationAction.deleteValidation(phot.id)).then(
-      (response) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      },
-    );
+    dispatch(
+      PhotometryValidationAction.deleteValidation(phot.id, { magsys: magsys }),
+    ).then((response) => {
+      if (response.status === "success") {
+        handleClose();
+      }
+    });
   };
 
   return permissions.includes("Manage sources") ? (
@@ -359,6 +376,11 @@ PhotometryValidation.propTypes = {
       }),
     ),
   }).isRequired,
+  magsys: PropTypes.string,
+};
+
+PhotometryValidation.defaultProps = {
+  magsys: "ab",
 };
 
 export default PhotometryValidation;
