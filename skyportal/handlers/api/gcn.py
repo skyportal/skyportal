@@ -31,8 +31,6 @@ from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
-from sqlalchemy import Integer as Alchemy_Integer
-from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
@@ -524,7 +522,9 @@ def post_gcnevent_from_json(
     if ref_ID is not None:
         event = session.scalars(
             GcnEvent.select(user).where(
-                func.lower(cast(GcnEvent.aliases, String)).like(f"%{ref_ID.lower()}%")
+                sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
+                    f"%{ref_ID.lower()}%"
+                )
             )
         ).first()
 
@@ -1273,7 +1273,7 @@ class GcnEventCatalogQueryHandler(BaseHandler):
                 CatalogQuery.select(
                     session.user_or_token,
                 ).where(
-                    cast(CatalogQuery.payload["gcnevent_id"].astext, Alchemy_Integer)
+                    cast(CatalogQuery.payload["gcnevent_id"].astext, sa.Integer)
                     == gcnevent_id
                 )
             ).all()
@@ -1704,8 +1704,8 @@ class GcnEventHandler(BaseHandler):
                         partialdateobs = partialdateobs.replace("T", " ")
                 partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
-                    cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
-                    | func.lower(cast(GcnEvent.aliases, String)).like(
+                    cast(GcnEvent.dateobs, sa.String).like(f"{partialdateobs}%")
+                    | sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
                         f"%{partialdateobs}%"
                     )
                 )
