@@ -153,7 +153,7 @@ from skyportal.handlers.api import (
     SharingServiceGroupAutoPublisherHandler,
     SharingServiceGroupHandler,
     SharingServiceHandler,
-    SharingServicesSubmissionHandler,
+    SharingServiceSubmissionHandler,
     ShiftHandler,
     ShiftSummary,
     ShiftUserHandler,
@@ -549,10 +549,10 @@ skyportal_handlers = [
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
-    # External publishing endpoints
+    # Sharing service endpoints
     (
         r"/api/sharing_service/submission(/[0-9]+)?",
-        SharingServicesSubmissionHandler,
+        SharingServiceSubmissionHandler,
     ),
     (
         r"/api/sharing_service(/[0-9]+)/coauthor(/[0-9]+)?",

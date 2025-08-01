@@ -29,7 +29,7 @@ env, cfg = load_env()
 log = make_log("tns_submission_utils")
 
 
-# Custom exception to catch external publishing issues we want to notify as warnings
+# Custom exception to catch sharing issues we want to notify as warnings
 class TNSWarning(Exception):
     pass
 
@@ -40,11 +40,11 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
     Parameters
     ----------
     sharing_service : `~skyportal.models.SharingService`
-        The bot to use for the submission.
-    submission_request : `~skyportal.models.SharingServicesSubmission`
+        The sharing service to use for the submission.
+    submission_request : `~skyportal.models.SharingServiceSubmission`
         The submission request.
     """
-    # if the bot is set up to only report objects to TNS if they are not already there,
+    # if the sharing service is set up to only report objects to TNS if they are not already there,
     # we check if an object is already on TNS (within 2 arcsec of the object's position)
     # and if it is, we skip the submission
     # otherwise, we submit as long as there are no reports with the same internal source name
@@ -55,7 +55,7 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
         sharing_service.tns_bot_id, sharing_service.tns_bot_name
     )
 
-    # if the bot is in test mode, we skip the existing TNS report check
+    # if the sharing service is in test mode, we skip the existing TNS report check
     if sharing_service.testing:
         log(f"Skipping existing TNS report check for {obj_id} in test mode.")
         return
@@ -91,10 +91,10 @@ def build_tns_report(
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.SharingServicesSubmission`
+    submission_request : `~skyportal.models.SharingServiceSubmission`
         The submission request.
     sharing_service : `~skyportal.models.SharingService`
-        The bot to use for the submission.
+        The sharing service to use for the submission.
     reporters : str
         The reporters to use for the submission.
     remarks : str
@@ -176,7 +176,7 @@ def build_tns_report(
 
     if not non_detections and not archival:
         raise TNSWarning(
-            f"To publish to TNS the bot {sharing_service.id} requires at least one non-detection before the first detection, but none are available."
+            f"for sharing service {sharing_service.id} publishing to TNS requires at least one non-detection prior to the first detection, but none were found. Select Archival mode to submit without non-detections."
         )
 
     if archival:
@@ -240,7 +240,7 @@ def send_tns_report(submission_request, sharing_service, report):
     submission_request : `~skyportal.models.SubmissionRequest`
         The submission request to send to TNS.
     sharing_service : `~skyportal.models.SharingService`
-        The bot to use for the submission.
+        The sharing service to use for the submission.
     report : dict
         The AT report to send to TNS.
 
@@ -267,7 +267,7 @@ def send_tns_report(submission_request, sharing_service, report):
 
     if sharing_service.testing:
         log(
-            f"Publishing bot {sharing_service.id} is in testing mode, skipping TNS submission for {obj_id}."
+            f"Sharing service {sharing_service.id} is in testing mode, skipping TNS submission for {obj_id}."
         )
         return "Testing mode, not submitted", None, None
 
@@ -431,7 +431,7 @@ def check_at_report(submission_id, sharing_service):
     submission_id : int
         The ID of the submission request to check on TNS.
     sharing_service : `~skyportal.models.SharingService`
-        The bot to use for the check.
+        The sharing service to use for the check.
 
     Returns
     -------

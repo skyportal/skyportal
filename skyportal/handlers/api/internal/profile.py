@@ -243,7 +243,7 @@ class ProfileHandler(BaseHandler):
                 for group in groups_no_auto_sharing_allow_bots:
                     auto_publisher = session.scalars(
                         sa.select(SharingServiceGroupAutoPublisher).where(
-                            SharingServiceGroupAutoPublisher.sharingservices_group_id
+                            SharingServiceGroupAutoPublisher.sharing_service_group_id
                             == group.id,
                             SharingServiceGroupAutoPublisher.group_user_id.in_(
                                 sa.select(GroupUser.id).where(

@@ -286,7 +286,7 @@ app:
           url: /observations
 
         - name: Sharing Services
-          icon: SmartToy
+          icon: Share
           url: /sharing_services
 
         - name: Moving Objects

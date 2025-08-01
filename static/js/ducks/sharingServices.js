@@ -99,7 +99,7 @@ export const deleteSharingServiceCoauthor = (sharing_service_id, user_id) =>
     DELETE_SHARING_SERVICE_COAUTHOR,
   );
 
-export function addSharingServicesSubmission(formData) {
+export function addSharingServiceSubmission(formData) {
   return API.POST(
     `/api/sharing_service/submission`,
     ADD_SHARING_SERVICE_SUBMISSION,
@@ -107,7 +107,7 @@ export function addSharingServicesSubmission(formData) {
   );
 }
 
-export const fetchSharingServicesSubmissions = (params = {}) =>
+export const fetchSharingServiceSubmissions = (params = {}) =>
   API.GET(
     `/api/sharing_service/submission`,
     FETCH_SHARING_SERVICE_SUBMISSIONS,
@@ -128,7 +128,7 @@ messageHandler.add((actionType, payload, dispatch) => {
     }
   } else if (actionType === REFRESH_SHARING_SERVICE_SUBMISSIONS) {
     dispatch(
-      fetchSharingServicesSubmissions({
+      fetchSharingServiceSubmissions({
         sharing_service_id: payload.sharing_service_id,
       }),
     );

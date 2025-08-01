@@ -102,15 +102,15 @@ class SharingServiceGroupHandler(BaseHandler):
             )
             self.current_user.assert_group_accessible(group_id)
 
-            # check if a bot group already exist
-            bot_group = session.scalar(
+            # check if a sharing service group already exist
+            group = session.scalar(
                 SharingServiceGroup.select(session.user_or_token).where(
-                    SharingServiceGroup.sharingservice_id == sharing_service_id,
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
                 )
             )
 
-            if bot_group:
+            if group:
                 # If this is an edit, check if the user has selected at least one field to update
                 if (
                     auto_share_to_tns is None
@@ -119,21 +119,21 @@ class SharingServiceGroupHandler(BaseHandler):
                     and owner is None
                 ):
                     return self.error(
-                        "You must update at least one of: auto_share_to_tns, auto_share_to_hermes, owner, or auto_sharing_allow_bots when editing a bot group."
+                        "You must update at least one of: auto_share_to_tns, auto_share_to_hermes, owner, or auto_sharing_allow_bots when editing a sharing service group."
                     )
                 if (
                     auto_share_to_tns is not None
-                    and auto_share_to_tns != bot_group.auto_share_to_tns
+                    and auto_share_to_tns != group.auto_share_to_tns
                 ):
-                    bot_group.auto_share_to_tns = auto_share_to_tns
+                    group.auto_share_to_tns = auto_share_to_tns
                 if (
                     auto_share_to_hermes is not None
-                    and auto_share_to_hermes != bot_group.auto_share_to_hermes
+                    and auto_share_to_hermes != group.auto_share_to_hermes
                 ):
-                    bot_group.auto_share_to_hermes = auto_share_to_hermes
+                    group.auto_share_to_hermes = auto_share_to_hermes
                 if (
                     auto_sharing_allow_bots is not None
-                    and auto_sharing_allow_bots != bot_group.auto_sharing_allow_bots
+                    and auto_sharing_allow_bots != group.auto_sharing_allow_bots
                 ):
                     # if the user is trying to set auto_sharing_allow_bots to False,
                     # we need to verify that none of the existing auto publishers are bots
@@ -141,7 +141,7 @@ class SharingServiceGroupHandler(BaseHandler):
                         auto_publishers_group_users = session.scalars(
                             sa.select(GroupUser).where(
                                 GroupUser.id.in_(
-                                    [r.group_user_id for r in bot_group.auto_publishers]
+                                    [r.group_user_id for r in group.auto_publishers]
                                 )
                             )
                         )
@@ -152,33 +152,33 @@ class SharingServiceGroupHandler(BaseHandler):
                             return self.error(
                                 "Cannot set auto_sharing_allow_bots to False when one or more auto_publishers are bots. Remove the bots from the auto_publishers first."
                             )
-                    bot_group.auto_sharing_allow_bots = auto_sharing_allow_bots
+                    group.auto_sharing_allow_bots = auto_sharing_allow_bots
 
-                if owner is not None and owner != bot_group.owner:
+                if owner is not None and owner != group.owner:
                     # Check if this is the only owner group
                     owners = [
                         group.group_id
-                        for group in bot_group.sharing_service.groups
+                        for group in group.sharing_service.groups
                         if group.owner
                     ]
 
                     if owners == [group_id]:
                         return self.error(
-                            "Cannot remove ownership from the only group owning this bot. Please assign another group as owner first."
+                            "Cannot remove ownership from the only group owning this sharing service. Please assign another group as owner first."
                         )
 
-                    bot_group.owner = owner
+                    group.owner = owner
 
                 session.commit()
                 self.push(
                     action="skyportal/REFRESH_SHARING_SERVICES",
                 )
-                return self.success(data=bot_group)
+                return self.success(data=group)
             else:
                 # Check if the association already exists but is inaccessible to the current user
                 existing_association = session.scalar(
                     sa.select(SharingServiceGroup).where(
-                        SharingServiceGroup.sharingservice_id == sharing_service_id,
+                        SharingServiceGroup.sharing_service_id == sharing_service_id,
                         SharingServiceGroup.group_id == group_id,
                     )
                 )
@@ -187,8 +187,8 @@ class SharingServiceGroupHandler(BaseHandler):
                         f"Group {group_id} already has access to sharing service {sharing_service_id}, but user is not allowed to edit it"
                     )
 
-                bot_group = SharingServiceGroup(
-                    sharingservice_id=sharing_service_id,
+                sharing_service_group = SharingServiceGroup(
+                    sharing_service_id=sharing_service_id,
                     group_id=group_id,
                     auto_share_to_tns=auto_share_to_tns,
                     auto_share_to_hermes=auto_share_to_hermes,
@@ -196,12 +196,12 @@ class SharingServiceGroupHandler(BaseHandler):
                     owner=owner,
                 )
 
-                session.add(bot_group)
+                session.add(sharing_service_group)
                 session.commit()
                 self.push(
                     action="skyportal/REFRESH_SHARING_SERVICES",
                 )
-                return self.success(data={"id": bot_group.id})
+                return self.success(data={"id": sharing_service_group.id})
 
     @permissions(["Manage sharing services"])
     def delete(self, sharing_service_id, group_id):
@@ -248,7 +248,7 @@ class SharingServiceGroupHandler(BaseHandler):
             # check if the group already has access to the sharing_service
             sharing_service_group = session.scalar(
                 SharingServiceGroup.select(session.user_or_token, mode="delete").where(
-                    SharingServiceGroup.sharingservice_id == sharing_service_id,
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
                 )
             )
@@ -265,7 +265,7 @@ class SharingServiceGroupHandler(BaseHandler):
 
             if len(owners) == 1 and sharing_service_group.owner:
                 return self.error(
-                    "Cannot delete the only group owning this bot, add another group as an owner first."
+                    "Cannot delete the only group owning this sharing service, add another group as an owner first."
                 )
 
             session.delete(sharing_service_group)

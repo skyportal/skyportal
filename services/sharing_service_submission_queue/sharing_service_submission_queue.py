@@ -17,7 +17,7 @@ from skyportal.models import (
     Obj,
     SharingService,
     SharingServiceCoauthor,
-    SharingServicesSubmission,
+    SharingServiceSubmission,
     User,
 )
 from skyportal.utils.data_access import (
@@ -44,11 +44,11 @@ class SharingServicesWarning(Warning):
 def build_reporters_and_remarks_string(
     submission_request, source, acknowledgments, session
 ):
-    """Build the reporters string and remarks for external publishing.
+    """Build the reporters string and remarks for sharing.
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.SharingServicesSubmission`
+    submission_request : `~skyportal.models.SharingServiceSubmission`
         The submission request.
     source : `~skyportal.models.Source`
         The source to submit.
@@ -66,7 +66,7 @@ def build_reporters_and_remarks_string(
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
-    bot_id = submission_request.sharingservice_id
+    sharing_service_id = submission_request.sharing_service_id
     user_id = submission_request.user_id
     obj_id = submission_request.obj_id
     remarks = []
@@ -96,7 +96,7 @@ def build_reporters_and_remarks_string(
 
         coauthor_ids = session.scalars(
             sa.select(SharingServiceCoauthor.user_id).where(
-                SharingServiceCoauthor.sharingservice_id == bot_id
+                SharingServiceCoauthor.sharing_service_id == sharing_service_id
             )
         ).all()
         author_ids += [uid for uid in coauthor_ids if uid not in author_ids]
@@ -109,7 +109,7 @@ def build_reporters_and_remarks_string(
 
         if not authors:
             raise ValueError(
-                f"No authors found for sharing service {bot_id} and source {obj_id}, cannot publish"
+                f"No authors found for sharing service {sharing_service_id} and source {obj_id}, cannot publish"
             )
 
         # Sort authors by appearance order
@@ -181,13 +181,13 @@ def process_submission_request(submission_request, session):
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.SharingServicesSubmission`
+    submission_request : `~skyportal.models.SharingServiceSubmission`
         The submission request.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
     obj_id = submission_request.obj_id
-    publishing_bot_id = submission_request.sharingservice_id
+    sharing_service_id = submission_request.sharing_service_id
     user_id = submission_request.user_id
 
     try:
@@ -203,23 +203,23 @@ def process_submission_request(submission_request, session):
         if user is None:
             raise ValueError(f"No user found with ID {user_id}.")
 
-        publishing_bot = session.scalar(
-            SharingService.select(user).where(SharingService.id == publishing_bot_id)
+        sharing_service = session.scalar(
+            SharingService.select(user).where(SharingService.id == sharing_service_id)
         )
-        if publishing_bot is None:
+        if sharing_service is None:
             raise ValueError(
-                f"No sharing service found with ID {publishing_bot_id} or user {user_id} does not have access to it."
+                f"No sharing service found with ID {sharing_service_id} or user {user_id} does not have access to it."
             )
 
         photometry_options = validate_photometry_options(
             getattr(submission_request, "photometry_options", {}),
-            getattr(publishing_bot, "photometry_options", {}),
+            getattr(sharing_service, "photometry_options", {}),
         )
 
         source, photometry, stream_ids = get_publishable_source_and_photometry(
             session,
             user,
-            publishing_bot.id,
+            sharing_service.id,
             obj_id,
             submission_request.instrument_ids,
             submission_request.stream_ids,
@@ -228,7 +228,7 @@ def process_submission_request(submission_request, session):
         )
 
         reporters, remarks, warning = build_reporters_and_remarks_string(
-            submission_request, source, publishing_bot.acknowledgments, session
+            submission_request, source, sharing_service.acknowledgments, session
         )
         # set it now, so we already have it if we need to reprocess the request
         submission_request.custom_publishing_string = reporters
@@ -243,7 +243,7 @@ def process_submission_request(submission_request, session):
                 user_id=submission_request.user_id,
                 action_type="baselayer/SHOW_NOTIFICATION",
                 payload={
-                    "note": f"{notif_type} processing external publishing request: {e}",
+                    "note": f"{notif_type} processing sharing request: {e}",
                     "type": notif_type.lower(),
                     "duration": 8000,
                 },
@@ -255,7 +255,7 @@ def process_submission_request(submission_request, session):
     if submission_request.hermes_status == "processing":
         submit_to_hermes(
             submission_request,
-            publishing_bot,
+            sharing_service,
             user,
             photometry,
             reporters,
@@ -266,7 +266,7 @@ def process_submission_request(submission_request, session):
     if submission_request.tns_status == "processing":
         submit_to_tns(
             submission_request,
-            publishing_bot,
+            sharing_service,
             photometry,
             photometry_options,
             stream_ids,
@@ -280,7 +280,7 @@ def process_submission_request(submission_request, session):
 def process_submission_requests():
     """
     Service to publish data to external services, such as TNS and Hermes,
-    by processing the SharingServicesSubmission table.
+    by processing the SharingServiceSubmission table.
     """
     session_context_id.set(uuid.uuid4().hex)
 
@@ -288,25 +288,25 @@ def process_submission_requests():
         with DBSession() as session:
             try:
                 submission_request = session.scalar(
-                    sa.select(SharingServicesSubmission)
+                    sa.select(SharingServiceSubmission)
                     .where(
                         or_(
                             and_(
-                                SharingServicesSubmission.publish_to_tns == True,
-                                SharingServicesSubmission.tns_status.in_(
+                                SharingServiceSubmission.publish_to_tns == True,
+                                SharingServiceSubmission.tns_status.in_(
                                     ["pending", "processing"]
                                 ),
-                                SharingServicesSubmission.tns_submission_id.is_(None),
+                                SharingServiceSubmission.tns_submission_id.is_(None),
                             ),
                             and_(
-                                SharingServicesSubmission.publish_to_hermes == True,
-                                SharingServicesSubmission.hermes_status.in_(
+                                SharingServiceSubmission.publish_to_hermes == True,
+                                SharingServiceSubmission.hermes_status.in_(
                                     ["pending", "processing"]
                                 ),
                             ),
                         )
                     )
-                    .order_by(SharingServicesSubmission.created_at.asc())
+                    .order_by(SharingServiceSubmission.created_at.asc())
                 )
                 if submission_request is None:
                     time.sleep(5)
@@ -318,7 +318,7 @@ def process_submission_requests():
                         submission_request.tns_status = "processing"
                     session.commit()
             except Exception as e:
-                log(f"Error getting external publishing submission request: {str(e)}")
+                log(f"Error getting sharing submission request: {str(e)}")
                 continue
 
             submission_request_id = submission_request.id
@@ -334,11 +334,11 @@ def process_submission_requests():
                     try:
                         traceback.print_exc()
                         log(
-                            f"Error processing external publishing submission request {submission_request_id}: {str(e)}"
+                            f"Error processing sharing submission request {submission_request_id}: {str(e)}"
                         )
                         submission_request = session.scalar(
-                            sa.select(SharingServicesSubmission).where(
-                                SharingServicesSubmission.id == submission_request_id
+                            sa.select(SharingServiceSubmission).where(
+                                SharingServiceSubmission.id == submission_request_id
                             )
                         )
                         if submission_request.publish_to_hermes:
@@ -351,31 +351,30 @@ def process_submission_requests():
                             "*",
                             "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
                             payload={
-                                "sharing_service_id": submission_request.sharingservice_id
+                                "sharing_service_id": submission_request.sharing_service_id
                             },
                         )
                     except Exception as e:
                         log(
-                            f"Error updating external publishing submission request status: {str(e)}"
+                            f"Error updating sharing submission request status: {str(e)}"
                         )
 
 
 def validate_submission_requests():
-    """Service to query TNS for the status of submitted AT reports and update the SharingServicesSubmission table."""
+    """Service to query TNS for the status of submitted AT reports and update the SharingServiceSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
     while True:
         time.sleep(5)
         with DBSession() as session:
-            # we look for TNS submissions with a 504 status (meaning the processing or validation failed at some point)
-            # and re-set them as pending if they failed more than 5 minutes ago, confirmed if they were reported,
-            # and label them appropriately if a more recent submission request successfully publish the object with the same bot
+            # Reprocess TNS submissions with status 504. Reset to pending if older than 5 min
+            # Confirm if reported. Label them appropriately if a newer one succeeded (same object/service)
             try:
                 failed_submission_requests = session.scalars(
-                    sa.select(SharingServicesSubmission).where(
-                        SharingServicesSubmission.tns_status.ilike(
+                    sa.select(SharingServiceSubmission).where(
+                        SharingServiceSubmission.tns_status.ilike(
                             "%504 - Gateway Time-out%"
                         ),
-                        SharingServicesSubmission.modified
+                        SharingServiceSubmission.modified
                         < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
                     )
                 ).all()
@@ -383,31 +382,31 @@ def validate_submission_requests():
                     f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
                 )
                 for submission_request in failed_submission_requests:
-                    # check if there is a more recent submission request for the same object and bot that is submitted or confirmed,
-                    # in which case we don't want to re-set the status of this one but label it appropriately
+                    # If a newer submission for the same object/service is submitted or confirmed
+                    # don't re-set this one but label it appropriately
                     recent_submission_request = session.scalar(
-                        sa.select(SharingServicesSubmission).where(
-                            SharingServicesSubmission.obj_id
+                        sa.select(SharingServiceSubmission).where(
+                            SharingServiceSubmission.obj_id
                             == submission_request.obj_id,
-                            SharingServicesSubmission.sharingservice_id
-                            == submission_request.sharingservice_id,
-                            SharingServicesSubmission.created_at
+                            SharingServiceSubmission.sharing_service_id
+                            == submission_request.sharing_service_id,
+                            SharingServiceSubmission.created_at
                             > submission_request.created_at,
                             sa.or_(
-                                SharingServicesSubmission.tns_status.ilike(
+                                SharingServiceSubmission.tns_status.ilike(
                                     "%submitted%"
                                 ),
-                                SharingServicesSubmission.tns_status.ilike(
+                                SharingServiceSubmission.tns_status.ilike(
                                     "%confirmed%"
                                 ),
                             ),
                         )
                     )
                     if recent_submission_request is not None:
-                        submission_request.tns_status = "Error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same bot) reported the object since."
+                        submission_request.tns_status = "Error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same sharing service) reported the object since."
                         continue
 
-                    # let's check if the object is already on TNS and submitted by this bot, in which case we can mark the submission request as confirmed
+                    # let's check if the object is already on TNS and submitted by this sharing service, in which case we can mark the submission request as confirmed
                     obj = session.scalar(
                         sa.select(Obj).where(Obj.id == submission_request.obj_id)
                     )
@@ -416,12 +415,12 @@ def validate_submission_requests():
                         and isinstance(obj.tns_info, dict)
                         and obj.tns_info.get("reporterid") is not None
                         and obj.tns_info.get("reporterid")
-                        == submission_request.sharing_service_bot.tns_bot_id
+                        == submission_request.sharing_service.tns_bot_id
                         and isinstance(obj.tns_info.get("reporting_group", {}), dict)
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
                         is not None
                         and obj.tns_info.get("reporting_group", {}).get("group_id")
-                        == submission_request.sharing_service_bot.tns_source_group_id
+                        == submission_request.sharing_service.tns_source_group_id
                         and obj.tns_info.get("discoverer") is not None
                         and (
                             (
@@ -443,7 +442,7 @@ def validate_submission_requests():
                         submission_request.tns_status = "confirmed"
                         continue
 
-                    # not reported on TNS by this bot yet, re-set the submission request to pending
+                    # not reported on TNS by this sharing service yet, re-set the submission request to pending
                     log(
                         f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
@@ -455,19 +454,19 @@ def validate_submission_requests():
                 session.rollback()
 
             try:
-                # grab the first TNS bot submission request that has a submission ID that's not null
+                # grab the first TNS sharing submission request that has a submission ID that's not null
                 submission_request = session.scalar(
-                    sa.select(SharingServicesSubmission)
+                    sa.select(SharingServiceSubmission)
                     .where(
-                        SharingServicesSubmission.tns_status.like("submitted"),
-                        SharingServicesSubmission.tns_submission_id.isnot(None),
-                        SharingServicesSubmission.sharingservice_id.notin_(
+                        SharingServiceSubmission.tns_status.like("submitted"),
+                        SharingServiceSubmission.tns_submission_id.isnot(None),
+                        SharingServiceSubmission.sharing_service_id.notin_(
                             sa.select(SharingService.id).where(
                                 SharingService.testing.is_(True)
                             )
                         ),
                     )
-                    .order_by(SharingServicesSubmission.created_at.asc())
+                    .order_by(SharingServiceSubmission.created_at.asc())
                 )
                 if submission_request is None:
                     # here we add an extra sleep to avoid hammering the TNS API
@@ -481,17 +480,17 @@ def validate_submission_requests():
 
                 tns_submission_id = submission_request.tns_submission_id
 
-                publishing_bot = session.scalar(
+                sharing_service = session.scalar(
                     sa.select(SharingService).where(
-                        SharingService.id == submission_request.sharingservice_id
+                        SharingService.id == submission_request.sharing_service_id
                     )
                 )
-                if publishing_bot is None:
+                if sharing_service is None:
                     log("Could not find sharing service for this submission request")
                     continue
 
                 tns_source, serialized_response, err = check_at_report(
-                    tns_submission_id, publishing_bot
+                    tns_submission_id, sharing_service
                 )
                 if (
                     not err
@@ -580,7 +579,7 @@ def service(*args, **kwargs):
     t.start()
     t2.start()
     while True:
-        log("External publishing submission queue heartbeat")
+        log("Sharing service submission queue heartbeat")
         time.sleep(120)
 
 
@@ -588,5 +587,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error starting external publishing submission queue: {str(e)}")
+        log(f"Error starting sharing service submission queue: {str(e)}")
         raise e

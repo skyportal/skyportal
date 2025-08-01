@@ -151,7 +151,7 @@ const SharingServiceGroup = ({
     ) {
       await dispatch(
         sharingServicesActions.editSharingServiceGroup(
-          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.sharing_service_id,
           sharingServiceGroup.group_id,
           {
             owner,
@@ -196,7 +196,7 @@ const SharingServiceGroup = ({
     if (toAdd?.length > 0) {
       await dispatch(
         sharingServicesActions.addSharingServiceGroupAutoPublishers(
-          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.sharing_service_id,
           sharingServiceGroup.group_id,
           toAdd,
         ),
@@ -213,7 +213,7 @@ const SharingServiceGroup = ({
     if (toRemove?.length > 0) {
       await dispatch(
         sharingServicesActions.deleteSharingServiceGroupAutoPublishers(
-          sharingServiceGroup.sharingservice_id,
+          sharingServiceGroup.sharing_service_id,
           sharingServiceGroup.group_id,
           toRemove,
         ),
@@ -234,7 +234,7 @@ const SharingServiceGroup = ({
   const deleteGroup = () => {
     dispatch(
       sharingServicesActions.deleteSharingServiceGroup(
-        sharingServiceGroup.sharingservice_id,
+        sharingServiceGroup.sharing_service_id,
         sharingServiceGroup.group_id,
       ),
     ).then((response) => {
@@ -326,7 +326,7 @@ const SharingServiceGroup = ({
           </FormGroup>
           {(autoPublishTns || autoPublishHermes) && (
             <>
-              <InputLabel>Allow Sharing Service to auto publish</InputLabel>
+              <InputLabel>Allow bots to auto publish</InputLabel>
               <Switch
                 checked={autoPublishAllowBots}
                 onChange={(e) => setAutoPublishAllowBots(e.target.checked)}
@@ -385,7 +385,7 @@ const SharingServiceGroup = ({
 SharingServiceGroup.propTypes = {
   sharingServiceGroup: PropTypes.shape({
     id: PropTypes.number,
-    sharingservice_id: PropTypes.number,
+    sharing_service_id: PropTypes.number,
     group_id: PropTypes.number,
     owner: PropTypes.bool,
     auto_share_to_tns: PropTypes.bool,
@@ -520,7 +520,7 @@ NewSharingServiceGroup.propTypes = {
     groups: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-        sharingservice_id: PropTypes.number,
+        sharing_service_id: PropTypes.number,
         group_id: PropTypes.number,
         owner: PropTypes.bool,
         auto_share_to_tns: PropTypes.bool,
@@ -684,7 +684,7 @@ NewSharingServiceCoauthor.propTypes = {
     coauthors: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-        sharingservice_id: PropTypes.number,
+        sharing_service_id: PropTypes.number,
         user_id: PropTypes.number,
       }),
     ),
@@ -812,7 +812,7 @@ const SharingServicesPage = () => {
       if (result.status === "success") {
         dispatch(
           showNotification(
-            `Publishing Bot ${isEdit ? "edited" : "added"} successfully.`,
+            `Sharing service ${isEdit ? "edited" : "added"} successfully.`,
           ),
         );
         setBotToManage(null);
@@ -833,7 +833,7 @@ const SharingServicesPage = () => {
       sharingServicesActions.deleteSharingService(sharingServiceToManage.id),
     ).then((result) => {
       if (result.status === "success") {
-        dispatch(showNotification("Publishing Bot deleted successfully."));
+        dispatch(showNotification("Sharing service deleted successfully."));
         setBotToManage(null);
         setDeleteDialogOpen(false);
       } else {
@@ -848,9 +848,11 @@ const SharingServicesPage = () => {
   };
 
   const validate = (formData, errors) => {
-    const { source_group_id } = formData;
-    if (source_group_id !== "" && Number.isNaN(source_group_id)) {
-      errors.tns_source_group_id.addError("Source group ID must be a number.");
+    const { tns_source_group_id } = formData;
+    if (tns_source_group_id !== "" && Number.isNaN(tns_source_group_id)) {
+      errors.tns_source_group_id.addError(
+        "TNS source group ID must be a number.",
+      );
     }
     return errors;
   };
@@ -944,7 +946,14 @@ const SharingServicesPage = () => {
       ),
     );
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "0.2rem",
+        }}
+      >
         {coauthors.map((coauthor, idx) => (
           <SharingServiceCoauthor
             key={`${coauthor.user_id}-${idx}`}
@@ -1075,14 +1084,14 @@ const SharingServicesPage = () => {
           title: "Testing Mode",
           default: true,
           description:
-            "If enabled, the bot will not publish the data but only store the payload in the DB (useful for debugging).",
+            "If enabled, the sharing service will not publish the data but only store the payload in the DB (useful for debugging).",
         },
         first_and_last_detections: {
           type: "boolean",
           title: "Mandatory first and last detection",
           default: true,
           description:
-            "If enabled, the bot will only publish objects with both a first and last detection (i.e., at least two detections).",
+            "If enabled, the sharing service will only publish objects with both a first and last detection (i.e., at least two detections).",
         },
         ...(enableTNS
           ? {
@@ -1105,7 +1114,7 @@ const SharingServicesPage = () => {
                 title: "Allow TNS archival auto-publishing",
                 default: false,
                 description:
-                  "If enabled, the bot will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
+                  "If enabled, the sharing service will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
               },
             }
           : {}),

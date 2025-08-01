@@ -8,6 +8,8 @@ import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -23,6 +25,7 @@ import Button from "../Button";
 import UserAvatar from "../user/UserAvatar";
 import * as sharingServicesActions from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
+import Box from "@mui/material/Box";
 
 function getStatusColors(status) {
   if (status.toLowerCase().startsWith("complete")) {
@@ -40,7 +43,7 @@ function getStatusColors(status) {
   return ["black", "LightGrey"];
 }
 
-const SharingServicesSubmissionsPage = () => {
+const SharingServiceSubmissionsPage = () => {
   const dispatch = useDispatch();
 
   const { id } = useParams();
@@ -64,7 +67,7 @@ const SharingServicesSubmissionsPage = () => {
         numPerPage: rowsPerPage,
       };
       dispatch(
-        sharingServicesActions.fetchSharingServicesSubmissions(params),
+        sharingServicesActions.fetchSharingServiceSubmissions(params),
       ).then(() => {
         setLoading(false);
       });
@@ -101,7 +104,7 @@ const SharingServicesSubmissionsPage = () => {
         style={{
           backgroundColor: colors[1],
           color: colors[0],
-          padding: "1.3em",
+          padding: "0.7em 0.9em",
           borderRadius: "1rem",
           maxWidth: "fit-content",
           fontWeight: 500,
@@ -109,6 +112,55 @@ const SharingServicesSubmissionsPage = () => {
       >
         {status ?? "NA"}
       </Typography>
+    );
+  };
+
+  const renderTnsInfo = (dataIndex) => {
+    const { tns_name, tns_submission_id, tns_payload } =
+      sharingServiceSubmissions[dataIndex];
+
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.2rem",
+        }}
+      >
+        {tns_name && (
+          <Tooltip title="TNS name">
+            <a
+              href={`https://www.wis-tns.org/object/${
+                tns_name.trim().includes(" ")
+                  ? tns_name.split(" ")[1]
+                  : tns_name
+              }`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {tns_name}
+            </a>
+          </Tooltip>
+        )}
+        {tns_submission_id && (
+          <Tooltip title="ID of the submission returned by TNS">
+            {tns_submission_id}
+          </Tooltip>
+        )}
+        {tns_payload && (
+          <Tooltip title="TNS payload">
+            <IconButton
+              onClick={() => {
+                setShowTNSPayload(dataIndex);
+              }}
+            >
+              <HistoryEduIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
     );
   };
 
@@ -213,39 +265,12 @@ const SharingServicesSubmissionsPage = () => {
       },
     },
     {
-      name: "tns_name",
-      label: "TNS name (ID)",
+      name: "tns_info",
+      label: "TNS info",
       options: {
         filter: false,
         sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { tns_name, tns_submission_id } =
-            sharingServiceSubmissions[dataIndex];
-          if (!tns_name) return null;
-          return (
-            <a
-              key={tns_name}
-              href={`https://www.wis-tns.org/object/${
-                tns_name.trim().includes(" ")
-                  ? tns_name.split(" ")[1]
-                  : tns_name
-              }`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ whiteSpace: "nowrap" }}
-            >
-              {tns_name}
-              {tns_submission_id && (
-                <Tooltip
-                  title="ID of the submission returned by TNS"
-                  style={{ marginLeft: "0.5rem" }}
-                >
-                  ({tns_submission_id})
-                </Tooltip>
-              )}
-            </a>
-          );
-        },
+        customBodyRenderLite: renderTnsInfo,
       },
     },
     {
@@ -264,35 +289,15 @@ const SharingServicesSubmissionsPage = () => {
         display: false,
         filter: false,
         sort: true,
-        customBodyRenderLite: (dataIndex) =>
-          sharingServiceSubmissions[dataIndex].archival.toString(),
-      },
-    },
-    {
-      name: "tns_payload",
-      label: "TNS payload",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: (dataIndex) => {
-          const { tns_payload } = sharingServiceSubmissions[dataIndex];
-          if (tns_payload === null) {
-            return null;
-          }
-          return (
-            <div
-              style={{ display: "flex", flexDirection: "row", width: "100%" }}
-            >
-              <IconButton
-                onClick={() => {
-                  setShowTNSPayload(dataIndex);
-                }}
-              >
-                <HistoryEduIcon />
-              </IconButton>
-            </div>
-          );
-        },
+        customBodyRenderLite: (dataIndex) => (
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            {sharingServiceSubmissions[dataIndex].archival ? (
+              <CheckCircleIcon filled={true} style={{ color: "green" }} />
+            ) : (
+              <CancelIcon filled={true} style={{ color: "red" }} />
+            )}
+          </Box>
+        ),
       },
     },
   ];
@@ -304,7 +309,7 @@ const SharingServicesSubmissionsPage = () => {
       ) : (
         <MUIDataTable
           style={{ width: "100%" }}
-          title="External Publishing Submissions"
+          title="Sharing submissions"
           data={sharingServiceSubmissions}
           columns={columns}
           options={{
@@ -380,10 +385,10 @@ const SharingServicesSubmissionsPage = () => {
   );
 };
 
-SharingServicesSubmissionsPage.propTypes = {
+SharingServiceSubmissionsPage.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default SharingServicesSubmissionsPage;
+export default SharingServiceSubmissionsPage;

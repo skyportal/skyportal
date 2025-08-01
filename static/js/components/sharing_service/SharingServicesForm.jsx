@@ -207,7 +207,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     }
 
     const result = await dispatch(
-      sharingServicesActions.addSharingServicesSubmission(payload),
+      sharingServicesActions.addSharingServiceSubmission(payload),
     );
     setSharingRequestInProcess(false);
     if (result.status === "success") {

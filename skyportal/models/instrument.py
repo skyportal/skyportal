@@ -508,7 +508,7 @@ class Instrument(Base):
         back_populates="instruments",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External sharing services associated with this instrument, used for auto-publishing.",
+        doc="Sharing services associated with this instrument.",
     )
 
 
@@ -526,6 +526,9 @@ def _instrument_region_remove(target, value, initiator):
 
 
 InstrumentSharingService = join_model(
-    "instrument_sharingservices", Instrument, SharingService
+    "instrument_sharingservices",
+    Instrument,
+    SharingService,
+    column_2="sharing_service_id",
 )
 InstrumentSharingService.__doc__ = "Join table mapping Instruments to SharingServices."

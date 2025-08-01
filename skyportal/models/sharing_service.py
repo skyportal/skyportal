@@ -3,7 +3,7 @@ __all__ = [
     "SharingServiceCoauthor",
     "SharingServiceGroup",
     "SharingServiceGroupAutoPublisher",
-    "SharingServicesSubmission",
+    "SharingServiceSubmission",
 ]
 
 import json
@@ -27,9 +27,11 @@ _, cfg = load_env()
 
 
 class SharingService(Base):
-    """A bot that can publish to external services."""
+    """A sharing service used to publish data to external platforms (e.g., TNS, Hermes)."""
 
-    name = sa.Column(sa.String, unique=True, nullable=False, doc="Bot name.")
+    name = sa.Column(
+        sa.String, unique=True, nullable=False, doc="Sharing service name."
+    )
 
     instruments = relationship(
         "Instrument",
@@ -53,20 +55,20 @@ class SharingService(Base):
         sa.String,
         nullable=False,
         server_default="",
-        doc="Acknowledgments to use for this bot.",
+        doc="Acknowledgments to use for sharing.",
     )
 
     testing = sa.Column(
         sa.Boolean,
         nullable=False,
         server_default="true",
-        doc="If true, bot will not publish to external services and only store the request's payload.",
+        doc="If true, nothing will be shared but the request's payload will be stored",
     )
 
     photometry_options = sa.Column(
         psql.JSONB,
         nullable=True,
-        doc="Photometry options to use for this bot, to make some data optional or mandatory for manual and auto-publishing.",
+        doc="Photometry options to use to make some data optional or mandatory for manual and auto-publishing.",
     )
 
     enable_sharing_with_hermes = sa.Column(
@@ -112,54 +114,53 @@ class SharingService(Base):
 
     groups = relationship(
         "SharingServiceGroup",
-        back_populates="sharingservices",
+        back_populates="sharing_service",
         passive_deletes=True,
         doc="Groups associated with this sharing service.",
     )
 
     coauthors = relationship(
         "SharingServiceCoauthor",
-        back_populates="sharingservices",
+        back_populates="sharing_service",
         passive_deletes=True,
         doc="Coauthors associated with this sharing service.",
+    )
+
+    submissions = relationship(
+        "SharingServiceSubmission",
+        back_populates="sharing_service",
+        passive_deletes=True,
+        doc="Submissions associated with this sharing service.",
     )
 
 
 class SharingServiceCoauthor(Base):
     """Coauthors for external sharing services."""
 
-    sharingservice_id = sa.Column(
-        sa.ForeignKey(
-            "sharingservices.id",
-            name="bot_coauthors_id_fkey",
-            ondelete="CASCADE",
-        ),
+    sharing_service_id = sa.Column(
+        sa.ForeignKey("sharingservices.id", ondelete="CASCADE"),
         nullable=False,
     )
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    sharingservices = relationship(
+    sharing_service = relationship(
         "SharingService",
         back_populates="coauthors",
-        doc="The SharingServices associated with this mapper.",
+        doc="The sharing service associated with this coauthor.",
     )
 
 
 # unique constraint on the sharing_service_id and user_id columns
 SharingServiceCoauthor.__table_args__ = (
-    sa.UniqueConstraint("sharingservice_id", "user_id"),
+    sa.UniqueConstraint("sharing_service_id", "user_id"),
 )
 
 
 class SharingServiceGroup(Base):
     """Mapper between SharingServices and Groups."""
 
-    sharingservice_id = sa.Column(
-        sa.ForeignKey(
-            "sharingservices.id",
-            name="bot_groups_id_fkey",
-            ondelete="CASCADE",
-        ),
+    sharing_service_id = sa.Column(
+        sa.ForeignKey("sharingservices.id", ondelete="CASCADE"),
         nullable=False,
     )
     group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
@@ -171,10 +172,10 @@ class SharingServiceGroup(Base):
         sa.Boolean, nullable=False, server_default="false"
     )
 
-    sharingservices = relationship(
+    sharing_service = relationship(
         "SharingService",
         back_populates="groups",
-        doc="The SharingService associated with this mapper.",
+        doc="The sharing service associated with this group.",
     )
 
     group = relationship(
@@ -185,7 +186,7 @@ class SharingServiceGroup(Base):
 
     auto_publishers = relationship(
         "SharingServiceGroupAutoPublisher",
-        back_populates="sharingservicegroups",
+        back_populates="sharing_service_groups",
         passive_deletes=True,
         doc="Users associated with this SharingServiceGroup.",
     )
@@ -193,35 +194,31 @@ class SharingServiceGroup(Base):
 
 # we want a unique index on the sharing_service_id and group_id columns
 SharingServiceGroup.__table_args__ = (
-    sa.UniqueConstraint("sharingservice_id", "group_id"),
+    sa.UniqueConstraint("sharing_service_id", "group_id"),
 )
 
 
 class SharingServiceGroupAutoPublisher(Base):
     """Mapper between SharingServices and Users that are allowed to auto-publish."""
 
-    sharingservices_group_id = sa.Column(
-        sa.ForeignKey(
-            "sharingservicegroups.id",
-            name="bot_group_users_bot_group_id_fkey",
-            ondelete="CASCADE",
-        ),
+    sharing_service_group_id = sa.Column(
+        sa.ForeignKey("sharingservicegroups.id", ondelete="CASCADE"),
         nullable=False,
     )
     group_user_id = sa.Column(
         sa.ForeignKey("group_users.id", ondelete="CASCADE"), nullable=False
     )
 
-    sharingservicegroups = relationship(
+    sharing_service_groups = relationship(
         "SharingServiceGroup",
         back_populates="auto_publishers",
-        doc="The SharingService associated with this mapper.",
+        doc="The sharing service associated with this auto publisher.",
     )
 
 
 # we want a unique index on the sharing_service_id and group_user_id columns
 SharingServiceGroupAutoPublisher.__table_args__ = (
-    sa.UniqueConstraint("sharingservices_group_id", "group_user_id"),
+    sa.UniqueConstraint("sharing_service_group_id", "group_user_id"),
 )
 
 # we add a method that gives us the user_id from that group_user
@@ -232,15 +229,11 @@ SharingServiceGroupAutoPublisher.user_id = column_property(
 )
 
 
-class SharingServicesSubmission(Base):
+class SharingServiceSubmission(Base):
     """Objects to be auto-submitted."""
 
-    sharingservice_id = sa.Column(
-        sa.ForeignKey(
-            "sharingservices.id",
-            name="submissions_id_fkey",
-            ondelete="CASCADE",
-        ),
+    sharing_service_id = sa.Column(
+        sa.ForeignKey("sharingservices.id", ondelete="CASCADE"),
         nullable=False,
     )
     obj_id = sa.Column(sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False)
@@ -323,48 +316,40 @@ class SharingServicesSubmission(Base):
         sa.ARRAY(sa.Integer),
         nullable=True,
         default=None,
-        doc="Instrument IDs to use for this submission. If specified, overrides the bot's default instrument IDs.",
+        doc="Instrument IDs to use for this submission. If specified, overrides the sharing service's default instrument IDs.",
     )
 
     stream_ids = sa.Column(
         sa.ARRAY(sa.Integer),
         nullable=True,
         default=None,
-        doc="Stream IDs to use for this submission. If specified, overrides the bot's default stream IDs.",
+        doc="Stream IDs to use for this submission. If specified, overrides the sharing service's default stream IDs.",
     )
 
     photometry_options = sa.Column(
         psql.JSONB,
         nullable=True,
         doc="Photometry options to use for this submission, to make some data optional or mandatory."
-        "If specified, overrides the bot's default photometry options.",
+        "If specified, overrides the sharing service's default photometry options.",
     )
 
-    sharingservices = relationship(
+    sharing_service = relationship(
         "SharingService",
         back_populates="submissions",
-        doc="The SharingService associated with this mapper.",
+        doc="The sharing service associated with this submission.",
     )
 
     obj = relationship(
         "Obj",
         back_populates="sharing_service_submissions",
-        doc="The Obj associated with this mapper.",
+        doc="The Obj submitted.",
     )
 
     user = relationship(
         "User",
         back_populates="sharing_service_submissions",
-        doc="The User associated with this mapper.",
+        doc="The User who submitted this object.",
     )
-
-
-SharingService.submissions = relationship(
-    "SharingServicesSubmission",
-    back_populates="sharingservices",
-    passive_deletes=True,
-    doc="Auto-submissions associated with this SharingService.",
-)
 
 
 def sharing_service_read_access_logic(cls, user_or_token):
@@ -413,8 +398,8 @@ def sharing_service_coauthor_read_access_logic(cls, user_or_token):
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
         query = query.where(
-            SharingServiceCoauthor.sharingservice_id.in_(
-                sa.select(SharingServiceGroup.sharingservice_id).where(
+            SharingServiceCoauthor.sharing_service_id.in_(
+                sa.select(SharingServiceGroup.sharing_service_id).where(
                     SharingServiceGroup.group_id.in_(
                         sa.select(GroupUser.group_id).where(
                             GroupUser.user_id == user_id
@@ -433,8 +418,8 @@ def sharing_service_coauthor_create_update_delete_access_logic(cls, user_or_toke
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
         query = query.where(
-            SharingServiceCoauthor.sharingservice_id.in_(
-                sa.select(SharingServiceGroup.sharingservice_id).where(
+            SharingServiceCoauthor.sharing_service_id.in_(
+                sa.select(SharingServiceGroup.sharing_service_id).where(
                     SharingServiceGroup.group_id.in_(
                         sa.select(GroupUser.group_id).where(
                             GroupUser.user_id == user_id
@@ -480,13 +465,13 @@ def sharing_service_group_create_update_delete_access_logic(cls, user_or_token):
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
         # 1. the user has access to the group
-        # 2. the user has access to any group that is associated with the bot as an owner
+        # 2. the user has access to any group that is associated with the sharing service as an owner
         query = query.where(
             SharingServiceGroup.group_id.in_(
                 sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
             ),
-            SharingServiceGroup.sharingservice_id.in_(
-                sa.select(SharingServiceGroup.sharingservice_id).where(
+            SharingServiceGroup.sharing_service_id.in_(
+                sa.select(SharingServiceGroup.sharing_service_id).where(
                     SharingServiceGroup.group_id.in_(
                         sa.select(GroupUser.group_id).where(
                             GroupUser.user_id == user_id
@@ -516,14 +501,14 @@ SharingServiceGroupAutoPublisher.create = SharingServiceGroupAutoPublisher.updat
 
 
 def sharing_service_submission_access_logic(cls, user_or_token):
-    """Return a query that filters SharingServicesSubmission instances based on user read/create/update/delete access."""
-    # if the user is a system admin, they can create/read/update/delete all SharingServicesSubmissions
+    """Return a query that filters SharingServiceSubmission instances based on user read/create/update/delete access."""
+    # if the user is a system admin, they can create/read/update/delete all SharingServiceSubmissions
     # otherwise, they can do so only using SharingServices that are associated with groups they are in
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
         query = query.where(
-            SharingServicesSubmission.sharingservice_id.in_(
+            SharingServiceSubmission.sharing_service_id.in_(
                 sa.select(SharingService.id)
                 .join(SharingServiceGroup)
                 .join(Group)
@@ -534,8 +519,8 @@ def sharing_service_submission_access_logic(cls, user_or_token):
     return query
 
 
-SharingServicesSubmission.read = SharingServicesSubmission.create = (
-    SharingServicesSubmission.update
-) = SharingServicesSubmission.delete = CustomUserAccessControl(
+SharingServiceSubmission.read = SharingServiceSubmission.create = (
+    SharingServiceSubmission.update
+) = SharingServiceSubmission.delete = CustomUserAccessControl(
     sharing_service_submission_access_logic
 )

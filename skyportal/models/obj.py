@@ -462,10 +462,10 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     sharing_service_submissions = relationship(
-        "SharingServicesSubmission",
+        "SharingServiceSubmission",
         back_populates="obj",
         passive_deletes=True,
-        doc="External publishing auto-submissions associated with this obj.",
+        doc="Sharing submissions associated with this obj.",
     )
 
     def add_linked_thumbnails(self, thumbnails, session=None):

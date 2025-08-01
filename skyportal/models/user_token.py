@@ -431,10 +431,10 @@ User.sources = relationship(
 )
 
 User.sharing_service_submissions = relationship(
-    "SharingServicesSubmission",
+    "SharingServiceSubmission",
     back_populates="user",
     passive_deletes=True,
-    doc="The external publishing submission this user has made (manual or automatic).",
+    doc="Sharing submissions this user has made (manual or automatic).",
 )
 
 

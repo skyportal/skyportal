@@ -408,7 +408,7 @@ class Group(Base):
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External sharing services associated with this group.",
+        doc="Sharing services associated with this group.",
     )
     gcnreports = relationship(
         "GcnReport",

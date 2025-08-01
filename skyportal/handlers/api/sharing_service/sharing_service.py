@@ -91,7 +91,7 @@ def create_sharing_service(
 
     owner_groups = [
         SharingServiceGroup(
-            sharingservice_id=sharing_service.id,
+            sharing_service_id=sharing_service.id,
             group_id=owner_group_id,
             owner=True,
             auto_share_to_tns=False,
@@ -108,9 +108,7 @@ def create_sharing_service(
     if instruments:
         sharing_service.instruments = instruments
     else:
-        raise ValueError(
-            "At least one instrument must be specified for external publishing"
-        )
+        raise ValueError("At least one instrument must be specified for sharing")
 
     streams = process_stream_ids(session, session.user_or_token, stream_ids)
     if streams:
@@ -259,7 +257,7 @@ class SharingServiceHandler(BaseHandler):
         stream_ids = data.pop("stream_ids", [])
 
         with self.Session() as session:
-            # Check for duplicates if we're creating a new bot
+            # Check for duplicates if we're creating a new sharing service
             if not existing_id:
                 existing_sharing_service = session.scalar(
                     SharingService.select(session.user_or_token).where(

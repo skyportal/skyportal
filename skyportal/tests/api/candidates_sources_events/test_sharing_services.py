@@ -30,7 +30,7 @@ def test_post_and_delete_sharing_service(
         "owner_group_ids": [private_group_id],
         "tns_bot_name": str(uuid.uuid4()),
         "tns_bot_id": 10,
-        "source_group_id": 200,
+        "tns_source_group_id": 200,
         "_tns_altdata": '{"api_key": "test_key"}',
     }
 
@@ -39,23 +39,17 @@ def test_post_and_delete_sharing_service(
         "PUT", "sharing_service", data=request_data, token=super_admin_token
     )
     assert status == 400
-    assert (
-        "At least one instrument must be specified for external publishing"
-        in data["message"]
-    )
+    assert "At least one instrument must be specified for sharing" in data["message"]
 
-    # add an external sharing service with instruments that are not valid for external publishing (should fail)
+    # add an external sharing service with instruments that are not valid (should fail)
     request_data["instrument_ids"] = [ztf_camera.id]
     status, data = api(
         "PUT", "sharing_service", data=request_data, token=super_admin_token
     )
     assert status == 400
-    assert (
-        f"Instrument {ztf_camera.name} not supported for external publishing"
-        in data["message"]
-    )
+    assert f"Instrument {ztf_camera.name} not supported for sharing" in data["message"]
 
-    # post an instrument which name is supported for external publishing, like ZTF
+    # post an instrument which name is supported for sharing, like ZTF
     status, data = api(
         "POST",
         "instrument",
@@ -99,18 +93,18 @@ def test_post_and_delete_sharing_service(
             continue
         assert data["data"][key] == request_data[key]
 
-    # get all bots with view only token (should not see the bot)
+    # get all sharing services with view only token (should not see it)
     status, data = api("GET", "sharing_service", token=view_only_token)
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]) == 0
 
-    # get the bot with view only token (should not see the bot)
+    # get the sharing service with view only token (should not see it)
     status, data = api("GET", f"sharing_service/{id}", token=view_only_token)
     assert status == 400
     assert "No sharing service with" in data["message"]
 
-    # add a group to the bot
+    # add a group to the sharing service
     status, data = api(
         "PUT",
         f"sharing_service/{id}/group",
@@ -120,13 +114,13 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the bot again, should have the new group
+    # get the sharing service again, should have the new group
     status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["groups"]) == 2
 
-    # edit the bot, to give it ownership and to set auto_share_to_tns to True
+    # edit the sharing service, to give it ownership and to set auto_share_to_tns to True
     status, data = api(
         "PUT",
         f"sharing_service/{id}/group/{public_group.id}",
@@ -136,7 +130,7 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the bot again, should have the new group edited
+    # get the sharing service again, should have the new group edited
     status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
@@ -146,7 +140,7 @@ def test_post_and_delete_sharing_service(
     assert group[0]["auto_share_to_tns"] is True
     assert group[0]["auto_share_to_hermes"] is False
 
-    # try adding a coauthor with no affiliations to the bot
+    # try adding a coauthor with no affiliations to the sharing service
     status, data = api(
         "POST",
         f"sharing_service/{id}/coauthor/{super_admin_user.id}",
@@ -174,14 +168,14 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the bot again, should have the new coauthor
+    # get the sharing service again, should have the new coauthor
     status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["coauthors"]) == 1
     assert data["data"]["coauthors"][0]["user_id"] == super_admin_user.id
 
-    # try adding the viewonly user as an auto_publisher of the bot public group, will fail (no affiliation)
+    # try adding the viewonly user as an auto_publisher of the sharing service public group, will fail (no affiliation)
     status, data = api(
         "POST",
         f"sharing_service/{id}/group/{public_group.id}/auto_publisher",
@@ -213,7 +207,7 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the bot again, should have the new auto_publisher
+    # get the sharing service again, should have the new auto_publisher
     status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
@@ -280,7 +274,7 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the submission from the bot
+    # get the submission from the sharing service
     status, data = api(
         "GET",
         f"sharing_service/submission",
@@ -319,7 +313,7 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the bot again, should have no auto publishers and no coauthors
+    # get the sharing service again, should have no auto publishers and no coauthors
     status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
@@ -338,7 +332,7 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
-    # try deleting the bot private group (should fail as we always need at least one owner group)
+    # try deleting the sharing service group (should fail as we always need at least one owner group)
     status, data = api(
         "DELETE",
         f"sharing_service/{id}/group/{private_group_id}",
@@ -346,7 +340,7 @@ def test_post_and_delete_sharing_service(
     )
     assert status == 400
     assert (
-        "Cannot delete the only group owning this bot, add another group as an owner first."
+        "Cannot delete the only group owning this sharing service, add another group as an owner first."
         in data["message"]
     )
 

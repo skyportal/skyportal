@@ -5,7 +5,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ....models import Obj, SharingService, SharingServicesSubmission
+from ....models import Obj, SharingService, SharingServiceSubmission
 from ....utils.data_access import (
     is_existing_submission_request,
     process_instrument_ids,
@@ -26,15 +26,15 @@ is_configured = (
 )
 
 
-class SharingServicesSubmissionHandler(BaseHandler):
+class SharingServiceSubmissionHandler(BaseHandler):
     @auth_or_token
     def post(self):
         """
         ---
-        summary: Create an SharingServicesSubmission to publish an Obj to TNS or Hermes with a bot
-        description: Create an SharingServicesSubmission to publish an Obj to TNS or Hermes with a bot.
+        summary: Create an SharingServiceSubmission to publish an Obj to TNS or Hermes using a sharing service
+        description: Create an SharingServiceSubmission to publish an Obj to TNS or Hermes using a sharing service.
         tags:
-          - external publishing submission
+          - sharing service submission
         parameter:
         requestBody:
           content:
@@ -173,9 +173,9 @@ class SharingServicesSubmissionHandler(BaseHandler):
                         f"Submission request for Hermes for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.hermes_status}"
                     )
 
-            # create a SharingServicesSubmission entry with that information
-            sharing_service_submission = SharingServicesSubmission(
-                sharingservice_id=sharing_service.id,
+            # create a SharingServiceSubmission entry with that information
+            sharing_service_submission = SharingServiceSubmission(
+                sharing_service_id=sharing_service.id,
                 obj_id=obj.id,
                 user_id=self.associated_user_object.id,
                 custom_publishing_string=publishers,
@@ -194,7 +194,7 @@ class SharingServicesSubmissionHandler(BaseHandler):
             session.add(sharing_service_submission)
             session.commit()
             log(
-                f"Added external publishing request for obj_id {obj.id} (manual submission) with sharing service id {sharing_service.id} for user_id {self.associated_user_object.id}"
+                f"Added submission for obj_id {obj.id} (manual submission) with sharing service id {sharing_service.id} for user_id {self.associated_user_object.id}"
             )
 
             self.push_all(
@@ -208,17 +208,17 @@ class SharingServicesSubmissionHandler(BaseHandler):
         """
         ---
         single:
-            summary: Retrieve a SharingServicesSubmission
-            description: Retrieve a SharingServicesSubmission
+            summary: Retrieve a SharingServiceSubmission
+            description: Retrieve a SharingServiceSubmission
             tags:
-                - external publishing submission
+                - sharing service submission
             parameters:
                 - in: path
                   name: sharing_service_submission_id
                   required: true
                   schema:
                     type: integer
-                  description: The ID of the external publishing submission
+                  description: The ID of the sharing service submission
                 - in: query
                   name: sharing_service_id
                   required: true
@@ -229,14 +229,14 @@ class SharingServicesSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: SharingServicesSubmission
+                            schema: SharingServiceSubmission
                 400:
                     content:
                         application/json:
                             schema: Error
         multiple:
-            summary: Retrieve all SharingServicesSubmissions
-            description: Retrieve all SharingServicesSubmissions
+            summary: Retrieve all SharingServiceSubmissions
+            description: Retrieve all SharingServiceSubmissions
             tags:
                 - external sharing service
             parameters:
@@ -280,7 +280,7 @@ class SharingServicesSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: ArrayOfSharingServicesSubmissions
+                            schema: ArrayOfSharingServiceSubmissions
                 400:
                     content:
                         application/json:
@@ -309,14 +309,14 @@ class SharingServicesSubmissionHandler(BaseHandler):
                 )
             )
             if sharing_service is None:
-                return self.error(f"Bot {sharing_service_id} not found")
+                return self.error(f"Sharing service {sharing_service_id} not found")
 
             if sharing_service_submission_id is not None:
                 submission = session.scalar(
-                    SharingServicesSubmission.select(session.user_or_token).where(
-                        SharingServicesSubmission.sharingservice_id
+                    SharingServiceSubmission.select(session.user_or_token).where(
+                        SharingServiceSubmission.sharing_service_id
                         == sharing_service_id,
-                        SharingServicesSubmission.id == sharing_service_submission_id,
+                        SharingServiceSubmission.id == sharing_service_submission_id,
                     )
                 )
                 if submission is None:
@@ -329,26 +329,26 @@ class SharingServicesSubmissionHandler(BaseHandler):
                 }
                 return self.success(data=submission)
             else:
-                stmt = SharingServicesSubmission.select(session.user_or_token).where(
-                    SharingServicesSubmission.sharingservice_id == sharing_service_id
+                stmt = SharingServiceSubmission.select(session.user_or_token).where(
+                    SharingServiceSubmission.sharing_service_id == sharing_service_id
                 )
                 if obj_id is not None:
-                    stmt = stmt.where(SharingServicesSubmission.obj_id == obj_id)
+                    stmt = stmt.where(SharingServiceSubmission.obj_id == obj_id)
 
                 # run a count query to get the total number of results
                 total_matches = session.execute(
                     sa.select(sa.func.count()).select_from(stmt)
                 ).scalar()
 
-                stmt = stmt.order_by(SharingServicesSubmission.created_at.desc())
+                stmt = stmt.order_by(SharingServiceSubmission.created_at.desc())
 
                 if include_payload:
                     stmt = stmt.options(
-                        sa.orm.undefer(SharingServicesSubmission.tns_payload)
+                        sa.orm.undefer(SharingServiceSubmission.tns_payload)
                     )
                 if include_response:
                     stmt = stmt.options(
-                        sa.orm.undefer(SharingServicesSubmission.response)
+                        sa.orm.undefer(SharingServiceSubmission.response)
                     )
 
                 submissions = session.scalars(

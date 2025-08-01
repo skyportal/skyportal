@@ -21,10 +21,10 @@ tables_to_rename = [
     ("tnsrobots", "sharingservices"),
     ("instrument_tnsrobots", "instrument_sharingservices"),
     ("stream_tnsrobots", "stream_sharingservices"),
-    ("tnsrobot_coauthors", "sharingservices_coauthors"),
-    ("tnsrobot_groups", "sharingservices_groups"),
-    ("tnsrobot_group_users", "sharingservices_group_users"),
-    ("tnsrobot_submissions", "sharingservices_submissions"),
+    ("tnsrobot_coauthors", "sharingservicecoauthors"),
+    ("tnsrobot_groups", "sharingservicegroups"),
+    ("tnsrobot_group_users", "sharingservicegroupautopublishers"),
+    ("tnsrobot_submissions", "sharingservicesubmissions"),
 ]
 
 
@@ -96,7 +96,24 @@ def upgrade():
         type_="foreignkey",
     )
 
-    # sharing_service_bots
+    # sharingservices
+    op.add_column(
+        "tnsrobots",
+        sa.Column(
+            "name",
+            sa.String(),
+            nullable=True,
+        ),
+    )
+    op.execute("""UPDATE tnsrobots SET name = bot_name""")
+
+    op.alter_column(
+        "tnsrobots",
+        "name",
+        existing_type=sa.String(),
+        nullable=False,
+    )
+
     op.add_column(
         "tnsrobots",
         sa.Column(
@@ -122,9 +139,26 @@ def upgrade():
         nullable=True,
         existing_type=sa.Boolean(),
     )
-    op.alter_column("tnsrobots", "bot_id", existing_type=sa.Integer(), nullable=True)
     op.alter_column(
-        "tnsrobots", "source_group_id", existing_type=sa.Integer(), nullable=True
+        "tnsrobots",
+        "bot_name",
+        new_column_name="tns_bot_name",
+        existing_type=sa.String(),
+        nullable=True,
+    )
+    op.alter_column(
+        "tnsrobots",
+        "bot_id",
+        new_column_name="tns_bot_id",
+        existing_type=sa.Integer(),
+        nullable=True,
+    )
+    op.alter_column(
+        "tnsrobots",
+        "source_group_id",
+        new_column_name="tns_source_group_id",
+        existing_type=sa.Integer(),
+        nullable=True,
     )
     op.alter_column(
         "tnsrobots",
@@ -133,35 +167,35 @@ def upgrade():
         existing_type=postgresql.BYTEA(),
     )
 
-    # instrument_sharing_service_bots
+    # instrument_sharingservices
     op.alter_column(
         "instrument_tnsrobots",
         "tnsrobot_id",
-        new_column_name="sharingservice_id",
+        new_column_name="sharing_service_id",
         existing_type=sa.Integer(),
     )
 
-    # stream_sharing_service_bots
+    # stream_sharingservices
     op.alter_column(
         "stream_tnsrobots",
         "tnsrobot_id",
-        new_column_name="sharingservice_id",
+        new_column_name="sharing_service_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_coauthors
+    # sharingservicecoauthors
     op.alter_column(
         "tnsrobot_coauthors",
         "tnsrobot_id",
-        new_column_name="sharingservice_id",
+        new_column_name="sharing_service_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_groups
+    # sharingservicegroups
     op.alter_column(
         "tnsrobot_groups",
         "tnsrobot_id",
-        new_column_name="sharingservice_id",
+        new_column_name="sharing_service_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
@@ -188,7 +222,7 @@ def upgrade():
         ),
     )
 
-    # sharing_service_group_users
+    # sharingservicegroupautopublishers
     op.alter_column(
         "tnsrobot_group_users",
         "tnsrobot_group_id",
@@ -196,11 +230,11 @@ def upgrade():
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_submissions
+    # sharingservicesubmissions
     op.alter_column(
         "tnsrobot_submissions",
         "tnsrobot_id",
-        new_column_name="sharingservice_id",
+        new_column_name="sharing_service_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
@@ -215,6 +249,9 @@ def upgrade():
         new_column_name="tns_status",
         existing_type=sa.String(),
         nullable=True,
+    )
+    op.execute(
+        "UPDATE tnsrobot_submissions SET tns_status = NULL WHERE tns_status = 'N/A'"
     )
     op.alter_column(
         "tnsrobot_submissions",
@@ -276,7 +313,7 @@ def upgrade():
                 f"{new}_reverse_ind",
                 new,
                 [
-                    "sharingservice_id",
+                    "sharing_service_id",
                     f"{'instrument' if 'instrument' in new else 'stream'}_id",
                 ],
                 unique=False,
@@ -286,7 +323,7 @@ def upgrade():
                 new,
                 [
                     f"{'instrument' if 'instrument' in new else 'stream'}_id",
-                    "sharingservice_id",
+                    "sharing_service_id",
                 ],
                 unique=True,
             )
@@ -301,106 +338,109 @@ def upgrade():
 
         op.execute(f"ALTER INDEX {old}_pkey RENAME TO {new}_pkey")
 
+    # Unique constraints
+    op.create_unique_constraint(None, "sharingservices", ["name"])
+
     # Foreign Keys
     op.create_foreign_key(
-        "bot_coauthors_bot_id_fkey",
-        "sharing_service_coauthors",
-        "sharing_service_bots",
-        ["sharingservice_id"],
+        None,
+        "sharingservicecoauthors",
+        "sharingservices",
+        ["sharing_service_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "sharing_service_coauthors_user_id_fkey",
-        "sharing_service_coauthors",
+        None,
+        "sharingservicecoauthors",
         "users",
         ["user_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "bot_groups_bot_id_fkey",
-        "sharing_service_groups",
-        "sharing_service_bots",
-        ["sharingservice_id"],
+        None,
+        "sharingservicegroups",
+        "sharingservices",
+        ["sharing_service_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "sharing_service_groups_group_id_fkey",
-        "sharing_service_groups",
+        None,
+        "sharingservicegroups",
         "groups",
         ["group_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "bot_group_users_bot_group_id_fkey",
-        "sharing_service_group_users",
-        "sharing_service_groups",
+        None,
+        "sharingservicegroupautopublishers",
+        "sharingservicegroups",
         ["sharing_service_group_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "sharing_service_group_users_group_user_id_fkey",
-        "sharing_service_group_users",
+        None,
+        "sharingservicegroupautopublishers",
         "group_users",
         ["group_user_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "sharing_service_submissions_obj_id_fkey",
-        "sharing_service_submissions",
+        None,
+        "sharingservicesubmissions",
         "objs",
         ["obj_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "submissions_bot_id_fkey",
-        "sharing_service_submissions",
-        "sharing_service_bots",
-        ["sharingservice_id"],
+        None,
+        "sharingservicesubmissions",
+        "sharingservices",
+        ["sharing_service_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "sharing_service_submissions_user_id_fkey",
-        "sharing_service_submissions",
+        None,
+        "sharingservicesubmissions",
         "users",
         ["user_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_sharing_service_bots_sharingservice_id_fkey",
-        "stream_sharing_service_bots",
-        "sharing_service_bots",
-        ["sharingservice_id"],
+        None,
+        "stream_sharingservices",
+        "sharingservices",
+        ["sharing_service_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_sharing_service_bots_stream_id_fkey",
-        "stream_sharing_service_bots",
+        None,
+        "stream_sharingservices",
         "streams",
         ["stream_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_sharing_service__sharingservice_id_fkey",
-        "instrument_sharing_service_bots",
-        "sharing_service_bots",
-        ["sharingservice_id"],
+        None,
+        "instrument_sharingservices",
+        "sharingservices",
+        ["sharing_service_id"],
         ["id"],
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_sharing_service_bots_instrument_id_fkey",
-        "instrument_sharing_service_bots",
+        None,
+        "instrument_sharingservices",
         "instruments",
         ["instrument_id"],
         ["id"],
@@ -411,187 +451,216 @@ def upgrade():
 def downgrade():
     # Drop foreign key constraints
     op.drop_constraint(
-        "sharing_service_submissions_user_id_fkey",
-        "sharing_service_submissions",
+        "sharingservicesubmissions_user_id_fkey",
+        "sharingservicesubmissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "submissions_bot_id_fkey",
-        "sharing_service_submissions",
+        "sharingservicesubmissions_sharing_service_id_fkey",
+        "sharingservicesubmissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "sharing_service_submissions_obj_id_fkey",
-        "sharing_service_submissions",
+        "sharingservicesubmissions_obj_id_fkey",
+        "sharingservicesubmissions",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "sharing_service_group_users_group_user_id_fkey",
-        "sharing_service_group_users",
+        "sharingservicegroupautopublishers_group_user_id_fkey",
+        "sharingservicegroupautopublishers",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "bot_group_users_bot_group_id_fkey",
-        "sharing_service_group_users",
+        "sharingservicegroupautopublishers_sharing_service_group_id_fkey",
+        "sharingservicegroupautopublishers",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "sharing_service_groups_group_id_fkey",
-        "sharing_service_groups",
+        "sharingservicegroups_group_id_fkey",
+        "sharingservicegroups",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "bot_groups_bot_id_fkey", "sharing_service_groups", type_="foreignkey"
-    )
-    op.drop_constraint(
-        "sharing_service_coauthors_user_id_fkey",
-        "sharing_service_coauthors",
+        "sharingservicegroups_sharing_service_id_fkey",
+        "sharingservicegroups",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "bot_coauthors_bot_id_fkey",
-        "sharing_service_coauthors",
+        "sharingservicecoauthors_user_id_fkey",
+        "sharingservicecoauthors",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_sharing_service_bots_stream_id_fkey",
-        "stream_sharing_service_bots",
+        "sharingservicecoauthors_sharing_service_id_fkey",
+        "sharingservicecoauthors",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "stream_sharing_service_bots_sharingservice_id_fkey",
-        "stream_sharing_service_bots",
+        "stream_sharingservices_stream_id_fkey",
+        "stream_sharingservices",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_sharing_service_bots_instrument_id_fkey",
-        "instrument_sharing_service_bots",
+        "stream_sharingservices_sharing_service_id_fkey",
+        "stream_sharingservices",
         type_="foreignkey",
     )
     op.drop_constraint(
-        "instrument_sharing_service__sharingservice_id_fkey",
-        "instrument_sharing_service_bots",
+        "instrument_sharingservices_instrument_id_fkey",
+        "instrument_sharingservices",
         type_="foreignkey",
     )
+    op.drop_constraint(
+        "instrument_sharingservices_sharing_service_id_fkey",
+        "instrument_sharingservices",
+        type_="foreignkey",
+    )
+    # unique constraints
+    op.drop_constraint("sharingservices_name_key", "sharingservices", type_="unique")
 
-    # sharing_service_submissions
-    op.drop_column("sharing_service_submissions", "hermes_response")
-    op.drop_column("sharing_service_submissions", "hermes_status")
-    op.drop_column("sharing_service_submissions", "publish_to_hermes")
-    op.drop_column("sharing_service_submissions", "publish_to_tns")
+    # sharingservicesubmissions
+    op.drop_column("sharingservicesubmissions", "hermes_response")
+    op.drop_column("sharingservicesubmissions", "hermes_status")
+    op.drop_column("sharingservicesubmissions", "publish_to_hermes")
+    op.drop_column("sharingservicesubmissions", "publish_to_tns")
     op.alter_column(
-        "sharing_service_submissions",
+        "sharingservicesubmissions",
         "tns_response",
         new_column_name="response",
         existing_type=postgresql.JSONB(),
     )
     op.alter_column(
-        "sharing_service_submissions",
+        "sharingservicesubmissions",
         "tns_payload",
         new_column_name="payload",
         existing_type=postgresql.JSONB(),
     )
     op.alter_column(
-        "sharing_service_submissions",
+        "sharingservicesubmissions",
         "tns_submission_id",
         new_column_name="submission_id",
         existing_type=sa.Integer(),
     )
     op.alter_column(
-        "sharing_service_submissions",
+        "sharingservicesubmissions",
         "tns_status",
         new_column_name="status",
+        existing_type=sa.String(),
+        nullable=True,
+    )
+    op.execute(
+        "UPDATE sharingservicesubmissions SET status = 'N/A' WHERE status IS NULL"
+    )
+    op.alter_column(
+        "sharingservicesubmissions",
+        "status",
         existing_type=sa.String(),
         nullable=False,
     )
     op.alter_column(
-        "sharing_service_submissions",
+        "sharingservicesubmissions",
         "custom_publishing_string",
         new_column_name="custom_reporting_string",
         existing_type=sa.String(),
     )
     op.alter_column(
-        "sharing_service_submissions",
-        "sharingservice_id",
+        "sharingservicesubmissions",
+        "sharing_service_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_group_users
+    # sharingservicegroupautopublishers
     op.alter_column(
-        "sharing_service_group_users",
+        "sharingservicegroupautopublishers",
         "sharing_service_group_id",
         new_column_name="tnsrobot_group_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_groups
-    op.drop_column("sharing_service_groups", "auto_share_to_hermes")
+    # sharingservicegroups
+    op.drop_column("sharingservicegroups", "auto_share_to_hermes")
     op.alter_column(
-        "sharing_service_groups",
+        "sharingservicegroups",
         "auto_sharing_allow_bots",
         new_column_name="auto_report_allow_bots",
         existing_type=sa.Boolean(),
         existing_server_default=sa.text("false"),
     )
     op.alter_column(
-        "sharing_service_groups",
+        "sharingservicegroups",
         "auto_share_to_tns",
         new_column_name="auto_report",
         existing_type=sa.Boolean(),
         server_default=sa.text("false"),
     )
     op.alter_column(
-        "sharing_service_groups",
-        "sharingservice_id",
+        "sharingservicegroups",
+        "sharing_service_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_coauthors
+    # sharingservicecoauthors
     op.alter_column(
-        "sharing_service_coauthors",
-        "sharingservice_id",
+        "sharingservicecoauthors",
+        "sharing_service_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # stream_sharing_service_bots
+    # stream_sharingservices
     op.alter_column(
-        "stream_sharing_service_bots",
-        "sharingservice_id",
+        "stream_sharingservices",
+        "sharing_service_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # instrument_sharing_service_bots
+    # instrument_sharingservices
     op.alter_column(
-        "instrument_sharing_service_bots",
-        "sharingservice_id",
+        "instrument_sharingservices",
+        "sharing_service_id",
         new_column_name="tnsrobot_id",
         existing_type=sa.Integer(),
     )
 
-    # sharing_service_bots
-    op.drop_column("sharing_service_bots", "enable_sharing_with_tns")
-    op.drop_column("sharing_service_bots", "enable_sharing_with_hermes")
+    # sharingservices
+    op.drop_column("sharingservices", "name")
+    op.drop_column("sharingservices", "enable_sharing_with_tns")
+    op.drop_column("sharingservices", "enable_sharing_with_hermes")
     op.alter_column(
-        "sharing_service_bots",
+        "sharingservices",
+        "tns_bot_name",
+        new_column_name="bot_name",
+        existing_type=sa.String(),
+        nullable=False,
+    )
+    op.alter_column(
+        "sharingservices",
+        "tns_bot_id",
+        new_column_name="bot_id",
+        existing_type=sa.Integer(),
+        nullable=True,
+    )
+    op.alter_column(
+        "sharingservices",
+        "tns_source_group_id",
+        new_column_name="source_group_id",
+        existing_type=sa.Integer(),
+        nullable=False,
+    )
+    op.alter_column(
+        "sharingservices",
         "_tns_altdata",
         new_column_name="_altdata",
         existing_type=postgresql.BYTEA(),
     )
     op.alter_column(
-        "sharing_service_bots",
-        "source_group_id",
-        existing_type=sa.Integer(),
-        nullable=False,
+        "sharingservices", "bot_id", existing_type=sa.Integer(), nullable=False
     )
     op.alter_column(
-        "sharing_service_bots", "bot_id", existing_type=sa.Integer(), nullable=False
-    )
-    op.alter_column(
-        "sharing_service_bots",
+        "sharingservices",
         "publish_existing_tns_objects",
         new_column_name="report_existing",
         nullable=False,
@@ -645,7 +714,7 @@ def downgrade():
         op.execute(f"ALTER INDEX {new}_pkey RENAME TO {old}_pkey")
 
     op.create_foreign_key(
-        "tnsrobot_submissions_obj_id_fkey",
+        None,
         "tnsrobot_submissions",
         "objs",
         ["obj_id"],
@@ -653,7 +722,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_submissions_user_id_fkey",
+        None,
         "tnsrobot_submissions",
         "users",
         ["user_id"],
@@ -661,7 +730,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_submissions_tnsrobot_id_fkey",
+        None,
         "tnsrobot_submissions",
         "tnsrobots",
         ["tnsrobot_id"],
@@ -669,7 +738,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_group_users_group_user_id_fkey",
+        None,
         "tnsrobot_group_users",
         "group_users",
         ["group_user_id"],
@@ -677,7 +746,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_group_users_tnsrobot_group_id_fkey",
+        None,
         "tnsrobot_group_users",
         "tnsrobot_groups",
         ["tnsrobot_group_id"],
@@ -685,7 +754,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_groups_group_id_fkey",
+        None,
         "tnsrobot_groups",
         "groups",
         ["group_id"],
@@ -693,7 +762,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_groups_tnsrobot_id_fkey",
+        None,
         "tnsrobot_groups",
         "tnsrobots",
         ["tnsrobot_id"],
@@ -701,7 +770,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_coauthors_user_id_fkey",
+        None,
         "tnsrobot_coauthors",
         "users",
         ["user_id"],
@@ -709,7 +778,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "tnsrobot_coauthors_tnsrobot_id_fkey",
+        None,
         "tnsrobot_coauthors",
         "tnsrobots",
         ["tnsrobot_id"],
@@ -717,7 +786,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_tnsrobots_stream_id_fkey",
+        None,
         "stream_tnsrobots",
         "streams",
         ["stream_id"],
@@ -725,7 +794,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "stream_tnsrobots_tnsrobot_id_fkey",
+        None,
         "stream_tnsrobots",
         "tnsrobots",
         ["tnsrobot_id"],
@@ -733,7 +802,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_tnsrobots_instrument_id_fkey",
+        None,
         "instrument_tnsrobots",
         "instruments",
         ["instrument_id"],
@@ -741,7 +810,7 @@ def downgrade():
         ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "instrument_tnsrobots_tnsrobot_id_fkey",
+        None,
         "instrument_tnsrobots",
         "tnsrobots",
         ["tnsrobot_id"],

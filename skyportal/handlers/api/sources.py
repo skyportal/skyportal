@@ -2020,7 +2020,6 @@ async def get_sources(
 
             if not remove_nested:
                 # REFORMAT SOURCES (SAVE INFO)
-                start = time.time()
                 source_group_ids, source_user_ids = [], []
                 for source in sources:
                     (

@@ -88,7 +88,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
 
             # add the coauthor
             coauthor = SharingServiceCoauthor(
-                sharingservice_id=sharing_service_id, user_id=user_id
+                sharing_service_id=sharing_service_id, user_id=user_id
             )
             session.add(coauthor)
             session.commit()
@@ -147,7 +147,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
                     session.user_or_token, mode="delete"
                 ).where(
                     SharingServiceCoauthor.user_id == user_id,
-                    SharingServiceCoauthor.sharingservice_id == sharing_service_id,
+                    SharingServiceCoauthor.sharing_service_id == sharing_service_id,
                 )
             )
             if coauthor is None:

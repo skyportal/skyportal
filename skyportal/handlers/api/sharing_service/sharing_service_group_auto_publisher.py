@@ -89,7 +89,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             # check if the group already has access to the sharing_service
             sharing_service_group = session.scalar(
                 SharingServiceGroup.select(session.user_or_token).where(
-                    SharingServiceGroup.sharingservice_id == sharing_service_id,
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
                 )
             )
@@ -123,7 +123,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
-                        SharingServiceGroupAutoPublisher.sharingservices_group_id
+                        SharingServiceGroupAutoPublisher.sharing_service_group_id
                         == sharing_service_group.id,
                         SharingServiceGroupAutoPublisher.group_user_id == group_user.id,
                     )
@@ -146,7 +146,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
 
                 new_auto_publishers.append(
                     SharingServiceGroupAutoPublisher(
-                        sharingservices_group_id=sharing_service_group.id,
+                        sharing_service_group_id=sharing_service_group.id,
                         group_user_id=group_user.id,
                     )
                 )
@@ -231,7 +231,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             # check if the group already has access to the sharing_service
             sharing_service_group = session.scalar(
                 SharingServiceGroup.select(session.user_or_token).where(
-                    SharingServiceGroup.sharingservice_id == sharing_service_id,
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
                 )
             )
@@ -265,7 +265,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
-                        SharingServiceGroupAutoPublisher.sharingservices_group_id
+                        SharingServiceGroupAutoPublisher.sharing_service_group_id
                         == sharing_service_group.id,
                         SharingServiceGroupAutoPublisher.group_user_id == group_user.id,
                     )

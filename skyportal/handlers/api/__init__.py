@@ -172,7 +172,7 @@ from .sharing_service.sharing_service_group_auto_publisher import (
     SharingServiceGroupAutoPublisherHandler,
 )
 from .sharing_service.sharing_service_submission import (
-    SharingServicesSubmissionHandler,
+    SharingServiceSubmissionHandler,
 )
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler

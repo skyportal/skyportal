@@ -87,7 +87,7 @@ class Stream(Base):
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External sharing services associated with this stream, used for auto-publishing.",
+        doc="Sharing services associated with this stream",
     )
 
 
@@ -136,6 +136,8 @@ StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
-StreamSharingService = join_model("stream_sharingservices", Stream, SharingService)
+StreamSharingService = join_model(
+    "stream_sharingservices", Stream, SharingService, column_2="sharing_service_id"
+)
 StreamSharingService.__doc__ = "Join table mapping Streams to SharingServices."
 StreamSharingService.create = accessible_by_stream_members
