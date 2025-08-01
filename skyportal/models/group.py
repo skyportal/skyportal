@@ -403,12 +403,12 @@ class Group(Base):
         passive_deletes=True,
         doc="User requests to join this group.",
     )
-    external_publishing_bots = relationship(
-        "ExternalPublishingBotGroup",
+    sharing_services = relationship(
+        "SharingServiceGroup",
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="External publishing bots associated with this group.",
+        doc="Sharing services associated with this group.",
     )
     gcnreports = relationship(
         "GcnReport",

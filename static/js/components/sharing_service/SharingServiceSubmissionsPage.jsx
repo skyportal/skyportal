@@ -8,6 +8,8 @@ import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -21,8 +23,9 @@ import ReactJson from "react-json-view";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import * as externalPublishingActions from "../../ducks/externalPublishing";
+import * as sharingServicesActions from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
+import Box from "@mui/material/Box";
 
 function getStatusColors(status) {
   if (status.toLowerCase().startsWith("complete")) {
@@ -40,39 +43,37 @@ function getStatusColors(status) {
   return ["black", "LightGrey"];
 }
 
-const ExternalPublishingSubmissionsPage = () => {
+const SharingServiceSubmissionsPage = () => {
   const dispatch = useDispatch();
 
-  const { bot_id } = useParams();
+  const { id } = useParams();
 
   const { users: allUsers } = useSelector((state) => state.users);
-  const submissions = useSelector(
-    (state) => state.externalPublishingBots.submissions,
-  );
+  const submissions = useSelector((state) => state.sharingServices.submissions);
 
-  const publishingBotSubmissions =
-    submissions && submissions[bot_id] ? submissions[bot_id]?.submissions : [];
+  const sharingServiceSubmissions =
+    submissions && submissions[id] ? submissions[id]?.submissions : [];
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [loading, setLoading] = useState(false);
   const [showTNSPayload, setShowTNSPayload] = useState(null);
 
   useEffect(() => {
-    if (bot_id && !loading) {
+    if (id && !loading) {
       setLoading(true);
       const params = {
-        external_publishing_bot_id: bot_id,
+        sharing_service_id: id,
         pageNumber: page,
         numPerPage: rowsPerPage,
       };
       dispatch(
-        externalPublishingActions.fetchExternalPublishingSubmissions(params),
+        sharingServicesActions.fetchSharingServiceSubmissions(params),
       ).then(() => {
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, page, rowsPerPage, bot_id]);
+  }, [dispatch, page, rowsPerPage, id]);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -103,7 +104,7 @@ const ExternalPublishingSubmissionsPage = () => {
         style={{
           backgroundColor: colors[1],
           color: colors[0],
-          padding: "1.3em",
+          padding: "0.7em 0.9em",
           borderRadius: "1rem",
           maxWidth: "fit-content",
           fontWeight: 500,
@@ -111,6 +112,55 @@ const ExternalPublishingSubmissionsPage = () => {
       >
         {status ?? "NA"}
       </Typography>
+    );
+  };
+
+  const renderTnsInfo = (dataIndex) => {
+    const { tns_name, tns_submission_id, tns_payload } =
+      sharingServiceSubmissions[dataIndex];
+
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.2rem",
+        }}
+      >
+        {tns_name && (
+          <Tooltip title="TNS name">
+            <a
+              href={`https://www.wis-tns.org/object/${
+                tns_name.trim().includes(" ")
+                  ? tns_name.split(" ")[1]
+                  : tns_name
+              }`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {tns_name}
+            </a>
+          </Tooltip>
+        )}
+        {tns_submission_id && (
+          <Tooltip title="ID of the submission returned by TNS">
+            {tns_submission_id}
+          </Tooltip>
+        )}
+        {tns_payload && (
+          <Tooltip title="TNS payload">
+            <IconButton
+              onClick={() => {
+                setShowTNSPayload(dataIndex);
+              }}
+            >
+              <HistoryEduIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
     );
   };
 
@@ -140,7 +190,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { obj_id } = publishingBotSubmissions[dataIndex];
+          const { obj_id } = sharingServiceSubmissions[dataIndex];
           return (
             <Link to={`/source/${obj_id}`} target="_blank">
               {obj_id}
@@ -156,7 +206,7 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const { user_id } = publishingBotSubmissions[dataIndex];
+          const { user_id } = sharingServiceSubmissions[dataIndex];
           return (
             <div
               style={{
@@ -178,7 +228,7 @@ const ExternalPublishingSubmissionsPage = () => {
                   />
                 )}
               {userLabel(usersLookup[user_id], false, true)}
-              {publishingBotSubmissions[dataIndex].auto_submission && (
+              {sharingServiceSubmissions[dataIndex].auto_submission && (
                 <Tooltip
                   title={`This submission was triggered automatically when the ${
                     usersLookup[user_id]?.is_bot === true ? "BOT" : ""
@@ -199,7 +249,9 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(publishingBotSubmissions[dataIndex].hermes_status),
+          handleStatusRender(
+            sharingServiceSubmissions[dataIndex].hermes_status,
+          ),
       },
     },
     {
@@ -209,43 +261,16 @@ const ExternalPublishingSubmissionsPage = () => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(publishingBotSubmissions[dataIndex].tns_status),
+          handleStatusRender(sharingServiceSubmissions[dataIndex].tns_status),
       },
     },
     {
-      name: "tns_name",
-      label: "TNS name (ID)",
+      name: "tns_info",
+      label: "TNS info",
       options: {
         filter: false,
         sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { tns_name, tns_submission_id } =
-            publishingBotSubmissions[dataIndex];
-          if (!tns_name) return null;
-          return (
-            <a
-              key={tns_name}
-              href={`https://www.wis-tns.org/object/${
-                tns_name.trim().includes(" ")
-                  ? tns_name.split(" ")[1]
-                  : tns_name
-              }`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ whiteSpace: "nowrap" }}
-            >
-              {tns_name}
-              {tns_submission_id && (
-                <Tooltip
-                  title="ID of the submission returned by TNS"
-                  style={{ marginLeft: "0.5rem" }}
-                >
-                  ({tns_submission_id})
-                </Tooltip>
-              )}
-            </a>
-          );
-        },
+        customBodyRenderLite: renderTnsInfo,
       },
     },
     {
@@ -264,35 +289,15 @@ const ExternalPublishingSubmissionsPage = () => {
         display: false,
         filter: false,
         sort: true,
-        customBodyRenderLite: (dataIndex) =>
-          publishingBotSubmissions[dataIndex].archival.toString(),
-      },
-    },
-    {
-      name: "tns_payload",
-      label: "TNS payload",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: (dataIndex) => {
-          const { tns_payload } = publishingBotSubmissions[dataIndex];
-          if (tns_payload === null) {
-            return null;
-          }
-          return (
-            <div
-              style={{ display: "flex", flexDirection: "row", width: "100%" }}
-            >
-              <IconButton
-                onClick={() => {
-                  setShowTNSPayload(dataIndex);
-                }}
-              >
-                <HistoryEduIcon />
-              </IconButton>
-            </div>
-          );
-        },
+        customBodyRenderLite: (dataIndex) => (
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            {sharingServiceSubmissions[dataIndex].archival ? (
+              <CheckCircleIcon filled={true} style={{ color: "green" }} />
+            ) : (
+              <CancelIcon filled={true} style={{ color: "red" }} />
+            )}
+          </Box>
+        ),
       },
     },
   ];
@@ -304,8 +309,8 @@ const ExternalPublishingSubmissionsPage = () => {
       ) : (
         <MUIDataTable
           style={{ width: "100%" }}
-          title="External Publishing Submissions"
-          data={publishingBotSubmissions}
+          title="Sharing submissions"
+          data={sharingServiceSubmissions}
           columns={columns}
           options={{
             selectableRows: "none",
@@ -320,12 +325,12 @@ const ExternalPublishingSubmissionsPage = () => {
             rowsPerPage,
             rowsPerPageOptions: [1, 25, 50, 100, 200],
             jumpToPage: true,
-            count: submissions[bot_id]?.totalMatches || 0,
+            count: submissions[id]?.totalMatches || 0,
             onTableChange: handleTableChange,
           }}
         />
       )}
-      {publishingBotSubmissions?.length > 0 && (
+      {sharingServiceSubmissions?.length > 0 && (
         <Dialog
           open={showTNSPayload !== null}
           onClose={() => setShowTNSPayload(null)}
@@ -340,11 +345,11 @@ const ExternalPublishingSubmissionsPage = () => {
                 <IconButton
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      typeof publishingBotSubmissions[showTNSPayload]
+                      typeof sharingServiceSubmissions[showTNSPayload]
                         ?.tns_payload === "string"
-                        ? publishingBotSubmissions[showTNSPayload]?.tns_payload
+                        ? sharingServiceSubmissions[showTNSPayload]?.tns_payload
                         : JSON.stringify(
-                            publishingBotSubmissions[showTNSPayload]
+                            sharingServiceSubmissions[showTNSPayload]
                               ?.tns_payload,
                           ),
                     );
@@ -358,12 +363,12 @@ const ExternalPublishingSubmissionsPage = () => {
           <DialogContent>
             <ReactJson
               src={
-                typeof publishingBotSubmissions[showTNSPayload]?.tns_payload ===
-                "string"
+                typeof sharingServiceSubmissions[showTNSPayload]
+                  ?.tns_payload === "string"
                   ? JSON.parse(
-                      publishingBotSubmissions[showTNSPayload]?.tns_payload,
+                      sharingServiceSubmissions[showTNSPayload]?.tns_payload,
                     )
-                  : publishingBotSubmissions[showTNSPayload]?.tns_payload
+                  : sharingServiceSubmissions[showTNSPayload]?.tns_payload
               }
               displayDataTypes={false}
               displayObjectSize={false}
@@ -380,10 +385,10 @@ const ExternalPublishingSubmissionsPage = () => {
   );
 };
 
-ExternalPublishingSubmissionsPage.propTypes = {
+SharingServiceSubmissionsPage.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default ExternalPublishingSubmissionsPage;
+export default SharingServiceSubmissionsPage;

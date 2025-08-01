@@ -97,7 +97,7 @@ def validate_payload_and_header(payload, header):
 
 def submit_to_hermes(
     submission_request,
-    publishing_bot,
+    sharing_service,
     user,
     photometry,
     reporters,
@@ -111,7 +111,7 @@ def submit_to_hermes(
         obj_id = submission_request.obj_id
         obj = session.scalar(Obj.select(user).where(Obj.id == obj_id))
 
-        if publishing_bot.testing:
+        if sharing_service.testing:
             topic = HERMES_TEST_TOPIC
         elif HERMES_TOPIC is None:
             raise ValueError(
@@ -137,9 +137,9 @@ def submit_to_hermes(
             status = f"Error: Failed to publish to topic '{topic}' with status code {response.status_code}"
             notif_text = f"Hermes error: Failed to publish to topic '{topic}' with status code {response.status_code}"
         else:
-            if publishing_bot.testing:
+            if sharing_service.testing:
                 log(
-                    f"Successfully submitted {obj_id} to Hermes test topic {topic} for publishing bot {publishing_bot.id}"
+                    f"Successfully submitted {obj_id} to Hermes test topic {topic} for sharing service {sharing_service.id}"
                 )
                 notif_text = (
                     f"Successfully submitted {obj_id} to Hermes test topic '{topic}'"
@@ -147,7 +147,7 @@ def submit_to_hermes(
                 status = f"Testing mode, submitted to Hermes test topic '{topic}'."
             else:
                 log(
-                    f"Successfully submitted {obj_id} to Hermes with request ID {submission_request.id} for publishing bot {publishing_bot.id}"
+                    f"Successfully submitted {obj_id} to Hermes with request ID {submission_request.id} for sharing service {sharing_service.id}"
                 )
                 status = f"Successfully submitted {obj_id} to Hermes."
                 notif_text = status
@@ -164,8 +164,8 @@ def submit_to_hermes(
     try:
         flow.push(
             "*",
-            "skyportal/REFRESH_EXTERNAL_PUBLISHING_SUBMISSIONS",
-            payload={"external_publishing_bot_id": publishing_bot.id},
+            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+            payload={"sharing_service_id": sharing_service.id},
         )
         flow.push(
             user_id=submission_request.user_id,

@@ -2,6 +2,7 @@ import sqlalchemy as sa
 
 from baselayer.log import make_log
 from .asynchronous import run_async
+from ..utils.tns import TNS_INSTRUMENT_IDS
 from ..models import (
     Obj,
     Source,
@@ -11,42 +12,29 @@ from ..models import (
     Photometry,
     StreamPhotometry,
     PublicRelease,
-    ExternalPublishingBotGroupAutoPublisher,
-    ExternalPublishingSubmission,
-    ExternalPublishingBotGroup,
-    ExternalPublishingBot,
+    SharingServiceGroupAutoPublisher,
+    SharingServiceSubmission,
+    SharingServiceGroup,
+    SharingService,
     Thumbnail,
-    InstrumentExternalPublishingBot,
-    StreamExternalPublishingBot,
+    InstrumentSharingService,
+    StreamSharingService,
 )
 from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
 
-EXTERNAL_PUBLISHING_INSTRUMENT_IDS = {
-    "alfosc": 41,
-    "asas-sn": 195,
-    "atlas": [153, 159, 160, 255, 256, 167],
-    "decam": 172,
-    "efosc2": 30,
-    "gaia": 163,
-    "goodman": 136,
-    "goto": [218, 264, 265, 266],
-    "ps1": [98, 154, 155, 257],
-    "sedm": [149, 225],
-    "sprat": 156,
-    "ztf": 196,
-}
+SHARING_INSTRUMENT_IDS = TNS_INSTRUMENT_IDS
 
 PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,
-    "auto_publish_allow_archival": bool,
+    "auto_sharing_allow_archival": bool,
 }
 
 
-def check_access_to_external_publishing_bot(session, user, external_publishing_bot_id):
-    """Check if the user has access to the external_publishing_bot.
-    Returns the publishing bot object if the user has access, otherwise raises ValueError.
+def check_access_to_sharing_service(session, user, sharing_service_id):
+    """Check if the user has access to the sharing_service.
+    Returns the sharing service object if the user has access, otherwise raises ValueError.
 
     Parameters
     ----------
@@ -54,56 +42,53 @@ def check_access_to_external_publishing_bot(session, user, external_publishing_b
         Database session, which contains the user or token
     user : `baselayer.app.models.User`
         The user to check access for
-    external_publishing_bot_id : int
-        The ID of the external_publishing_bot to check access for
+    sharing_service_id : int
+        The ID of the sharing_service to check access for
 
     Returns
     -------
-    external_publishing_bot : `ExternalPublishingBot`
-        The ExternalPublishingBot object if the user has access, otherwise raises ValueError
+    sharing_service : `SharingService`
+        The SharingService object if the user has access, otherwise raises ValueError
     """
-    external_publishing_bot = session.scalar(
-        ExternalPublishingBot.select(user).where(
-            ExternalPublishingBot.id == external_publishing_bot_id
-        )
+    sharing_service = session.scalar(
+        SharingService.select(user).where(SharingService.id == sharing_service_id)
     )
-    if external_publishing_bot is None:
+    if sharing_service is None:
         raise ValueError(
-            f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
+            f"No sharing service with ID {sharing_service_id}, or inaccessible"
         )
-    return external_publishing_bot
+    return sharing_service
 
 
 def is_existing_submission_request(
-    session, obj, external_publishing_bot_id, service, is_bot=False
+    session, obj, sharing_service_id, service, is_bot=False
 ):
-    """Check if there is an existing submission request for the given object and bot and external service.
+    """Check if there is an existing submission request for the given object and sharing service and external service.
     session: SQLAlchemy
         session
     obj: Obj
         object to check
-    external_publishing_bot_id: int
-        ID of the external publishing bot
+    sharing_service_id: int
+        ID of the sharing service
     service: str
         Name of the external service to check (TNS or Hermes)
     is_bot: bool
         If True, checks for bot-specific submissions; otherwise, checks for all submissions.
 
     Returns:
-        ExternalPublishingSubmission or None:
+        SharingServiceSubmission or None:
             The existing submission request if found, None otherwise.
     """
     if service not in ["TNS", "Hermes"]:
         raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
     if service == "TNS":
-        service_status = ExternalPublishingSubmission.tns_status
+        service_status = SharingServiceSubmission.tns_status
     else:
-        service_status = ExternalPublishingSubmission.hermes_status
+        service_status = SharingServiceSubmission.hermes_status
 
-    stmt = ExternalPublishingSubmission.select(session.user_or_token).where(
-        ExternalPublishingSubmission.obj_id == obj.id,
-        ExternalPublishingSubmission.external_publishing_bot_id
-        == external_publishing_bot_id,
+    stmt = SharingServiceSubmission.select(session.user_or_token).where(
+        SharingServiceSubmission.obj_id == obj.id,
+        SharingServiceSubmission.sharing_service_id == sharing_service_id,
         sa.or_(
             service_status == "pending",
             service_status == "processing",
@@ -112,7 +97,7 @@ def is_existing_submission_request(
         ),
     )
     if is_bot:
-        stmt = stmt.where(ExternalPublishingBotGroup.auto_publish_allow_bots.is_(True))
+        stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
     return session.scalars(stmt).first()
 
 
@@ -121,7 +106,7 @@ def process_instrument_ids(
 ):
     """
     Retrieve the list of instruments from the database and
-    check that they are valid and supported for external publishing.
+    check that they are valid and supported for sharing.
 
     Parameters
     ----------
@@ -137,7 +122,7 @@ def process_instrument_ids(
     Returns
     -------
     instruments : list of `~skyportal.models.Instrument` or None
-        The list of instruments that are valid and supported for external publishing.
+        The list of instruments that are valid and supported for sharing.
     """
     if instrument_ids:
         instrument_ids = get_list_typed(
@@ -156,18 +141,18 @@ def process_instrument_ids(
         if len(instruments) != len(instrument_ids):
             raise ValueError(f"One or more instruments not found: {instrument_ids}")
         for instrument in instruments:
-            if instrument.name.lower() not in EXTERNAL_PUBLISHING_INSTRUMENT_IDS:
+            if instrument.name.lower() not in SHARING_INSTRUMENT_IDS:
                 raise ValueError(
-                    f"Instrument {instrument.name} not supported for external publishing"
+                    f"Instrument {instrument.name} not supported for sharing"
                 )
         return instruments
     else:
         return None
 
 
-def filter_accessible_instrument_ids(session, user, instrument_ids, publishing_bot):
+def filter_accessible_instrument_ids(session, user, instrument_ids, sharing_service):
     """
-    Filter the instrument IDs based on the publishing bot and the user access.
+    Filter the instrument IDs based on the sharing service and the user access.
 
     Parameters
     ----------
@@ -177,35 +162,34 @@ def filter_accessible_instrument_ids(session, user, instrument_ids, publishing_b
         The user to check access for.
     instrument_ids : list of str or list of int
         The list of instrument IDs to filter.
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
-        The publishing bot to submit with.
+    sharing_service : `~skyportal.models.SharingService`
+        The sharing service to submit with.
 
     Returns
     -------
     instrument_ids : list of int
-        The instrument IDs publishable and accessible to the publishing bot and the user.
+        The instrument IDs publishable and accessible to the sharing service and the user.
     """
-    # get the list of instrument IDs that the publishing bot has access to
-    bot_instrument_ids = session.scalars(
-        sa.select(InstrumentExternalPublishingBot.instrument_id).where(
-            InstrumentExternalPublishingBot.external_publishing_bot_id
-            == publishing_bot.id
+    # get the list of instrument IDs that the sharing service has access to
+    accessible_instrument_ids = session.scalars(
+        sa.select(InstrumentSharingService.instrument_id).where(
+            InstrumentSharingService.sharing_service_id == sharing_service.id
         )
     ).all()
-    if not bot_instrument_ids:
+    if not accessible_instrument_ids:
         raise ValueError(
-            f"Must specify instruments on the publishing bot '{publishing_bot.id}' before submitting source."
+            f"Must specify instruments on the sharing service '{sharing_service.id}' before submitting source."
         )
-    # if instrument_ids are not specified, we use the publishing bot list of instruments
+    # if instrument_ids are not specified, we use the sharing service list of instruments
     if not instrument_ids:
-        instrument_ids = bot_instrument_ids
+        instrument_ids = accessible_instrument_ids
 
     instruments = process_instrument_ids(
-        session, user, instrument_ids, bot_instrument_ids
+        session, user, instrument_ids, accessible_instrument_ids
     )
     if not instruments:
         raise ValueError(
-            f"None of the instruments specified for the submission request are accessible to publishing bot '{publishing_bot.id}'."
+            f"None of the instruments specified for the submission request are accessible to sharing service '{sharing_service.id}'."
         )
 
     return [instrument.id for instrument in instruments]
@@ -252,10 +236,10 @@ def process_stream_ids(session, user, stream_ids, accessible_stream_ids=None):
 
 
 def filter_accessible_stream_ids(
-    session, user, stream_ids, publishing_bot, auto_submission=False
+    session, user, stream_ids, sharing_service, auto_submission=False
 ):
     """
-    Filter the stream IDs based on the publishing bot and the user access.
+    Filter the stream IDs based on the sharing service and the user access.
 
     Parameters
     ----------
@@ -265,34 +249,34 @@ def filter_accessible_stream_ids(
         The list of stream IDs to filter.
     user : `~skyportal.models.User`
         The user to check access for.
-    publishing_bot : `~skyportal.models.ExternalPublishingBot`
-        The publishing bot to submit with.
+    sharing_service : `~skyportal.models.SharingService`
+        The sharing service to submit with.
     auto_submission : bool, optional
         Whether the submission is an auto-submission, by default False
 
     Returns
     -------
     stream_ids : list of int or None
-        The stream IDs accessible to the publishing bot and the user or None.
+        The stream IDs accessible to the sharing service and the user or None.
     """
     # specifying streams to use being optional, we return None if no streams are specified
     if not auto_submission and not stream_ids:
         return None
 
-    bot_stream_ids = session.scalars(
-        sa.select(StreamExternalPublishingBot.stream_id).where(
-            StreamExternalPublishingBot.external_publishing_bot_id == publishing_bot.id
+    accessible_stream_ids = session.scalars(
+        sa.select(StreamSharingService.stream_id).where(
+            StreamSharingService.sharing_service_id == sharing_service.id
         )
     ).all()
-    # if it is auto_submission we use the publishing bot list of stream
+    # if it is an auto submission, we use the sharing service list of stream
     if auto_submission:
-        if not bot_stream_ids:
+        if not accessible_stream_ids:
             raise ValueError(
-                f"Must specify streams for Publishing Bot {publishing_bot.id} when auto-submitting source."
+                f"Must specify streams for sharing service {sharing_service.id} when auto-submitting source."
             )
-        stream_ids = bot_stream_ids
+        stream_ids = accessible_stream_ids
 
-    streams = process_stream_ids(session, user, stream_ids, bot_stream_ids)
+    streams = process_stream_ids(session, user, stream_ids, accessible_stream_ids)
     return [stream.id for stream in streams]
 
 
@@ -418,7 +402,7 @@ def get_photometry_by_instruments_stream_and_options(
 def get_publishable_source_and_photometry(
     session,
     user,
-    publishing_bot_id,
+    sharing_service_id,
     obj_id,
     instrument_ids,
     stream_ids,
@@ -433,8 +417,8 @@ def get_publishable_source_and_photometry(
         Database session
     user : User
         The user trying to publish the data
-    publishing_bot_id : int
-        The ID of the publishing bot to use for restricting the data
+    sharing_service_id : int
+        The ID of the sharing services to use for restricting the data
     obj_id : str
         Object ID
     instrument_ids : list of str
@@ -459,40 +443,38 @@ def get_publishable_source_and_photometry(
     if not obj:
         raise ValueError(f"Object {obj_id} not found")
 
-    publishing_bot = check_access_to_external_publishing_bot(
-        session, user, publishing_bot_id
-    )
+    sharing_service = check_access_to_sharing_service(session, user, sharing_service_id)
 
-    # Filter publishing bot groups the user has access to
+    # Filter sharing service groups the user has access to
     user_accessible_group_ids = [group.id for group in user.accessible_groups]
-    valid_bot_groups = [
-        bot_group
-        for bot_group in publishing_bot.groups
-        if bot_group.group_id in user_accessible_group_ids
+    valid_groups = [
+        group
+        for group in sharing_service.groups
+        if group.group_id in user_accessible_group_ids
     ]
 
     # if auto_submission, check if the group has auto-publish enabled for TNS or Hermes
     # and if the user is an auto-publisher for that group
     if is_auto_submission:
-        valid_bot_groups = [
-            g
-            for g in valid_bot_groups
-            if g.auto_publish_to_tns or g.auto_publish_to_hermes
+        valid_groups = [
+            group
+            for group in valid_groups
+            if group.auto_share_to_tns or group.auto_share_to_hermes
         ]
-        if not valid_bot_groups:
+        if not valid_groups:
             raise ValueError(
-                f"No group with publishing bot {publishing_bot_id} set to auto-publish."
+                f"No group with sharing services {sharing_service_id} set to auto-publish."
             )
 
         # we filter out the groups that this user is not an auto-publisher for
-        valid_bot_groups = [
+        valid_groups = [
             group
-            for group in valid_bot_groups
+            for group in valid_groups
             if session.scalar(
-                sa.select(ExternalPublishingBotGroupAutoPublisher).where(
-                    ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id
+                sa.select(SharingServiceGroupAutoPublisher).where(
+                    SharingServiceGroupAutoPublisher.sharing_service_group_id
                     == group.id,
-                    ExternalPublishingBotGroupAutoPublisher.group_user_id.in_(
+                    SharingServiceGroupAutoPublisher.group_user_id.in_(
                         sa.select(GroupUser.id).where(
                             GroupUser.user_id == user.id,
                             GroupUser.group_id == group.group_id,
@@ -501,24 +483,24 @@ def get_publishable_source_and_photometry(
                 )
             )
         ]
-        if not valid_bot_groups:
+        if not valid_groups:
             raise ValueError(
-                f"User {user.id} is not an auto-publisher for any group with publishing bot {publishing_bot_id}."
+                f"User {user.id} is not an auto-publisher for any group with sharing services {sharing_service_id}."
             )
 
         # if the user is a bot, filter out the groups that are not set to auto-publish with bots
         if user.is_bot:
-            valid_bot_groups = [
-                g for g in valid_bot_groups if g.auto_publish_allow_bots
+            valid_groups = [
+                group for group in valid_groups if group.auto_sharing_allow_bots
             ]
 
-            if not valid_bot_groups:
+            if not valid_groups:
                 raise ValueError(
-                    f"No group with publishing bot {publishing_bot_id} set to auto-publish with bot users."
+                    f"No group in sharing service {sharing_service_id} set to auto-publish with bot users."
                 )
 
     photometry_options = validate_photometry_options(
-        photometry_options, publishing_bot.photometry_options
+        photometry_options, sharing_service.photometry_options
     )
 
     source = session.scalar(
@@ -526,20 +508,20 @@ def get_publishable_source_and_photometry(
         .where(
             Source.obj_id == obj_id,
             Source.active.is_(True),
-            Source.group_id.in_([group.group_id for group in valid_bot_groups]),
+            Source.group_id.in_([group.group_id for group in valid_groups]),
         )
         .order_by(Source.saved_at.asc())
     )
     if source is None:
         raise ValueError(
-            f"Source {obj_id} not saved to any group with publishing bot {publishing_bot_id}."
+            f"Source {obj_id} not saved to any group with sharing services {sharing_service_id}."
         )
 
     instrument_ids = filter_accessible_instrument_ids(
-        session, user, instrument_ids, publishing_bot
+        session, user, instrument_ids, sharing_service
     )
     stream_ids = filter_accessible_stream_ids(
-        session, user, stream_ids, publishing_bot, auto_submission=is_auto_submission
+        session, user, stream_ids, sharing_service, auto_submission=is_auto_submission
     )
 
     photometry = get_photometry_by_instruments_stream_and_options(
@@ -569,19 +551,19 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
     if tns in publish_to or hermes in publish_to:
         # Check if group auto publish is enabled to TNS or Hermes and a user is auto publisher
         stmt = (
-            ExternalPublishingBotGroup.select(saver)
+            SharingServiceGroup.select(saver)
             .join(
-                ExternalPublishingBotGroupAutoPublisher,
-                ExternalPublishingBotGroup.id
-                == ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id,
+                SharingServiceGroupAutoPublisher,
+                SharingServiceGroup.id
+                == SharingServiceGroupAutoPublisher.sharing_service_group_id,
             )
             .where(
-                ExternalPublishingBotGroup.group_id == group_id,
+                SharingServiceGroup.group_id == group_id,
                 sa.or_(
-                    ExternalPublishingBotGroup.auto_publish_to_tns,
-                    ExternalPublishingBotGroup.auto_publish_to_hermes,
+                    SharingServiceGroup.auto_share_to_tns,
+                    SharingServiceGroup.auto_share_to_hermes,
                 ),
-                ExternalPublishingBotGroupAutoPublisher.group_user_id.in_(
+                SharingServiceGroupAutoPublisher.group_user_id.in_(
                     sa.select(GroupUser.id).where(
                         GroupUser.user_id == saver.id,
                         GroupUser.group_id == group_id,
@@ -590,50 +572,53 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
             )
         )
         if saver.is_bot:
-            stmt = stmt.where(
-                ExternalPublishingBotGroup.auto_publish_allow_bots.is_(True)
-            )
-        bot_groups_with_auto_publisher = session.scalars(stmt).all()
-        if bot_groups_with_auto_publisher:
-            services = {}
-            # Determine which services (TNS, Hermes) can be auto-published and the corresponding bot id
-            for bot_group in bot_groups_with_auto_publisher:
-                bot = bot_group.external_publishing_bot
+            stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
+        groups_with_auto_publisher = session.scalars(stmt).all()
+        if groups_with_auto_publisher:
+            external_services = {}
+            # Determine which external services (TNS, Hermes) can be auto-published
+            # and the corresponding sharing service id
+            for group in groups_with_auto_publisher:
+                sharing_service = group.sharing_service
                 if (
-                    not services.get(tns)
+                    not external_services.get(tns)
                     and tns in publish_to
-                    and bot.enable_publish_to_tns
-                    and bot_group.auto_publish_to_tns
-                    and not is_existing_submission_request(session, obj, bot.id, tns)
+                    and sharing_service.enable_sharing_with_tns
+                    and group.auto_share_to_tns
+                    and not is_existing_submission_request(
+                        session, obj, sharing_service.id, tns
+                    )
                 ):
-                    services[tns] = bot.id
+                    external_services[tns] = sharing_service.id
                     publish_to.remove(
                         tns
                     )  # Remove TNS from publish_to to avoid duplicate processing
 
                 if (
-                    not services.get(hermes)
+                    not external_services.get(hermes)
                     and hermes in publish_to
-                    and bot.enable_publish_to_hermes
-                    and bot_group.auto_publish_to_hermes
-                    and not is_existing_submission_request(session, obj, bot.id, hermes)
+                    and sharing_service.enable_sharing_with_hermes
+                    and group.auto_share_to_hermes
+                    and not is_existing_submission_request(
+                        session, obj, sharing_service.id, hermes
+                    )
                 ):
-                    services[hermes] = bot.id
+                    external_services[hermes] = sharing_service.id
                     publish_to.remove(
                         hermes
                     )  # Remove Hermes from publish_to to avoid duplicate processing
-                if len(services) == 2:
+                if len(external_services) == 2:
                     break
 
-            if services:
-                # Merge if same bot is used for both
-                if services.get(tns) == services.get(hermes):
-                    services = {f"{tns}/{hermes}": services[tns]}
+            if external_services:
+                # Merge if same sharing service is used for both
+                if external_services.get(tns) == external_services.get(hermes):
+                    external_services = {f"{tns}/{hermes}": external_services[tns]}
 
                 # Create submission requests
-                for service_name, bot_id in services.items():
-                    submission_request = ExternalPublishingSubmission(
-                        external_publishing_bot_id=bot_id,
+                for service_name, sharing_service_id in external_services.items():
+                    submission_request = SharingServiceSubmission(
+                        sharing_service_id=sharing_service_id,
                         obj_id=obj.id,
                         user_id=saver.id,
                         auto_submission=True,
@@ -645,11 +630,11 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                     session.add(submission_request)
                     session.commit()
                     log(
-                        f"Added ExternalPublishingSubmission for obj_id {obj.id}, group {group_id}, bot_id {bot_id}, user_id {saver.id}, services {service_name}"
+                        f"Added SharingServiceSubmission for obj_id {obj.id}, group {group_id}, sharing_service_id {sharing_service_id}, user_id {saver.id}, services {service_name}"
                     )
             else:
                 log(
-                    "No auto-publishing bots associated with this group are selected to auto publish to TNS or Hermes."
+                    "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
                 )
 
     if "Public page" in publish_to:
