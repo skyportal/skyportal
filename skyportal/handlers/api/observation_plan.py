@@ -63,7 +63,7 @@ from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
-    convert_plans_to_rubin_format,
+    convert_plan_to_rubin_format,
     generate_observation_plan_statistics,
 )
 
@@ -1016,10 +1016,8 @@ class ObservationPlanRequestHandler(BaseHandler):
                         f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
                     )
 
-                data_out = observation_plan_request.to_dict()
-
                 if not include_planned_observations:
-                    return self.success(data=data_out)
+                    return self.success(data=observation_plan_request.to_dict())
 
                 observation_plans = []
                 for observation_plan in observation_plan_request.observation_plans:
@@ -1093,11 +1091,15 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
                 if rubin_format:
-                    data_out["observation_plans"] = convert_plans_to_rubin_format(
-                        observation_plans
-                    )
+                    if not observation_plans:
+                        data_out = "No observation plans found."
+                    else:
+                        data_out = convert_plan_to_rubin_format(observation_plans[0])
                 else:
-                    data_out["observation_plans"] = observation_plans
+                    data_out = {
+                        **observation_plan_request.to_dict(),
+                        "observation_plans": observation_plans,
+                    }
 
                 return self.success(data=data_out)
 

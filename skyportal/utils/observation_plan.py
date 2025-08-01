@@ -916,40 +916,34 @@ def generate_plan(
     Session.remove()
 
 
-def convert_plans_to_rubin_format(plans):
+def convert_plan_to_rubin_format(plan):
     """Convert an observation plan to the Rubin format.
     Args:
-        plans (list): A list of observation plans, each containing
-                      plan_name and planned_observations.
+        plan (dict): A dictionary containing the observation plan details.
     Returns:
-        list: A list of dictionaries formatted for Rubin's observation plan.
+        dict: A dictionary formatted for Rubin LSSTCam observation scripts.
     """
-    rubin_plans = []
-    for plan in plans:
-        plan_name = plan["plan_name"]
-        observations = plan["planned_observations"]
+    plan_name = plan["plan_name"]
+    observations = plan["planned_observations"]
 
-        scripts = []
-        for obs in observations:
-            script = {
-                "name": "track_and_take_image_lsstcam.py",
-                "standard": True,
-                "parameters": {
-                    "ra": obs["field"]["ra"],
-                    "dec": obs["field"]["dec"],
-                    "observation_time": obs["obstime"],
-                    "filter": obs["filt"],
-                    "exptime": obs["exposure_time"],
-                },
-            }
-            scripts.append(script)
+    scripts = []
+    for obs in observations:
+        script = {
+            "name": "track_and_take_image_lsstcam.py",
+            "standard": True,
+            "parameters": {
+                "ra": obs["field"]["ra"],
+                "dec": obs["field"]["dec"],
+                "observation_time": obs["obstime"],
+                "filter": obs["filt"],
+                "exptime": obs["exposure_time"],
+            },
+        }
+        scripts.append(script)
 
-        rubin_plans.append(
-            {
-                "name": plan_name,
-                "program": plan_name,
-                "constraints": [],
-                "scripts": scripts,
-            }
-        )
-    return rubin_plans
+    return {
+        "name": plan_name,
+        "program": plan_name,
+        "constraints": [],
+        "scripts": scripts,
+    }
