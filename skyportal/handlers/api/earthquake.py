@@ -3,6 +3,10 @@ import io
 import arrow
 import astropy.units as u
 import numpy as np
+
+# monkey-patch numpy>=2 so that obspy can use it
+np.float64 = np.float64
+
 import obspy
 import sqlalchemy as sa
 from astropy.time import Time, TimeDelta
