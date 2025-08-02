@@ -98,7 +98,6 @@ from .group import (
 )
 from .group_admission_request import GroupAdmissionRequestHandler
 from .healpix import HealpixUpdateHandler
-from .hermes.hermes import HermesHandler
 from .instrument import InstrumentFieldHandler, InstrumentHandler
 from .instrument_log import (
     InstrumentLogExternalAPIHandler,
@@ -162,6 +161,19 @@ from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
+from .sharing_service.sharing_service import SharingServiceHandler
+from .sharing_service.sharing_service_coauthor import (
+    SharingServiceCoauthorHandler,
+)
+from .sharing_service.sharing_service_group import (
+    SharingServiceGroupHandler,
+)
+from .sharing_service.sharing_service_group_auto_publisher import (
+    SharingServiceGroupAutoPublisherHandler,
+)
+from .sharing_service.sharing_service_submission import (
+    SharingServiceSubmissionHandler,
+)
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
@@ -179,7 +191,6 @@ from .source_labels import SourceLabelsHandler
 from .sources_confirmed_in_gcn import (
     GCNsAssociatedWithSourceHandler,
     SourcesConfirmedInGCNHandler,
-    SourcesConfirmedInGCNTNSHandler,
 )
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
@@ -203,12 +214,6 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
-from .tns.spectrum_tns import SpectrumTNSHandler
-from .tns.tns_robot import TNSRobotHandler
-from .tns.tns_robot_coauthor import TNSRobotCoauthorHandler
-from .tns.tns_robot_group import TNSRobotGroupHandler
-from .tns.tns_robot_group_autoreporter import TNSRobotGroupAutoreporterHandler
-from .tns.tns_robot_submission import TNSRobotSubmissionHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,

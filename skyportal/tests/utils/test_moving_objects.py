@@ -1,11 +1,7 @@
-import arrow
 import astropy.units as u
-import numpy as np
-import pandas as pd
 
 from skyportal.models import DBSession
 from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
-from skyportal.utils.calculations import radec_to_healpix
 from skyportal.utils.moving_objects import *
 
 

@@ -4,7 +4,6 @@ import uuid
 
 import numpy as np
 import pandas as pd
-from regions import Regions
 from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api

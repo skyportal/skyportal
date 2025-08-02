@@ -100,8 +100,9 @@ app:
 
   hermes:
       endpoint: https://hermes.lco.global/api/v0
-      topic: hermes.test
       token:
+      topic: skyportal.skyportal
+      test_topic: skyportal.skyportal_test
 
   winter:
     protocol: http
@@ -209,10 +210,10 @@ app:
       component: TagManagement
     - path: "/taxonomies"
       component: taxonomy/TaxonomyPage
-    - path: "/tns_robots"
-      component: tns/TNSRobotsPage
-    - path: "/tns_robot/:id/submissions"
-      component: tns/TNSRobotSubmissionsPage
+    - path: "/sharing_services"
+      component: sharing_service/SharingServicesPage
+    - path: "/sharing_service/:id/submissions"
+      component: sharing_service/SharingServiceSubmissionsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
 
@@ -287,9 +288,9 @@ app:
           icon: ZoomInOutlined
           url: /observations
 
-        - name: TNS Robots
-          icon: Assignment
-          url: /tns_robots
+        - name: Sharing Services
+          icon: Share
+          url: /sharing_services
 
         - name: Moving Objects
           icon: Animation
@@ -733,7 +734,7 @@ ports:
   notification_queue: 64610
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  tns_submission_queue: 64812
+  sharing_service_submission_queue: 64812
 
 gcn:
   server: gcn.nasa.gov

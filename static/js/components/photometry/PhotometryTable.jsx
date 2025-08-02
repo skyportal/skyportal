@@ -23,9 +23,7 @@ import MUIDataTable from "mui-datatables";
 import Typography from "@mui/material/Typography";
 
 import UpdatePhotometry from "./UpdatePhotometry";
-import PhotometryValidation, {
-  getValidationStatus,
-} from "./PhotometryValidation";
+import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";

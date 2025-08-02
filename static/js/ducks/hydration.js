@@ -14,7 +14,7 @@ export const DUCKS_TO_HYDRATE = [
   "enumTypes",
   "streams",
   "allocations",
-  "tnsrobots",
+  "sharingServices",
   "instrumentForms",
   "observingRuns",
   "analysisServices",

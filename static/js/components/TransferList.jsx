@@ -145,6 +145,7 @@ const TransferList = ({
   return (
     <Grid
       container
+      item
       xs={12}
       spacing={1}
       justifyContent="center"
