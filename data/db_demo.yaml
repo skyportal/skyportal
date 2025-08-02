@@ -1018,8 +1018,9 @@ allocation:
     instrument_id: =MMIRS
   - pi: Michael Coughlin
     proposal_id: TTT-001
-    start_date: "3020-02-12T00:00:00"
-    end_date: "3020-07-12T00:00:00"
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00"
+        end_date: "3030-07-12T00:00:00"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TTT
@@ -1344,8 +1345,8 @@ followup_request:
     payload:
       priority: 5
       observation_type: IFU
-      start_date: 3020-09-01
-      end_date: 3022-09-01
+      start_date: 3010-09-01
+      end_date: 3012-09-01
       exposure_time: 30
       maximum_airmass: 2.5
       maximum_fwhm: 3.0
@@ -1355,8 +1356,8 @@ followup_request:
     payload:
       priority: 5
       observation_type: IFU
-      start_date: 3020-09-01
-      end_date: 3022-09-01
+      start_date: 3010-09-01
+      end_date: 3012-09-01
       exposure_time: 30
       maximum_airmass: 2.5
       maximum_fwhm: 3.0
@@ -1366,8 +1367,8 @@ followup_request:
     payload:
       priority: 5
       observation_type: IFU
-      start_date: 3020-09-01
-      end_date: 3022-09-01
+      start_date: 3010-09-01
+      end_date: 3012-09-01
       exposure_time: 30
       maximum_airmass: 2.5
       maximum_fwhm: 3.0
@@ -1471,8 +1472,6 @@ default_gcn_tag:
     filters: {gcn_tags: ['Fermi']}
 
 gcn_event:
-#  - xml:
-#      file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
