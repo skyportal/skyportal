@@ -14,8 +14,8 @@ def test_reprioritize_followup_request(
         "obj_id": public_source.id,
         "payload": {
             "priority": 1,
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_choices": public_group_generic_allocation.instrument.to_dict()[
                 "filters"
             ],

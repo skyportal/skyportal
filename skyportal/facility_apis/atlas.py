@@ -408,7 +408,7 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "api_token": {
                 "type": "string",
-                "title": "API Token (required)",
+                "title": "API Token",
             },
         },
         "required": [

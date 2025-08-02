@@ -12,7 +12,7 @@ import Input from "@mui/material/Input";
 const useStyles = makeStyles((theme) => ({
   formControl: {
     marginTop: theme.spacing(1),
-    minWidth: 150,
+    minWidth: 170,
   },
   chips: {
     display: "flex",

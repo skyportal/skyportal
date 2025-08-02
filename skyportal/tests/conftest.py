@@ -1274,6 +1274,12 @@ def public_group_sedm_allocation(sedm, public_group):
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
     )
     yield allocation
     AllocationFactory.teardown(allocation)
@@ -1287,6 +1293,12 @@ def public_group2_sedm_allocation(sedm, public_group2):
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
     )
     yield allocation
     AllocationFactory.teardown(allocation)
@@ -1300,6 +1312,12 @@ def public_group_generic_allocation(generic_instrument, public_group):
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
     )
     yield allocation
     AllocationFactory.teardown(allocation)
@@ -1312,8 +1330,8 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
         allocation=public_group_sedm_allocation,
         payload={
             "priority": "5",
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
         },
         requester=user,
@@ -1333,8 +1351,8 @@ def public_source_group2_followup_request(
         allocation=public_group2_sedm_allocation,
         payload={
             "priority": "5",
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
         },
         requester=user_two_groups,

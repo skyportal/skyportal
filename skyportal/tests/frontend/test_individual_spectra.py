@@ -78,7 +78,9 @@ def test_annotations(
     driver.click_xpath("//*[contains(@class, 'filterClose')]")
 
     # push the little triangle to expand the table
-    driver.click_xpath("//*[@data-testid='spectrum-div']//*[@id='expandable-button']")
+    driver.click_xpath(
+        "//*[@data-testid='spectrum-div']//*[@id='expandable-button']/.."
+    )
     driver.wait_for_xpath(f'//div[text()="{annotation_data}"]')
 
     # ----> now go to the source page <----
