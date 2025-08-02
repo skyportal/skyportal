@@ -1,7 +1,7 @@
 """add_allocation_validity_range
 
 Revision ID: d10af879495e
-Revises: c3ee8a0c8d51
+Revises: b3e29f8c1a7d
 Create Date: 2025-07-30 12:46:00.552248
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d10af879495e"
-down_revision = "c3ee8a0c8d51"
+down_revision = "b3e29f8c1a7d"
 branch_labels = None
 depends_on = None
 
