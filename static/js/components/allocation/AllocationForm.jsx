@@ -12,17 +12,17 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Button from "../Button";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import IconButton from "@mui/material/IconButton";
 import { AddCircle, ArrowDropDown, Delete } from "@mui/icons-material";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import Popover from "@mui/material/Popover";
 import Chip from "@mui/material/Chip";
+import Button from "../Button";
 import { modifyAllocation, submitAllocation } from "../../ducks/allocation";
 import { fetchAllocations } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -37,26 +37,28 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
   const handleOpen = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  useEffect(() => {
-    ranges.forEach((range, index) => validateRange(range, index));
-  }, [ranges]);
-
-  const validateRange = (range, index) => {
-    const startDate = dayjs(range.start_date);
-    const endDate = dayjs(range.end_date);
-    const newError = {};
-    if (startDate.isAfter(endDate)) {
-      newError[index] = "Start date must be before end date";
-    } else if (
-      index > 0 &&
-      startDate.isBefore(dayjs(ranges[index - 1].end_date))
-    ) {
-      newError[index] = "Start date must be after previous range's end date";
-    } else {
-      newError[index] = null;
-    }
-    setErrors({ ...errors, ...newError });
+  const validateRanges = (rangesToProcess) => {
+    let newErrors = {};
+    rangesToProcess.forEach((range, index) => {
+      const startDate = dayjs(range.start_date);
+      const endDate = dayjs(range.end_date);
+      if (startDate.isAfter(endDate)) {
+        newErrors[index] = "Start date must be before end date";
+      } else if (
+        index > 0 &&
+        startDate.isBefore(dayjs(ranges[index - 1].end_date))
+      ) {
+        newErrors[index] = "Start date must be after previous range's end date";
+      } else {
+        newErrors[index] = null;
+      }
+    });
+    setErrors(newErrors);
   };
+
+  useEffect(() => {
+    validateRanges(ranges);
+  }, [ranges]);
 
   const handleUpdate = (index, field, newValue) => {
     const newRanges = [...ranges];
@@ -70,8 +72,7 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
 
   const handleAdd = () => {
     // If there are existing ranges, start when the last one ends if not, start now
-    let defaultStart =
-      ranges.length === 0 ? dayjs() : dayjs(ranges[ranges.length - 1].end_date);
+    let defaultStart = dayjs();
     onChange([
       ...ranges,
       {
@@ -96,7 +97,7 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
   }, []);
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
       <FormControl fullWidth ref={selectRef}>
         <InputLabel id="validity-label">Validity Ranges</InputLabel>
         <Select
@@ -141,8 +142,9 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
               <Box key={index} sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", gap: 1 }}>
                   <DateTimePicker
+                    ampm={false}
                     label="Start"
-                    value={dayjs(range.start_date)}
+                    value={new Date(range.start_date)}
                     onChange={(val) =>
                       handleUpdate(index, "start_date", val.toISOString())
                     }
@@ -155,8 +157,9 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
                     }}
                   />
                   <DateTimePicker
+                    ampm={false}
                     label="End"
-                    value={dayjs(range.end_date)}
+                    value={new Date(range.end_date)}
                     onChange={(val) =>
                       handleUpdate(index, "end_date", val.toISOString())
                     }
@@ -171,11 +174,7 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
                       },
                     }}
                   />
-                  <IconButton
-                    onClick={() => handleDelete(index)}
-                    color="error"
-                    sx={{ height: "100%" }}
-                  >
+                  <IconButton onClick={() => handleDelete(index)} color="error">
                     <Delete />
                   </IconButton>
                 </Box>
@@ -186,14 +185,19 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
                 )}
               </Box>
             ))}
-            <Button
-              endIcon={<AddCircle />}
-              onClick={handleAdd}
-              variant="outlined"
-              size="small"
-            >
-              Add Range
-            </Button>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Button
+                endIcon={<AddCircle />}
+                onClick={handleAdd}
+                variant="outlined"
+                size="small"
+              >
+                Add Range
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                (Time shown in your local timezone)
+              </Typography>
+            </Box>
           </Box>
         </Popover>
       </FormControl>
