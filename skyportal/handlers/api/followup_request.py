@@ -761,6 +761,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                     sa.select(FollowupRequest.id).where(
                         FollowupRequest.obj_id == obj_id,
                         FollowupRequest.allocation_id == allocation_id,
+                        FollowupRequest.status != "deleted",
                     )
                 ).first()
                 if existing_request is not None:

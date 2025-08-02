@@ -126,28 +126,6 @@ class GeminiRequest:
         group = f"{allocation_group_name}_{allocation_group_pi}_{allocation_id}"
         group = str(group.replace(" ", "_")).strip()
 
-        obsid = request.payload.get("template_id")
-        # it needs to be castable to an int
-        try:
-            obsid = int(obsid)
-        except Exception:
-            raise ValueError("Invalid template ID")
-
-        if (
-            isinstance(altdata.get("template_ids"), str | list)
-            and len(altdata.get("template_ids")) > 0
-        ):
-            template_ids = get_list_typed(
-                altdata.get("template_ids"),
-                int,
-                "Invalid template IDs specified in altdata",
-            )
-            if len(template_ids) > 0 and obsid not in template_ids:
-                raise ValueError(
-                    f"Invalid template ID, must be one of: {str(template_ids)}"
-                )
-
-        obsnum = str(obsid).strip()
         target = request.obj.id
         ra, dec = request.obj.ra, request.obj.dec
         # the ra dec are in deg, we need them in hms dms
@@ -206,36 +184,58 @@ class GeminiRequest:
         spa = str(gspa).strip()
         sgsmag = str(gsmag).strip() + "/UC/Vega"
 
-        payload = {
-            "prog": programid,
-            "email": user_email,
-            "password": user_password,
-            "obsnum": obsnum,
-            "target": target,
-            "ra": ra,
-            "dec": dec,
-            "posangle": spa,
-            "noteTitle": notetitle,
-            "note": note,
-            "ready": True,
-            "windowDate": l_wDate,
-            "windowTime": l_wTime,
-            "windowDuration": l_wDur,
-            "elevationType": "airmass",
-            "elevationMin": str(l_elmin).strip(),
-            "elevationMax": str(l_elmax).strip(),
-            "gstarg": gstarg,
-            "gsra": gsra,
-            "gsdec": gsdec,
-            "gsmag": sgsmag,
-            "gsprobe": "OIWFS",
-            "group": group,
-        }
+        template_ids = get_list_typed(
+            altdata.get("template_ids"),
+            int,
+            "Invalid template IDs specified in altdata",
+        )
+        obsids = get_list_typed(
+            request.payload.get("template_ids"),
+            int,
+            "Invalid template IDs specified in request",
+        )
 
-        if round(l_exptime) != 0:
-            payload.update({"exptime": round(l_exptime)})
+        payloads = []
+        for obsid in obsids:
+            if len(template_ids) > 0 and obsid not in template_ids:
+                raise ValueError(
+                    f"Invalid template ID, must be one of: {str(template_ids)}"
+                )
 
-        return payload
+            obsnum = str(obsid)
+
+            payload = {
+                "prog": programid,
+                "email": user_email,
+                "password": user_password,
+                "obsnum": obsnum,
+                "target": target,
+                "ra": ra,
+                "dec": dec,
+                "posangle": spa,
+                "noteTitle": notetitle,
+                "note": note,
+                "ready": True,
+                "windowDate": l_wDate,
+                "windowTime": l_wTime,
+                "windowDuration": l_wDur,
+                "elevationType": "airmass",
+                "elevationMin": str(l_elmin).strip(),
+                "elevationMax": str(l_elmax).strip(),
+                "gstarg": gstarg,
+                "gsra": gsra,
+                "gsdec": gsdec,
+                "gsmag": sgsmag,
+                "gsprobe": "OIWFS",
+                "group": group,
+            }
+
+            if round(l_exptime) != 0:
+                payload.update({"exptime": round(l_exptime)})
+
+            payloads.append(payload)
+
+        return payloads
 
 
 class GEMINIAPI(FollowUpAPI):
@@ -300,14 +300,28 @@ class GEMINIAPI(FollowUpAPI):
             log(traceback.format_exc())
             raise ValueError(f"Error building Gemini request: {e}")
 
-        r = requests.post(API_URL, verify=False, params=gemini_request.payload)
+        failed_requests = []
+        for payload in gemini_request.payload:
+            r = requests.post(API_URL, verify=False, params=payload)
+            if r.status_code != 200:
+                failed_requests.append(
+                    {
+                        "id": payload["obsnum"],
+                        "content": r.content.decode("utf-8"),
+                    }
+                )
 
-        if r.status_code == 200:
+        if not failed_requests:
             request.status = "submitted"
         else:
-            request.status = f"rejected: {r.content}"
+            failure_ids = ",".join(fail["id"] for fail in failed_requests)
+            if len(failed_requests) == len(gemini_request.payload):
+                request.status = "rejected: all the templates failed to submit"
+            else:
+                request.status = f"submitted: not all templates were submitted successfully, {failure_ids} failed"
+
             log(
-                f"Failed to submit Gemini request for {request.id} (obj {request.obj.id}): {r.content}"
+                f"Failed to submit some Gemini request for {request.id} (obj {request.obj.id}, template_ids {failure_ids}): {' / '.join(fail['content'] for fail in failed_requests)}"
             )
             try:
                 flow = Flow()
@@ -315,7 +329,7 @@ class GEMINIAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     "baselayer/SHOW_NOTIFICATION",
                     payload={
-                        "note": f"Failed to submit Gemini request: {r.content}",
+                        "note": f"Failed to submit Gemini request: {' / '.join(fail['content'] for fail in failed_requests)}",
                         "type": "error",
                     },
                 )
@@ -348,10 +362,10 @@ class GEMINIAPI(FollowUpAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
-            "template_id": {
-                "title": "Template ID",
-                "type": "integer",
-                "description": "The template ID is found on the program's page on the OT",
+            "template_ids": {
+                "title": "Template IDs",
+                "type": "string",
+                "description": "Comma delimited string of template IDs to execute. The template IDs can be found on the program's page on the OT",
             },
             "start_date": {
                 "title": "Start Date (UT)",
@@ -386,7 +400,7 @@ class GEMINIAPI(FollowUpAPI):
             "l_elmax",
             "start_date",
             "end_date",
-            "template_id",
+            "template_ids",
         ],
     }
 
