@@ -28,7 +28,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ModifyAllocation = ({ allocation_id, onClose }) => {
+const ModifyAllocation = ({ allocationId, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
   const { instrumentFormParams } = useSelector((state) => state.instruments);
   const allowedAllocationTypes = useSelector(
@@ -62,7 +62,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
 
   useEffect(() => {
     const selectedAllocation = allocationList.find(
-      (allocation) => allocation?.id === allocation_id,
+      (allocation) => allocation?.id === allocationId,
     );
     if (selectedAllocation) {
       const currentGroup =
@@ -82,12 +82,12 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
           .format("YYYY-MM-DDTHH:mm:ssZ"),
       );
     }
-  }, [allocation_id, allocationList]);
+  }, [allocationId, allocationList]);
 
   useEffect(() => {
-    if (group?.users && allocation_id) {
+    if (group?.users && allocationId) {
       const selectedAllocation = allocationList.find(
-        (allocation) => allocation?.id === allocation_id,
+        (allocation) => allocation?.id === allocationId,
       );
       setSelectedUsers(
         group.users.filter((user) =>
@@ -136,8 +136,8 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
     }
-    formData.instrument_id = allocationLookUp[allocation_id].instrument_id;
-    const result = await dispatch(modifyAllocation(allocation_id, formData));
+    formData.instrument_id = allocationLookUp[allocationId].instrument_id;
+    const result = await dispatch(modifyAllocation(allocationId, formData));
     if (result.status === "success") {
       dispatch(showNotification("Allocation modified successfully"));
       if (typeof onClose === "function") {
@@ -161,7 +161,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
     return validationErrors;
   }
 
-  const instrument_id = allocationLookUp[allocation_id]?.instrument_id;
+  const instrument_id = allocationLookUp[allocationId]?.instrument_id;
   const allocationFormSchema = {
     type: "object",
     properties: {
@@ -173,12 +173,12 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
           enum: allowedAllocationTypes,
         },
         uniqueItems: true,
-        default: allocationLookUp[allocation_id]?.types,
+        default: allocationLookUp[allocationId]?.types,
       },
       pi: {
         type: "string",
         title: "PI",
-        default: allocationLookUp[allocation_id]?.pi,
+        default: allocationLookUp[allocationId]?.pi,
       },
       start_date: {
         type: "string",
@@ -195,7 +195,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
       hours_allocated: {
         type: "number",
         title: "Hours allocated",
-        default: allocationLookUp[allocation_id]?.hours_allocated,
+        default: allocationLookUp[allocationId]?.hours_allocated,
       },
       _altdata:
         instrument_id &&
@@ -316,7 +316,7 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
 };
 
 ModifyAllocation.propTypes = {
-  allocation_id: PropTypes.number,
+  allocationId: PropTypes.number,
   onClose: PropTypes.func,
 };
 

@@ -125,7 +125,9 @@ CopyPhotometryDialog.propTypes = {
       }),
     ),
   }).isRequired,
-  duplicate: PropTypes.string.isRequired,
+  duplicate: PropTypes.shape({
+    obj_id: PropTypes.string.isRequired,
+  }).isRequired,
   dialogOpen: PropTypes.bool.isRequired,
   closeDialog: PropTypes.func.isRequired,
 };

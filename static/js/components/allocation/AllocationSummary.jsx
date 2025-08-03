@@ -21,17 +21,15 @@ import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
-
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Box from "@mui/material/Box";
 
-import makeStyles from "@mui/styles/makeStyles";
 import { JSONTree } from "react-json-tree";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
@@ -46,37 +44,28 @@ import Button from "../Button";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
-const useStyles = makeStyles((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-  editIcon: {
-    cursor: "pointer",
-    marginLeft: "0.2rem",
-  },
-}));
+function allocationTitle(allocation, instrumentList, telescopeList) {
+  const instrument = instrumentList?.filter(
+    (i) => i.id === allocation?.instrument_id,
+  )[0];
+  const telescope = telescopeList?.filter(
+    (t) => t.id === instrument?.telescope_id,
+  )[0];
+
+  return (
+    <b>
+      {instrument?.name || <CircularProgress size={25} />}/
+      {telescope?.nickname || <CircularProgress size={25} />}
+    </b>
+  );
+}
 
 const SimpleMenu = ({ request }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const dispatch = useDispatch();
 
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
   const updateRequestStatus = async (status) => {
-    handleClose();
+    setAnchorEl(null);
     const result = await dispatch(
       SourceAction.editFollowupRequest({ status }, request.id),
     );
@@ -87,13 +76,19 @@ const SimpleMenu = ({ request }) => {
     }
   };
 
+  const menuItemProps = (targetStatus, color, isLast = false) => ({
+    onClick: () => updateRequestStatus(targetStatus),
+    disabled: request.status.startsWith(targetStatus),
+    divider: !isLast,
+    sx: { color: request.status.startsWith(targetStatus) ? "grey" : color },
+  });
+
   return (
     <div>
       <IconButton
         aria-controls="simple-menu"
         aria-haspopup="true"
-        onClick={handleClick}
-        variant="contained"
+        onClick={(e) => setAnchorEl(e.currentTarget)}
         size="large"
       >
         <BuildIcon />
@@ -103,66 +98,38 @@ const SimpleMenu = ({ request }) => {
         anchorEl={anchorEl}
         keepMounted
         open={Boolean(anchorEl)}
-        onClose={handleClose}
+        onClose={() => setAnchorEl(null)}
       >
-        {(request.status.startsWith("submitted") ||
-          request.status.startsWith("not observed") ||
-          request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("complete")}
-            variant="contained"
-            key={`${request.id}_done`}
-          >
-            Mark Observed
-          </MenuItem>
-        )}
-        {(request.status.startsWith("submitted") ||
-          request.status.startsWith("complete") ||
-          request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("not observed")}
-            variant="contained"
-            key={`${request.id}_notdone`}
-          >
-            Mark Not Observed
-          </MenuItem>
-        )}
-        {(request.status === "complete" ||
-          request.status === "not observed") && (
-          <MenuItem
-            onClick={() => updateRequestStatus("pending")}
-            variant="contained"
-            key={`${request.id}_pending`}
-          >
-            Mark Pending
-          </MenuItem>
-        )}
-        {request.status === "complete" && (
-          <MenuItem key={`${request.id}_upload_spec`} onClick={handleClose}>
-            <Link
-              href={`/upload_spectrum/${request.obj.id}`}
-              underline="none"
-              color="textPrimary"
-            >
+        <MenuItem {...menuItemProps("complete", "green")}>
+          Mark as complete
+        </MenuItem>
+        <MenuItem {...menuItemProps("not observed", "darkorange")}>
+          Mark as not observed
+        </MenuItem>
+        <MenuItem
+          {...menuItemProps(
+            "pending",
+            "mediumpurple",
+            request.status !== "complete",
+          )}
+        >
+          Mark as pending
+        </MenuItem>
+        {request.status === "complete" && [
+          <MenuItem divider key="upload_spectrum">
+            <Link href={`/upload_spectrum/${request.obj.id}`} underline="none">
               Upload Spectrum
             </Link>
-          </MenuItem>
-        )}
-        {request.status === "complete" && (
-          <MenuItem
-            key={`${request.id}_upload_phot`}
-            variant="contained"
-            onClick={handleClose}
-          >
+          </MenuItem>,
+          <MenuItem key="upload_photometry">
             <Link
               href={`/upload_photometry/${request.obj.id}`}
               underline="none"
-              color="textPrimary"
             >
               Upload Photometry
             </Link>
-          </MenuItem>
-        )}
+          </MenuItem>,
+        ]}
       </Menu>
     </div>
   );
@@ -230,7 +197,6 @@ const AllocationSummary = ({ route }) => {
       allocation.id === parseInt(route.id, 10)
     )
   ) {
-    // Don't need to do this for assignments -- we can just let the page be blank for a short time
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -239,32 +205,26 @@ const AllocationSummary = ({ route }) => {
   }
 
   return (
-    <div>
-      <div>
-        <Typography variant="h4" gutterBottom color="textSecondary">
-          Plan for:{" "}
-          <b>
-            {allocationTitle(allocation, instrumentList, telescopeList, groups)}
-          </b>
-        </Typography>
-      </div>
-      <div>
-        <AllocationSummaryTable
-          allocation={allocation}
-          totalMatches={totalMatchesAllocations}
-          fetchParams={fetchAllocationParams}
-          setFetchParams={setFetchAllocationParams}
-        />
-      </div>
-      <div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <Typography variant="h4" gutterBottom color="textSecondary">
+        Plan for:{" "}
+        {allocationTitle(allocation, instrumentList, telescopeList, groups)}
+      </Typography>
+      <AllocationSummaryTable
+        allocation={allocation}
+        totalMatches={totalMatchesAllocations}
+        fetchParams={fetchAllocationParams}
+        setFetchParams={setFetchAllocationParams}
+      />
+      {observation_plan_requests && (
         <AllocationObservationPlansTable
           observation_plan_requests={observation_plan_requests}
           totalMatches={totalMatchesObservationPlans}
           fetchParams={fetchObservationPlansParams}
           setFetchParams={setFetchObservationPlansParams}
         />
-      </div>
-    </div>
+      )}
+    </Box>
   );
 };
 
@@ -281,9 +241,6 @@ const AllocationObservationPlansTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
-  const styles = useStyles();
-
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -307,84 +264,54 @@ const AllocationObservationPlansTable = ({
     return null;
   };
 
+  const renderPayload = (dataIndex) => {
+    const request = observation_plan_requests[dataIndex];
+    if (!request?.payload) return null;
+
+    return (
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={request.payload} hideRoot />
+      </Box>
+    );
+  };
+
+  const renderSummaryStatistics = (dataIndex) => {
+    const request = observation_plan_requests[dataIndex];
+    if (request.status === "running") return <CircularProgress />;
+
+    return (
+      <ObservationPlanSummaryStatistics observationPlanRequest={request} />
+    );
+  };
+
   const columns = [
     { name: "localization.dateobs", label: "GCN Event" },
     { name: "localization.localization_name", label: "Localization" },
     { name: "created_at", label: "Created at" },
     { name: "status", label: "Status" },
+    {
+      name: "payload",
+      label: "Payload",
+      options: { customBodyRenderLite: renderPayload },
+    },
+    {
+      name: "statistics",
+      label: "Summary Statistics",
+      options: { customBodyRenderLite: renderSummaryStatistics },
+    },
+    {
+      name: "skymap",
+      label: "Skymap",
+      options: {
+        customBodyRenderLite: (dataIndex) => (
+          <ObservationPlanGlobe
+            observationplanRequest={observation_plan_requests[dataIndex]}
+            retrieveLocalization
+          />
+        ),
+      },
+    },
   ];
-
-  const renderPayload = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {observationplanRequest ? (
-          <JSONTree data={observationplanRequest.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "payload",
-    label: "Payload",
-    options: {
-      customBodyRenderLite: renderPayload,
-    },
-  });
-
-  const renderSummaryStatistics = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div>
-        {observationplanRequest.status === "running" ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <ObservationPlanSummaryStatistics
-              observationplanRequest={observationplanRequest}
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "summarystatistics",
-    label: "Summary Statistics",
-    options: {
-      customBodyRenderLite: renderSummaryStatistics,
-    },
-  });
-
-  const renderLocalization = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div className={classes.localization}>
-        <ObservationPlanGlobe
-          observationplanRequest={observationplanRequest}
-          retrieveLocalization
-        />
-      </div>
-    );
-  };
-  columns.push({
-    name: "skymap",
-    label: "Skymap",
-    options: {
-      customBodyRenderLite: renderLocalization,
-    },
-  });
 
   const options = {
     draggableColumns: { enabled: true },
@@ -401,14 +328,12 @@ const AllocationObservationPlansTable = ({
   };
 
   return (
-    <div className={styles.center}>
-      <MUIDataTable
-        title="Observation Plans"
-        columns={columns}
-        data={observation_plan_requests}
-        options={options}
-      />
-    </div>
+    <MUIDataTable
+      title="Observation Plans"
+      columns={columns}
+      data={observation_plan_requests}
+      options={options}
+    />
   );
 };
 
@@ -451,7 +376,6 @@ const AllocationSummaryTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
   const { requests } = allocation;
 
   const [dialogOpen, setDialogOpen] = useState(null);
@@ -476,32 +400,18 @@ const AllocationSummaryTable = ({
     return null;
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (allocation === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
+    if (!allocation) return <CircularProgress />;
 
     const colSpan = rowData.length + 1;
     const request = requests[rowMeta.dataIndex];
-
     return (
       <TableRow>
         <TableCell
           style={{ paddingBottom: 0, paddingTop: 0 }}
           colSpan={colSpan}
         >
-          <Grid
-            container
-            direction="row"
-            spacing={3}
-            justifyContent="center"
-            alignItems="center"
-          >
+          <Grid container direction="row" spacing={3} alignItems="center">
             <ThumbnailList
               thumbnails={request.obj.thumbnails}
               ra={request.obj.ra}
@@ -527,21 +437,15 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
-    const objid = requests[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
+    const objId = requests[dataIndex].obj.id;
+    return <a href={`/source/${objId}`}>{objId}</a>;
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderRA = (dataIndex) => {
     const request = requests[dataIndex];
     return (
-      <div key={`${request.id}_ra`}>
+      <div>
         {request.obj.ra}
         <br />
         {ra_to_hours(request.obj.ra)}
@@ -549,11 +453,10 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const request = requests[dataIndex];
     return (
-      <div key={`${request.id}_dec`}>
+      <div>
         {request.obj.dec}
         <br />
         {dec_to_dms(request.obj.dec)}
@@ -561,7 +464,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -582,12 +484,6 @@ const AllocationSummaryTable = ({
         </IconButton>
       </>
     );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
   const handleOpenDialog = (id, comment) => {
@@ -616,19 +512,34 @@ const AllocationSummaryTable = ({
       <div>
         {request.comment}
         <Tooltip title="Update comment">
-          <span>
-            <EditIcon
-              data-testid="updateCommentIconButton"
-              fontSize="small"
-              className={styles.editIcon}
-              onClick={() => {
-                handleOpenDialog(request.id, request.comment);
-              }}
-            />
-          </span>
+          <EditIcon
+            data-testid="updateCommentIconButton"
+            fontSize="small"
+            sx={{ marginLeft: "0.2rem", cursor: "pointer" }}
+            onClick={() => {
+              handleOpenDialog(request.id, request.comment);
+            }}
+          />
         </Tooltip>
       </div>
     );
+  };
+
+  const renderStatus = (dataIndex) => {
+    const request = requests[dataIndex];
+    let color = null;
+    if (request.status.startsWith("complete")) {
+      color = "green";
+    } else if (request.status.startsWith("not observed")) {
+      color = "darkorange";
+    } else if (request.status.startsWith("pending")) {
+      color = "mediumpurple";
+    } else if (request.status.startsWith("failed")) {
+      color = "indianred";
+    } else if (request.status.startsWith("deleted")) {
+      color = "grey";
+    }
+    return <Box sx={{ color: `${color}` }}>{request.status}</Box>;
   };
 
   const columns = [
@@ -661,6 +572,7 @@ const AllocationSummaryTable = ({
       name: "Status",
       options: {
         filter: true,
+        customBodyRenderLite: renderStatus,
       },
     },
     {
@@ -729,7 +641,9 @@ const AllocationSummaryTable = ({
       name: "Actions",
       options: {
         filter: false,
-        customBodyRenderLite: renderActionsButton,
+        customBodyRenderLite: (dataIndex) => (
+          <SimpleMenu request={requests[dataIndex]} />
+        ),
       },
     },
   ];
@@ -768,7 +682,7 @@ const AllocationSummaryTable = ({
   ]);
 
   return (
-    <div className={styles.center}>
+    <>
       <MUIDataTable
         title="Targets"
         columns={columns}
@@ -779,43 +693,36 @@ const AllocationSummaryTable = ({
         open={dialogOpen != null}
         fullWidth
         maxWidth="lg"
-        onClose={() => {
-          setDialogOpen(null);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(null)}
       >
         <DialogTitle>Update comment</DialogTitle>
         <DialogContent>
-          <div>
-            <TextField
-              data-testid="updateCommentTextfield"
-              size="small"
-              label="comment"
-              value={commentContent || ""}
-              name="comment"
-              minRows={2}
-              fullWidth
-              multiline
-              onChange={(e) => handleChange(e)}
-              variant="outlined"
-            />
-          </div>
-          <p />
-          <div className={styles.saveButton}>
-            <Button
-              secondary
-              onClick={handleSubmit}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateCommentSubmitButton"
-              disabled={isSubmitting}
-            >
-              Save
-            </Button>
-          </div>
+          <TextField
+            data-testid="updateCommentTextfield"
+            size="small"
+            label="comment"
+            value={commentContent || ""}
+            name="comment"
+            minRows={2}
+            fullWidth
+            multiline
+            onChange={(e) => handleChange(e)}
+            variant="outlined"
+            sx={{ mt: 1, mb: 2 }}
+          />
+          <Button
+            secondary
+            onClick={handleSubmit}
+            endIcon={<SaveIcon />}
+            size="large"
+            data-testid="updateCommentSubmitButton"
+            disabled={isSubmitting}
+          >
+            Save
+          </Button>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
@@ -834,7 +741,7 @@ AllocationSummaryTable.propTypes = {
     telescope: PropTypes.shape({
       id: PropTypes.number,
     }),
-    ephemeris: PropTypes.string,
+    ephemeris: PropTypes.shape({}),
     requests: PropTypes.arrayOf(
       PropTypes.shape({
         obj: PropTypes.shape({
@@ -843,13 +750,13 @@ AllocationSummaryTable.propTypes = {
           dec: PropTypes.number,
           redshift: PropTypes.number,
         }),
-        status: PropTypes.bool,
+        status: PropTypes.string,
         created_at: PropTypes.string,
         id: PropTypes.number,
         comment: PropTypes.string,
         payload: PropTypes.shape({
           start_date: PropTypes.string,
-          end_date: PropTypes.number,
+          end_date: PropTypes.string,
           priority: PropTypes.number,
         }),
         rise_time_utc: PropTypes.string,

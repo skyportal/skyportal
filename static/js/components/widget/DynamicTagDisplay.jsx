@@ -199,7 +199,7 @@ DynamicTagDisplay.propTypes = {
     tagsContainer: PropTypes.string.isRequired,
     tagChip: PropTypes.string.isRequired,
   }).isRequired,
-  displayTags: PropTypes.bool.isRequired,
+  displayTags: PropTypes.bool,
 };
 
 export default DynamicTagDisplay;

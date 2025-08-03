@@ -89,7 +89,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   return (
     <div>
       {isAdmin(currentUser) && (
-        <div>
+        <>
           <Button
             size="small"
             onClick={() => {
@@ -115,10 +115,10 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
             </Button>
           </Tooltip>
           &nbsp;|&nbsp;
-        </div>
+        </>
       )}
       {(isAdmin(currentUser) || user.username === currentUser.username) && (
-        <div>
+        <>
           <IconButton
             edge="end"
             aria-label="delete"
@@ -177,7 +177,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
               </Button>
             </DialogActions>
           </Dialog>
-        </div>
+        </>
       )}
     </div>
   );

@@ -46,13 +46,9 @@ const useStyles = makeStyles(() => ({
 
 const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
   const styles = useStyles();
-
   const dispatch = useDispatch();
-
   const userProfile = useSelector((state) => state.profile);
-
   const gcn_tags_classes = useSelector((state) => state.config.gcnTagsClasses);
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
   const openDialog = (tag) => {
@@ -113,7 +109,7 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
   return (
     <div className={styles.root}>
       {show_title && <h4 className={styles.title}>Tags:</h4>}
-      <div className={styles.chips} name="gcn_triggers-tags">
+      <div className={styles.chips}>
         {gcnTagsUnique.map((tag) => (
           <Tooltip
             key={tag}
@@ -138,7 +134,6 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
               </>
             }
           >
-            {/* eslint-disable-next-line no-nested-ternary */}
             {graceid && tag === "LVC" ? (
               <Chip
                 className={styles[tag]}
@@ -181,7 +176,7 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
                   backgroundColor:
                     gcn_tags_classes && tag in gcn_tags_classes
                       ? gcn_tags_classes[tag]
-                      : "#999999",
+                      : "secondary.dark",
                 }}
               />
             )}
@@ -197,7 +192,7 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
               backgroundColor:
                 gcn_tags_classes && tag in gcn_tags_classes
                   ? gcn_tags_classes[tag]
-                  : "#999999",
+                  : "secondary.dark",
             }}
           />
         ))}

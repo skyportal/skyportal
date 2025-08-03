@@ -56,8 +56,6 @@ const useStyles = makeStyles((theme) => ({
     marginTop: "2.5em", // top bar height
     "& a": {
       textDecoration: "none",
-      color: "gray",
-      fontWeight: "bold",
     },
   },
   contentShift: {

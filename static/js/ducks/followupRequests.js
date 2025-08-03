@@ -6,10 +6,12 @@ const FETCH_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 const FETCH_FOLLOWUP_REQUESTS_NO_REDUX =
   "skyportal/FETCH_FOLLOWUP_REQUESTS_NO_REDUX";
 const FETCH_FOLLOWUP_REQUESTS_OK = "skyportal/FETCH_FOLLOWUP_REQUESTS_OK";
-
 const PRIORITIZE_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 
 const REFRESH_FOLLOWUP_REQUESTS = "skyportal/REFRESH_FOLLOWUP_REQUESTS";
+const REFRESH_FOLLOWUP_REQUEST = "skyportal/REFRESH_FOLLOWUP_REQUEST";
+const FETCH_FOLLOWUP_REQUEST = "skyportal/FETCH_FOLLOWUP_REQUEST";
+export const FETCH_FOLLOWUP_REQUEST_OK = "skyportal/FETCH_FOLLOWUP_REQUEST_OK";
 
 const ADD_TO_WATCH_LIST = "skyportal/ADD_TO_WATCH_LIST";
 const REMOVE_FROM_WATCH_LIST = "skyportal/REMOVE_FROM_WATCH_LIST";
@@ -25,6 +27,9 @@ export const removeFromWatchList = (id, params = {}) =>
     REMOVE_FROM_WATCH_LIST,
     params,
   );
+
+export const fetchFollowupRequest = (id, params = {}) =>
+  API.GET(`/api/followup_request/${id}`, FETCH_FOLLOWUP_REQUEST, params);
 
 export function fetchFollowupRequests(params = {}) {
   if (!params?.noRedux) {
@@ -76,6 +81,9 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
     const { followupRequests } = getState();
     dispatch(fetchFollowupRequests(followupRequests?.fetchingParams || {}));
+  } else if (actionType === REFRESH_FOLLOWUP_REQUEST) {
+    const { followup_request_id } = payload;
+    dispatch(fetchFollowupRequest(followup_request_id));
   }
 });
 

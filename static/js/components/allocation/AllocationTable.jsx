@@ -25,19 +25,12 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAllocation from "./NewAllocation";
 import ModifyAllocation from "./ModifyAllocation";
 import { userLabel } from "../../utils/format";
+import CircularProgress from "@mui/material/CircularProgress";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
   },
   allocationManage: {
     display: "flex",
@@ -46,39 +39,6 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
 
 const AllocationTable = ({
   title = "Allocations",
@@ -95,48 +55,18 @@ const AllocationTable = ({
   fixedHeader = false,
 }) => {
   const classes = useStyles();
-  const theme = useTheme();
-
   const dispatch = useDispatch();
-
   const [setRowsPerPage] = useState(numPerPage);
-
-  const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [allocationToEditDelete, setAllocationToEditDelete] = useState(null);
-
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
-
-  const openEditDialog = (id) => {
-    setEditDialogOpen(true);
-    setAllocationToEditDelete(id);
-  };
-  const closeEditDialog = () => {
-    setEditDialogOpen(false);
-    setAllocationToEditDelete(null);
-  };
-
-  const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(true);
-    setAllocationToEditDelete(id);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setAllocationToEditDelete(null);
-  };
+  const [newAllocationDialog, setNewAllocationDialog] = useState(false);
+  const [allocationToEdit, setAllocationToEdit] = useState(null);
+  const [allocationToDelete, setAllocationToDelete] = useState(null);
 
   const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToEditDelete)).then(
+    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Allocation deleted"));
-          closeDeleteDialog();
+          setAllocationToDelete(null);
         }
       },
     );
@@ -150,33 +80,29 @@ const AllocationTable = ({
 
   const renderInstrumentName = (dataIndex) => {
     const allocation = allocations[dataIndex];
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
+    const instrument = instruments?.filter(
+      (i) => i.id === allocation?.instrument_id,
+    )[0];
     return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {instrument ? instrument.name : ""}
-        </Link>
-      </div>
+      <Link to={`/allocation/${allocation.id}`}>
+        {instrument ? instrument.name : <CircularProgress size={20} />}
+      </Link>
     );
   };
 
   const renderTelescopeName = (dataIndex) => {
     const allocation = allocations[dataIndex];
-
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const instrument = instruments?.filter(
+      (i) => i.id === allocation?.instrument_id,
+    )[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
 
     return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope.nickname : ""}
-        </Link>
-      </div>
+      <Link to={`/allocation/${allocation.id}`} role="link">
+        {telescope ? telescope.nickname : <CircularProgress size={20} />}
+      </Link>
     );
   };
 
@@ -266,17 +192,13 @@ const AllocationTable = ({
     return (
       <div className={classes.allocationManage}>
         <IconButton
-          key={`edit_${allocation.id}`}
-          id={`edit_button_${allocation.id}`}
-          onClick={() => openEditDialog(allocation.id)}
+          onClick={() => setAllocationToEdit(allocation.id)}
           disabled={!deletePermission}
         >
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${allocation.id}`}
-          id={`delete_button_${allocation.id}`}
-          onClick={() => openDeleteDialog(allocation.id)}
+          onClick={() => setAllocationToDelete(allocation.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
@@ -441,9 +363,7 @@ const AllocationTable = ({
     customToolbar: () => (
       <IconButton
         name="new_allocation"
-        onClick={() => {
-          openNewDialog();
-        }}
+        onClick={() => setNewAllocationDialog(true)}
       >
         <AddIcon />
       </IconButton>
@@ -451,60 +371,81 @@ const AllocationTable = ({
   };
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={title}
-              data={allocations || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
-      </Paper>
+    <Paper>
+      <MUIDataTable
+        title={title}
+        data={allocations || []}
+        options={options}
+        columns={columns}
+      />
       <Dialog
-        open={newDialogOpen}
-        onClose={closeNewDialog}
+        open={newAllocationDialog}
+        onClose={() => setNewAllocationDialog(false)}
         style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Allocation</DialogTitle>
         <DialogContent dividers>
-          <NewAllocation onClose={closeNewDialog} />
+          <NewAllocation onClose={() => setNewAllocationDialog(false)} />
         </DialogContent>
       </Dialog>
       <Dialog
-        open={editDialogOpen && allocationToEditDelete !== null}
-        onClose={closeEditDialog}
-        style={{ position: "fixed" }}
+        open={allocationToEdit !== null}
+        onClose={() => setAllocationToEdit(null)}
         maxWidth="md"
       >
         <DialogTitle>Edit Allocation</DialogTitle>
         <DialogContent dividers>
           <ModifyAllocation
-            allocation_id={allocationToEditDelete}
-            onClose={closeEditDialog}
+            allocationId={allocationToEdit}
+            onClose={() => setAllocationToEdit(null)}
           />
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteAllocation}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
+        dialogOpen={allocationToDelete !== null}
+        closeDialog={() => setAllocationToDelete(null)}
         resourceName="allocation"
       />
-    </div>
+    </Paper>
   );
 };
 
 AllocationTable.propTypes = {
   title: PropTypes.string,
-  allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
-  instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  telescopes: PropTypes.arrayOf(PropTypes.any),
-  groups: PropTypes.arrayOf(PropTypes.any),
+  allocations: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      instrument_id: PropTypes.number.isRequired,
+      group_id: PropTypes.number.isRequired,
+      start_date: PropTypes.string.isRequired,
+      end_date: PropTypes.string.isRequired,
+      pi: PropTypes.string.isRequired,
+      types: PropTypes.arrayOf(PropTypes.string).isRequired,
+      default_share_group_ids: PropTypes.arrayOf(PropTypes.number),
+      allocation_users: PropTypes.arrayOf(PropTypes.shape({}).isRequired),
+    }),
+  ).isRequired,
+  instruments: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired,
+      telescope_id: PropTypes.number.isRequired,
+    }),
+  ).isRequired,
+  telescopes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      nickname: PropTypes.string.isRequired,
+    }),
+  ),
+  groups: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired,
+    }),
+  ),
   deletePermission: PropTypes.bool,
   paginateCallback: PropTypes.func,
   sortingCallback: PropTypes.func,

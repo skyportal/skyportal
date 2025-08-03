@@ -42,37 +42,26 @@ export function observingRunTitle(
   instrumentList,
   telescopeList,
   groups,
+  isBold = false,
 ) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
+  const telescope = telescopeList?.filter(
+    (t) => t.id === instrument?.telescope_id,
+  )[0];
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
+  const processBold = (text) => (isBold ? <b>{text}</b> : text);
 
-  if (!(observingRun?.calendar_date && instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
+    return <CircularProgress color="secondary" />;
   }
-
   let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
+  const moreInfo =
+    (observingRun?.pi ? `PI: ${observingRun.pi}` : "") +
+    (observingRun?.pi && group?.name ? " / " : "") +
+    (group?.name ? `Group: ${group.name}` : "");
 
-  if (observingRun?.pi || group?.name) {
-    result += " (";
-    if (observingRun?.pi) {
-      result += `PI: ${observingRun.pi}`;
-    }
-    if (group?.name) {
-      result += ` / Group: ${group?.name}`;
-    }
-    result += ")";
-  }
-
-  return result;
+  return processBold(result + (moreInfo ? ` (${moreInfo})` : ""));
 }
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {

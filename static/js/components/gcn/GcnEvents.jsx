@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import {
@@ -28,7 +27,7 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
-import Button from "../Button";
+import Link from "../Link";
 
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
@@ -40,22 +39,11 @@ import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
 const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
   tags: {
     margin: "0 1px 1px 0",
     "& > div": {
       margin: "0.25rem",
     },
-  },
-  gcnEventLink: {
-    padding: 0,
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
   },
   filterAlert: {
     display: "flex",
@@ -307,7 +295,6 @@ const GcnEvents = () => {
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
-  // eslint-disable-next-line no-unused-vars
   const handleFilterReset = async (props) => {
     const params = {
       pageNumber: 1,
@@ -350,7 +337,7 @@ const GcnEvents = () => {
           backgroundColor:
             gcn_tags_classes && tag in gcn_tags_classes
               ? gcn_tags_classes[tag]
-              : "#999999",
+              : "secondary.dark",
         }}
       />
     ));
@@ -428,10 +415,8 @@ const GcnEvents = () => {
   );
 
   const renderDateObs = (dataIndex) => (
-    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`}>
-      <Button className={classes.gcnEventLink}>
-        {events[dataIndex]?.dateobs}
-      </Button>
+    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`} primary>
+      {events[dataIndex]?.dateobs}
     </Link>
   );
 
