@@ -219,7 +219,11 @@ SourceAnnotationButtons.propTypes = {
         origin: PropTypes.string,
       }),
     ),
-    duplicates: PropTypes.arrayOf(PropTypes.string),
+    duplicates: PropTypes.arrayOf(
+      PropTypes.shape({
+        obj_id: PropTypes.string,
+      }),
+    ),
     alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
