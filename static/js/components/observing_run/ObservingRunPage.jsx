@@ -89,7 +89,7 @@ const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
         <EditIcon />
       </Button>
       <Dialog
-        open={observingRunToModify}
+        open={!!observingRunToModify}
         onClose={() => observingRunToModify(null)}
       >
         <DialogTitle>Edit Observing Run</DialogTitle>
