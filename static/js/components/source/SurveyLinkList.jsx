@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import makeStyles from "@mui/styles/makeStyles";
 
+import Link from "../Link";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 dayjs.extend(utc);
@@ -15,31 +16,27 @@ const useStyles = makeStyles((theme) => ({
   },
   SurveyLink: {
     backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
     padding: "2px 15px",
     margin: "3px",
     display: "inline-block",
-    color: theme.palette.secondary.main,
     borderRadius: "5px",
   },
   submitButton: {
-    border: "none",
     backgroundColor: theme.palette.primary.main,
-    cursor: "pointer",
-    padding: 0,
-    margin: 0,
+    color: theme.palette.primary.contrastText,
+    border: "none",
     fontWeight: "bold",
-    color: theme.palette.secondary.main,
-    textDecoration: "none",
-    borderRadius: "5px",
+    fontSize: "1rem",
   },
 }));
 
 const SurveyLink = ({ name, url }) => {
   const styles = useStyles();
   return (
-    <a href={url} target="_blank" rel="noreferrer">
+    <Link to={url} target="_blank" rel="noreferrer">
       <div className={styles.SurveyLink}>{name}</div>
-    </a>
+    </Link>
   );
 };
 

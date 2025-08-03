@@ -14,6 +14,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+// This component renders a spinner in the center of the screen.
 const Spinner = () => {
   const classes = useStyles();
   return <CircularProgress className={classes.spinner} />;
