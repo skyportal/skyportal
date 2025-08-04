@@ -1087,9 +1087,10 @@ class ObservationPlanRequestHandler(BaseHandler):
 
                 if rubin_format:
                     if not observation_plans:
-                        data_out = "No observation plans found."
-                    else:
-                        data_out = convert_plan_to_rubin_format(observation_plans[0])
+                        raise ValueError(
+                            "Observation plan request has no observation plans."
+                        )
+                    data_out = convert_plan_to_rubin_format(observation_plans[0])
                 else:
                     data_out = {
                         **observation_plan_request.to_dict(),
