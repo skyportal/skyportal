@@ -932,11 +932,14 @@ def convert_plan_to_rubin_format(plan):
             "name": "track_and_take_image_lsstcam.py",
             "standard": True,
             "parameters": {
-                "ra": obs["field"]["ra"],
+                "ra": obs["field"]["ra"] / 15.0,  # convert degrees to hours
                 "dec": obs["field"]["dec"],
-                "observation_time": obs["obstime"],
-                "filter": obs["filt"],
-                "exptime": obs["exposure_time"],
+                "rot_sky": 0,
+                "name": plan_name,
+                "obs_time": obs["obstime"],
+                "num_exp": plan["statistics"][0].statistics["num_observations"],
+                "exp_times": [obs["exposure_time"]],
+                "band_filter": obs["field"]["reference_filters"],
             },
         }
         scripts.append(script)
