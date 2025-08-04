@@ -752,6 +752,8 @@ allocation:
     validity_ranges:
       - start_date: "2020-02-12T00:00:00"
         end_date: "3030-07-12T00:00:00"
+      - start_date: "3030-08-01T00:00:00"
+        end_date: "3030-12-31T00:00:00"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =WINTER
@@ -949,6 +951,10 @@ allocation:
     validity_ranges:
       - start_date: "2020-02-12T00:00:00"
         end_date: "3030-07-12T00:00:00"
+      - start_date: "3030-08-01T00:00:00"
+        end_date: "3030-09-01T00:00:00"
+      - start_date: "3030-10-01T00:00:00"
+        end_date: "3030-11-01T00:00:00"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TRE
@@ -957,6 +963,8 @@ allocation:
     validity_ranges:
       - start_date: "2020-02-12T00:00:00"
         end_date: "3030-07-12T00:00:00"
+      - start_date: "3030-08-01T00:00:00"
+        end_date: "3030-09-01T00:00:00"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TCH
