@@ -17,8 +17,6 @@ const EDIT_COMMENT_ON_GCNEVENT = "skyportal/EDIT_COMMENT_ON_GCNEVENT";
 const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
 const PATCH_GCNEVENT_SUMMARY = "skyportal/PATCH_GCNEVENT_SUMMARY";
 
-const GET_COMMENT_ON_GCNEVENT_ATTACHMENT =
-  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT";
 const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK =
   "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK";
 
@@ -29,8 +27,6 @@ const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK =
 
 const SUBMIT_OBSERVATION_PLAN_REQUEST =
   "skyportal/SUBMIT_OBSERVATION_PLAN_REQUEST";
-
-const EDIT_OBSERVATION_PLAN_REQUEST = "skyportal/EDIT_OBSERVATION_PLAN_REQUEST";
 
 const DELETE_OBSERVATION_PLAN_REQUEST =
   "skyportal/DELETE_OBSERVATION_PLAN_REQUEST";
@@ -198,15 +194,6 @@ export const submitObservationPlanRequest = (params) => {
   );
 };
 
-export const editObservationPlanRequest = (params, requestID) => {
-  const { instrument_name, ...paramsToSubmit } = params;
-  return API.PUT(
-    `/api/observation_plan/${requestID}`,
-    EDIT_OBSERVATION_PLAN_REQUEST,
-    paramsToSubmit,
-  );
-};
-
 export const sendObservationPlanRequest = (id) =>
   API.POST(`/api/observation_plan/${id}/queue`, SEND_OBSERVATION_PLAN_REQUEST);
 
@@ -249,13 +236,6 @@ export function fetchObservationPlan(id) {
   return API.GET(
     `/api/observation_plan/${id}?includePlannedObservations=true`,
     FETCH_OBSERVATION_PLAN_REQUEST,
-  );
-}
-
-export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
-  return API.GET(
-    `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_GCNEVENT_ATTACHMENT,
   );
 }
 

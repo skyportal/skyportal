@@ -49,6 +49,9 @@ app:
   # MMT API endpoint
   mmt_endpoint: https://scheduler.mmto.arizona.edu/APIv2
 
+  # TTT API endpoint
+  ttt_endpoint: https://dto.ttt.lightbridges.es/api
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu
