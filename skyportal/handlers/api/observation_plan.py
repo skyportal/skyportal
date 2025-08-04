@@ -415,10 +415,9 @@ def post_survey_efficiency_analysis(
         if not status_complete:
             time.sleep(30)
 
-        if not observation_plan_request.observation_plans:
-            raise ValueError(
-                f"Observation plan request {plan_id} has no observation plans."
-            )
+    observation_plans = observation_plan_request.observation_plans
+    if not observation_plans or not observation_plans[0].planned_observations:
+        raise ValueError("Need at least one observation to evaluate efficiency")
 
     allocation = (
         session.scalars(
@@ -436,10 +435,6 @@ def post_survey_efficiency_analysis(
     ).first()
 
     instrument = allocation.instrument
-
-    observation_plans = observation_plan_request.observation_plans
-    if not observation_plans or not observation_plans[0].planned_observations:
-        raise ValueError("Need at least one observation to evaluate efficiency")
 
     unique_filters = list(
         {
