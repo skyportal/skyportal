@@ -1480,6 +1480,8 @@ default_gcn_tag:
     filters: {gcn_tags: ['Fermi']}
 
 gcn_event:
+#  - xml:
+#      file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
