@@ -320,13 +320,15 @@ class AllocationHandler(BaseHandler):
                         followup_requests = followup_requests.order_by(
                             FollowupRequest.obj_id.desc()
                         )
-                if n_per_page is not None:
-                    followup_requests = (
+                followup_requests = (
+                    session.scalars(
                         followup_requests.distinct()
                         .limit(n_per_page)
                         .offset((page_number - 1) * n_per_page)
                     )
-                followup_requests = session.scalars(followup_requests).unique().all()
+                    .unique()
+                    .all()
+                )
 
                 requests = []
                 for request in followup_requests:

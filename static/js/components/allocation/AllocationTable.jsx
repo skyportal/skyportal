@@ -28,8 +28,8 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
 
-export const isSomeActiveRange = (ranges, date = new Date()) => {
-  return ranges?.length && ranges.some((range) => rangeIsActive(range, date));
+export const isSomeActiveRangeOrNoRange = (ranges, date = new Date()) => {
+  return !ranges?.length || ranges.some((range) => rangeIsActive(range, date));
 };
 
 export const rangeIsActive = (range, date = new Date()) =>
@@ -199,7 +199,6 @@ const AllocationTable = ({
     const validity_ranges = (
       allocations[dataIndex]?.validity_ranges || []
     ).filter((range) => range.end_date >= new Date().toISOString());
-    if (validity_ranges.length === 0) return <Chip label="Inactive" disabled />;
 
     const formatOptions = {
       hour12: false,
@@ -213,28 +212,37 @@ const AllocationTable = ({
       <Tooltip
         title={
           <>
-            {validity_ranges.map((range) => (
-              <Typography
-                key={`${range.start_date}`}
-                variant="body1"
-                sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
-              >
-                {new Date(range.start_date).toLocaleString(
-                  "en-US",
-                  formatOptions,
-                )}{" "}
-                -{" "}
-                {new Date(range.end_date).toLocaleString(
-                  "en-US",
-                  formatOptions,
-                )}
+            {validity_ranges.length ? (
+              validity_ranges.map((range) => (
+                <Typography
+                  key={`${range.start_date}`}
+                  variant="body1"
+                  sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
+                >
+                  {new Date(range.start_date).toLocaleString(
+                    "en-US",
+                    formatOptions,
+                  )}{" "}
+                  -{" "}
+                  {new Date(range.end_date).toLocaleString(
+                    "en-US",
+                    formatOptions,
+                  )}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="body2" sx={{ textAlign: "center" }}>
+                No validity ranges defined for this allocation.
               </Typography>
-            ))}
+            )}
           </>
         }
       >
-        {isSomeActiveRange(validity_ranges) ? (
-          <Chip label="Active" color="success" />
+        {isSomeActiveRangeOrNoRange(validity_ranges) ? (
+          <Chip
+            label={!validity_ranges.length ? "Always Active" : "Active"}
+            color="success"
+          />
         ) : (
           <Chip
             label="Inactive"
@@ -326,9 +334,7 @@ const AllocationTable = ({
         customBodyRenderLite: renderInstrumentName,
       },
     },
-  ];
-  if (telescopeInfo === true) {
-    columns.push({
+    telescopeInfo && {
       name: "telescope_name",
       label: "Telescope Name",
       options: {
@@ -337,79 +343,75 @@ const AllocationTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeName,
       },
-    });
-  }
-  columns.push({
-    name: "validity_ranges",
-    label: "Validity Ranges",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderValidityRanges,
     },
-  });
-  columns.push({
-    name: "PI",
-    label: "PI",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderPI,
+    {
+      name: "PI",
+      label: "PI",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderPI,
+      },
     },
-  });
-  columns.push({
-    name: "Group",
-    label: "Group",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderGroup,
+    {
+      name: "Group",
+      label: "Group",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderGroup,
+      },
     },
-  });
-  columns.push({
-    name: "default_share_group",
-    label: "Default Share Groups",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderShareGroups,
+    {
+      name: "default_share_group",
+      label: "Default Share Groups",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderShareGroups,
+      },
     },
-  });
-  columns.push({
-    name: "admins",
-    label: "Admins",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAllocationUsers,
+    {
+      name: "admins",
+      label: "Admins",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderAllocationUsers,
+      },
     },
-  });
-
-  columns.push({
-    name: "types",
-    label: "Types",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderTypes,
+    {
+      name: "types",
+      label: "Types",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderTypes,
+      },
     },
-  });
-
-  if (deletePermission) {
-    columns.push({
+    {
+      name: "validity_ranges",
+      label: "Validity Ranges",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderValidityRanges,
+      },
+    },
+    deletePermission && {
       name: "manage",
       label: " ",
       options: {
         customBodyRenderLite: renderManage,
       },
-    });
-  }
+    },
+  ].filter(Boolean);
 
   const options = {
     ...(fixedHeader
@@ -453,7 +455,6 @@ const AllocationTable = ({
       <Dialog
         open={newAllocationDialog}
         onClose={() => setNewAllocationDialog(false)}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Allocation</DialogTitle>
@@ -464,7 +465,6 @@ const AllocationTable = ({
       <Dialog
         open={allocationToEdit !== null}
         onClose={() => setAllocationToEdit(null)}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>Edit Allocation</DialogTitle>

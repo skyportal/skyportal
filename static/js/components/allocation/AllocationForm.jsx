@@ -126,6 +126,10 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
           onClick={handleOpen}
           IconComponent={ArrowDropDown}
         ></Select>
+        <Typography variant="body2" color="text.secondary.dark">
+          Define time ranges to control when this allocation can be used. It
+          will not be available outside these ranges. (Local timezone)
+        </Typography>
         <Popover
           open={open}
           anchorEl={anchorEl}
@@ -185,19 +189,14 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
                 )}
               </Box>
             ))}
-            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-              <Button
-                endIcon={<AddCircle />}
-                onClick={handleAdd}
-                variant="outlined"
-                size="small"
-              >
-                Add Range
-              </Button>
-              <Typography variant="caption" color="text.secondary">
-                (Time shown in your local timezone)
-              </Typography>
-            </Box>
+            <Button
+              endIcon={<AddCircle />}
+              onClick={handleAdd}
+              variant="outlined"
+              size="small"
+            >
+              Add Range
+            </Button>
           </Box>
         </Popover>
       </FormControl>

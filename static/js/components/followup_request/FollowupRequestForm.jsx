@@ -28,7 +28,7 @@ import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 import {
-  isSomeActiveRange,
+  isSomeActiveRangeOrNoRange,
   rangeIsActive,
 } from "../allocation/AllocationTable";
 
@@ -285,7 +285,7 @@ const FollowupRequestForm = ({
       }
     }
     if (
-      !isSomeActiveRange(
+      !isSomeActiveRangeOrNoRange(
         allocationLookUp[selectedAllocationId].validity_ranges,
         new Date(formData.start_date),
       )
@@ -295,7 +295,7 @@ const FollowupRequestForm = ({
       );
     }
     if (
-      !isSomeActiveRange(
+      !isSomeActiveRangeOrNoRange(
         allocationLookUp[selectedAllocationId].validity_ranges,
         new Date(formData.end_date),
       )
@@ -396,7 +396,7 @@ const FollowupRequestForm = ({
               className={classes.allocationSelectItem}
             >
               {label}
-              {!isSomeActiveRange(allocation.validity_ranges) && (
+              {!isSomeActiveRangeOrNoRange(allocation.validity_ranges) && (
                 <Tooltip
                   title="This allocation is currently inactive. You can still submit requests for valid future dates."
                   arrow
@@ -405,8 +405,7 @@ const FollowupRequestForm = ({
                     component="span"
                     style={{ fontStyle: "italic", color: "grey" }}
                   >
-                    {" "}
-                    (inactive)
+                    {" (inactive)"}
                   </Typography>
                 </Tooltip>
               )}
@@ -427,6 +426,7 @@ const FollowupRequestForm = ({
           groupIDs={selectedGroupIds}
         />
         <Tooltip
+          componentsProps={{ tooltip: { sx: { maxWidth: 340 } } }}
           title={
             allocationLookUp[selectedAllocationId]?.validity_ranges?.length
               ? allocationLookUp[selectedAllocationId]?.validity_ranges?.map(
@@ -436,8 +436,15 @@ const FollowupRequestForm = ({
                       variant="body1"
                       color={rangeIsActive(range) ? "lightgreen" : "default"}
                     >
-                      {new Date(range.start_date).toLocaleDateString()} –{" "}
-                      {new Date(range.end_date).toLocaleDateString()}
+                      {new Date(range.start_date)
+                        .toISOString()
+                        .replace("T", " ")
+                        .slice(0, 19)}
+                      {" - "}
+                      {new Date(range.end_date)
+                        .toISOString()
+                        .replace("T", " ")
+                        .slice(0, 19)}
                     </Typography>
                   ),
                 )
