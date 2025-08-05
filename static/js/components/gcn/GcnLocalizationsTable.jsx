@@ -357,7 +357,12 @@ GcnLocalizationsTable.propTypes = {
           data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
         }),
       ),
-      tags: PropTypes.arrayOf(PropTypes.string),
+      tags: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          text: PropTypes.string.isRequired,
+        }),
+      ),
       center: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
     }),
   ).isRequired,
