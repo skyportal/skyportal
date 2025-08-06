@@ -4,33 +4,28 @@ import { useDispatch, useSelector } from "react-redux";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
-
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
-
-import Link from "@mui/material/Link";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
-
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-
 import { showNotification } from "baselayer/components/Notifications";
+
+import Link from "../Link";
 import Button from "../Button";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
@@ -60,19 +55,15 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function getStatusColors(status) {
-  // if it starts with success, green
   if (status.startsWith("complete")) {
     return ["black", "MediumAquaMarine"];
   }
-  // if any of these strings are present, yellow
   if (status.includes("not observed")) {
     return ["black", "Orange"];
   }
-  // if it starts with error, red
   if (status.startsWith("error")) {
     return ["white", "Crimson"];
   }
-  // else grey
   return ["black", "LightGrey"];
 }
 
@@ -155,7 +146,6 @@ const SimpleMenu = ({ assignment }) => {
           <MenuItem
             onClick={updateAssignmentStatus("complete")}
             variant="contained"
-            key={`${assignment.id}_done`}
           >
             Mark Observed
           </MenuItem>
@@ -165,7 +155,6 @@ const SimpleMenu = ({ assignment }) => {
           <MenuItem
             onClick={updateAssignmentStatus("not observed")}
             variant="contained"
-            key={`${assignment.id}_notdone`}
           >
             Mark Not Observed
           </MenuItem>
@@ -175,53 +164,31 @@ const SimpleMenu = ({ assignment }) => {
           <MenuItem
             onClick={updateAssignmentStatus("pending")}
             variant="contained"
-            key={`${assignment.id}_pending`}
           >
             Mark Pending
           </MenuItem>
         )}
         {assignment.status === "not observed" && (
-          <MenuItem
-            onClick={reassignAssignment()}
-            variant="contained"
-            key={`${assignment.id}_reassign`}
-          >
+          <MenuItem onClick={reassignAssignment()} variant="contained">
             Reassign
           </MenuItem>
         )}
         {assignment.status === "complete" && (
-          <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
-            <Link
-              href={`/upload_spectrum/${assignment.obj.id}`}
-              underline="none"
-              color="textPrimary"
-            >
+          <MenuItem onClick={handleClose}>
+            <Link to={`/upload_spectrum/${assignment.obj.id}`}>
               Upload Spectrum
             </Link>
           </MenuItem>
         )}
         {assignment.status === "complete" && (
-          <MenuItem
-            key={`${assignment.id}_upload_phot`}
-            variant="contained"
-            onClick={handleClose}
-          >
-            <Link
-              href={`/upload_photometry/${assignment.obj.id}`}
-              underline="none"
-              color="textPrimary"
-            >
+          <MenuItem variant="contained" onClick={handleClose}>
+            <Link to={`/upload_photometry/${assignment.obj.id}`}>
               Upload Photometry
             </Link>
           </MenuItem>
         )}
       </Menu>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md">
         <DialogTitle>Reassign to Observing Run</DialogTitle>
         <DialogContent dividers>
           <AssignmentForm
@@ -251,15 +218,7 @@ const RunSummary = ({ route }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-
   const [dialog, setDialog] = useState(false);
-
-  const openDialog = () => {
-    setDialog(true);
-  };
-  const closeDialog = () => {
-    setDialog(false);
-  };
 
   // Load the observing run and its assignments if needed
   useEffect(() => {
@@ -283,7 +242,7 @@ const RunSummary = ({ route }) => {
           dispatch(
             showNotification("Observing run assignments set to not observed"),
           );
-          closeDialog();
+          setDialog(false);
         }
       },
     );
@@ -340,14 +299,9 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = assignments[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
+  const renderTargetName = (dataIndex) => {
+    const objId = assignments[dataIndex].obj.id;
+    return <Link to={`/source/${objId}`}>{objId}</Link>;
   };
 
   const renderStatus = (dataIndex) => {
@@ -362,7 +316,6 @@ const RunSummary = ({ route }) => {
           padding: "0.25rem 0.75rem 0.25rem 0.75rem",
           borderRadius: "1rem",
           maxWidth: "fit-content",
-          // don't allow line breaks unless the status contains "error"
           whiteSpace: status.includes("error") ? "normal" : "nowrap",
         }}
         name={`${id}_status`}
@@ -372,18 +325,10 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  const renderDateRequested = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_date_requested`}>{assignment.created_at}</div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderRA = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
-      <div key={`${assignment.id}_ra`}>
+      <div>
         {assignment.obj.ra}
         <br />
         {ra_to_hours(assignment.obj.ra)}
@@ -395,7 +340,7 @@ const RunSummary = ({ route }) => {
   const renderDec = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
-      <div key={`${assignment.id}_dec`}>
+      <div>
         {assignment.obj.dec}
         <br />
         {dec_to_dms(assignment.obj.dec)}
@@ -406,7 +351,7 @@ const RunSummary = ({ route }) => {
   const renderRise = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
-      <div key={`${assignment.id}_rise`}>
+      <div>
         {assignment.rise_time_utc === ""
           ? "Never up"
           : new Date(assignment.rise_time_utc).toLocaleTimeString()}
@@ -417,7 +362,7 @@ const RunSummary = ({ route }) => {
   const renderSet = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
-      <div key={`${assignment.id}_set`}>
+      <div>
         {assignment.set_time_utc === ""
           ? "Never up"
           : new Date(assignment.set_time_utc).toLocaleTimeString()}
@@ -425,19 +370,18 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
       <>
-        <IconButton size="small" key={`${assignment.id}_actions`}>
-          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+        <IconButton size="small">
+          <Link to={`/api/sources/${assignment.obj.id}/finder`}>
             <PictureAsPdfIcon />
           </Link>
         </IconButton>
-        <IconButton size="small" key={`${assignment.id}_actions_int`}>
+        <IconButton size="small">
           <Link
-            href={`/source/${assignment.obj.id}/finder`}
+            to={`/source/${assignment.obj.id}/finder`}
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -448,32 +392,20 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const RenderGroups = (dataIndex) => {
     const classes = useStyles();
     const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.obj.id}_groups`}>
-        {assignment.accessible_group_names?.map((name) => (
-          <div key={name}>
-            <Chip
-              label={name.substring(0, 15)}
-              key={name}
-              size="small"
-              className={classes.chip}
-              data-testid={`chip-assignment_${assignment.id}-group_${name}`}
-            />
-            <br />
-          </div>
-        ))}
+    return assignment.accessible_group_names?.map((name) => (
+      <div key={name}>
+        <Chip
+          label={name.substring(0, 15)}
+          size="small"
+          className={classes.chip}
+          data-testid={`chip-assignment_${assignment.id}-group_${name}`}
+        />
+        <br />
       </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
+    ));
   };
 
   const columns = [
@@ -481,7 +413,7 @@ const RunSummary = ({ route }) => {
       name: "Target Name",
       options: {
         filter: true,
-        customBodyRenderLite: renderObjId,
+        customBodyRenderLite: renderTargetName,
       },
     },
     {
@@ -495,7 +427,7 @@ const RunSummary = ({ route }) => {
       name: "Date Requested",
       options: {
         filter: true,
-        customBodyRenderLite: renderDateRequested,
+        customBodyRenderLite: (dataIndex) => assignments[dataIndex].created_at,
       },
     },
     {
@@ -568,7 +500,9 @@ const RunSummary = ({ route }) => {
       name: "Actions",
       options: {
         filter: false,
-        customBodyRenderLite: renderActionsButton,
+        customBodyRenderLite: (dataIndex) => (
+          <SimpleMenu assignment={assignments[dataIndex]} />
+        ),
       },
     },
   ];
@@ -579,16 +513,9 @@ const RunSummary = ({ route }) => {
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
     customToolbar: () => (
-      <>
-        <IconButton
-          name="clouds"
-          onClick={() => {
-            setDialog(true);
-          }}
-        >
-          <CloudIcon />
-        </IconButton>
-      </>
+      <IconButton name="clouds" onClick={() => setDialog(true)}>
+        <CloudIcon />
+      </IconButton>
     ),
   };
 
@@ -611,16 +538,9 @@ const RunSummary = ({ route }) => {
 
   return (
     <div className={styles.center}>
-      <Typography variant="h4" gutterBottom color="textSecondary">
+      <Typography variant="h1" gutterBottom color="secondary.contrastText">
         Plan for:{" "}
-        <b>
-          {observingRunTitle(
-            observingRun,
-            instrumentList,
-            telescopeList,
-            groups,
-          )}
-        </b>
+        {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
       </Typography>
       <MUIDataTable
         title="Targets"
@@ -661,7 +581,7 @@ const RunSummary = ({ route }) => {
         {dialog && (
           <Dialog
             open={dialog}
-            onClose={closeDialog}
+            onClose={() => setDialog(false)}
             style={{ position: "fixed" }}
             maxWidth="md"
           >
@@ -670,7 +590,7 @@ const RunSummary = ({ route }) => {
               objects to not observered?
             </DialogContent>
             <DialogActions>
-              <Button secondary autoFocus onClick={closeDialog}>
+              <Button secondary autoFocus onClick={() => setDialog(false)}>
                 Dismiss
               </Button>
               <Button primary onClick={() => notObservedFunction()}>
