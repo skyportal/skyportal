@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -23,10 +22,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
+
+import Link from "../Link";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-
-import { observingRunTitle } from "./AssignmentForm";
+import { observingRunTitle } from "./RunSummary";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
 
@@ -235,7 +235,7 @@ const ObservingRunPage = () => {
                 <ListItem key={run.id}>
                   <ListItemText
                     primary={
-                      <Link to={`/run/${run.id}`} color="text.secondary">
+                      <Link to={`/run/${run.id}`}>
                         {observingRunTitle(
                           run,
                           instrumentList,

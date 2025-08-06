@@ -34,7 +34,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
@@ -75,6 +74,30 @@ function getStatusColors(status) {
   }
   // else grey
   return ["black", "LightGrey"];
+}
+
+export function observingRunTitle(
+  observingRun,
+  instrumentList,
+  telescopeList,
+  groups,
+) {
+  const { instrument_id } = observingRun;
+  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
+  const telescope = telescopeList?.filter(
+    (t) => t.id === instrument?.telescope_id,
+  )[0];
+  const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
+  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
+    return <CircularProgress color="secondary" />;
+  }
+  let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
+  const moreInfo =
+    (observingRun?.pi ? `PI: ${observingRun.pi}` : "") +
+    (observingRun?.pi && group?.name ? " / " : "") +
+    (group?.name ? `Group: ${group.name}` : "");
+
+  return result + (moreInfo ? ` (${moreInfo})` : "");
 }
 
 const SimpleMenu = ({ assignment }) => {
@@ -202,7 +225,7 @@ const SimpleMenu = ({ assignment }) => {
         <DialogTitle>Reassign to Observing Run</DialogTitle>
         <DialogContent dividers>
           <AssignmentForm
-            obj_id={assignment.obj_id}
+            obj_id={assignment.obj.id}
             observingRunList={observingRunList}
           />
         </DialogContent>
