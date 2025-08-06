@@ -604,10 +604,11 @@ const FilterCandidateList = ({
             >
               <div className={classes.formRow} style={{ marginTop: 0 }}>
                 <Typography variant="h6" className={classes.title}>
-                  Selected scanning profile:&nbsp;
                   {selectedScanningProfile
-                    ? selectedScanningProfile.name || "No name"
-                    : "None"}
+                    ? `Selected scanning profile: ${
+                        selectedScanningProfile.name || "No name"
+                      }`
+                    : "No scanning profile selected"}
                 </Typography>
                 <Typography variant="subtitle2">
                   <i>
