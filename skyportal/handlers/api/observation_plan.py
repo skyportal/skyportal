@@ -63,6 +63,7 @@ from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
+    convert_plan_to_rubin_format,
     generate_observation_plan_statistics,
 )
 
@@ -414,10 +415,9 @@ def post_survey_efficiency_analysis(
         if not status_complete:
             time.sleep(30)
 
-        if not observation_plan_request.observation_plans:
-            raise ValueError(
-                f"Observation plan request {plan_id} has no observation plans."
-            )
+    observation_plans = observation_plan_request.observation_plans
+    if not observation_plans or not observation_plans[0].planned_observations:
+        raise ValueError("Need at least one observation to evaluate efficiency")
 
     allocation = (
         session.scalars(
@@ -435,10 +435,6 @@ def post_survey_efficiency_analysis(
     ).first()
 
     instrument = allocation.instrument
-
-    observation_plans = observation_plan_request.observation_plans
-    if not observation_plans or not observation_plans[0].planned_observations:
-        raise ValueError("Need at least one observation to evaluate efficiency")
 
     unique_filters = list(
         {
@@ -1015,10 +1011,8 @@ class ObservationPlanRequestHandler(BaseHandler):
                         f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
                     )
 
-                data_out = observation_plan_request.to_dict()
-
                 if not include_planned_observations:
-                    return self.success(data=data_out)
+                    return self.success(data=observation_plan_request.to_dict())
 
                 observation_plans = []
                 for observation_plan in observation_plan_request.observation_plans:
@@ -1084,14 +1078,24 @@ class ObservationPlanRequestHandler(BaseHandler):
                         key=lambda k: k["obstime"],
                         reverse=False,
                     )
-
                     observation_plans.append(
                         {
                             **observation_plan.to_dict(),
                             "planned_observations": planned_observations,
                         }
                     )
-                data_out["observation_plans"] = observation_plans
+
+                if rubin_format:
+                    if not observation_plans:
+                        raise ValueError(
+                            "Observation plan request has no observation plans."
+                        )
+                    data_out = convert_plan_to_rubin_format(observation_plans[0])
+                else:
+                    data_out = {
+                        **observation_plan_request.to_dict(),
+                        "observation_plans": observation_plans,
+                    }
 
                 return self.success(data=data_out)
 

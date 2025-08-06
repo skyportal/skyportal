@@ -33,6 +33,7 @@ from .allocation import Allocation
 from .classification import Classification
 from .group import Group
 from .instrument import Instrument
+from .obj import Obj
 from .source import Source
 
 _, cfg = load_env()
@@ -327,20 +328,20 @@ def add_followup(mapper, connection, target):
         if target is None:
             return
 
-        user_id = None
-        target_class_name = target.__class__.__name__
-        obj_origin = None
-        try:
-            obj_origin = target.obj.origin if target_class_name == "GroupObj" else None
-        except Exception:
-            pass
-        target_data = {**target.to_dict(), "obj_origin": obj_origin}
-
         requests_query = sa.select(DefaultFollowupRequest)
+        target_class_name = target.__class__.__name__
 
         # GroupObj is the classname for the Source table,
         # since it's a join table between Obj and Group
         if target_class_name == "GroupObj":
+            try:
+                obj_origin = session.scalar(
+                    sa.select(Obj).where(Obj.id == target.obj_id)
+                ).origin
+            except Exception:
+                obj_origin = None
+            target_data = {**target.to_dict(), "obj_origin": obj_origin}
+
             # match by obj id/name
             # match by group id of the source
             requests_query = requests_query.where(
@@ -365,8 +366,9 @@ def add_followup(mapper, connection, target):
                 )
             )
             user_id = target_data.get("saved_by_id", None)
-        if target_class_name == "Classification":
+        elif target_class_name == "Classification":
             # match by classification
+            target_data = {**target.to_dict()}
             requests_query = requests_query.where(
                 EQ_OP(
                     DefaultFollowupRequest.source_filter["classification"],
@@ -374,12 +376,11 @@ def add_followup(mapper, connection, target):
                 )
             )
             user_id = target_data.get("author_id", None)
-        elif target_class_name not in ["Source", "GroupObj"]:
+        else:
             print(f"Unknown target class name: {target_class_name}")
             return
 
         default_followup_requests = session.scalars(requests_query).all()
-
         if len(default_followup_requests) == 0:
             return
 

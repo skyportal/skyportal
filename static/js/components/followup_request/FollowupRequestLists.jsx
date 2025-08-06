@@ -318,7 +318,17 @@ const FollowupRequestLists = ({
         },
       });
     });
-    columns.push({ name: "status", label: "Status" });
+    columns.push({
+      name: "status",
+      label: "Status",
+      options: {
+        setCellProps: () => ({
+          style: {
+            minWidth: "250px",
+          },
+        }),
+      },
+    });
 
     const renderTransactions = (dataIndex) => {
       const followupRequest = requestsGroupedByInstId[instrument_id][dataIndex];

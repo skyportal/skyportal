@@ -8,9 +8,11 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
-import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Dialog from "@mui/material/Dialog";
+import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
 import Box from "@mui/material/Box";
 import {
   createTheme,
@@ -94,6 +96,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const gcnEvent = useSelector((state) => state.gcnEvent);
+  const [anchorEl, setAnchorEl] = useState(null);
   const [fetchedForLocalizationId, setFetchedForLocalizationId] =
     useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -248,6 +251,10 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
     const renderManage = (dataIndex) => {
       const request = requestsGroupedByInstId[instrument_id][dataIndex];
+      const downloadLink = (rubinFormat = false) =>
+        `/api/observation_plan/${request.id}?includePlannedObservations=True${
+          rubinFormat ? "&rubinFormat=True" : ""
+        }`;
       return request.status === "running" ? (
         <Box className={classes.centered}>
           <CircularProgress />
@@ -267,14 +274,35 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
           </Button>
           <Button
             secondary
-            href={`/api/observation_plan/${request.id}?includePlannedObservations=True`}
-            download={`observation-plan-${request.id}`}
-            data-testid={`downloadRequest_${request.id}`}
-            endIcon={<DownloadIcon />}
             size="small"
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            endIcon={<DownloadIcon />}
           >
             Download
           </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+          >
+            <MenuItem
+              component="a"
+              href={downloadLink()}
+              download={`observation-plan-${request.id}`}
+              onClick={() => setAnchorEl(null)}
+            >
+              ZTF compatible
+            </MenuItem>
+            <MenuItem
+              component="a"
+              href={downloadLink(true)}
+              download={`rubin-observation-plan-${request.id}`}
+              onClick={() => setAnchorEl(null)}
+              disabled={!request.observation_plans?.length}
+            >
+              Rubin compatible
+            </MenuItem>
+          </Menu>
           <Button
             secondary
             href={`/api/observation_plan/${request.id}/movie`}

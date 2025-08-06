@@ -31,8 +31,6 @@ from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
-from sqlalchemy import Integer as Alchemy_Integer
-from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
@@ -156,21 +154,26 @@ def post_gcn_source(
             else:
                 event_tags = get_tags(root, notice_type)
             tags_formatted = [tag.upper().strip() for tag in event_tags]
+
+            # set the origin
+            if "LVC" in tags_formatted:
+                source["origin"] = "LVC"
+            elif "SWIFT" in tags_formatted:
+                source["origin"] = "Swift"
+            elif "FERMI" in tags_formatted:
+                source["origin"] = "Fermi"
+            elif "SVOM" in tags_formatted:
+                source["origin"] = "SVOM"
+            elif "EINSTEIN PROBE" in tags_formatted:
+                source["origin"] = "Einstein Probe"
+
+            # set the id/name
             if "GRB" in tags_formatted:
                 source["id"] = f"GRB-{source_name}"
-                if "SWIFT" in tags_formatted:
-                    source["origin"] = "Swift"
-                elif "FERMI" in tags_formatted:
-                    source["origin"] = "Fermi"
-                elif "SVOM" in tags_formatted:
-                    source["origin"] = "SVOM"
             elif "GW" in tags_formatted:
                 source["id"] = f"GW-{source_name}"
-                if "LVC" in tags_formatted:
-                    source["origin"] = "LVC"
             elif "EINSTEIN PROBE" in tags_formatted:
                 source["id"] = f"EP-{source_name}"
-                source["origin"] = "Einstein Probe"
             else:
                 source["id"] = f"GCN-{source_name}"
 
@@ -524,7 +527,9 @@ def post_gcnevent_from_json(
     if ref_ID is not None:
         event = session.scalars(
             GcnEvent.select(user).where(
-                func.lower(cast(GcnEvent.aliases, String)).like(f"%{ref_ID.lower()}%")
+                sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
+                    f"%{ref_ID.lower()}%"
+                )
             )
         ).first()
 
@@ -1273,7 +1278,7 @@ class GcnEventCatalogQueryHandler(BaseHandler):
                 CatalogQuery.select(
                     session.user_or_token,
                 ).where(
-                    cast(CatalogQuery.payload["gcnevent_id"].astext, Alchemy_Integer)
+                    cast(CatalogQuery.payload["gcnevent_id"].astext, sa.Integer)
                     == gcnevent_id
                 )
             ).all()
@@ -1704,8 +1709,8 @@ class GcnEventHandler(BaseHandler):
                         partialdateobs = partialdateobs.replace("T", " ")
                 partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
-                    cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
-                    | func.lower(cast(GcnEvent.aliases, String)).like(
+                    cast(GcnEvent.dateobs, sa.String).like(f"{partialdateobs}%")
+                    | sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
                         f"%{partialdateobs}%"
                     )
                 )

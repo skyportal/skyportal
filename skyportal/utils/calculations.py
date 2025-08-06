@@ -244,14 +244,17 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
         The target of the observation.
     altitude : `astropy.units.Quantity`
         The altitude at which to calculate the rise and set times.
-    observer : `astroplan.Observer`
-        The observer for which to calculate the rise and set times.
-    time : `astropy.time.Time`
-        The time at which to calculate the rise and set times.
-    night_only : bool
-        If True, calculate the rise and set times when the target is visible during the night only.
-    sun_altitude : `astropy.units.Quantity`
-        The altitude of the sun below which it is considered to be the night.
+    kwargs : dict
+        Additional keyword arguments:
+
+        observer : `astroplan.Observer`
+            The observer for which to calculate the rise and set times.
+        time : `astropy.time.Time`
+            The time at which to calculate the rise and set times.
+        night_only : bool
+            If True, calculate the rise and set times when the target is visible during the night only.
+        sun_altitude : `astropy.units.Quantity`
+            The altitude of the sun below which it is considered to be the night.
 
     Returns
     -------
@@ -287,6 +290,10 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
         sunset, target, which="next", horizon=altitude
     )
     set_time = observer.target_set_time(sunset, target, which="next", horizon=altitude)
+
+    # Check if the rise or set times are None (masked)
+    if rise_time.masked or set_time.masked:
+        return None, None
 
     recalc = set_time < rise_time
     if np.any(recalc):
