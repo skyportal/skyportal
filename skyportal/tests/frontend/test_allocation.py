@@ -58,8 +58,12 @@ def test_allocation_comment_display(
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
     # Post the allocation
@@ -74,8 +78,8 @@ def test_allocation_comment_display(
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
             "exposure_time": 300,
             "maximum_airmass": 2,
@@ -95,8 +99,8 @@ def test_allocation_comment_display(
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
-            "start_date": "4020-09-01",
-            "end_date": "4022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
             "exposure_time": 200,
             "maximum_airmass": 1,

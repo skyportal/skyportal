@@ -24,9 +24,10 @@ from ...models import (
     ObservationPlanRequest,
     User,
 )
+from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
+from .followup_request import MAX_FOLLOWUP_REQUESTS
 
-MAX_FOLLOWUP_REQUESTS = 1000
 MAX_OBSERVATION_PLANS = 1000
 
 
@@ -245,12 +246,7 @@ class AllocationHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-
-        # get owned allocations
-
         with self.Session() as session:
-            allocations = Allocation.select(self.current_user)
-
             if allocation_id is not None:
                 try:
                     allocation_id = int(allocation_id)
@@ -259,6 +255,9 @@ class AllocationHandler(BaseHandler):
 
                 page_number = self.get_query_argument("pageNumber", 1)
                 n_per_page = self.get_query_argument("numPerPage", 50)
+                page_number, n_per_page = get_page_and_n_per_page(
+                    page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+                )
 
                 sortBy = self.get_query_argument("sortBy", "created_at")
                 sortOrder = self.get_query_argument("sortOrder", "asc")
@@ -267,21 +266,6 @@ class AllocationHandler(BaseHandler):
                     return self.error("Invalid sortBy value.")
                 if sortOrder not in ["asc", "desc"]:
                     return self.error("Invalid sortOrder value.")
-
-                try:
-                    page_number = int(page_number)
-                except ValueError:
-                    return self.error("Invalid page number value.")
-
-                try:
-                    n_per_page = int(n_per_page)
-                except (ValueError, TypeError) as e:
-                    return self.error(f"Invalid numPerPage value: {str(e)}")
-
-                if n_per_page > MAX_FOLLOWUP_REQUESTS:
-                    return self.error(
-                        f"numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}."
-                    )
 
                 allocations = Allocation.select(self.current_user).where(
                     Allocation.id == allocation_id
@@ -336,13 +320,15 @@ class AllocationHandler(BaseHandler):
                         followup_requests = followup_requests.order_by(
                             FollowupRequest.obj_id.desc()
                         )
-                if n_per_page is not None:
-                    followup_requests = (
+                followup_requests = (
+                    session.scalars(
                         followup_requests.distinct()
                         .limit(n_per_page)
                         .offset((page_number - 1) * n_per_page)
                     )
-                followup_requests = session.scalars(followup_requests).unique().all()
+                    .unique()
+                    .all()
+                )
 
                 requests = []
                 for request in followup_requests:
@@ -662,9 +648,9 @@ class AllocationHandler(BaseHandler):
                     data["_altdata"] = json.dumps(data["_altdata"])
             allocation_admin_ids = data.pop("allocation_admin_ids", [])
 
-            if not isinstance(allocation_admin_ids, list):
-                return self.error("allocation_admin_ids must be a list of user IDs")
-            if not all(isinstance(x, int) for x in allocation_admin_ids):
+            if not isinstance(allocation_admin_ids, list) or not all(
+                isinstance(x, int) for x in allocation_admin_ids
+            ):
                 return self.error("allocation_admin_ids must be a list of user IDs")
 
             schema = Allocation.__schema__()
