@@ -8,36 +8,39 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
-import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
-import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 
-import Link from "../Link";
 import Button from "../Button";
-import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
 import * as Action from "../../ducks/observingRun";
-import { dec_to_dms, ra_to_hours } from "../../units";
 
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
+import {
+  renderTargetName,
+  renderStatus,
+  renderRA,
+  renderDec,
+  renderRise,
+  renderSet,
+  renderFinderButton,
+  ActionsMenu,
+} from "../../utils/displaySummary";
+import Box from "@mui/material/Box";
+import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
@@ -48,24 +51,7 @@ const useStyles = makeStyles((theme) => ({
   displayInlineBlock: {
     display: "inline-block",
   },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
 }));
-
-function getStatusColors(status) {
-  if (status.startsWith("complete")) {
-    return ["black", "MediumAquaMarine"];
-  }
-  if (status.includes("not observed")) {
-    return ["black", "Orange"];
-  }
-  if (status.startsWith("error")) {
-    return ["white", "Crimson"];
-  }
-  return ["black", "LightGrey"];
-}
 
 export function observingRunTitle(
   observingRun,
@@ -88,132 +74,18 @@ export function observingRunTitle(
     (observingRun?.pi && group?.name ? " / " : "") +
     (group?.name ? `Group: ${group.name}` : "");
 
-  return result + (moreInfo ? ` (${moreInfo})` : "");
-}
-
-const SimpleMenu = ({ assignment }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const dispatch = useDispatch();
-
-  const { observingRunList } = useSelector((state) => state.observingRuns);
-
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const updateAssignmentStatus = (status) => () => {
-    handleClose();
-    return dispatch(SourceAction.editAssignment({ status }, assignment.id));
-  };
-
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-  };
-
-  const reassignAssignment = () => () => {
-    handleClose();
-    openDialog();
-  };
-
   return (
-    <div>
-      <IconButton
-        aria-controls="simple-menu"
-        aria-haspopup="true"
-        onClick={handleClick}
-        variant="contained"
-        size="large"
-      >
-        <BuildIcon />
-      </IconButton>
-      <Menu
-        id="simple-menu"
-        anchorEl={anchorEl}
-        keepMounted
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
-        {(assignment.status === "pending" ||
-          assignment.status === "not observed") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("complete")}
-            variant="contained"
-          >
-            Mark Observed
-          </MenuItem>
-        )}
-        {(assignment.status === "pending" ||
-          assignment.status === "complete") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("not observed")}
-            variant="contained"
-          >
-            Mark Not Observed
-          </MenuItem>
-        )}
-        {(assignment.status === "complete" ||
-          assignment.status === "not observed") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("pending")}
-            variant="contained"
-          >
-            Mark Pending
-          </MenuItem>
-        )}
-        {assignment.status === "not observed" && (
-          <MenuItem onClick={reassignAssignment()} variant="contained">
-            Reassign
-          </MenuItem>
-        )}
-        {assignment.status === "complete" && (
-          <MenuItem onClick={handleClose}>
-            <Link to={`/upload_spectrum/${assignment.obj.id}`}>
-              Upload Spectrum
-            </Link>
-          </MenuItem>
-        )}
-        {assignment.status === "complete" && (
-          <MenuItem variant="contained" onClick={handleClose}>
-            <Link to={`/upload_photometry/${assignment.obj.id}`}>
-              Upload Photometry
-            </Link>
-          </MenuItem>
-        )}
-      </Menu>
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md">
-        <DialogTitle>Reassign to Observing Run</DialogTitle>
-        <DialogContent dividers>
-          <AssignmentForm
-            obj_id={assignment.obj.id}
-            observingRunList={observingRunList}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+    <>
+      <b>{result}</b>
+      {moreInfo && ` (${moreInfo})`}
+    </>
   );
-};
-
-SimpleMenu.propTypes = {
-  assignment: PropTypes.shape({
-    status: PropTypes.string,
-    id: PropTypes.number,
-    obj: PropTypes.shape({
-      id: PropTypes.string,
-    }).isRequired,
-  }).isRequired,
-};
+}
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
+  const { observingRunList } = useSelector((state) => state.observingRuns);
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -225,14 +97,9 @@ const RunSummary = ({ route }) => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
-    // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  // Don't need to do this for assignments, we can just let the page be blank for a short time
+  if (observingRun?.id !== parseInt(route.id, 10)) return <Spinner />;
+
   const { assignments } = observingRun;
 
   const notObservedFunction = () => {
@@ -299,99 +166,6 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  const renderTargetName = (dataIndex) => {
-    const objId = assignments[dataIndex].obj.id;
-    return <Link to={`/source/${objId}`}>{objId}</Link>;
-  };
-
-  const renderStatus = (dataIndex) => {
-    const { id, status } = assignments[dataIndex];
-    const colors = getStatusColors(status);
-    return (
-      <Typography
-        variant="body2"
-        style={{
-          backgroundColor: colors[1],
-          color: colors[0],
-          padding: "0.25rem 0.75rem 0.25rem 0.75rem",
-          borderRadius: "1rem",
-          maxWidth: "fit-content",
-          whiteSpace: status.includes("error") ? "normal" : "nowrap",
-        }}
-        name={`${id}_status`}
-      >
-        {status}
-      </Typography>
-    );
-  };
-
-  const renderRA = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div>
-        {assignment.obj.ra}
-        <br />
-        {ra_to_hours(assignment.obj.ra)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div>
-        {assignment.obj.dec}
-        <br />
-        {dec_to_dms(assignment.obj.dec)}
-      </div>
-    );
-  };
-
-  const renderRise = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div>
-        {assignment.rise_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.rise_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  const renderSet = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div>
-        {assignment.set_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.set_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  const renderFinderButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <>
-        <IconButton size="small">
-          <Link to={`/api/sources/${assignment.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small">
-          <Link
-            to={`/source/${assignment.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
   const RenderGroups = (dataIndex) => {
     const classes = useStyles();
     const assignment = assignments[dataIndex];
@@ -401,11 +175,19 @@ const RunSummary = ({ route }) => {
           label={name.substring(0, 15)}
           size="small"
           className={classes.chip}
-          data-testid={`chip-assignment_${assignment.id}-group_${name}`}
         />
         <br />
       </div>
     ));
+  };
+
+  const updateAssignmentStatus = async (assignment, status) => {
+    const result = await dispatch(
+      SourceAction.editAssignment({ status }, assignment.id),
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Assignment status updated successfully"));
+    }
   };
 
   const columns = [
@@ -413,35 +195,42 @@ const RunSummary = ({ route }) => {
       name: "Target Name",
       options: {
         filter: true,
-        customBodyRenderLite: renderTargetName,
+        customBodyRenderLite: (dataIndex) =>
+          renderTargetName(assignments[dataIndex]),
       },
     },
     {
-      name: "Status",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderStatus,
-      },
-    },
-    {
-      name: "Date Requested",
+      name: "Request Date",
       options: {
         filter: true,
         customBodyRenderLite: (dataIndex) => assignments[dataIndex].created_at,
       },
     },
     {
+      name: "Status",
+      options: {
+        filter: true,
+        setCellProps: () => ({
+          style: {
+            minWidth: "250px",
+          },
+        }),
+        customBodyRenderLite: (dataIndex) =>
+          renderStatus(assignments[dataIndex]),
+      },
+    },
+    {
       name: "RA",
       options: {
         filter: false,
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => renderRA(assignments[dataIndex]),
       },
     },
     {
       name: "Dec",
       options: {
         filter: false,
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => renderDec(assignments[dataIndex]),
       },
     },
     {
@@ -472,14 +261,14 @@ const RunSummary = ({ route }) => {
       name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: renderRise,
+        customBodyRenderLite: (dataIndex) => renderRise(assignments[dataIndex]),
       },
     },
     {
       name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: renderSet,
+        customBodyRenderLite: (dataIndex) => renderSet(assignments[dataIndex]),
       },
     },
     {
@@ -493,7 +282,8 @@ const RunSummary = ({ route }) => {
       name: "Finder",
       options: {
         filter: false,
-        customBodyRenderLite: renderFinderButton,
+        customBodyRenderLite: (dataIndex) =>
+          renderFinderButton(assignments[dataIndex]),
       },
     },
     {
@@ -501,7 +291,11 @@ const RunSummary = ({ route }) => {
       options: {
         filter: false,
         customBodyRenderLite: (dataIndex) => (
-          <SimpleMenu assignment={assignments[dataIndex]} />
+          <ActionsMenu
+            item={assignments[dataIndex]}
+            updateFunction={updateAssignmentStatus}
+            observingRunList={observingRunList}
+          />
         ),
       },
     },
@@ -521,8 +315,8 @@ const RunSummary = ({ route }) => {
 
   const data = assignments?.map((assignment) => [
     assignment.obj.id,
-    assignment.status,
     assignment.created_at,
+    assignment.status,
     assignment.obj.ra,
     assignment.obj.dec,
     assignment.obj.redshift,
@@ -537,7 +331,7 @@ const RunSummary = ({ route }) => {
   ]);
 
   return (
-    <div className={styles.center}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <Typography variant="h1" gutterBottom color="secondary.contrastText">
         Plan for:{" "}
         {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
@@ -577,30 +371,21 @@ const RunSummary = ({ route }) => {
           <SkyCam telescope={observingRun.instrument.telescope} />
         </Grid>
       </Grid>
-      <div>
-        {dialog && (
-          <Dialog
-            open={dialog}
-            onClose={() => setDialog(false)}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
-            <DialogContent dividers>
-              Is your observing run clouded out and want to set all pending
-              objects to not observered?
-            </DialogContent>
-            <DialogActions>
-              <Button secondary autoFocus onClick={() => setDialog(false)}>
-                Dismiss
-              </Button>
-              <Button primary onClick={() => notObservedFunction()}>
-                Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
-        )}
-      </div>
-    </div>
+      <Dialog open={dialog} onClose={() => setDialog(false)} maxWidth="md">
+        <DialogContent dividers>
+          Is your observing run clouded out and you want to set all pending
+          objects to not observed?
+        </DialogContent>
+        <DialogActions>
+          <Button secondary autoFocus onClick={() => setDialog(false)}>
+            Dismiss
+          </Button>
+          <Button primary onClick={() => notObservedFunction()}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

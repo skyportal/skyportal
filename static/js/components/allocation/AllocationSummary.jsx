@@ -12,37 +12,43 @@ import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import TextField from "@mui/material/TextField";
 
-import Link from "@mui/material/Link";
 import SaveIcon from "@mui/icons-material/Save";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 
 import { JSONTree } from "react-json-tree";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
-import ThumbnailList from "../thumbnail/ThumbnailList";
-import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
 import * as Action from "../../ducks/allocation";
 import * as ObservationPlansAction from "../../ducks/observationPlans";
-import { dec_to_dms, ra_to_hours } from "../../units";
 
+import ThumbnailList from "../thumbnail/ThumbnailList";
+import withRouter from "../withRouter";
 import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPlanSummaryStatistics";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
+import {
+  renderTargetName,
+  renderStatus,
+  renderRA,
+  renderDec,
+  renderRise,
+  renderSet,
+  renderFinderButton,
+  ActionsMenu,
+} from "../../utils/displaySummary";
+import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
+
+const DEFAULT_NUM_PER_PAGE = 10;
 
 function allocationTitle(allocation, instrumentList, telescopeList) {
   const instrument = instrumentList?.filter(
@@ -60,93 +66,6 @@ function allocationTitle(allocation, instrumentList, telescopeList) {
   );
 }
 
-const SimpleMenu = ({ request }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const dispatch = useDispatch();
-
-  const updateRequestStatus = async (status) => {
-    setAnchorEl(null);
-    const result = await dispatch(
-      SourceAction.editFollowupRequest({ status }, request.id),
-    );
-    if (result.status === "success") {
-      dispatch(
-        showNotification("Follow-up request status successfully updated"),
-      );
-    }
-  };
-
-  const menuItemProps = (targetStatus, color, isLast = false) => ({
-    onClick: () => updateRequestStatus(targetStatus),
-    disabled: request.status.startsWith(targetStatus),
-    divider: !isLast,
-    sx: { color: request.status.startsWith(targetStatus) ? "grey" : color },
-  });
-
-  return (
-    <div>
-      <IconButton
-        aria-controls="simple-menu"
-        aria-haspopup="true"
-        onClick={(e) => setAnchorEl(e.currentTarget)}
-        size="large"
-      >
-        <BuildIcon />
-      </IconButton>
-      <Menu
-        id="simple-menu"
-        anchorEl={anchorEl}
-        keepMounted
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-      >
-        <MenuItem {...menuItemProps("complete", "green")}>
-          Mark as complete
-        </MenuItem>
-        <MenuItem {...menuItemProps("not observed", "darkorange")}>
-          Mark as not observed
-        </MenuItem>
-        <MenuItem
-          {...menuItemProps(
-            "pending",
-            "mediumpurple",
-            request.status !== "complete",
-          )}
-        >
-          Mark as pending
-        </MenuItem>
-        {request.status === "complete" && [
-          <MenuItem divider key="upload_spectrum">
-            <Link href={`/upload_spectrum/${request.obj.id}`} underline="none">
-              Upload Spectrum
-            </Link>
-          </MenuItem>,
-          <MenuItem key="upload_photometry">
-            <Link
-              href={`/upload_photometry/${request.obj.id}`}
-              underline="none"
-            >
-              Upload Photometry
-            </Link>
-          </MenuItem>,
-        ]}
-      </Menu>
-    </div>
-  );
-};
-
-SimpleMenu.propTypes = {
-  request: PropTypes.shape({
-    status: PropTypes.string,
-    id: PropTypes.number,
-    obj: PropTypes.shape({
-      id: PropTypes.string,
-    }).isRequired,
-  }).isRequired,
-};
-
-const defaultNumPerPage = 10;
-
 const AllocationSummary = ({ route }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -162,7 +81,7 @@ const AllocationSummary = ({ route }) => {
 
   const [fetchAllocationParams, setFetchAllocationParams] = useState({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
+    numPerPage: DEFAULT_NUM_PER_PAGE,
     sortBy: "created_at",
     sortOrder: "desc",
   });
@@ -170,7 +89,7 @@ const AllocationSummary = ({ route }) => {
   const [fetchObservationPlansParams, setFetchObservationPlansParams] =
     useState({
       pageNumber: 1,
-      numPerPage: defaultNumPerPage,
+      numPerPage: DEFAULT_NUM_PER_PAGE,
       sortBy: "created_at",
       sortOrder: "desc",
     });
@@ -190,23 +109,11 @@ const AllocationSummary = ({ route }) => {
     );
   }, [route.id, dispatch]);
 
-  if (
-    !(
-      allocation &&
-      "id" in allocation &&
-      allocation.id === parseInt(route.id, 10)
-    )
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (allocation?.id !== parseInt(route.id, 10)) return <Spinner />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <Typography variant="h4" gutterBottom color="textSecondary">
+      <Typography variant="h1" gutterBottom color="secondary.contrastText">
         Plan for:{" "}
         {allocationTitle(allocation, instrumentList, telescopeList, groups)}
       </Typography>
@@ -356,7 +263,7 @@ AllocationObservationPlansTable.propTypes = {
         }),
       }),
       allocation_id: PropTypes.number,
-      payload: PropTypes.arrayOf(PropTypes.any),
+      payload: PropTypes.arrayOf(PropTypes.shape({})),
     }),
   ).isRequired,
   totalMatches: PropTypes.number.isRequired,
@@ -437,62 +344,9 @@ const AllocationSummaryTable = ({
     );
   };
 
-  const renderObjId = (dataIndex) => {
-    const objId = requests[dataIndex].obj.id;
-    return <a href={`/source/${objId}`}>{objId}</a>;
-  };
-
-  const renderRA = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div>
-        {request.obj.ra}
-        <br />
-        {ra_to_hours(request.obj.ra)}
-      </div>
-    );
-  };
-
-  const renderDec = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div>
-        {request.obj.dec}
-        <br />
-        {dec_to_dms(request.obj.dec)}
-      </div>
-    );
-  };
-
-  const renderFinderButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <>
-        <IconButton size="small" key={`${request.id}_actions`}>
-          <Link href={`/api/sources/${request.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small" key={`${request.id}_actions_int`}>
-          <Link
-            href={`/source/${request.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
   const handleOpenDialog = (id, comment) => {
     setCommentContent(comment);
     setDialogOpen(id);
-  };
-
-  const handleChange = (e) => {
-    setCommentContent(e.target.value);
   };
 
   const handleSubmit = async () => {
@@ -507,39 +361,31 @@ const AllocationSummaryTable = ({
 
   const renderComment = (dataIndex) => {
     const request = requests[dataIndex];
-
     return (
       <div>
         {request.comment}
         <Tooltip title="Update comment">
-          <EditIcon
-            data-testid="updateCommentIconButton"
-            fontSize="small"
-            sx={{ marginLeft: "0.2rem", cursor: "pointer" }}
-            onClick={() => {
-              handleOpenDialog(request.id, request.comment);
-            }}
-          />
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={() => handleOpenDialog(request.id, request.comment)}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
       </div>
     );
   };
 
-  const renderStatus = (dataIndex) => {
-    const request = requests[dataIndex];
-    let color = null;
-    if (request.status.startsWith("complete")) {
-      color = "green";
-    } else if (request.status.startsWith("not observed")) {
-      color = "darkorange";
-    } else if (request.status.startsWith("pending")) {
-      color = "mediumpurple";
-    } else if (request.status.startsWith("failed")) {
-      color = "indianred";
-    } else if (request.status.startsWith("deleted")) {
-      color = "grey";
+  const updateRequestStatus = async (request, status) => {
+    const result = await dispatch(
+      SourceAction.editFollowupRequest({ status }, request.id),
+    );
+    if (result.status === "success") {
+      dispatch(
+        showNotification("Follow-up request status updated successfully"),
+      );
     }
-    return <Box sx={{ color: `${color}` }}>{request.status}</Box>;
   };
 
   const columns = [
@@ -547,7 +393,8 @@ const AllocationSummaryTable = ({
       name: "Target Name",
       options: {
         filter: true,
-        customBodyRenderLite: renderObjId,
+        customBodyRenderLite: (dataIndex) =>
+          renderTargetName(requests[dataIndex]),
       },
     },
     {
@@ -572,21 +419,26 @@ const AllocationSummaryTable = ({
       name: "Status",
       options: {
         filter: true,
-        customBodyRenderLite: renderStatus,
+        setCellProps: () => ({
+          style: {
+            minWidth: "250px",
+          },
+        }),
+        customBodyRenderLite: (dataIndex) => renderStatus(requests[dataIndex]),
       },
     },
     {
       name: "RA",
       options: {
         filter: false,
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => renderRA(requests[dataIndex]),
       },
     },
     {
       name: "Dec",
       options: {
         filter: false,
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => renderDec(requests[dataIndex]),
       },
     },
     {
@@ -611,16 +463,14 @@ const AllocationSummaryTable = ({
       name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].rise_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: (dataIndex) => renderRise(requests[dataIndex]),
       },
     },
     {
       name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].set_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: (dataIndex) => renderSet(requests[dataIndex]),
       },
     },
     {
@@ -634,7 +484,8 @@ const AllocationSummaryTable = ({
       name: "Finder",
       options: {
         filter: false,
-        customBodyRenderLite: renderFinderButton,
+        customBodyRenderLite: (dataIndex) =>
+          renderFinderButton(requests[dataIndex]),
       },
     },
     {
@@ -642,7 +493,10 @@ const AllocationSummaryTable = ({
       options: {
         filter: false,
         customBodyRenderLite: (dataIndex) => (
-          <SimpleMenu request={requests[dataIndex]} />
+          <ActionsMenu
+            item={requests[dataIndex]}
+            updateFunction={updateRequestStatus}
+          />
         ),
       },
     },
@@ -706,7 +560,7 @@ const AllocationSummaryTable = ({
             minRows={2}
             fullWidth
             multiline
-            onChange={(e) => handleChange(e)}
+            onChange={(e) => setCommentContent(e.target.value)}
             variant="outlined"
             sx={{ mt: 1, mb: 2 }}
           />
