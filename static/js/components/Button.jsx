@@ -36,6 +36,10 @@ const Button = forwardRef(
           ...commonProps?.sx,
           borderColor: "secondary.dark",
           color: "secondary.contrastText",
+          "&:hover": {
+            borderColor: "secondary.main",
+            backgroundColor: "secondary.light",
+          },
         };
       }
     }
