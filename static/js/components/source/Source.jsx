@@ -1,7 +1,6 @@
 import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
@@ -31,6 +30,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
+import Link from "../Link";
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
@@ -107,16 +107,13 @@ export const useSourceStyles = makeStyles((theme) => ({
     lineHeight: "1em",
     fontSize: "200%",
     fontWeight: "900",
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
+    color: theme.palette.primary.main,
     display: "inline-block",
     padding: 0,
     margin: 0,
   },
   noSpace: { padding: 0, margin: 0 },
-  dropdownText: { textDecoration: "none", color: "black" },
+  dropdownText: { color: "black" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -206,7 +203,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   tooltipLink: {
     textDecoration: "none",
-    color: theme.palette.secondary.dark,
+    color: theme.palette.secondary.main,
   },
 }));
 
@@ -821,8 +818,6 @@ const SourceContent = ({ source }) => {
                       >
                         <Link
                           to={`/source/${duplicate.obj_id}`}
-                          role="link"
-                          key={duplicate.obj_id}
                           className={classes.noSpace}
                         >
                           <Button size="small" className={classes.noSpace}>
@@ -888,9 +883,9 @@ const SourceContent = ({ source }) => {
                   <MenuItem onClick={() => setAnchorElFindingChart(null)}>
                     <Link
                       to={`/source/${source.id}/finder`}
-                      role="link"
                       className={classes.dropdownText}
                       target="_blank"
+                      notBold
                     >
                       Interactive
                     </Link>
@@ -940,9 +935,9 @@ const SourceContent = ({ source }) => {
                   <MenuItem onClick={() => setAnchorElObservability(null)}>
                     <Link
                       to={`/observability/${source.id}`}
-                      role="link"
                       className={classes.dropdownText}
                       target="_blank"
+                      notBold
                     >
                       Interactive
                     </Link>
@@ -1299,14 +1294,14 @@ const SourceContent = ({ source }) => {
                   >
                     Photometry Table
                   </Button>
-                  <Link to={`/share_data/${source.id}`} role="link">
+                  <Link to={`/share_data/${source.id}`}>
                     <Button secondary>Share data</Button>
                   </Link>
-                  <Link to={`/upload_photometry/${source.id}`} role="link">
+                  <Link to={`/upload_photometry/${source.id}`}>
                     <Button secondary>Upload photometry</Button>
                   </Link>
                   {source?.photometry_exists && (
-                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                    <Link to={`/source/${source.id}/periodogram`}>
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
@@ -1364,10 +1359,10 @@ const SourceContent = ({ source }) => {
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
-                  <Link to={`/share_data/${source.id}`} role="link">
+                  <Link to={`/share_data/${source.id}`}>
                     <Button secondary>Share data</Button>
                   </Link>
-                  <Link to={`/upload_spectrum/${source.id}`} role="link">
+                  <Link to={`/upload_spectrum/${source.id}`}>
                     <Button secondary>Upload spectroscopy</Button>
                   </Link>
                 </div>

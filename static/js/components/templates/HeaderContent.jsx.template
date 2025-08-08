@@ -64,7 +64,7 @@ const useStyles = makeStyles((theme) => ({
   date: {
     fontSize: "0.9rem",
     fontWeight: "bold",
-    background: alpha(theme.palette.primary.light, 0.4),
+    background: alpha(theme.palette.primary.main, 0.4),
     padding: "0.3rem 0.6rem",
     borderRadius: "0.5rem",
   },

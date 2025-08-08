@@ -16,6 +16,7 @@ import * as Actions from "../../ducks/source";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 import Button from "../Button";
+import { observingRunTitle } from "./RunSummary";
 
 dayjs.extend(utc);
 
@@ -36,44 +37,6 @@ const useStyles = makeStyles((theme) => ({
     margin: "0.5rem",
   },
 }));
-
-export function observingRunTitle(
-  observingRun,
-  instrumentList,
-  telescopeList,
-  groups,
-) {
-  const { instrument_id } = observingRun;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
-
-  if (!(observingRun?.calendar_date && instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
-
-  if (observingRun?.pi || group?.name) {
-    result += " (";
-    if (observingRun?.pi) {
-      result += `PI: ${observingRun.pi}`;
-    }
-    if (group?.name) {
-      result += ` / Group: ${group?.name}`;
-    }
-    result += ")";
-  }
-
-  return result;
-}
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();

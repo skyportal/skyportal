@@ -478,7 +478,6 @@ def find_observable_sequence(
     if end_time - start_time >= pd.Timedelta(seconds=obs_time * nb_obs):
         midpoint = start_time + (end_time - start_time) / 2
         start_time_sequence = midpoint - pd.Timedelta(seconds=obs_time * nb_obs / 2)
-        midpoint = start_time + (end_time - start_time) / 2
         for i in range(nb_obs):
             start_time_obs = start_time_sequence + pd.Timedelta(seconds=obs_time * i)
             end_time_obs = start_time_sequence + pd.Timedelta(

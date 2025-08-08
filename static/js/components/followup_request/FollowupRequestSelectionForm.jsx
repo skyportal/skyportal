@@ -16,7 +16,7 @@ import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import * as followupRequestActions from "../../ducks/followupRequests";
 import * as instrumentActions from "../../ducks/instruments";
 import Button from "../Button";
 
@@ -58,7 +58,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   );
   const { users: allUsers } = useSelector((state) => state.users);
   const { followupRequestList } = useSelector(
-    (state) => state.followup_requests,
+    (state) => state.followupRequests,
   );
 
   const defaultStartDate = dayjs()
@@ -181,25 +181,30 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     setSelectedFormat(e.target.value);
   };
 
-  const handleSubmitFilter = async ({ formData }) => {
-    const data = { ...formData };
-    data.includeObjThumbnails = false;
-    if (data.useObservationDates === false) {
-      delete data.observationStartDate;
-      delete data.observationEndDate;
-    }
-    delete data.useObservationDates;
-    if (data.filterby === "allocation") {
-      delete data.instrumentID;
-    } else {
-      delete data.allocationID;
-    }
-    delete data.filterby;
+  const handleSubmitFilter = async () => {
+    const {
+      useObservationDates,
+      observationStartDate,
+      observationEndDate,
+      filterby,
+      instrumentID,
+      allocationID,
+      ...otherData
+    } = fetchParams;
+
+    const data = {
+      includeObjThumbnails: false,
+      ...(useObservationDates && {
+        observationStartDate,
+        observationEndDate,
+      }),
+      ...(filterby === "allocation" ? { allocationID } : { instrumentID }),
+      ...otherData,
+    };
 
     setIsSubmittingFilter(true);
-    setSelectedInstrumentId(formData.instrumentID);
-    await dispatch(followupRequestActions.fetchFollowupRequests(formData));
-    setFetchParams(formData);
+    setSelectedInstrumentId(instrumentID);
+    await dispatch(followupRequestActions.fetchFollowupRequests(data));
     setIsSubmittingFilter(false);
   };
 
@@ -403,7 +408,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
       </div>
       <div className={classes.divider} />
       <div>
-        <Typography variant="h6">Schedule (with astroplan) </Typography>
+        <Typography variant="h6">Schedule (with astroplan)</Typography>
         <InputLabel id="instrumentSelectLabel">Format</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -460,10 +465,18 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
 
 FollowupRequestSelectionForm.propTypes = {
   fetchParams: PropTypes.shape({
-    pageNumber: PropTypes.number,
-    numPerPage: PropTypes.number,
+    filterby: PropTypes.string,
+    instrumentID: PropTypes.number,
+    allocationID: PropTypes.number,
+    startDate: PropTypes.string,
+    endDate: PropTypes.string,
     observationStartDate: PropTypes.string,
     observationEndDate: PropTypes.string,
+    sourceID: PropTypes.string,
+    status: PropTypes.string,
+    priorityThreshold: PropTypes.number,
+    useObservationDates: PropTypes.bool,
+    requesters: PropTypes.arrayOf(PropTypes.number),
   }).isRequired,
   setFetchParams: PropTypes.func.isRequired,
 };

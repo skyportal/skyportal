@@ -68,14 +68,14 @@ const useStyles = makeStyles((theme) => ({
   drawerPaper: {
     zIndex: 140,
     maxWidth: drawerWidth,
-    background: theme.palette.primary.light,
+    background: theme.palette.primary.main,
     fontSize: "1.2em",
     padding: 0,
   },
   drawerPaperTemporary: {
     zIndex: 140,
     width: 'fit-content',
-    background: theme.palette.primary.light,
+    background: theme.palette.primary.main,
     fontSize: "1.2em",
     padding: 0,
   },
@@ -97,15 +97,15 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: "3em",
   },
   link: {
-    color: theme.palette.info.main,
+    color: "white",
     textDecoration: "none",
   },
-  bold: {
-    color: theme.palette.info.main,
+  selected: {
+    color: theme.palette.primary.dark,
     fontWeight: "bold"
   },
   icon: {
-    color: theme.palette.info.main,
+    color: "white",
   },
   minimized: {
     display: 'none',
@@ -117,14 +117,12 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // eslint-disable-next-line react/prop-types
-const SidebarLinkText = ({ route, title, open }) => {
+const SidebarLinkText = ({ isCurrent, title, open }) => {
   const classes = useStyles();
-  const currentRoute = useLocation().pathname;
-
   return (
     <ListItemText
       primary={
-        <Typography className={currentRoute === route ? classes.bold : null}>
+        <Typography className={isCurrent ? classes.selected : null}>
           {title}
         </Typography>
       }
@@ -199,6 +197,8 @@ const SidebarAndHeader = () => {
     }
   };
 
+  const currentRoute = useLocation().pathname;
+
   {% macro add_items_to_menu(group) -%}
     {% for item in group.subitems -%}
     {% if item.permissions %}
@@ -228,10 +228,10 @@ const SidebarAndHeader = () => {
                 justifyContent: 'center',
               }}" }}
             >
-              <{{ item.icon }}Icon className={classes.icon} />
+              <{{ item.icon }}Icon className={currentRoute === "{{ item.url }}" || currentRoute.startsWith("{{ item.url }}/") ? classes.selected : classes.icon} />
             </ListItemIcon>
             <SidebarLinkText
-              route="{{ item.url }}"
+              isCurrent={currentRoute === "{{ item.url }}" || currentRoute.startsWith("{{ item.url }}/")}
               title="{{ item.name }}"
               open={open || temporaryOpen}
             />
@@ -276,6 +276,7 @@ const SidebarAndHeader = () => {
               {(!(open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
             </ListItemIcon>
             <SidebarLinkText
+              isCurrent={false}
               title="{{ group.name }}"
               open={open || temporaryOpen}
             />

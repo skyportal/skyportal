@@ -187,4 +187,13 @@ const LOGTYPE_TO_COLOR = {
   Other: "darkgreen",
 };
 
-export { C, PHOT_ZP, BASE_LAYOUT, LINES, LOGTYPE_TO_COLOR };
+const STATUS_COLORS = {
+  complete: "success.main",
+  "not observed": "darkorange",
+  error: "error.main",
+  failed: "error.main",
+  pending: "mediumpurple",
+  deleted: "secondary.dark",
+};
+
+export { C, PHOT_ZP, BASE_LAYOUT, LINES, LOGTYPE_TO_COLOR, STATUS_COLORS };

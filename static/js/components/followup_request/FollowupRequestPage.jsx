@@ -19,44 +19,16 @@ import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationFo
 import ProgressIndicator from "../ProgressIndicators";
 import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import * as followupRequestActions from "../../ducks/followupRequests";
+import Spinner from "../Spinner";
 
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
   paperContent: {
     padding: "1rem",
   },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
-  },
-  defaultFollowupRequestDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  defaultFollowupRequestManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  defaultFollowupRequestDeleteDisabled: {
-    opacity: 0,
-  },
 }));
-
-const defaultNumPerPage = 10;
 
 const FollowupRequestPage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -64,7 +36,7 @@ const FollowupRequestPage = () => {
     (state) => state.instruments,
   );
   const { followupRequestList, totalMatches } = useSelector(
-    (state) => state.followup_requests,
+    (state) => state.followupRequests,
   );
   const { defaultFollowupRequestList } = useSelector(
     (state) => state.default_followup_requests,
@@ -77,20 +49,11 @@ const FollowupRequestPage = () => {
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage allocations");
 
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
+    numPerPage: 10,
+    startDate: dayjs().subtract(1, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ"),
+    endDate: dayjs().add(1, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ"),
     sortBy: "created_at",
     sortOrder: "desc",
   });
@@ -100,42 +63,27 @@ const FollowupRequestPage = () => {
 
   const [tabIndex, setTabIndex] = React.useState(0);
 
-  useEffect(() => {
-    // everytime the list of followup requests is updated, we set the fetchParams in redux
-    dispatch({
-      type: followupRequestActions.UPDATE_FOLLOWUP_FETCH_PARAMS,
-      data: fetchParams,
-    });
-  }, [dispatch, fetchParams]);
-
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
 
-  const handlePageChange = async (page, numPerPage) => {
+  const handleTableChange = async (action, tableState) => {
+    if (action !== "changePage" && action !== "changeRowsPerPage") return;
+
     const params = {
       ...fetchParams,
-      numPerPage,
-      pageNumber: page + 1,
+      numPerPage: tableState.rowsPerPage,
+      pageNumber: tableState.page + 1, // MUI DataGrid is 0-indexed, so we need to add 1 for the API
     };
-    // Save state for future
-    setFetchParams(params);
     await dispatch(followupRequestActions.fetchFollowupRequests(params));
   };
 
-  const handleTableChange = async (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      return handlePageChange(tableState.page, tableState.rowsPerPage);
-    }
-    return null;
-  };
-
   if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    !instrumentList.length ||
+    !telescopeList.length ||
+    !Object.keys(instrumentFormParams).length
   ) {
-    return <p>Loading information...</p>;
+    return <Spinner />;
   }
 
   const sortedInstrumentList = [...instrumentList];
@@ -157,17 +105,18 @@ const FollowupRequestPage = () => {
 
   const onDownload = async () => {
     setDownloadProgressTotal(totalMatches);
-    const fetchAllRequests = async (currentFetchParams) => {
+    const fetchAllRequests = async () => {
       let allFollowupRequests = [];
 
       for (let i = 1; i <= Math.ceil(totalMatches / 100); i += 1) {
         const params = {
-          ...currentFetchParams,
+          ...fetchParams,
           pageNumber: i,
           numPerPage: 100,
           noRedux: true,
         };
 
+        // eslint-disable-next-line no-await-in-loop
         const response = await dispatch(
           followupRequestActions.fetchFollowupRequests(params),
         );
@@ -213,9 +162,7 @@ const FollowupRequestPage = () => {
       return allFollowupRequests;
     };
 
-    const allFollowupRequests = await fetchAllRequests(fetchParams);
-
-    return allFollowupRequests;
+    return await fetchAllRequests();
   };
 
   return (
@@ -232,27 +179,21 @@ const FollowupRequestPage = () => {
             <Paper elevation={1}>
               <div className={classes.paperContent}>
                 <Typography variant="h6">List of Followup Requests</Typography>
-                {!followupRequestList ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <FollowupRequestLists
-                      followupRequests={followupRequestList}
-                      instrumentList={instrumentList}
-                      instrumentFormParams={instrumentFormParams}
-                      pageNumber={fetchParams.pageNumber}
-                      numPerPage={fetchParams.numPerPage}
-                      handleTableChange={handleTableChange}
-                      totalMatches={totalMatches}
-                      serverSide
-                      showObject
-                      fetchParams={fetchParams}
-                      onDownload={onDownload}
-                    />
-                  </div>
-                )}
+                <div>
+                  <FollowupRequestLists
+                    followupRequests={followupRequestList}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    pageNumber={fetchParams.pageNumber}
+                    numPerPage={fetchParams.numPerPage}
+                    handleTableChange={handleTableChange}
+                    totalMatches={totalMatches}
+                    serverSide
+                    showObject
+                    fetchParams={fetchParams}
+                    onDownload={onDownload}
+                  />
+                </div>
               </div>
             </Paper>
           </Grid>

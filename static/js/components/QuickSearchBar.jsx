@@ -21,17 +21,17 @@ const ALLOWED_TYPES = [
 const useStyles = makeStyles((theme) => ({
   root: {
     "& .MuiOutlinedInput-root": {
-      backgroundColor: theme.palette.primary.light,
-      borderColor: theme.palette.primary.light,
+      backgroundColor: theme.palette.primary.main,
+      borderColor: theme.palette.primary.main,
       borderRadius: "0 1rem 1rem 0",
       "& fieldset": {
-        borderColor: theme.palette.primary.light,
+        borderColor: theme.palette.primary.main,
       },
       "&:hover fieldset": {
-        borderColor: theme.palette.primary.light,
+        borderColor: theme.palette.primary.main,
       },
       "&.Mui-focused fieldset": {
-        borderColor: theme.palette.primary.light,
+        borderColor: theme.palette.primary.main,
       },
     },
     margin: 0,
@@ -40,14 +40,14 @@ const useStyles = makeStyles((theme) => ({
   typeSelect: {
     fontWeight: "bold",
     color: "white",
-    backgroundColor: theme.palette.primary.light,
-    borderColor: theme.palette.primary.light,
+    backgroundColor: theme.palette.primary.main,
+    borderColor: theme.palette.primary.main,
     borderRadius: "1rem 0 0 1rem",
     "& .MuiSelect-icon": {
       color: "white",
     },
     "& fieldset": {
-      borderColor: theme.palette.primary.light,
+      borderColor: theme.palette.primary.main,
     },
     margin: 0,
     padding: 0,
@@ -326,7 +326,6 @@ const QuickSearchBar = () => {
         popupIcon={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             variant="outlined"
             placeholder="Search"

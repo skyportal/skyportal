@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 
 import TableCell from "@mui/material/TableCell";
@@ -47,6 +47,7 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import Link from "../Link";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -354,66 +355,54 @@ const RenderShowClassification = ({ source }) => {
     isGroupAdmin;
 
   return (
-    <div>
-      <Tooltip
-        key={`${source.id}`}
-        placement="top-end"
-        disableFocusListener
-        disableTouchListener
-        title={
-          <>
-            <br />
-            <b>All Classifications:</b>
-            <br />
-            <Button
-              key={source.id}
-              id="delete_classifications"
-              classes={{
-                root: classes.classificationDelete,
-                disabled: classes.classificationDeleteDisabled,
-              }}
-              onClick={() => openDialog(source.id)}
-              disabled={!permission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteClassifications}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="classifications"
-            />
-            <div>
-              <Button
-                key={source.id}
-                id="down_vote"
-                onClick={() => addVotes(downvoteValue)}
-              >
-                <ThumbDown color={downvoteColor} />
-              </Button>
-            </div>
-            <div>
-              <Button
-                key={source.id}
-                id="up_vote"
-                onClick={() => addVotes(upvoteValue)}
-              >
-                <ThumbUp color={upvoteColor} />
-              </Button>
-            </div>
-          </>
-        }
-      >
-        <div>
-          <ShowClassification
-            classifications={source.classifications}
-            taxonomyList={taxonomyList}
-            shortened
-            fontSize="0.95rem"
+    <Tooltip
+      placement="top-end"
+      disableFocusListener
+      disableTouchListener
+      title={
+        <>
+          <br />
+          <b>All Classifications:</b>
+          <br />
+          <Button
+            id="delete_classifications"
+            classes={{
+              root: classes.classificationDelete,
+              disabled: classes.classificationDeleteDisabled,
+            }}
+            onClick={() => openDialog(source.id)}
+            disabled={!permission}
+          >
+            <DeleteIcon />
+          </Button>
+          <ConfirmDeletionDialog
+            deleteFunction={deleteClassifications}
+            dialogOpen={dialogOpen}
+            closeDialog={closeDialog}
+            resourceName="classifications"
           />
-        </div>
-      </Tooltip>
-    </div>
+          <div>
+            <Button onClick={() => addVotes(downvoteValue)}>
+              <ThumbDown color={downvoteColor} />
+            </Button>
+          </div>
+          <div>
+            <Button onClick={() => addVotes(upvoteValue)}>
+              <ThumbUp color={upvoteColor} />
+            </Button>
+          </div>
+        </>
+      }
+    >
+      <div>
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+          shortened
+          fontSize="0.95rem"
+        />
+      </div>
+    </Tooltip>
   );
 };
 
@@ -511,28 +500,25 @@ const RenderShowLabelling = ({ source }) => {
   };
 
   return (
-    <div>
-      <FormControlLabel
-        key={source.id}
-        control={
-          <Controller
-            render={() => (
-              <Checkbox
-                onChange={(event) => {
-                  checkBox(event);
-                  labelledSource(event.target.checked);
-                }}
-                checked={checked}
-                data-testid={`labellingCheckBox${source.id}`}
-              />
-            )}
-            name={`labellingCheckBox${source.id}`}
-            control={control}
-          />
-        }
-        label={`Labelled By:  ${labellerUsernames.join(",")}`}
-      />
-    </div>
+    <FormControlLabel
+      control={
+        <Controller
+          render={() => (
+            <Checkbox
+              onChange={(event) => {
+                checkBox(event);
+                labelledSource(event.target.checked);
+              }}
+              checked={checked}
+              data-testid={`labellingCheckBox${source.id}`}
+            />
+          )}
+          name={`labellingCheckBox${source.id}`}
+          control={control}
+        />
+      }
+      label={`Labelled By:  ${labellerUsernames.join(",")}`}
+    />
   );
 };
 
@@ -771,7 +757,6 @@ const SourceTable = ({
 
   const [openedOrigins, setOpenedOrigins] = useState({});
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
@@ -958,13 +943,11 @@ const SourceTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
       <Link
         to={`/source/${objid}`}
-        key={`${objid}_objid`}
         data-testid={`${objid}`}
         target="_blank"
         rel="noopener noreferrer"
@@ -978,9 +961,8 @@ const SourceTable = ({
     const source = sources[dataIndex];
     if (source.tns_name) {
       return (
-        <a
-          key={source.tns_name}
-          href={`https://www.wis-tns.org/object/${
+        <Link
+          to={`https://www.wis-tns.org/object/${
             source.tns_name.trim().includes(" ")
               ? source.tns_name.split(" ")[1]
               : source.tns_name
@@ -989,8 +971,8 @@ const SourceTable = ({
           rel="noopener noreferrer"
           style={{ whiteSpace: "nowrap" }}
         >
-          {`${source.tns_name} `}
-        </a>
+          {source.tns_name}
+        </Link>
       );
     }
     return null;
@@ -1009,11 +991,7 @@ const SourceTable = ({
         ? alias.map((name) => <div key={name}> {name} </div>)
         : alias;
 
-      return (
-        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-          {alias_str}
-        </Link>
-      );
+      return <Link to={`/source/${objid}`}>{alias_str}</Link>;
     }
     return null;
   };
@@ -1021,58 +999,7 @@ const SourceTable = ({
   const renderOrigin = (dataIndex) => {
     const { id: objid, origin } = sources[dataIndex];
 
-    return (
-      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
-        {origin}
-      </Link>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-
-  const renderRA = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
-  };
-
-  const renderRASex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
-  };
-
-  const renderDecSex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
-  };
-
-  const renderGalLon = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
-  };
-
-  const renderGalLat = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
-  };
-
-  const renderHost = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_host`}>{source.host?.name}</div>;
-  };
-
-  const renderHostOffset = (dataIndex) => {
-    const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_host_offset`}>
-        {source.host_offset?.toFixed(3)}
-      </div>
-    );
+    return <Link to={`/source/${objid}`}>{origin}</Link>;
   };
 
   const renderClassification = (dataIndex) => {
@@ -1136,16 +1063,14 @@ const SourceTable = ({
   const getGroups = (source) => source.groups?.filter((group) => group.active);
   const navigate = useNavigate();
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
     const source = sources[dataIndex];
     return (
-      <div key={`${source.id}_groups`} className={classes.groupChips}>
+      <div className={classes.groupChips}>
         {getGroups(source).map((group) => (
           <div key={group.name}>
             <Chip
               label={group.name.substring(0, 15)}
-              key={group.id}
               size="small"
               onClick={() => navigate(`/group/${group.id}`)}
             />
@@ -1166,29 +1091,17 @@ const SourceTable = ({
     return dates[dates.length - 1];
   };
 
-  const renderDateSaved = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
-      <div key={`${source.id}_date_saved`}>
-        {getDate(source)?.substring(0, 19)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const source = sources[dataIndex];
     return (
-      <IconButton size="small" key={`${source.id}_actions`}>
-        <a href={`/api/sources/${source.id}/finder`}>
+      <IconButton size="small">
+        <Link to={`/source/${source.id}/finder`}>
           <PictureAsPdfIcon />
-        </a>
+        </Link>
       </IconButton>
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderSaveIgnore = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -1272,7 +1185,7 @@ const SourceTable = ({
     });
 
     return (
-      <div key={`${source.id}_tags`} className={classes.groupChips}>
+      <div className={classes.groupChips}>
         {tagsWithColors.map((tag) => (
           <Chip
             key={tag.id}
@@ -1550,7 +1463,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("RA (deg)"),
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => sources[dataIndex].ra.toFixed(6),
       },
     },
     {
@@ -1561,7 +1474,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (deg)"),
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => sources[dataIndex].dec.toFixed(6),
       },
     },
     {
@@ -1572,7 +1485,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("RA (hh:mm:ss)"),
-        customBodyRenderLite: renderRASex,
+        customBodyRenderLite: (dataIndex) => ra_to_hours(sources[dataIndex].ra),
       },
     },
     {
@@ -1583,7 +1496,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (dd:mm:ss)"),
-        customBodyRenderLite: renderDecSex,
+        customBodyRenderLite: (dataIndex) => dec_to_dms(sources[dataIndex].dec),
       },
     },
     {
@@ -1594,7 +1507,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("l (deg)"),
-        customBodyRenderLite: renderGalLon,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex].gal_lon.toFixed(6),
       },
     },
     {
@@ -1605,7 +1519,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("b (deg)"),
-        customBodyRenderLite: renderGalLat,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex].gal_lat.toFixed(6),
       },
     },
     {
@@ -1649,7 +1564,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Host"),
-        customBodyRenderLite: renderHost,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex].host?.name || "",
       },
     },
     {
@@ -1660,7 +1576,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Host Offset (arcsec)"),
-        customBodyRenderLite: renderHostOffset,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex].host_offset?.toFixed(3) || "",
       },
     },
     {
@@ -1704,7 +1621,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Saved at"),
-        customBodyRenderLite: renderDateSaved,
+        customBodyRenderLite: (dataIndex) =>
+          getDate(sources[dataIndex])?.substring(0, 19),
       },
     },
     {
