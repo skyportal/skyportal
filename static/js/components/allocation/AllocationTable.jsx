@@ -2,12 +2,6 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
@@ -17,15 +11,25 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as allocationActions from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewAllocation from "./NewAllocation";
-import ModifyAllocation from "./ModifyAllocation";
+import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
 import CircularProgress from "@mui/material/CircularProgress";
+
+export const isSomeActiveRangeOrNoRange = (ranges, date = new Date()) => {
+  return !ranges?.length || ranges.some((range) => rangeIsActive(range, date));
+};
+
+export const rangeIsActive = (range, date = new Date()) =>
+  range.start_date <= date.toISOString() &&
+  range.end_date >= date.toISOString();
 
 const useStyles = makeStyles(() => ({
   container: {
@@ -57,6 +61,7 @@ const AllocationTable = ({
   const classes = useStyles();
   const dispatch = useDispatch();
   const [setRowsPerPage] = useState(numPerPage);
+
   const [newAllocationDialog, setNewAllocationDialog] = useState(false);
   const [allocationToEdit, setAllocationToEdit] = useState(null);
   const [allocationToDelete, setAllocationToDelete] = useState(null);
@@ -145,31 +150,58 @@ const AllocationTable = ({
     );
   };
 
-  const renderStartDate = (dataIndex) => {
-    const allocation = allocations[dataIndex];
+  const renderValidityRanges = (dataIndex) => {
+    const validity_ranges = (
+      allocations[dataIndex]?.validity_ranges || []
+    ).filter((range) => range.end_date >= new Date().toISOString());
 
+    const formatOptions = {
+      hour12: false,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
     return (
-      <div>
-        {allocation
-          ? new Date(`${allocation.start_date}Z`).toLocaleString("en-US", {
-              hour12: false,
-            })
-          : ""}
-      </div>
-    );
-  };
-
-  const renderEndDate = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    return (
-      <div>
-        {allocation
-          ? new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
-              hour12: false,
-            })
-          : ""}
-      </div>
+      <Tooltip
+        title={
+          <>
+            {validity_ranges.length ? (
+              validity_ranges.map((range) => (
+                <Typography
+                  key={`${range.start_date}`}
+                  variant="body1"
+                  sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
+                >
+                  {new Date(range.start_date).toLocaleString(
+                    "en-US",
+                    formatOptions,
+                  )}{" "}
+                  -{" "}
+                  {new Date(range.end_date).toLocaleString(
+                    "en-US",
+                    formatOptions,
+                  )}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="body2" sx={{ textAlign: "center" }}>
+                No validity ranges defined for this allocation.
+              </Typography>
+            )}
+          </>
+        }
+      >
+        {isSomeActiveRangeOrNoRange(validity_ranges) ? (
+          <Chip
+            label={!validity_ranges.length ? "Always Active" : "Active"}
+            color="success"
+          />
+        ) : (
+          <Chip label="Inactive" />
+        )}
+      </Tooltip>
     );
   };
 
@@ -250,9 +282,7 @@ const AllocationTable = ({
         customBodyRenderLite: renderInstrumentName,
       },
     },
-  ];
-  if (telescopeInfo === true) {
-    columns.push({
+    telescopeInfo && {
       name: "telescope_name",
       label: "Telescope Name",
       options: {
@@ -261,89 +291,75 @@ const AllocationTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeName,
       },
-    });
-  }
-  columns.push({
-    name: "start_date",
-    label: "Start Date",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderStartDate,
     },
-  });
-  columns.push({
-    name: "end_date",
-    label: "End Date",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderEndDate,
+    {
+      name: "PI",
+      label: "PI",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderPI,
+      },
     },
-  });
-  columns.push({
-    name: "PI",
-    label: "PI",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderPI,
+    {
+      name: "Group",
+      label: "Group",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderGroup,
+      },
     },
-  });
-  columns.push({
-    name: "Group",
-    label: "Group",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderGroup,
+    {
+      name: "default_share_group",
+      label: "Default Share Groups",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderShareGroups,
+      },
     },
-  });
-  columns.push({
-    name: "default_share_group",
-    label: "Default Share Groups",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderShareGroups,
+    {
+      name: "admins",
+      label: "Admins",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderAllocationUsers,
+      },
     },
-  });
-  columns.push({
-    name: "admins",
-    label: "Admins",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAllocationUsers,
+    {
+      name: "types",
+      label: "Types",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderTypes,
+      },
     },
-  });
-
-  columns.push({
-    name: "types",
-    label: "Types",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderTypes,
+    {
+      name: "validity_ranges",
+      label: "Validity Ranges",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderValidityRanges,
+      },
     },
-  });
-
-  if (deletePermission) {
-    columns.push({
+    deletePermission && {
       name: "manage",
       label: " ",
       options: {
         customBodyRenderLite: renderManage,
       },
-    });
-  }
+    },
+  ].filter(Boolean);
 
   const options = {
     ...(fixedHeader
@@ -381,12 +397,11 @@ const AllocationTable = ({
       <Dialog
         open={newAllocationDialog}
         onClose={() => setNewAllocationDialog(false)}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Allocation</DialogTitle>
         <DialogContent dividers>
-          <NewAllocation onClose={() => setNewAllocationDialog(false)} />
+          <AllocationForm onClose={() => setNewAllocationDialog(false)} />
         </DialogContent>
       </Dialog>
       <Dialog
@@ -396,7 +411,7 @@ const AllocationTable = ({
       >
         <DialogTitle>Edit Allocation</DialogTitle>
         <DialogContent dividers>
-          <ModifyAllocation
+          <AllocationForm
             allocationId={allocationToEdit}
             onClose={() => setAllocationToEdit(null)}
           />
@@ -419,8 +434,12 @@ AllocationTable.propTypes = {
       id: PropTypes.number.isRequired,
       instrument_id: PropTypes.number.isRequired,
       group_id: PropTypes.number.isRequired,
-      start_date: PropTypes.string.isRequired,
-      end_date: PropTypes.string.isRequired,
+      validity_ranges: PropTypes.arrayOf(
+        PropTypes.shape({
+          start_date: PropTypes.string.isRequired,
+          end_date: PropTypes.string.isRequired,
+        }),
+      ),
       pi: PropTypes.string.isRequired,
       types: PropTypes.arrayOf(PropTypes.string).isRequired,
       default_share_group_ids: PropTypes.arrayOf(PropTypes.number),

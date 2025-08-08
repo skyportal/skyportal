@@ -9,8 +9,12 @@ def test_super_user_post_allocation(
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
         "default_share_group_ids": [public_group.id, public_group2.id],
     }
@@ -34,8 +38,12 @@ def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
 
@@ -75,8 +83,12 @@ def test_read_only_user_cannot_get_unowned_allocation(
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
 
@@ -111,8 +123,12 @@ def test_delete_allocation_cascades_to_requests(
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
 
@@ -126,8 +142,8 @@ def test_delete_allocation_cascades_to_requests(
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
             "exposure_time": 300,
             "maximum_airmass": 2,
@@ -162,8 +178,12 @@ def test_allocation_comment(public_group, public_source, super_admin_token, sedm
         "instrument_id": sedm.id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
 
@@ -181,8 +201,8 @@ def test_allocation_comment(public_group, public_source, super_admin_token, sedm
         "obj_id": public_source.id,
         "payload": {
             "priority": 5,
-            "start_date": "3020-09-01",
-            "end_date": "3022-09-01",
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
             "observation_type": "IFU",
             "exposure_time": 300,
             "maximum_airmass": 2,
