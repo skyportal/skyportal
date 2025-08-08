@@ -22,14 +22,20 @@ const Theme = ({ disableTransitions, children }) => {
         contrastText: "#ffffff",
       },
       secondary: {
-        main: "rgb(224, 224, 224)",
+        main: "rgb(220, 220, 220)",
         light: "rgb(230, 230, 230)",
-        dark: "rgb(128,128,128)",
-        contrastText: "rgba(0, 0, 0, 0.87)",
+        dark: "rgb(160, 160, 160)",
+        contrastText: "rgba(0, 0, 0, 0.65)",
       },
       background: darkMode
         ? { default: "#1e1e1e", paper: "#191919" }
         : { default: "#f0f2f5", paper: "#f0f2f5" },
+    },
+    typography: {
+      h1: {
+        fontSize: "2.2rem",
+        fontWeight: "400",
+      },
     },
     plotFontSizes: {
       titleFontSize: 15,
@@ -39,17 +45,6 @@ const Theme = ({ disableTransitions, children }) => {
       MuiButton: {
         defaultProps: {
           disableElevation: true,
-        },
-      },
-      MuiLink: {
-        defaultProps: {
-          underline: "none",
-        },
-        styleOverrides: {
-          root: {
-            color: "var(--mui-palette-secondary-main)",
-            textDecoration: "none",
-          },
         },
       },
       MuiCssBaseline: {
