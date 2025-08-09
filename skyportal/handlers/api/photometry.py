@@ -493,9 +493,8 @@ def standardize_photometry_data(data):
     else:
         kind = "mag"
 
-    # not used here
-    _ = data.pop("group_ids", None)
-    _ = data.pop("stream_ids", None)
+    data.pop("group_ids", None)
+    data.pop("stream_ids", None)
 
     if allscalar(data):
         data = [data]
