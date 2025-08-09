@@ -2216,28 +2216,7 @@ class PhotometryRangeHandler(BaseHandler):
 class PhotometryOriginHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        """
-        ---
-        summary: Get all photometry origins
-        description: Get all photometry origins
-        tags:
-          - photometry
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        with self.Session() as session:
-            origins = (
-                session.scalars(sa.select(Photometry.origin).distinct()).unique().all()
-            )
-            return self.success(data=origins)
+        return self.error("This feature is deprecated")
 
 
 PhotometryHandler.get.__doc__ = f"""
