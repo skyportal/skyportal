@@ -565,7 +565,12 @@ def standardize_photometry_data(data):
             )
 
         for field in ["mag", "magerr", "limiting_mag"]:
-            infinite = np.isinf(df[field].values)
+            try:
+                infinite = np.isinf(df[field].values)
+            except TypeError:
+                raise ValidationError(
+                    f"Some values in the {field} field are not numeric."
+                )
             if any(infinite):
                 first_offender = np.argwhere(infinite)[0, 0]
                 packet = df.iloc[first_offender].to_dict()
@@ -1649,8 +1654,6 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
-        # The full docstring/API spec is below as an f-string
-
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
