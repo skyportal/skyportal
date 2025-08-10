@@ -27,7 +27,7 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
-import Link from "../Link";
+import { Link } from "react-router-dom";
 
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";

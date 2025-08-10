@@ -1,5 +1,6 @@
 import React from "react";
 import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from "@mui/material/MenuList";
@@ -9,7 +10,6 @@ import Box from "@mui/material/Box";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import Link from "./Link";
 import UserAvatar from "./user/UserAvatar";
 
 const useStyles = makeStyles((theme) => ({
@@ -102,7 +102,6 @@ const ProfileDropdown = () => {
             onClick={() => (window.location.href = "/logout")}
             className={classes.center}
             data-testid="signOutButton"
-            sx={{ color: "primary.main" }}
           >
             Sign Out
           </MenuItem>

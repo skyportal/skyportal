@@ -30,7 +30,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
-import Link from "../Link";
+import { Link } from "react-router-dom";
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";

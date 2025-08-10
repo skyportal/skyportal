@@ -306,7 +306,7 @@ const ClassificationRow = ({ classifications, fontSize }) => {
                 ? classifications_classes.classification[
                     classification.classification
                   ]
-                : "secondary.dark",
+                : "#999999",
               color: defaultColor(classification?.ml),
             }}
           />

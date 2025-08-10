@@ -179,21 +179,19 @@ const FollowupRequestPage = () => {
             <Paper elevation={1}>
               <div className={classes.paperContent}>
                 <Typography variant="h6">List of Followup Requests</Typography>
-                <div>
-                  <FollowupRequestLists
-                    followupRequests={followupRequestList}
-                    instrumentList={instrumentList}
-                    instrumentFormParams={instrumentFormParams}
-                    pageNumber={fetchParams.pageNumber}
-                    numPerPage={fetchParams.numPerPage}
-                    handleTableChange={handleTableChange}
-                    totalMatches={totalMatches}
-                    serverSide
-                    showObject
-                    fetchParams={fetchParams}
-                    onDownload={onDownload}
-                  />
-                </div>
+                <FollowupRequestLists
+                  followupRequests={followupRequestList}
+                  instrumentList={instrumentList}
+                  instrumentFormParams={instrumentFormParams}
+                  pageNumber={fetchParams.pageNumber}
+                  numPerPage={fetchParams.numPerPage}
+                  handleTableChange={handleTableChange}
+                  totalMatches={totalMatches}
+                  serverSide
+                  showObject
+                  fetchParams={fetchParams}
+                  onDownload={onDownload}
+                />
               </div>
             </Paper>
           </Grid>

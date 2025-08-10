@@ -7,7 +7,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import makeStyles from "@mui/styles/makeStyles";
-import Link from "../Link";
+import { Link } from "react-router-dom";
 
 const useStyles = makeStyles(() => ({
   listContainer: {

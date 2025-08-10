@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import makeStyles from "@mui/styles/makeStyles";
 
-import Link from "../Link";
+import { Link } from "react-router-dom";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 dayjs.extend(utc);

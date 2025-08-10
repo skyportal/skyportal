@@ -19,7 +19,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
-import Link from "../Link";
+import { Link } from "react-router-dom";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";

@@ -21,17 +21,17 @@ const ALLOWED_TYPES = [
 const useStyles = makeStyles((theme) => ({
   root: {
     "& .MuiOutlinedInput-root": {
-      backgroundColor: theme.palette.primary.main,
-      borderColor: theme.palette.primary.main,
+      backgroundColor: theme.palette.primary.light,
+      borderColor: theme.palette.primary.light,
       borderRadius: "0 1rem 1rem 0",
       "& fieldset": {
-        borderColor: theme.palette.primary.main,
+        borderColor: theme.palette.primary.light,
       },
       "&:hover fieldset": {
-        borderColor: theme.palette.primary.main,
+        borderColor: theme.palette.primary.light,
       },
       "&.Mui-focused fieldset": {
-        borderColor: theme.palette.primary.main,
+        borderColor: theme.palette.primary.light,
       },
     },
     margin: 0,
@@ -40,14 +40,14 @@ const useStyles = makeStyles((theme) => ({
   typeSelect: {
     fontWeight: "bold",
     color: "white",
-    backgroundColor: theme.palette.primary.main,
-    borderColor: theme.palette.primary.main,
+    backgroundColor: theme.palette.primary.light,
+    borderColor: theme.palette.primary.light,
     borderRadius: "1rem 0 0 1rem",
     "& .MuiSelect-icon": {
       color: "white",
     },
     "& fieldset": {
-      borderColor: theme.palette.primary.main,
+      borderColor: theme.palette.primary.light,
     },
     margin: 0,
     padding: 0,

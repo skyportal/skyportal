@@ -113,7 +113,7 @@ const AllocationSummary = ({ route }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <Typography variant="h1" gutterBottom color="secondary.contrastText">
+      <Typography variant="h1" gutterBottom color="textSecondary">
         Plan for:{" "}
         {allocationTitle(allocation, instrumentList, telescopeList, groups)}
       </Typography>

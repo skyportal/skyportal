@@ -115,15 +115,9 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (observingRun === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
+    if (observingRun === undefined)
+      return <CircularProgress color="secondary" />;
 
     const colSpan = rowData.length + 1;
     const assignment = assignments[rowMeta.dataIndex];
@@ -332,7 +326,7 @@ const RunSummary = ({ route }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <Typography variant="h1" gutterBottom color="secondary.contrastText">
+      <Typography variant="h1" gutterBottom color="textSecondary">
         Plan for:{" "}
         {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
       </Typography>

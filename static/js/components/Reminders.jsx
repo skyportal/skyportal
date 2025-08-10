@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme) => ({
     "& > div": {
       margin: "0.25rem",
       color: "white",
-      background: theme.palette.primary.light,
+      background: theme.palette.primary.main,
     },
   },
   buttons: {

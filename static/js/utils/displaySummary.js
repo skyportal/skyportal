@@ -13,7 +13,7 @@ import MenuItem from "@mui/material/MenuItem";
 
 import { STATUS_COLORS } from "./constants";
 import { dec_to_dms, ra_to_hours } from "../units";
-import Link from "../components/Link";
+import { Link } from "react-router-dom";
 import AssignmentForm from "../components/observing_run/AssignmentForm";
 import Box from "@mui/material/Box";
 

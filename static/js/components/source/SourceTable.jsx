@@ -47,7 +47,7 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import Link from "../Link";
+import { Link } from "react-router-dom";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";

@@ -8,27 +8,46 @@ import {
   ThemeProvider,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { grey } from "@mui/material/colors";
 
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
-  const darkMode = theme === "dark";
-  const materialTheme = createTheme({
+  const dark = theme === "dark";
+
+  const greyTheme = createTheme({
+    palette: {
+      grey: {
+        main: grey[300],
+        dark: grey[400],
+      },
+    },
+  });
+  const materialTheme = createTheme(greyTheme, {
     palette: {
       mode: theme || "light",
       primary: {
-        main: "rgb(69, 123, 157)",
-        light: "rgb(106, 149, 176)",
-        dark: "rgb(29, 53, 87)",
-        contrastText: "#ffffff",
+        main: "#457b9d",
+        light: "#457b9d",
+        dark: "#1d3557",
+        contrastText: "#fff",
       },
       secondary: {
-        main: "rgb(220, 220, 220)",
-        light: "rgb(230, 230, 230)",
-        dark: "rgb(160, 160, 160)",
-        contrastText: "rgba(0, 0, 0, 0.65)",
+        main: "#b1dae9",
+        light: "#b1dae9",
+        dark: "#76aace",
+        contrastText: "#fff",
       },
-      background: darkMode
-        ? { default: "#1e1e1e", paper: "#191919" }
+      info: {
+        main: "#f1faee",
+      },
+      warning: {
+        main: "#fca311",
+      },
+      error: {
+        main: "#e63946",
+      },
+      background: dark
+        ? { default: "#303030", paper: "#808080" }
         : { default: "#f0f2f5", paper: "#f0f2f5" },
     },
     typography: {
@@ -42,13 +61,69 @@ const Theme = ({ disableTransitions, children }) => {
       labelFontSize: 15,
     },
     components: {
+      MuiTypography: {
+        styleOverrides: {
+          body1: {
+            color: dark ? grey[50] : null,
+          },
+        },
+      },
       MuiButton: {
         defaultProps: {
           disableElevation: true,
         },
+        variants: [
+          {
+            props: { variant: "contained", color: "grey" },
+            style: {
+              color: greyTheme.palette.getContrastText(
+                greyTheme.palette.grey[300],
+              ),
+            },
+          },
+        ],
+        styleOverrides: {
+          textPrimary: {
+            color: dark ? "#b1dae9" : null,
+          },
+          outlinedPrimary: {
+            color: dark ? "#b1dae9" : null,
+          },
+        },
       },
       MuiCssBaseline: {
         styleOverrides: {
+          "@global": {
+            html: {
+              fontFamily: "Roboto, Helvetica, Arial, sans-serif",
+
+              /* Scrollbar styling */
+
+              /* Works on Firefox */
+              scrollbarWidth: "thin",
+              scrollbarColor: dark
+                ? `${grey[700]} ${grey[800]}`
+                : `${grey[400]} ${grey[100]}`,
+              overflowY: "auto",
+
+              /* Works on Chrome, Edge, and Safari */
+              "& *::-webkit-scrollbar": {
+                width: "12px",
+              },
+
+              "& *::-webkit-scrollbar-track": {
+                background: dark ? grey[800] : grey[100],
+              },
+
+              "& *::-webkit-scrollbar-thumb": {
+                backgroundColor: dark ? grey[700] : grey[400],
+                borderRadius: "20px",
+                border: dark
+                  ? `3px solid ${grey[800]}`
+                  : `3px solid ${grey[100]}`,
+              },
+            },
+          },
           ".rbc-current-time-indicator": {
             backgroundColor: "#87ea12 !important",
             height: "2px !important",
@@ -59,7 +134,9 @@ const Theme = ({ disableTransitions, children }) => {
         },
       },
     },
-    // Only added during testing; removes animations, transitions, and ripple effects
+
+    // Only added during testing; removes animations, transitions, and
+    // rippple effects
     ...(disableTransitions && {
       components: {
         defaultProps: {
