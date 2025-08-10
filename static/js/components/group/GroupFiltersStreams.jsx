@@ -151,7 +151,6 @@ const GroupFiltersStreams = ({
                             className={classes.filterLink}
                           >
                             <ListItemText
-                              key={filter.id}
                               className={classes.nested}
                               primary={filter.name}
                             />

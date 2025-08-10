@@ -192,8 +192,6 @@ const TelescopeTable = ({
     return (
       <div className={classes.telescopeManage}>
         <Button
-          key={`delete_${telescope.id}`}
-          id={`delete_button_${telescope.id}`}
           onClick={() => openDeleteDialog(telescope.id)}
           disabled={!deletePermission}
         >

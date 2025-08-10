@@ -195,8 +195,6 @@ const DefaultFollowupRequestList = ({
     return (
       <div className={classes.defaultFollowupRequestManage}>
         <Button
-          key={`delete_${default_followup_request.id}`}
-          id={`delete_button_${default_followup_request.id}`}
           onClick={() => openDeleteDialog(default_followup_request.id)}
           disabled={!deletePermission}
         >

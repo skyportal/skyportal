@@ -139,7 +139,6 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
                 className={styles[tag]}
                 size="small"
                 label={tag}
-                key={tag}
                 component="a"
                 clickable
                 target="_blank"

@@ -213,16 +213,12 @@ const TaxonomyTable = ({
     return (
       <div className={classes.taxonomyManage}>
         <Button
-          key={`edit_${taxonomy.id}`}
-          id={`edit_button_${taxonomy.id}`}
           onClick={() => openEditDialog(taxonomy.id)}
           disabled={!deletePermission}
         >
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${taxonomy.id}`}
-          id={`delete_button_${taxonomy.id}`}
           onClick={() => openDeleteDialog(taxonomy.id)}
           disabled={!deletePermission}
         >

@@ -165,7 +165,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       // remove indexes where the flux_normed or the wavelength is NaN
       // so first find the indexes to remove
       const indexesToRemove = [];
-      // eslint-disable-next-line no-plusplus
+
       for (let i = 0; i < newSpectrum.fluxes_normed.length; i++) {
         if (
           newSpectrum.fluxes_normed[i] === null ||
@@ -496,7 +496,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           type: "scatter",
           mode: "lines",
           dataType: "spectraLine",
-          x: [...Array(100).keys()].map((i) => shiftedX), // eslint-disable-line no-unused-vars
+          x: [...Array(100).keys()].map((i) => shiftedX),
           y: [...Array(100).keys()].map(
             (i) =>
               (specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05) *
@@ -525,9 +525,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               mode: "lines",
               dataType: "spectraLine",
               x: [...Array(100).keys()].map(
-                (
-                  i, // eslint-disable-line no-unused-vars
-                ) =>
+                (i) =>
                   (parseFloat(customWavelengthInput, 10) *
                     (1 + (parseFloat(redshiftInput, 10) || 0))) /
                   (1 + (parseFloat(vExpInput, 10) || 0) / C),
@@ -592,7 +590,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
               // on mobile with a lot of legend entries, we need to move the legend down to avoid overlapping with the plot
-              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
+              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3,
               x: mode === "desktop" ? 1.02 : 0,
               font: { size: 14 },
               tracegroupgap: 0,
@@ -699,7 +697,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               style={{ backgroundColor: line.color }}
             />
             <Button
-              key={line.wavelength}
               onClick={() => {
                 if (selectedLines.includes(line.name)) {
                   setSelectedLines(

@@ -181,8 +181,6 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     return (
       <div className={classes.analysisServiceManage}>
         <Button
-          key={`delete_${analysis_service.id}`}
-          id={`delete_button_${analysis_service.id}`}
           onClick={() => openDeleteDialog(analysis_service.id)}
           disabled={!deletePermission}
         >
