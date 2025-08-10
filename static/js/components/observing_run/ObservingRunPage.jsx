@@ -23,7 +23,7 @@ import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import Link from "../Link";
+import { Link } from "react-router-dom";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { observingRunTitle } from "./RunSummary";
