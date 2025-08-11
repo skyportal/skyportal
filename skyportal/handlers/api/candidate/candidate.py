@@ -850,7 +850,7 @@ class CandidateHandler(BaseHandler):
                 filter_ids,
             )
 
-        page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page, 500)
+        page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
 
         with self.Session() as session:
             candidate_query = Candidate.select(session.user_or_token).where(
