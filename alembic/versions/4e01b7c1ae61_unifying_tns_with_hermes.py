@@ -1,7 +1,7 @@
 """Unifying TNS with hermes
 
 Revision ID: 4e01b7c1ae61
-Revises: b3e29f8c1a7d
+Revises: d10af879495e
 Create Date: 2025-06-19 17:24:20.538617
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "4e01b7c1ae61"
-down_revision = "b3e29f8c1a7d"
+down_revision = "d10af879495e"
 branch_labels = None
 depends_on = None
 
