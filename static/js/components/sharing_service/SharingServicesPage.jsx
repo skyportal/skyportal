@@ -1141,8 +1141,8 @@ const SharingServicesPage = () => {
       options: { customBodyRenderLite: renderName },
     },
     {
-      name: "publish_to",
-      label: "Publish enabled to",
+      name: "sending_to",
+      label: "Sending to",
       options: {
         sort: false,
         customBodyRenderLite: (dataIndex) => (
@@ -1157,7 +1157,7 @@ const SharingServicesPage = () => {
                     <br />- Bot ID: {sharingServicesList[dataIndex].tns_bot_id}
                     <br />- Source Group ID:{" "}
                     {sharingServicesList[dataIndex].tns_source_group_id}
-                    <br />- Publish existing TNS objects:{" "}
+                    <br />- Report existing TNS objects:{" "}
                     {sharingServicesList[dataIndex].publish_existing_tns_objects
                       ? "Yes"
                       : "No"}

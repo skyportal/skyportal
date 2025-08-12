@@ -125,11 +125,11 @@ const SharingServiceSubmissionsPage = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: "0.2rem",
+          gap: "0.1rem",
         }}
       >
         {tns_name && (
-          <Tooltip title="TNS name">
+          <Tooltip title="TNS name" placement="top">
             <a
               href={`https://www.wis-tns.org/object/${
                 tns_name.trim().includes(" ")
@@ -176,11 +176,19 @@ const SharingServiceSubmissionsPage = () => {
     },
     {
       name: "created_at",
-      label: "Created At",
+      label: "Created at",
       options: {
         display: true,
         filter: false,
         sort: false,
+        customBodyRenderLite: (dataIndex) => {
+          const { created_at } = sharingServiceSubmissions[dataIndex];
+          return (
+            <Typography variant="body2">
+              {created_at.split(".")[0].replace("T", "\n")}
+            </Typography>
+          );
+        },
       },
     },
     {
