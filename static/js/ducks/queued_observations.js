@@ -4,6 +4,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import * as API from "../API";
 import store from "../store";
+import { utcString } from "../utils/format";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -27,15 +28,11 @@ const DELETE_API_QUEUE = "skyportal/DELETE_API_QUEUE";
 
 export function fetchQueuedObservations(filterParams = {}) {
   if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams.startDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams.startDate = utcString(dayjs());
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams.endDate = dayjs()
-      .utc()
-      .add(7, "day")
-      .utc()
-      .format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams.endDate = utcString(dayjs().add(7, "day"));
   }
   filterParams.observationStatus = "queued";
 

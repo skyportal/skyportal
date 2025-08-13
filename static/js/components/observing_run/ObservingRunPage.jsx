@@ -31,6 +31,7 @@ import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
 
 import * as observingRunActions from "../../ducks/observingRun";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
@@ -172,18 +173,10 @@ const ObservingRunPage = () => {
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage observing runs");
-
-  const minusOneAndHalfDay = dayjs()
-    .utc()
-    .subtract(1.5, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const dt_month = dayjs.duration(1, "month");
-
   const [displayAll, setDisplayAll] = useState(false);
 
-  const toggleDisplayAllCheckbox = () => {
-    setDisplayAll(!displayAll);
-  };
+  const minusOneAndHalfDay = utcString(dayjs().subtract(1.5, "day"));
+  const dt_month = dayjs.duration(1, "month");
 
   let observingRunsToShow = [];
   if (!displayAll) {
@@ -217,7 +210,7 @@ const ObservingRunPage = () => {
             </Typography>
             <Button
               secondary
-              onClick={toggleDisplayAllCheckbox}
+              onClick={() => setDisplayAll(!displayAll)}
               data-testid="observationRunButton"
             >
               {displayAll ? "Show only upcoming" : "Show all"} observing runs

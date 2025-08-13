@@ -1,6 +1,5 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -13,15 +12,12 @@ import {
   fetchRecurringAPIs,
   submitRecurringAPI,
 } from "../ducks/recurring_apis";
+import { utcString } from "../utils/format";
 
 dayjs.extend(utc);
 
 const NewRecurringAPI = () => {
   const dispatch = useDispatch();
-  const defaultDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
   const allowedRecurringAPIMethods = useSelector(
     (state) => state.config.allowedRecurringAPIMethods,
   );
@@ -57,7 +53,7 @@ const NewRecurringAPI = () => {
         type: "string",
         format: "date-time",
         title: "Date",
-        default: defaultDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       call_delay: {
         type: "number",

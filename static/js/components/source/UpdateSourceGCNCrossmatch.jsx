@@ -14,6 +14,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as sourceActions from "../../ducks/source";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -39,11 +40,11 @@ const UpdateSourceGCNCrossmatch = ({ source }) => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const defaultStartDate = firstDet
-    ? firstDet.subtract(2, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
-    : dayjs().subtract(3, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    ? utcString(firstDet.subtract(2, "day"))
+    : utcString(dayjs.subtract(3, "day"));
   const defaultEndDate = firstDet
-    ? firstDet.add(5, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
-    : dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    ? utcString(firstDet.add(5, "day").utc())
+    : utcString(dayjs());
 
   const handleSubmit = async ({ formData }) => {
     dispatch(sourceActions.addGCNCrossmatch(source.id, formData)).then(
