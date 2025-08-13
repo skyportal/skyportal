@@ -51,9 +51,12 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def validate_fluxerr(fluxerr):
-    if isinstance(fluxerr, float | int | str):
-        return float(fluxerr) >= 0
-    return all(float(el) >= 0 for el in fluxerr)
+    try:
+        if isinstance(fluxerr, float | int | str):
+            return float(fluxerr) >= 0
+        return all(float(el) >= 0 for el in fluxerr)
+    except ValueError:
+        raise ValidationError("fluxerr must be a number or list of numbers")
 
 
 class ApispecEnumField(EnumField):

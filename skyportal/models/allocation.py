@@ -4,6 +4,7 @@ import json
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY as pg_array
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
@@ -63,8 +64,10 @@ class Allocation(Base):
     proposal_id = sa.Column(
         sa.String, doc="The ID of the proposal associated with this allocation."
     )
-    start_date = sa.Column(sa.DateTime, doc="The UTC start date of the allocation.")
-    end_date = sa.Column(sa.DateTime, doc="The UTC end date of the allocation.")
+    validity_ranges = sa.Column(
+        JSONB,
+        doc="A list of validity ranges for the allocation, each with a start_date and end_date in UTC.",
+    )
     hours_allocated = sa.Column(
         sa.Float, nullable=False, doc="The number of hours allocated."
     )

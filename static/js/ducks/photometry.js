@@ -5,8 +5,6 @@ import store from "../store";
 
 const FETCH_SOURCE_PHOTOMETRY = "skyportal/FETCH_SOURCE_PHOTOMETRY";
 const FETCH_SOURCE_PHOTOMETRY_OK = "skyportal/FETCH_SOURCE_PHOTOMETRY_OK";
-const FETCH_FILTER_WAVELENGTHS = "skyportal/FETCH_FILTER_WAVELENGTHS";
-const FETCH_ALL_ORIGINS = "skyportal/FETCH_ALL_ORIGINS";
 const FETCH_ALL_ORIGINS_OK = "skyportal/FETCH_ALL_ORIGINS_OK";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
@@ -17,7 +15,6 @@ const SUBMIT_PHOTOMETRY = "skyportal/SUBMIT_PHOTOMETRY";
 
 const UPDATE_PHOTOMETRY = "skyportal/UPDATE_PHOTOMETRY";
 
-// eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id, params = {}) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY, {
     includeOwnerInfo: true,
@@ -25,18 +22,6 @@ export function fetchSourcePhotometry(id, params = {}) {
     includeValidationInfo: true,
     ...params,
   });
-}
-
-export function fetchFilterWavelengths(filterParams = {}) {
-  return API.GET(
-    `/api/internal/wavelengths`,
-    FETCH_FILTER_WAVELENGTHS,
-    filterParams,
-  );
-}
-
-export function fetchAllOrigins() {
-  return API.GET("/api/photometry/origins", FETCH_ALL_ORIGINS);
 }
 
 export function deletePhotometry(id) {

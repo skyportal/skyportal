@@ -512,6 +512,7 @@ const PhotometryPlot = ({
     }
     if (plotType === "mag" || plotType === "flux") {
       const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
         .map((key) => {
           const detections = groupedPhotometry[key].filter(
             (point) => point.mag !== null,
@@ -694,6 +695,7 @@ const PhotometryPlot = ({
     }
     if (plotType === "period") {
       const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
         .map((key) => {
           // using the period state variable, calculate the phase of each point
           // and then plot the phase vs mag
@@ -1008,8 +1010,14 @@ const PhotometryPlot = ({
         .map((duplicate) => photometry[duplicate] || [])
         .flat();
 
+      // Filter out SwiftXRT points as they are not relevant for in the vega system
+      const allPhotometry = [...objPhotometry, ...duplicatesPhotometry];
+      const photometryFiltered = allPhotometry.filter(
+        (point) => !(point.filter === "swiftxrt" && magsys === "vega"),
+      );
+
       const [newPhotometry, newPhotStats] = preparePhotometry(
-        [...objPhotometry, ...duplicatesPhotometry],
+        photometryFiltered,
         dm,
       );
       const groupedPhotometry = groupPhotometry(

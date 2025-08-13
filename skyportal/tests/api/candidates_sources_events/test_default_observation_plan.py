@@ -23,8 +23,12 @@ def test_default_observation_plan_tiling(super_admin_token, public_group):
         "instrument_id": instrument_id,
         "pi": "Shri Kulkarni",
         "hours_allocated": 200,
-        "start_date": "3021-02-27T00:00:00",
-        "end_date": "3021-07-20T00:00:00",
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00",
+                "end_date": "3021-07-20T00:00:00",
+            }
+        ],
         "proposal_id": "COO-2020A-P01",
     }
 

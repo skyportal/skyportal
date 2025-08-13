@@ -419,7 +419,7 @@ class TAROTAPI(FollowUpAPI):
         # This code is a workaround and should be removed after finding a solution
         minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
         if request.payload["start_date"] < minimum_observing_time:
-            request.payload["start_date"] = minimum_observing_time
+            request.payload["start_date"] = minimum_observing_time.iso
 
         observing_time = get_observing_time(session, request)
         observation_string = create_request_string(

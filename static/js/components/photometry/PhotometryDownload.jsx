@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import Dialog from "@mui/material/Dialog";
@@ -19,7 +19,31 @@ import { calculateFluxFromMag } from "../../utils/calculations";
 import { PHOT_ZP } from "../../utils";
 import { getValidationStatus } from "./PhotometryValidation";
 
-const DEFAULT_DOWNLOAD_COLUMNS = [
+const DEFAULT_COLUMN_ORDER = [
+  "id",
+  "mjd",
+  "utc",
+  "mag",
+  "magerr",
+  "limiting_mag",
+  "filter",
+  "snr",
+  "magsys",
+  "instrument_name",
+  "instrument_id",
+  "origin",
+  "flux",
+  "fluxerr",
+  "ra",
+  "dec",
+  "ra_unc",
+  "dec_unc",
+  "created_at",
+  "altdata",
+  "streams",
+];
+
+const DEFAULT_COLUMNS = [
   "id",
   "mjd",
   "mag",
@@ -49,30 +73,30 @@ const PhotometryDownload = ({
 }) => {
   const dispatch = useDispatch();
   const [downloadFormData, setDownloadFormData] = useState({
-    columns: DEFAULT_DOWNLOAD_COLUMNS,
+    columns: [],
     validationFilter: DEFAULT_VALIDATION_FILTER,
   });
+  const [downloadMode, setDownloadMode] = useState("default");
+
+  const orderColumns = (columns) => {
+    const orderedColumns = DEFAULT_COLUMN_ORDER.filter((col) =>
+      columns.includes(col),
+    );
+    const remainingColumns = columns.filter(
+      (col) => !DEFAULT_COLUMN_ORDER.includes(col),
+    );
+    return [...orderedColumns, ...remainingColumns];
+  };
 
   let availableDownloadColumns = [];
   if (data && data.length > 0) {
-    const priorityColumns = ["id", "mjd", "mag", "magerr", "filter"];
     const allKeys = [...Object.keys(data[0]), "utc", "flux", "fluxerr"];
-
     const filteredKeys = allKeys.filter(
       (key) => !["groups", "obj_id", "validations"].includes(key),
     );
 
-    // sort columns
-    const priority = filteredKeys
-      .filter((key) => priorityColumns.includes(key))
-      .map((key) => ({ key, label: key }));
-
-    const others = filteredKeys
-      .filter((key) => !priorityColumns.includes(key))
-      .sort()
-      .map((key) => ({ key, label: key }));
-
-    availableDownloadColumns = [...priority, ...others];
+    const orderedKeys = orderColumns(filteredKeys);
+    availableDownloadColumns = orderedKeys.map((key) => ({ key, label: key }));
   }
 
   const downloadSchema = {
@@ -120,6 +144,52 @@ const PhotometryDownload = ({
       return filter[status] === true;
     });
   };
+
+  const setColumnsForMode = (mode) => {
+    setDownloadMode(mode);
+
+    let selectedColumns;
+    let validationFilter = DEFAULT_VALIDATION_FILTER;
+
+    switch (mode) {
+      case "default":
+        selectedColumns = DEFAULT_COLUMNS.filter((col) =>
+          availableDownloadColumns.some((availCol) => availCol.key === col),
+        );
+        break;
+      case "all":
+        selectedColumns = availableDownloadColumns.map((col) => col.key);
+        validationFilter = {
+          validated: true,
+          rejected: true,
+          ambiguous: true,
+          not_vetted: true,
+        };
+        break;
+      default:
+        selectedColumns = [];
+    }
+
+    const orderedColumns = orderColumns(selectedColumns);
+
+    setDownloadFormData((prev) => ({
+      ...prev,
+      columns: orderedColumns,
+      ...(usePhotometryValidation && { validationFilter }),
+    }));
+  };
+
+  const handleSetDefaultColumns = () => setColumnsForMode("default");
+  const handleSetAllColumns = () => setColumnsForMode("all");
+
+  useEffect(() => {
+    if (
+      availableDownloadColumns.length > 0 &&
+      downloadFormData.columns.length === 0
+    ) {
+      setColumnsForMode("default");
+    }
+  }, [availableDownloadColumns]);
 
   const performDownload = (buildHead, buildBody, cols, tableData) => {
     const filteredTableData = filterDataByValidation(
@@ -211,33 +281,6 @@ const PhotometryDownload = ({
     onDownload();
   };
 
-  const handleSetDefaultColumns = () => {
-    setDownloadFormData((prev) => ({
-      ...prev,
-      columns: DEFAULT_DOWNLOAD_COLUMNS.filter((col) =>
-        availableDownloadColumns.some((availCol) => availCol.key === col),
-      ),
-      ...(usePhotometryValidation && {
-        validationFilter: DEFAULT_VALIDATION_FILTER,
-      }),
-    }));
-  };
-
-  const handleSetAllColumns = () => {
-    setDownloadFormData((prev) => ({
-      ...prev,
-      columns: availableDownloadColumns.map((col) => col.key),
-      ...(usePhotometryValidation && {
-        validationFilter: {
-          validated: true,
-          rejected: true,
-          ambiguous: true,
-          not_vetted: true,
-        },
-      }),
-    }));
-  };
-
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
@@ -248,13 +291,17 @@ const PhotometryDownload = ({
         <div style={{ marginBottom: "16px" }}>
           <Button
             size="small"
-            variant="outlined"
+            variant={downloadMode === "default" ? "contained" : "outlined"}
             onClick={handleSetDefaultColumns}
             style={{ marginRight: "8px" }}
           >
             Default
           </Button>
-          <Button size="small" variant="outlined" onClick={handleSetAllColumns}>
+          <Button
+            size="small"
+            variant={downloadMode === "all" ? "contained" : "outlined"}
+            onClick={handleSetAllColumns}
+          >
             All
           </Button>
         </div>

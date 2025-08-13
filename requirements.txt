@@ -29,7 +29,7 @@ pytest>=8.3.2, <9.0.0
 sncosmo==2.11.1
 tdtax==0.1.7
 healpix-alchemy==1.1.0
-mocpy==0.17.1
+mocpy==0.18.0
 obspy==1.4.0
 conesearch-alchemy==1.1.0
 regions==0.10
@@ -37,7 +37,7 @@ jsonschema==4.23.0
 jsonpath_ng==1.7.0
 pytest-rerunfailures>=14.0
 tables>=3.10.1,<4.0.0
-timezonefinder==6.5.8
+timezonefinder==7.0.1
 astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
@@ -63,7 +63,7 @@ pysedm==0.31.1
 xmlschema==4.1.0
 requests>=2.30.0, <3.0.0
 geojson==3.2.0
-typing-extensions==4.13.2
+typing-extensions==4.14.1
 swifttools==3.0.23
 pip>=24.0.0
 gwemopt==0.3.6
@@ -83,15 +83,15 @@ gcn-kafka==0.3.3
 confluent_kafka==2.11.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
 iminuit==2.31.1
 watchdog==6.0.0
-PyAstronomy==0.22.0
+PyAstronomy==0.23.0
 shapely==2.0.7
-openai==1.93.1
+openai==1.98.0
 tiktoken==0.9.0
 simplejson==3.20.1
-langchain==0.3.25
-langchain-openai==0.3.19
+langchain==0.3.27
+langchain-openai==0.3.28
 pinecone==7.0.2
 pydantic==2.11.4
-sentry-sdk==2.32.0
+sentry-sdk==2.34.1
 typing-inspect==0.9.0
 brotli==1.1.0

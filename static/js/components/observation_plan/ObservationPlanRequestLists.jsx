@@ -10,6 +10,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import {
   createTheme,
   ThemeProvider,
@@ -126,6 +128,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const theme = useTheme();
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
+  const [anchorEl, setAnchorEl] = useState(null);
 
   const observationPlanRequestList = gcnEvent?.observation_plans || [];
   const fetchedObservationPlan = gcnEvent?.observation_plan || null;
@@ -214,7 +217,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedLocalizationId, gcnEvent]);
 
   if (
@@ -239,7 +241,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   }, {});
 
   const locLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvent.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });
@@ -360,6 +362,12 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
 
+      const downloadLink = (rubinFormat = false) =>
+        `/api/observation_plan/${
+          observationplanRequest.id
+        }?includePlannedObservations=True${
+          rubinFormat ? "&rubinFormat=True" : ""
+        }`;
       return (
         <div>
           {observationplanRequest.status === "running" ? (
@@ -376,6 +384,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   size="small"
                   type="submit"
                   data-testid={`gcnRequest_${observationplanRequest.id}`}
+                  disabled={!observationplanRequest.observation_plans?.length}
                 >
                   GCN
                 </Button>
@@ -383,14 +392,34 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
               <div>
                 <Button
                   secondary
-                  href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
-                  download={`observation-plan-${observationplanRequest.id}`}
                   size="small"
-                  type="submit"
-                  data-testid={`downloadRequest_${observationplanRequest.id}`}
+                  onClick={(e) => setAnchorEl(e.currentTarget)}
                 >
                   Download
                 </Button>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                >
+                  <MenuItem
+                    component="a"
+                    href={downloadLink()}
+                    download={`observation-plan-${observationplanRequest.id}`}
+                    onClick={() => setAnchorEl(null)}
+                  >
+                    ZTF compatible
+                  </MenuItem>
+                  <MenuItem
+                    component="a"
+                    href={downloadLink(true)}
+                    download={`rubin-observation-plan-${observationplanRequest.id}`}
+                    onClick={() => setAnchorEl(null)}
+                    disabled={!observationplanRequest.observation_plans?.length}
+                  >
+                    Rubin compatible
+                  </MenuItem>
+                </Menu>
               </div>
               <div>
                 <Button
@@ -400,6 +429,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   size="small"
                   type="submit"
                   data-testid={`movieRequest_${observationplanRequest.id}`}
+                  disabled={!observationplanRequest.observation_plans?.length}
                 >
                   GIF
                 </Button>
