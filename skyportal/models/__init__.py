@@ -11,7 +11,6 @@ from .classification import *
 from .comment import *
 from .cosmo import cosmo
 from .earthquake import *
-from .external_publishing import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
@@ -39,6 +38,7 @@ from .reminder import *
 from .scan_report.scan_report import *
 from .scan_report.scan_report_item import *
 from .schema import setup_schema
+from .sharing_service import *
 from .shift import *
 from .source import *
 from .source_label import *

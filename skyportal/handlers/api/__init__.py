@@ -46,19 +46,6 @@ from .earthquake import (
     EarthquakeStatusHandler,
 )
 from .enum_types import EnumTypesHandler
-from .external_publishing.external_publishing_bot import ExternalPublishingBotHandler
-from .external_publishing.external_publishing_bot_coauthor import (
-    ExternalPublishingBotCoauthorHandler,
-)
-from .external_publishing.external_publishing_bot_group import (
-    ExternalPublishingBotGroupHandler,
-)
-from .external_publishing.external_publishing_bot_group_auto_publisher import (
-    ExternalPublishingBotGroupAutoPublisherHandler,
-)
-from .external_publishing.external_publishing_submission import (
-    ExternalPublishingSubmissionHandler,
-)
 from .facility_listener import FacilityMessageHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler
@@ -174,6 +161,19 @@ from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
+from .sharing_service.sharing_service import SharingServiceHandler
+from .sharing_service.sharing_service_coauthor import (
+    SharingServiceCoauthorHandler,
+)
+from .sharing_service.sharing_service_group import (
+    SharingServiceGroupHandler,
+)
+from .sharing_service.sharing_service_group_auto_publisher import (
+    SharingServiceGroupAutoPublisherHandler,
+)
+from .sharing_service.sharing_service_submission import (
+    SharingServiceSubmissionHandler,
+)
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (

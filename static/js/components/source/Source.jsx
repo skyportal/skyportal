@@ -80,7 +80,7 @@ import SpectraPlot from "../plot/SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
-import ExternalPublishingDialog from "../external_publishing/ExternalPublishingForm";
+import SharingServicesDialog from "../sharing_service/SharingServicesForm";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -949,7 +949,7 @@ const SourceContent = ({ source }) => {
                 >
                   Send to
                 </Button>
-                <ExternalPublishingDialog
+                <SharingServicesDialog
                   obj_id={source.id}
                   dialogOpen={sendToDialogOpen}
                   setDialogOpen={setSendToDialogOpen}

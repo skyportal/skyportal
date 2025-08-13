@@ -2,34 +2,34 @@ from baselayer.app.access import permissions
 from baselayer.log import make_log
 
 from ....models import (
-    ExternalPublishingBotGroup,
-    ExternalPublishingBotGroupAutoPublisher,
     GroupUser,
+    SharingServiceGroup,
+    SharingServiceGroupAutoPublisher,
     User,
 )
-from ....utils.data_access import check_access_to_external_publishing_bot
+from ....utils.data_access import check_access_to_sharing_service
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 
-log = make_log("api/external_publishing_bot_group_auto_publisher")
+log = make_log("api/sharing_service_group_auto_publisher")
 
 
-class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
-    @permissions(["Manage external publishing bots"])
-    def post(self, external_publishing_bot_id, group_id, user_id=None):
+class SharingServiceGroupAutoPublisherHandler(BaseHandler):
+    @permissions(["Manage sharing services"])
+    def post(self, sharing_service_id, group_id, user_id=None):
         """
         ---
-        summary: Add auto_publisher(s) to an ExternalPublishingBotGroup
-        description: Add auto_publisher(s) to an ExternalPublishingBotGroup
+        summary: Add auto_publisher(s) to an SharingServiceGroup
+        description: Add auto_publisher(s) to an SharingServiceGroup
         tags:
-            - external publishing bot
+            - external sharing service
         parameters:
             - in: path
-              name: external_publishing_bot_id
+              name: sharing_service_id
               required: true
               schema:
                 type: string
-              description: The ID of the ExternalPublishingBot
+              description: The ID of the SharingService
             - in: path
               name: group_id
               required: true
@@ -76,27 +76,26 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
 
         if not user_ids:
             return self.error(
-                "You must specify at least one user_id when adding auto_publisher(s) for an ExternalPublishingBotGroup"
+                "You must specify at least one user_id when adding auto_publisher(s) for an SharingServiceGroup"
             )
 
         with self.Session() as session:
-            # Check if the user has access to the external_publishing_bot and group
-            check_access_to_external_publishing_bot(
-                session, session.user_or_token, external_publishing_bot_id
+            # Check if the user has access to the sharing_service and group
+            check_access_to_sharing_service(
+                session, session.user_or_token, sharing_service_id
             )
             self.current_user.assert_group_accessible(group_id)
 
-            # check if the group already has access to the external_publishing_bot
-            external_publishing_bot_group = session.scalar(
-                ExternalPublishingBotGroup.select(session.user_or_token).where(
-                    ExternalPublishingBotGroup.external_publishing_bot_id
-                    == external_publishing_bot_id,
-                    ExternalPublishingBotGroup.group_id == group_id,
+            # check if the group already has access to the sharing_service
+            sharing_service_group = session.scalar(
+                SharingServiceGroup.select(session.user_or_token).where(
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
+                    SharingServiceGroup.group_id == group_id,
                 )
             )
-            if not external_publishing_bot_group:
+            if not sharing_service_group:
                 return self.error(
-                    f"Group {group_id} does not have access to the publishing bot {external_publishing_bot_id}, cannot add auto_publisher"
+                    f"Group {group_id} does not have access to the sharing service {sharing_service_id}, cannot add auto_publisher"
                 )
 
             new_auto_publishers = []
@@ -121,37 +120,33 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
 
                 # verify that the user isn't already an auto_publisher
                 existing_auto_publisher = session.scalar(
-                    ExternalPublishingBotGroupAutoPublisher.select(
+                    SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
-                        ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id
-                        == external_publishing_bot_group.id,
-                        ExternalPublishingBotGroupAutoPublisher.group_user_id
-                        == group_user.id,
+                        SharingServiceGroupAutoPublisher.sharing_service_group_id
+                        == sharing_service_group.id,
+                        SharingServiceGroupAutoPublisher.group_user_id == group_user.id,
                     )
                 )
 
                 if existing_auto_publisher:
                     return self.error(
-                        f"User {user_id} is already an auto_publisher for the publishing bot {external_publishing_bot_id}"
+                        f"User {user_id} is already an auto_publisher for the sharing service {sharing_service_id}"
                     )
 
                 if len(user.affiliations) == 0:
                     return self.error(
-                        f"User {user_id} has no affiliation(s), required to be an auto_publisher of the publishing bot {external_publishing_bot_id}. User must add one in their profile."
+                        f"User {user_id} has no affiliation(s), required to be an auto_publisher of the sharing service {sharing_service_id}. User must add one in their profile."
                     )
 
-                if (
-                    user.is_bot
-                    and not external_publishing_bot_group.auto_report_allow_bots
-                ):
+                if user.is_bot and not sharing_service_group.auto_sharing_allow_bots:
                     return self.error(
-                        f"User {user_id} is a bot user, which is not allowed to be an auto_publisher for the publishing bot {external_publishing_bot_id}"
+                        f"User {user_id} is a bot user, which is not allowed to be an auto_publisher for the sharing service {sharing_service_id}"
                     )
 
                 new_auto_publishers.append(
-                    ExternalPublishingBotGroupAutoPublisher(
-                        external_publishing_bot_group_id=external_publishing_bot_group.id,
+                    SharingServiceGroupAutoPublisher(
+                        sharing_service_group_id=sharing_service_group.id,
                         group_user_id=group_user.id,
                     )
                 )
@@ -159,25 +154,25 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
             session.add_all(new_auto_publishers)
             session.commit()
             self.push(
-                action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
+                action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success(data={"ids": [a.id for a in new_auto_publishers]})
 
-    @permissions(["Manage external publishing bots"])
-    def delete(self, external_publishing_bot_id, group_id, user_id):
+    @permissions(["Manage sharing services"])
+    def delete(self, sharing_service_id, group_id, user_id):
         """
         ---
-        summary: Remove auto_publisher(s) from an ExternalPublishingBotGroup
-        description: Delete an auto_publisher from an ExternalPublishingBotGroup
+        summary: Remove auto_publisher(s) from an SharingServiceGroup
+        description: Delete an auto_publisher from an SharingServiceGroup
         tags:
-            - external publishing bot
+            - external sharing service
         parameters:
             - in: path
-              name: external_publishing_bot_id
+              name: sharing_service_id
               required: true
               schema:
                 type: integer
-              description: The ID of the external publishing bot
+              description: The ID of the external sharing service
             - in: path
               name: group_id
               required: true
@@ -223,27 +218,26 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
                 user_ids = [int(user_id)]
         if not user_ids:
             return self.error(
-                "You must specify at least one user_id when removing auto_publisher(s) from an ExternalPublishingBotGroup"
+                "You must specify at least one user_id when removing auto_publisher(s) from an SharingServiceGroup"
             )
 
         with self.Session() as session:
-            # Check if the user has access to the external_publishing_bot and group
-            check_access_to_external_publishing_bot(
-                session, session.user_or_token, external_publishing_bot_id
+            # Check if the user has access to the sharing_service and group
+            check_access_to_sharing_service(
+                session, session.user_or_token, sharing_service_id
             )
             self.current_user.assert_group_accessible(group_id)
 
-            # check if the group already has access to the external_publishing_bot
-            external_publishing_bot_group = session.scalar(
-                ExternalPublishingBotGroup.select(session.user_or_token).where(
-                    ExternalPublishingBotGroup.external_publishing_bot_id
-                    == external_publishing_bot_id,
-                    ExternalPublishingBotGroup.group_id == group_id,
+            # check if the group already has access to the sharing_service
+            sharing_service_group = session.scalar(
+                SharingServiceGroup.select(session.user_or_token).where(
+                    SharingServiceGroup.sharing_service_id == sharing_service_id,
+                    SharingServiceGroup.group_id == group_id,
                 )
             )
-            if external_publishing_bot_group is None:
+            if sharing_service_group is None:
                 return self.error(
-                    f"Group {group_id} does not have access to the publishing bot {external_publishing_bot_id}, cannot remove auto_publisher"
+                    f"Group {group_id} does not have access to the sharing service {sharing_service_id}, cannot remove auto_publisher"
                 )
 
             auto_publishers_to_delete = []
@@ -268,19 +262,18 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
 
                 # verify that the user is an auto_publisher
                 auto_publisher = session.scalar(
-                    ExternalPublishingBotGroupAutoPublisher.select(
+                    SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
-                        ExternalPublishingBotGroupAutoPublisher.external_publishing_bot_group_id
-                        == external_publishing_bot_group.id,
-                        ExternalPublishingBotGroupAutoPublisher.group_user_id
-                        == group_user.id,
+                        SharingServiceGroupAutoPublisher.sharing_service_group_id
+                        == sharing_service_group.id,
+                        SharingServiceGroupAutoPublisher.group_user_id == group_user.id,
                     )
                 )
 
                 if auto_publisher is None:
                     return self.error(
-                        f"User {user_id} is not an auto_publisher for the publishing bot {external_publishing_bot_id}"
+                        f"User {user_id} is not an auto_publisher for the sharing service {sharing_service_id}"
                     )
 
                 auto_publishers_to_delete.append(auto_publisher)
@@ -289,6 +282,6 @@ class ExternalPublishingBotGroupAutoPublisherHandler(BaseHandler):
                 session.delete(a)
             session.commit()
             self.push(
-                action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
+                action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success()

@@ -430,11 +430,11 @@ User.sources = relationship(
     viewonly=True,
 )
 
-User.external_publishing_submissions = relationship(
-    "ExternalPublishingSubmission",
+User.sharing_service_submissions = relationship(
+    "SharingServiceSubmission",
     back_populates="user",
     passive_deletes=True,
-    doc="The external publishing submission this user has made (manual or automatic).",
+    doc="Sharing submissions this user has made (manual or automatic).",
 )
 
 

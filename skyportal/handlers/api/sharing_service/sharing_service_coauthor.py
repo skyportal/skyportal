@@ -1,28 +1,28 @@
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
-from ....models import ExternalPublishingBot, ExternalPublishingBotCoauthor, User
+from ....models import SharingService, SharingServiceCoauthor, User
 from ...base import BaseHandler
 
-log = make_log("api/external_publishing_bot_coauthor")
+log = make_log("api/sharing_service_coauthor")
 
 
-class ExternalPublishingBotCoauthorHandler(BaseHandler):
-    @permissions(["Manage external publishing bots"])
-    def post(self, external_publishing_bot_id, user_id=None):
+class SharingServiceCoauthorHandler(BaseHandler):
+    @permissions(["Manage sharing services"])
+    def post(self, sharing_service_id, user_id=None):
         """
         ---
-        summary: Add a coauthor to an external publishing bot
-        description: Add a coauthor to an external publishing bot
+        summary: Add a coauthor to an external sharing service
+        description: Add a coauthor to an external sharing service
         tags:
-            - external publishing bot
+            - external sharing service
         parameters:
             - in: path
-              name: external_publishing_bot_id
+              name: sharing_service_id
               required: true
               schema:
                 type: integer
-              description: ID of the publishing bot
+              description: ID of the sharing service
             - in: path
               name: user_id
               required: false
@@ -52,18 +52,18 @@ class ExternalPublishingBotCoauthorHandler(BaseHandler):
             user_id = self.get_json().get("user_id")
         if user_id is None:
             return self.error(
-                "You must specify a coauthor_id when adding a coauthor to a publishing bot"
+                "You must specify a coauthor_id when adding a coauthor to a sharing service"
             )
         with self.Session() as session:
-            # verify that the user has access to the external_publishing_bot
-            external_publishing_bot = session.scalar(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
+            # verify that the user has access to the sharing_service
+            sharing_service = session.scalar(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == sharing_service_id
                 )
             )
-            if external_publishing_bot is None:
+            if sharing_service is None:
                 return self.error(
-                    f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
+                    f"No sharing service with ID {sharing_service_id}, or inaccessible"
                 )
 
             # verify that the user has access to the coauthor
@@ -73,11 +73,9 @@ class ExternalPublishingBotCoauthorHandler(BaseHandler):
             if user is None:
                 return self.error(f"No User with ID {user_id}, or inaccessible")
 
-            if user_id in [
-                coauthor.user_id for coauthor in external_publishing_bot.coauthors
-            ]:
+            if user_id in [coauthor.user_id for coauthor in sharing_service.coauthors]:
                 return self.error(
-                    f"User {user_id} is already a coauthor of publishing bot {external_publishing_bot_id}"
+                    f"User {user_id} is already a coauthor of sharing service {sharing_service_id}"
                 )
 
             if len(user.affiliations) == 0:
@@ -89,31 +87,31 @@ class ExternalPublishingBotCoauthorHandler(BaseHandler):
                 return self.error(f"User {user_id} is a bot and cannot be a coauthor")
 
             # add the coauthor
-            coauthor = ExternalPublishingBotCoauthor(
-                external_publishing_bot_id=external_publishing_bot_id, user_id=user_id
+            coauthor = SharingServiceCoauthor(
+                sharing_service_id=sharing_service_id, user_id=user_id
             )
             session.add(coauthor)
             session.commit()
             self.push(
-                action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
+                action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success(data={"id": coauthor.id})
 
-    @permissions(["Manage external publishing bots"])
-    def delete(self, external_publishing_bot_id, user_id):
+    @permissions(["Manage sharing services"])
+    def delete(self, sharing_service_id, user_id):
         """
         ---
-        summary: Remove a coauthor from an external publishing bot
-        description: Remove a coauthor from an external publishing bot
+        summary: Remove a coauthor from an external sharing service
+        description: Remove a coauthor from an external sharing service
         tags:
-            - external publishing bot
+            - external sharing service
         parameters:
             - in: path
-              name: external_publishing_bot_id
+              name: sharing_service_id
               required: true
               schema:
                 type: integer
-              description: ID of the external publishing bot
+              description: ID of the external sharing service
             - in: path
               name: user_id
               required: true
@@ -132,25 +130,24 @@ class ExternalPublishingBotCoauthorHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            # verify that the user has access to the external_publishing_bot
-            external_publishing_bot = session.scalar(
-                ExternalPublishingBot.select(session.user_or_token).where(
-                    ExternalPublishingBot.id == external_publishing_bot_id
+            # verify that the user has access to the sharing_service
+            sharing_service = session.scalar(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == sharing_service_id
                 )
             )
-            if external_publishing_bot is None:
+            if sharing_service is None:
                 return self.error(
-                    f"No publishing bot with ID {external_publishing_bot_id}, or inaccessible"
+                    f"No sharing service with ID {sharing_service_id}, or inaccessible"
                 )
 
             # verify that the coauthor exists and/or can be deleted
             coauthor = session.scalar(
-                ExternalPublishingBotCoauthor.select(
+                SharingServiceCoauthor.select(
                     session.user_or_token, mode="delete"
                 ).where(
-                    ExternalPublishingBotCoauthor.user_id == user_id,
-                    ExternalPublishingBotCoauthor.external_publishing_bot_id
-                    == external_publishing_bot_id,
+                    SharingServiceCoauthor.user_id == user_id,
+                    SharingServiceCoauthor.sharing_service_id == sharing_service_id,
                 )
             )
             if coauthor is None:
@@ -161,6 +158,6 @@ class ExternalPublishingBotCoauthorHandler(BaseHandler):
             session.delete(coauthor)
             session.commit()
             self.push(
-                action="skyportal/REFRESH_EXTERNAL_PUBLISHING_BOTS",
+                action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success()

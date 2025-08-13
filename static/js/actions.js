@@ -20,7 +20,7 @@ import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
 import * as rejectedActions from "./ducks/rejected_candidates";
-import * as externalPublishingActions from "./ducks/externalPublishing";
+import * as sharingServicesActions from "./ducks/sharingServices";
 import * as enumTypesActions from "./ducks/enum_types";
 import * as usersActions from "./ducks/users";
 import * as streamsActions from "./ducks/streams";
@@ -144,14 +144,10 @@ export default function hydrate(
           dispatch(hydrationActions.finishedHydrating("favorites"));
         });
       }
-      if (ducks_to_hydrate.includes("externalPublishingBots")) {
-        dispatch(externalPublishingActions.fetchExternalPublishingBots()).then(
-          () => {
-            dispatch(
-              hydrationActions.finishedHydrating("externalPublishingBots"),
-            );
-          },
-        );
+      if (ducks_to_hydrate.includes("sharingServices")) {
+        dispatch(sharingServicesActions.fetchSharingServices()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("sharingServices"));
+        });
       }
       if (ducks_to_hydrate.includes("galaxyCatalogs")) {
         dispatch(galaxiesActions.fetchGalaxyCatalogs()).then(() => {
