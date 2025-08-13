@@ -178,14 +178,33 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 class FilterWavelengthHandler(BaseHandler):
     @auth_or_token
     async def get(self):
+        """
+        ---
+        summary: Get effective wavelengths for filters
+        description: Get effective wavelengths for a list of filters.
+
+        parameters:
+          - in: query
+            name: filters
+            required: true
+            schema:
+              type: string
+            description: Comma-separated list of filter names (e.g., "g,r,i,z")
+        response:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfWavelengths
+        """
         filters = self.get_query_argument("filters", None)
-        if filters:
-            filters = filters.split(",")
-            wavelengths = []
-            for filter in filters:
-                try:
-                    wavelengths.append(get_effective_wavelength(filter))
-                except ValueError:
-                    return self.error("Invalid filters")
-            return self.success(data={"wavelengths": wavelengths})
-        return self.error("Need to pass in a set of filters")
+        if not filters:
+            return self.error("Filters parameter is required")
+
+        filters = filters.split(",")
+        wavelengths = []
+        for filter in filters:
+            try:
+                wavelengths.append(get_effective_wavelength(filter))
+            except ValueError:
+                return self.error("Invalid filters")
+        return self.success(data={"wavelengths": wavelengths})
