@@ -55,6 +55,14 @@ const Theme = ({ disableTransitions, children }) => {
         fontSize: "2.2rem",
         fontWeight: "400",
       },
+      h2: {
+        fontSize: "1.5rem",
+        fontWeight: "400",
+      },
+      h3: {
+        fontSize: "1.2rem",
+        fontWeight: "500",
+      },
     },
     plotFontSizes: {
       titleFontSize: 15,

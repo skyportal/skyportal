@@ -8,10 +8,12 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import Divider from "@mui/material/Divider";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -19,36 +21,13 @@ import utc from "dayjs/plugin/utc";
 import * as followupRequestActions from "../../ducks/followupRequests";
 import * as instrumentActions from "../../ducks/instruments";
 import Button from "../Button";
+import Spinner from "../Spinner";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
-  select: {
-    width: "25%",
-  },
-  selectInstrument: {
-    width: "99%",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
-  divider: {
-    marginTop: "2rem",
-    marginBottom: "1rem",
-    minWidth: "100%",
-    height: "2px",
-    backgroundColor: "grey",
-  },
-}));
-
 const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
-
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -60,16 +39,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const { followupRequestList } = useSelector(
     (state) => state.followupRequests,
   );
-
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
   const [isSubmittingFilter, setIsSubmittingFilter] = useState(false);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState("csv");
@@ -77,37 +46,24 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
 
   useEffect(() => {
     const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(instrumentActions.fetchInstruments());
-
-      const { data } = result;
+      const { data } = await dispatch(instrumentActions.fetchInstruments());
       setSelectedInstrumentId(data[0]?.id);
     };
-
     getInstruments();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
   }, [dispatch, setSelectedInstrumentId]);
 
-  if (!Array.isArray(followupRequestList)) {
-    return <p>Waiting for followup requests to load...</p>;
+  if (
+    !instrumentList.length ||
+    !telescopeList.length ||
+    !selectedInstrumentId ||
+    !Object.keys(instrumentFormParams).length
+  ) {
+    return null;
   }
 
-  if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
-    !selectedInstrumentId ||
-    Object.keys(instrumentFormParams).length === 0
-  ) {
-    return <p>No robotic followup requests found...</p>;
-  }
+  if (!Array.isArray(followupRequestList)) return <Spinner />;
 
   const telLookUp = {};
-
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
@@ -115,23 +71,13 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const sortedInstrumentList = [...instrumentList];
   // sort by telescope name, then by instrument name
   sortedInstrumentList.sort((i1, i2) => {
-    if (telLookUp[i1.telescope_id].name > telLookUp[i2.telescope_id].name) {
-      return 1;
-    }
-    if (telLookUp[i2.telescope_id].name > telLookUp[i1.telescope_id].name) {
-      return -1;
-    }
-    if (i1.name > i2.name) {
-      return 1;
-    }
-    if (i2.name > i1.name) {
-      return -1;
-    }
-    return 0;
+    const diff = telLookUp[i1.telescope_id].name.localeCompare(
+      telLookUp[i2.telescope_id].name,
+    );
+    return diff !== 0 ? diff : i1.name.localeCompare(i2.name);
   });
 
   const instLookUp = {};
-
   sortedInstrumentList?.forEach((inst) => {
     instLookUp[inst.id] = inst;
   });
@@ -139,19 +85,10 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const sortedAllocationListApiClassname = [...allocationListApiClassname];
   // sort by instrument name, then by allocation id
   sortedAllocationListApiClassname.sort((a1, a2) => {
-    if (instLookUp[a1.instrument_id].name > instLookUp[a2.instrument_id].name) {
-      return 1;
-    }
-    if (instLookUp[a2.instrument_id].name > instLookUp[a1.instrument_id].name) {
-      return -1;
-    }
-    if (a1.id > a2.id) {
-      return 1;
-    }
-    if (a2.id > a1.id) {
-      return -1;
-    }
-    return 0;
+    const instDiff = instLookUp[a1.instrument_id].name.localeCompare(
+      instLookUp[a2.instrument_id].name,
+    );
+    return instDiff !== 0 ? instDiff : a1.id - a2.id;
   });
 
   const requestsGroupedByInstId = followupRequestList.reduce((r, a) => {
@@ -170,16 +107,12 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     sortedAllocationListApiClassname.filter((allocation) =>
       allocation.types.includes("triggered"),
     );
-  // and only keep the instrument that have such allocations
+  // and only keep the instrument that has such allocations
   const filteredInstrumentList = sortedInstrumentList.filter((instrument) =>
     filteredAllocationListApiClassname.some(
       (allocation) => allocation.instrument_id === instrument.id,
     ),
   );
-
-  const handleSelectedFormatChange = (e) => {
-    setSelectedFormat(e.target.value);
-  };
 
   const handleSubmitFilter = async () => {
     const {
@@ -208,9 +141,8 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     setIsSubmittingFilter(false);
   };
 
-  function handleDownloadSchedule(event) {
-    event.preventDefault(); // prevent the default form submission
-    // we download the content here and then if status is 200 save it
+  function handleDownloadSchedule() {
+    // download the content and if status is 200 save it
     dispatch(
       followupRequestActions.downloadFollowupSchedule(
         selectedInstrumentId,
@@ -220,8 +152,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     );
   }
 
-  function handleDownloadAnalysis(event) {
-    event.preventDefault(); // prevent the default form submission
+  function handleDownloadAnalysis() {
     dispatch(
       followupRequestActions.downloadAllocationReport(selectedInstrumentId),
     );
@@ -240,7 +171,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     type: "object",
     properties: {
       filterby: {
-        // either instrument or allocation
         type: "string",
         title: "Filter by",
         enum: ["instrument", "allocation"],
@@ -251,14 +181,14 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         format: "date-time",
         title: "Minimum Requested Date",
         description: "Do not include requests created before this date",
-        default: defaultStartDate,
+        default: utcString(dayjs().subtract(1, "day")),
       },
       endDate: {
         type: "string",
         format: "date-time",
         title: "Maximum Requested Date",
         description: "Do not include requests created after this date",
-        default: defaultEndDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       sourceID: {
         type: "string",
@@ -387,8 +317,13 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     ],
   };
   return (
-    <div>
-      <div data-testid="followup-request-selection-form">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ position: "relative" }}>
+        {isSubmittingFilter && (
+          <CircularProgress
+            sx={{ position: "absolute", top: "50%", left: "50%" }}
+          />
+        )}
         <Form
           formData={fetchParams}
           onChange={({ formData }) => setFetchParams(formData)}
@@ -400,66 +335,46 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
           disabled={isSubmittingFilter}
           liveValidate
         />
-        {isSubmittingFilter && (
-          <div>
-            <CircularProgress />
-          </div>
-        )}
-      </div>
-      <div className={classes.divider} />
-      <div>
-        <Typography variant="h6">Schedule (with astroplan)</Typography>
+      </Box>
+      <Divider>
+        <Typography variant="h3">Schedule (with astroplan)</Typography>
+      </Divider>
+      <FormControl>
         <InputLabel id="instrumentSelectLabel">Format</InputLabel>
         <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="formatSelectLabel"
+          labelId="instrumentSelectLabel"
+          label="Format"
           value={selectedFormat}
-          onChange={handleSelectedFormatChange}
-          name="followupRequestFormatSelect"
-          className={classes.select}
+          onChange={(e) => setSelectedFormat(e.target.value)}
         >
-          <MenuItem value="png" key="png" className={classes.selectItem}>
-            PNG
-          </MenuItem>
-          <MenuItem value="pdf" key="pdf" className={classes.selectItem}>
-            PDF
-          </MenuItem>
-          <MenuItem value="csv" key="csv" className={classes.selectItem}>
-            CSV
-          </MenuItem>
+          {["png", "pdf", "csv"].map((format) => (
+            <MenuItem value={format} key={format}>
+              {format.toUpperCase()}
+            </MenuItem>
+          ))}
         </Select>
-        <FormControlLabel
-          label="Include Standards?"
-          control={
-            <Checkbox
-              color="primary"
-              title="Include Standards?"
-              type="checkbox"
-              onChange={(event) => setIncludeStandards(event.target.checked)}
-              checked={includeStandards}
-            />
-          }
-        />
-        <Button
-          primary
-          size="small"
-          type="submit"
-          data-testid={`scheduleRequest_${selectedInstrumentId}`}
-          onClick={handleDownloadSchedule} // to handle the download
-        >
+      </FormControl>
+      <FormControlLabel
+        label="Include Standards?"
+        control={
+          <Checkbox
+            color="primary"
+            title="Include Standards?"
+            type="checkbox"
+            onChange={(event) => setIncludeStandards(event.target.checked)}
+            checked={includeStandards}
+          />
+        }
+      />
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <Button primary onClick={handleDownloadSchedule}>
           Download
         </Button>
-        <Button
-          primary
-          size="small"
-          type="submit"
-          data-testid={`reportRequest_${selectedInstrumentId}`}
-          onClick={handleDownloadAnalysis} // to handle the download
-        >
+        <Button primary onClick={handleDownloadAnalysis}>
           Instrument Allocation Analysis
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

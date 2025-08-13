@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import Box from "@mui/material/Box";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -21,6 +22,7 @@ import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 
 import * as followupRequestActions from "../../ducks/followupRequests";
 import Spinner from "../Spinner";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -52,16 +54,15 @@ const FollowupRequestPage = () => {
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: 10,
-    startDate: dayjs().subtract(1, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ"),
-    endDate: dayjs().add(1, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ"),
+    startDate: utcString(dayjs().subtract(1, "day")),
+    endDate: utcString(dayjs().add(1, "day")),
     sortBy: "created_at",
     sortOrder: "desc",
   });
 
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
-
-  const [tabIndex, setTabIndex] = React.useState(0);
+  const [tabIndex, setTabIndex] = useState(0);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -174,50 +175,44 @@ const FollowupRequestPage = () => {
         </Tabs>
       </Grid>
       {tabIndex === 0 && (
-        <Grid container item xs={12} style={{ paddingTop: 0 }}>
+        <Grid container item xs={12} spacing={1} style={{ paddingTop: 0 }}>
           <Grid item sm={12} md={8}>
-            <Paper elevation={1}>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">List of Followup Requests</Typography>
-                <FollowupRequestLists
-                  followupRequests={followupRequestList}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  pageNumber={fetchParams.pageNumber}
-                  numPerPage={fetchParams.numPerPage}
-                  handleTableChange={handleTableChange}
-                  totalMatches={totalMatches}
-                  serverSide
-                  showObject
-                  fetchParams={fetchParams}
-                  onDownload={onDownload}
-                />
-              </div>
+            <Paper elevation={1} className={classes.paperContent}>
+              <Typography variant="h2" sx={{ marginBottom: "1rem" }}>
+                Requests by {fetchParams?.filterby}
+              </Typography>
+              <FollowupRequestLists
+                followupRequests={followupRequestList}
+                instrumentList={instrumentList}
+                instrumentFormParams={instrumentFormParams}
+                totalMatches={totalMatches}
+                handleTableChange={handleTableChange}
+                pageNumber={fetchParams.pageNumber}
+                numPerPage={fetchParams.numPerPage}
+                showObject
+                serverSide
+                onDownload={onDownload}
+              />
             </Paper>
           </Grid>
           <Grid item sm={12} md={4}>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Filter Followup Requests</Typography>
+            <Paper
+              className={classes.paperContent}
+              sx={{ marginBottom: "0.5rem", marginRight: "2px" }}
+            >
+              <Typography variant="h2">Filter Requests</Typography>
+              <Box sx={{ maxHeight: "calc(100vh - 192px)", overflowY: "auto" }}>
                 <FollowupRequestSelectionForm
                   fetchParams={fetchParams}
                   setFetchParams={setFetchParams}
                 />
-              </div>
+              </Box>
             </Paper>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">
-                  Prioritize Followup Requests
-                </Typography>
-                <FollowupRequestPrioritizationForm />
-              </div>
+            <Paper className={classes.paperContent}>
+              <Typography variant="h2">Prioritize Followup Requests</Typography>
+              <FollowupRequestPrioritizationForm />
             </Paper>
-            <Dialog
-              open={downloadProgressTotal > 0}
-              style={{ position: "fixed" }}
-              maxWidth="md"
-            >
+            <Dialog open={downloadProgressTotal > 0} maxWidth="md">
               <DialogContent
                 style={{
                   display: "flex",
