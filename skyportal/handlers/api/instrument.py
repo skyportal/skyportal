@@ -412,9 +412,15 @@ class InstrumentHandler(BaseHandler):
 
         if airmass_time is None:
             if localization_dateobs is not None:
-                airmass_time = Time(arrow.get(localization_dateobs).datetime)
+                try:
+                    airmass_time = Time(arrow.get(localization_dateobs).datetime)
+                except:
+                    pass
         else:
-            airmass_time = Time(arrow.get(airmass_time).datetime)
+            try:
+                airmass_time = Time(arrow.get(airmass_time).datetime)
+            except:
+                pass
 
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
