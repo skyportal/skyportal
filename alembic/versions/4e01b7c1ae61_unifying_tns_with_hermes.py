@@ -29,6 +29,29 @@ tables_to_rename = [
 
 
 def upgrade():
+    op.execute("""
+        INSERT INTO acls (id, created_at, modified)
+        SELECT 'Manage sharing services', NOW(), NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM acls WHERE id='Manage sharing services'
+        )
+    """)
+
+    op.execute(
+        """
+        UPDATE user_acls
+        SET acl_id = 'Manage sharing services'
+        WHERE acl_id = 'Manage TNS robots'
+        """
+    )
+
+    op.execute(
+        """
+        DELETE FROM acls
+        WHERE id='Manage TNS robots'
+        """
+    )
+
     # Drop foreign key constraints
     op.drop_constraint(
         "tnsrobot_submissions_obj_id_fkey",
@@ -449,6 +472,31 @@ def upgrade():
 
 
 def downgrade():
+    op.execute(
+        """
+        INSERT INTO acls (id, created_at, modified)
+        SELECT 'Manage TNS robots', NOW(), NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM acls WHERE id='Manage TNS robots'
+        )
+        """
+    )
+
+    op.execute(
+        """
+        UPDATE user_acls
+        SET acl_id = 'Manage TNS robots'
+        WHERE acl_id = 'Manage sharing services'
+        """
+    )
+
+    op.execute(
+        """
+        DELETE
+        FROM acls
+        WHERE id = 'Manage sharing services'
+        """
+    )
     # Drop foreign key constraints
     op.drop_constraint(
         "sharingservicesubmissions_user_id_fkey",
