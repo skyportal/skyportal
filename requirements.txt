@@ -1,5 +1,5 @@
 astroscrappy==1.2.0
-numpy>=1.23.4,<3.0.0
+numpy>=2.0.0,<3.0.0
 scipy>=1.13.1, <2.0.0
 pandas>=2.2.0, <3.0.0
 dask>=2024.5.2
@@ -17,16 +17,16 @@ reproject==0.14.1
 avro-python3==1.10.2
 fastavro>=1.9.4,<2.0.0
 tqdm>=4.27,<4.68
-matplotlib>=3.6.2, <3.8.0
+matplotlib>3.8.0,<3.10.0
 astroquery==0.4.10
 apispec>=6.3.0, <7.0.0
-marshmallow==3.26.1
-marshmallow-sqlalchemy==1.1.0
+marshmallow==4.0.0
+marshmallow-sqlalchemy==1.4.2
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.7.0
 pytest>=8.3.2, <9.0.0
-sncosmo==2.11.1
+sncosmo==2.12.1
 tdtax==0.1.7
 healpix-alchemy==1.1.0
 mocpy==0.18.0
@@ -41,7 +41,6 @@ timezonefinder==7.0.1
 astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
-marshmallow-jsonschema==0.13.0
 paramiko==3.5.1
 scp==0.15.0
 requests_toolbelt==1.0.0
@@ -69,7 +68,7 @@ pip>=24.0.0
 gwemopt==0.3.6
 humanize==4.12.3
 xarray>=21.1
-simsurvey==0.7.5
+skysurvey==0.19.0
 noaodatalab==2.20.0
 black==25.1.0
 click==8.1.7
@@ -80,7 +79,7 @@ selenium==4.8.3
 selenium-requests==2.0.4
 afterglowpy==0.8.1
 gcn-kafka==0.3.3
-confluent_kafka==2.11.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
+confluent_kafka==2.11.0
 iminuit==2.31.1
 watchdog==6.0.0
 PyAstronomy==0.23.0
