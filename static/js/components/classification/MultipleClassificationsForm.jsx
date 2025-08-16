@@ -402,6 +402,7 @@ const MultipleClassificationsForm = ({
         </InputLabel>
         <Select
           labelId={`taxonomy-select-label-${objId}`}
+          label="Select Taxonomy"
           inputProps={{ MenuProps: { disableScrollLock: true } }}
           id={`taxonomy-select-${objId}`}
           value={selectedTaxonomy || ""}
