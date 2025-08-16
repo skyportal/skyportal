@@ -192,6 +192,7 @@ const STATUS_COLORS = {
   "not observed": "darkorange",
   error: "error.main",
   failed: "error.main",
+  submitted: "mediumpurple",
   pending: "mediumpurple",
   deleted: "secondary.dark",
 };

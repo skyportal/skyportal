@@ -113,7 +113,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     margin: 0,
   },
   noSpace: { padding: 0, margin: 0 },
-  dropdownText: { color: "black" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -875,20 +874,17 @@ const SourceContent = ({ source }) => {
                     component="a"
                     href={`/api/sources/${source.id}/finder`}
                     download="finder-chart"
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElFindingChart(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      className={classes.dropdownText}
-                      target="_blank"
-                      notBold
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    target="_blank"
+                    href={`/source/${source.id}/finder`}
+                    onClick={() => setAnchorElFindingChart(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
@@ -927,20 +923,17 @@ const SourceContent = ({ source }) => {
                     href={`/api/sources/${source.id}/observability`}
                     download={`observabilityChartRequest-${source.id}`}
                     data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElObservability(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      className={classes.dropdownText}
-                      target="_blank"
-                      notBold
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    href={`/observability/${source.id}`}
+                    target="_blank"
+                    onClick={() => setAnchorElObservability(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
