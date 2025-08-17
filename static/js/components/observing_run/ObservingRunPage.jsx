@@ -82,7 +82,6 @@ const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
   return (
     <div>
       <Button
-        id="edit_button"
         onClick={() => setObservingRunToModify(run.id)}
         disabled={!modifyPermission}
         size="small"
@@ -91,14 +90,16 @@ const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
       </Button>
       <Dialog
         open={!!observingRunToModify}
-        onClose={() => observingRunToModify(null)}
+        onClose={() => setObservingRunToModify(null)}
       >
         <DialogTitle>Edit Observing Run</DialogTitle>
         <DialogContent dividers>
-          <ModifyObservingRun
-            run_id={observingRunToModify}
-            onClose={() => observingRunToModify(null)}
-          />
+          {observingRunToModify && (
+            <ModifyObservingRun
+              run_id={observingRunToModify}
+              onClose={() => setObservingRunToModify(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

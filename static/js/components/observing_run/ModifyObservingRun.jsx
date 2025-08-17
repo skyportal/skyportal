@@ -56,6 +56,7 @@ const ModifyObservingRun = ({ run_id, onClose }) => {
     const result = await dispatch(modifyObservingRun(run_id, formData));
     if (result.status === "success") {
       dispatch(showNotification("Observing run updated"));
+      if (onClose) onClose();
     }
   };
 

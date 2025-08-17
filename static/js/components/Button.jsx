@@ -4,19 +4,20 @@ import MuiButton from "@mui/material/Button";
 import LoadingButton from "@mui/lab/LoadingButton";
 
 const Button = forwardRef(
-  ({ primary, secondary, async, ...muiButtonProps }, ref) => {
+  ({ primary, secondary, loading, ...muiButtonProps }, ref) => {
     if (muiButtonProps.startIcon) {
       throw new Error(
         "Error: startIcon used in Button props. Please use endIcon as specified in the SkyPortal style documentation: https://skyportal.io/docs/styling.html#buttons",
       );
     }
-    if (async) {
+    if (loading) {
       return (
         <LoadingButton
           ref={ref}
-          loadingIndicator="Loading..."
+          loadingIndicator=" Loading... "
           variant="contained"
           color="primary"
+          loading
           {...muiButtonProps}
         />
       );
@@ -40,7 +41,7 @@ Button.displayName = "Button";
 Button.propTypes = {
   primary: PropTypes.bool,
   secondary: PropTypes.bool,
-  async: PropTypes.bool,
+  loading: PropTypes.bool,
 };
 
 Button.defaultProps = {
