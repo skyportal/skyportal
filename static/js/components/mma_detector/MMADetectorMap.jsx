@@ -1,29 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
-
-import world_map from "../../../images/maps/world-110m.json";
+import { Marker } from "react-simple-maps";
+import { CustomMap } from "../CustomMap";
 
 let dispatch;
-const width = 700;
-const height = 475;
 
-function CustomZoomableGroup({ children, ...restProps }) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
 function setCurrentMMADetectors(currentMMADetectors) {
   const currentMMADetectorMenu = "MMADetector List";
   dispatch({
@@ -119,37 +101,21 @@ const MMADetectorMap = ({ mmadetectors }) => {
 
   dispatch = useDispatch();
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedMMADetectors.map(
-              (nestedMMADetector) =>
-                nestedMMADetector.lon &&
-                nestedMMADetector.lat && (
-                  <MMADetectorMarker
-                    key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
-                    nestedMMADetector={nestedMMADetector}
-                    position={position}
-                  />
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+    <CustomMap>
+      {(position) =>
+        nestedMMADetectors.map(
+          (nestedMMADetector) =>
+            nestedMMADetector.lon &&
+            nestedMMADetector.lat && (
+              <MMADetectorMarker
+                key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
+                nestedMMADetector={nestedMMADetector}
+                position={position}
+              />
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 
@@ -182,10 +148,6 @@ MMADetectorMarker.propTypes = {
   position: PropTypes.shape({
     k: PropTypes.number,
   }).isRequired,
-};
-
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.node.isRequired,
 };
 
 export default MMADetectorMap;

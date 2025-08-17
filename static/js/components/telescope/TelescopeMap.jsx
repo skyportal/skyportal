@@ -1,32 +1,10 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
-
-import world_map from "../../../images/maps/world-110m.json";
+import { Marker } from "react-simple-maps";
+import { CustomMap } from "../CustomMap";
 
 let dispatch;
-const width = 700;
-const height = 475;
-
-function CustomZoomableGroup({ children, ...restProps }) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.node.isRequired,
-};
 
 function setCurrentTelescopes(currentTelescopes) {
   dispatch({
@@ -118,67 +96,49 @@ const TelescopeMap = ({ telescopes }) => {
 
   dispatch = useDispatch();
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedTelescopes.map(
-              (nestedTelescope) =>
-                nestedTelescope.lon &&
-                nestedTelescope.lat && (
-                  <Marker
-                    key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
-                    id="telescope_marker"
-                    coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
-                    onClick={() =>
-                      setCurrentTelescopes(nestedTelescope.telescopes)
+    <CustomMap>
+      {(position) =>
+        nestedTelescopes.map(
+          (nestedTelescope) =>
+            nestedTelescope.lon &&
+            nestedTelescope.lat && (
+              <Marker
+                key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
+                id="telescope_marker"
+                coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
+                onClick={() => setCurrentTelescopes(nestedTelescope.telescopes)}
+              >
+                {nestedTelescope.fixed_location ? (
+                  <circle
+                    r={6.5 / position.k}
+                    fill={
+                      nestedTelescope.is_night_astronomical_at_least_one
+                        ? "#0c1445"
+                        : "#f9d71c"
                     }
-                  >
-                    {nestedTelescope.fixed_location ? (
-                      <circle
-                        r={6.5 / position.k}
-                        fill={
-                          nestedTelescope.is_night_astronomical_at_least_one
-                            ? "#0c1445"
-                            : "#f9d71c"
-                        }
-                      />
-                    ) : (
-                      <rect
-                        x={-6.5 / position.k}
-                        y={-6.5 / position.k}
-                        width={13 / position.k}
-                        height={13 / position.k}
-                        fill="#5ca9d6"
-                      />
-                    )}
-                    <text
-                      id="telescopes_label"
-                      textAnchor="middle"
-                      fontSize={10 / position.k}
-                      y={-10 / position.k}
-                    >
-                      {telescopeLabel(nestedTelescope)}
-                    </text>
-                  </Marker>
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+                  />
+                ) : (
+                  <rect
+                    x={-6.5 / position.k}
+                    y={-6.5 / position.k}
+                    width={13 / position.k}
+                    height={13 / position.k}
+                    fill="#5ca9d6"
+                  />
+                )}
+                <text
+                  id="telescopes_label"
+                  textAnchor="middle"
+                  fontSize={10 / position.k}
+                  y={-10 / position.k}
+                >
+                  {telescopeLabel(nestedTelescope)}
+                </text>
+              </Marker>
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 

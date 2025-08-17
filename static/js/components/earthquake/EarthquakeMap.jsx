@@ -1,29 +1,12 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
+import { Marker } from "react-simple-maps";
 import CircularProgress from "@mui/material/CircularProgress";
-import world_map from "../../../images/maps/world-110m.json";
+import { CustomMap } from "../CustomMap";
 
 let dispatch;
-const width = 700;
-const height = 475;
 
-function CustomZoomableGroup({ children, ...restProps }) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
 function setCurrentEarthquakes(currentEarthquakes) {
   const currentEarthquakeMenu = "Earthquake List";
   dispatch({
@@ -129,37 +112,21 @@ const EarthquakeMap = ({ earthquakes }) => {
   }
 
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedEarthquakes.map(
-              (nestedEarthquake) =>
-                nestedEarthquake.lon &&
-                nestedEarthquake.lat && (
-                  <EarthquakeMarker
-                    key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
-                    nestedEarthquake={nestedEarthquake}
-                    position={position}
-                  />
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+    <CustomMap>
+      {(position) =>
+        nestedEarthquakes.map(
+          (nestedEarthquake) =>
+            nestedEarthquake.lon &&
+            nestedEarthquake.lat && (
+              <EarthquakeMarker
+                key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
+                nestedEarthquake={nestedEarthquake}
+                position={position}
+              />
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 
@@ -196,10 +163,6 @@ EarthquakeMarker.propTypes = {
   position: PropTypes.shape({
     k: PropTypes.number,
   }).isRequired,
-};
-
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.node.isRequired,
 };
 
 export default EarthquakeMap;
