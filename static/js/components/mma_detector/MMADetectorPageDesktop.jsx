@@ -38,40 +38,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export function mmadetectorTitle(mmadetector) {
-  if (!mmadetector?.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${mmadetector?.nickname}`;
-  return result;
-}
-
-export function mmadetectorInfo(mmadetector) {
-  if (!mmadetector?.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const array = [
-    ...(mmadetector?.lat ? [`Latitude: ${mmadetector.lat}`] : []),
-    ...(mmadetector?.lon ? [`Longitude: ${mmadetector.lon}`] : []),
-    ...(mmadetector?.elevation ? [`Elevation: ${mmadetector.elevation}`] : []),
-  ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
-}
-
 const MMADetectorPageDesktop = () => {
   dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
