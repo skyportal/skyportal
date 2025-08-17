@@ -377,7 +377,7 @@ const TaxonomyTable = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={detailsDialogOpen && taxonomyToViewEditDelete}
+        open={detailsDialogOpen && !!taxonomyToViewEditDelete}
         onClose={closeDetailsDialog}
         style={{ position: "fixed" }}
         maxWidth="lg"
@@ -402,15 +402,17 @@ const TaxonomyTable = ({
       >
         <DialogTitle>Edit Taxonomy</DialogTitle>
         <DialogContent dividers>
-          <ModifyTaxonomy
-            taxonomy_id={taxonomyToViewEditDelete}
-            onClose={closeEditDialog}
-          />
+          {taxonomyToViewEditDelete && (
+            <ModifyTaxonomy
+              taxonomy_id={taxonomyToViewEditDelete}
+              onClose={closeEditDialog}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteTaxonomy}
-        dialogOpen={deleteDialogOpen && taxonomyToViewEditDelete}
+        dialogOpen={deleteDialogOpen && !!taxonomyToViewEditDelete}
         closeDialog={closeDeleteDialog}
         resourceName="taxonomy"
       />

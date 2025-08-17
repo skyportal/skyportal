@@ -12,7 +12,7 @@ const DownloadReport = ({ report }) => {
   const downloadReport = (reportItems) => {
     const reportData = {
       report_id: report.id,
-      created_by: report.username,
+      created_by: report.author,
       created_at: report.created_at,
       number_of_items: reportItems.length,
       items: reportItems.map(
@@ -53,7 +53,7 @@ const DownloadReport = ({ report }) => {
 DownloadReport.propTypes = {
   report: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    username: PropTypes.string.isRequired,
+    author: PropTypes.string.isRequired,
     created_at: PropTypes.string.isRequired,
   }),
 };

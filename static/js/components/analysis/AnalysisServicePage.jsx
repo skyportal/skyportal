@@ -260,7 +260,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
           </DialogContent>
         </Dialog>
         <Dialog
-          open={detailsDialogOpen && analysisServiceToViewDelete}
+          open={detailsDialogOpen && !!analysisServiceToViewDelete}
           onClose={closeDetailsDialog}
           style={{ position: "fixed" }}
           maxWidth="lg"
@@ -284,7 +284,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
         </Dialog>
         <ConfirmDeletionDialog
           deleteFunction={deleteAnalysisService}
-          dialogOpen={deleteDialogOpen && analysisServiceToViewDelete}
+          dialogOpen={deleteDialogOpen && !!analysisServiceToViewDelete}
           closeDialog={closeDeleteDialog}
           resourceName="analysis service"
         />
