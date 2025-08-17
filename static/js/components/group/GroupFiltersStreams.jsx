@@ -243,6 +243,7 @@ const GroupFiltersStreams = ({
                 render={({ field: { onChange, value } }) => (
                   <Select
                     labelId="alert-stream-select-required-label"
+                    label="Alert stream"
                     onChange={onChange}
                     value={value}
                   >
