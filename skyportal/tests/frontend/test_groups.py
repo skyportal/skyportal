@@ -78,7 +78,7 @@ def test_add_new_group_user_admin(
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
