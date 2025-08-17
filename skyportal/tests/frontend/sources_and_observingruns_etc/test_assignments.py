@@ -33,7 +33,7 @@ def test_submit_and_delete_new_assignment(
         f"(PI: {red_transients_run.pi} / "
         f"Group: {red_transients_run.group.name})"
     )
-    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
+    driver.wait_for_xpath(f'//*[contains(., "{observingrun_title}")]')
     driver.click_xpath(
         f'//li[@data-value="{red_transients_run.id}"]', scroll_parent=True
     )
