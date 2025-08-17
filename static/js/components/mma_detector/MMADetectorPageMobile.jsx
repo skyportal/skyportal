@@ -37,9 +37,7 @@ export function mmadetectorTitle(mmadetector) {
       </div>
     );
   }
-
-  const result = `${mmadetector?.nickname}`;
-  return result;
+  return mmadetector?.nickname;
 }
 
 export function mmadetectorInfo(mmadetector) {
@@ -56,11 +54,7 @@ export function mmadetectorInfo(mmadetector) {
     ...(mmadetector?.lon ? [`Longitude: ${mmadetector.lon}`] : []),
     ...(mmadetector?.elevation ? [`Elevation: ${mmadetector.elevation}`] : []),
   ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
+  return `( ${array.join(" / ")} )`;
 }
 
 const MMADetectorList = ({ mmadetectors }) => {

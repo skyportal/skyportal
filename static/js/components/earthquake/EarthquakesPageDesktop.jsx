@@ -46,9 +46,7 @@ export function earthquakeTitle(earthquake) {
       </div>
     );
   }
-
-  const result = `${earthquake?.event_id}`;
-  return result;
+  return earthquake?.event_id;
 }
 
 export function earthquakeInfo(earthquake) {

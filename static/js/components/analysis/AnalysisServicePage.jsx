@@ -30,17 +30,6 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.paper,
     whiteSpace: "pre-line",
   },
-  paperContent: {
-    padding: "1rem",
-  },
-  analysisServiceDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
   analysisServiceManage: {
     display: "flex",
     flexDirection: "row",
@@ -48,45 +37,6 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
 }));
-
-export function analysisServiceTitle(analysisService) {
-  if (!analysisService?.display_name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${analysisService?.display_name}`;
-
-  return result;
-}
-
-export function analysisServiceInfo(analysisService) {
-  if (!analysisService?.url) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const share_groups = [];
-  analysisService.groups.forEach((share_group) => {
-    share_groups.push(share_group.name);
-  });
-
-  let result = `Description: ${analysisService.description} / URL: ${analysisService.url}`;
-
-  if (share_groups.length > 0) {
-    result += "\r\n(";
-    result += `Default Share Groups: ${share_groups.join(", ")}`;
-    result += ")";
-  }
-
-  return result;
-}
 
 const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const dispatch = useDispatch();
@@ -291,7 +241,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   return (
     <div className={classes.root}>
-      <Paper className={classes.container}>
+      <Paper>
         <MUIDataTable
           title={"Analysis Services"}
           data={analysisServices || []}
