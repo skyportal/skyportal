@@ -24,6 +24,10 @@ function CustomZoomableGroup({ children, ...restProps }) {
     </g>
   );
 }
+CustomZoomableGroup.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
 function setCurrentTelescopes(currentTelescopes) {
   dispatch({
     type: "skyportal/CURRENT_TELESCOPES",
@@ -189,10 +193,6 @@ TelescopeMap.propTypes = {
       fixed_location: PropTypes.bool,
     }),
   ).isRequired,
-};
-
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.func.isRequired,
 };
 
 export default TelescopeMap;

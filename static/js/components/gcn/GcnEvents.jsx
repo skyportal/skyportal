@@ -415,7 +415,7 @@ const GcnEvents = () => {
   );
 
   const renderDateObs = (dataIndex) => (
-    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`} primary>
+    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`}>
       {events[dataIndex]?.dateobs}
     </Link>
   );

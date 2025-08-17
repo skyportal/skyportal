@@ -353,7 +353,7 @@ const TelescopeTable = ({
 TelescopeTable.propTypes = {
   telescopes: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
       nickname: PropTypes.string,
       lat: PropTypes.number,
