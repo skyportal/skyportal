@@ -38,7 +38,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
@@ -110,6 +110,7 @@ jobs:
           pip install fiona==1.9.6 # 1.10.0 breaks geopandas
           pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
           pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
+          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
 
       - name: Save current Alembic head on main
         run: |

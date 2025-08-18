@@ -99,14 +99,12 @@ const GcnEventAllocationTriggers = ({
     currentUser.permissions?.includes("Manage allocations");
 
   const instNameLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
   instrumentList?.forEach((instrumentObj) => {
     instNameLookUp[instrumentObj.id] = instrumentObj.name;
   });
 
   const allocationLookUp = {};
   // link the allocation_id to the instrument name
-  // eslint-disable-next-line no-unused-expressions
   if (showUnset === false) {
     // we do not need to find instruments that haven't set a triggered status
     allocationList?.forEach((allocation) => {

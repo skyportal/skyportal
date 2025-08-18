@@ -328,6 +328,9 @@ def serialize(
 
     filter = phot.filter
 
+    if filter == "swiftxrt":
+        outsys = "ab"
+
     magsys_db = sncosmo.get_magsystem("ab")
     outsys = sncosmo.get_magsystem(outsys)
 
@@ -490,9 +493,8 @@ def standardize_photometry_data(data):
     else:
         kind = "mag"
 
-    # not used here
-    _ = data.pop("group_ids", None)
-    _ = data.pop("stream_ids", None)
+    data.pop("group_ids", None)
+    data.pop("stream_ids", None)
 
     if allscalar(data):
         data = [data]
@@ -563,7 +565,12 @@ def standardize_photometry_data(data):
             )
 
         for field in ["mag", "magerr", "limiting_mag"]:
-            infinite = np.isinf(df[field].values)
+            try:
+                infinite = np.isinf(df[field].values)
+            except TypeError:
+                raise ValidationError(
+                    f"Some values in the {field} field are not numeric."
+                )
             if any(infinite):
                 first_offender = np.argwhere(infinite)[0, 0]
                 packet = df.iloc[first_offender].to_dict()
@@ -1647,8 +1654,6 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
-        # The full docstring/API spec is below as an f-string
-
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -2213,28 +2218,7 @@ class PhotometryRangeHandler(BaseHandler):
 class PhotometryOriginHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        """
-        ---
-        summary: Get all photometry origins
-        description: Get all photometry origins
-        tags:
-          - photometry
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        with self.Session() as session:
-            origins = (
-                session.scalars(sa.select(Photometry.origin).distinct()).unique().all()
-            )
-            return self.success(data=origins)
+        return self.error("This feature is deprecated")
 
 
 PhotometryHandler.get.__doc__ = f"""

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
@@ -13,6 +14,11 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -21,8 +27,10 @@ import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
-
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
+import {
+  isSomeActiveRangeOrNoRange,
+  rangeIsActive,
+} from "../allocation/AllocationTable";
 
 const useStyles = makeStyles(() => ({
   marginTop: {
@@ -30,6 +38,7 @@ const useStyles = makeStyles(() => ({
   },
   allocationSelect: {
     width: "100%",
+    marginBottom: "1rem",
   },
   allocationSelectItem: {
     whiteSpace: "break-spaces",
@@ -275,6 +284,26 @@ const FollowupRequestForm = ({
         errors.start_date.addError("Start Date must come before End Date");
       }
     }
+    if (
+      !isSomeActiveRangeOrNoRange(
+        allocationLookUp[selectedAllocationId].validity_ranges,
+        new Date(formData.start_date),
+      )
+    ) {
+      errors.start_date.addError(
+        "Start Date must be within an active allocation range",
+      );
+    }
+    if (
+      !isSomeActiveRangeOrNoRange(
+        allocationLookUp[selectedAllocationId].validity_ranges,
+        new Date(formData.end_date),
+      )
+    ) {
+      errors.end_date.addError(
+        "End Date must be within an active allocation range",
+      );
+    }
 
     return errors;
   };
@@ -354,27 +383,81 @@ const FollowupRequestForm = ({
         }
         className={classes.allocationSelect}
       >
-        {filteredAllocationList?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.allocationSelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
-                ?.name
-            } / ${instLookUp[allocation.instrument_id]?.name} - ${
-              groupLookUp[allocation.group_id]?.name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
+        {filteredAllocationList?.map((allocation) => {
+          const label = `${
+            telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
+          } / ${instLookUp[allocation.instrument_id]?.name} - ${
+            groupLookUp[allocation.group_id]?.name
+          } (PI ${allocation.pi})`;
+          return (
+            <MenuItem
+              value={allocation.id}
+              key={allocation.id}
+              className={classes.allocationSelectItem}
+            >
+              {label}
+              {!isSomeActiveRangeOrNoRange(allocation.validity_ranges) && (
+                <Tooltip
+                  title="This allocation is currently inactive. You can still submit requests for valid future dates."
+                  arrow
+                >
+                  <Typography
+                    component="span"
+                    style={{ fontStyle: "italic", color: "grey" }}
+                  >
+                    {" (inactive)"}
+                  </Typography>
+                </Tooltip>
+              )}
+            </MenuItem>
+          );
+        })}
       </Select>
-      <br />
-      <GroupShareSelect
-        groupList={allGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
-      />
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <GroupShareSelect
+          groupList={allGroups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
+        <Tooltip
+          componentsProps={{ tooltip: { sx: { maxWidth: 340 } } }}
+          title={
+            allocationLookUp[selectedAllocationId]?.validity_ranges?.length
+              ? allocationLookUp[selectedAllocationId]?.validity_ranges?.map(
+                  (range) => (
+                    <Typography
+                      key={range.start_date}
+                      variant="body1"
+                      color={rangeIsActive(range) ? "lightgreen" : "default"}
+                    >
+                      {new Date(range.start_date)
+                        .toISOString()
+                        .replace("T", " ")
+                        .slice(0, 19)}
+                      {" - "}
+                      {new Date(range.end_date)
+                        .toISOString()
+                        .replace("T", " ")
+                        .slice(0, 19)}
+                    </Typography>
+                  ),
+                )
+              : "No validity ranges defined for this allocation."
+          }
+        >
+          <Chip
+            label="Validity Ranges"
+            size="small"
+            icon={<HelpOutlineIcon />}
+          />
+        </Tooltip>
+      </Box>
       <div
         data-testid={
           requestType === "forced_photometry"

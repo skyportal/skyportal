@@ -1,9 +1,20 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, join_model
+from baselayer.app.models import Base, CustomUserAccessControl, join_model
 from skyportal.models import User
 from skyportal.models.obj import Obj
+
+
+def objtag_access_logic(cls, user_or_token):
+    query = sa.select(cls)
+
+    if (
+        not user_or_token.is_system_admin
+        or "Manage sources" not in user_or_token.permissions
+    ):
+        query = query.where(cls.author_id == user_or_token.id)
+    return query
 
 
 class ObjTagOption(Base):
@@ -14,6 +25,13 @@ class ObjTagOption(Base):
         nullable=False,
         doc="Available tags that can be associated to an object.",
         unique=True,
+    )
+
+    color = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Hex color code for the tag display (e.g., #3a87ad)",
     )
 
 
@@ -27,3 +45,7 @@ ObjTag.author_id = sa.Column(
 )
 
 ObjTag.author = relationship(User, doc="The associated User")
+
+
+ObjTag.create = ObjTag.read
+ObjTag.update = ObjTag.delete = CustomUserAccessControl(objtag_access_logic)

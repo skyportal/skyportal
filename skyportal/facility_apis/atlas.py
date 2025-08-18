@@ -171,9 +171,10 @@ def commit_photometry(
         cyan = df["filter"] == "c"
         orange = df["filter"] == "o"
 
-        # not detection if SNR < 3 or chi/N > 10
+        # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
         reject = df["uJy"] / df["duJy"] < 3
         reject |= df["chi/N"] > 10
+        reject |= df["mag"] > df["limiting_mag"]
 
         df.loc[cyan, "filter"] = "atlasc"
         df.loc[orange, "filter"] = "atlaso"
@@ -407,7 +408,7 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "api_token": {
                 "type": "string",
-                "title": "API Token (required)",
+                "title": "API Token",
             },
         },
         "required": [

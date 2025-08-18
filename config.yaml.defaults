@@ -40,14 +40,17 @@ app:
 
   lco_archive_endpoint: https://archive-api.lco.global
 
-  # Tarot API endpoints
-  tarot_endpoint: http://cador.tarotnet.org/ros
-  calern_endpoint: http://tca4.tarotnet.org/ros/klotz
-  chili_endpoint: http://tch4.tarotnet.org/ros/klotz
-  reunion_endpoint: http://tre4.tarotnet.org/ros/klotz
+  # The Tarot API is not publicly accessible.
+  # To interact with it, we use a proxy hosted on the Icare instance of SkyPortal.
+  # Access to the proxy requires an Icare account and a valid token specified in each allocation using the Tarot API.
+  # This URL points to the Tarot API proxy endpoint:
+  tarot_proxy_endpoint: https://skyportal-icare.ijclab.in2p3.fr/api/tarot_proxy
 
   # MMT API endpoint
   mmt_endpoint: https://scheduler.mmto.arizona.edu/APIv2
+
+  # TTT API endpoint
+  ttt_endpoint: https://dto.ttt.lightbridges.es/api
 
   ztf:
     protocol: https
@@ -202,6 +205,8 @@ app:
       component: shift/ShiftWithId
     - path: "/summary_search"
       component: summary/SummarySearch
+    - path: "/tag_management"
+      component: TagManagement
     - path: "/taxonomies"
       component: taxonomy/TaxonomyPage
     - path: "/tns_robots"
@@ -313,6 +318,11 @@ app:
         - name: Taxonomies
           icon: WallpaperOutlined
           url: /taxonomies
+
+        - name: Tag Management
+          icon: LocalOffer
+          permissions: ["Manage sources", "System admin"]
+          url: /tag_management
 
         - name: Scanning report
           icon: Summarize

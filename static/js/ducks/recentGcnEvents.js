@@ -8,7 +8,6 @@ const REFRESH_RECENT_GCNEVENTS = "skyportal/REFRESH_RECENT_GCNEVENTS";
 const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
 const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchRecentGcnEvents = () =>
   API.GET("/api/internal/recent_gcn_events", FETCH_RECENT_GCNEVENTS);
 

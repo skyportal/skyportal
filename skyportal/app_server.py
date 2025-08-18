@@ -332,15 +332,15 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/observation_plan_requests",
+        r"/api/gcn_event(/[0-9]+)/observation_plan_requests",
         GcnEventObservationPlanRequestsHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency",
+        r"/api/gcn_event(/[0-9]+)/survey_efficiency",
         GcnEventSurveyEfficiencyHandler,
     ),
     (
-        r"/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/catalog_query",
+        r"/api/gcn_event(/[0-9]+)/catalog_query",
         GcnEventCatalogQueryHandler,
     ),
     (

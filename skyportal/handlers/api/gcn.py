@@ -31,7 +31,6 @@ from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
-from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
@@ -99,6 +98,7 @@ from ...utils.gcn import (
     has_skymap,
 )
 from ...utils.notifications import post_notification
+from ...utils.parse import get_page_and_n_per_page
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
@@ -154,21 +154,26 @@ def post_gcn_source(
             else:
                 event_tags = get_tags(root, notice_type)
             tags_formatted = [tag.upper().strip() for tag in event_tags]
+
+            # set the origin
+            if "LVC" in tags_formatted:
+                source["origin"] = "LVC"
+            elif "SWIFT" in tags_formatted:
+                source["origin"] = "Swift"
+            elif "FERMI" in tags_formatted:
+                source["origin"] = "Fermi"
+            elif "SVOM" in tags_formatted:
+                source["origin"] = "SVOM"
+            elif "EINSTEIN PROBE" in tags_formatted:
+                source["origin"] = "Einstein Probe"
+
+            # set the id/name
             if "GRB" in tags_formatted:
                 source["id"] = f"GRB-{source_name}"
-                if "SWIFT" in tags_formatted:
-                    source["origin"] = "Swift"
-                elif "FERMI" in tags_formatted:
-                    source["origin"] = "Fermi"
-                elif "SVOM" in tags_formatted:
-                    source["origin"] = "SVOM"
             elif "GW" in tags_formatted:
                 source["id"] = f"GW-{source_name}"
-                if "LVC" in tags_formatted:
-                    source["origin"] = "LVC"
             elif "EINSTEIN PROBE" in tags_formatted:
                 source["id"] = f"EP-{source_name}"
-                source["origin"] = "Einstein Probe"
             else:
                 source["id"] = f"GCN-{source_name}"
 
@@ -522,7 +527,9 @@ def post_gcnevent_from_json(
     if ref_ID is not None:
         event = session.scalars(
             GcnEvent.select(user).where(
-                func.lower(cast(GcnEvent.aliases, String)).like(f"%{ref_ID.lower()}%")
+                sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
+                    f"%{ref_ID.lower()}%"
+                )
             )
         ).first()
 
@@ -1141,6 +1148,11 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
+
         with self.Session() as session:
             event = session.scalars(
                 GcnEvent.select(
@@ -1180,13 +1192,18 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             name: gcnevent_id
             required: true
             schema:
-              type: string
+              type: integer
         responses:
           200:
             content:
               application/json:
                 schema: ArrayOfObservationPlanRequests
         """
+
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             event = session.scalars(
@@ -1251,12 +1268,19 @@ class GcnEventCatalogQueryHandler(BaseHandler):
               application/json:
                 schema: ArrayOfCatalogQuerys
         """
+        try:
+            gcnevent_id = int(gcnevent_id)
+        except ValueError:
+            return self.error("Invalid GCN event ID", status=400)
 
         with self.Session() as session:
             queries = session.scalars(
                 CatalogQuery.select(
                     session.user_or_token,
-                ).where(CatalogQuery.payload["gcnevent_id"] == gcnevent_id)
+                ).where(
+                    cast(CatalogQuery.payload["gcnevent_id"].astext, sa.Integer)
+                    == gcnevent_id
+                )
             ).all()
 
             return self.success(data=queries)
@@ -1461,23 +1485,13 @@ class GcnEventHandler(BaseHandler):
             )
 
         page_number = self.get_query_argument("pageNumber", 1)
-        try:
-            page_number = int(page_number)
-        except ValueError as e:
-            return self.error(f"pageNumber fails: {e}")
-
         n_per_page = self.get_query_argument("numPerPage", 10)
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError as e:
-            return self.error(f"numPerPage fails: {e}")
-
-        if n_per_page > MAX_GCNEVENTS:
-            return self.error(f"numPerPage should be no larger than {MAX_GCNEVENTS}.")
+        page_number, n_per_page = get_page_and_n_per_page(
+            page_number, n_per_page, MAX_GCNEVENTS
+        )
 
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
-
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
         gcn_tag_keep = self.get_query_argument("gcnTagKeep", None)
@@ -1695,8 +1709,8 @@ class GcnEventHandler(BaseHandler):
                         partialdateobs = partialdateobs.replace("T", " ")
                 partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
-                    cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
-                    | func.lower(cast(GcnEvent.aliases, String)).like(
+                    cast(GcnEvent.dateobs, sa.String).like(f"{partialdateobs}%")
+                    | sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
                         f"%{partialdateobs}%"
                     )
                 )
