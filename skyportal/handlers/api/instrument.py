@@ -414,13 +414,17 @@ class InstrumentHandler(BaseHandler):
             if localization_dateobs is not None:
                 try:
                     airmass_time = Time(arrow.get(localization_dateobs).datetime)
-                except:
-                    pass
+                except Exception as e:
+                    return self.error(
+                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                    )
         else:
             try:
                 airmass_time = Time(arrow.get(airmass_time).datetime)
-            except:
-                pass
+            except Exception as e:
+                return self.error(
+                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                )
 
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
