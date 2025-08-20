@@ -127,7 +127,7 @@ def test_insufficient_name_entry_in_profile(driver, user):
     driver.get("/profile")
 
     # give some time to load the current profile
-    time.sleep(1)
+    time.sleep(1.5)
 
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     driver.scroll_to_element_and_click(first_name_entry)
