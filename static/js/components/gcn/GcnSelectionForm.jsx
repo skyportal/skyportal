@@ -363,11 +363,6 @@ GcnEventSourcesPage.propTypes = {
           }),
         ),
         recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-        altdata: PropTypes.shape({
-          tns: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
         last_detected_at: PropTypes.string,
         last_detected_mag: PropTypes.number,
         peak_detected_at: PropTypes.string,
