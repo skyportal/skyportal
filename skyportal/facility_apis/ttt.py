@@ -72,13 +72,20 @@ def validate_request_to_ttt(request, proposal_id):
 
     coord = SkyCoord(request.obj.ra, request.obj.dec, unit="deg")
 
-    photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
-    mag = 19
-    if len(photometry) > 0:
-        for p in photometry:
-            if p.mag is not None:
-                mag = p.mag
-                break
+    if request.payload.get("use_expected_sensitivity", False):
+        if "expected_sensitivity" not in request.payload:
+            raise ValueError(
+                "expected_sensitivity required when use_expected_sensitivity is True."
+            )
+        mag = float(request.payload["expected_sensitivity"])
+    else:
+        photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
+        mag = 19
+        if len(photometry) > 0:
+            for p in photometry:
+                if p.mag is not None:
+                    mag = p.mag
+                    break
 
     requestgroup = {
         "proposal": proposal_id,
@@ -288,6 +295,11 @@ class TTTAPI(FollowUpAPI):
                 "type": "number",
                 "default": 5.0,
             },
+            "use_expected_sensitivity": {
+                "type": "boolean",
+                "title": "Use expected sensitivity (default is set to 19 in mag)",
+                "default": False,
+            },
             "exposure_counts": {
                 "title": "Exposure Counts",
                 "type": "number",
@@ -357,6 +369,30 @@ class TTTAPI(FollowUpAPI):
                     },
                 ],
             },
+            "use_expected_sensitivity": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "use_expected_sensitivity": {
+                                "enum": [False],
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "use_expected_sensitivity": {
+                                "enum": [True],
+                            },
+                            "expected_sensitivity": {
+                                "type": "number",
+                                "title": "Expected sensitivity (in mag)",
+                                "default": 19,
+                            },
+                        },
+                        "required": ["expected_sensitivity"],
+                    },
+                ],
+            },
         },
     }
 
@@ -378,4 +414,16 @@ class TTTAPI(FollowUpAPI):
         },
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {
+        "observation_choices": {"ui:widget": "checkboxes"},
+        "ui:order": [
+            "station_name",
+            "snr",
+            "use_expected_sensitivity",
+            "expected_sensitivity",
+            "exposure_counts",
+            "start_date",
+            "end_date",
+            "observation_choices",
+        ],
+    }
