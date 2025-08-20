@@ -44,7 +44,7 @@ def test_source_is_added_to_observing_run_via_frontend(
         f"(PI: {red_transients_run.pi} / "
         f"Group: {red_transients_run.group.name})"
     )
-    driver.wait_for_xpath(f'//*[contains(., "{observingrun_title}")]')
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(f'//li[@data-value="{red_transients_run.id}"]')
     )
@@ -163,7 +163,7 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
             f"Group: {run.group.name})"
         )
 
-        driver.wait_for_xpath(f'//*[contains(., "{observingrun_title}")]')
+        driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -188,7 +188,7 @@ def test_add_run_to_observing_run_page(
     # long timeout as it can take a long time for the telescopelist,
     # observingrun list, and instrumentlist to fully load on
     # when these lists are long and the webserver is strained
-    driver.wait_for_xpath(f'//*[contains(., "{observingrun_title}")]', timeout=15)
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=15)
 
     pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
 
@@ -224,6 +224,6 @@ def test_add_run_to_observing_run_page(
     # observingrun list, and instrumentlist to fully load on
     # when these lists are long and the webserver is strained
     driver.wait_for_xpath(
-        f"""//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']""",
+        f"//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']",
         timeout=15,
     )

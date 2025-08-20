@@ -58,6 +58,7 @@ export function observingRunTitle(
   instrumentList,
   telescopeList,
   groups,
+  isBold = false,
 ) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
@@ -69,16 +70,19 @@ export function observingRunTitle(
     return <CircularProgress color="secondary" />;
   }
   let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
-  const moreInfo =
+  let moreInfo =
     (observingRun?.pi ? `PI: ${observingRun.pi}` : "") +
     (observingRun?.pi && group?.name ? " / " : "") +
     (group?.name ? `Group: ${group.name}` : "");
+  moreInfo = moreInfo ? ` (${moreInfo})` : "";
 
-  return (
+  return isBold ? (
     <>
       <b>{result}</b>
-      {moreInfo && ` (${moreInfo})`}
+      {moreInfo}
     </>
+  ) : (
+    result + moreInfo
   );
 }
 
@@ -328,7 +332,13 @@ const RunSummary = ({ route }) => {
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <Typography variant="h1" gutterBottom color="textSecondary">
         Plan for:{" "}
-        {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
+        {observingRunTitle(
+          observingRun,
+          instrumentList,
+          telescopeList,
+          groups,
+          true,
+        )}
       </Typography>
       <MUIDataTable
         title="Targets"

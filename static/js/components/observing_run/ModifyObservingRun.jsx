@@ -9,10 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import {
-  submitObservingRun,
-  modifyObservingRun,
-} from "../../ducks/observingRun";
+import { modifyObservingRun } from "../../ducks/observingRun";
 
 dayjs.extend(utc);
 
