@@ -530,5 +530,6 @@ InstrumentSharingService = join_model(
     Instrument,
     SharingService,
     column_2="sharing_service_id",
+    overlaps="sharing_services",
 )
 InstrumentSharingService.__doc__ = "Join table mapping Instruments to SharingServices."

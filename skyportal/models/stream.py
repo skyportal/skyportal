@@ -137,7 +137,11 @@ StreamPhotometricSeries.create = accessible_by_stream_members
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
 StreamSharingService = join_model(
-    "stream_sharingservices", Stream, SharingService, column_2="sharing_service_id"
+    "stream_sharingservices",
+    Stream,
+    SharingService,
+    column_2="sharing_service_id",
+    overlaps="sharing_services",
 )
 StreamSharingService.__doc__ = "Join table mapping Streams to SharingServices."
 StreamSharingService.create = accessible_by_stream_members
