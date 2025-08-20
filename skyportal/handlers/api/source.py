@@ -1245,14 +1245,6 @@ class SourceHandler(BaseHandler):
               type: integer
             description: Page number for paginated query results. Defaults to 1
           - in: query
-            name: totalMatches
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Used only in the case of paginating query results - if provided, this
-              allows for avoiding a potentially expensive query.count() call.
-          - in: query
             name: startDate
             nullable: true
             schema:
@@ -1945,7 +1937,6 @@ class SourceHandler(BaseHandler):
         has_been_labelled = self.get_query_argument("hasBeenLabelled", False)
         has_not_been_labelled = self.get_query_argument("hasNotBeenLabelled", False)
         current_user_labeller = self.get_query_argument("currentUserLabeller", False)
-        total_matches = self.get_query_argument("totalMatches", None)
         is_token_request = isinstance(self.current_user, Token)
 
         if obj_id is not None:
@@ -2070,7 +2061,6 @@ class SourceHandler(BaseHandler):
                     group_ids=group_ids,
                     user_accessible_group_ids=user_accessible_group_ids,
                     save_summary=save_summary,
-                    total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                     use_cache=use_cache,
                     query_id=query_id,
