@@ -116,19 +116,19 @@ const InstrumentLogsPlot = ({ instrument_logs }) => {
     const margin = (stats ? stats.maxMJD - stats.minMJD : 1) * 0.1;
     return {
       xaxis: {
-        title: "MJD",
+        title: { text: "MJD" },
         range: stats ? [stats.minMJD - margin, stats.maxMJD + margin] : [0, 1],
         side: "top",
         tickformat: ".6~f",
         ...BASE_LAYOUT,
       },
       yaxis: {
-        title: "Log Type",
+        title: { text: "Log Type" },
         ...BASE_LAYOUT,
         nticks: 20,
       },
       xaxis2: {
-        title: "Days Ago",
+        title: { text: "Days Ago" },
         range: stats
           ? [stats.daysAgoMax - margin, stats.daysAgoMin + margin]
           : [1, 0],
