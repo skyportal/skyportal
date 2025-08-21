@@ -404,9 +404,9 @@ def post_survey_efficiency_analysis(
         observation_plan_request = session.scalar(
             sa.select(ObservationPlanRequest)
             .options(
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                    EventObservationPlan.planned_observations
-                )
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             )
             .where(ObservationPlanRequest.id == plan_id)
         )
@@ -475,18 +475,15 @@ def post_survey_efficiency_analysis(
     observations = []
     for ii, o in enumerate(observation_plans[0].planned_observations):
         obs_dict = o.to_dict()
+        field = obs_dict.get("field")
+        if not field:
+            raise ValueError(
+                f"Missing field (field_id:{obs_dict['field_id']}) required to estimate field size"
+            )
+        obs_dict["field"] = field.to_dict()
         observations.append(obs_dict)
 
         if ii == 0:
-            field = (
-                session.query(InstrumentField)
-                .options(undefer(InstrumentField.contour_summary))
-                .get(obs_dict["field_id"])
-            )
-            if field is None:
-                raise ValueError(
-                    f"Missing field {obs_dict['field_id']} required to estimate field size"
-                )
             contour_summary = field.contour_summary["features"][0]
             coordinates = np.squeeze(
                 np.array(contour_summary["geometry"]["coordinates"])
