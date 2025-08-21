@@ -53,7 +53,13 @@ def validate_request_to_ttt(request, proposal_id):
     if request.payload["station_name"] == "TTT-80":
         camera_model = "QHY411M"
     elif request.payload["station_name"] == "TTT-200":
-        camera_model = "QHY600M Pro"
+        if "camera_model" not in request.payload:
+            raise ValueError("camera_model is required when using TTT-200")
+        if request.payload["camera_model"] not in ["iKon936", "QHY600M Pro"]:
+            raise ValueError(
+                "camera_model must be 'iKon936' or 'QHY600M Pro' for TTT-200"
+            )
+        camera_model = request.payload["camera_model"]
 
     if any(
         filt not in ["SDSSu", "SDSSg", "SDSSr", "SDSSi", "SDSSz"]
@@ -349,6 +355,12 @@ class TTTAPI(FollowUpAPI):
                             "station_name": {
                                 "enum": ["TTT-200"],
                             },
+                            "camera_model": {
+                                "type": "string",
+                                "title": "Camera",
+                                "enum": ["iKon936", "QHY600M Pro"],
+                                "default": "QHY600M Pro",
+                            },
                             "observation_choices": {
                                 "type": "array",
                                 "title": "Desired Observations",
@@ -366,6 +378,7 @@ class TTTAPI(FollowUpAPI):
                                 "minItems": 1,
                             },
                         },
+                        "required": ["camera_model"],
                     },
                 ],
             },
@@ -418,6 +431,7 @@ class TTTAPI(FollowUpAPI):
         "observation_choices": {"ui:widget": "checkboxes"},
         "ui:order": [
             "station_name",
+            "camera_model",
             "snr",
             "use_expected_sensitivity",
             "expected_sensitivity",
