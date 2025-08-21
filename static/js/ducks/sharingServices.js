@@ -118,8 +118,6 @@ export const fetchSharingServiceSubmissions = (params = {}) =>
   );
 
 messageHandler.add((actionType, payload, dispatch) => {
-  console.log(actionType);
-  console.log(payload);
   if (actionType === REFRESH_SHARING_SERVICES) {
     if (payload?.group_id) {
       dispatch(fetchSharingServices({ group_id: payload.group_id }));
