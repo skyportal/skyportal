@@ -22,13 +22,14 @@ export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
 const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
 
 export function fetchSourceSpectra(id, normalization = null) {
-  if (normalization) {
-    return API.GET(
-      `/api/sources/${id}/spectra?normalization=${normalization}&sortBy=observed_at&order=asc`,
-      FETCH_SOURCE_SPECTRA,
-    );
-  }
-  return API.GET(`/api/sources/${id}/spectra`, FETCH_SOURCE_SPECTRA);
+  return API.GET(
+    `/api/sources/${id}/spectra${
+      normalization
+        ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
+        : ""
+    }`,
+    FETCH_SOURCE_SPECTRA,
+  );
 }
 
 export function parseASCIISpectrum(data) {
