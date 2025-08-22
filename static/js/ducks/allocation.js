@@ -2,6 +2,7 @@ import messageHandler from "baselayer/MessageHandler";
 
 import * as API from "../API";
 import store from "../store";
+import { FETCH_FOLLOWUP_REQUEST_OK } from "./followupRequests";
 
 const REFRESH_ALLOCATION = "skyportal/REFRESH_ALLOCATION";
 
@@ -41,11 +42,13 @@ export function deleteAllocation(allocationID) {
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { allocation } = getState();
   if (actionType === REFRESH_ALLOCATION) {
-    const { allocation_id } = payload;
-    if (allocation_id === allocation?.id) {
-      dispatch(fetchAllocation(allocation_id));
+    const { allocation } = getState();
+    if (
+      payload?.allocation_id &&
+      payload.allocation_id === allocation?.allocation?.id
+    ) {
+      dispatch(fetchAllocation(payload?.allocation_id));
     }
   } else if (actionType === REFRESH_ALLOCATION_REQUEST_COMMENT) {
     dispatch({ type: actionType, payload });
@@ -60,6 +63,27 @@ const reducer = (state = { assignments: [] }, action) => {
         ...state,
         allocation,
         totalMatches,
+      };
+    }
+    case FETCH_FOLLOWUP_REQUEST_OK: {
+      const followupRequest = action.data;
+      if (
+        !state?.allocation ||
+        followupRequest?.allocation_id !== state.allocation.id
+      )
+        return state;
+
+      const updatedRequests = state?.allocation?.requests?.map((request) =>
+        request.id === followupRequest.id ? followupRequest : request,
+      );
+      return {
+        ...state,
+        allocation: {
+          ...state.allocation,
+          requests: !state.allocation.requests?.length
+            ? [followupRequest]
+            : updatedRequests,
+        },
       };
     }
     case REFRESH_ALLOCATION_REQUEST_COMMENT: {

@@ -697,7 +697,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               style={{ backgroundColor: line.color }}
             />
             <Button
-              key={line.wavelength}
               onClick={() => {
                 if (selectedLines.includes(line.name)) {
                   setSelectedLines(

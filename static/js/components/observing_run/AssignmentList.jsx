@@ -191,15 +191,10 @@ const AssignmentList = ({ assignments }) => {
     const assignment = assignments[dataIndex];
     return (
       <div className={classes.assignmentManage}>
-        <IconButton
-          key={`edit_assignment_${assignment.id}`}
-          id={`edit_button_assignment_${assignment.id}`}
-          onClick={() => openEditDialog(assignment.id)}
-        >
+        <IconButton onClick={() => openEditDialog(assignment.id)}>
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_assignment_${assignment.id}`}
           id={`delete_button_assignment_${assignment.id}`}
           onClick={() => openDeleteDialog(assignment.id)}
         >

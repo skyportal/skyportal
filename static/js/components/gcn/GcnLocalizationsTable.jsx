@@ -286,7 +286,6 @@ const GcnLocalizationsTable = ({ localizations }) => {
       return (
         <div>
           <Button
-            key={localization.id}
             id="delete_button"
             classes={{
               root: classes.localizationDelete,

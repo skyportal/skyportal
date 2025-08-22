@@ -4,38 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchTaxonomies, modifyTaxonomy } from "../../ducks/taxonomies";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 
-const useStyles = makeStyles(() => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
-  marginTop: {
-    marginTop: "1rem",
-  },
-  taxonomySelect: {
-    width: "100%",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
-}));
-
 const ModifyTaxonomy = ({ taxonomy_id, onClose }) => {
-  const classes = useStyles();
-
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const dispatch = useDispatch();
-
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
@@ -84,7 +60,7 @@ const ModifyTaxonomy = ({ taxonomy_id, onClose }) => {
   };
 
   return (
-    <div className={classes.container}>
+    <div>
       <Form
         schema={taxonomyFormSchema}
         validator={validator}

@@ -17,6 +17,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import * as sourceActions from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
+import Typography from "@mui/material/Typography";
 
 const useStyles = makeStyles(() => ({
   iconButton: {
@@ -186,10 +187,10 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                   <b>Unsave</b> source from selected groups:
                 </div>
                 <div>
-                  <em>
+                  <Typography variant="caption" color="textSecondary">
                     Warning: This will unsave the source from selected groups
                     for all group members
-                  </em>
+                  </Typography>
                 </div>
                 {savedGroups.map((savedGroup, idx) => (
                   <FormControlLabel

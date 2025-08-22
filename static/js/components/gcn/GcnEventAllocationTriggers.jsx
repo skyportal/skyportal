@@ -46,7 +46,7 @@ const useStyles = makeStyles(() => ({
     background: "#b94a48!important", // red
   },
   not_set: {
-    background: "#999999!important", // grey
+    background: "secondary.dark",
   },
   mixed: {
     background: "linear-gradient(120deg, #468847 50%, #d54f4d 50%)",

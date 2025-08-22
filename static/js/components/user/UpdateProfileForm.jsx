@@ -243,7 +243,6 @@ const UpdateProfileForm = () => {
                         freeSolo
                         renderInput={(params) => (
                           <TextField
-                            // eslint-disable-next-line react/jsx-props-no-spreading
                             {...params}
                             variant="outlined"
                             name="affiliations"
