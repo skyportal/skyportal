@@ -279,10 +279,7 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Share with...",
         items: {
           type: "integer",
-          anyOf: groups?.map((group) => ({
-            enum: [group.id],
-            title: group.name,
-          })),
+          enum: groups.map((group) => group.id),
         },
         uniqueItems: true,
       },
@@ -378,7 +375,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "PI(s)",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -398,7 +395,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for PI(s)",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -419,7 +416,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Reducers",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -439,7 +436,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for reducers",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -464,7 +461,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Observers",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -484,7 +481,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for observers",
                 items: {
                   type: "integer",
-                  enum: userEnumOptions.enum,
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -525,23 +522,26 @@ const UploadSpectrumForm = ({ route }) => {
   };
 
   const uiSchema = {
+    group_ids: {
+      "ui:enumNames": groups.map((group) => group.name),
+    },
     observed_by: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     observer_point_of_contact: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     reduced_by: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     reducer_point_of_contact: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     pi: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     pi_point_of_contact: {
-      "ui:enumNames": userEnumOptions.enumNames,
+      "ui:enumNames": userEnumOptions?.enumNames,
     },
     "ui:order": [
       "*",
@@ -672,8 +672,6 @@ const UploadSpectrumForm = ({ route }) => {
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
           </Typography>
-          <div>Nb users: {users.length}</div>
-          <div>Nb groups: {groups.length}</div>
           <Box sx={{ position: "absolute", top: 2, right: 3 }}>
             <Tooltip
               title={
