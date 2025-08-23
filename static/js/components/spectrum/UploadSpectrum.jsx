@@ -672,6 +672,8 @@ const UploadSpectrumForm = ({ route }) => {
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
           </Typography>
+          <div>Nb users: {users.length}</div>
+          <div>Nb groups: {groups.length}</div>
           <Box sx={{ position: "absolute", top: 2, right: 3 }}>
             <Tooltip
               title={
