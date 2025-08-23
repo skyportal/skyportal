@@ -98,6 +98,16 @@ const UploadSpectrumForm = ({ route }) => {
   );
   const [searchParams] = useSearchParams();
   const [uploadedFromURL, setUploadedFromURL] = useState(false);
+  const [userEnumOptions, setUserEnumOptions] = useState([]);
+
+  useEffect(() => {
+    if (!users?.length) return;
+
+    setUserEnumOptions({
+      enum: users.map((user) => user.id),
+      enumNames: users.map((user) => userLabel(user, true)),
+    });
+  }, [users]);
 
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
@@ -264,11 +274,6 @@ const UploadSpectrumForm = ({ route }) => {
   const uploadFormSchema = {
     type: "object",
     properties: {
-      file: {
-        type: "string",
-        format: "data-url",
-        title: "Spectrum file",
-      },
       group_ids: {
         type: "array",
         title: "Share with...",
@@ -281,59 +286,10 @@ const UploadSpectrumForm = ({ route }) => {
         },
         uniqueItems: true,
       },
-      pi_mode: {
+      file: {
         type: "string",
-        default: "User",
-        title: "PI type",
-        enum: ["User", "External"],
-      },
-      pi: {
-        type: "array",
-        title: "PI(s)",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: userLabel(user, true),
-          })),
-        },
-        uniqueItems: true,
-      },
-      reducer_mode: {
-        type: "string",
-        default: "User",
-        title: "Reducer type",
-        enum: ["User", "External"],
-      },
-      reduced_by: {
-        type: "array",
-        title: "Reducers",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: userLabel(user, true),
-          })),
-        },
-        uniqueItems: true,
-      },
-      observer_mode: {
-        type: "string",
-        default: "User",
-        title: "Observer type",
-        enum: ["User", "External"],
-      },
-      observed_by: {
-        type: "array",
-        title: "Observers",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: userLabel(user, true),
-          })),
-        },
-        uniqueItems: true,
+        format: "data-url",
+        title: "Spectrum file",
       },
       mjd: {
         type: "number",
@@ -361,10 +317,23 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Spectrum type",
         enum: spectrumTypes,
       },
-      user_label: {
+      observer_mode: {
         type: "string",
-        title: "User label",
-        default: "",
+        default: "User",
+        title: "Observer type",
+        enum: ["User", "External"],
+      },
+      reducer_mode: {
+        type: "string",
+        default: "User",
+        title: "Reducer type",
+        enum: ["User", "External"],
+      },
+      pi_mode: {
+        type: "string",
+        default: "User",
+        title: "PI type",
+        enum: ["User", "External"],
       },
       wave_column: {
         type: "integer",
@@ -381,6 +350,11 @@ const UploadSpectrumForm = ({ route }) => {
         default: "No",
         title: "Does your spectrum have flux errors?",
         enum: ["No", "Yes"],
+      },
+      user_label: {
+        type: "string",
+        title: "User label",
+        default: "",
       },
     },
     required: [
@@ -404,10 +378,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "PI(s)",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -427,10 +398,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for PI(s)",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -451,10 +419,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Reducers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -474,10 +439,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for reducers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -502,10 +464,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Observers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -525,10 +484,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for observers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: userLabel(user, true),
-                  })),
+                  enum: userEnumOptions.enum,
                 },
                 uniqueItems: true,
               },
@@ -569,12 +525,26 @@ const UploadSpectrumForm = ({ route }) => {
   };
 
   const uiSchema = {
+    observed_by: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
+    observer_point_of_contact: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
+    reduced_by: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
+    reducer_point_of_contact: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
+    pi: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
+    pi_point_of_contact: {
+      "ui:enumNames": userEnumOptions.enumNames,
+    },
     "ui:order": [
-      "group_ids",
-      "file",
-      "mjd",
-      "instrument_id",
-      "spectrum_type",
+      "*",
       "observer_mode",
       "observer_point_of_contact",
       "observed_by",
@@ -590,6 +560,9 @@ const UploadSpectrumForm = ({ route }) => {
       "fluxerr_column",
       "user_label",
     ],
+    instrument_id: {
+      "ui:disabled": !instruments?.length,
+    },
   };
 
   const parseAscii = ({ formData }) => {
