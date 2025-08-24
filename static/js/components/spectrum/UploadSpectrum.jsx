@@ -5,14 +5,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 
 import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv6";
+import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
-import Paper from "@mui/material/Paper";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
 import dayjs from "dayjs";
@@ -24,43 +22,19 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Button from "../Button";
 
-import { HtmlTooltip } from "../photometry/UploadPhotometry";
 import withRouter from "../withRouter";
 
 import * as spectraActions from "../../ducks/spectra";
 import { fetchSource } from "../../ducks/source";
 import { fetchUsers } from "../../ducks/users";
+import { userLabel } from "../../utils/format";
+import Paper from "../Paper";
+import Spinner from "../Spinner";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles(() => ({
-  formBox: {
-    padding: "1rem",
-  },
-  vegaDiv: {
-    width: "100%",
-  },
-  displayBlock: {
-    display: "block",
-  },
-  accordion: {
-    margin: "1rem",
-  },
-  dataTable: {
-    width: "100%",
-  },
-  alignRight: {
-    position: "absolute",
-    right: "0px",
-    bottom: "0px",
-  },
-  bottomRow: {
-    position: "relative",
-  },
-  submitButton: {
-    display: "inline-block",
-  },
-}));
 
 const spectrumPreviewSpec = (data) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
@@ -78,19 +52,13 @@ const spectrumPreviewSpec = (data) => ({
   },
 });
 
-const SpectrumPreview = React.memo((props) => {
-  const { data } = props;
-  const classes = useStyles();
+const SpectrumPreview = React.memo(({ data }) => {
   return (
-    <div
+    <Box
       ref={(node) => {
-        if (node) {
-          embed(node, spectrumPreviewSpec(data), {
-            actions: false,
-          });
-        }
+        if (node) embed(node, spectrumPreviewSpec(data), { actions: false });
       }}
-      className={classes.vegaDiv}
+      sx={{ width: "100%" }}
     />
   );
 });
@@ -99,26 +67,28 @@ SpectrumPreview.displayName = "SpectrumPreview";
 SpectrumPreview.propTypes = {
   data: PropTypes.arrayOf(
     PropTypes.shape({
-      wavelength: PropTypes.number.isRequired,
-      flux: PropTypes.number.isRequired,
+      wavelength: PropTypes.number,
+      flux: PropTypes.number,
       error: PropTypes.number,
     }),
   ).isRequired,
 };
 
 const UploadSpectrumForm = ({ route }) => {
-  const { parsed } = useSelector((state) => state.spectra);
+  const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.all);
+  const { parsed } = useSelector((state) => state.spectra);
   const { users } = useSelector((state) => state.users);
   const instrumentList = useSelector(
     (state) => state.instruments.instrumentList,
   );
   const telescopes = useSelector((state) => state.telescopes.telescopeList);
   const source = useSelector((state) => state.source);
-  const dispatch = useDispatch();
-  const classes = useStyles();
   const [persistentFormData, setPersistentFormData] = useState({});
   const [formKey, setFormKey] = useState(null);
+  const [header, setHeader] = useState([]);
+  const [data, setData] = useState([]);
+  const [headerHasComments, setHeaderHasComments] = useState(false);
   const spectrumTypes = useSelector(
     (state) => state.config.allowedSpectrumTypes,
   );
@@ -126,143 +96,122 @@ const UploadSpectrumForm = ({ route }) => {
   const defaultSpectrumType = useSelector(
     (state) => state.config.defaultSpectrumType,
   );
-
   const [searchParams] = useSearchParams();
-
   const [uploadedFromURL, setUploadedFromURL] = useState(false);
+  const [userEnumOptions, setUserEnumOptions] = useState([]);
+
+  useEffect(() => {
+    if (!users?.length) return;
+
+    setUserEnumOptions({
+      enum: users.map((user) => user.id),
+      enumNames: users.map((user) => userLabel(user, true)),
+    });
+  }, [users]);
+
+  const unwrapQuotes = (str) =>
+    str && str.startsWith('"') && str.endsWith('"') ? str.slice(1, -1) : str;
+
+  // utility to get a list of integers from a comma-separated URL parameter
+  const getIntList = (param) =>
+    searchParams
+      .get(param)
+      ?.split(",")
+      .map((id) => parseInt(id, 10));
 
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
-    const blockingFunc = async () => {
+    (async () => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
-      dispatch(fetchUsers());
-      const result = await dispatch(fetchSource(route.id));
 
-      let file_url = searchParams.get("file_url");
-      if (file_url && file_url.startsWith('"') && file_url.endsWith('"')) {
-        file_url = file_url.slice(1, -1);
-      }
-      let file_name = searchParams.get("file_name");
-      if (file_name && file_name.startsWith('"') && file_name.endsWith('"')) {
-        file_name = file_name.slice(1, -1);
-      }
+      const [_, sourceResult] = await Promise.all([
+        dispatch(fetchUsers()),
+        dispatch(fetchSource(route.id)),
+      ]);
 
       let file;
-      if (file_url) {
-        const response = await fetch(file_url);
+      const fileUrl = unwrapQuotes(searchParams.get("file_url"));
+      const fileName = unwrapQuotes(searchParams.get("file_name"));
+
+      if (fileUrl) {
+        const response = await fetch(fileUrl);
         const blob = await response.blob();
-        // we want to set file to a data url, so we can pass it to the form
+        const reader = new FileReader();
+        // we want to set the file to a data url, so we can pass it to the form
         file = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve(reader.result);
-          };
+          reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(blob);
         });
         if (!file.includes("name=")) {
-          const file_type = file.split(";")[0].split(":")[1];
-          file = file.replace(file_type, `${file_type};name=${file_name}`);
+          const type = file.split(";")[0].split(":")[1];
+          file = file.replace(type, `${type};name=${fileName}`);
         }
         setUploadedFromURL(true);
       }
 
-      const defaultFormData = {
+      setPersistentFormData({
         file,
-        group_ids: searchParams.get("group_ids")
-          ? searchParams
-              .get("group_ids")
-              .split(",")
-              .map((id) => parseInt(id, 10))
-          : result.data.groups?.map((group) => group.id),
-        mjd: searchParams.get("mjd")
-          ? parseFloat(searchParams.get("mjd"))
-          : undefined,
-        wave_column: searchParams.get("wave_column")
-          ? parseInt(searchParams.get("wave_column"), 10)
-          : 0,
-        flux_column: searchParams.get("flux_column")
-          ? parseInt(searchParams.get("flux_column"), 10)
-          : 1,
+        group_ids:
+          getIntList("group_ids") ?? sourceResult.data.groups?.map((g) => g.id),
+        mjd: parseFloat(searchParams.get("mjd")) || undefined,
+        wave_column: parseInt(searchParams.get("wave_column"), 10) || 0,
+        flux_column: parseInt(searchParams.get("flux_column"), 10) || 1,
+        fluxerr_column:
+          parseInt(searchParams.get("fluxerr_column"), 10) || undefined,
         has_fluxerr: searchParams.get("has_fluxerr") || "No",
-        instrument_id: searchParams.get("instrument_id")
-          ? parseInt(searchParams.get("instrument_id"), 10)
-          : undefined,
+        instrument_id:
+          parseInt(searchParams.get("instrument_id"), 10) || undefined,
         spectrum_type: searchParams.get("spectrum_type") || "source",
         user_label: searchParams.get("user_label") || undefined,
-        fluxerr_column: searchParams.get("fluxerr_column")
-          ? parseInt(searchParams.get("fluxerr_column"), 10)
-          : undefined,
-        observed_by: searchParams.get("observed_by")
-          ? searchParams
-              .get("observed_by")
-              .split(",")
-              .map((id) => parseInt(id, 10))
-          : undefined,
-        reduced_by: searchParams.get("reduced_by")
-          ? searchParams
-              .get("reduced_by")
-              .split(",")
-              .map((id) => parseInt(id, 10))
-          : undefined,
-      };
-
-      setPersistentFormData(defaultFormData);
-    };
-    blockingFunc();
+        observed_by: getIntList("observed_by"),
+        reduced_by: getIntList("reduced_by"),
+      });
+    })();
   }, [dispatch, route.id, searchParams]);
+
+  useEffect(() => {
+    if (!parsed) return;
+
+    let newData = [];
+    let hasComments = false;
+    const newHeader = parsed.altdata
+      ? Object.entries(parsed.altdata).map(([key, value]) => {
+          if (value && typeof value === "object") {
+            hasComments = true;
+            return { key, value: value.value, comment: value.comment };
+          }
+          return { key, value };
+        })
+      : [];
+
+    if (hasComments) {
+      // Set default comment to null if not present
+      newHeader.forEach((obj) => (obj.comment ??= null)); // Assign only if the left side is null or undefined
+    }
+    parsed.wavelengths.forEach((w, i) => {
+      const datum = {
+        flux: parsed.fluxes[i],
+        wavelength: w,
+        ...(parsed.errors?.[i] && { error: parsed.errors[i] }),
+      };
+      newData.push(datum);
+    });
+    setHeaderHasComments(hasComments);
+    setHeader(newHeader);
+    setData(newData);
+  }, [parsed]);
 
   if (
     !groups ||
     !instrumentList ||
     !telescopes ||
-    users.length === 0 ||
+    !users.length ||
     source.id !== route.id
   ) {
-    return (
-      <p>
-        <CircularProgress color="secondary" />
-      </p>
-    );
+    return <Spinner />;
   }
 
-  const instruments = instrumentList.filter((inst) =>
-    inst.type.includes("spec"),
-  );
-
-  const newPersistentFormData = { ...persistentFormData };
-  newPersistentFormData.group_ids = source.groups?.map((group) => group.id);
-
-  const header = [];
-  const data = [];
-  let headerHasComments = false;
-  if (parsed) {
-    if (parsed.altdata) {
-      Object.entries(parsed.altdata).forEach(([key, value]) => {
-        if (typeof value === "object" && !(value == null)) {
-          headerHasComments = true;
-          header.push({ key, value: value.value, comment: value.comment });
-        } else {
-          header.push({ key, value });
-        }
-      });
-      if (headerHasComments) {
-        header.forEach((obj) => {
-          if (!("comment" in obj)) {
-            obj.comment = null;
-          }
-        });
-      }
-    }
-    parsed.wavelengths.forEach((w, i) => {
-      const flux = parsed.fluxes[i];
-      const fluxerr = parsed.errors ? parsed.errors[i] : null;
-      const datum = { flux, wavelength: w };
-      if (fluxerr) {
-        datum.error = fluxerr;
-      }
-      data.push(datum);
-    });
-  }
+  const instruments = instrumentList.filter((i) => i.type.includes("spec"));
 
   const header_columns = [
     {
@@ -281,18 +230,16 @@ const UploadSpectrumForm = ({ route }) => {
         sort: true,
       },
     },
+    ...(headerHasComments
+      ? [
+          {
+            name: "comment",
+            label: "Comment",
+            options: { filter: false, sort: true },
+          },
+        ]
+      : []),
   ];
-
-  if (headerHasComments) {
-    header_columns.push({
-      name: "comment",
-      label: "Comment",
-      options: {
-        filter: false,
-        sort: true,
-      },
-    });
-  }
 
   const data_columns = [
     {
@@ -311,100 +258,36 @@ const UploadSpectrumForm = ({ route }) => {
         sort: true,
       },
     },
+    ...(parsed?.errors
+      ? [
+          {
+            name: "error",
+            label: "Flux Error",
+            options: {
+              filter: false,
+              sort: true,
+            },
+          },
+        ]
+      : []),
   ];
-
-  if (parsed && "errors" in parsed) {
-    data_columns.push({
-      name: "error",
-      label: "Error",
-      options: {
-        filter: false,
-        sort: true,
-      },
-    });
-  }
-
-  const getUserDisplay = (user) => {
-    const lastOrFirst = user?.first_name || user?.last_name;
-    const displayStr = `${user.username} ${lastOrFirst ? "(" : ""}${
-      user?.first_name ? user.first_name : ""
-    } ${user?.last_name ? user.last_name : ""}${lastOrFirst ? ")" : ""}`;
-    return displayStr;
-  };
 
   const uploadFormSchema = {
     type: "object",
     properties: {
-      file: {
-        type: "string",
-        format: "data-url",
-        title: "Spectrum file",
-      },
       group_ids: {
         type: "array",
         title: "Share with...",
         items: {
           type: "integer",
-          anyOf: groups?.map((group) => ({
-            enum: [group.id],
-            title: group.name,
-          })),
+          enum: groups.map((group) => group.id),
         },
         uniqueItems: true,
       },
-      pi_mode: {
+      file: {
         type: "string",
-        default: "User",
-        title: "PI type",
-        enum: ["User", "External"],
-      },
-      pi: {
-        type: "array",
-        title: "PI(s)",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: getUserDisplay(user),
-          })),
-        },
-        uniqueItems: true,
-      },
-      reducer_mode: {
-        type: "string",
-        default: "User",
-        title: "Reducer type",
-        enum: ["User", "External"],
-      },
-      reduced_by: {
-        type: "array",
-        title: "Reducers",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: getUserDisplay(user),
-          })),
-        },
-        uniqueItems: true,
-      },
-      observer_mode: {
-        type: "string",
-        default: "User",
-        title: "Observer type",
-        enum: ["User", "External"],
-      },
-      observed_by: {
-        type: "array",
-        title: "Observers",
-        items: {
-          type: "integer",
-          anyOf: users?.map((user) => ({
-            enum: [user.id],
-            title: getUserDisplay(user),
-          })),
-        },
-        uniqueItems: true,
+        format: "data-url",
+        title: "Spectrum file",
       },
       mjd: {
         type: "number",
@@ -413,13 +296,18 @@ const UploadSpectrumForm = ({ route }) => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        anyOf: instruments?.map((instrument) => ({
-          enum: [instrument.id],
-          type: "integer",
-          title: `${
-            telescopes.find((t) => t.id === instrument.telescope_id)?.nickname
-          } / ${instrument.name}`,
-        })),
+        ...(instruments?.length
+          ? {
+              anyOf: instruments.map((instrument) => ({
+                enum: [instrument.id],
+                type: "integer",
+                title: `${
+                  telescopes.find((t) => t.id === instrument.telescope_id)
+                    ?.nickname
+                } / ${instrument.name}`,
+              })),
+            }
+          : {}),
       },
       spectrum_type: {
         type: "string",
@@ -427,10 +315,23 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Spectrum type",
         enum: spectrumTypes,
       },
-      user_label: {
+      observer_mode: {
         type: "string",
-        title: "User label",
-        default: "",
+        default: "User",
+        title: "Observer type",
+        enum: ["User", "External"],
+      },
+      reducer_mode: {
+        type: "string",
+        default: "User",
+        title: "Reducer type",
+        enum: ["User", "External"],
+      },
+      pi_mode: {
+        type: "string",
+        default: "User",
+        title: "PI type",
+        enum: ["User", "External"],
       },
       wave_column: {
         type: "integer",
@@ -447,6 +348,11 @@ const UploadSpectrumForm = ({ route }) => {
         default: "No",
         title: "Does your spectrum have flux errors?",
         enum: ["No", "Yes"],
+      },
+      user_label: {
+        type: "string",
+        title: "User label",
+        default: "",
       },
     },
     required: [
@@ -470,10 +376,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "PI(s)",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -493,10 +396,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for PI(s)",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -517,10 +417,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Reducers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -540,10 +437,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for reducers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -568,10 +462,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Observers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -591,10 +482,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for observers",
                 items: {
                   type: "integer",
-                  anyOf: users?.map((user) => ({
-                    enum: [user.id],
-                    title: getUserDisplay(user),
-                  })),
+                  enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
               },
@@ -635,12 +523,29 @@ const UploadSpectrumForm = ({ route }) => {
   };
 
   const uiSchema = {
+    group_ids: {
+      "ui:enumNames": groups.map((group) => group.name),
+    },
+    observed_by: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
+    observer_point_of_contact: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
+    reduced_by: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
+    reducer_point_of_contact: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
+    pi: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
+    pi_point_of_contact: {
+      "ui:enumNames": userEnumOptions?.enumNames,
+    },
     "ui:order": [
-      "group_ids",
-      "file",
-      "mjd",
-      "instrument_id",
-      "spectrum_type",
+      "*",
       "observer_mode",
       "observer_point_of_contact",
       "observed_by",
@@ -656,6 +561,9 @@ const UploadSpectrumForm = ({ route }) => {
       "fluxerr_column",
       "user_label",
     ],
+    instrument_id: {
+      "ui:disabled": !instruments?.length,
+    },
   };
 
   const parseAscii = ({ formData }) => {
@@ -674,7 +582,7 @@ const UploadSpectrumForm = ({ route }) => {
 
   const uploadSpectrum = async () => {
     if (!parsed) {
-      throw new Error("No spectrum loaded on frontend.");
+      dispatch(showNotification("No spectrum loaded on frontend.", "error"));
     }
     const parsed_form = dataUriToBuffer(persistentFormData.file);
     const ascii = new TextDecoder().decode(parsed_form.buffer);
@@ -760,11 +668,30 @@ const UploadSpectrumForm = ({ route }) => {
   return (
     <Grid container spacing={3}>
       <Grid item md={4} sm={12}>
-        <Paper className={classes.formBox}>
+        <Paper sx={{ position: "relative" }}>
           <Typography variant="h6">
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
           </Typography>
+          <Box sx={{ position: "absolute", top: 2, right: 3 }}>
+            <Tooltip
+              title={
+                <Typography variant="body2">
+                  Use this form to upload ASCII spectrum files to SkyPortal. For
+                  details on allowed file formatting, see the&nbsp;
+                  <Link
+                    to="https://skyportal.io/docs/api#/paths/~1api~1spectrum~1parse~1ascii/post"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    SkyPortal API docs.
+                  </Link>
+                </Typography>
+              }
+            >
+              <HelpOutlineIcon sx={{ fontSize: 20, color: "gray" }} />
+            </Tooltip>
+          </Box>
           {uploadedFromURL && (
             <Typography
               variant="body1"
@@ -791,71 +718,63 @@ const UploadSpectrumForm = ({ route }) => {
               }
               setPersistentFormData(formData);
             }}
-            noHtml5Validation
             key={formKey}
           >
-            <div className={classes.bottomRow}>
-              <Button secondary type="submit" className={classes.submitButton}>
-                Preview
-              </Button>
-              <HtmlTooltip
-                title={
-                  <p>
-                    Use this form to upload ASCII spectrum files to SkyPortal.
-                    For details on allowed file formatting, see the&nbsp;
-                    <a href="http://skyportal.io/docs/api#/paths/~1api~1spectrum~1parse~1ascii/post">
-                      SkyPortal API docs.
-                    </a>
-                  </p>
-                }
-                className={classes.alignRight}
-              >
-                <HelpOutlineIcon />
-              </HtmlTooltip>
-            </div>
+            <Button
+              secondary
+              endIcon={<VisibilityIcon />}
+              type="submit"
+              sx={{
+                position: "sticky",
+                bottom: 16,
+                left: "50%",
+                transform: "translateX(-58%)",
+                boxShadow: 2,
+              }}
+            >
+              Preview Spectrum
+            </Button>
           </Form>
         </Paper>
       </Grid>
       {parsed && (
         <Grid item md={8} sm={12}>
-          <Paper className={classes.formBox}>
-            <Typography variant="h6">Spectrum Preview</Typography>
-            <div className={classes.vegaDiv}>
-              <Suspense fallback={<CircularProgress color="secondary" />}>
-                <SpectrumPreview data={data} />
-              </Suspense>
-            </div>
-            <Accordion className={classes.accordion}>
+          <Paper>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+            >
+              <Typography variant="h6">Spectrum Preview</Typography>
+              <Button primary onClick={uploadSpectrum}>
+                Upload Spectrum
+              </Button>
+            </Box>
+            <Suspense fallback={<CircularProgress />}>
+              <SpectrumPreview data={data} />
+            </Suspense>
+            <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant="h6">Metadata</Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <MUIDataTable
-                  className={classes.dataTable}
                   columns={header_columns}
                   data={header}
                   options={{ selectableRows: "none", elevation: 0 }}
                 />
               </AccordionDetails>
             </Accordion>
-            <Accordion className={classes.accordion}>
+            <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant="h6">Spectrum Table</Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <MUIDataTable
-                  className={classes.dataTable}
                   columns={data_columns}
                   data={data}
                   options={{ selectableRows: "none", elevation: 0 }}
                 />
               </AccordionDetails>
             </Accordion>
-            <div className={classes.bottomRow}>
-              <Button secondary onClick={uploadSpectrum}>
-                Upload Spectrum
-              </Button>
-            </div>
           </Paper>
         </Grid>
       )}
