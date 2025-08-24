@@ -109,17 +109,18 @@ const UploadSpectrumForm = ({ route }) => {
     });
   }, [users]);
 
+  const unwrapQuotes = (str) =>
+    str && str.startsWith('"') && str.endsWith('"') ? str.slice(1, -1) : str;
+
+  // utility to get a list of integers from a comma-separated URL parameter
+  const getIntList = (param) =>
+    searchParams
+      .get(param)
+      ?.split(",")
+      .map((id) => parseInt(id, 10));
+
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
-    const unwrapQuotes = (str) =>
-      str && str.startsWith('"') && str.endsWith('"') ? str.slice(1, -1) : str;
-
-    const getIntList = (param) =>
-      searchParams
-        .get(param)
-        ?.split(",")
-        .map((id) => parseInt(id, 10));
-
     (async () => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
 
