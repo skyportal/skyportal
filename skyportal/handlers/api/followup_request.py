@@ -611,7 +611,7 @@ def post_followup_request(
                 break
         else:
             raise ValueError(
-                f"{'Provided dates' if start_date else 'Current date'} are outside allowed validity ranges."
+                f"{'Provided dates are' if start_date else 'Current date is'} outside allowed validity ranges."
             )
 
     instrument = allocation.instrument
