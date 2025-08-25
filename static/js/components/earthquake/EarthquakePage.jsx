@@ -17,8 +17,6 @@ import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-// eslint-disable-next-line
-
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
