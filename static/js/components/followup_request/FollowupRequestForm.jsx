@@ -287,14 +287,21 @@ const FollowupRequestForm = ({
     if (
       !isSomeActiveRangeOrNoRange(
         allocationLookUp[selectedAllocationId].validity_ranges,
-        new Date(formData.start_date),
+        new Date(formData.start_date || Date.now()),
       )
     ) {
-      errors.start_date.addError(
-        "Start Date must be within an active allocation range",
-      );
+      if (formData.start_date) {
+        errors.start_date.addError(
+          "Start Date must be within an active allocation range",
+        );
+      } else {
+        errors.__errors.push(
+          "Current date must be within an active allocation range",
+        );
+      }
     }
     if (
+      formData.end_date &&
       !isSomeActiveRangeOrNoRange(
         allocationLookUp[selectedAllocationId].validity_ranges,
         new Date(formData.end_date),
