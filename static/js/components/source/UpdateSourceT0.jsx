@@ -66,13 +66,7 @@ const UpdateSourceT0 = ({ source }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update T0</DialogTitle>
         <DialogContent>
           <div>

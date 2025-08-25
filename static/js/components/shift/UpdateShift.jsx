@@ -113,13 +113,7 @@ const UpdateShift = ({ shift }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Shift Info</DialogTitle>
         <DialogContent>
           <div
