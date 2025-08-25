@@ -37,10 +37,7 @@ const UpdateSourceSummary = ({ source, showAISummaries = true }) => {
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      false,
-    );
+    setInvalid(false);
     let summaries = source?.summary_history || [];
     summaries = [...summaries].filter(
       (summary) => summary?.summary && summary?.summary !== null,
@@ -58,7 +55,6 @@ const UpdateSourceSummary = ({ source, showAISummaries = true }) => {
     newState[e.target.name] = e.target.value;
     const value = String(e.target.value).trim();
     if (e.target.name === "summary") {
-      // eslint-disable-next-line no-restricted-globals
       setInvalid(!value);
     }
     setState({
@@ -101,10 +97,7 @@ const UpdateSourceSummary = ({ source, showAISummaries = true }) => {
         open={dialogOpen}
         fullWidth
         maxWidth="lg"
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(false)}
       >
         <DialogTitle>Update Summary</DialogTitle>
         <DialogContent>

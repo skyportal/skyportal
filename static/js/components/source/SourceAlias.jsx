@@ -146,13 +146,7 @@ const SourceAlias = ({ source }) => {
           )}
         </div>
       </div>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Add Alias</DialogTitle>
         <DialogContent>
           <div>

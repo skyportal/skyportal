@@ -22,13 +22,7 @@ const DisplayTNSInfo = ({ tns_info, display_header }) => {
       >
         <VisibilityIcon />
       </IconButton>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>TNS Info</DialogTitle>
         <DialogContent>
           <div>

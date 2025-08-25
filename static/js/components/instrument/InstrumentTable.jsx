@@ -477,12 +477,7 @@ const InstrumentTable = ({
             />
           </ThemeProvider>
         </StyledEngineProvider>
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Instrument</DialogTitle>
           <DialogContent dividers>
             <InstrumentForm onClose={closeNewDialog} />
@@ -491,7 +486,6 @@ const InstrumentTable = ({
         <Dialog
           open={editDialogOpen && instrumentToEditDelete !== null}
           onClose={closeEditDialog}
-          style={{ position: "fixed" }}
           maxWidth="md"
         >
           <DialogTitle>

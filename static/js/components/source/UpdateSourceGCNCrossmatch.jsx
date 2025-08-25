@@ -96,13 +96,7 @@ const UpdateSourceGCNCrossmatch = ({ source }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Query GCN Event Crossmatch</DialogTitle>
         <DialogContent>
           <div>
