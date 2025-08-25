@@ -292,7 +292,6 @@ const GcnEventSourcesPage = ({
         totalMatches={sources.totalMatches}
         numPerPage={sources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
