@@ -52,11 +52,11 @@ def check_mmt_payload(payload):
     ]:
         raise ValueError("A valid observation type must be provided")
     if payload.get("pa") is None or payload["pa"] < -360.0 or payload["pa"] > 360.0:
-        raise ValueError("A valid parallactic angle must be provided")
+        raise ValueError("A valid position angle must be provided")
     if payload.get("pm_ra") is None:
-        raise ValueError("A valid Proper Motion RA must be provided")
+        raise ValueError("A valid proper motion RA must be provided")
     if payload.get("pm_dec") is None:
-        raise ValueError("A valid Proper Motion DEC must be provided")
+        raise ValueError("A valid proper motion DEC must be provided")
     if payload.get("exposure_time") is None:
         raise ValueError("A valid exposure time must be provided")
     if payload.get("exposure_counts") is None or payload["exposure_counts"] < 1:
@@ -386,7 +386,7 @@ mmt_properties = {
     },
     "pa": {
         "type": "number",
-        "title": "Parallactic Angle",
+        "title": "Position Angle",
         "default": 0.0,
         "minimum": -360.0,
         "maximum": 360.0,
