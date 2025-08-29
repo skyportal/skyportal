@@ -547,6 +547,13 @@ instrument:
     api_classname: MUSCATAPI
     =id: MUSCAT
   - band: optical
+    name: NEWFIRM
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['cspjs','csphs','cspk']
+    api_classname: NEWFIRMAPI
+    =id: NEWFIRM
+  - band: optical
     name: DECam
     telescope_id: =CTIO-4m
     type: imager
@@ -1032,6 +1039,14 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TTT
+  - pi: Michael Coughlin
+    proposal_id: NEWFIRM-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =NEWFIRM
 
 galaxy_catalog:
   - catalog_name: CLU_mini
