@@ -1,7 +1,7 @@
 """Create NEWFIRM instrument API for followup
 
 Revision ID: 9f2a7c3e1b45
-Revises: b3e29f8c1a7d
+Revises: 4e01b7c1ae61
 Create Date: 2025-07-16 21:04:42.349448
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "9f2a7c3e1b45"
-down_revision = "b3e29f8c1a7d"
+down_revision = "4e01b7c1ae61"
 branch_labels = None
 depends_on = None
 
