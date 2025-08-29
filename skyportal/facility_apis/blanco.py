@@ -250,8 +250,6 @@ class NEWFIRMAPI(BLANCOAPI):
             headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
             json=requestgroup,  # Make sure you use json!
         )
-        print(r.status_code)
-        print(r.content)
 
         if r.status_code == 201:
             request.status = "submitted"
