@@ -86,7 +86,7 @@ watchdog==6.0.0
 PyAstronomy==0.23.0
 shapely==2.0.7
 openai==1.98.0
-tiktoken==0.9.0
+tiktoken==0.11.0
 simplejson==3.20.1
 langchain==0.3.27
 langchain-openai==0.3.28
