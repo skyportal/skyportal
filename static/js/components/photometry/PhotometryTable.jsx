@@ -182,7 +182,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
 
       if (showExtinction) {
         keys.splice(
-          keys.indexOf("mag") + 2,
+          keys.indexOf("magerr") + 1,
           0,
           "extinction",
           "mag_corr",
