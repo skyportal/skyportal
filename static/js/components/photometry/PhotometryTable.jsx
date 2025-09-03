@@ -27,6 +27,7 @@ import PhotometryValidation, {
   getValidationStatus,
 } from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
+import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
@@ -110,6 +111,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [downloadParams, setDownloadParams] = useState(null);
+  const [showExtinction, setShowExtinction] = useState(false);
 
   const data = photometry[obj_id] || [];
 
@@ -177,18 +179,32 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         "dec_unc",
         "created_at",
       ];
+
+      if (showExtinction) {
+        keys.splice(
+          keys.indexOf("mag") + 2,
+          0,
+          "extinction",
+          "mag_corr",
+          "flux_corr",
+        );
+      }
       Object.keys(data[0]).forEach((key) => {
-        if (
-          !keys.includes(key) &&
-          ![
-            "groups",
-            "owner",
-            "obj_id",
-            "id",
-            "streams",
-            "validations",
-          ].includes(key)
-        ) {
+        const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
+        const excludedKeys = [
+          "groups",
+          "owner",
+          "obj_id",
+          "id",
+          "streams",
+          "validations",
+        ];
+
+        if (extinctionColumns.includes(key) && !showExtinction) {
+          return;
+        }
+
+        if (!keys.includes(key) && !excludedKeys.includes(key)) {
           keys.push(key);
         }
       });
@@ -465,6 +481,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                     {magsys && typeof setMagsys === "function" && (
                       <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                     )}
+                    <PhotometryExtinction
+                      showExtinction={showExtinction}
+                      setShowExtinction={setShowExtinction}
+                    />
                   </div>
                 }
                 columns={columns}

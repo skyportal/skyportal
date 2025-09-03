@@ -1,0 +1,143 @@
+import os
+
+import astropy.units as u
+import dustmaps.sfd
+import numpy as np
+import sncosmo
+from astropy.coordinates import SkyCoord
+from dust_extinction.parameter_averages import G23
+
+from baselayer.log import make_log
+
+log = make_log("extinction")
+
+
+def get_extinction_coefficient(filter_name, Rv=3.1, Ebv=1.0):
+    """
+    Calculate the extinction coefficient for a given filter.
+
+    Parameters:
+    -----------
+    filter_name : str
+        Filter name (e.g., 'ztfg', 'sdssg', 'bessellv', etc.)
+    Rv : float, optional
+        Rv parameter of the extinction model (default: 3.1)
+    Ebv : float, optional
+        E(B-V) reference value (default: 1.0)
+
+    Returns:
+    --------
+    float
+        Extinction coefficient A_λ/E(B-V) in magnitudes
+    """
+    bandpass = sncosmo.get_bandpass(filter_name)
+    wave_eff = bandpass.wave_eff
+    ext = G23(Rv=Rv)
+    extinction_coeff = -2.5 * np.log10(ext.extinguish(wave_eff * u.AA, Ebv=Ebv))
+    return extinction_coeff
+
+
+class _ExtinctionCalculator:
+    """Internal class to handle SFD dust map queries efficiently."""
+
+    def __init__(self):
+        self._sfd_query = None
+
+    def _ensure_sfd_ready(self):
+        """Ensure SFD dust map data and query are ready."""
+        if self._sfd_query is None:
+            path = dustmaps.sfd.data_dir()
+            path = os.path.join(path, "sfd")
+            if not os.path.exists(path):
+                log.warning("No SFD data for dustmaps, downloading it")
+                dustmaps.sfd.fetch()
+
+            self._sfd_query = dustmaps.sfd.SFDQuery()
+
+    def get_ebv(self, ra: float, dec: float) -> float:
+        """Get E(B-V) extinction value."""
+        self._ensure_sfd_ready()
+        coords = SkyCoord(ra, dec, unit="deg")
+        return self._sfd_query(coords)
+
+
+_calculator = _ExtinctionCalculator()
+
+
+def calculate_extinction(
+    ra: float, dec: float, filter_name: str, Rv: float = 3.1
+) -> float | None:
+    """
+    Calculate extinction A_lambda for given coordinates and filter.
+
+    Parameters
+    ----------
+    ra : float
+        Right ascension in degrees
+    dec : float
+        Declination in degrees
+    filter_name : str
+        Filter name (any sncosmo filter: 'ztfg', 'sdssg', 'bessellv', etc.)
+    Rv : float, optional
+        Total-to-selective extinction ratio (default: 3.1)
+
+    Returns
+    -------
+    float or None
+        Extinction A_lambda in magnitudes, or None if filter not supported
+
+    Examples
+    --------
+    >>> ext = calculate_extinction(180.0, 45.0, 'ztfg')
+    >>> ext = calculate_extinction(12.5, -30.2, 'sdssg')
+    """
+    try:
+        # Get extinction coefficient A_λ/E(B-V)
+        coeff = get_extinction_coefficient(filter_name, Rv=Rv, Ebv=1.0)
+
+        # Get E(B-V) from SFD dust maps
+        ebv = _calculator.get_ebv(ra, dec)
+
+        # Calculate A_λ = (A_λ/E(B-V)) * E(B-V)
+        extinction = coeff * ebv
+
+        return extinction
+
+    except Exception as e:
+        log.warning(f"Could not calculate extinction for {filter_name}: {e}")
+        return None
+
+
+def deredden_flux(
+    flux: float, ra: float, dec: float, filter_name: str, Rv: float = 3.1
+) -> float | None:
+    """
+    De-redden flux using extinction correction.
+
+    Parameters
+    ----------
+    flux : float
+        Observed flux in ÂµJy
+    ra : float
+        Right ascension in degrees
+    dec : float
+        Declination in degrees
+    filter_name : str
+        Filter name (any sncosmo filter)
+    Rv : float, optional
+        Total-to-selective extinction ratio (default: 3.1)
+
+    Returns
+    -------
+    float or None
+        De-reddened flux in ÂµJy, or None if filter not supported
+    """
+    extinction = calculate_extinction(ra, dec, filter_name, Rv)
+    if extinction is None:
+        return None
+
+    if np.isnan(flux) or flux <= 0:
+        return flux
+
+    correction_factor = 10 ** (0.4 * extinction)
+    return flux * correction_factor

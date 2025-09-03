@@ -380,6 +380,11 @@ def serialize(
                     else None,
                     "magsys": outsys.name,
                     "limiting_mag": maglimit_out,
+                    "extinction": phot.extinction,
+                    "mag_corr": phot.mag_corr + db_correction
+                    if nan_to_none(phot.mag_corr) is not None
+                    else None,
+                    "flux_corr": nan_to_none(phot.flux_corr),
                 }
             )
             if (
@@ -406,6 +411,8 @@ def serialize(
                     "magsys": outsys.name,
                     "zp": corrected_db_zp,
                     "fluxerr": phot.fluxerr,
+                    "extinction": phot.extinction,
+                    "flux_corr": nan_to_none(phot.flux_corr),
                 }
             )
             if (

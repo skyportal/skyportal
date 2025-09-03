@@ -13,6 +13,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import Base, accessible_by_owner
 
 from ..enum_types import allowed_bandpasses
+from ..utils.extinction import calculate_extinction, deredden_flux
 from .group import accessible_by_groups_members, accessible_by_streams_members
 
 _, cfg = load_env()
@@ -444,6 +445,37 @@ class Photometry(conesearch_alchemy.Point, Base):
             ],
             else_=None,
         )
+
+    @hybrid_property
+    def extinction(self):
+        """Galactic extinction A_lambda in magnitudes for this filter."""
+        if (
+            self.ra is not None
+            and self.dec is not None
+            and not np.isnan(self.ra)
+            and not np.isnan(self.dec)
+        ):
+            return calculate_extinction(self.ra, self.dec, str(self.filter))
+        return None
+
+    @hybrid_property
+    def flux_corr(self):
+        """Extinction-corrected flux in microjansky."""
+        if (
+            self.ra is not None
+            and self.dec is not None
+            and not np.isnan(self.ra)
+            and not np.isnan(self.dec)
+        ):
+            return deredden_flux(self.flux, self.ra, self.dec, str(self.filter))
+        return None
+
+    @hybrid_property
+    def mag_corr(self):
+        """Extinction-corrected magnitude in the AB system."""
+        if self.mag is not None and self.extinction is not None:
+            return self.mag - self.extinction
+        return None
 
     def to_dict_public(self):
         from ..handlers.api.photometry import serialize
