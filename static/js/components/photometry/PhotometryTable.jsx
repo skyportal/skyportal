@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
@@ -114,6 +114,26 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const [showExtinction, setShowExtinction] = useState(false);
 
   const data = photometry[obj_id] || [];
+
+  useEffect(() => {
+    if (obj_id && open) {
+      const params = {
+        includeOwnerInfo: true,
+        includeStreamInfo: true,
+        includeValidationInfo: true,
+      };
+
+      if (showExtinction) {
+        params.includeExtinction = true;
+      }
+
+      if (magsys) {
+        params.magsys = magsys;
+      }
+
+      dispatch(Actions.fetchSourcePhotometry(obj_id, params));
+    }
+  }, [showExtinction, obj_id, open, magsys, dispatch]);
 
   const handleDelete = async () => {
     if (!deleteDialogOpen) {

@@ -257,6 +257,7 @@ def serialize(
     owner=False,
     stream=False,
     validation=False,
+    extinction=False,
 ):
     return_value = {
         "obj_id": phot.obj_id,
@@ -370,23 +371,27 @@ def serialize(
                 fivesigma = 5 * fluxerr
                 maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
-            return_value.update(
-                {
-                    "mag": phot.mag + db_correction
-                    if nan_to_none(phot.mag) is not None
-                    else None,
-                    "magerr": phot.e_mag
-                    if nan_to_none(phot.e_mag) is not None
-                    else None,
-                    "magsys": outsys.name,
-                    "limiting_mag": maglimit_out,
-                    "extinction": phot.extinction,
-                    "mag_corr": phot.mag_corr + db_correction
-                    if nan_to_none(phot.mag_corr) is not None
-                    else None,
-                    "flux_corr": nan_to_none(phot.flux_corr),
-                }
-            )
+            mag_data = {
+                "mag": phot.mag + db_correction
+                if nan_to_none(phot.mag) is not None
+                else None,
+                "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
+                "magsys": outsys.name,
+                "limiting_mag": maglimit_out,
+            }
+
+            if extinction:
+                mag_data.update(
+                    {
+                        "extinction": phot.extinction,
+                        "mag_corr": phot.mag_corr + db_correction
+                        if nan_to_none(phot.mag_corr) is not None
+                        else None,
+                        "flux_corr": nan_to_none(phot.flux_corr),
+                    }
+                )
+
+            return_value.update(mag_data)
             if (
                 phot.ref_flux is not None
                 and not np.isnan(phot.ref_flux)
@@ -405,16 +410,23 @@ def serialize(
                 )
 
         if format in ["flux", "both"]:
-            return_value.update(
-                {
-                    "flux": nan_to_none(phot.flux),
-                    "magsys": outsys.name,
-                    "zp": corrected_db_zp,
-                    "fluxerr": phot.fluxerr,
-                    "extinction": phot.extinction,
-                    "flux_corr": nan_to_none(phot.flux_corr),
-                }
-            )
+            flux_data = {
+                "flux": nan_to_none(phot.flux),
+                "magsys": outsys.name,
+                "zp": corrected_db_zp,
+                "fluxerr": phot.fluxerr,
+            }
+
+            # Only include extinction data if requested
+            if extinction:
+                flux_data.update(
+                    {
+                        "extinction": phot.extinction,
+                        "flux_corr": nan_to_none(phot.flux_corr),
+                    }
+                )
+
+            return_value.update(flux_data)
             if (
                 phot.ref_flux is not None
                 and not np.isnan(phot.ref_flux)
@@ -1924,6 +1936,7 @@ class ObjPhotometryHandler(BaseHandler):
         include_annotation_info = self.get_query_argument(
             "includeAnnotationInfo", False
         )
+        include_extinction = self.get_query_argument("includeExtinction", False)
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
         if str(include_owner_info).lower() in ["true", "t", "1"]:
@@ -1945,6 +1958,10 @@ class ObjPhotometryHandler(BaseHandler):
             include_annotation_info = True
         else:
             include_annotation_info = False
+        if str(include_extinction).lower() in ["true", "t", "1"]:
+            include_extinction = True
+        else:
+            include_extinction = False
 
         with self.Session() as session:
             obj = session.scalars(
@@ -2003,6 +2020,7 @@ class ObjPhotometryHandler(BaseHandler):
                         owner=include_owner_info,
                         stream=include_stream_info,
                         validation=include_validation_info,
+                        extinction=include_extinction,
                     )
                     for phot in photometry
                 ]
