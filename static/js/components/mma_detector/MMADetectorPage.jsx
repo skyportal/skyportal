@@ -18,13 +18,13 @@ const panelStyles = (isSelected) => ({
   color: "text.secondary",
   width: "50%",
   transition: "background-color 0.3s ease",
-  boxShadow: "0 -4px 8px -2px rgba(0, 0, 0, 0.2)",
+  boxShadow: "0 -4px 8px -4px rgba(0, 0, 0, 0.2)",
   borderBottomRightRadius: 0,
   borderBottomLeftRadius: 0,
   "&:hover": {
     boxShadow: isSelected
-      ? "0 -4px 8px -2px rgba(0, 0, 0, 0.2)"
-      : "0 -3px 8px -3px rgba(0, 0, 0, 0.2)",
+      ? "0 -4px 8px -4px rgba(0, 0, 0, 0.2)"
+      : "0 -3px 8px -5px rgba(0, 0, 0, 0.2)",
     backgroundColor: isSelected ? "#f0f2f5" : "#e0e0e0",
   },
   ...(isSelected && {
@@ -68,7 +68,7 @@ const MMADetectorPage = () => {
                   onClick={() => setNewMMADetector(false)}
                   sx={panelStyles(!newMMADetector)}
                 >
-                  List
+                  MMADetectors
                 </Button>
                 <Button
                   secondary
