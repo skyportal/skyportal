@@ -1276,8 +1276,8 @@ def public_group_sedm_allocation(sedm, public_group):
         hours_allocated=100,
         validity_ranges=[
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
     )
@@ -1295,8 +1295,8 @@ def public_group2_sedm_allocation(sedm, public_group2):
         hours_allocated=100,
         validity_ranges=[
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
     )
@@ -1314,8 +1314,8 @@ def public_group_generic_allocation(generic_instrument, public_group):
         hours_allocated=100,
         validity_ranges=[
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
     )

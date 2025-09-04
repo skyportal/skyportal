@@ -547,6 +547,13 @@ instrument:
     api_classname: MUSCATAPI
     =id: MUSCAT
   - band: optical
+    name: NEWFIRM
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['cspjs','csphs','cspk']
+    api_classname: NEWFIRMAPI
+    =id: NEWFIRM
+  - band: optical
     name: DECam
     telescope_id: =CTIO-4m
     type: imager
@@ -750,8 +757,8 @@ allocation:
   - pi: Robert Stein
     proposal_id: WINTER-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
       - start_date: "3030-08-01T00:00:00"
         end_date: "3030-12-31T00:00:00"
     hours_allocated: 100
@@ -761,8 +768,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: SEDM-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDM
@@ -771,8 +778,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: LT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =IOO
@@ -780,8 +787,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: LT-002
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SPRAT
@@ -789,8 +796,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: LT-003
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =IOI
@@ -798,40 +805,40 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: Spectral-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SPECTRAL
   - pi: Michael Coughlin
     proposal_id: Sinistro-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SINISTRO
   - pi: Michael Coughlin
     proposal_id: FLOYDS-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =FLOYDS
   - pi: Michael Coughlin
     proposal_id: MUSCAT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =MUSCAT
   - pi: Michael Coughlin
     proposal_id: ZTF-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     types: [triggered, forced_photometry, observation_plan]
     group_id: =program_A
@@ -840,8 +847,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: ATLAS-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     types: [forced_photometry]
     group_id: =program_A
@@ -849,8 +856,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: PS1-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     types: [forced_photometry]
     group_id: =program_A
@@ -858,8 +865,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: SEDMv2-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     types: [triggered, observation_plan]
     group_id: =program_A
@@ -868,8 +875,8 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: Swift-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =UVOTXRT
@@ -877,161 +884,169 @@ allocation:
   - pi: Michael Coughlin
     proposal_id: NICER-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =XTI
   - pi: Michael Coughlin
     proposal_id: KAIT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =KAIT
   - pi: Michael Coughlin
     proposal_id: COLIBRI-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =COLIBRI
   - pi: Michael Coughlin
     proposal_id: T80CAM-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =T80CAM
   - pi: Michael Coughlin
     proposal_id: LSST-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =LSST
   - pi: Michael Coughlin
     proposal_id: GIT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GIT
   - pi: Michael Coughlin
     proposal_id: TESS-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TESS
   - pi: Michael Coughlin
     proposal_id: TRT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TRT
   - pi: Michael Coughlin
     proposal_id: TAROT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TCA
   - pi: Michael Coughlin
     proposal_id: TAROT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
-      - start_date: "3030-08-01T00:00:00"
-        end_date: "3030-09-01T00:00:00"
-      - start_date: "3030-10-01T00:00:00"
-        end_date: "3030-11-01T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+      - start_date: "3030-08-01T00:00:00.000Z"
+        end_date: "3030-09-01T00:00:00.000Z"
+      - start_date: "3030-10-01T00:00:00.000Z"
+        end_date: "3030-11-01T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TRE
   - pi: Michael Coughlin
     proposal_id: TAROT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
-      - start_date: "3030-08-01T00:00:00"
-        end_date: "3030-09-01T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+      - start_date: "3030-08-01T00:00:00.000Z"
+        end_date: "3030-09-01T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TCH
   - pi: Michael Coughlin
     proposal_id: GHTS-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GHTS
   - pi: Michael Coughlin
     proposal_id: GHTSCamera-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GHTSCamera
   - pi: Michael Coughlin
     proposal_id: TSPEC-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TripleSpec
   - pi: Michael Coughlin
     proposal_id: FRAM-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =FRAM-Auger
   - pi: Michael Coughlin
     proposal_id: GS-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GeminiSouth
   - pi: Michael Coughlin
     proposal_id: MMT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =Binospec
   - pi: Michael Coughlin
     proposal_id: MMT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =MMIRS
   - pi: Michael Coughlin
     proposal_id: TTT-001
     validity_ranges:
-      - start_date: "2020-02-12T00:00:00"
-        end_date: "3030-07-12T00:00:00"
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TTT
+  - pi: Michael Coughlin
+    proposal_id: NEWFIRM-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =NEWFIRM
 
 galaxy_catalog:
   - catalog_name: CLU_mini
