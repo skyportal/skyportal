@@ -67,7 +67,7 @@ class BLANCO_NEWFIRM_Request:
         }
 
         exp_time = request.payload["exposure_time"]
-        sequence_repeats = int(request.payload["sequence_counts"])
+        sequence_repeats = int(request.payload["sequence_repeats"])
 
         configurations = []
         for filt in request.payload["observation_choices"]:
