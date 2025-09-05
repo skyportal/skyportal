@@ -614,7 +614,6 @@ const SourceTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
-  favoritesRemoveButton = false,
   downloadCallback,
   includeGcnStatus = false,
   sourceInGcnFilter,
@@ -632,11 +631,6 @@ const SourceTable = ({
   const [searchBy, setSearchBy] = useState("name");
   const [openNew, setOpenNew] = useState(false);
 
-  if (favoritesRemoveButton) {
-    defaultDisplayedColumns = defaultDisplayedColumns?.filter(
-      (c) => c !== "Favorites",
-    );
-  }
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
     defaultDisplayedColumns.push("Explanation");
@@ -944,14 +938,6 @@ const SourceTable = ({
                 />
               ) : null}
             </Grid>
-            {favoritesRemoveButton ? (
-              <div>
-                {" "}
-                <FavoritesButton sourceID={source.id} textMode />{" "}
-              </div>
-            ) : (
-              ""
-            )}
           </Grid>
         </TableCell>
       </TableRow>
@@ -2203,7 +2189,6 @@ SourceTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
-  favoritesRemoveButton: PropTypes.bool,
   downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
@@ -2223,7 +2208,6 @@ SourceTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
-  favoritesRemoveButton: false,
   downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},

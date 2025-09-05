@@ -173,7 +173,6 @@ const SpatialCatalogSourcesPage = ({
         totalMatches={spatialCatalogSources.totalMatches}
         numPerPage={spatialCatalogSources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
       />
     </div>
   );

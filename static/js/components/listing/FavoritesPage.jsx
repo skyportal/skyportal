@@ -96,7 +96,6 @@ const FavoritesPage = () => {
           totalMatches={sourcesState.totalMatches}
           numPerPage={sourcesState.numPerPage}
           sortingCallback={handleSourcesTableSorting}
-          favoritesRemoveButton
         />
       )}
     </div>

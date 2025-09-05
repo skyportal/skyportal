@@ -13,29 +13,26 @@ def test_add_remove_favorites(driver, user, public_source):
     # go to source page, wait until it finishes loading
     driver.get(f"/source/{public_source.id}")
 
-    # make sure an empty favorites button appears (exclude) then click it!
+    # make sure an empty favorites button appears, then click it!
     driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
 
     # make sure a filled favorites button appears (include) that means it was added successfully
     driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
 
-    # go to the favorites page
+    # go to the favorite page
     driver.get("/favorites")
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
-    # little triangle you push to expand the table
-    driver.click_xpath("//*[@id='expandable-button']")
-
     driver.wait_for_xpath(
-        f"//*[contains(@data-testid, 'favorites-text-include_{public_source.id}')]",
+        f"//*[contains(@data-testid, 'favorites-include_{public_source.id}')]",
         timeout=30,
     )
 
     # click to un-save the source as favorite
     driver.click_xpath(
-        f'//*[@data-testid="favorites-text-include_{public_source.id}"]',
+        f'//*[@data-testid="favorites-include_{public_source.id}"]',
     )
 
     driver.wait_for_xpath(
@@ -84,7 +81,7 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    # go to the groups sources page
+    # go to the group sources page
     driver.get(f"/group_sources/{public_group.id}")
 
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
@@ -101,7 +98,7 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     # click the filled star to un-save this source
     driver.click_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]')
 
-    # back to the favorites table
+    # back to the favorite table
     driver.get("/favorites")
 
     # make sure there are no saved sources now
@@ -152,7 +149,7 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    # go to the favorites page
+    # go to the favorite page
     driver.get("/favorites")
 
     # find the name of the newly added source

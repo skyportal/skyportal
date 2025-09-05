@@ -228,7 +228,6 @@ const ShiftSummary = () => {
         totalMatches={gcnSources.totalMatches}
         numPerPage={gcnSources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
       />
     ) : (
       <div>No sources found</div>
