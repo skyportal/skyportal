@@ -117,7 +117,7 @@ def deredden_flux(
     Parameters
     ----------
     flux : float
-        Observed flux in ÂµJy
+        Observed flux in microjansky
     ra : float
         Right ascension in degrees
     dec : float
@@ -130,7 +130,7 @@ def deredden_flux(
     Returns
     -------
     float or None
-        De-reddened flux in ÂµJy, or None if filter not supported
+        De-reddened flux in microjansky, or None if filter not supported
     """
     extinction = calculate_extinction(ra, dec, filter_name, Rv)
     if extinction is None:
