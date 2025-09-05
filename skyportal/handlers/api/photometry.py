@@ -1364,7 +1364,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
-    @permissions(["Upload data"])
+    @permissions(["Upload data", "Manage photometry"])
     def put(self):
         """
         ---
@@ -1672,7 +1672,7 @@ class PhotometryHandler(BaseHandler):
             output = serialize(phot, outsys, format)
             return self.success(data=output)
 
-    @permissions(["Upload data"])
+    @permissions(["Upload data", "Manage photometry"])
     def patch(self, photometry_id):
         """
         ---
@@ -1840,7 +1840,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success()
 
-    @permissions(["Upload data"])
+    @permissions(["Upload data", "Manage photometry"])
     def delete(self, photometry_id):
         """
         ---
