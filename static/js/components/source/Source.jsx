@@ -1399,9 +1399,7 @@ const SourceContent = ({ source }) => {
         <PhotometryTable
           obj_id={source.id}
           open={showPhotometry}
-          onClose={() => {
-            setShowPhotometry(false);
-          }}
+          onClose={() => setShowPhotometry(false)}
           magsys={magsys}
           setMagsys={setMagsys}
         />

@@ -49,12 +49,7 @@ const AddCatalogQueryPage = () => {
       >
         Catalog Query
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-        maxWidth="xlg"
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="xlg">
         <DialogTitle>Catalog Query</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>

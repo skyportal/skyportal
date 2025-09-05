@@ -376,12 +376,7 @@ const QueuedObservationsTable = ({
             />
           </ThemeProvider>
         </StyledEngineProvider>
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>Add Queued Observations (from API)</DialogTitle>
           <DialogContent dividers>
             <NewAPIQueuedObservation onClose={closeNewDialog} />

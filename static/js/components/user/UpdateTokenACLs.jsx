@@ -61,13 +61,7 @@ const UpdateTokenACLs = ({ tokenId, currentACLs, availableACLs }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update ACLs</DialogTitle>
         <DialogContent>
           <div>

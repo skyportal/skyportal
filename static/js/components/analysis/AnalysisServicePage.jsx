@@ -300,12 +300,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
           options={options}
           columns={columns}
         />
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Analysis Service</DialogTitle>
           <DialogContent dividers>
             <NewAnalysisService onClose={closeNewDialog} />
@@ -314,7 +309,6 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
         <Dialog
           open={detailsDialogOpen && analysisServiceToViewDelete}
           onClose={closeDetailsDialog}
-          style={{ position: "fixed" }}
           maxWidth="lg"
         >
           <DialogTitle>Analysis Service Details</DialogTitle>

@@ -135,11 +135,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
         )}
       </div>
 
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Unsave or save to new groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>

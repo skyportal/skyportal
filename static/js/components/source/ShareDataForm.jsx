@@ -399,9 +399,7 @@ const ShareDataForm = ({ route }) => {
           open={open}
           aria-labelledby="simple-modal-title"
           aria-describedby="simple-modal-description"
-          onClose={() => {
-            setOpen(false);
-          }}
+          onClose={() => setOpen(false)}
           className={classes.detailedSpecButton}
         >
           <DialogContent>
@@ -484,9 +482,7 @@ const ShareDataForm = ({ route }) => {
           open={open}
           aria-labelledby="simple-modal-title"
           aria-describedby="simple-modal-description"
-          onClose={() => {
-            setOpen(false);
-          }}
+          onClose={() => setOpen(false)}
         >
           <DialogContent>
             <div>
@@ -680,7 +676,7 @@ const ShareDataForm = ({ route }) => {
                   setSelectedSpecRows(rowsSelected);
                 },
                 expandableRows: true,
-                // eslint-disable-next-line react/display-name,no-unused-vars
+
                 renderExpandableRow: (rowData, rowMeta) => (
                   <SpectrumRow
                     rowData={rowData}
@@ -720,7 +716,6 @@ const ShareDataForm = ({ route }) => {
                 filterSelectedOptions
                 renderInput={(params) => (
                   <TextField
-                    // eslint-disable-next-line react/jsx-props-no-spreading
                     {...params}
                     error={!!errors.groups}
                     variant="outlined"

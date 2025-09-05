@@ -74,12 +74,7 @@ const WidgetPrefsDialog = ({
         fontSize="small"
         onClick={handleClickOpen}
       />
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={open} onClose={handleClose} maxWidth="md">
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(formSubmit)}>

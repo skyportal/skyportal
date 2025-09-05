@@ -33,9 +33,18 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const Transition = React.forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
+const Transition = React.forwardRef((props, ref) => {
+  const { children, ...rest } = props;
+  return (
+    <Slide direction="up" ref={ref} {...rest}>
+      {children}
+    </Slide>
+  );
+});
+Transition.displayName = "Transition";
+Transition.propTypes = {
+  children: PropTypes.node,
+};
 
 const CandidatesPreferences = ({
   selectedScanningProfile,
@@ -84,9 +93,7 @@ const CandidatesPreferences = ({
       <Dialog
         open={addDialogOpen}
         fullScreen
-        onClose={() => {
-          setAddDialogOpen(false);
-        }}
+        onClose={() => setAddDialogOpen(false)}
         TransitionComponent={Transition}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"

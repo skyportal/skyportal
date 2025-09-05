@@ -46,13 +46,7 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
             <AddIcon fontSize="small" style={{ fontSize: "1rem" }} />
           </IconButton>
         </div>
-        <Dialog
-          open={dialogOpen}
-          onClose={() => {
-            setDialogOpen(false);
-          }}
-          style={{ position: "fixed" }}
-        >
+        <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
           <DialogTitle>GCN Event Crossmatch</DialogTitle>
           <DialogContent>
             {gcn_crossmatches && (

@@ -55,13 +55,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
       >
         SimSurvey Analysis
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-        fullWidth
-        maxWidth="xlg"
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="xlg">
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} style={{ paddingTop: "0.1em" }}>

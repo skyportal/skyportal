@@ -28,7 +28,7 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
@@ -554,7 +554,6 @@ const UserInvitations = () => {
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
-          // eslint-disable-next-line react/display-name
           display: () => <div />,
         },
       },
@@ -685,10 +684,7 @@ const UserInvitations = () => {
       </Paper>
       <Dialog
         open={addInvitationGroupsDialogOpen}
-        onClose={() => {
-          setAddInvitationGroupsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddInvitationGroupsDialogOpen(false)}
       >
         <DialogTitle>
           {`Add selected groups to invitation for ${clickedInvitation?.user_email}:`}
@@ -716,7 +712,6 @@ const UserInvitations = () => {
                   data-testid="addInvitationGroupsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.invitationGroups}
                       variant="outlined"
@@ -746,10 +741,7 @@ const UserInvitations = () => {
       </Dialog>
       <Dialog
         open={addInvitationStreamsDialogOpen}
-        onClose={() => {
-          setAddInvitationStreamsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddInvitationStreamsDialogOpen(false)}
       >
         <DialogTitle>
           {`Add selected streams to invitation for ${clickedInvitation?.user_email}:`}
@@ -777,7 +769,6 @@ const UserInvitations = () => {
                   data-testid="addInvitationStreamsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.invitationStreams}
                       variant="outlined"
@@ -807,10 +798,7 @@ const UserInvitations = () => {
       </Dialog>
       <Dialog
         open={updateRoleDialogOpen}
-        onClose={() => {
-          setUpdateRoleDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setUpdateRoleDialogOpen(false)}
       >
         <DialogTitle>
           {`Edit user role for ${clickedInvitation?.user_email}:`}
@@ -855,10 +843,7 @@ const UserInvitations = () => {
       </Dialog>
       <Dialog
         open={editUserExpirationDateDialogOpen}
-        onClose={() => {
-          setEditUserExpirationDateDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setEditUserExpirationDateDialogOpen(false)}
       >
         <DialogTitle>Edit user expiration date:</DialogTitle>
         <DialogContent>

@@ -239,9 +239,7 @@ const RecurringAPIPage = () => {
       />
       <Dialog
         open={openNewForm}
-        onClose={() => {
-          setOpenNewForm(false);
-        }}
+        onClose={() => setOpenNewForm(false)}
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle id="form-dialog-title">

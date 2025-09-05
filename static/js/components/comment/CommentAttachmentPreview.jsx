@@ -286,7 +286,6 @@ const CommentAttachmentPreview = ({
           open={open}
           onClose={handleClose}
           classes={{ paper: classes.dialogPaper }}
-          style={{ position: "fixed" }}
           maxWidth="xlg"
           fullWidth={
             SUPPORTED_TYPES.includes(fileType) &&

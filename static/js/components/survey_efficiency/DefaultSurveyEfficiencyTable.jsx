@@ -411,12 +411,7 @@ const DefaultSurveyEfficiencyTable = ({
         </StyledEngineProvider>
       </Paper>
       {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Default Survey Efficiency</DialogTitle>
           <DialogContent dividers>
             <NewDefaultSurveyEfficiency onClose={closeNewDialog} />

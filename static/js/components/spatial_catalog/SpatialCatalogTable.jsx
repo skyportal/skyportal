@@ -136,11 +136,7 @@ const RetrieveSpatialCatalogSources = ({
       >
         Retrieve Sources
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Query Spatial Catalog Sources</DialogTitle>
         <DialogContent>
           <div>

@@ -257,12 +257,7 @@ const PhotometryValidation = ({ phot, magsys }) => {
       </IconButton>
       {open && (
         <Paper className={classes.container}>
-          <Dialog
-            open={open}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={open} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>
               Validate/Reject Photometry with {phot.id}
             </DialogTitle>

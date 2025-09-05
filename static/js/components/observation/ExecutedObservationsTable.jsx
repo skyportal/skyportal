@@ -550,7 +550,6 @@ const ExecutedObservationsTable = ({
         <Dialog
           open={newDialogFromFileOpen}
           onClose={closeNewFromFileDialog}
-          style={{ position: "fixed" }}
           maxWidth="md"
         >
           <DialogTitle>Add Executed Observations (from file)</DialogTitle>
@@ -561,7 +560,6 @@ const ExecutedObservationsTable = ({
         <Dialog
           open={newDialogFromAPIOpen}
           onClose={closeNewFromAPIDialog}
-          style={{ position: "fixed" }}
           maxWidth="md"
         >
           <DialogTitle>Add Executed Observations (from API)</DialogTitle>

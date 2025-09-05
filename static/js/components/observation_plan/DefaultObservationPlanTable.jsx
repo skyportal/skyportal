@@ -319,12 +319,7 @@ const DefaultObservationPlanTable = ({
         </StyledEngineProvider>
       </Paper>
       {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Default Observation Plan</DialogTitle>
           <DialogContent dividers>
             <NewDefaultObservationPlan onClose={closeNewDialog} />

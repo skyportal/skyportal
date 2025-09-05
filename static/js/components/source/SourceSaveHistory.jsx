@@ -51,13 +51,7 @@ const SourceSaveHistory = ({ groups }) => {
           </IconButton>
         </span>
       </Tooltip>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Save History</DialogTitle>
         <DialogContent>
           <Table>

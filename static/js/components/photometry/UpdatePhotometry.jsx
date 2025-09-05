@@ -185,13 +185,7 @@ const UpdatePhotometry = ({ phot, magsys }) => {
       >
         Edit
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Photometry</DialogTitle>
         <DialogContent>
           <div>

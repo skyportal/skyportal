@@ -63,10 +63,7 @@ const SourceCandidatesHistory = ({ candidates }) => {
       </Tooltip>
       <Dialog
         open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(false)}
         maxWidth="md"
       >
         <DialogTitle className={classes.dialogTitle}>

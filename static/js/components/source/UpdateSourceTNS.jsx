@@ -72,13 +72,7 @@ const UpdateSourceTNS = ({ source }) => {
       >
         <EditIcon size="small" className={classes.editIcon} />
       </IconButton>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>{`Query TNS for an object's name`}</DialogTitle>
         <DialogContent>
           <div>

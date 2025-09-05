@@ -343,12 +343,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
         </Button>
       </Tooltip>
       {open && (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={open} onClose={handleClose} maxWidth="md">
           <DialogTitle onClose={handleClose}>Notification Settings</DialogTitle>
           <DialogContent dividers>
             <div className={classes.dialogContent}>

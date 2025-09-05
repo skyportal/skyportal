@@ -373,12 +373,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
             </StyledEngineProvider>
           </div>
           {open && (
-            <Dialog
-              open={open}
-              onClose={handleClose}
-              style={{ position: "fixed" }}
-              maxWidth="md"
-            >
+            <Dialog open={open} onClose={handleClose} maxWidth="md">
               <DialogTitle onClose={handleClose}>
                 New Reminder on {resourceType}
               </DialogTitle>

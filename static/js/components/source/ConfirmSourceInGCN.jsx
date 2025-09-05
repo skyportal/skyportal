@@ -320,12 +320,7 @@ const ConfirmSourceInGCN = ({
       </IconButton>
       {open && (
         <Paper className={classes.container}>
-          <Dialog
-            open={open}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={open} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>
               Highlight/Reject Source {source_id} in GCN {dateobs}
             </DialogTitle>

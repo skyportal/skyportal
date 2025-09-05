@@ -307,7 +307,6 @@ const GcnEvents = () => {
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
-  // eslint-disable-next-line no-unused-vars
   const handleFilterReset = async (props) => {
     const params = {
       pageNumber: 1,
@@ -586,12 +585,7 @@ const GcnEvents = () => {
           </div>
         </Paper>
         {openNew && (
-          <Dialog
-            open={openNew}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>New GCN Event</DialogTitle>
             <DialogContent dividers>
               <NewGcnEvent handleClose={handleClose} />
@@ -599,12 +593,7 @@ const GcnEvents = () => {
           </Dialog>
         )}
         {openCrossmatch && (
-          <Dialog
-            open={openCrossmatch}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={openCrossmatch} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>
               Crossmatch GCN Events
             </DialogTitle>
@@ -614,12 +603,7 @@ const GcnEvents = () => {
           </Dialog>
         )}
         {openDefaultTag && (
-          <Dialog
-            open={openDefaultTag}
-            onClose={handleClose}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={openDefaultTag} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>Default Gcn Tags</DialogTitle>
             <DialogContent dividers>
               <DefaultGcnTagPage />

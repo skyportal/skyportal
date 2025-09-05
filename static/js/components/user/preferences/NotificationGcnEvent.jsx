@@ -256,7 +256,6 @@ const NotificationGcnEvent = () => {
         <Dialog
           open={manageProfileOpen}
           onClose={closeManageProfile}
-          style={{ position: "fixed" }}
           maxWidth="lg"
         >
           <DialogTitle style={{ fontSize: "1.4rem" }}>
@@ -371,12 +370,7 @@ const NotificationGcnEvent = () => {
           </DialogContent>
         </Dialog>
 
-        <Dialog
-          open={newProfileOpen}
-          onClose={closeNewProfile}
-          style={{ position: "fixed" }}
-          maxWidth="lg"
-        >
+        <Dialog open={newProfileOpen} onClose={closeNewProfile} maxWidth="lg">
           <DialogTitle>New GCN Notification Profile</DialogTitle>
           <DialogContent>
             <form onSubmit={handleSubmit(onSubmitGcns)}>
