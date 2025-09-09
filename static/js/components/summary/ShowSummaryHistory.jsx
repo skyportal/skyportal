@@ -82,10 +82,7 @@ const ShowSummaryHistory = ({ obj_id, summaries = [], button = false }) => {
         open={dialogOpen}
         fullWidth
         maxWidth="lg"
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(false)}
       >
         <DialogTitle>Summary History for {obj_id}</DialogTitle>
         <DialogContent>
