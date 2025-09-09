@@ -17,13 +17,9 @@ import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
-import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Paper from "@mui/material/Paper";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
@@ -68,8 +64,6 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
-import TNSATForm from "../tns/TNSATForm";
-import HermesForm from "../hermes/HermesForm";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
@@ -86,6 +80,7 @@ import SpectraPlot from "../plot/SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
+import SharingServicesDialog from "../sharing_service/SharingServicesForm";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -229,17 +224,14 @@ const SourceContent = ({ source }) => {
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
-  const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
-  const [hermesDialogOpen, setHermesDialogOpen] = useState(false);
+  const [sendToDialogOpen, setSendToDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
   const [anchorElFindingChart, setAnchorElFindingChart] = useState(null);
   const [anchorElObservability, setAnchorElObservability] = useState(null);
-  const [anchorElSendTo, setAnchorElSendTo] = useState(null);
   const openFindingChart = Boolean(anchorElFindingChart);
   const openObservability = Boolean(anchorElObservability);
-  const openSendTo = Boolean(anchorElSendTo);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -841,7 +833,7 @@ const SourceContent = ({ source }) => {
                       <CopyPhotometryDialog
                         source={source}
                         duplicate={duplicate}
-                        dialogOpen={copyPhotometryDialogOpen}
+                        sendToDialogOpen={copyPhotometryDialogOpen}
                         closeDialog={setCopyPhotometryDialogOpen}
                       />
                     </div>
@@ -855,7 +847,7 @@ const SourceContent = ({ source }) => {
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
               <SourcePlugins source={source} />
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   aria-controls={openFindingChart ? "basic-menu" : undefined}
                   aria-haspopup="true"
@@ -897,7 +889,7 @@ const SourceContent = ({ source }) => {
                   </MenuItem>
                 </Menu>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   secondary
                   size="small"
@@ -906,7 +898,7 @@ const SourceContent = ({ source }) => {
                   {showStarList ? "Hide Starlist" : "Show Starlist"}
                 </Button>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
                   aria-controls={openObservability ? "basic-menu" : undefined}
                   aria-haspopup="true"
@@ -949,102 +941,22 @@ const SourceContent = ({ source }) => {
                   </MenuItem>
                 </Menu>
               </div>
-              <div className={classes.infoButton}>
+              <div>
                 <Button
-                  aria-controls={openSendTo ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openSendTo ? "true" : undefined}
-                  onClick={(e) => setAnchorElSendTo(e.currentTarget)}
+                  onClick={() => setSendToDialogOpen(true)}
                   secondary
                   size="small"
                 >
                   Send to
                 </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="send-to-menu"
-                  anchorEl={anchorElSendTo}
-                  open={openSendTo}
-                  onClose={() => setAnchorElSendTo(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      setTNSDialogOpen(true);
-                      setAnchorElSendTo(null);
-                    }}
-                  >
-                    TNS
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      setHermesDialogOpen(true);
-                      setAnchorElSendTo(null);
-                    }}
-                  >
-                    Hermes
-                  </MenuItem>
-                </Menu>
-                <Dialog
-                  open={tnsDialogOpen}
-                  onClose={() => setTNSDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle>Send to TNS</DialogTitle>
-                  <DialogContent>
-                    <TNSATForm
-                      obj_id={source.id}
-                      submitCallback={() => setTNSDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-                <Dialog
-                  open={hermesDialogOpen}
-                  onClose={() => setHermesDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
-                    Send to Hermes
-                    <Tooltip
-                      title={
-                        <h2>
-                          HERMES is a Message Exchange Service for
-                          Multi-Messenger Astronomy. Click{" "}
-                          <a
-                            href="https://hermes.lco.global/about"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={classes.tooltipLink}
-                          >
-                            here
-                          </a>{" "}
-                          for more information.
-                        </h2>
-                      }
-                      placement="bottom"
-                    >
-                      <InfoOutlined
-                        style={{
-                          fontSize: "1.3rem",
-                          marginLeft: "0.5rem",
-                        }}
-                      />
-                    </Tooltip>
-                  </DialogTitle>
-                  <DialogContent>
-                    <HermesForm
-                      obj_id={source.id}
-                      submitCallback={() => setHermesDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
+                <SharingServicesDialog
+                  obj_id={source.id}
+                  dialogOpen={sendToDialogOpen}
+                  setDialogOpen={setSendToDialogOpen}
+                />
               </div>
               {currentUser?.preferences?.hideSourceSummary === true ? (
-                <div className={classes.infoButton}>
+                <div>
                   <ShowSummaryHistory
                     summaries={source.summary_history || []}
                     obj_id={source.id}

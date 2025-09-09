@@ -2030,7 +2030,7 @@ def retrieve_observations_and_simsurvey(
     field = session.scalars(stmt).first()
     if field is None:
         raise ValueError(
-            'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+            f"Missing field {observations[0]['field']['id']} required to estimate field size"
         )
     contour_summary = field.to_dict()["contour_summary"]["features"][0]
     coordinates = np.squeeze(np.array(contour_summary["geometry"]["coordinates"]))

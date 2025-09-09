@@ -54,6 +54,7 @@ def get_user_accessible_group_and_filter_ids(session, user, group_ids, filter_id
 
 def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
     user_accessible_group_ids = [g.id for g in user.accessible_groups]
+    group_ids = [g for g in group_ids if g in user_accessible_group_ids]
     if saved_status == "all":
         return stmt
 
@@ -65,9 +66,10 @@ def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
         "notSavedToAnySelected",
         "notSavedToAllSelected",
     ]:
-        active_sources = Source.select(
-            session.user_or_token, columns=[Source.obj_id]
-        ).where(Source.active.is_(True))
+        # we can safely use sa.select(Source.obj_id) rather than
+        # Source.select(user) here because sources data access is group_id based
+        # and the accessible group ids have already been filtered out above
+        active_sources = sa.select(Source.obj_id).where(Source.active.is_(True))
         not_in = False
         if saved_status == "savedToAllSelected":
             # Retrieve objects that have as many active saved groups that are

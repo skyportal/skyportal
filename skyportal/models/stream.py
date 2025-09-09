@@ -4,7 +4,7 @@ __all__ = [
     "StreamPhotometry",
     "StreamPhotometricSeries",
     "StreamInvitation",
-    "StreamTNSRobot",
+    "StreamSharingService",
 ]
 
 import sqlalchemy as sa
@@ -25,7 +25,7 @@ from .group import Group, accessible_by_stream_members
 from .invitation import Invitation
 from .photometric_series import PhotometricSeries
 from .photometry import Photometry
-from .tns import TNSRobot
+from .sharing_service import SharingService
 
 
 class Stream(Base):
@@ -81,13 +81,13 @@ class Stream(Base):
         doc="Photometric series associated with this stream.",
     )
 
-    tnsrobots = relationship(
-        "TNSRobot",
-        secondary="stream_tnsrobots",
+    sharing_services = relationship(
+        "SharingService",
+        secondary="stream_sharingservices",
         back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="TNS robots associated with this stream, used for auto-reporting.",
+        doc="Sharing services associated with this stream",
     )
 
 
@@ -136,6 +136,12 @@ StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model("stream_invitations", Stream, Invitation)
 
-StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
-StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
-StreamTNSRobot.create = accessible_by_stream_members
+StreamSharingService = join_model(
+    "stream_sharingservices",
+    Stream,
+    SharingService,
+    column_2="sharing_service_id",
+    overlaps="sharing_services",
+)
+StreamSharingService.__doc__ = "Join table mapping Streams to SharingServices."
+StreamSharingService.create = accessible_by_stream_members

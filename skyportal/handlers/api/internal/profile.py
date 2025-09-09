@@ -11,9 +11,9 @@ from baselayer.app.config import recursive_update
 
 from ....models import (
     GroupUser,
-    TNSRobotCoauthor,
-    TNSRobotGroup,
-    TNSRobotGroupAutoreporter,
+    SharingServiceCoauthor,
+    SharingServiceGroup,
+    SharingServiceGroupAutoPublisher,
     User,
 )
 from ...base import BaseHandler
@@ -229,42 +229,43 @@ class ProfileHandler(BaseHandler):
                         "Bot users must have a bio between 10 and 1000 characters long."
                     )
 
-                # check that the user isn't in any groups that have auto-reporting enabled but bot autoreports are not allowed
-                user_accessible_groups = [group.id for group in user.accessible_groups]
-                tnsrobot_groups_no_bot_autoreports = session.scalars(
-                    TNSRobotGroup.select(session.user_or_token).where(
-                        TNSRobotGroup.group_id.in_(user_accessible_groups),
-                        TNSRobotGroup.auto_report.is_(True),
-                        TNSRobotGroup.auto_report_allow_bots.is_(False),
+                # check that the user isn't in any groups that have auto-publish enabled but do not allow bots to be auto-publishers
+                groups_no_auto_sharing_allow_bots = session.scalars(
+                    SharingServiceGroup.select(session.user_or_token).where(
+                        SharingServiceGroup.group_id.in_(user.accessible_group_ids),
+                        sa.or_(
+                            SharingServiceGroup.auto_share_to_tns.is_(True),
+                            SharingServiceGroup.auto_share_to_hermes.is_(True),
+                        ),
+                        SharingServiceGroup.auto_sharing_allow_bots.is_(False),
                     )
                 ).all()
-                for tnsrobot_group in tnsrobot_groups_no_bot_autoreports:
-                    autoreporter = session.scalars(
-                        sa.select(TNSRobotGroupAutoreporter).where(
-                            TNSRobotGroupAutoreporter.tnsrobot_group_id
-                            == tnsrobot_group.id,
-                            TNSRobotGroupAutoreporter.group_user_id.in_(
+                for group in groups_no_auto_sharing_allow_bots:
+                    auto_publisher = session.scalars(
+                        sa.select(SharingServiceGroupAutoPublisher).where(
+                            SharingServiceGroupAutoPublisher.sharing_service_group_id
+                            == group.id,
+                            SharingServiceGroupAutoPublisher.group_user_id.in_(
                                 sa.select(GroupUser.id).where(
                                     GroupUser.user_id == user.id,
-                                    GroupUser.group_id == tnsrobot_group.group_id,
+                                    GroupUser.group_id == group.group_id,
                                 )
                             ),
                         )
                     ).first()
-                    if autoreporter is not None:
+                    if auto_publisher:
                         return self.error(
-                            "User is an autoreporter of a TNS robot group that does not allow bots to be autoreporters. Please remove the autoreporter status first, or allow bot autoreporting."
+                            "User is an auto-publisher of a group that does not allow bots to be auto-publishers. Please remove the auto-publisher status first, or allow bot auto-publishing."
                         )
-
-                # check that the user isn't a coauthor of any TNS bot, in which case they can't be a bot
-                tns_bot_coauthor = session.scalars(
-                    TNSRobotCoauthor.select(session.user_or_token).where(
-                        TNSRobotCoauthor.user_id == user.id
+                # check that the user isn't a coauthor of any bot, in which case they can't be a bot
+                bot_coauthors = session.scalars(
+                    SharingServiceCoauthor.select(session.user_or_token).where(
+                        SharingServiceCoauthor.user_id == user.id
                     )
                 ).first()
-                if tns_bot_coauthor is not None:
+                if bot_coauthors:
                     return self.error(
-                        "User is a coauthor of a TNS robot and cannot be flagged as a bot."
+                        "User is a coauthor of a sharing service and cannot be flagged as a bot."
                     )
 
             if data.get("contact_phone") is not None:

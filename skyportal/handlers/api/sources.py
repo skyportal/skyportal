@@ -549,7 +549,6 @@ async def get_sources(
     group_ids=[],
     user_accessible_group_ids=None,
     save_summary=False,
-    total_matches=None,
     includeGeoJSON=False,
     use_cache=False,
     query_id=None,
@@ -2020,7 +2019,6 @@ async def get_sources(
 
             if not remove_nested:
                 # REFORMAT SOURCES (SAVE INFO)
-                start = time.time()
                 source_group_ids, source_user_ids = [], []
                 for source in sources:
                     (

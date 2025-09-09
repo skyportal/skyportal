@@ -31,7 +31,7 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "space-between",
     color: "white",
     fontWeight: 500,
-    padding: "0.5em 1em",
+    padding: "1.3em",
     marginBottom: "0.3em",
     width: "100%",
     borderRadius: "12px",

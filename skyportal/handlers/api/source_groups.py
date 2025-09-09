@@ -5,17 +5,9 @@ import sqlalchemy as sa
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
-from ...models import (
-    GroupUser,
-    Obj,
-    PublicRelease,
-    Source,
-    Thumbnail,
-    TNSRobotGroup,
-    TNSRobotGroupAutoreporter,
-    TNSRobotSubmission,
-)
+from ...models import Obj, Source
 from ...utils.asynchronous import run_async
+from ...utils.data_access import auto_source_publishing
 from ..base import BaseHandler
 
 log = make_log("api/source_groups")
@@ -146,103 +138,16 @@ class SourceGroupsHandler(BaseHandler):
                 )
             session.commit()
 
+            # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
+            publish_to = ["TNS", "Hermes", "Public page"]
             for group_id in saved_to_group_ids:
-                # see if there is a tnsrobot_group set up for autosubmission
-                # and if the user has autosubmission set up
-                tnsrobot_group_with_autoreporter = session.scalars(
-                    TNSRobotGroup.select(session.user_or_token)
-                    .join(
-                        TNSRobotGroupAutoreporter,
-                        TNSRobotGroup.id == TNSRobotGroupAutoreporter.tnsrobot_group_id,
-                    )
-                    .where(
-                        TNSRobotGroup.group_id == group_id,
-                        TNSRobotGroup.auto_report,
-                        TNSRobotGroupAutoreporter.group_user_id.in_(
-                            sa.select(GroupUser.id).where(
-                                GroupUser.user_id == self.associated_user_object.id,
-                                GroupUser.group_id == group_id,
-                            )
-                        ),
-                    )
-                ).first()
-
-                if tnsrobot_group_with_autoreporter is not None:
-                    # add a request to submit to TNS for only the first group we save to
-                    # that has access to TNSRobot and auto_report is True
-                    #
-                    # but first, check if there is already an auto-submission request
-                    # for this object and tnsrobot that is:
-                    # 1. pending
-                    # 2. processing
-                    # 3. submitted
-                    # 4. complete
-                    # if so, do not add another request
-                    stmt = TNSRobotSubmission.select(session.user_or_token).where(
-                        TNSRobotSubmission.obj_id == obj.id,
-                        TNSRobotSubmission.tnsrobot_id
-                        == tnsrobot_group_with_autoreporter.tnsrobot_id,
-                        sa.or_(
-                            TNSRobotSubmission.status == "pending",
-                            TNSRobotSubmission.status == "processing",
-                            TNSRobotSubmission.status.like("submitted%"),
-                            TNSRobotSubmission.status.like("complete%"),
-                        ),
-                    )
-                    if self.associated_user_object.is_bot:
-                        stmt = stmt.where(
-                            TNSRobotGroup.auto_report_allow_bots.is_(True)
-                        )
-                    existing_submission_request = session.scalars(stmt).first()
-                    if existing_submission_request is not None:
-                        log(
-                            f"Submission request already exists for obj_id {obj.id} and tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id}"
-                        )
-                    else:
-                        submission_request = TNSRobotSubmission(
-                            obj_id=obj.id,
-                            tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
-                            user_id=self.associated_user_object.id,
-                            auto_submission=True,
-                        )
-                        session.add(submission_request)
-                        session.commit()
-                        log(
-                            f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.associated_user_object.id}"
-                        )
-                        break
-
-                # if there is releases with auto_publish_enabled and one of the source groups,
-                # a public page is published for this source
-                releases = session.scalars(
-                    PublicRelease.select(session.user_or_token).where(
-                        PublicRelease.groups.any(id=group_id),
-                        PublicRelease.auto_publish_enabled,
-                    )
-                ).all()
-
-                if len(releases) > 0:
-                    from .public_pages.public_source_page import (
-                        async_post_public_source_page,
-                    )
-
-                    dict_obj = obj.to_dict()
-                    thumbnails = session.scalars(
-                        sa.select(Thumbnail).where(
-                            Thumbnail.obj_id == obj_id,
-                        )
-                    ).all()
-                    dict_obj["thumbnails"] = [
-                        thumbnail.to_dict() for thumbnail in thumbnails
-                    ]
-                    for release in releases:
-                        run_async(
-                            async_post_public_source_page,
-                            options=release.options,
-                            source=dict_obj,
-                            release=release,
-                            user_id=self.associated_user_object.id,
-                        )
+                auto_source_publishing(
+                    session=session,
+                    saver=self.associated_user_object,
+                    obj=obj,
+                    group_id=group_id,
+                    publish_to=publish_to,
+                )
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
