@@ -376,12 +376,7 @@ const GcnSummary = ({ dateobs }) => {
         Summary
       </Button>
       {open && (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          style={{ position: "fixed" }}
-          fullScreen
-        >
+        <Dialog open={open} onClose={handleClose} fullScreen>
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>

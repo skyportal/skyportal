@@ -232,9 +232,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
       </Button>
       <Dialog
         open={confirmDialogOpen}
-        onClose={() => {
-          setConfirmDialogOpen(false);
-        }}
+        onClose={() => setConfirmDialogOpen(false)}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >

@@ -67,7 +67,7 @@ class BLANCO_NEWFIRM_Request:
         }
 
         exp_time = request.payload["exposure_time"]
-        exp_count = int(request.payload["exposure_counts"])
+        sequence_repeats = int(request.payload["sequence_repeats"])
 
         configurations = []
         for filt in request.payload["observation_choices"]:
@@ -75,6 +75,12 @@ class BLANCO_NEWFIRM_Request:
                 {
                     "type": "EXPOSE",
                     "instrument_type": "BLANCO_NEWFIRM",
+                    "extra_params": {
+                        "dither_value": 80,
+                        "dither_sequence": "5-point",
+                        "detector_centering": "det_1",
+                        "dither_sequence_random_offset": True,
+                    },
                     "constraints": constraints,
                     "target": target,
                     "acquisition_config": {"mode": "MANUAL", "extra_params": {}},
@@ -86,7 +92,8 @@ class BLANCO_NEWFIRM_Request:
                     "instrument_configs": [
                         {
                             "exposure_time": exp_time,
-                            "exposure_count": exp_count,
+                            "exposure_count": 1,
+                            "sequence_repeats": sequence_repeats,
                             "mode": "fowler1",
                             "extra_params": {
                                 "offset_ra": 0,
@@ -304,8 +311,8 @@ class NEWFIRMAPI(BLANCOAPI):
                 "default": 8.0,
                 "maximum": 40,
             },
-            "exposure_counts": {
-                "title": "Exposure Counts",
+            "sequence_repeats": {
+                "title": "Sequence Repeats",
                 "type": "number",
                 "default": 1,
             },
@@ -343,6 +350,7 @@ class NEWFIRMAPI(BLANCOAPI):
         },
         "required": [
             "observation_choices",
+            "sequence_repeats",
             "start_date",
             "end_date",
             "maximum_airmass",

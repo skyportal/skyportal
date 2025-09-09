@@ -53,13 +53,7 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Redshift History</DialogTitle>
         <DialogContent>
           <Table>

@@ -35,10 +35,7 @@ const AddGcnTag = ({ gcnEvent }) => {
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      gcnEvent?.tags?.includes(tag),
-    );
+    setInvalid(gcnEvent?.tags?.includes(tag));
   }, [gcnEvent, setInvalid, tag]);
 
   const handleChange = (e) => {
@@ -67,13 +64,7 @@ const AddGcnTag = ({ gcnEvent }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Add Tag</DialogTitle>
         <DialogContent>
           <div>

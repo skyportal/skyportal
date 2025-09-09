@@ -292,16 +292,11 @@ const GcnEventSourcesPage = ({
         totalMatches={sources.totalMatches}
         numPerPage={sources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
       />
-      <Dialog
-        open={downloadProgressTotal > 0}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{
             display: "flex",
@@ -1335,11 +1330,7 @@ const GcnSelectionForm = ({ dateobs }) => {
                         downloadCallback={handleExecutedDownload}
                         serverSide={false}
                       />
-                      <Dialog
-                        open={downloadProgressTotal > 0}
-                        style={{ position: "fixed" }}
-                        maxWidth="md"
-                      >
+                      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
                         <DialogContent
                           style={{
                             display: "flex",
