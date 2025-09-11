@@ -6,9 +6,11 @@ import numpy as np
 import sncosmo
 from astropy.coordinates import SkyCoord
 from dust_extinction.parameter_averages import G23
+from dustmaps.config import config
 
 from baselayer.log import make_log
 
+config["data_dir"] = "/tmp"
 log = make_log("extinction")
 
 
@@ -30,11 +32,14 @@ def get_extinction_coefficient(filter_name, Rv=3.1, Ebv=1.0):
     float
         Extinction coefficient A_λ/E(B-V) in magnitudes
     """
-    bandpass = sncosmo.get_bandpass(filter_name)
-    wave_eff = bandpass.wave_eff
-    ext = G23(Rv=Rv)
-    extinction_coeff = -2.5 * np.log10(ext.extinguish(wave_eff * u.AA, Ebv=Ebv))
-    return extinction_coeff
+    try:
+        bandpass = sncosmo.get_bandpass(filter_name)
+        wave_eff = bandpass.wave_eff
+        ext = G23(Rv=Rv)
+        extinction_coeff = -2.5 * np.log10(ext.extinguish(wave_eff * u.AA, Ebv=Ebv))
+        return extinction_coeff
+    except Exception as e:
+        raise Exception(f"Filter '{filter_name}' not recognized: {e}")
 
 
 class _ExtinctionCalculator:
@@ -49,7 +54,7 @@ class _ExtinctionCalculator:
             path = dustmaps.sfd.data_dir()
             path = os.path.join(path, "sfd")
             if not os.path.exists(path):
-                log.warning("No SFD data for dustmaps, downloading it")
+                log("No SFD data for dustmaps, downloading it")
                 dustmaps.sfd.fetch()
 
             self._sfd_query = dustmaps.sfd.SFDQuery()
@@ -104,7 +109,7 @@ def calculate_extinction(
         return extinction
 
     except Exception as e:
-        log.warning(f"Could not calculate extinction for {filter_name}: {e}")
+        log(f"Could not calculate extinction for {filter_name}: {e}")
         return None
 
 
