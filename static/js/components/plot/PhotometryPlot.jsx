@@ -200,7 +200,6 @@ const PeriodAnnotationDialog = ({ obj_id, period, periodUnit }) => {
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        style={{ position: "fixed" }}
         maxWidth="lg"
       >
         <DialogTitle>Save Period as Annotation</DialogTitle>

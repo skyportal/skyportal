@@ -419,12 +419,7 @@ const ScanningProfilesList = ({
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      <Dialog
-        open={editDialogOpen}
-        onClose={() => {
-          setEditDialogOpen(false);
-        }}
-      >
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
         <DialogContent className={classes.dialogContent}>
           <CandidatesPreferencesForm
             userAccessibleGroups={userAccessibleGroups}
@@ -438,12 +433,7 @@ const ScanningProfilesList = ({
           />
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={newDialogOpen}
-        onClose={() => {
-          setNewDialogOpen(false);
-        }}
-      >
+      <Dialog open={newDialogOpen} onClose={() => setNewDialogOpen(false)}>
         <DialogContent className={classes.dialogContent}>
           <CandidatesPreferencesForm
             userAccessibleGroups={userAccessibleGroups}

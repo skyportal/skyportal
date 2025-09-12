@@ -35,10 +35,7 @@ const AddGcnAlias = ({ gcnEvent }) => {
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      gcnEvent?.aliases?.includes(alias),
-    );
+    setInvalid(gcnEvent?.aliases?.includes(alias));
   }, [gcnEvent, setInvalid, alias]);
 
   const handleChange = (e) => {
@@ -67,13 +64,7 @@ const AddGcnAlias = ({ gcnEvent }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Add Alias</DialogTitle>
         <DialogContent>
           <div>

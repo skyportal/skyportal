@@ -78,11 +78,7 @@ const DBStats = () => {
                         </ListItem>
                       ))}
                     </List>
-                    <Dialog
-                      open={dialogOpen}
-                      style={{ position: "fixed" }}
-                      onClose={handleDialogClose}
-                    >
+                    <Dialog open={dialogOpen} onClose={handleDialogClose}>
                       <DialogTitle>Process Output</DialogTitle>
                       <DialogContent>
                         <Typography>
