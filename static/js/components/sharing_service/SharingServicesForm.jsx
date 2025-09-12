@@ -16,6 +16,7 @@ import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import FormControl from "@mui/material/FormControl";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "../Spinner";
@@ -37,7 +38,7 @@ const useStyles = makeStyles(() => ({
   },
   container: {
     width: "99%",
-    marginBottom: "1rem",
+    margin: "1rem 0",
   },
 }));
 
@@ -427,48 +428,53 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       </DialogTitle>
       <DialogContent>
         <div className={classes.container}>
-          <InputLabel id="sharingServiceSelectLabel">
-            Sharing Service
-          </InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="sharingServiceSelectLabel"
-            value={selectedSharingServiceId}
-            onChange={(e) => setselectedSharingServiceId(e.target.value)}
-            name="sharingServiceSelect"
-            className={classes.sharingServiceSelect}
-          >
-            {sharingServicesList?.map((sharingService) => (
-              <MenuItem
-                value={sharingService.id}
-                key={sharingService.id}
-                className={classes.sharingServiceSelectItem}
-              >
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  {sharingService.testing === true && (
-                    <Tooltip
-                      title={
-                        <h3>
-                          This Sharing Service is currently in testing mode. It
-                          will not publish any data to TNS but will store the
-                          payload in the database instead (useful for debugging
-                          purposes). For Hermes, it will publish to the test
-                          topic. You can remove it from the sharing services
-                          page.
-                        </h3>
-                      }
-                      placement="right"
+          <FormControl fullWidth required>
+            <InputLabel id="sharingServiceSelectLabel">
+              Sharing Service
+            </InputLabel>
+            <Select
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="sharingServiceSelectLabel"
+              label="Sharing Service"
+              value={selectedSharingServiceId}
+              onChange={(e) => setselectedSharingServiceId(e.target.value)}
+              className={classes.sharingServiceSelect}
+            >
+              {sharingServicesList?.map((sharingService) => (
+                <MenuItem
+                  value={sharingService.id}
+                  key={sharingService.id}
+                  className={classes.sharingServiceSelectItem}
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {sharingService.testing === true && (
+                      <Tooltip
+                        title={
+                          <h3>
+                            This Sharing Service is currently in testing mode.
+                            It will not publish any data to TNS but will store
+                            the payload in the database instead (useful for
+                            debugging purposes). For Hermes, it will publish to
+                            the test topic. You can remove it from the sharing
+                            services page.
+                          </h3>
+                        }
+                        placement="right"
+                      >
+                        <BugReportIcon style={{ color: "orange" }} />
+                      </Tooltip>
+                    )}
+                    <Typography
+                      variant="body1"
+                      style={{ marginLeft: "0.5rem" }}
                     >
-                      <BugReportIcon style={{ color: "orange" }} />
-                    </Tooltip>
-                  )}
-                  <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-                    {sharingService.name}
-                  </Typography>
-                </div>
-              </MenuItem>
-            ))}
-          </Select>
+                      {sharingService.name}
+                    </Typography>
+                  </div>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           {selectedSharingServiceId &&
             sharingServicesList &&
             (allowedInstruments.length === 0 ? (
