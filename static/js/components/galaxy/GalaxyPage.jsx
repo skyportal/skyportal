@@ -201,12 +201,7 @@ const GalaxyList = ({ catalogs, setCatalogs }) => {
         ))}
       </List>
       {openNew && (
-        <Dialog
-          open={openNew}
-          onClose={handleCloseNew}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
+        <Dialog open={openNew} onClose={handleCloseNew} maxWidth="md">
           <DialogTitle onClose={handleCloseNew}>New Galaxy Catalog</DialogTitle>
           <DialogContent dividers>
             <NewGalaxy handleClose={handleCloseNew} />

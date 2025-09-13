@@ -255,10 +255,7 @@ const GcnEventAllocationTriggers = ({
       </div>
       <Dialog
         open={selectedInstrument !== null}
-        onClose={() => {
-          setSelectedInstrument(null);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setSelectedInstrument(null)}
       >
         <DialogTitle>Change Trigger state</DialogTitle>
         <DialogContent>
