@@ -146,6 +146,7 @@ const reducer = (
       return {
         ...state,
         sharingServicesList,
+        loading: false,
       };
     }
     case FETCH_SHARING_SERVICE_SUBMISSIONS_OK: {
