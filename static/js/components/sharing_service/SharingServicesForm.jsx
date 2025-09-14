@@ -431,7 +431,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="sharingServiceSelectLabel"
               label="Sharing Service"
-              value={selectedSharingServiceId}
+              value={selectedSharingServiceId || ""}
               onChange={(e) => setselectedSharingServiceId(e.target.value)}
             >
               {sharingServicesList?.map((sharingService) => (
