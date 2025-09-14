@@ -30,9 +30,6 @@ import { userLabel } from "../../utils/format";
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
 const useStyles = makeStyles(() => ({
-  sharingServiceSelect: {
-    width: "100%",
-  },
   sharingServiceSelectItem: {
     whiteSpace: "break-spaces",
   },
@@ -53,7 +50,9 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { sharingServicesList } = useSelector((state) => state.sharingServices);
+  const { sharingServicesList, loading } = useSelector(
+    (state) => state.sharingServices,
+  );
   const [selectedSharingServiceId, setselectedSharingServiceId] =
     useState(null);
   const [defaultSharersString, setdefaultSharersString] = useState(null);
@@ -217,21 +216,21 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     setDialogOpen(false);
   };
 
-  if (!sharingServicesList?.length || !streams?.length) {
+  if (!sharingServicesList?.length) {
     return (
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        {!sharingServicesList?.length ? (
-          <DialogTitle>
-            <h4 style={{ textAlign: "center" }}>
-              No sharing services available...
-            </h4>
-          </DialogTitle>
-        ) : (
+        {loading ? (
           <DialogContent
             style={{ width: "60px", height: "60px", padding: "0" }}
           >
             <Spinner />
           </DialogContent>
+        ) : (
+          <DialogTitle>
+            <Typography variant="body1" color="text.secondary">
+              No sharing services available...
+            </Typography>
+          </DialogTitle>
         )}
       </Dialog>
     );
@@ -364,11 +363,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
   };
 
   return (
-    <Dialog
-      open={dialogOpen}
-      onClose={() => setDialogOpen(false)}
-      style={{ position: "fixed" }}
-    >
+    <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
       <DialogTitle>
         <Box display="flex" gap={1}>
           Send to
@@ -438,7 +433,6 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               label="Sharing Service"
               value={selectedSharingServiceId}
               onChange={(e) => setselectedSharingServiceId(e.target.value)}
-              className={classes.sharingServiceSelect}
             >
               {sharingServicesList?.map((sharingService) => (
                 <MenuItem
