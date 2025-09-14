@@ -570,7 +570,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
               onClose={() => {
                 setShowTable(null);
               }}
-              style={{ position: "fixed" }}
               className={classes.dialog}
             >
               <DialogTitle>Observation plan</DialogTitle>

@@ -7,16 +7,12 @@ import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import DialogTitle from "@mui/material/DialogTitle";
 import * as profileActions from "../../../ducks/profile";
 
 const useStyles = makeStyles(() => ({
-  dialog: {
-    position: "fixed",
-  },
   tooltip: {
     fontSize: "1rem",
     maxWidth: "30rem",
@@ -214,7 +210,7 @@ const CustomizeOpenAIParameters = () => {
           <EditOutlinedIcon />
         </IconButton>
       </Tooltip>
-      <Dialog open={aiopen} onClose={handleAIClose} className={classes.dialog}>
+      <Dialog open={aiopen} onClose={handleAIClose}>
         <DialogTitle>Edit OpenAI Summary Settings</DialogTitle>
         <DialogContent>
           <Form

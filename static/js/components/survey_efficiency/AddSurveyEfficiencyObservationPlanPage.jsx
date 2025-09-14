@@ -65,11 +65,7 @@ const AddSurveyEfficiencyObservationPlanPage = ({
       >
         SimSurvey Analysis
       </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
           <div>

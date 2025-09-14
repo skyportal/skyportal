@@ -169,7 +169,7 @@ const SimpleMenu = ({ assignment }) => {
         {assignment.status === "complete" && (
           <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
             <Link
-              href={`/upload_spectrum/${assignment.obj.id}`}
+              href={`/upload_spectrum/${assignment.obj_id}`}
               underline="none"
               color="textPrimary"
             >
@@ -184,7 +184,7 @@ const SimpleMenu = ({ assignment }) => {
             onClick={handleClose}
           >
             <Link
-              href={`/upload_photometry/${assignment.obj.id}`}
+              href={`/upload_photometry/${assignment.obj_id}`}
               underline="none"
               color="textPrimary"
             >
@@ -193,12 +193,7 @@ const SimpleMenu = ({ assignment }) => {
           </MenuItem>
         )}
       </Menu>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md">
         <DialogTitle>Reassign to Observing Run</DialogTitle>
         <DialogContent dividers>
           <AssignmentForm
@@ -215,9 +210,7 @@ SimpleMenu.propTypes = {
   assignment: PropTypes.shape({
     status: PropTypes.string,
     id: PropTypes.number,
-    obj: PropTypes.shape({
-      id: PropTypes.string,
-    }).isRequired,
+    obj_id: PropTypes.string,
   }).isRequired,
 };
 
@@ -636,12 +629,7 @@ const RunSummary = ({ route }) => {
       </Grid>
       <div>
         {dialog && (
-          <Dialog
-            open={dialog}
-            onClose={closeDialog}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
+          <Dialog open={dialog} onClose={closeDialog} maxWidth="md">
             <DialogContent dividers>
               Is your observing run clouded out and want to set all pending
               objects to not observered?
