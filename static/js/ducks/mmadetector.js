@@ -23,7 +23,6 @@ export const fetchMMADetector = (id) =>
 export const submitMMADetector = (run) =>
   API.POST(`/api/mmadetector`, SUBMIT_MMADETECTOR, run);
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchMMADetectors = () =>
   API.GET("/api/mmadetector", FETCH_MMADETECTOR_LIST);
 
@@ -43,7 +42,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
 const reducer_mmadetector = (
   state = {
-    assignments: [],
     currentMMADetectors: null,
     currentMMADetectorMenu: "MMADetector List",
   },

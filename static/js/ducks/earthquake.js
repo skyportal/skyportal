@@ -46,7 +46,6 @@ export const submitPrediction = (id, mmadetector_id, params = {}) =>
     params,
   );
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchEarthquakes = (params = {}) =>
   API.GET("/api/earthquake", FETCH_EARTHQUAKES, params);
 
@@ -118,7 +117,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
 const reducer_earthquake = (
   state = {
-    assignments: [],
     currentEarthquakes: null,
     currentEarthquakeMenu: "Earthquake List",
   },

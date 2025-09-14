@@ -44,6 +44,7 @@ import { dec_to_dms, ra_to_hours } from "../../units";
 
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
+import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
@@ -221,30 +222,19 @@ const RunSummary = ({ route }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-
   const [dialog, setDialog] = useState(false);
 
-  const openDialog = () => {
-    setDialog(true);
-  };
   const closeDialog = () => {
     setDialog(false);
   };
 
-  // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
-    // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-  const { assignments } = observingRun;
+  if (observingRun?.id !== parseInt(route.id, 10)) return <Spinner />;
+
+  const assignments = observingRun?.assignments || [];
 
   const notObservedFunction = () => {
     dispatch(Action.putObservingRunNotObserved(observingRun.id)).then(
@@ -549,16 +539,9 @@ const RunSummary = ({ route }) => {
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
     customToolbar: () => (
-      <>
-        <IconButton
-          name="clouds"
-          onClick={() => {
-            setDialog(true);
-          }}
-        >
-          <CloudIcon />
-        </IconButton>
-      </>
+      <IconButton name="clouds" onClick={() => setDialog(true)}>
+        <CloudIcon />
+      </IconButton>
     ),
   };
 
