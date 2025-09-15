@@ -49,10 +49,10 @@ const MMADetectorPage = () => {
           <Paper>
             {isMobile ? (
               <>
-                <Typography variant="h5" sx={{ fontWeight: "500" }}>
+                <Typography variant="h6" sx={{ fontWeight: "500" }}>
                   List of MMADetector
                 </Typography>
-                <MMADetectorList />
+                <MMADetectorList isMobile />
               </>
             ) : (
               <MMADetectorMap mmadetectors={mmadetectorList} />
@@ -81,14 +81,14 @@ const MMADetectorPage = () => {
             )}
             <Paper>
               {isMobile && (
-                <Typography variant="h5" sx={{ fontWeight: "500" }}>
+                <Typography variant="h6" sx={{ fontWeight: "500" }}>
                   Add a New MMADetector
                 </Typography>
               )}
               {canManage && (newMMADetector || isMobile) ? (
-                <NewMMADetector />
+                <NewMMADetector /> // Display it when user can manage and newMMADetector is true or on mobile
               ) : (
-                <MMADetectorList />
+                <MMADetectorList /> // Display this list when isMobile is false or user cannot manage or newMMADetector is false
               )}
             </Paper>
           </Grid>
