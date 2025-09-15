@@ -50,7 +50,7 @@ const MMADetectorPage = () => {
             {isMobile ? (
               <>
                 <Typography variant="h6" sx={{ fontWeight: "500" }}>
-                  List of MMADetector
+                  List of MMADetectors
                 </Typography>
                 <MMADetectorList isMobile />
               </>
