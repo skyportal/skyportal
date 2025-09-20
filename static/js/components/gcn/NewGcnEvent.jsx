@@ -12,8 +12,7 @@ import * as gcnTagsActions from "../../ducks/gcnTags";
 
 const NewGcnEvent = ({ handleClose = null }) => {
   const dispatch = useDispatch();
-  const gcnTags = useSelector((state) => state.gcnTags) || [];
-  gcnTags.sort();
+  const gcnTags = [...(useSelector((state) => state.gcnTags) || [])].sort();
 
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());
