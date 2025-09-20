@@ -38,7 +38,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer_mmadetector = (state = { assignments: [] }, action) => {
+const reducer_mmadetector = (state = {}, action) => {
   switch (action.type) {
     case FETCH_MMADETECTOR_OK: {
       const mmadetector = action.data;

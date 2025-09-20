@@ -779,10 +779,7 @@ const AllocationSummaryTable = ({
         open={dialogOpen != null}
         fullWidth
         maxWidth="lg"
-        onClose={() => {
-          setDialogOpen(null);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(null)}
       >
         <DialogTitle>Update comment</DialogTitle>
         <DialogContent>

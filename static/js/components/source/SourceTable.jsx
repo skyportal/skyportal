@@ -1359,10 +1359,8 @@ const SourceTable = ({
 
   const renderGcnNotes = (dataIndex) => {
     const source = sources[dataIndex];
-    let notes = null;
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      notes = "";
-    } else {
+    let notes = "";
+    if (sourcesingcn.filter((s) => s.obj_id === source.id).length) {
       notes = sourcesingcn.filter((s) => s.obj_id === source.id)[0].notes;
     }
     return (
@@ -1373,7 +1371,6 @@ const SourceTable = ({
           alignItems: "center",
           justifyContent: "center",
         }}
-        name={`${source.id}_gcn_status_notes`}
       >
         {notes}
       </div>

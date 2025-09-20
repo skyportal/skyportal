@@ -3,18 +3,11 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import makeStyles from "@mui/styles/makeStyles";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "../Button";
 import * as Actions from "../../ducks/source";
-
-const useStyles = makeStyles(() => ({
-  dialog: {
-    position: "fixed",
-  },
-}));
 
 const EditFollowupRequestDialog = ({
   followupRequest,
@@ -24,7 +17,6 @@ const EditFollowupRequestDialog = ({
 }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const classes = useStyles();
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -119,7 +111,7 @@ const EditFollowupRequestDialog = ({
       >
         Edit
       </Button>
-      <Dialog open={open} onClose={handleClose} className={classes.dialog}>
+      <Dialog open={open} onClose={handleClose}>
         <DialogContent>
           <Form
             schema={formCopy}
