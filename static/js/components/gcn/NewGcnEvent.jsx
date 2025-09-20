@@ -67,7 +67,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
     }
     if (!(formData.xml || formData.json)) {
       if (!formData.dateobs) {
-        errors.dateobs.addError(
+        errors.addError(
           "dateobs must be defined if not uploading a VOEvent or JSON notice",
         );
       }
@@ -80,7 +80,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
           formData.error !== undefined
         )
       ) {
-        errors.skymap.addError(
+        errors.addError(
           "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent / JSON",
         );
       }
