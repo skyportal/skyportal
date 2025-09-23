@@ -342,12 +342,7 @@ const GcnReport = ({ dateobs }) => {
         Report
       </Button>
       {open && (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          style={{ position: "fixed" }}
-          fullScreen
-        >
+        <Dialog open={open} onClose={handleClose} fullScreen>
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
@@ -494,7 +489,6 @@ const GcnReport = ({ dateobs }) => {
                 <Dialog
                   open={selectedGcnReportId !== null}
                   onClose={() => setSelectedGcnReportId(null)}
-                  style={{ position: "fixed" }}
                   fullScreen
                 >
                   <DialogTitle onClose={() => setSelectedGcnReportId(null)}>

@@ -274,11 +274,7 @@ const FollowupRequestPage = () => {
                 <FollowupRequestPrioritizationForm />
               </div>
             </Paper>
-            <Dialog
-              open={downloadProgressTotal > 0}
-              style={{ position: "fixed" }}
-              maxWidth="md"
-            >
+            <Dialog open={downloadProgressTotal > 0} maxWidth="md">
               <DialogContent
                 style={{
                   display: "flex",

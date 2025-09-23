@@ -10,8 +10,6 @@ const FETCH_MMADETECTOR_OK = "skyportal/FETCH_MMADETECTOR_OK";
 
 const SUBMIT_MMADETECTOR = "skyportal/SUBMIT_MMADETECTOR";
 
-const CURRENT_MMADETECTORS_AND_MENU = "skyportal/CURRENT_MMADETECTORS_AND_MENU";
-
 const REFRESH_MMADETECTOR_LIST = "skyportal/REFRESH_MMADETECTOR_LIST";
 
 const FETCH_MMADETECTOR_LIST = "skyportal/FETCH_MMADETECTOR_LIST";
@@ -23,7 +21,6 @@ export const fetchMMADetector = (id) =>
 export const submitMMADetector = (run) =>
   API.POST(`/api/mmadetector`, SUBMIT_MMADETECTOR, run);
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchMMADetectors = () =>
   API.GET("/api/mmadetector", FETCH_MMADETECTOR_LIST);
 
@@ -41,26 +38,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer_mmadetector = (
-  state = {
-    assignments: [],
-    currentMMADetectors: null,
-    currentMMADetectorMenu: "MMADetector List",
-  },
-  action,
-) => {
+const reducer_mmadetector = (state = {}, action) => {
   switch (action.type) {
     case FETCH_MMADETECTOR_OK: {
       const mmadetector = action.data;
-      return {
-        ...state,
-        ...mmadetector,
-      };
-    }
-    case CURRENT_MMADETECTORS_AND_MENU: {
-      const mmadetector = {};
-      mmadetector.currentMMADetectors = action.data.currentMMADetectors;
-      mmadetector.currentMMADetectorMenu = action.data.currentMMADetectorMenu;
       return {
         ...state,
         ...mmadetector,

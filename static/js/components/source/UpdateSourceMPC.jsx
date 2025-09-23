@@ -83,13 +83,7 @@ const UpdateSourceMPC = ({ source }) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Query MPC</DialogTitle>
         <DialogContent>
           <div>
