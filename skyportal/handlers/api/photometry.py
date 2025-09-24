@@ -1436,7 +1436,7 @@ class PhotometryHandler(BaseHandler):
             "Upload data" in user_permissions or "Manage photometry" in user_permissions
         ):
             return self.error(
-                "Insufficient permissions to upload photometry", status=403
+                "Insufficient permissions to upload photometry", status=401
             )
 
         try:
@@ -1715,7 +1715,7 @@ class PhotometryHandler(BaseHandler):
             "Upload data" in user_permissions or "Manage photometry" in user_permissions
         ):
             return self.error(
-                "Insufficient permissions to upload photometry", status=403
+                "Insufficient permissions to upload photometry", status=401
             )
 
         try:
@@ -1884,7 +1884,7 @@ class PhotometryHandler(BaseHandler):
             "Upload data" in user_permissions or "Manage photometry" in user_permissions
         ):
             return self.error(
-                "Insufficient permissions to upload photometry", status=403
+                "Insufficient permissions to upload photometry", status=401
             )
 
         with self.Session() as session:
