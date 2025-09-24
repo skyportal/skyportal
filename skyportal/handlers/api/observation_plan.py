@@ -346,10 +346,10 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
     session.commit()
 
     try:
-        if (
-            "submit" in observation_plan_request.status
-            and "fail" not in observation_plan_request.status
-        ):  # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True                                                                  # if there is one already set "triggered" to True, otherwise create it.
+        status = observation_plan_request.status
+        if "submit" in status and "fail" not in status:
+            # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True
+            # if there is one already set "triggered" to True, otherwise create it.
             existing_gcn_trigger = session.scalar(
                 sa.select(GcnTrigger).where(
                     GcnTrigger.dateobs == observation_plan_request.gcnevent.dateobs,
@@ -475,19 +475,15 @@ def post_survey_efficiency_analysis(
     observations = []
     for ii, o in enumerate(observation_plans[0].planned_observations):
         obs_dict = o.to_dict()
-        obs_dict["field"] = obs_dict["field"].to_dict()
+        field = obs_dict.get("field")
+        if not field:
+            raise ValueError(
+                f"Missing field (field_id:{obs_dict['field_id']}) required to estimate field size"
+            )
+        obs_dict["field"] = field.to_dict()
         observations.append(obs_dict)
 
         if ii == 0:
-            field = (
-                session.query(InstrumentField)
-                .options(undefer(InstrumentField.contour_summary))
-                .get(obs_dict["field"]["id"])
-            )
-            if field is None:
-                raise ValueError(
-                    f"Missing field {obs_dict['field']['id']} required to estimate field size"
-                )
             contour_summary = field.contour_summary["features"][0]
             coordinates = np.squeeze(
                 np.array(contour_summary["geometry"]["coordinates"])
@@ -516,7 +512,7 @@ def post_survey_efficiency_analysis(
 
     if asynchronous:
         try:
-            loop = asyncio.get_event_loop()
+            asyncio.get_event_loop()
         except Exception:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

@@ -66,11 +66,7 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
           <AddIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Add Classifications</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>

@@ -404,7 +404,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     redshift_value = parseFloat(redshift_value, 10);
     const newLayouts = {
       xaxis: {
-        title: "Wavelength (Å)",
+        title: { text: "Wavelength (Å)" },
         side: "bottom",
         range: [...specStats_value[spectrumType].wavelength.range],
         tickformat: ".6~f",
@@ -412,13 +412,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         ...BASE_LAYOUT,
       },
       yaxis: {
-        title: "Flux",
+        title: { text: "Flux" },
         side: "left",
         range: [...specStats_value[spectrumType].flux.range],
         ...BASE_LAYOUT,
       },
       xaxis2: {
-        title: "Rest Wavelength (Å)",
+        title: { text: "Rest Wavelength (Å)" },
         side: "top",
         overlaying: "x",
         showgrid: false,

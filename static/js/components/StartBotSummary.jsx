@@ -191,10 +191,7 @@ const StartBotSummary = ({ obj_id }) => {
       <Dialog
         open={dialogOpen}
         maxWidth="sm"
-        onClose={() => {
-          setDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setDialogOpen(false)}
       >
         <DialogTitle>Run AI Summary</DialogTitle>
         <DialogContent>

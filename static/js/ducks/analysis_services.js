@@ -18,7 +18,6 @@ const MODIFY_ANALYSIS_SERVICE = "skyportal/MODIFY_ANALYSIS_SERVICE";
 
 const DELETE_ANALYSIS_SERVICE = "skyportal/DELETE_ANALYSIS_SERVICE";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchAnalysisServices = (params = {}) =>
   API.GET("/api/analysis_service", FETCH_ANALYSIS_SERVICES_LIST, params);
 
@@ -40,7 +39,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer_service = (state = { assignments: [] }, action) => {
+const reducer_service = (state = {}, action) => {
   switch (action.type) {
     case FETCH_ANALYSIS_SERVICE_OK: {
       const analysis_service = action.data;

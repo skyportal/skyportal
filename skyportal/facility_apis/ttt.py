@@ -53,7 +53,13 @@ def validate_request_to_ttt(request, proposal_id):
     if request.payload["station_name"] == "TTT-80":
         camera_model = "QHY411M"
     elif request.payload["station_name"] == "TTT-200":
-        camera_model = "QHY600M Pro"
+        if "camera_model" not in request.payload:
+            raise ValueError("camera_model is required when using TTT-200")
+        if request.payload["camera_model"] not in ["iKon936", "QHY600M Pro"]:
+            raise ValueError(
+                "camera_model must be 'iKon936' or 'QHY600M Pro' for TTT-200"
+            )
+        camera_model = request.payload["camera_model"]
 
     if any(
         filt not in ["SDSSu", "SDSSg", "SDSSr", "SDSSi", "SDSSz"]
@@ -72,13 +78,20 @@ def validate_request_to_ttt(request, proposal_id):
 
     coord = SkyCoord(request.obj.ra, request.obj.dec, unit="deg")
 
-    photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
-    mag = 19
-    if len(photometry) > 0:
-        for p in photometry:
-            if p.mag is not None:
-                mag = p.mag
-                break
+    if request.payload.get("use_expected_sensitivity", False):
+        if "expected_sensitivity" not in request.payload:
+            raise ValueError(
+                "expected_sensitivity required when use_expected_sensitivity is True."
+            )
+        mag = float(request.payload["expected_sensitivity"])
+    else:
+        photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
+        mag = 19
+        if len(photometry) > 0:
+            for p in photometry:
+                if p.mag is not None:
+                    mag = p.mag
+                    break
 
     requestgroup = {
         "proposal": proposal_id,
@@ -288,6 +301,11 @@ class TTTAPI(FollowUpAPI):
                 "type": "number",
                 "default": 5.0,
             },
+            "use_expected_sensitivity": {
+                "type": "boolean",
+                "title": "Use expected sensitivity (default is set to 19 in mag)",
+                "default": False,
+            },
             "exposure_counts": {
                 "title": "Exposure Counts",
                 "type": "number",
@@ -337,6 +355,12 @@ class TTTAPI(FollowUpAPI):
                             "station_name": {
                                 "enum": ["TTT-200"],
                             },
+                            "camera_model": {
+                                "type": "string",
+                                "title": "Camera",
+                                "enum": ["iKon936", "QHY600M Pro"],
+                                "default": "QHY600M Pro",
+                            },
                             "observation_choices": {
                                 "type": "array",
                                 "title": "Desired Observations",
@@ -354,6 +378,31 @@ class TTTAPI(FollowUpAPI):
                                 "minItems": 1,
                             },
                         },
+                        "required": ["camera_model"],
+                    },
+                ],
+            },
+            "use_expected_sensitivity": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "use_expected_sensitivity": {
+                                "enum": [False],
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "use_expected_sensitivity": {
+                                "enum": [True],
+                            },
+                            "expected_sensitivity": {
+                                "type": "number",
+                                "title": "Expected sensitivity (in mag)",
+                                "default": 19,
+                            },
+                        },
+                        "required": ["expected_sensitivity"],
                     },
                 ],
             },
@@ -378,4 +427,17 @@ class TTTAPI(FollowUpAPI):
         },
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {
+        "observation_choices": {"ui:widget": "checkboxes"},
+        "ui:order": [
+            "station_name",
+            "camera_model",
+            "snr",
+            "use_expected_sensitivity",
+            "expected_sensitivity",
+            "exposure_counts",
+            "start_date",
+            "end_date",
+            "observation_choices",
+        ],
+    }

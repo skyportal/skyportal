@@ -96,15 +96,13 @@ const RunSummary = ({ route }) => {
   const groups = useSelector((state) => state.groups.all);
   const [dialog, setDialog] = useState(false);
 
-  // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  // Don't need to do this for assignments, we can just let the page be blank for a short time
   if (observingRun?.id !== parseInt(route.id, 10)) return <Spinner />;
 
-  const { assignments } = observingRun;
+  const assignments = observingRun?.assignments || [];
 
   const notObservedFunction = () => {
     dispatch(Action.putObservingRunNotObserved(observingRun.id)).then(

@@ -430,11 +430,11 @@ User.sources = relationship(
     viewonly=True,
 )
 
-User.tns_submissions = relationship(
-    "TNSRobotSubmission",
+User.sharing_service_submissions = relationship(
+    "SharingServiceSubmission",
     back_populates="user",
     passive_deletes=True,
-    doc="The TNSRobotSubmission this user has made (manual or automatic).",
+    doc="Sharing submissions this user has made (manual or automatic).",
 )
 
 
@@ -498,3 +498,37 @@ Token.groups = token_groups
 Token.accessible_groups = user_or_token_accessible_groups
 Token.accessible_streams = user_or_token_accessible_streams
 Token.is_system_admin = isadmin
+
+
+@property
+def accessible_group_ids(self):
+    """Return a set of group IDs that the user or token has access to."""
+    try:
+        return {group.id for group in self.groups}
+    except AttributeError:
+        raise AttributeError(
+            "This object is not a User or Token instance with groups attribute"
+        )
+
+
+def assert_group_accessible(self, group_id):
+    """Raise an error if the user or token does not have access to the given group.
+    Parameters
+    ----------
+    group_id : int or str
+        The ID of the group to check.
+    Raises
+    ------
+    AccessError
+        If the user or token does not have access to the group.
+    """
+    if not self.is_admin and int(group_id) not in self.accessible_group_ids:
+        raise PermissionError(
+            f"Group {group_id} is not accessible by the current user."
+        )
+
+
+User.accessible_group_ids = accessible_group_ids
+Token.accessible_group_ids = accessible_group_ids
+User.assert_group_accessible = assert_group_accessible
+Token.assert_group_accessible = assert_group_accessible

@@ -365,12 +365,7 @@ const TaxonomyTable = ({
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      <Dialog
-        open={newDialogOpen}
-        onClose={closeNewDialog}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Taxonomy</DialogTitle>
         <DialogContent dividers>
           <NewTaxonomy onClose={closeNewDialog} />
@@ -379,7 +374,6 @@ const TaxonomyTable = ({
       <Dialog
         open={detailsDialogOpen && !!taxonomyToViewEditDelete}
         onClose={closeDetailsDialog}
-        style={{ position: "fixed" }}
         maxWidth="lg"
       >
         <DialogTitle>Taxonomy Content</DialogTitle>
@@ -397,7 +391,6 @@ const TaxonomyTable = ({
       <Dialog
         open={editDialogOpen && taxonomyToViewEditDelete !== null}
         onClose={closeEditDialog}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>Edit Taxonomy</DialogTitle>

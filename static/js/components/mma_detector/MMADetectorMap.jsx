@@ -6,14 +6,6 @@ import { CustomMap } from "../CustomMap";
 
 let dispatch;
 
-function setCurrentMMADetectors(currentMMADetectors) {
-  const currentMMADetectorMenu = "MMADetector List";
-  dispatch({
-    type: "skyportal/CURRENT_MMADETECTORS_AND_MENU",
-    data: { currentMMADetectors, currentMMADetectorMenu },
-  });
-}
-
 function mmadetectorlabel(nestedMMADetector) {
   return nestedMMADetector.mmadetectors
     .map((mmadetector) => mmadetector.nickname)
@@ -30,22 +22,12 @@ function mmadetectorCanObserve(nestedMMADetector) {
 
 function MMADetectorMarker({ nestedMMADetector, position }) {
   return (
-    <Marker
-      id="mmadetector_marker"
-      key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
-      coordinates={[nestedMMADetector.lon, nestedMMADetector.lat]}
-      onClick={() => setCurrentMMADetectors(nestedMMADetector)}
-    >
+    <Marker coordinates={[nestedMMADetector.lon, nestedMMADetector.lat]}>
       <circle
         r={6.5 / position.k}
         fill={mmadetectorCanObserve(nestedMMADetector)}
       />
-      <text
-        id="mmadetectors_label"
-        textAnchor="middle"
-        fontSize={10 / position.k}
-        y={-10 / position.k}
-      >
+      <text textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
         {mmadetectorlabel(nestedMMADetector)}
       </text>
     </Marker>

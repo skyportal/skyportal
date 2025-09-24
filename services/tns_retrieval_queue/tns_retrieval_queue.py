@@ -23,10 +23,14 @@ from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import DBSession, Group, Obj, Source, User
 from skyportal.utils.calculations import great_circle_distance
+from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
+    TNS_URL,
     get_IAUname,
     get_recent_TNS,
+    get_tns_headers,
+    get_tns_url,
     read_tns_photometry,
     read_tns_spectrum,
 )
@@ -40,9 +44,6 @@ Session = scoped_session(sessionmaker())
 
 USER_ID = 1  # super admin user ID
 DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
-
-TNS_URL = cfg["app.tns.endpoint"]
-object_url = urllib.parse.urljoin(TNS_URL, "api/get/object")
 
 bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
@@ -168,7 +169,6 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
     failed_photometry = []
     failed_photometry_errors = []
     for phot in photometry:
-        read_photometry = False
         try:
             df, instrument_id = read_tns_photometry(phot, session)
             data_out = {
@@ -249,31 +249,25 @@ def process_queue(queue):
     Parameters
     ----------
     queue : list
-        List of tasks to be processed
+        Tasks to be processed
     """
     if TNS_URL is None or bot_id is None or bot_name is None or api_key is None:
         log("TNS watcher not configured, skipping")
         return
-    tns_headers = {
-        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
-    }
+    tns_headers = get_tns_headers(bot_id, bot_name)
 
     while True:
-        if len(queue) == 0:
+        if not queue:
             time.sleep(1)
             continue
         task = queue.pop(0)
-        if task is None:
+        if not task:
             continue
 
         tns_name = None
-        tns_source = None
         existing_obj = None
-        public_group_id = None
-
         try:
             with DBSession() as session:
-                # verify that the public group exists
                 public_group = session.scalar(
                     sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
                 )
@@ -308,17 +302,17 @@ def process_queue(queue):
                     log(
                         f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
                     )
-                    if tns_source in [None, "None", ""]:
+                    if is_null(tns_source):
                         raise ValueError(f"{task.get('obj_id')} not found on TNS.")
                     tns_name = f"{tns_prefix} {tns_source}"
-                elif task.get("tns_source") is not None:
+                elif task.get("tns_source"):
                     # here we just want to create a TNS source
                     tns_source = task.get("tns_source")
                     tns_prefix = task.get("tns_prefix")
 
-                    # providing the prefix is not mandatory, just nice for logging if we already have it
-                    # we will retrieve if anyway if it's not provided when fetching the object from TNS
-                    if tns_prefix is not None:
+                    # providing the prefix is not mandatory, just nice for logging if we already have it.
+                    # we will retrieve it anyway if it's not provided when fetching the object from TNS
+                    if tns_prefix:
                         tns_name = f"{tns_prefix} {tns_source}"
                     else:
                         tns_name = tns_source
@@ -338,14 +332,14 @@ def process_queue(queue):
                         }
                     ),
                 }
-                status_code = 429
-                n_retries = 0
+
+                # 24 * 10 seconds = 4 minutes of retries
+                max_retries = 24
+                retry_delay = 10
                 r = None
-                while (
-                    status_code == 429 and n_retries < 24
-                ):  # 6 * 4 * 10 seconds = 4 minutes of retries
+                for _ in range(max_retries):
                     r = requests.post(
-                        object_url,
+                        get_tns_url("object"),
                         headers=tns_headers,
                         data=data,
                         allow_redirects=True,
@@ -353,14 +347,10 @@ def process_queue(queue):
                         timeout=10,
                     )
                     status_code = r.status_code
-                    if status_code == 429:
-                        n_retries += 1
-                        time.sleep(10)
-                    else:
+                    if status_code != 429:
                         break
-                if not isinstance(r, requests.Response):
-                    log(f"Error getting TNS data for {tns_name}: no response")
-                    continue
+                    time.sleep(retry_delay)
+
                 if status_code != 200:
                     log(f"Error getting TNS data for {tns_name}: {r.text}")
                     continue
@@ -403,9 +393,8 @@ def process_queue(queue):
                     log(f"Error processing TNS source {tns_name}: no coordinates")
                     continue
 
-                if existing_obj is not None:
-                    # if were looking for the TNS name of an existing source,
-                    # simply add the TNS name to the existing object
+                if existing_obj:
+                    # if existing obj add TNS name and info to it and update frontend
                     existing_obj.tns_name = tns_name
                     existing_obj.tns_info = tns_source_data
                     session.commit()
@@ -427,10 +416,7 @@ def process_queue(queue):
                         )
                     )
                     # if an object already exists for this tns_source, we update its TNS name
-                    if (
-                        existing_tns_obj is not None
-                        and existing_tns_obj.tns_name != tns_name
-                    ):
+                    if existing_tns_obj and existing_tns_obj.tns_name != tns_name:
                         existing_tns_obj.tns_name = tns_name
                         existing_tns_obj.tns_info = tns_source_data
                         session.commit()
@@ -504,33 +490,25 @@ def tns_watcher(queue):
     queue : list
         The queue to add the TNS sources to, shared across threads
     """
-    if (
-        TNS_URL is None
-        or bot_id is None
-        or bot_name is None
-        or api_key is None
-        or look_back_days is None
-    ):
+    if not TNS_URL or not bot_id or not bot_name or not api_key or not look_back_days:
         log("TNS watcher not configured, skipping")
         return
-    tns_headers = {
-        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
-    }
+    tns_headers = get_tns_headers(bot_id, bot_name)
 
     # when the service starts, we look back a certain number of days
     # useful if the app has been down for a while
     start_date = datetime.now() - timedelta(days=look_back_days)
     while True:
         try:
-            # convert start date to isot format
             tns_sources = get_recent_TNS(
                 api_key,
                 tns_headers,
-                start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                start_date.strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                ),  # convert start date to isot format
                 get_data=False,
             )
             for tns_source in tns_sources:
-                # add the tns_source to the queue
                 queue.append(
                     {
                         "tns_prefix": tns_source["prefix"],
@@ -542,7 +520,7 @@ def tns_watcher(queue):
 
             # if we got any sources, we update the start date to now - 1 hour
             # otherwise we keep querying TNS starting from same start date
-            if len(tns_sources) > 0:
+            if tns_sources:
                 start_date = datetime.now() - timedelta(hours=1)
         except Exception as e:
             log(f"Error getting TNS sources: {e}, retrying in 4 minutes")
@@ -634,5 +612,4 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error occured with TNS retrieval queue: {str(e)}")
-        raise e
+        log(f"Error occurred in TNS retrieval queue: {str(e)}")

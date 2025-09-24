@@ -76,8 +76,8 @@ def run_spectral_cube_model(data_dict):
 
     # decode the image data
     file_data = analysis_parameters["image_data"]
-    centroid_x = analysis_parameters["centroid_x"]
-    centroid_y = analysis_parameters["centroid_y"]
+    centroid_x = analysis_parameters["centroid_X"]
+    centroid_y = analysis_parameters["centroid_Y"]
     spaxel_buffer = analysis_parameters["spaxel_buffer"]
 
     rez = {"status": "failure", "message": "", "analysis": {}}
@@ -207,6 +207,7 @@ def run_spectral_cube_model(data_dict):
                 }
             )
     except Exception as e:
+        traceback.print_exc()
         log(f"Exception: {e}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:

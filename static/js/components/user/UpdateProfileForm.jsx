@@ -406,9 +406,7 @@ const UpdateProfileForm = () => {
       </Card>
       <Dialog
         open={welcomeDialogOpen}
-        onClose={() => {
-          setWelcomeDialogOpen(false);
-        }}
+        onClose={() => setWelcomeDialogOpen(false)}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
@@ -425,11 +423,7 @@ const UpdateProfileForm = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => {
-              setWelcomeDialogOpen(false);
-            }}
-          >
+          <Button onClick={() => setWelcomeDialogOpen(false)}>
             Got it. Let&apos;s go!
           </Button>
         </DialogActions>

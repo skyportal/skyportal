@@ -170,29 +170,29 @@ export const ActionsMenu = ({
             </Typography>
           </MenuItem>
         )}
-        {item.status === "complete" && (
-          <>
-            <MenuItem
-              divider
-              component={Link}
-              to={`/upload_spectrum/${item.obj.id}`}
-              color="primary"
-            >
-              <Typography color="primary" fontWeight="bold">
-                Upload Spectrum
-              </Typography>
-            </MenuItem>
-            <MenuItem
-              component={Link}
-              to={`/upload_photometry/${item.obj.id}`}
-              color="primary"
-            >
-              <Typography color="primary" fontWeight="bold">
-                Upload Photometry
-              </Typography>
-            </MenuItem>
-          </>
-        )}
+        {item.status === "complete" && [
+          <MenuItem
+            divider
+            component={Link}
+            to={`/upload_spectrum/${item.obj.id}`}
+            color="primary"
+            key="upload-spectrum"
+          >
+            <Typography color="primary" fontWeight="bold">
+              Upload Spectrum
+            </Typography>
+          </MenuItem>,
+          <MenuItem
+            component={Link}
+            to={`/upload_photometry/${item.obj.id}`}
+            color="primary"
+            key="upload-photometry"
+          >
+            <Typography color="primary" fontWeight="bold">
+              Upload Photometry
+            </Typography>
+          </MenuItem>,
+        ]}
       </Menu>
       {observingRunList && (
         <Dialog

@@ -15,12 +15,8 @@ const SUBMIT_RECURRING_API = "skyportal/SUBMIT_RECURRING_API";
 
 const DELETE_RECURRING_API = "skyportal/DELETE_RECURRING_API";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchRecurringAPIs = (params = {}) =>
   API.GET("/api/recurring_api", FETCH_RECURRING_APIS_LIST, params);
-
-export const fetchRecurringAPI = (id) =>
-  API.GET(`/api/recurring_api/${id}`, FETCH_RECURRING_API);
 
 export const submitRecurringAPI = (run) =>
   API.POST(`/api/recurring_api`, SUBMIT_RECURRING_API, run);
@@ -34,7 +30,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer_recurring_api = (state = { assignments: [] }, action) => {
+const reducer_recurring_api = (state = {}, action) => {
   switch (action.type) {
     case FETCH_RECURRING_API_OK: {
       const recurring_api = action.data;

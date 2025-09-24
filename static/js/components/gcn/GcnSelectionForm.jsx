@@ -292,16 +292,11 @@ const GcnEventSourcesPage = ({
         totalMatches={sources.totalMatches}
         numPerPage={sources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
       />
-      <Dialog
-        open={downloadProgressTotal > 0}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{
             display: "flex",
@@ -363,11 +358,6 @@ GcnEventSourcesPage.propTypes = {
           }),
         ),
         recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-        altdata: PropTypes.shape({
-          tns: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
         last_detected_at: PropTypes.string,
         last_detected_mag: PropTypes.number,
         peak_detected_at: PropTypes.string,
@@ -1340,11 +1330,7 @@ const GcnSelectionForm = ({ dateobs }) => {
                         downloadCallback={handleExecutedDownload}
                         serverSide={false}
                       />
-                      <Dialog
-                        open={downloadProgressTotal > 0}
-                        style={{ position: "fixed" }}
-                        maxWidth="md"
-                      >
+                      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
                         <DialogContent
                           style={{
                             display: "flex",

@@ -277,7 +277,6 @@ const AssignmentList = ({ assignments }) => {
       <Dialog
         open={editDialogOpen && assignmentToEditDelete !== null}
         onClose={closeEditDialog}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>Edit Assignment</DialogTitle>
