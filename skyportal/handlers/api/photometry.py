@@ -1364,7 +1364,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
-    @permissions(["Upload data", "Manage photometry"])
+    @auth_or_token
     def put(self):
         """
         ---
@@ -1431,6 +1431,13 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
+        user_permissions = self.current_user.permissions
+        if not (
+            "Upload data" in user_permissions or "Manage photometry" in user_permissions
+        ):
+            return self.error(
+                "Insufficient permissions to upload photometry", status=403
+            )
 
         try:
             group_ids = get_group_ids(self.get_json(), self.associated_user_object)
@@ -1672,7 +1679,7 @@ class PhotometryHandler(BaseHandler):
             output = serialize(phot, outsys, format)
             return self.success(data=output)
 
-    @permissions(["Upload data", "Manage photometry"])
+    @auth_or_token
     def patch(self, photometry_id):
         """
         ---
@@ -1703,6 +1710,14 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        user_permissions = self.current_user.permissions
+        if not (
+            "Upload data" in user_permissions or "Manage photometry" in user_permissions
+        ):
+            return self.error(
+                "Insufficient permissions to upload photometry", status=403
+            )
+
         try:
             photometry_id = int(photometry_id)
         except ValueError:
@@ -1840,7 +1855,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success()
 
-    @permissions(["Upload data", "Manage photometry"])
+    @auth_or_token
     def delete(self, photometry_id):
         """
         ---
@@ -1864,6 +1879,13 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        user_permissions = self.current_user.permissions
+        if not (
+            "Upload data" in user_permissions or "Manage photometry" in user_permissions
+        ):
+            return self.error(
+                "Insufficient permissions to upload photometry", status=403
+            )
 
         with self.Session() as session:
             photometry = session.scalars(
