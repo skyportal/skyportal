@@ -50,7 +50,7 @@ responses==0.25.8
 twilio==9.7.2
 numba>=0.59.0
 pyvo==1.5.2
-lxml==5.4.0
+lxml==6.0.2
 suds-py3==1.4.5.0
 vcrpy==7.0.0
 aiosmtpd==1.4.6
