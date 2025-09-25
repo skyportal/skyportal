@@ -328,7 +328,6 @@ const TelescopeTable = ({
       <Dialog
         open={newDialogOpen}
         onClose={() => setNewDialogOpen(false)}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>New Telescope</DialogTitle>

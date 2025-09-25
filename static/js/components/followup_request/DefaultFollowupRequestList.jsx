@@ -323,12 +323,7 @@ const DefaultFollowupRequestList = ({
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      <Dialog
-        open={newDialogOpen}
-        onClose={closeNewDialog}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
+      <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Default Follow-up Request</DialogTitle>
         <DialogContent dividers>
           <NewDefaultFollowupRequest onClose={closeNewDialog} />

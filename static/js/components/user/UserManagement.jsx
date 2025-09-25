@@ -906,10 +906,7 @@ const UserManagement = () => {
       )}
       <Dialog
         open={addUserGroupsDialogOpen}
-        onClose={() => {
-          setAddUserGroupsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddUserGroupsDialogOpen(false)}
       >
         <DialogTitle>{`Add user ${clickedUser?.username} to selected groups:`}</DialogTitle>
         <DialogContent>
@@ -962,10 +959,7 @@ const UserManagement = () => {
       </Dialog>
       <Dialog
         open={addUserStreamsDialogOpen}
-        onClose={() => {
-          setAddUserStreamsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddUserStreamsDialogOpen(false)}
       >
         <DialogTitle>
           {`Grant user ${clickedUser?.username} access to selected streams:`}
@@ -1022,10 +1016,7 @@ const UserManagement = () => {
       </Dialog>
       <Dialog
         open={addUserACLsDialogOpen}
-        onClose={() => {
-          setAddUserACLsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddUserACLsDialogOpen(false)}
       >
         <DialogTitle>
           {`Grant user ${clickedUser?.username} selected ACLs:`}
@@ -1079,10 +1070,7 @@ const UserManagement = () => {
       </Dialog>
       <Dialog
         open={addUserAffiliationsDialogOpen}
-        onClose={() => {
-          setAddUserAffiliationsDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddUserAffiliationsDialogOpen(false)}
       >
         <DialogTitle>
           {`Update user ${clickedUser?.username} affiliations:`}
@@ -1155,10 +1143,7 @@ const UserManagement = () => {
       </Dialog>
       <Dialog
         open={addUserRolesDialogOpen}
-        onClose={() => {
-          setAddUserRolesDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setAddUserRolesDialogOpen(false)}
       >
         <DialogTitle>
           {`Grant user ${clickedUser?.username} selected roles:`}
@@ -1212,10 +1197,7 @@ const UserManagement = () => {
       </Dialog>
       <Dialog
         open={editUserExpirationDateDialogOpen}
-        onClose={() => {
-          setEditUserExpirationDateDialogOpen(false);
-        }}
-        style={{ position: "fixed" }}
+        onClose={() => setEditUserExpirationDateDialogOpen(false)}
       >
         <DialogTitle>
           {`Edit user ${clickedUser?.username} expiration date:`}
