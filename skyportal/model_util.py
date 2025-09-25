@@ -42,7 +42,6 @@ role_acls = {
         "Comment",
         "Manage shifts",
         "Manage sources",
-        "Manage photometry",
         "Manage Analysis Services",
         "Manage Recurring APIs",
         "Manage GCNs",
