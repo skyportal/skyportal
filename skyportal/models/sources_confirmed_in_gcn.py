@@ -1,5 +1,3 @@
-# this is the model of a table that has: a source id, a localization id, a flag to indicate if the source is confirmed or rejected
-
 __all__ = ["SourcesConfirmedInGCN"]
 
 import sqlalchemy as sa

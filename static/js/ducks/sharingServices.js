@@ -134,15 +134,19 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 const reducer = (
-  state = { sharingServicesList: [], submissions: {} },
+  state = { sharingServicesList: [], submissions: {}, loading: false },
   action,
 ) => {
   switch (action.type) {
+    case FETCH_SHARING_SERVICES: {
+      return { ...state, loading: true };
+    }
     case FETCH_SHARING_SERVICES_OK: {
       const sharingServicesList = action.data;
       return {
         ...state,
         sharingServicesList,
+        loading: false,
       };
     }
     case FETCH_SHARING_SERVICE_SUBMISSIONS_OK: {

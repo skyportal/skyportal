@@ -222,7 +222,7 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }) => {
           <Dialog
             open={openGCNNotes}
             onClose={handleClose}
-            style={{ position: "fixed", height: "100vh" }}
+            style={{ height: "100vh" }}
             fullScreen
           >
             <DialogTitle>

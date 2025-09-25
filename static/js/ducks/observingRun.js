@@ -51,7 +51,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { assignments: [] }, action) => {
+const reducer = (state = {}, action) => {
   switch (action.type) {
     case FETCH_OBSERVING_RUN_OK: {
       const observingrun = action.data;
