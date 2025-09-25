@@ -15,7 +15,7 @@
     "@mui/material": "5.14.11",
     "@mui/styled-engine": "6.4.2",
     "@mui/styles": "5.15.21",
-    "@mui/x-data-grid": "8.9.2",
+    "@mui/x-data-grid": "8.11.3",
     "@mui/x-date-pickers": "7.11.1",
     "@rjsf/core": "5.24.12",
     "@rjsf/material-ui": "5.24.13",
