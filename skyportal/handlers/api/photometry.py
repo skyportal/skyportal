@@ -48,6 +48,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
@@ -1463,10 +1464,7 @@ class PhotometryHandler(BaseHandler):
 
         refresh = self.get_query_argument("refresh", default=False)
 
-        if refresh is not None and str(refresh).lower() in ["true", "t", "1"]:
-            refresh = True
-        else:
-            refresh = False
+        refresh = str_to_bool(refresh, default=False)
 
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
@@ -1482,10 +1480,7 @@ class PhotometryHandler(BaseHandler):
         ignore_flux = self.get_query_argument("duplicate_ignore_flux", False)
         overwrite_flux = self.get_query_argument("overwrite_flux", False)
 
-        if ignore_flux is not None and str(ignore_flux).lower() in ["true", "t", "1"]:
-            ignore_flux = True
-        else:
-            ignore_flux = False
+        ignore_flux = str_to_bool(ignore_flux, default=False)
 
         # if ignore_flux is True, verify that the current_user is a super admin
         if ignore_flux and not self.associated_user_object.is_admin:
@@ -1493,14 +1488,7 @@ class PhotometryHandler(BaseHandler):
                 "Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only"
             )
 
-        if overwrite_flux is not None and str(overwrite_flux).lower() in [
-            "true",
-            "t",
-            "1",
-        ]:
-            overwrite_flux = True
-        else:
-            overwrite_flux = False
+        overwrite_flux = str_to_bool(overwrite_flux, default=False)
 
         obj_id = df["obj_id"].unique()[0]
         username = self.associated_user_object.username
@@ -1939,29 +1927,14 @@ class ObjPhotometryHandler(BaseHandler):
         include_extinction = self.get_query_argument("includeExtinction", False)
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
-        if str(include_owner_info).lower() in ["true", "t", "1"]:
-            include_owner_info = True
-        else:
-            include_owner_info = False
+        include_owner_info = str_to_bool(include_owner_info, default=False)
 
-        if str(include_stream_info).lower() in ["true", "t", "1"]:
-            include_stream_info = True
-        else:
-            include_stream_info = False
+        include_stream_info = str_to_bool(include_stream_info, default=False)
 
-        if str(include_validation_info).lower() in ["true", "t", "1"]:
-            include_validation_info = True
-        else:
-            include_validation_info = False
+        include_validation_info = str_to_bool(include_validation_info, default=False)
 
-        if str(include_annotation_info).lower() in ["true", "t", "1"]:
-            include_annotation_info = True
-        else:
-            include_annotation_info = False
-        if str(include_extinction).lower() in ["true", "t", "1"]:
-            include_extinction = True
-        else:
-            include_extinction = False
+        include_annotation_info = str_to_bool(include_annotation_info, default=False)
+        include_extinction = str_to_bool(include_extinction, default=False)
 
         with self.Session() as session:
             obj = session.scalars(
