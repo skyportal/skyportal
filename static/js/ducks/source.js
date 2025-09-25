@@ -116,6 +116,16 @@ const FETCH_LOADED_SOURCE_POSITION_OK =
   "skyportal/FETCH_LOADED_SOURCE_POSITION_OK";
 const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 
+const FETCH_SOURCE_FINDER_CHART = "skyportal/FETCH_SOURCE_FINDER_CHART";
+
+export function fetchSourceFinderChart(id, formData) {
+  return API.GET(
+    `/api/sources/${id}/finder`,
+    FETCH_SOURCE_FINDER_CHART,
+    formData,
+  );
+}
+
 export function fetchPosition(id) {
   return API.GET(`/api/sources/${id}/position`, FETCH_LOADED_SOURCE_POSITION);
 }
