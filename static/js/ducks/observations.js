@@ -4,6 +4,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import * as API from "../API";
 import store from "../store";
+import { utcString } from "../utils/format";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -15,34 +16,21 @@ const FETCH_GCNEVENT_OBSERVATIONS = "skyportal/FETCH_GCNEVENT_OBSERVATIONS";
 const FETCH_GCNEVENT_OBSERVATIONS_OK =
   "skyportal/FETCH_GCNEVENT_OBSERVATIONS_OK";
 
-const SUBMIT_OBSERVATIONS = "skyportal/SUBMIT_OBSERVATIONS";
-
 const UPLOAD_OBSERVATIONS = "skyportal/UPLOAD_OBSERVATIONS";
 
 const REFRESH_OBSERVATIONS = "skyportal/REFRESH_OBSERVATIONS";
 
 const SUBMIT_OBSERVATIONS_TREASUREMAP =
   "skyportal/SUBMIT_OBSERVATIONS_TREASUREMAP";
-const DELETE_OBSERVATIONS_TREASUREMAP =
-  "skyportal/DELETE_OBSERVATIONS_TREASUREMAP";
 const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
-const REQUEST_API_QUEUED_OBSERVATIONS =
-  "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
-
-export const submitObservations = (params) =>
-  API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
 
 export function fetchObservations(filterParams = {}) {
   if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams.startDate = dayjs()
-      .utc()
-      .subtract(3650, "day")
-      .utc()
-      .format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams.startDate = utcString(dayjs().subtract(3650, "day"));
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams.endDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams.endDate = utcString(dayjs());
   }
 
   if (!Object.keys(filterParams).includes("numPerPage")) {
@@ -60,14 +48,6 @@ export function requestAPIObservations(data) {
   return API.POST(
     `/api/observation/external_api`,
     REQUEST_API_OBSERVATIONS,
-    data,
-  );
-}
-
-export function requestAPIQueuedObservations(id, data = {}) {
-  return API.GET(
-    `/api/observation/external_api/${id}`,
-    REQUEST_API_QUEUED_OBSERVATIONS,
     data,
   );
 }
@@ -104,13 +84,6 @@ export const submitObservationsTreasureMap = (id, data) =>
   API.POST(
     `/api/observation/treasuremap/${id}`,
     SUBMIT_OBSERVATIONS_TREASUREMAP,
-    data,
-  );
-
-export const deleteObservationsTreasureMap = (id, data) =>
-  API.DELETE(
-    `/api/observation/treasuremap/${id}`,
-    DELETE_OBSERVATIONS_TREASUREMAP,
     data,
   );
 

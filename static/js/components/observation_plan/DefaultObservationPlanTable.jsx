@@ -23,6 +23,7 @@ import * as defaultObservationPlansActions from "../../ducks/default_observation
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
+import Box from "@mui/material/Box";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -141,36 +142,24 @@ const DefaultObservationPlanTable = ({
   };
 
   const renderGcnEventFilters = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    const plan = default_observation_plans[dataIndex];
+    if (!plan?.filters) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_observation_plan ? (
-          <JSONTree data={default_observation_plan?.filters} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={plan?.filters} hideRoot />
+      </Box>
     );
   };
 
   const renderPayload = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    const plan = default_observation_plans[dataIndex];
+    if (!plan?.payload) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_observation_plan ? (
-          <JSONTree data={default_observation_plan.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={plan.payload} hideRoot />
+      </Box>
     );
   };
 

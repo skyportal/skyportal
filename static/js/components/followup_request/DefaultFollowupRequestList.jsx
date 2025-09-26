@@ -25,6 +25,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
+import Box from "@mui/material/Box";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -165,38 +166,24 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderPayload = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    const request = default_followup_requests[dataIndex];
+    if (!request?.payload) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={request.payload} hideRoot />
+      </Box>
     );
   };
 
   const renderSourceFilter = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    const request = default_followup_requests[dataIndex];
+    if (!request?.source_filter) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.source_filter} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={request.source_filter} hideRoot />
+      </Box>
     );
   };
 
@@ -208,8 +195,6 @@ const DefaultFollowupRequestList = ({
     return (
       <div className={classes.defaultFollowupRequestManage}>
         <Button
-          key={`delete_${default_followup_request.id}`}
-          id={`delete_button_${default_followup_request.id}`}
           onClick={() => openDeleteDialog(default_followup_request.id)}
           disabled={!deletePermission}
         >

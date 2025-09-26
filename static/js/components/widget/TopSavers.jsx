@@ -145,7 +145,7 @@ const TopSaversSearch = ({ savers, setOptions }) => {
 
 TopSaversSearch.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,
@@ -225,17 +225,14 @@ const TopSaversList = ({ savers, styles }) => {
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver, index) => (
-          <>
-            <ListItem
-              key={saver.author.username}
-              className={styles.saverListItem}
-            >
+          <div key={saver.author.username}>
+            <ListItem className={styles.saverListItem}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
             </ListItem>
             {index < options.length - 1 && <Divider />}
-          </>
+          </div>
         ))}
       </List>
     </div>
@@ -244,7 +241,7 @@ const TopSaversList = ({ savers, styles }) => {
 
 TopSaversList.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,

@@ -50,6 +50,20 @@ const Theme = ({ disableTransitions, children }) => {
         ? { default: "#303030", paper: "#808080" }
         : { default: "#f0f2f5", paper: "#f0f2f5" },
     },
+    typography: {
+      h1: {
+        fontSize: "2.2rem",
+        fontWeight: "400",
+      },
+      h2: {
+        fontSize: "1.5rem",
+        fontWeight: "400",
+      },
+      h3: {
+        fontSize: "1.2rem",
+        fontWeight: "500",
+      },
+    },
     plotFontSizes: {
       titleFontSize: 15,
       labelFontSize: 15,

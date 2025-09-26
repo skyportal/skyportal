@@ -1,13 +1,12 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import makeStyles from "@mui/styles/makeStyles";
+import { Link } from "react-router-dom";
 
 const useStyles = makeStyles(() => ({
   listContainer: {
@@ -25,7 +24,7 @@ const GroupList = ({ title, groups, classes }) => {
   const styles = useStyles();
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+    <Paper>
       <div className={`${classes.widgetPaperDiv} ${styles.flex}`}>
         <div>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
@@ -40,15 +39,15 @@ const GroupList = ({ title, groups, classes }) => {
             groups
               .filter((group) => !group.single_user_group)
               .map((group) => (
-                <Link to={`/group/${group.id}`} key={group.id}>
-                  <ListItem
-                    key={group.id}
-                    button
+                <ListItem key={group.id}>
+                  <Link
+                    to={`/group/${group.id}`}
                     data-testid={`${title}-${group.name}`}
+                    color="textSecondary"
                   >
-                    <ListItemText primary={group.name} />
-                  </ListItem>
-                </Link>
+                    {group.name}
+                  </Link>
+                </ListItem>
               ))}
         </List>
       </div>

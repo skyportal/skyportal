@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
-import CircularProgress from "@mui/material/CircularProgress";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
@@ -15,47 +13,8 @@ import AllocationTable from "./AllocationTable";
 import DefaultObservationPlanTable from "../observation_plan/DefaultObservationPlanTable";
 import DefaultSurveyEfficiencyTable from "../survey_efficiency/DefaultSurveyEfficiencyTable";
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line",
-  },
-  paperContent: {
-    padding: "1rem",
-  },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
-  },
-}));
-
-export function allocationTitle(allocation, instrumentList, telescopeList) {
-  const { instrument_id } = allocation;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  if (!(instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${instrument?.name}/${telescope?.nickname}`;
-
-  return result;
-}
-
 const AllocationList = ({ deletePermission }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
 
   const allocationsState = useSelector((state) => state.allocations);
   const instrumentsState = useSelector((state) => state.instruments);
@@ -97,28 +56,24 @@ const AllocationList = ({ deletePermission }) => {
     dispatch(allocationsActions.fetchAllocations(data));
   };
 
-  if (!allocationsState.allocationList) {
-    return <Spinner />;
-  }
+  if (!allocationsState.allocationList) return <Spinner />;
 
   return (
-    <div className={classes.paper}>
-      {allocationsState.allocationList && (
-        <AllocationTable
-          instruments={instrumentsState.instrumentList}
-          telescopes={telescopesState.telescopeList}
-          groups={groups}
-          allocations={allocationsState.allocationList}
-          paginateCallback={handleAllocationTablePagination}
-          totalMatches={allocationsState.totalMatches}
-          pageNumber={allocationsState.pageNumber}
-          numPerPage={allocationsState.numPerPage}
-          sortingCallback={handleAllocationTableSorting}
-          deletePermission={deletePermission}
-          fixedHeader={true}
-        />
-      )}
-    </div>
+    allocationsState.allocationList && (
+      <AllocationTable
+        instruments={instrumentsState.instrumentList}
+        telescopes={telescopesState.telescopeList}
+        groups={groups}
+        allocations={allocationsState.allocationList}
+        paginateCallback={handleAllocationTablePagination}
+        totalMatches={allocationsState.totalMatches}
+        pageNumber={allocationsState.pageNumber}
+        numPerPage={allocationsState.numPerPage}
+        sortingCallback={handleAllocationTableSorting}
+        deletePermission={deletePermission}
+        fixedHeader={true}
+      />
+    )
   );
 };
 

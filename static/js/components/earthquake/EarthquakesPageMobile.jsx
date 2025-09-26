@@ -37,9 +37,7 @@ export function earthquakeTitle(earthquake) {
       </div>
     );
   }
-
-  const result = `${earthquake?.nickname}`;
-  return result;
+  return earthquake?.nickname;
 }
 
 export function earthquakeInfo(earthquake) {
@@ -56,11 +54,7 @@ export function earthquakeInfo(earthquake) {
     ...(earthquake?.lon ? [`Longitude: ${earthquake.lon}`] : []),
     ...(earthquake?.elevation ? [`Elevation: ${earthquake.elevation}`] : []),
   ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
+  return `( ${array.join(" / ")} )`;
 }
 
 const EarthquakeList = ({ earthquakes }) => {
@@ -71,7 +65,7 @@ const EarthquakeList = ({ earthquakes }) => {
     <div className={classes.root}>
       <List component="nav">
         {earthquakes?.map((earthquake) => (
-          <ListItem button key={earthquake.id}>
+          <ListItem key={earthquake.id}>
             <ListItemText
               primary={earthquakeTitle(earthquake)}
               secondary={earthquakeInfo(earthquake)}
@@ -85,10 +79,11 @@ const EarthquakeList = ({ earthquakes }) => {
 };
 
 const EarthquakePage = () => {
-  const { earthquakeList } = useSelector((state) => state.earthquakes);
+  const earthquakes = useSelector((state) => state.earthquakes);
+  const earthquakeList = earthquakes?.earthquakeList || [];
   const currentUser = useSelector((state) => state.profile);
-
   const classes = useStyles();
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
@@ -120,7 +115,7 @@ EarthquakeList.propTypes = {
       lat: PropTypes.number.isRequired,
       lon: PropTypes.number.isRequired,
     }),
-  ).isRequired,
+  ),
 };
 
 export default EarthquakePage;
