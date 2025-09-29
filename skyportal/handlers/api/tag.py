@@ -29,7 +29,7 @@ class ObjTagOptionHandler(BaseHandler):
         summary: Retrieve all tag options
         description: Retrieve all available tag options accessible to the user
         tags:
-          - tag options
+          - object tags
         responses:
           200:
             content:
@@ -55,7 +55,7 @@ class ObjTagOptionHandler(BaseHandler):
         summary: Create a new tag option
         description: Create a new tag option that can be applied to objects
         tags:
-          - tag options
+          - object tags
         requestBody:
           content:
             application/json:
@@ -135,7 +135,7 @@ class ObjTagOptionHandler(BaseHandler):
         summary: Update a tag option
         description: Update an existing tag option's name and/or color
         tags:
-          - tag options
+          - object tags
         parameters:
           - in: path
             name: tag_id
@@ -219,7 +219,7 @@ class ObjTagOptionHandler(BaseHandler):
         summary: Delete a tag option
         description: Delete an existing tag option
         tags:
-          - tag options
+          - object tags
         parameters:
           - in: path
             name: tag_id
