@@ -87,7 +87,7 @@ PyAstronomy==0.23.0
 shapely==2.0.7
 openai==1.109.1
 tiktoken==0.9.0
-simplejson==3.20.1
+simplejson==3.20.2
 langchain==0.3.27
 langchain-openai==0.3.28
 pinecone==7.3.0
