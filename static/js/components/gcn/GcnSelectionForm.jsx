@@ -676,6 +676,8 @@ const GcnSelectionForm = ({ dateobs }) => {
     }
   }, [dispatch, selectedLocalizationId]);
 
+  if (gcnEvent?.dateobs !== dateobs) return <Spinner />;
+
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
   };
@@ -751,8 +753,10 @@ const GcnSelectionForm = ({ dateobs }) => {
     formData.includeGeoJSON = true;
 
     if (queryList.includes("sources")) await fetchSources();
-    if (queryList.includes("observations") && !(await fetchObservations()))
-      return;
+    if (queryList.includes("observations")) {
+      const isObservationsFetched = await fetchObservations();
+      if (!isObservationsFetched) return;
+    }
     if (queryList.includes("galaxies")) await fetchGalaxies();
 
     setFormDataState(formData);
@@ -874,8 +878,6 @@ const GcnSelectionForm = ({ dateobs }) => {
         : { queryList: 6, group_ids: 6 },
     ],
   };
-
-  if (gcnEvent?.dateobs !== dateobs) return <Spinner />;
 
   return (
     <Grid container spacing={4}>
