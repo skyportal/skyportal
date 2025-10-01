@@ -906,7 +906,11 @@ const GcnSelectionForm = ({ dateobs }) => {
         type: "array",
         items: {
           type: "number",
-          enum: (groups || []).map((group) => group.id),
+          anyOf: (groups || []).map((group) => ({
+            type: "number",
+            enum: [group.id],
+            title: group.name,
+          })),
         },
         uniqueItems: true,
         default: [],
@@ -939,9 +943,6 @@ const GcnSelectionForm = ({ dateobs }) => {
   }
 
   const uiSchema = {
-    group_ids: {
-      "ui:enumNames": (groups || []).map((group) => group.name),
-    },
     "ui:grid": [
       {
         startDate: 6,
