@@ -91,7 +91,6 @@ const NewGroupForm = () => {
     },
     container: {
       padding: "1rem",
-      margin: "1rem 0",
     },
   }));
   const classes = useStyles();

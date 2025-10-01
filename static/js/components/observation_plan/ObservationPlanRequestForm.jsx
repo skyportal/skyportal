@@ -228,7 +228,7 @@ ObservationPlanGlobe.propTypes = {
     id: PropTypes.number,
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
-  }).isRequired,
+  }),
   skymapInstrument: PropTypes.shape({
     id: PropTypes.number,
     name: PropTypes.string,

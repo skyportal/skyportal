@@ -1,23 +1,23 @@
-import React from "react"; // eslint-disable-line no-unused-vars
+import React from "react";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import Typography from "@mui/material/Typography"; // eslint-disable-line no-unused-vars
+import Typography from "@mui/material/Typography";
 
 // import * as archiveActions from "../ducks/archive";
 // IMPORTANT: the file imported above needs to be added to the same codebase where the UI plugin will be overwritten.
 //            It should add the `cross_match` key to the redux store, along with methods to populate that field.
 
 // list of cross-match catalogs to hide
-const hiddenCrossMatches = ["PS1_PSC"]; // eslint-disable-line no-unused-vars
+const hiddenCrossMatches = ["PS1_PSC"];
 
 // map the cross-match catalog names to the colors to use for plotting them
-const crossMatchesColors = {}; // eslint-disable-line no-unused-vars
+const crossMatchesColors = {};
 
 // map the fields names to display for each cross-match source to the actual field names
-const crossMatchesLabels = {}; // eslint-disable-line no-unused-vars
+const crossMatchesLabels = {};
 
 // max radius in arcseconds to use for cross-matching
-const radius = 10.0; // eslint-disable-line no-unused-vars
+const radius = 10.0;
 
 const useStyles = makeStyles(() => ({
   pluginContainer: {
@@ -27,14 +27,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-// eslint-disable-next-line no-unused-vars
 function getCrossMatches(ra, dec, dispatch) {
   // implement logic to fetch cross matches from the archive
   // and add them to the redux store's "cross_matches" key
   return null;
 }
 
-// eslint-disable-next-line no-unused-vars
 function getCrossMatchesTraces(crossMatches, refRA, refDec) {
   const traces = [];
   // implement logic to display cross matches on the centroid plot
@@ -42,7 +40,7 @@ function getCrossMatchesTraces(crossMatches, refRA, refDec) {
 }
 
 const CentroidPlotPlugins = ({ crossMatches, refRA, refDec }) => {
-  const classes = useStyles(); // eslint-disable-line no-unused-vars
+  const classes = useStyles();
   if (
     !crossMatches ||
     Object.keys(crossMatches).length === 0 ||
