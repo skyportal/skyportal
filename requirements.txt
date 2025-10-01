@@ -92,6 +92,6 @@ langchain==0.3.27
 langchain-openai==0.3.28
 pinecone==7.3.0
 pydantic==2.11.4
-sentry-sdk==2.34.1
+sentry-sdk==2.39.0
 typing-inspect==0.9.0
 brotli==1.1.0
