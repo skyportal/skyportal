@@ -38,6 +38,7 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "ra_unc",
   "dec_unc",
   "created_at",
+  "flux_corr",
 ];
 
 const useStyles = makeStyles(() => ({

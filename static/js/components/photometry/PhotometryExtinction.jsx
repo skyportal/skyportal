@@ -2,6 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const PhotometryExtinction = ({ showExtinction, setShowExtinction }) => {
   return (
@@ -15,7 +17,17 @@ const PhotometryExtinction = ({ showExtinction, setShowExtinction }) => {
             data-testid="photometry_extinction_toggle"
           />
         }
-        label="Extinction"
+        label={
+          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            Compute extinction
+            <Tooltip
+              title="The extinction law used is the G23 law. By default the Rv coefficient is set to 3.1"
+              placement="top"
+            >
+              <HelpOutlineIcon fontSize="small" />
+            </Tooltip>
+          </span>
+        }
       />
     </div>
   );
