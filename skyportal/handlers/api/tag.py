@@ -1,3 +1,10 @@
+"""API handlers for managing tags and tag options.
+
+This module provides REST API endpoints for:
+- Managing tag options (create, read, update, delete tag options)
+- Managing object-tag associations (create, read, delete associations between objects and tags)
+"""
+
 import re
 
 from sqlalchemy import func
@@ -9,14 +16,80 @@ from ..base import BaseHandler
 
 
 class ObjTagOptionHandler(BaseHandler):
+    """Handler for managing tag options.
+
+    Tag options define the available tags that can be applied to objects.
+    They include a name and optional color for display purposes.
+    """
+
     @auth_or_token
     def get(self):
+        """
+        ---
+        summary: Retrieve all tag options
+        description: Retrieve all available tag options accessible to the user
+        tags:
+          - object tags
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/ObjTagOption'
+        """
         with self.Session() as session:
             tags = session.scalars(ObjTagOption.select(session.user_or_token)).all()
             return self.success(data=tags)
 
     @permissions(["Manage sources"])
     def post(self):
+        """
+        ---
+        summary: Create a new tag option
+        description: Create a new tag option that can be applied to objects
+        tags:
+          - object tags
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: Tag name (letters and numbers only)
+                  color:
+                    type: string
+                    description: Hex color code (e.g., #3a87ad)
+                required:
+                  - name
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ObjTagOption'
+          400:
+            content:
+              application/json:
+                schema: Error
+          409:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         name = data.get("name")
         color = data.get("color")
@@ -57,6 +130,46 @@ class ObjTagOptionHandler(BaseHandler):
 
     @auth_or_token
     def patch(self, tag_id):
+        """
+        ---
+        summary: Update a tag option
+        description: Update an existing tag option's name and/or color
+        tags:
+          - object tags
+        parameters:
+          - in: path
+            name: tag_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: New tag name
+                  color:
+                    type: string
+                    description: New hex color code (e.g., #3a87ad)
+                required:
+                  - name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+          404:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         new_name = data.get("name")
         new_color = data.get("color")
@@ -101,6 +214,28 @@ class ObjTagOptionHandler(BaseHandler):
 
     @permissions(["Manage sources"])
     def delete(self, tag_id):
+        """
+        ---
+        summary: Delete a tag option
+        description: Delete an existing tag option
+        tags:
+          - object tags
+        parameters:
+          - in: path
+            name: tag_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          404:
+            content:
+              application/json:
+                schema: Error
+        """
         try:
             tag_id = int(tag_id)
         except Exception:
@@ -123,9 +258,47 @@ class ObjTagOptionHandler(BaseHandler):
 
 
 class ObjTagHandler(BaseHandler):
+    """Handler for managing object-tag associations.
+
+    Manages the relationships between objects and tag options,
+    allowing objects to be tagged with specific labels.
+    """
+
     @auth_or_token
     def get(self):
-        """Get all tag-obj associations or filter by obj_id/objtagoption_id"""
+        """
+        ---
+        summary: Retrieve object-tag associations
+        description: Retrieve all tag-object associations or filter by object ID or tag option ID
+        tags:
+          - object tags
+        parameters:
+          - in: query
+            name: obj_id
+            required: false
+            schema:
+              type: string
+            description: Filter associations by object ID
+          - in: query
+            name: objtagoption_id
+            required: false
+            schema:
+              type: integer
+            description: Filter associations by tag option ID
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/ObjTag'
+        """
         obj_id = self.get_query_argument("obj_id", None)
         objtagoption_id = self.get_query_argument("objtagoption_id", None)
 
@@ -142,7 +315,47 @@ class ObjTagHandler(BaseHandler):
 
     @auth_or_token
     def post(self):
-        """Create a new tag-obj association"""
+        """
+        ---
+        summary: Create object-tag association
+        description: Create a new association between an object and a tag option
+        tags:
+          - object tags
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objtagoption_id:
+                    type: integer
+                    description: ID of the tag option to associate
+                  obj_id:
+                    type: string
+                    description: ID of the object to tag
+                required:
+                  - objtagoption_id
+                  - obj_id
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ObjTag'
+          400:
+            content:
+              application/json:
+                schema: Error
+          404:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         objtagoption_id = data.get("objtagoption_id")
         obj_id = data.get("obj_id")
@@ -188,7 +401,28 @@ class ObjTagHandler(BaseHandler):
 
     @auth_or_token
     def delete(self, association_id):
-        """Delete a tag-obj association"""
+        """
+        ---
+        summary: Delete object-tag association
+        description: Delete an existing association between an object and a tag option
+        tags:
+          - object tags
+        parameters:
+          - in: path
+            name: association_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          404:
+            content:
+              application/json:
+                schema: Error
+        """
 
         try:
             association_id = int(association_id)
