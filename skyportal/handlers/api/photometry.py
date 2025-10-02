@@ -1301,7 +1301,6 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-
         try:
             group_ids = get_group_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
@@ -1365,7 +1364,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self):
         """
         ---
@@ -1432,14 +1431,6 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-        user_permissions = self.current_user.permissions
-        if not (
-            "Upload data" in user_permissions or "Manage photometry" in user_permissions
-        ):
-            return self.error(
-                "Insufficient permissions to upload photometry", status=401
-            )
-
         try:
             group_ids = get_group_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
@@ -1667,7 +1658,7 @@ class PhotometryHandler(BaseHandler):
             output = serialize(phot, outsys, format)
             return self.success(data=output)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def patch(self, photometry_id):
         """
         ---
@@ -1698,14 +1689,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        user_permissions = self.current_user.permissions
-        if not (
-            "Upload data" in user_permissions or "Manage photometry" in user_permissions
-        ):
-            return self.error(
-                "Insufficient permissions to upload photometry", status=401
-            )
-
         try:
             photometry_id = int(photometry_id)
         except ValueError:
@@ -1843,7 +1826,7 @@ class PhotometryHandler(BaseHandler):
 
             return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, photometry_id):
         """
         ---
@@ -1867,14 +1850,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        user_permissions = self.current_user.permissions
-        if not (
-            "Upload data" in user_permissions or "Manage photometry" in user_permissions
-        ):
-            return self.error(
-                "Insufficient permissions to upload photometry", status=401
-            )
-
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(

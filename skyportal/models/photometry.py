@@ -14,6 +14,7 @@ from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     accessible_by_owner,
+    public,
 )
 
 from ..enum_types import allowed_bandpasses
@@ -35,7 +36,9 @@ def manage_photometry_access_logic(cls, user_or_token):
     Users with 'Manage photometry' permission can modify photometry
     for objects accessible to their groups.
     """
-    if user_or_token.is_admin or "Manage photometry" in user_or_token.permissions:
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+    elif "Manage photometry" in user_or_token.permissions:
         access_control = (
             accessible_by_groups_members
             | accessible_by_streams_members
