@@ -9,7 +9,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -266,22 +266,14 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         type: "array",
         items: {
           type: "string",
-          anyOf: groups?.map((group) => ({
-            enum: [group.id.toString()],
-            type: "string",
-            title: group.name,
-          })),
+          enum: groups?.map((group) => group.id.toString()),
         },
         uniqueItems: true,
       },
       taxonomy: {
         type: "string",
         title: "Taxonomy",
-        anyOf: latestTaxonomyList?.map((taxonomy) => ({
-          enum: [taxonomy.id.toString()],
-          type: "string",
-          title: `${taxonomy.name} (${taxonomy.version})`,
-        })),
+        enum: latestTaxonomyList?.map((taxonomy) => taxonomy.id.toString()),
       },
     },
     dependencies: {
@@ -322,7 +314,15 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     });
   });
   const uiSchema = {
-    groupIDs: { "ui:widget": "customGroupsWidget" },
+    groupIDs: {
+      "ui:widget": "customGroupsWidget",
+      "ui:enumNames": groups?.map((group) => group.name),
+    },
+    taxonomy: {
+      "ui:enumNames": latestTaxonomyList?.map(
+        (taxonomy) => `${taxonomy.name} (${taxonomy.version})`,
+      ),
+    },
     classification: { "ui:widget": "customClassificationWidget" },
     probability: { "ui:widget": "customProbabilityWidget" },
   };
