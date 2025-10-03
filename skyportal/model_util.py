@@ -11,6 +11,7 @@ all_acl_ids = [
     "Annotate",
     "Manage users",
     "Manage sources",
+    "Manage photometry",
     "Manage groups",
     "Manage sharing services",
     "Manage shifts",
