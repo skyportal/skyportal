@@ -110,7 +110,9 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
             schema={generateReportSchema()}
             uiSchema={{
               group_ids: {
-                "ui:enumNames": (groups || []).map((group) => group.name),
+                items: {
+                  "ui:enumNames": (groups || []).map((group) => group.name),
+                },
               },
             }}
             liveValidate

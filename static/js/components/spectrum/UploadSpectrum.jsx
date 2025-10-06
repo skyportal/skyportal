@@ -520,15 +520,12 @@ const UploadSpectrumForm = ({ route }) => {
       "ui:enumNames": groups.map((group) => group.name),
     },
     instrument_id: {
-      "ui:enumNames": instruments?.length
-        ? instruments.map(
-            (instrument) =>
-              `${
-                telescopes.find((t) => t.id === instrument.telescope_id)
-                  ?.nickname
-              } / ${instrument.name}`,
-          )
-        : [],
+      "ui:enumNames": instruments.map(
+        (instrument) =>
+          `${
+            telescopes.find((t) => t.id === instrument.telescope_id)?.nickname
+          } / ${instrument.name}`,
+      ),
       "ui:disabled": !instruments?.length,
     },
     observed_by: {
