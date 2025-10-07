@@ -43,6 +43,7 @@ import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
 
 import * as localizationActions from "../../ducks/localization";
+import Spinner from "../Spinner";
 
 const GcnReport = React.lazy(() => import("./GcnReport"));
 const GcnSummary = React.lazy(() => import("./GcnSummary"));
@@ -51,31 +52,6 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
-  select: {
-    width: "25%",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
-  localizationSelect: {
-    width: "100%",
-  },
-  localizationSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  instrumentSelect: {
-    width: "100%",
-  },
-  instrumentSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  form: {
-    marginBottom: "1rem",
-  },
   formGroup: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))",
@@ -99,24 +75,10 @@ const useStyles = makeStyles(() => ({
   formContainer: {
     maxWidth: "95vw",
     width: "100%",
+    marginTop: "0.3rem",
   },
   formContainerItem: {
     maxWidth: "87vw",
-    width: "100%",
-  },
-  dateGroup: {
-    display: "grid",
-    gridGap: "1rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(40%, 1fr))",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    width: "100%",
-  },
-  localizationPlot: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
     width: "100%",
   },
   localizationPlotSmall: {
@@ -126,9 +88,6 @@ const useStyles = makeStyles(() => ({
     alignItems: "center",
     maxWidth: "90vw",
     width: "100%",
-  },
-  marginBottom: {
-    marginBottom: "1rem",
   },
   buttons: {
     display: "grid",
@@ -249,7 +208,7 @@ const GcnEventSourcesPage = ({
       dispatch(showNotification("Sources downloaded successfully"));
     }
 
-    // for all of the sources, fetch the sourcesconfirmedingcn status
+    // for all the sources, fetch the "sourcesConfirmedInGcn" status
     const response = await dispatch(
       sourcesingcnActions.fetchSourcesInGcn(dateobs, {
         localizationName,
@@ -446,15 +405,7 @@ const GcnSelectionForm = ({ dateobs }) => {
     "observations",
   ];
   const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => {
-      if (x === "localization") {
-        return [x, true];
-      }
-      return [x, false];
-    }),
-  );
-  const displayOptionsAvailable = Object.fromEntries(
-    displayOptions.map((x) => [x, true]),
+    displayOptions.map((x) => [x, x === "localization"]),
   );
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
@@ -510,15 +461,7 @@ const GcnSelectionForm = ({ dateobs }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { instrumentList } = useSelector((state) => state.instruments);
   const sortedInstrumentList = [...instrumentList];
-  sortedInstrumentList.sort((i1, i2) => {
-    if (i1.name > i2.name) {
-      return 1;
-    }
-    if (i2.name > i1.name) {
-      return -1;
-    }
-    return 0;
-  });
+  sortedInstrumentList.sort((i1, i2) => i1.name.localeCompare(i2.name));
 
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources,
@@ -671,25 +614,13 @@ const GcnSelectionForm = ({ dateobs }) => {
     return observationsAll;
   };
 
-  if (!sortedInstrumentList) {
-    displayOptionsAvailable.instruments = false;
-  }
-
-  if (!gcnEventSources) {
-    displayOptionsAvailable.sources = false;
-  }
-
-  if (!gcnEventObservations) {
-    displayOptionsAvailable.observations = false;
-  }
-
-  if (!gcnEventGalaxies) {
-    displayOptionsAvailable.galaxies = false;
-  }
-
-  if (!gcnEvent?.localizations || gcnEvent?.localizations?.length === 0) {
-    displayOptionsAvailable.localization = false;
-  }
+  const displayOptionsAvailable = {
+    localization: !!gcnEvent?.localizations?.length,
+    sources: !!gcnEventSources,
+    galaxies: !!gcnEventGalaxies,
+    instruments: !!sortedInstrumentList,
+    observations: !!gcnEventObservations,
+  };
 
   const instLookUp = {};
   sortedInstrumentList?.forEach((instrumentObj) => {
@@ -697,13 +628,11 @@ const GcnSelectionForm = ({ dateobs }) => {
   });
 
   const telLookUp = {};
-
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const locLookUp = {};
-
   gcnEvent?.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });
@@ -747,6 +676,8 @@ const GcnSelectionForm = ({ dateobs }) => {
     }
   }, [dispatch, selectedLocalizationId]);
 
+  if (gcnEvent?.dateobs !== dateobs) return <Spinner />;
+
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
   };
@@ -756,85 +687,85 @@ const GcnSelectionForm = ({ dateobs }) => {
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
+  const showError = (message) => {
+    dispatch(showNotification(message, "error", 4000));
+  };
+
   const handleSubmit = async ({ formData }) => {
-    if (
-      formData?.queryList?.includes("sources") &&
-      formData?.group_ids?.length === 0
-    ) {
-      dispatch(
-        showNotification(
-          "Please select at least one group when querying sources.",
-          "error",
-          4000,
-        ),
-      );
+    const { queryList = [] } = formData;
+
+    if (queryList.includes("sources") && !formData?.group_ids?.length) {
+      showError("Please select at least one group when querying sources.");
       return;
     }
     setIsSubmitting(true);
-    formData.startDate = formData.startDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.endDate = formData.endDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
+
+    const cleanDate = (date) =>
+      date?.replace("+00:00", "").replace(".000Z", "");
+    formData.startDate = cleanDate(formData.startDate);
+    formData.endDate = cleanDate(formData.endDate);
     formData.numPerPage = 100;
     formData.pageNumber = 1;
 
-    if (Object.keys(locLookUp).includes(selectedLocalizationId?.toString())) {
+    if (selectedLocalizationId && locLookUp[selectedLocalizationId]) {
       formData.localizationName =
         locLookUp[selectedLocalizationId].localization_name;
     }
 
-    if (formData.queryList.includes("sources")) {
+    const fetchSources = async () => {
       await dispatch(
         sourcesActions.fetchGcnEventSources(gcnEvent?.dateobs, formData),
       );
       setSourceFilteringState(formData);
-    }
-    formData.includeGeoJSON = true;
-    if (formData.queryList.includes("observations")) {
-      if (
-        !instLookUp[selectedInstrumentId] ||
-        (instLookUp[selectedInstrumentId]
-          ? telLookUp[instLookUp[selectedInstrumentId].telescope_id]
-          : null) === null
-      ) {
-        dispatch(
-          showNotification(
-            "Please select an instrument and telescope before fetching observations",
-            "error",
-          ),
+    };
+
+    const fetchObservations = async () => {
+      const instrument = instLookUp[selectedInstrumentId];
+      const telescope = instrument ? telLookUp[instrument.telescope_id] : null;
+
+      if (!instrument || !telescope) {
+        showError(
+          "Please select an instrument and telescope before fetching observations",
         );
         setIsSubmitting(false);
-        return;
+        return false;
       }
 
       await dispatch(
         observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
           ...formData,
-          instrumentName: instLookUp[selectedInstrumentId]?.name,
-          telescopeName:
-            telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+          instrumentName: instrument.name,
+          telescopeName: telescope.name,
           numberObservations: formData?.numberDetections || 1,
         }),
       );
       setHasFetchedObservations(true);
-    }
-    if (formData.queryList.includes("galaxies")) {
+      return true;
+    };
+
+    const fetchGalaxies = async () => {
       formData.numPerPage = 100;
       await dispatch(
         galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
       );
+    };
+
+    formData.includeGeoJSON = true;
+
+    if (queryList.includes("sources")) await fetchSources();
+    if (queryList.includes("observations")) {
+      const isObservationsFetched = await fetchObservations();
+      if (!isObservationsFetched) return;
     }
+    if (queryList.includes("galaxies")) await fetchGalaxies();
+
     setFormDataState(formData);
     setIsSubmitting(false);
   };
 
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
-      errors.start_date.addError(
-        "Start date must be before end date, please fix.",
-      );
+      errors.start_date.addError("Start Date must come before End Date");
     }
     if (
       formData.localizationCumprob < 0 ||
@@ -903,476 +834,448 @@ const GcnSelectionForm = ({ dateobs }) => {
         title: "Query list",
       },
       group_ids: {
+        title: "Groups",
         type: "array",
         items: {
-          type: "number",
-          anyOf: (groups || []).map((group) => ({
-            type: "number",
-            enum: [group.id],
-            title: group.name,
-          })),
+          type: "integer",
+          enum: groups.map((group) => group.id),
         },
         uniqueItems: true,
-        default: [],
-        title: "Groups",
       },
+      ...(galaxyCatalogs?.length > 0 && {
+        catalog_name: {
+          type: "string",
+          title: "Galaxy Catalog",
+          enum: galaxyCatalogs.map((catalog) => catalog?.catalog_name),
+          default: galaxyCatalogs[0]?.catalog_name,
+        },
+      }),
     },
     required: [
       "startDate",
       "endDate",
       "localizationCumprob",
       "queryList",
-      "catalog_name",
+      ...(galaxyCatalogs?.length > 0 ? ["catalog_name"] : []),
       "requireDetections",
     ],
   };
 
-  if (galaxyCatalogs?.length > 0) {
-    GcnSourceSelectionFormSchema.properties.catalog_name = {
-      type: "string",
-      title: "Galaxy Catalog",
-      enum: galaxyCatalogs.map((cat) => cat?.catalog_name),
-      default: galaxyCatalogs[0]?.catalog_name,
-    };
-  } else {
-    GcnSourceSelectionFormSchema.properties.catalog_name = {
-      type: "string",
-      title: "Galaxy Catalog",
-      enum: [],
-    };
-  }
-
   const uiSchema = {
+    group_ids: {
+      "ui:enumNames": groups.map((group) => group.name),
+    },
     "ui:grid": [
-      {
-        startDate: 6,
-        endDate: 6,
-      },
-      {
-        numberDetections: 4,
-        localizationCumprob: 4,
-        maxDistance: 4,
-      },
+      { startDate: 6, endDate: 6 },
+      { numberDetections: 4, localizationCumprob: 4, maxDistance: 4 },
       {
         requireDetections: 4,
         excludeForcedPhotometry: 4,
         localizationRejectSources: 4,
       },
-      {
-        queryList: 4,
-        catalog_name: 4,
-        group_ids: 4,
-      },
+      galaxyCatalogs?.length > 0
+        ? { queryList: 4, catalog_name: 4, group_ids: 4 }
+        : { queryList: 6, group_ids: 6 },
     ],
   };
 
-  if (gcnEvent?.dateobs === dateobs) {
-    return (
-      <Grid container spacing={4}>
-        <Grid
-          item
-          sm={4}
-          sx={{ display: { xs: "none", sm: "none", md: "block" } }}
+  return (
+    <Grid container spacing={4}>
+      <Grid
+        item
+        sm={4}
+        sx={{ display: { xs: "none", sm: "none", md: "block" } }}
+      >
+        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+        !fetchingLocalization ? (
+          <div style={{ marginTop: "0.5rem" }}>
+            <LocalizationPlot
+              localization={analysisLoc}
+              sources={gcnEventSources}
+              galaxies={gcnEventGalaxies}
+              instrument={skymapInstrument}
+              observations={gcnEventObservations}
+              options={checkedDisplayState}
+              selectedFields={selectedFields}
+              setSelectedFields={setSelectedFields}
+              projection={selectedProjection}
+            />
+            <InputLabel
+              style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+              id="projection"
+            >
+              Projection
+            </InputLabel>
+            <Select
+              labelId="projection"
+              id="projection"
+              value={selectedProjection}
+              onChange={(e) => setSelectedProjection(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              {projectionOptions.map((option) => (
+                <MenuItem value={option} key={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+            <InputLabel
+              style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+              id="showOnPlot"
+            >
+              Show/Hide on Plot
+            </InputLabel>
+            <FormGroup className={classes.formGroup}>
+              {displayOptions.map((option, index) => (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      onChange={() => handleOnChange(index)}
+                      checked={checkedDisplayState[displayOptions[index]]}
+                    />
+                  }
+                  label={option}
+                  key={option}
+                  disabled={!displayOptionsAvailable[option]}
+                  className={classes.formItem}
+                />
+              ))}
+            </FormGroup>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <CircularProgress />
+          </div>
+        )}
+      </Grid>
+      <Grid item sm={12} md={8}>
+        <Tabs
+          value={tabIndex}
+          onChange={handleChangeTab}
+          aria-label="gcn_tabs"
+          variant="scrollable"
+          xs={12}
+          sx={{
+            display: {
+              maxWidth: "95vw",
+              width: "100&",
+              "& > button": { lineHeight: "1.5rem" },
+            },
+          }}
         >
-          {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
-          !fetchingLocalization ? (
-            <div style={{ marginTop: "0.5rem" }}>
-              <LocalizationPlot
-                localization={analysisLoc}
-                sources={gcnEventSources}
-                galaxies={gcnEventGalaxies}
-                instrument={skymapInstrument}
-                observations={gcnEventObservations}
-                options={checkedDisplayState}
-                selectedFields={selectedFields}
-                setSelectedFields={setSelectedFields}
-                projection={selectedProjection}
-              />
-              <InputLabel
-                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                id="projection"
+          {/* the first tab called skymap has to be hidden until we reach the sm breakpoint */}
+          <Tab label="Skymap" sx={{ display: { sm: "block", md: "none" } }} />
+          <Tab label="Query Form" />
+          <Tab label="Sources" />
+          <Tab label="Galaxies" />
+          <Tab label="Observations" />
+        </Tabs>
+
+        {tabIndex === 0 && (
+          <Box sx={{ display: { sm: "block", md: "none" } }}>
+            {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+            !fetchingLocalization ? (
+              <Grid container spacing={2}>
+                <Grid
+                  item
+                  sm={8}
+                  md={12}
+                  className={classes.localizationPlotSmall}
+                >
+                  <LocalizationPlot
+                    localization={analysisLoc}
+                    sources={gcnEventSources}
+                    galaxies={gcnEventGalaxies}
+                    instrument={skymapInstrument}
+                    observations={gcnEventObservations}
+                    options={checkedDisplayState}
+                    selectedFields={selectedFields}
+                    setSelectedFields={setSelectedFields}
+                    projection={selectedProjection}
+                  />
+                </Grid>
+                <Grid item xs={9} sm={4} md={12}>
+                  <InputLabel
+                    style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                    id="projection"
+                  >
+                    Projection
+                  </InputLabel>
+                  <Select
+                    labelId="projection"
+                    id="projection"
+                    value={selectedProjection}
+                    onChange={(e) => setSelectedProjection(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    {projectionOptions.map((option) => (
+                      <MenuItem value={option} key={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <InputLabel
+                    style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                    id="showOnPlot"
+                  >
+                    Show/Hide on Plot
+                  </InputLabel>
+                  <FormGroup className={classes.formGroupSmall}>
+                    {displayOptions.map((option, index) => (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            onChange={() => handleOnChange(index)}
+                            checked={checkedDisplayState[displayOptions[index]]}
+                          />
+                        }
+                        label={option}
+                        key={option}
+                        disabled={!displayOptionsAvailable[option]}
+                        className={classes.formItem}
+                      />
+                    ))}
+                  </FormGroup>
+                </Grid>
+              </Grid>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                }}
               >
-                Projection
-              </InputLabel>
+                <CircularProgress />
+              </div>
+            )}
+          </Box>
+        )}
+
+        {tabIndex === 1 && (
+          <Grid
+            container
+            spacing={1}
+            className={classes.formContainer}
+            alignItems="center"
+          >
+            <Grid item sm={12} className={classes.formContainerItem}>
+              <InputLabel id="localizationSelectLabel">Localization</InputLabel>
               <Select
-                labelId="projection"
-                id="projection"
-                value={selectedProjection}
-                onChange={(e) => setSelectedProjection(e.target.value)}
-                style={{ width: "100%" }}
+                fullWidth
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="localizationSelectLabel"
+                value={selectedLocalizationId || ""}
+                onChange={handleSelectedLocalizationChange}
               >
-                {projectionOptions.map((option) => (
-                  <MenuItem value={option} key={option}>
-                    {option}
+                {gcnEvent?.localizations?.map((localization) => (
+                  <MenuItem value={localization.id} key={localization.id}>
+                    {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
                   </MenuItem>
                 ))}
               </Select>
-              <InputLabel
-                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                id="showOnPlot"
+            </Grid>
+            <Grid item sm={12} className={classes.formContainerItem}>
+              <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+              <Select
+                fullWidth
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="instrumentSelectLabel"
+                value={selectedInstrumentId || ""}
+                onChange={handleSelectedInstrumentChange}
               >
-                Show/Hide on Plot
-              </InputLabel>
-              <FormGroup className={classes.formGroup}>
-                {displayOptions.map((option, index) => (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        onChange={() => handleOnChange(index)}
-                        checked={checkedDisplayState[displayOptions[index]]}
-                      />
-                    }
-                    label={option}
-                    key={option}
-                    disabled={!displayOptionsAvailable[option]}
-                    className={classes.formItem}
-                  />
-                ))}
-              </FormGroup>
-            </div>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "100%",
-              }}
-            >
-              <CircularProgress />
-            </div>
-          )}
-        </Grid>
-        <Grid item sm={12} md={8}>
-          <Tabs
-            value={tabIndex}
-            onChange={handleChangeTab}
-            aria-label="gcn_tabs"
-            variant="scrollable"
-            xs={12}
-            sx={{
-              display: {
-                maxWidth: "95vw",
-                width: "100&",
-                "& > button": { lineHeight: "1.5rem" },
-              },
-            }}
-          >
-            {/* the first tab called skymap has to be hidden until we reach the sm breakpoint */}
-            <Tab label="Skymap" sx={{ display: { sm: "block", md: "none" } }} />
-            <Tab label="Query Form" />
-            <Tab label="Sources" />
-            <Tab label="Galaxies" />
-            <Tab label="Observations" />
-          </Tabs>
-
-          {tabIndex === 0 && (
-            <Box sx={{ display: { sm: "block", md: "none" } }}>
-              {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
-              !fetchingLocalization ? (
-                <Grid container spacing={2}>
-                  <Grid
-                    item
-                    sm={8}
-                    md={12}
-                    className={classes.localizationPlotSmall}
+                {sortedInstrumentList?.map((instrument) => (
+                  <MenuItem
+                    value={instrument.id}
+                    key={instrument.id}
+                    className={classes.instrumentSelectItem}
                   >
-                    <LocalizationPlot
-                      localization={analysisLoc}
-                      sources={gcnEventSources}
-                      galaxies={gcnEventGalaxies}
-                      instrument={skymapInstrument}
-                      observations={gcnEventObservations}
-                      options={checkedDisplayState}
-                      selectedFields={selectedFields}
-                      setSelectedFields={setSelectedFields}
-                      projection={selectedProjection}
-                    />
-                  </Grid>
-                  <Grid item xs={9} sm={4} md={12}>
-                    <InputLabel
-                      style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                      id="projection"
-                    >
-                      Projection
-                    </InputLabel>
-                    <Select
-                      labelId="projection"
-                      id="projection"
-                      value={selectedProjection}
-                      onChange={(e) => setSelectedProjection(e.target.value)}
-                      style={{ width: "100%" }}
-                    >
-                      {projectionOptions.map((option) => (
-                        <MenuItem value={option} key={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <InputLabel
-                      style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                      id="showOnPlot"
-                    >
-                      Show/Hide on Plot
-                    </InputLabel>
-                    <FormGroup className={classes.formGroupSmall}>
-                      {displayOptions.map((option, index) => (
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              onChange={() => handleOnChange(index)}
-                              checked={
-                                checkedDisplayState[displayOptions[index]]
-                              }
-                            />
-                          }
-                          label={option}
-                          key={option}
-                          disabled={!displayOptionsAvailable[option]}
-                          className={classes.formItem}
-                        />
-                      ))}
-                    </FormGroup>
-                  </Grid>
-                </Grid>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "100%",
-                  }}
-                >
-                  <CircularProgress />
-                </div>
-              )}
-            </Box>
-          )}
-
-          {tabIndex === 1 && (
+                    {`${telLookUp[instrument.telescope_id]?.name} / ${
+                      instrument.name
+                    }`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Grid>
             <Grid
-              container
-              spacing={1}
-              className={classes.formContainer}
-              alignItems="center"
+              item
+              xs={11}
+              sm={12}
+              data-testid="gcnsource-selection-form"
+              sx={{ mt: "0.8rem" }}
             >
-              <Grid item sm={12} className={classes.formContainerItem}>
-                <InputLabel id="localizationSelectLabel">
-                  Localization
-                </InputLabel>
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="localizationSelectLabel"
-                  value={selectedLocalizationId || ""}
-                  onChange={handleSelectedLocalizationChange}
-                  name="gcnPageLocalizationSelect"
-                  className={classes.localizationSelect}
-                >
-                  {gcnEvent?.localizations?.map((localization) => (
-                    <MenuItem
-                      value={localization.id}
-                      key={localization.id}
-                      className={classes.localizationSelectItem}
-                    >
-                      {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </Grid>
-              <Grid item sm={12} className={classes.formContainerItem}>
-                <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="instrumentSelectLabel"
-                  value={selectedInstrumentId || ""}
-                  onChange={handleSelectedInstrumentChange}
-                  name="gcnPageInstrumentSelect"
-                  className={classes.instrumentSelect}
-                >
-                  {sortedInstrumentList?.map((instrument) => (
-                    <MenuItem
-                      value={instrument.id}
-                      key={instrument.id}
-                      className={classes.instrumentSelectItem}
-                    >
-                      {`${telLookUp[instrument.telescope_id]?.name} / ${
-                        instrument.name
-                      }`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </Grid>
-              <Grid
-                item
-                xs={11}
-                sm={12}
-                data-testid="gcnsource-selection-form"
-                className={classes.form}
+              <Form
+                schema={GcnSourceSelectionFormSchema}
+                formData={selectedFormData}
+                onChange={({ formData }) => setSelectedFormData(formData)}
+                uiSchema={uiSchema}
+                templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
+                validator={validator}
+                onSubmit={handleSubmit}
+                customValidate={validate}
+                disabled={isSubmitting}
+                liveValidate
               >
-                <Form
-                  schema={GcnSourceSelectionFormSchema}
-                  formData={selectedFormData}
-                  onChange={({ formData }) => setSelectedFormData(formData)}
-                  uiSchema={uiSchema}
-                  templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
-                  validator={validator}
-                  onSubmit={handleSubmit}
-                  customValidate={validate}
-                  disabled={isSubmitting}
-                  liveValidate
-                />
-                {isSubmitting && (
-                  <div>
+                <Button
+                  primary
+                  type="submit"
+                  sx={{ my: "1rem" }}
+                  async
+                  loading={isSubmitting}
+                >
+                  Submit
+                </Button>
+              </Form>
+            </Grid>
+            {gcnEvent && selectedLocalizationId ? (
+              <Grid item xs={11} sm={12}>
+                <div className={classes.buttons}>
+                  <Suspense fallback={<CircularProgress />}>
+                    <GcnSummary dateobs={dateobs} />
+                  </Suspense>
+                  <Suspense fallback={<CircularProgress />}>
+                    <GcnReport dateobs={dateobs} />
+                  </Suspense>
+                  <AddSurveyEfficiencyObservationsPage />
+                  <AddCatalogQueryPage />
+                  {isSubmittingTreasureMap === selectedInstrumentId ? (
                     <CircularProgress />
+                  ) : (
+                    <Button
+                      secondary
+                      onClick={() => {
+                        handleSubmitTreasureMap(
+                          selectedInstrumentId,
+                          formDataState,
+                        );
+                      }}
+                      type="submit"
+                      size="small"
+                      data-testid={`treasuremapRequest_${selectedInstrumentId}`}
+                    >
+                      Send to Treasure Map
+                    </Button>
+                  )}
+                </div>
+              </Grid>
+            ) : (
+              <CircularProgress />
+            )}
+          </Grid>
+        )}
+
+        {tabIndex === 2 && (
+          <div>
+            {gcnEventSources?.sources ? (
+              <div>
+                {selectedLocalizationName && (
+                  <GcnEventSourcesPage
+                    dateobs={dateobs}
+                    sources={gcnEventSources}
+                    localizationName={selectedLocalizationName}
+                    sourceFilteringState={sourceFilteringState}
+                  />
+                )}
+              </div>
+            ) : (
+              <Typography variant="h5">
+                Need to fetch sources from the query form
+              </Typography>
+            )}
+          </div>
+        )}
+
+        {tabIndex === 3 && (
+          <div>
+            {gcnEventGalaxies?.galaxies ? (
+              <div>
+                {gcnEventGalaxies?.galaxies.length === 0 ? (
+                  <Typography variant="h5">None</Typography>
+                ) : (
+                  <div>
+                    <GalaxyTable
+                      galaxies={gcnEventGalaxies.galaxies}
+                      totalMatches={gcnEventGalaxies.totalMatches}
+                      serverSide={false}
+                      showTitle
+                    />
                   </div>
                 )}
-              </Grid>
-              {gcnEvent && selectedLocalizationId ? (
-                <Grid item xs={11} sm={12}>
-                  <div className={classes.buttons}>
-                    <Suspense fallback={<CircularProgress />}>
-                      <GcnSummary dateobs={dateobs} />
-                    </Suspense>
-                    <Suspense fallback={<CircularProgress />}>
-                      <GcnReport dateobs={dateobs} />
-                    </Suspense>
-                    <AddSurveyEfficiencyObservationsPage />
-                    <AddCatalogQueryPage />
-                    {isSubmittingTreasureMap === selectedInstrumentId ? (
-                      <div>
-                        <CircularProgress />
-                      </div>
-                    ) : (
-                      <Button
-                        secondary
-                        onClick={() => {
-                          handleSubmitTreasureMap(
-                            selectedInstrumentId,
-                            formDataState,
-                          );
-                        }}
-                        type="submit"
-                        size="small"
-                        data-testid={`treasuremapRequest_${selectedInstrumentId}`}
-                      >
-                        Send to Treasure Map
-                      </Button>
-                    )}
-                  </div>
-                </Grid>
-              ) : (
-                <CircularProgress />
-              )}
-            </Grid>
-          )}
+              </div>
+            ) : (
+              <Typography variant="h5">Fetching galaxies...</Typography>
+            )}
+          </div>
+        )}
 
-          {tabIndex === 2 && (
-            <div>
-              {gcnEventSources?.sources ? (
-                <div>
-                  {selectedLocalizationName && (
-                    <GcnEventSourcesPage
-                      dateobs={dateobs}
-                      sources={gcnEventSources}
-                      localizationName={selectedLocalizationName}
-                      sourceFilteringState={sourceFilteringState}
+        {tabIndex === 4 && (
+          <div>
+            {gcnEventObservations?.observations ? (
+              <div>
+                {gcnEventObservations?.observations.length === 0 ? (
+                  <Typography variant="h5">None</Typography>
+                ) : (
+                  <div>
+                    <ExecutedObservationsTable
+                      observations={gcnEventObservations.observations}
+                      totalMatches={gcnEventObservations.totalMatches}
+                      numPerPage={
+                        formDataState.numPerPage ||
+                        gcnEventObservations.numPerPage ||
+                        100
+                      }
+                      downloadCallback={handleExecutedDownload}
+                      serverSide={false}
                     />
-                  )}
-                </div>
-              ) : (
-                <Typography variant="h5">
-                  Need to fetch sources from the query form
-                </Typography>
-              )}
-            </div>
-          )}
-
-          {tabIndex === 3 && (
-            <div>
-              {gcnEventGalaxies?.galaxies ? (
-                <div>
-                  {gcnEventGalaxies?.galaxies.length === 0 ? (
-                    <Typography variant="h5">None</Typography>
-                  ) : (
-                    <div>
-                      <GalaxyTable
-                        galaxies={gcnEventGalaxies.galaxies}
-                        totalMatches={gcnEventGalaxies.totalMatches}
-                        serverSide={false}
-                        showTitle
-                      />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Typography variant="h5">Fetching galaxies...</Typography>
-              )}
-            </div>
-          )}
-
-          {tabIndex === 4 && (
-            <div>
-              {gcnEventObservations?.observations ? (
-                <div>
-                  {gcnEventObservations?.observations.length === 0 ? (
-                    <Typography variant="h5">None</Typography>
-                  ) : (
-                    <div>
-                      <ExecutedObservationsTable
-                        observations={gcnEventObservations.observations}
-                        totalMatches={gcnEventObservations.totalMatches}
-                        numPerPage={
-                          formDataState.numPerPage ||
-                          gcnEventObservations.numPerPage ||
-                          100
-                        }
-                        downloadCallback={handleExecutedDownload}
-                        serverSide={false}
-                      />
-                      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-                        <DialogContent
+                    <Dialog open={downloadProgressTotal > 0} maxWidth="md">
+                      <DialogContent
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Typography variant="h6" display="inline">
+                          Downloading {downloadProgressTotal} observations
+                        </Typography>
+                        <div
                           style={{
+                            height: "5rem",
+                            width: "5rem",
                             display: "flex",
                             flexDirection: "column",
                             justifyContent: "center",
                             alignItems: "center",
                           }}
                         >
-                          <Typography variant="h6" display="inline">
-                            Downloading {downloadProgressTotal} observations
-                          </Typography>
-                          <div
-                            style={{
-                              height: "5rem",
-                              width: "5rem",
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            <ProgressIndicator
-                              current={downloadProgressCurrent}
-                              total={downloadProgressTotal}
-                              percentage={false}
-                            />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Typography variant="h5">Fetching observations...</Typography>
-              )}
-            </div>
-          )}
-        </Grid>
+                          <ProgressIndicator
+                            current={downloadProgressCurrent}
+                            total={downloadProgressTotal}
+                            percentage={false}
+                          />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Typography variant="h5">Fetching observations...</Typography>
+            )}
+          </div>
+        )}
       </Grid>
-    );
-  }
-  return <CircularProgress />;
+    </Grid>
+  );
 };
 
 GcnSelectionForm.propTypes = {
