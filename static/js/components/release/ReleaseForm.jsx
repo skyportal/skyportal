@@ -34,11 +34,7 @@ const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
         type: "array",
         items: {
           type: "integer",
-          anyOf: groups.map((group) => ({
-            enum: [group.id],
-            type: "integer",
-            title: group.name,
-          })),
+          enum: groups.map((group) => group.id),
         },
         uniqueItems: true,
         default: [],
@@ -89,6 +85,11 @@ const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
           "ui:widget": "textarea",
           "ui:options": {
             rows: 3,
+          },
+        },
+        group_ids: {
+          items: {
+            "ui:enumNames": groups.map((group) => group.name),
           },
         },
       }}

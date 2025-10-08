@@ -277,14 +277,10 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         type: "array",
         items: {
           type: "integer",
-          anyOf: allUsers?.map((user) => ({
-            enum: [user.id],
-            type: "integer",
-            title: user.username,
-          })),
-          title: "Requester(s) (optional)",
+          enum: allUsers?.map((user) => user.id) || [],
         },
         uniqueItems: true,
+        title: "Requester(s) (optional)",
       },
     },
     dependencies: {
@@ -366,6 +362,11 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     },
   };
   const uiSchema = {
+    requesters: {
+      items: {
+        "ui:enumNames": allUsers?.map((user) => user.username) || [],
+      },
+    },
     "ui:order": [
       "filterby",
       "instrumentID",
