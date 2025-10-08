@@ -10,7 +10,12 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, accessible_by_owner
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    accessible_by_owner,
+    public,
+)
 
 from ..enum_types import allowed_bandpasses
 from .group import accessible_by_groups_members, accessible_by_streams_members
@@ -25,6 +30,23 @@ PHOT_SYS = "ab"
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+manage_photometry_access = (
+    accessible_by_groups_members | accessible_by_streams_members | accessible_by_owner
+)
+
+
+def manage_photometry_access_logic(cls, user_or_token):
+    """
+    Users with 'Manage photometry' permission can modify photometry
+    for objects accessible to their groups.
+    """
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+    elif "Manage photometry" in user_or_token.permissions:
+        return manage_photometry_access.query_accessible_rows(cls, user_or_token)
+    else:
+        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+
 
 class Photometry(conesearch_alchemy.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
@@ -36,7 +58,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         | accessible_by_streams_members
         | accessible_by_owner
     )
-    update = delete = accessible_by_owner
+    update = delete = CustomUserAccessControl(manage_photometry_access_logic)
 
     mjd = sa.Column(sa.Float, nullable=False, doc="MJD of the observation.", index=True)
     flux = sa.Column(
