@@ -320,21 +320,17 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
 
   const uiSchema = {
     instrument_ids: {
-      items: {
-        "ui:enumNames": allowedInstruments.map(
-          (instrument) =>
-            `${
-              telescopeList.find(
-                (telescope) => telescope.id === instrument.telescope_id,
-              )?.name
-            } / ${instrument.name}`,
-        ),
-      },
+      "ui:enumNames": allowedInstruments.map(
+        (instrument) =>
+          `${
+            telescopeList.find(
+              (telescope) => telescope.id === instrument.telescope_id,
+            )?.name
+          } / ${instrument.name}`,
+      ),
     },
     stream_ids: {
-      items: {
-        "ui:enumNames": streams.map((stream) => stream.name),
-      },
+      "ui:enumNames": streams.map((stream) => stream.name),
     },
   };
 

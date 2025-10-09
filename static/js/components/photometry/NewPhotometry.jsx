@@ -202,9 +202,7 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   const uiSchema = {
     group_ids: {
-      items: {
-        "ui:enumNames": groups.map((group) => group.name),
-      },
+      "ui:enumNames": groups.map((group) => group.name),
     },
   };
 
