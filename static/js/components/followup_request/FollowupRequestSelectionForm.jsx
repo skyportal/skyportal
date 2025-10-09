@@ -363,9 +363,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   };
   const uiSchema = {
     requesters: {
-      items: {
-        "ui:enumNames": allUsers?.map((user) => user.username) || [],
-      },
+      "ui:enumNames": allUsers?.map((user) => user.username) || [],
     },
     "ui:order": [
       "filterby",

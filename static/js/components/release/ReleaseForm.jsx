@@ -88,9 +88,7 @@ const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
           },
         },
         group_ids: {
-          items: {
-            "ui:enumNames": groups.map((group) => group.name),
-          },
+          "ui:enumNames": groups.map((group) => group.name),
         },
       }}
     >

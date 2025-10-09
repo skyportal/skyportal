@@ -315,10 +315,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   });
   const uiSchema = {
     groupIDs: {
-      items: {
-        "ui:widget": "customGroupsWidget",
-        "ui:enumNames": groups?.map((group) => group.name),
-      },
+      "ui:widget": "customGroupsWidget",
+      "ui:enumNames": groups?.map((group) => group.name),
     },
     taxonomy: {
       "ui:enumNames": latestTaxonomyList?.map(

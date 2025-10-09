@@ -1345,23 +1345,17 @@ const SharingServicesPage = () => {
             schema={getFormSchema(!sharingServiceToManage, enablePublishToTNS)}
             uiSchema={{
               owner_group_ids: {
-                items: {
-                  "ui:enumNames": (groups || [])
-                    .sort((a, b) => a?.name?.localeCompare(b?.name))
-                    .map((group) => group.name),
-                },
+                "ui:enumNames": (groups || [])
+                  .sort((a, b) => a?.name?.localeCompare(b?.name))
+                  .map((group) => group.name),
               },
               instrument_ids: {
-                items: {
-                  "ui:enumNames": allowedInstruments.map(
-                    (instrument) => instrument.name,
-                  ),
-                },
+                "ui:enumNames": allowedInstruments.map(
+                  (instrument) => instrument.name,
+                ),
               },
               stream_ids: {
-                items: {
-                  "ui:enumNames": (streams || []).map((stream) => stream.name),
-                },
+                "ui:enumNames": (streams || []).map((stream) => stream.name),
               },
             }}
             onSubmit={(formData) =>
