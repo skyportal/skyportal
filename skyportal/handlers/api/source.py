@@ -1,3 +1,4 @@
+import base64
 import datetime
 import functools
 import io
@@ -80,6 +81,7 @@ from ...utils.offset import (
     ALL_NGPS_SNCOSMO_BANDS,
     _calculate_best_position_for_offset_stars,
     facility_parameters,
+    finding_charts_cache,
     get_finding_chart,
     get_nearby_offset_stars,
     source_image_parameters,
@@ -2495,6 +2497,7 @@ def get_finding_chart_callable(
     obj_id,
     session,
     imsize,
+    use_cache,
     facility,
     image_source,
     use_ztfref,
@@ -2511,6 +2514,8 @@ def get_finding_chart_callable(
         The SQLAlchemy session to use for database queries.
     imsize: float
         The size of the image in arcminutes (default is 4.0).
+    use_cache: bool
+        Use caching when generating the finding chart (default is True).
     facility: str
         The facility for which to generate the starlist (e.g., "Keck", "Shane", "P200", "P200-NGPS").
     image_source: str
@@ -2594,6 +2599,7 @@ def get_finding_chart_callable(
         image_source=image_source,
         output_format=output_type,
         imsize=imsize,
+        use_cache=use_cache,
         how_many=num_offset_stars,
         radius_degrees=facility_parameters[facility]["radius_degrees"],
         mag_limit=facility_parameters[facility]["mag_limit"],
@@ -2675,6 +2681,18 @@ class SourceFinderHandler(BaseHandler):
             maximum: 4
           description: |
             output desired number of offset stars [0,5] (default: 3)
+        - in: query
+          name: as_json
+          schema:
+            type: boolean
+          description: |
+            Return a JSON including the finding chart and star_list
+        - in: query
+          name: use_cache
+          schema:
+            type: boolean
+          description: |
+            Use caching when generating finding charts (default: true)
         responses:
           200:
             description: A PDF/PNG finding chart file
@@ -2687,6 +2705,16 @@ class SourceFinderHandler(BaseHandler):
                 schema:
                   type: string
                   format: binary
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: Name of the file
+                    data:
+                      type: string
+                      format: binary
           400:
             content:
               application/json:
@@ -2711,12 +2739,15 @@ class SourceFinderHandler(BaseHandler):
             num_offset_stars = int(num_offset_stars)
         except ValueError:
             return self.error("Invalid argument for `num_offset_stars`")
+        as_json = self.get_query_argument("as_json", False)
+        use_cache = self.get_query_argument("use_cache", True)
 
         with self.Session() as session:
             finder = get_finding_chart_callable(
                 obj_id,
                 session,
                 imsize,
+                use_cache,
                 facility,
                 image_source,
                 use_ztfref,
@@ -2730,6 +2761,21 @@ class SourceFinderHandler(BaseHandler):
             )
             try:
                 rez = await IOLoop.current().run_in_executor(None, finder)
+                if as_json:
+                    data = {
+                        "finding_chart": base64.b64encode(rez["data"]).decode(),
+                        "starlist": rez["starlist"],
+                    }
+                    if "public_url" in rez:
+                        data["public_url"] = rez["public_url"]
+                        if finding_charts_cache._max_age:
+                            data["public_url_expires_at"] = (
+                                datetime.datetime.utcnow()
+                                + datetime.timedelta(
+                                    seconds=finding_charts_cache._max_age
+                                )
+                            )
+                    return self.success(data)
                 filename = rez["name"]
                 data = io.BytesIO(rez["data"])
             except Exception as e:
