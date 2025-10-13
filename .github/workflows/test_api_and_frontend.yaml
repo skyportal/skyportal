@@ -8,7 +8,7 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 env:
-  PYTEST_N_PROCESSES: 3
+  PYTEST_N_PROCESSES: 4
 
 jobs:
   test-api-and-frontend:
