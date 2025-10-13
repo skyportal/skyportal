@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
 
+env:
+  PYTEST_N_PROCESSES: 2
+
 jobs:
   test-api-and-frontend:
     if: github.event.pull_request.draft == false
