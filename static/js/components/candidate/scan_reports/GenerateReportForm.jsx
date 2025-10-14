@@ -40,11 +40,7 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
           type: "array",
           items: {
             type: "number",
-            anyOf: (groups || []).map((group) => ({
-              type: "number",
-              enum: [group.id],
-              title: group.name,
-            })),
+            enum: (groups || []).map((group) => group.id),
           },
           uniqueItems: true,
           default: [],
@@ -112,6 +108,11 @@ const GenerateReportForm = ({ dialogOpen, setDialogOpen }) => {
             formData={saveOptions}
             onChange={({ formData }) => setSaveOptions(formData)}
             schema={generateReportSchema()}
+            uiSchema={{
+              group_ids: {
+                "ui:enumNames": (groups || []).map((group) => group.name),
+              },
+            }}
             liveValidate
             validator={validator}
             onSubmit={generateReport}

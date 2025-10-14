@@ -1028,13 +1028,9 @@ const SharingServicesPage = () => {
                 type: "array",
                 items: {
                   type: "integer",
-                  anyOf: (groups || [])
+                  enum: (groups || [])
                     .sort((a, b) => a?.name?.localeCompare(b?.name))
-                    .map((group) => ({
-                      enum: [group.id],
-                      type: "integer",
-                      title: group.name,
-                    })),
+                    .map((group) => group.id),
                 },
                 uniqueItems: true,
                 default: [],
@@ -1053,11 +1049,7 @@ const SharingServicesPage = () => {
           type: "array",
           items: {
             type: "integer",
-            anyOf: (allowedInstruments || []).map((instrument) => ({
-              enum: [instrument.id],
-              type: "integer",
-              title: instrument.name,
-            })),
+            enum: allowedInstruments.map((instrument) => instrument.id),
           },
           uniqueItems: true,
           default: sharingServiceToManage?.instruments?.map((i) => i.id) || [],
@@ -1068,11 +1060,7 @@ const SharingServicesPage = () => {
             type: "array",
             items: {
               type: "integer",
-              anyOf: (streams || []).map((stream) => ({
-                enum: [stream.id],
-                type: "integer",
-                title: stream.name,
-              })),
+              enum: (streams || []).map((stream) => stream.id),
             },
             uniqueItems: true,
             default: sharingServiceToManage?.streams?.map((s) => s.id) || [],
@@ -1355,6 +1343,21 @@ const SharingServicesPage = () => {
           <Form
             formData={sharingServiceToManage}
             schema={getFormSchema(!sharingServiceToManage, enablePublishToTNS)}
+            uiSchema={{
+              owner_group_ids: {
+                "ui:enumNames": (groups || [])
+                  .sort((a, b) => a?.name?.localeCompare(b?.name))
+                  .map((group) => group.name),
+              },
+              instrument_ids: {
+                "ui:enumNames": allowedInstruments.map(
+                  (instrument) => instrument.name,
+                ),
+              },
+              stream_ids: {
+                "ui:enumNames": (streams || []).map((stream) => stream.name),
+              },
+            }}
             onSubmit={(formData) =>
               submitSharingService(formData, !!sharingServiceToManage)
             }

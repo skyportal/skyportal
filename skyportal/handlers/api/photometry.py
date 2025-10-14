@@ -1320,7 +1320,6 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-
         try:
             group_ids = get_group_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
@@ -1451,7 +1450,6 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-
         try:
             group_ids = get_group_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
@@ -1871,7 +1869,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
@@ -1934,6 +1931,7 @@ class ObjPhotometryHandler(BaseHandler):
         include_validation_info = str_to_bool(include_validation_info, default=False)
 
         include_annotation_info = str_to_bool(include_annotation_info, default=False)
+        
         include_extinction = str_to_bool(include_extinction, default=False)
 
         with self.Session() as session:

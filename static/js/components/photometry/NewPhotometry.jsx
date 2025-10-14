@@ -111,11 +111,7 @@ const NewPhotometryForm = ({ obj_id }) => {
         type: "array",
         items: {
           type: "number",
-          anyOf: groups.map((group) => ({
-            enum: [group.id],
-            type: "number",
-            title: group.name,
-          })),
+          enum: groups.map((group) => group.id),
         },
         uniqueItems: true,
         title: "Share with Groups",
@@ -201,6 +197,12 @@ const NewPhotometryForm = ({ obj_id }) => {
           },
         ],
       },
+    },
+  };
+
+  const uiSchema = {
+    group_ids: {
+      "ui:enumNames": groups.map((group) => group.name),
     },
   };
 
@@ -421,6 +423,7 @@ const NewPhotometryForm = ({ obj_id }) => {
           <div>
             <Form
               schema={photFormSchema}
+              uiSchema={uiSchema}
               validator={validator}
               onSubmit={submit}
               customValidate={validate}
