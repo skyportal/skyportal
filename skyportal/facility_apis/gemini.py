@@ -170,14 +170,12 @@ class GeminiRequest:
         ).strip()  # maximum airmass value
 
         notetitle = request.payload.get("notetitle")  # optional
-        note = request.payload.get("note")  # optional
+        note = request.payload.get("note") or ""  # optional
 
         if notetitle:
             notetitle = str(notetitle).strip()
-        if note:
-            note = str(note if note else "").strip()
 
-        note = note + f"(finder chart: {finding_chart_public_url})"
+        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
 
         # Guide star selection
         gstarg, gsra, gsdec, gsmag, gspa, finding_chart_public_url = (
