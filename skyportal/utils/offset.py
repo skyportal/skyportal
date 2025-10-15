@@ -41,7 +41,8 @@ log = make_log("finder-chart")
 _, cfg = load_env()
 
 cache_dir = "cache/finding_charts"
-cache_max_age = cfg.get("misc.days_to_keep_finding_charts_cache", 30) * 24 * 60 * 60
+cache_max_age_days = cfg.get("misc.days_to_keep_finding_charts_cache", 30)
+cache_max_age = cache_max_age_days * 24 * 60 * 60  # days to seconds
 finding_charts_cache = Cache(cache_dir=cache_dir, max_age=cache_max_age)
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
@@ -1334,12 +1335,6 @@ def fits_image(
     return get_hdu(url)
 
 
-# write a decorator for the get_finding_chart function which takes
-# all the methods inputs (ordered alphabetically, removing those with None or "" values)
-# are converted into a hash, so at the next function we can check if this finding chart was already
-# generated before, and return it
-
-
 def get_finding_chart_cache_key(*args, **kwargs):
     cache_key_str = (
         "_".join([str(arg) for arg in args])
@@ -1361,19 +1356,6 @@ def get_finding_chart_cache_key(*args, **kwargs):
     )
 
     return hash(cache_key_str)
-
-
-def cache_finding_chart(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        cache_key = get_finding_chart_cache_key(*args, **kwargs)
-        value = finding_charts_cache[cache_key]
-        if value is None:
-            return func(*args, **kwargs)
-
-        return value
-
-    return wrapper
 
 
 @warningfilter(action="ignore", category=FITSFixedWarning)
@@ -1442,6 +1424,7 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
+    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     if use_cache:
         cache_key = get_finding_chart_cache_key(
             source_ra,
@@ -1463,6 +1446,30 @@ def get_finding_chart(
             try:
                 value = np.load(value, allow_pickle=True)
                 value = value.item()
+                # the cache records the obstime used to generate the finding chart
+                # if the request obstime is more than "max_cache_age" seconds away from
+                # the cached obstime, then do not use the cache
+                if "obstime" not in value:
+                    del finding_charts_cache[cache_key]
+                    raise Exception(
+                        "existing cache does not have obstime, cannot validate"
+                    )
+                try:
+                    cached_obstime = Time(value["obstime"])
+                    request_time = Time(obstime)
+                    if (
+                        abs((cached_obstime - request_time).to_value("sec"))
+                        > cache_max_age
+                    ):
+                        # the cache is too old, remove it.
+                        del finding_charts_cache[cache_key]
+                        raise Exception(
+                            f"existing cache was computed with obstime={cached_obstime.iso}, request has obstime={request_time.iso} (max age is {cache_max_age_days} days)"
+                        )
+                except Exception as e:
+                    log(f"Could not parse obstime: {e}")
+                    del finding_charts_cache[cache_key]
+                    raise Exception("Could not parse obstime")
                 return value
             except Exception as e:
                 log(f"Failed to load cached finding chart: {e}")
@@ -1599,7 +1606,6 @@ def get_finding_chart(
     ax.grid(color="white", ls="dotted")
     ax.set_xlabel(r"$\alpha$ (J2000)", fontsize="large")
     ax.set_ylabel(r"$\delta$ (J2000)", fontsize="large")
-    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     ax.set_title(
         f"{source_name} Finder (for {obstime.split('T')[0]})",
         fontsize="large",
@@ -1825,6 +1831,7 @@ def get_finding_chart(
         "name": f"finder_{source_name}.{output_format}",
         "data": buf.read(),
         "starlist": star_list,
+        "obstime": obstime,
         "reason": "",
     }
 

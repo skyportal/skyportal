@@ -22,6 +22,7 @@ import { useReactToPrint } from "react-to-print";
 import { fetchSourceFinderChart } from "../ducks/source";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import { Tooltip } from "@mui/material";
 
 const initialFormState = {
   imagesource: "ps1",
@@ -350,19 +351,23 @@ const FindingChart = () => {
                     >
                       Print
                     </Button>
-                    <Button
-                      secondary
-                      className={classes.button}
-                      onClick={() => {
-                        navigator.clipboard.writeText(public_url);
-                        dispatch(
-                          showNotification("Public link copied to clipboard!"),
-                        );
-                      }}
-                      disabled={!public_url}
-                    >
-                      Share Link
-                    </Button>
+                    <Tooltip title="The public link is only valid temporarily.">
+                      <Button
+                        secondary
+                        className={classes.button}
+                        onClick={() => {
+                          navigator.clipboard.writeText(public_url);
+                          dispatch(
+                            showNotification(
+                              "Public link copied to clipboard!",
+                            ),
+                          );
+                        }}
+                        disabled={!public_url}
+                      >
+                        Share Link
+                      </Button>
+                    </Tooltip>
                   </form>
                 </div>
               </CardContent>
