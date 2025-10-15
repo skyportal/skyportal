@@ -11,8 +11,8 @@ def test_super_user_post_allocation(
         "hours_allocated": 200,
         "validity_ranges": [
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
         "proposal_id": "COO-2020A-P01",
@@ -40,8 +40,8 @@ def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
         "hours_allocated": 200,
         "validity_ranges": [
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
         "proposal_id": "COO-2020A-P01",
@@ -85,8 +85,8 @@ def test_read_only_user_cannot_get_unowned_allocation(
         "hours_allocated": 200,
         "validity_ranges": [
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
         "proposal_id": "COO-2020A-P01",
@@ -125,8 +125,8 @@ def test_delete_allocation_cascades_to_requests(
         "hours_allocated": 200,
         "validity_ranges": [
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
         "proposal_id": "COO-2020A-P01",
@@ -180,8 +180,8 @@ def test_allocation_comment(public_group, public_source, super_admin_token, sedm
         "hours_allocated": 200,
         "validity_ranges": [
             {
-                "start_date": "2021-02-27T00:00:00",
-                "end_date": "3021-07-20T00:00:00",
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
             }
         ],
         "proposal_id": "COO-2020A-P01",

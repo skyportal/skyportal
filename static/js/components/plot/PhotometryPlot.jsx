@@ -200,7 +200,6 @@ const PeriodAnnotationDialog = ({ obj_id, period, periodUnit }) => {
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        style={{ position: "fixed" }}
         maxWidth="lg"
       >
         <DialogTitle>Save Period as Annotation</DialogTitle>
@@ -882,7 +881,9 @@ const PhotometryPlot = ({
     if (plotType === "mag" || plotType === "flux") {
       if (t0 && displayXAxisInlog) {
         newLayouts.xaxis = {
-          title: "T - T0 (s)",
+          title: {
+            text: "T - T0 (s)",
+          },
           side: "bottom",
           range: photStats_value.sec_since_t0.range.map(Math.log10),
           type: "log",
@@ -893,7 +894,9 @@ const PhotometryPlot = ({
         };
       } else {
         newLayouts.xaxis = {
-          title: "MJD",
+          title: {
+            text: "MJD",
+          },
           side: "top",
           range: [...photStats_value.mjd.range],
           tickformat: ".6~f",
@@ -902,7 +905,9 @@ const PhotometryPlot = ({
         };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
-              title: "Days Ago",
+              title: {
+                text: "Days Ago",
+              },
               range: [...photStats_value.days_ago.range],
               overlaying: "x",
               side: "bottom",
@@ -912,7 +917,9 @@ const PhotometryPlot = ({
               ...BASE_LAYOUT,
             }
           : {
-              title: "T - T0 (days)",
+              title: {
+                text: "T - T0 (days)",
+              },
               range: [...photStats_value.sec_since_t0.range],
               overlaying: "x",
               side: "bottom",
@@ -924,7 +931,9 @@ const PhotometryPlot = ({
       }
     } else if (plotType === "period") {
       newLayouts.xaxis = {
-        title: "Phase",
+        title: {
+          text: "Phase",
+        },
         side: "bottom",
         range: [0, phase],
         tickformat: ".2f",
@@ -934,14 +943,18 @@ const PhotometryPlot = ({
 
     if (plotType === "mag" || plotType === "period") {
       newLayouts.yaxis = {
-        title: magsys.toUpperCase().concat(" Mag"),
+        title: {
+          text: magsys.toUpperCase().concat(" Mag"),
+        },
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
       };
       if (dm && photStats_value) {
         newLayouts.yaxis2 = {
-          title: "m - DM",
+          title: {
+            text: "m - DM",
+          },
           range: [
             photStats_value.mag.range[0] - dm_value,
             photStats_value.mag.range[1] - dm_value,
@@ -955,7 +968,9 @@ const PhotometryPlot = ({
       }
     } else if (plotType === "flux") {
       newLayouts.yaxis = {
-        title: "Flux",
+        title: {
+          text: "Flux",
+        },
         range: [...photStats_value.flux.range],
         ...BASE_LAYOUT,
       };

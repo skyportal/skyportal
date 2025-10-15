@@ -463,11 +463,11 @@ const CentroidPlot = ({ sourceId, plotStyle }) => {
           layout={{
             // 2x2 arcsec plot
             xaxis: {
-              title: "\u0394RA (arcsec)",
+              title: { text: "\u0394RA (arcsec)" },
               range: [-1, 1],
             },
             yaxis: {
-              title: "\u0394Dec (arcsec)",
+              title: { text: "\u0394Dec (arcsec)" },
               scaleanchor: "x",
               range: [-1, 1],
             },

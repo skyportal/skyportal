@@ -133,7 +133,6 @@ const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
       <Dialog
         open={dialogOpen && observingRunToModify !== null}
         onClose={closeDialog}
-        style={{ position: "fixed" }}
         maxWidth="md"
       >
         <DialogTitle>Edit Observing Run</DialogTitle>

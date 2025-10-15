@@ -6,7 +6,7 @@ from baselayer.log import make_log
 from .... import facility_apis
 from ....models import Obj, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
-from ....utils.safe_round import safe_round
+from ....utils.parse import safe_round
 from ...base import BaseHandler
 
 log = make_log("api/scan_report_item")

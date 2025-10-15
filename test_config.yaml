@@ -70,7 +70,7 @@ services:
     - dask
     - spectral_cube_analysis_service
     - tns_retrieval_queue
-    - tns_submission_queue
+    - external_publishing_submission_queue
     - watch_list
     - ngsf_analysis_service
 test_server:

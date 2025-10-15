@@ -39,7 +39,6 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
           e.stopPropagation();
           setDialogOpen(false);
         }}
-        style={{ position: "fixed" }}
       >
         <DialogTitle>Photometry Statistics</DialogTitle>
         <DialogContent>

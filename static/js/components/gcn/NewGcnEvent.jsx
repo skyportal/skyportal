@@ -12,35 +12,29 @@ import * as gcnTagsActions from "../../ducks/gcnTags";
 
 const NewGcnEvent = ({ handleClose = null }) => {
   const dispatch = useDispatch();
-
-  let gcnTags = [];
-  gcnTags = gcnTags.concat(useSelector((state) => state.gcnTags));
-  gcnTags.sort();
+  const gcnTags = [...(useSelector((state) => state.gcnTags) || [])].sort();
 
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());
   }, [dispatch]);
 
   const handleSubmit = async ({ formData }) => {
-    if (Object.keys(formData).includes("json") && formData.json !== undefined) {
+    if (formData.json) {
       const parsed_json = dataUriToBuffer(formData.json);
       formData.json = new TextDecoder().decode(parsed_json.buffer);
     }
-    if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
+    if (formData.xml) {
       const parsed_xml = dataUriToBuffer(formData.xml);
       formData.xml = new TextDecoder().decode(parsed_xml.buffer);
     }
-    if (Object.keys(formData).includes("ra") && formData.ra !== undefined) {
+    if (formData.ra !== undefined) {
       formData.skymap = {
         ra: formData.ra,
         dec: formData.dec,
         error: formData.error,
       };
     }
-    if (
-      Object.keys(formData).includes("polygon") &&
-      formData.polygon !== undefined
-    ) {
+    if (formData.polygon) {
       formData.skymap = {
         localization_name: formData.localization_name,
         polygon: formData.polygon,
@@ -49,9 +43,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
     const result = await dispatch(submitGcnEvent(formData));
     if (result.status === "success") {
       dispatch(showNotification("GCN Event saved"));
-      if (handleClose) {
-        handleClose();
-      }
+      handleClose?.(); // Call handleClose if it's provided
     }
   };
 
@@ -67,7 +59,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
     }
     if (!(formData.xml || formData.json)) {
       if (!formData.dateobs) {
-        errors.dateobs.addError(
+        errors.addError(
           "dateobs must be defined if not uploading a VOEvent or JSON notice",
         );
       }
@@ -80,7 +72,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
           formData.error !== undefined
         )
       ) {
-        errors.skymap.addError(
+        errors.addError(
           "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent / JSON",
         );
       }
@@ -93,67 +85,61 @@ const NewGcnEvent = ({ handleClose = null }) => {
     return errors;
   }
 
-  const properties = {
-    dateobs: {
-      type: "string",
-      title: "Observation date [i.e. 2022-05-14T12:24:25]",
-    },
-    ra: {
-      type: "number",
-      title: "Right Ascension [deg]",
-    },
-    dec: {
-      type: "number",
-      title: "Declination [deg]",
-    },
-    error: {
-      type: "number",
-      title: "1-sigma Error [deg]",
-    },
-    localization_name: {
-      type: "string",
-      title: "Localization name",
-    },
-    polygon: {
-      type: "string",
-      title:
-        "Polygon [i.e. [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)] ]",
-    },
-    xml: {
-      type: "string",
-      format: "data-url",
-      title: "VOEvent XML file",
-      description: "VOEvent XML file",
-    },
-    json: {
-      type: "string",
-      format: "data-url",
-      title: "JSON file",
-      description: "JSON file",
-    },
-    skymap: {
-      type: "string",
-      format: "data-url",
-      title: "Skymap File",
-      description: "Skymap Fits file",
-    },
-  };
-
-  if (gcnTags.length > 0) {
-    properties.tags = {
-      type: "array",
-      items: {
-        type: "string",
-        enum: gcnTags,
-      },
-      uniqueItems: true,
-      title: "Tags list",
-    };
-  }
-
   const gcnEventFormSchema = {
     type: "object",
-    properties,
+    properties: {
+      dateobs: {
+        type: "string",
+        title: "Observation date [i.e. 2022-05-14T12:24:25]",
+      },
+      ra: {
+        type: "number",
+        title: "Right Ascension [deg]",
+      },
+      dec: {
+        type: "number",
+        title: "Declination [deg]",
+      },
+      error: {
+        type: "number",
+        title: "1-sigma Error [deg]",
+      },
+      localization_name: {
+        type: "string",
+        title: "Localization name",
+      },
+      polygon: {
+        type: "string",
+        title:
+          "Polygon [i.e. [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)] ]",
+      },
+      xml: {
+        type: "string",
+        format: "data-url",
+        title: "VOEvent XML file",
+      },
+      json: {
+        type: "string",
+        format: "data-url",
+        title: "JSON file",
+      },
+      skymap: {
+        type: "string",
+        format: "data-url",
+        title: "Skymap Fits File",
+      },
+      ...(gcnTags.length > 0 && {
+        tags: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: gcnTags,
+          },
+          uniqueItems: true,
+          title: "Tags list",
+        },
+      }),
+    },
   };
 
   return (
@@ -162,7 +148,6 @@ const NewGcnEvent = ({ handleClose = null }) => {
       validator={validator}
       onSubmit={handleSubmit}
       customValidate={validate}
-      liveValidate
     />
   );
 };

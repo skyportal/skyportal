@@ -977,6 +977,9 @@ class PhotometryMag(_Schema, PhotBase):
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
+        if "mjd" not in data or data["mjd"] is None:
+            raise ValidationError("mjd must be provided and non-null.")
+
         if data["filter"] not in instrument.filters:
             raise ValidationError(
                 f"Instrument {instrument.name} has no filter {data['filter']}."

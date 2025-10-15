@@ -93,9 +93,7 @@ const ShiftPage = ({ route }) => {
             <Button
               secondary
               name="add_shift_button"
-              onClick={() => {
-                setShow("new shift");
-              }}
+              onClick={() => setShow("new shift")}
               sx={{
                 color: "text.secondary",
                 flex: "0 0 50px",

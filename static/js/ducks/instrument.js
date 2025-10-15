@@ -65,7 +65,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { assignments: [] }, action) => {
+const reducer = (state = {}, action) => {
   switch (action.type) {
     case FETCH_INSTRUMENT_OK: {
       const instrument = action.data;

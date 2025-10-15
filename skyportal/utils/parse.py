@@ -63,23 +63,22 @@ def bool_to_int(value):
 
 def str_to_bool(value, default=None):
     """
-    Convert a string to a boolean value
+    Convert a string to a boolean value.
 
-    Accepts various string representations of boolean values.
-    For example:
-        - "yes", "y", "true", "t", "1" -> True
-        - "no", "n", "false", "f", "0" -> False
-    If the string does not match any of these, it raises a ValueError.
-    If default is provided and the string does not match any of the accepted values,
-    it returns the default value instead of raising an error.
+    Accepts various string representations:
+        - "yes", "y", "true", "t", "1" => True
+        - "no", "n", "false", "f", "0" => False
+
+    If the value is None, empty, or invalid:
+        - returns the default if provided
+        - raises ValueError otherwise
 
     Parameters
     ----------
     value : str
         The string to convert to a boolean.
     default : bool, optional
-        The default value to return if the string does not match any of the accepted values.
-        If not provided and the string does not match any of the accepted values, a ValueError is raised.
+        Value to return if the input is missing or invalid.
 
     Returns
     -------
@@ -89,18 +88,37 @@ def str_to_bool(value, default=None):
     Raises
     -------
     ValueError
-        If the string does not match any of the accepted values and no default is provided.
+        If the value is invalid and no default is provided.
     """
     try:
-        value = str(value).strip().lower()
+        value_str = str(value).strip().lower()
+        if value_str in ("yes", "y", "true", "t", "1"):
+            return True
+        if value_str in ("no", "n", "false", "f", "0"):
+            return False
     except Exception:
-        raise ValueError(f"Invalid string value for boolean conversion: {value}")
+        pass  # ignore any conversion error
 
-    if value in ("yes", "y", "true", "t", "1"):
-        return True
-    elif value in ("no", "n", "false", "f", "0"):
-        return False
-    elif default is not None:
+    if default is not None:
         return default
-    else:
-        raise ValueError(f"Invalid string value for boolean conversion: {value}")
+    raise ValueError(f"Invalid string value for boolean conversion: {value}")
+
+
+def is_null(value):
+    """Check if a value is considered null.
+    Parameters
+    ----------
+    value : any
+        The value to check.
+    Returns
+    -------
+    bool
+        True if the value is null, False otherwise.
+    """
+    if isinstance(value, str):
+        value = value.strip().lower()
+    return value in [None, "", "none", "nan", "null"]
+
+
+def safe_round(number, precision):
+    return round(number, precision) if isinstance(number, int | float) else None

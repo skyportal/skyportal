@@ -68,7 +68,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   }, [filterGroups]);
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   userGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
@@ -204,7 +204,6 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       >
         {({ TransitionProps, placement }) => (
           <Grow
-            /* eslint-disable-next-line react/jsx-props-no-spreading */
             {...TransitionProps}
             style={{
               transformOrigin:
@@ -230,11 +229,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
         )}
       </Popper>
 
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={handleCloseDialog}>
         <DialogTitle>Select one or more groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>

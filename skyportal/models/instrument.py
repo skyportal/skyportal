@@ -3,7 +3,7 @@ __all__ = [
     "InstrumentField",
     "InstrumentFieldTile",
     "InstrumentLog",
-    "InstrumentTNSRobot",
+    "InstrumentSharingService",
 ]
 
 import re
@@ -34,7 +34,7 @@ from ..enum_types import (
     instrument_types,
     listener_classnames,
 )
-from .tns import TNSRobot
+from .sharing_service import SharingService
 
 _, cfg = load_env()
 
@@ -502,13 +502,13 @@ class Instrument(Base):
 
     logs = relationship("InstrumentLog")
 
-    tnsrobots = relationship(
-        "TNSRobot",
-        secondary="instrument_tnsrobots",
+    sharing_services = relationship(
+        "SharingService",
+        secondary="instrument_sharingservices",
         back_populates="instruments",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="TNS robots associated with this instrument, used for auto-reporting.",
+        doc="Sharing services associated with this instrument.",
     )
 
 
@@ -525,5 +525,11 @@ def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 
 
-InstrumentTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
-InstrumentTNSRobot.__doc__ = "Join table mapping Instruments to TNSRobots."
+InstrumentSharingService = join_model(
+    "instrument_sharingservices",
+    Instrument,
+    SharingService,
+    column_2="sharing_service_id",
+    overlaps="sharing_services",
+)
+InstrumentSharingService.__doc__ = "Join table mapping Instruments to SharingServices."
