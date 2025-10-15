@@ -37,18 +37,6 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "100%",
     width: "95%",
   },
-  paper: {
-    width: "100%",
-    padding: theme.spacing(1),
-    textAlign: "left",
-    color: theme.palette.text.primary,
-  },
-  items: {
-    width: "100%",
-    minWidth: "100%",
-    display: "flex",
-    wrap: "nowrap",
-  },
   spinner: {
     position: "relative",
     margin: "auto",
@@ -108,7 +96,7 @@ const FindingChart = () => {
   const [params, setParams] = useState({ ...initialFormState });
 
   const [image, setImage] = useState(null);
-  const [public_url, setPublicUrl] = useState(null);
+  const [publicUrl, setPublicUrl] = useState(null);
 
   const componentRef = useRef();
 
@@ -334,17 +322,11 @@ const FindingChart = () => {
                         <p>Enter an integer between 0 and 5</p>
                       )}
                     </FormControl>
-                    <Button
-                      primary
-                      type="submit"
-                      name="finderButton"
-                      className={classes.button}
-                    >
+                    <Button primary type="submit" name="finderButton">
                       Update
                     </Button>
                     <Button
                       secondary
-                      className={classes.button}
                       endIcon={<PrintIcon />}
                       onClick={handlePrint}
                       disabled={!image}
@@ -354,16 +336,15 @@ const FindingChart = () => {
                     <Tooltip title="The public link is only valid temporarily.">
                       <Button
                         secondary
-                        className={classes.button}
                         onClick={() => {
-                          navigator.clipboard.writeText(public_url);
+                          navigator.clipboard.writeText(publicUrl);
                           dispatch(
                             showNotification(
                               "Public link copied to clipboard!",
                             ),
                           );
                         }}
-                        disabled={!public_url}
+                        disabled={!publicUrl}
                       >
                         Share Link
                       </Button>
