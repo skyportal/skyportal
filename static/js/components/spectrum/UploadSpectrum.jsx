@@ -298,14 +298,7 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Instrument",
         ...(instruments?.length
           ? {
-              anyOf: instruments.map((instrument) => ({
-                enum: [instrument.id],
-                type: "integer",
-                title: `${
-                  telescopes.find((t) => t.id === instrument.telescope_id)
-                    ?.nickname
-                } / ${instrument.name}`,
-              })),
+              enum: instruments.map((instrument) => instrument.id),
             }
           : {}),
       },
@@ -526,6 +519,15 @@ const UploadSpectrumForm = ({ route }) => {
     group_ids: {
       "ui:enumNames": groups.map((group) => group.name),
     },
+    instrument_id: {
+      "ui:enumNames": instruments.map(
+        (instrument) =>
+          `${
+            telescopes.find((t) => t.id === instrument.telescope_id)?.nickname
+          } / ${instrument.name}`,
+      ),
+      "ui:disabled": !instruments?.length,
+    },
     observed_by: {
       "ui:enumNames": userEnumOptions?.enumNames,
     },
@@ -561,9 +563,6 @@ const UploadSpectrumForm = ({ route }) => {
       "fluxerr_column",
       "user_label",
     ],
-    instrument_id: {
-      "ui:disabled": !instruments?.length,
-    },
   };
 
   const parseAscii = ({ formData }) => {
