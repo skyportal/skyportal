@@ -48,6 +48,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
@@ -259,6 +260,7 @@ def serialize(
     stream=False,
     validation=False,
     extinction=False,
+    extinction_dict=None,
 ):
     return_value = {
         "obj_id": phot.obj_id,
@@ -350,6 +352,16 @@ def serialize(
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
 
+        extinction_value = None
+        flux_corr = None
+        mag_corr = None
+        if extinction and extinction_dict is not None:
+            extinction_value = extinction_dict.get(phot.filter)
+            if extinction_value is not None:
+                flux_corr = deredden_flux(phot.flux, extinction=extinction_value)
+                if nan_to_none(phot.mag) is not None:
+                    mag_corr = phot.mag + db_correction - extinction_value
+
         if format not in ["mag", "flux", "both"]:
             raise ValueError(
                 "Invalid output format specified. Must be one of "
@@ -381,14 +393,12 @@ def serialize(
                 "limiting_mag": maglimit_out,
             }
 
-            if extinction:
+            if extinction_dict is not None:
                 mag_data.update(
                     {
-                        "extinction": phot.extinction,
-                        "mag_corr": phot.mag_corr + db_correction
-                        if nan_to_none(phot.mag_corr) is not None
-                        else None,
-                        "flux_corr": nan_to_none(phot.flux_corr),
+                        "extinction": extinction_value,
+                        "mag_corr": mag_corr,
+                        "flux_corr": flux_corr,
                     }
                 )
 
@@ -418,12 +428,11 @@ def serialize(
                 "fluxerr": phot.fluxerr,
             }
 
-            # Only include extinction data if requested
-            if extinction:
+            if extinction_dict is not None:
                 flux_data.update(
                     {
-                        "extinction": phot.extinction,
-                        "flux_corr": nan_to_none(phot.flux_corr),
+                        "extinction": extinction_value,
+                        "flux_corr": nan_to_none(flux_corr),
                     }
                 )
 
@@ -1984,6 +1993,21 @@ class ObjPhotometryHandler(BaseHandler):
                 )
                 photometry = session.scalars(stmt).unique().all()
 
+                # Compute extinction for all filters
+                extinction_dict = None
+                if (
+                    include_extinction
+                    and len(photometry) > 0
+                    and nan_to_none(obj.ra) is not None
+                    and nan_to_none(obj.dec) is not None
+                ):
+                    extinction_dict = {}
+                    filters = {phot.filter for phot in photometry}
+                    for filt in filters:
+                        extinction_dict[filt] = calculate_extinction(
+                            obj.ra, obj.dec, filt
+                        )
+
                 phot_data = [
                     serialize(
                         phot,
@@ -1994,6 +2018,7 @@ class ObjPhotometryHandler(BaseHandler):
                         stream=include_stream_info,
                         validation=include_validation_info,
                         extinction=include_extinction,
+                        extinction_dict=extinction_dict,
                     )
                     for phot in photometry
                 ]

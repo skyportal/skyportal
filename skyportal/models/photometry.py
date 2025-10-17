@@ -446,31 +446,6 @@ class Photometry(conesearch_alchemy.Point, Base):
             else_=None,
         )
 
-    @hybrid_property
-    def extinction(self):
-        """Galactic extinction A_lambda in magnitudes for this filter."""
-        if all(
-            coord is not None and not np.isnan(coord) for coord in [self.ra, self.dec]
-        ):
-            return calculate_extinction(self.ra, self.dec, str(self.filter))
-        return None
-
-    @hybrid_property
-    def flux_corr(self):
-        """Extinction-corrected flux in microjansky."""
-        if all(
-            coord is not None and not np.isnan(coord) for coord in [self.ra, self.dec]
-        ):
-            return deredden_flux(self.flux, self.ra, self.dec, str(self.filter))
-        return None
-
-    @hybrid_property
-    def mag_corr(self):
-        """Extinction-corrected magnitude in the AB system."""
-        if self.mag is not None and self.extinction is not None:
-            return self.mag - self.extinction
-        return None
-
     def to_dict_public(self):
         from ..handlers.api.photometry import serialize
 

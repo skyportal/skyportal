@@ -114,7 +114,12 @@ def calculate_extinction(
 
 
 def deredden_flux(
-    flux: float, ra: float, dec: float, filter_name: str, Rv: float = 3.1
+    flux: float,
+    ra: float = None,
+    dec: float = None,
+    filter_name: str = None,
+    Rv: float = 3.1,
+    extinction: float = None,
 ) -> float | None:
     """
     De-redden flux using extinction correction.
@@ -123,23 +128,30 @@ def deredden_flux(
     ----------
     flux : float
         Observed flux in microjansky
-    ra : float
-        Right ascension in degrees
-    dec : float
-        Declination in degrees
-    filter_name : str
-        Filter name (any sncosmo filter)
+    ra : float, optional
+        Right ascension in degrees (required if extinction not provided)
+    dec : float, optional
+        Declination in degrees (required if extinction not provided)
+    filter_name : str, optional
+        Filter name (any sncosmo filter) (required if extinction not provided)
     Rv : float, optional
         Total-to-selective extinction ratio (default: 3.1)
+    extinction : float, optional
+        Pre-computed extinction value in magnitudes. If provided, ra, dec, and filter_name are ignored.
 
     Returns
     -------
     float or None
         De-reddened flux in microjansky, or None if filter not supported
     """
-    extinction = calculate_extinction(ra, dec, filter_name, Rv)
     if extinction is None:
-        return None
+        if ra is None or dec is None or filter_name is None:
+            raise ValueError(
+                "Either extinction must be provided, or ra, dec, and filter_name must all be provided"
+            )
+        extinction = calculate_extinction(ra, dec, filter_name, Rv)
+        if extinction is None:
+            return None
 
     if np.isnan(flux) or flux <= 0:
         return flux
