@@ -11,10 +11,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import deg2dms, deg2hms
-from ..utils.offset import (
-    _calculate_best_position_for_offset_stars,
-    get_nearby_offset_stars,
-)
+from ..utils.offset import _calculate_best_position_for_offset_stars, get_finding_chart
 from ..utils.parse import get_list_typed
 from . import FollowUpAPI
 
@@ -79,11 +76,12 @@ class GeminiRequest:
         )  # middle of the observation window
         obstime = obstime.strftime("%Y-%m-%d %H:%M:%S")
 
-        offset_stars, _, _, _, _ = get_nearby_offset_stars(
+        finder = get_finding_chart(
             source_ra=best_ra,
             source_dec=best_dec,
             source_name=request.obj.id,
-            how_many=1,
+            use_cache=True,
+            how_many=3,
             radius_degrees=2 / 60,
             mag_limit=18,
             mag_min=10,
@@ -91,8 +89,12 @@ class GeminiRequest:
             obstime=obstime,
             use_source_pos_in_starlist=False,
         )
+
+        offset_stars = finder.get("starlist", [])
+        finding_chart_public_url = finder.get("public_url", None)
+
         if len(offset_stars) == 0:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
         name = offset_stars[0]["name"]
         ra = offset_stars[0]["ra"]
@@ -100,7 +102,7 @@ class GeminiRequest:
         mag = round(offset_stars[0]["mag"], 1)
         pa = offset_stars[0]["pa"]
 
-        return name, ra, dec, f"{mag:.1f}/UC/Vega", pa
+        return name, ra, dec, f"{mag:.1f}/UC/Vega", pa, finding_chart_public_url
 
     def _build_payload(self, request, session):
         altdata = request.allocation.altdata
@@ -168,27 +170,29 @@ class GeminiRequest:
         ).strip()  # maximum airmass value
 
         notetitle = request.payload.get("notetitle")  # optional
-        note = request.payload.get("note")  # optional
+        note = request.payload.get("note") or ""  # optional
 
         if notetitle:
             notetitle = str(notetitle).strip()
-        if note:
-            note = str(note).strip()
+
+        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
 
         # Guide star selection
-        gstarg, gsra, gsdec, gsmag, gspa = self._get_guide_star(request, session)
+        gstarg, gsra, gsdec, gsmag, gspa, finding_chart_public_url = (
+            self._get_guide_star(request, session)
+        )
 
         if gstarg is None:
             raise ValueError("No guide star found")
 
-        spa = str(gspa).strip()
-        sgsmag = str(gsmag).strip() + "/UC/Vega"
-
+        # templates available for the allocation
         template_ids = get_list_typed(
             altdata.get("template_ids"),
             int,
             "Invalid template IDs specified in altdata",
         )
+
+        # template specified by the requester
         obsids = get_list_typed(
             request.payload.get("template_ids"),
             int,
@@ -197,6 +201,7 @@ class GeminiRequest:
 
         payloads = []
         for obsid in obsids:
+            # check that the requested template ID is in the allocation's allowed ones
             if len(template_ids) > 0 and obsid not in template_ids:
                 raise ValueError(
                     f"Invalid template ID, must be one of: {str(template_ids)}"
@@ -212,7 +217,7 @@ class GeminiRequest:
                 "target": target,
                 "ra": ra,
                 "dec": dec,
-                "posangle": spa,
+                "posangle": gspa,
                 "noteTitle": notetitle,
                 "note": note,
                 "ready": True,
@@ -225,7 +230,7 @@ class GeminiRequest:
                 "gstarg": gstarg,
                 "gsra": gsra,
                 "gsdec": gsdec,
-                "gsmag": sgsmag,
+                "gsmag": gsmag,
                 "gsprobe": "OIWFS",
                 "group": group,
             }

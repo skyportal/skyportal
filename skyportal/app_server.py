@@ -219,6 +219,7 @@ from skyportal.handlers.api.internal import (
     TokenHandler,
 )
 from skyportal.handlers.public import (
+    CachedSourceFinderHandler,
     ReleaseHandler,
     ReleaseSourcePageHandler,
     ReportHandler,
@@ -622,6 +623,7 @@ skyportal_handlers = [
     ),
     (r"/public/releases(?:/)?([0-9A-Za-z-_\.\+]+)?", ReleaseHandler),
     (r"/public/reports/(gcn)(/[0-9]+)?(/.*)?", ReportHandler),
+    (r"/public/finding_charts/(.*)", CachedSourceFinderHandler),
     (r"/public/.*", InvalidEndpointHandler),
     # Debug and logout pages.
     (r"/become_user(/.*)?", BecomeUserHandler),

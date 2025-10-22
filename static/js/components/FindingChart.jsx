@@ -1,6 +1,7 @@
 import makeStyles from "@mui/styles/makeStyles";
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useDispatch } from "react-redux";
 
 import PrintIcon from "@mui/icons-material/Print";
 import Card from "@mui/material/Card";
@@ -13,12 +14,15 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
-
 import { Controller, useForm } from "react-hook-form";
 import { useImage } from "react-image";
 import TextLoop from "react-text-loop";
 import { useReactToPrint } from "react-to-print";
+
+import { fetchSourceFinderChart } from "../ducks/source";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import { Tooltip } from "@mui/material";
 
 const initialFormState = {
   imagesource: "ps1",
@@ -32,21 +36,6 @@ const useStyles = makeStyles((theme) => ({
   media: {
     maxWidth: "100%",
     width: "95%",
-  },
-  button: {
-    margin: theme.spacing(1),
-  },
-  paper: {
-    width: "100%",
-    padding: theme.spacing(1),
-    textAlign: "left",
-    color: theme.palette.text.primary,
-  },
-  items: {
-    width: "100%",
-    minWidth: "100%",
-    display: "flex",
-    wrap: "nowrap",
   },
   spinner: {
     position: "relative",
@@ -93,6 +82,7 @@ const PlaceHolder = () => {
 };
 
 const FindingChart = () => {
+  const dispatch = useDispatch();
   const classes = useStyles();
   const {
     handleSubmit,
@@ -106,25 +96,31 @@ const FindingChart = () => {
   const [params, setParams] = useState({ ...initialFormState });
 
   const [image, setImage] = useState(null);
+  const [publicUrl, setPublicUrl] = useState(null);
 
   const componentRef = useRef();
 
   useEffect(() => {
     const fetchImage = async () => {
-      const url = new URL(`/api/sources/${id}/finder`, window.location.href);
-      url.search = new URLSearchParams({
+      const formData = {
         type: "png",
-        image_source: `${params.imagesource}`,
-        use_ztfref: `${params.positionsource === "ztfref"}`,
-        imsize: `${params.findersize}`,
-        num_offset_stars: `${params.numoffset}`,
-        facility: `${params.facility}`,
-      });
-      const response = await fetch(url);
-      if (response.ok) {
-        const blob = await response.blob();
-        const imageUrl = URL.createObjectURL(blob);
-        setImage(imageUrl);
+        image_source: `${params?.imagesource}`,
+        use_ztfref: `${params?.positionsource === "ztfref"}`,
+        imsize: `${params?.findersize}`,
+        num_offset_stars: `${params?.numoffset}`,
+        facility: `${params?.facility}`,
+        as_json: "true",
+      };
+      const response = await dispatch(fetchSourceFinderChart(id, formData));
+      if (response.status === "success" && response?.data) {
+        const img_data = response?.data?.finding_chart;
+        const url = response?.data?.public_url;
+        if (!img_data) {
+          console.error("No image data returned from server");
+          return;
+        }
+        setImage(`data:image/png;base64,${img_data}`);
+        setPublicUrl(url);
       } else {
         console.error("Error fetching image:", response.statusText);
       }
@@ -326,23 +322,33 @@ const FindingChart = () => {
                         <p>Enter an integer between 0 and 5</p>
                       )}
                     </FormControl>
-                    <Button
-                      primary
-                      type="submit"
-                      name="finderButton"
-                      className={classes.button}
-                    >
+                    <Button primary type="submit" name="finderButton">
                       Update
                     </Button>
                     <Button
                       secondary
-                      className={classes.button}
                       endIcon={<PrintIcon />}
                       onClick={handlePrint}
                       disabled={!image}
                     >
                       Print
                     </Button>
+                    <Tooltip title="The public link is only valid temporarily.">
+                      <Button
+                        secondary
+                        onClick={() => {
+                          navigator.clipboard.writeText(publicUrl);
+                          dispatch(
+                            showNotification(
+                              "Public link copied to clipboard!",
+                            ),
+                          );
+                        }}
+                        disabled={!publicUrl}
+                      >
+                        Share Link
+                      </Button>
+                    </Tooltip>
                   </form>
                 </div>
               </CardContent>
