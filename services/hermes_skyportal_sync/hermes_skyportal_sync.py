@@ -74,6 +74,27 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
         return obj, False
 
 
+def get_instrument_by_tns_id(session, tns_id: int):
+    """Get an Instrument by its TNS ID.
+
+    Parameters
+    ----------
+    session : sqlalchemy.orm.Session
+        Database session
+    tns_id : int
+        TNS API ID for the instrument
+
+    Returns
+    -------
+    instrument : Instrument or None
+        The Instrument instance if found, None otherwise
+    """
+    instrument = session.scalar(
+        sa.select(Instrument).where(Instrument.tns_id == tns_id)
+    )
+    return instrument
+
+
 def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
     """Create Source entries for an Obj if they don't exist.
 
@@ -262,11 +283,11 @@ class SourceProcessor:
     def __init__(
         self,
         default_group_ids: list[int] = None,
-        default_instrument_id: int = 1,
+        default_instrument_tns_id: int = None,
         bot_user_id: int = 1,
     ):
         self.default_group_ids = default_group_ids or []
-        self.default_instrument_id = default_instrument_id
+        self.default_instrument_tns_id = default_instrument_tns_id
         self.bot_user_id = bot_user_id
         self.processed_sources = set()
         self.message_count = 0
@@ -366,11 +387,26 @@ class SourceProcessor:
 
             # Add photometry with deduplication
             if photometry:
+                # Look up instrument by TNS ID
+                if self.default_instrument_tns_id is not None:
+                    instrument = get_instrument_by_tns_id(
+                        session, self.default_instrument_tns_id
+                    )
+                    if instrument is None:
+                        log(
+                            f"    ✗ Instrument with tns_id={self.default_instrument_tns_id} not found, skipping photometry"
+                        )
+                        return
+                    instrument_id = instrument.id
+                else:
+                    log("    ✗ No instrument_tns_id configured, skipping photometry")
+                    return
+
                 added_count, duplicate_count = add_photometry_with_deduplication(
                     session,
                     obj_id,
                     photometry,
-                    self.default_instrument_id,
+                    instrument_id,
                     self.default_group_ids,
                     self.bot_user_id,
                 )
@@ -431,7 +467,7 @@ class HermesSyncService:
         from_start: bool = False,
         max_age_days: float | None = None,
         group_ids: list[int] | None = None,
-        instrument_id: int = 1,
+        instrument_tns_id: int | None = None,
         bot_user_id: int = 1,
     ):
         self.username = username
@@ -444,13 +480,13 @@ class HermesSyncService:
 
         self.processor = SourceProcessor(
             default_group_ids=group_ids or [],
-            default_instrument_id=instrument_id,
+            default_instrument_tns_id=instrument_tns_id,
             bot_user_id=bot_user_id,
         )
 
         log(
             f"Initialized Hermes sync service with bot_user_id={bot_user_id}, "
-            f"group_ids={group_ids}, instrument_id={instrument_id}"
+            f"group_ids={group_ids}, instrument_tns_id={instrument_tns_id}"
         )
 
     def build_consumer(self) -> Consumer:
@@ -575,7 +611,7 @@ def service(*args, **kwargs):
     max_age_days = hermes_sync_cfg.get("max_age_days")
     bot_user_id = hermes_sync_cfg.get("bot_user_id", 1)
     group_ids = hermes_sync_cfg.get("group_ids", [1])
-    instrument_id = hermes_sync_cfg.get("instrument_id", 1)
+    instrument_tns_id = hermes_sync_cfg.get("instrument_tns_id")
 
     if not username or not password:
         log(
@@ -583,7 +619,7 @@ def service(*args, **kwargs):
         )
         return
 
-    # Validate bot user exists in this instance
+    # Validate bot user and instrument exist in this instance
     with DBSession() as session:
         bot_user = session.scalar(sa.select(User).where(User.id == bot_user_id))
         if bot_user is None:
@@ -593,6 +629,20 @@ def service(*args, **kwargs):
             return
         log(f"Using bot user: {bot_user.username} (ID: {bot_user_id})")
 
+        # Validate instrument with tns_id exists
+        if instrument_tns_id is not None:
+            instrument = get_instrument_by_tns_id(session, instrument_tns_id)
+            if instrument is None:
+                log(
+                    f"Instrument with tns_id={instrument_tns_id} not found. Please create an instrument with this TNS ID or configure 'instrument_tns_id' in config.yaml"
+                )
+                return
+            log(f"Using instrument: {instrument.name} (TNS ID: {instrument_tns_id})")
+        else:
+            log(
+                "Warning: No instrument_tns_id configured. Photometry will be skipped. Please configure 'app.hermes.sync.instrument_tns_id' in config.yaml"
+            )
+
     sync_service = HermesSyncService(
         username=username,
         password=password,
@@ -601,7 +651,7 @@ def service(*args, **kwargs):
         from_start=from_start,
         max_age_days=max_age_days,
         group_ids=group_ids,
-        instrument_id=instrument_id,
+        instrument_tns_id=instrument_tns_id,
         bot_user_id=bot_user_id,
     )
 
