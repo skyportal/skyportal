@@ -111,7 +111,7 @@ app:
         max_age_days:  # Skip messages older than N days (null/empty = no limit)
         bot_user_id:   # User ID of the bot account that will save sources and own photometry
         group_ids: []  # List of group IDs to assign imported sources to
-        instrument_id: # Default instrument ID for imported photometry
+        instrument_tns_ids: # List of TNS IDs of instruments for imported photometry
 
   winter:
     protocol: http

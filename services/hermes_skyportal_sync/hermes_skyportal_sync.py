@@ -9,7 +9,7 @@ import json
 import time
 import traceback
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -74,25 +74,35 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
         return obj, False
 
 
-def get_instrument_by_tns_id(session, tns_id: int):
-    """Get an Instrument by its TNS ID.
+def build_instrument_mapping(session, tns_ids: list[int]):
+    """Build a mapping from instrument names to database IDs based on TNS IDs.
 
     Parameters
     ----------
     session : sqlalchemy.orm.Session
         Database session
-    tns_id : int
-        TNS API ID for the instrument
+    tns_ids : list[int]
+        List of TNS IDs to include
 
     Returns
     -------
-    instrument : Instrument or None
-        The Instrument instance if found, None otherwise
+    mapping : dict[str, int]
+        Dictionary mapping instrument names to database IDs
+    missing_tns_ids : list[int]
+        List of TNS IDs that were not found in the database
     """
-    instrument = session.scalar(
-        sa.select(Instrument).where(Instrument.tns_id == tns_id)
-    )
-    return instrument
+    if not tns_ids:
+        return {}, []
+
+    instruments = session.scalars(
+        sa.select(Instrument).where(Instrument.tns_id.in_(tns_ids))
+    ).all()
+
+    mapping = {inst.name: inst.id for inst in instruments}
+    found_tns_ids = {inst.tns_id for inst in instruments}
+    missing_tns_ids = [tns_id for tns_id in tns_ids if tns_id not in found_tns_ids]
+
+    return mapping, missing_tns_ids
 
 
 def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
@@ -283,11 +293,11 @@ class SourceProcessor:
     def __init__(
         self,
         default_group_ids: list[int] = None,
-        default_instrument_tns_id: int = None,
+        instrument_mapping: dict[str, int] = None,
         bot_user_id: int = 1,
     ):
         self.default_group_ids = default_group_ids or []
-        self.default_instrument_tns_id = default_instrument_tns_id
+        self.instrument_mapping = instrument_mapping or {}
         self.bot_user_id = bot_user_id
         self.processed_sources = set()
         self.message_count = 0
@@ -382,38 +392,43 @@ class SourceProcessor:
             if obj_created:
                 self.created_sources += 1
 
-            # Create Source associations if needed
             _ = create_source(session, obj_id, self.default_group_ids, self.bot_user_id)
 
             # Add photometry with deduplication
             if photometry:
-                # Look up instrument by TNS ID
-                if self.default_instrument_tns_id is not None:
-                    instrument = get_instrument_by_tns_id(
-                        session, self.default_instrument_tns_id
-                    )
-                    if instrument is None:
-                        log(
-                            f"    ✗ Instrument with tns_id={self.default_instrument_tns_id} not found, skipping photometry"
-                        )
-                        return
-                    instrument_id = instrument.id
-                else:
-                    log("    ✗ No instrument_tns_id configured, skipping photometry")
+                if not self.instrument_mapping:
+                    log("    ✗ No instruments configured, skipping photometry")
                     return
 
-                added_count, duplicate_count = add_photometry_with_deduplication(
-                    session,
-                    obj_id,
-                    photometry,
-                    instrument_id,
-                    self.default_group_ids,
-                    self.bot_user_id,
-                )
+                # Group photometry by instrument name
+                phot_by_instrument = defaultdict(list)
+                for point in photometry:
+                    instrument_name = point.get("instrument")
+                    if instrument_name:
+                        phot_by_instrument[instrument_name].append(point)
 
-                if added_count > 0 or duplicate_count > 0:
+                # Process photometry for each instrument
+                for instrument_name, inst_phot in phot_by_instrument.items():
+                    instrument_id = self.instrument_mapping.get(instrument_name)
+
+                    if instrument_id is None:
+                        log(
+                            f"    ✗ Instrument '{instrument_name}' not in configured instruments, skipping {len(inst_phot)} points"
+                        )
+                        continue
+
+                    added_count, duplicate_count = add_photometry_with_deduplication(
+                        session,
+                        obj_id,
+                        inst_phot,
+                        instrument_id,
+                        self.default_group_ids,
+                        self.bot_user_id,
+                    )
+
+                    skipped_count = len(inst_phot) - added_count - duplicate_count
                     log(
-                        f"    → Photometry: {added_count} added, {duplicate_count} duplicates skipped"
+                        f"    → {instrument_name}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
                     )
 
             session.commit()
@@ -467,7 +482,7 @@ class HermesSyncService:
         from_start: bool = False,
         max_age_days: float | None = None,
         group_ids: list[int] | None = None,
-        instrument_tns_id: int | None = None,
+        instrument_mapping: dict[str, int] | None = None,
         bot_user_id: int = 1,
     ):
         self.username = username
@@ -480,13 +495,14 @@ class HermesSyncService:
 
         self.processor = SourceProcessor(
             default_group_ids=group_ids or [],
-            default_instrument_tns_id=instrument_tns_id,
+            instrument_mapping=instrument_mapping,
             bot_user_id=bot_user_id,
         )
 
+        instrument_names = list(instrument_mapping.keys()) if instrument_mapping else []
         log(
             f"Initialized Hermes sync service with bot_user_id={bot_user_id}, "
-            f"group_ids={group_ids}, instrument_tns_id={instrument_tns_id}"
+            f"group_ids={group_ids}, instruments={instrument_names}"
         )
 
     def build_consumer(self) -> Consumer:
@@ -611,7 +627,7 @@ def service(*args, **kwargs):
     max_age_days = hermes_sync_cfg.get("max_age_days")
     bot_user_id = hermes_sync_cfg.get("bot_user_id", 1)
     group_ids = hermes_sync_cfg.get("group_ids", [1])
-    instrument_tns_id = hermes_sync_cfg.get("instrument_tns_id")
+    instrument_tns_ids = hermes_sync_cfg.get("instrument_tns_ids", [])
 
     if not username or not password:
         log(
@@ -619,7 +635,7 @@ def service(*args, **kwargs):
         )
         return
 
-    # Validate bot user and instrument exist in this instance
+    # Validate bot user and build instrument mapping
     with DBSession() as session:
         bot_user = session.scalar(sa.select(User).where(User.id == bot_user_id))
         if bot_user is None:
@@ -629,18 +645,29 @@ def service(*args, **kwargs):
             return
         log(f"Using bot user: {bot_user.username} (ID: {bot_user_id})")
 
-        # Validate instrument with tns_id exists
-        if instrument_tns_id is not None:
-            instrument = get_instrument_by_tns_id(session, instrument_tns_id)
-            if instrument is None:
+        # Build instrument mapping from TNS IDs
+        if instrument_tns_ids:
+            instrument_mapping, missing_tns_ids = build_instrument_mapping(
+                session, instrument_tns_ids
+            )
+
+            if missing_tns_ids:
                 log(
-                    f"Instrument with tns_id={instrument_tns_id} not found. Please create an instrument with this TNS ID or configure 'instrument_tns_id' in config.yaml"
+                    f"Warning: Instruments with TNS IDs {missing_tns_ids} not found in database. "
+                    f"Please create these instruments or remove them from 'app.hermes.sync.instrument_tns_ids' in config.yaml"
                 )
-                return
-            log(f"Using instrument: {instrument.name} (TNS ID: {instrument_tns_id})")
+
+            if instrument_mapping:
+                log(f"Configured instruments: {list(instrument_mapping.keys())}")
+            else:
+                log(
+                    "Warning: No instruments found for configured TNS IDs. Photometry will be skipped."
+                )
         else:
+            instrument_mapping = {}
             log(
-                "Warning: No instrument_tns_id configured. Photometry will be skipped. Please configure 'app.hermes.sync.instrument_tns_id' in config.yaml"
+                "Warning: No instrument_tns_ids configured. Photometry will be skipped. "
+                "Please configure 'app.hermes.sync.instrument_tns_ids' in config.yaml"
             )
 
     sync_service = HermesSyncService(
@@ -651,7 +678,7 @@ def service(*args, **kwargs):
         from_start=from_start,
         max_age_days=max_age_days,
         group_ids=group_ids,
-        instrument_tns_id=instrument_tns_id,
+        instrument_mapping=instrument_mapping,
         bot_user_id=bot_user_id,
     )
 
