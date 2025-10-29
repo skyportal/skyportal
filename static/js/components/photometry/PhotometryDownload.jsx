@@ -74,6 +74,7 @@ const PhotometryDownload = ({
   const dispatch = useDispatch();
   const [downloadFormData, setDownloadFormData] = useState({
     columns: [],
+    filters: [],
     validationFilter: DEFAULT_VALIDATION_FILTER,
   });
   const [downloadMode, setDownloadMode] = useState("default");
@@ -89,6 +90,7 @@ const PhotometryDownload = ({
   };
 
   let availableDownloadColumns = [];
+  let availableFilters = [];
   if (data && data.length > 0) {
     const allKeys = [...Object.keys(data[0]), "utc", "flux", "fluxerr"];
     const filteredKeys = allKeys.filter(
@@ -97,6 +99,14 @@ const PhotometryDownload = ({
 
     const orderedKeys = orderColumns(filteredKeys);
     availableDownloadColumns = orderedKeys.map((key) => ({ key, label: key }));
+
+    const filtersSet = new Set();
+    data.forEach((phot) => {
+      if (phot.filter) {
+        filtersSet.add(phot.filter);
+      }
+    });
+    availableFilters = Array.from(filtersSet).sort();
   }
 
   const downloadSchema = {
@@ -113,12 +123,27 @@ const PhotometryDownload = ({
         uniqueItems: true,
         minItems: 1,
       },
+      filters: {
+        type: "array",
+        title: "Filters",
+        items: {
+          type: "string",
+          enum: availableFilters,
+        },
+        uniqueItems: true,
+      },
     },
     required: ["columns"],
   };
 
   const downloadUiSchema = {
     columns: {
+      "ui:widget": "checkboxes",
+      "ui:options": {
+        inline: true,
+      },
+    },
+    filters: {
       "ui:widget": "checkboxes",
       "ui:options": {
         inline: true,
@@ -175,6 +200,7 @@ const PhotometryDownload = ({
     setDownloadFormData((prev) => ({
       ...prev,
       columns: orderedColumns,
+      filters: availableFilters,
       ...(usePhotometryValidation && { validationFilter }),
     }));
   };
@@ -192,10 +218,18 @@ const PhotometryDownload = ({
   }, [availableDownloadColumns]);
 
   const performDownload = (buildHead, buildBody, cols, tableData) => {
-    const filteredTableData = filterDataByValidation(
+    let filteredTableData = filterDataByValidation(
       tableData,
       downloadFormData.validationFilter || DEFAULT_VALIDATION_FILTER,
     );
+
+    if (downloadFormData.filters && downloadFormData.filters.length > 0) {
+      filteredTableData = filteredTableData.filter((rowData) => {
+        const phot = data[rowData.index];
+        const result = downloadFormData.filters.includes(phot.filter);
+        return result;
+      });
+    }
 
     if (filteredTableData?.length === 0) {
       console.warn("No data to download after filtering");
