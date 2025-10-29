@@ -10,6 +10,7 @@ import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
+import ClearIcon from "@mui/icons-material/Clear";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -337,6 +338,23 @@ const UserManagement = () => {
       dispatch(
         usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
       );
+    }
+  };
+
+  const handleRemoveUserExpirationDate = async () => {
+    const result = await dispatch(
+      usersActions.patchUser(clickedUser.id, {
+        expirationDate: null,
+      }),
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("User expiration date successfully removed."));
+      reset({ date: null });
+      setEditUserExpirationDateDialogOpen(false);
+      dispatch(
+        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
+      );
+      setClickedUser(null);
     }
   };
 
@@ -689,12 +707,36 @@ const UserManagement = () => {
     setQueryInProgress(false);
   };
 
+  const handleUserTableSorting = async (sortData) => {
+    setQueryInProgress(true);
+    const sortBy = sortData.name === "created_at" ? "createdAt" : "username";
+    const sortOrder = sortData.direction;
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      sortBy,
+      sortOrder,
+    };
+    setFetchParams(params);
+    await dispatch(
+      usersActions.fetchUsers({ ...params, includeExpired: true }),
+    );
+    setQueryInProgress(false);
+  };
+
   const handleTableChange = (action, tableState) => {
     setRowsPerPage(tableState.rowsPerPage);
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
         handlePageChange(tableState.page, tableState.rowsPerPage);
+        break;
+      case "sort":
+        if (tableState.sortOrder.direction === "none") {
+          handleUserTableSorting({ name: "username", direction: "asc" });
+        } else {
+          handleUserTableSorting(tableState.sortOrder);
+        }
         break;
       default:
     }
@@ -783,6 +825,7 @@ const UserManagement = () => {
         filterOptions: {
           display: () => <div />,
         },
+        sort: false,
       },
     },
     {
@@ -791,7 +834,24 @@ const UserManagement = () => {
       options: {
         // Turn off default filtering for custom form
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
         customBodyRenderLite: renderUsername,
+      },
+    },
+    {
+      name: "created_at",
+      label: "Created At",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: (dataIndex) => {
+          const user = users[dataIndex];
+          return user.created_at
+            ? dayjs.utc(user.created_at).format("YYYY/MM/DD")
+            : "";
+        },
       },
     },
     {
@@ -871,7 +931,7 @@ const UserManagement = () => {
     search: false,
     selectableRows: "none",
     enableNestedDataAccess: ".",
-    sort: false,
+    sort: true,
     rowsPerPage,
     rowsPerPageOptions: [10, 25, 50, 100, 200],
     filter: !queryInProgress,
@@ -1210,7 +1270,10 @@ const UserManagement = () => {
                   <DatePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    slotProps={{ textField: { variant: "outlined" } }}
+                    slotProps={{
+                      textField: { variant: "outlined" },
+                      field: { clearable: true },
+                    }}
                     label="Expiration date (UTC)"
                     showTodayButton={false}
                   />
@@ -1229,6 +1292,17 @@ const UserManagement = () => {
                 data-testid="submitExpirationDateButton"
               >
                 Submit
+              </Button>
+              <Button
+                secondary
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRemoveUserExpirationDate();
+                }}
+                name="removeExpirationDateButton"
+                data-testid="removeExpirationDateButton"
+              >
+                Remove Expiration Date
               </Button>
             </div>
           </form>
