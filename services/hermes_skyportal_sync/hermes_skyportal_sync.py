@@ -21,6 +21,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
+from skyportal.handlers.api.photometry import nan_to_none
 from skyportal.models import (
     DBSession,
     Group,
@@ -32,6 +33,7 @@ from skyportal.models import (
     Stream,
     User,
 )
+from skyportal.utils.parse import safe_round
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -69,9 +71,9 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
         session.add(obj)
         session.flush()
         log(f"Created new Obj: {obj_id}")
-        return obj, True
+        return True
     else:
-        return obj, False
+        return False
 
 
 def build_instrument_mapping(session, tns_ids: list[int]):
@@ -151,8 +153,6 @@ def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
     if sources_created > 0:
         session.flush()
 
-    return sources_created
-
 
 def add_photometry_with_deduplication(
     session,
@@ -208,12 +208,10 @@ def add_photometry_with_deduplication(
     # Create a set of existing (mjd, filter, flux, fluxerr) tuples for duplicate detection
     existing_keys = {
         (
-            round(p.mjd, 7),
+            safe_round(p.mjd, 7),
             p.filter,
-            round(p.flux, 5) if p.flux is not None else None,
-            round(p.fluxerr, 5)
-            if p.fluxerr is not None and not np.isnan(p.fluxerr)
-            else None,
+            safe_round(p.flux, 5),
+            safe_round(nan_to_none(p.fluxerr), 5),
         )
         for p in existing_phot
     }
@@ -231,7 +229,7 @@ def add_photometry_with_deduplication(
             continue
 
         jd = float(date_obs)
-        mjd = round(jd - 2400000.5, 7)
+        mjd = safe_round(jd - 2400000.5, 7)
 
         mag = float(brightness)
         flux = PhotometricSeries.mag2flux(np.array([mag]))[0]
@@ -248,10 +246,8 @@ def add_photometry_with_deduplication(
         duplicate_key = (
             mjd,
             bandpass,
-            round(flux, 5) if flux is not None else None,
-            round(fluxerr, 5)
-            if fluxerr is not None and not np.isnan(fluxerr)
-            else None,
+            safe_round(flux, 5),
+            safe_round(nan_to_none(fluxerr), 5),
         )
         if duplicate_key in existing_keys:
             duplicate_count += 1
@@ -385,14 +381,14 @@ class SourceProcessor:
             List of photometry dictionaries
         """
         try:
-            _, obj_created = create_or_get_obj(
+            obj_created = create_or_get_obj(
                 session, obj_id, target.get("ra"), target.get("dec")
             )
 
             if obj_created:
                 self.created_sources += 1
 
-            _ = create_source(session, obj_id, self.default_group_ids, self.bot_user_id)
+            create_source(session, obj_id, self.default_group_ids, self.bot_user_id)
 
             # Add photometry with deduplication
             if photometry:
@@ -620,18 +616,29 @@ def service(*args, **kwargs):
     password = hermes_sync_cfg.get("scimma_password")
     server_url = hermes_sync_cfg.get("kafka_server", "kafka.scimma.org")
 
-    topic = cfg.get("app.hermes.topic", "skyportal.skyportal_test")
+    topic = cfg.get("app.hermes.topic")
 
     # Service configuration
-    from_start = hermes_sync_cfg.get("from_start", False)
+    from_start = hermes_sync_cfg.get("from_start")
     max_age_days = hermes_sync_cfg.get("max_age_days")
-    bot_user_id = hermes_sync_cfg.get("bot_user_id", 1)
-    group_ids = hermes_sync_cfg.get("group_ids", [1])
-    instrument_tns_ids = hermes_sync_cfg.get("instrument_tns_ids", [])
+    bot_user_id = hermes_sync_cfg.get("bot_user_id")
+    group_ids = hermes_sync_cfg.get("group_ids")
+    instrument_tns_ids = hermes_sync_cfg.get("instrument_tns_ids")
 
-    if not username or not password:
+    required_configs = {
+        "app.hermes.sync.scimma_username": username,
+        "app.hermes.sync.scimma_password": password,
+        "app.hermes.sync.kafka_server": server_url,
+        "app.hermes.topic": topic,
+        "app.hermes.sync.bot_user_id": bot_user_id,
+        "app.hermes.sync.group_ids": group_ids,
+    }
+
+    missing = [name for name, value in required_configs.items() if not value]
+    if missing:
         log(
-            "Hermes sync service is not configured. Please configure 'app.hermes.sync.scimma_username' and 'app.hermes.sync.scimma_password' in config.yaml to enable the service."
+            f"Missing required configuration: {', '.join(missing)}. "
+            "Please configure these values in config.yaml"
         )
         return
 
