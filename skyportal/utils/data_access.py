@@ -381,12 +381,16 @@ def get_photometry_by_instruments_stream_and_options(
     # if no photometry or only non-detections photometry is found, raise an error
     if not detections:
         stream_names = (
-            session.scalars(sa.select(Stream.name).where(Stream.id.in_(stream_ids)))
-            .unique()
-            .all()
+            (
+                session.scalars(sa.select(Stream.name).where(Stream.id.in_(stream_ids)))
+                .unique()
+                .all()
+            )
+            if stream_ids
+            else []
         )
         raise ValueError(
-            f"No photometry for {obj_id} with {'streams ' + ', '.join(stream_names) if stream_names else 'unspecified streams'}, cannot submit"
+            f"No real detections for {obj_id}{' with streams ' + ', '.join(stream_names) if stream_names else ''}, cannot submit"
         )
 
     # Filter the photometry by the photometry options
