@@ -89,7 +89,7 @@
     "react-transition-group": "4.4.5",
     "react-viewport-list": "7.1.2",
     "react-window": "2.0.2",
-    "redoc": "2.5.0",
+    "redoc": "2.5.2",
     "redoc-cli": "0.13.21",
     "redux": "5.0.1",
     "redux-logger": "3.0.6",
