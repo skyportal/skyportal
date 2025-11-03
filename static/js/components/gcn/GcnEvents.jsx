@@ -105,6 +105,10 @@ const getMuiTheme = (theme) =>
             padding: "0 0.75rem",
             margin: 0,
           },
+          filterPaper: {
+            minWidth: "50vw",
+            maxWidth: "95vw",
+          },
         },
       },
       MUIDataTableHeadCell: {
