@@ -663,8 +663,12 @@ async def get_sources(
         if sourceID not in [None, ""]:
             try:
                 sourceID = str(sourceID).strip()
+                sourceID_lower = sourceID.lower()
                 query_params.append(
                     bindparam("sourceID", value=sourceID, type_=sa.String)
+                )
+                query_params.append(
+                    bindparam("sourceID_lower", value=sourceID_lower, type_=sa.String)
                 )
 
                 # we try to detect a potential TNS name as the sourceID,
@@ -693,7 +697,7 @@ async def get_sources(
                     tns_name = None
                 statements.append(
                     f"""
-                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""})
+                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""} OR lower(CAST(objs.alias AS text)) LIKE '%' || :sourceID_lower || '%')
                         """
                 )
             except Exception as e:
@@ -713,17 +717,6 @@ async def get_sources(
                 raise ValueError(
                     f"Invalid rejectedSourceIDs: {rejectedSourceIDs} ({e})"
                 )
-        if alias is not None:
-            if alias in ["", None]:
-                raise ValueError(f"Invalid alias: {alias}")
-            query_params.append(
-                bindparam("alias", value=str(alias).strip().lower(), type_=sa.String)
-            )
-            statements.append(
-                """
-                (lower(objs.alias) LIKE '%' || :alias || '%')
-                """
-            )
         if origin not in [None, ""]:
             query_params.append(
                 bindparam("origin", value=str(origin).strip().lower(), type_=sa.String)

@@ -179,7 +179,7 @@ const QuickSearchBar = () => {
               let match_name = matchingEntries[key].dateobs;
               if ((matchingEntries[key].aliases || []).length > 0) {
                 name = `${name} (${matchingEntries[key].aliases[0]})`;
-                match_name = `${match_name} ${matchingEntries[key].aliases[0]}`;
+                match_name = `${match_name} ${matchingEntries[key].aliases.join(' ')}`;
               }
               return {
                 id: matchingEntries[key].dateobs,
@@ -216,6 +216,15 @@ const QuickSearchBar = () => {
                     /\s/g,
                     "",
                   )}`;
+                }
+              }
+              // Add aliases to match_name for searching
+              if ((matchingEntries[key].alias || []).length > 0) {
+                match_name = `${match_name} ${matchingEntries[key].alias.join(' ')}`;
+                if (!matchingEntries[key]?.tns_name?.length) {
+                  name = `${name} (${matchingEntries[key].alias[0]})`;
+                } else {
+                  name = `${name}, ${matchingEntries[key].alias[0]}`;
                 }
               }
               return {
