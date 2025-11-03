@@ -72,6 +72,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22.x"
+          package-manager-cache: false
 
       - name: Install system dependencies
         run: |

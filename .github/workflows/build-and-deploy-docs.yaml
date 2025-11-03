@@ -55,6 +55,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22.x"
+          package-manager-cache: false
 
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1

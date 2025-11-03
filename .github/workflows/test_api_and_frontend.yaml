@@ -59,6 +59,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22.x"
+          package-manager-cache: false
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
