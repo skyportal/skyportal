@@ -1939,7 +1939,7 @@ class ObjPhotometryHandler(BaseHandler):
         include_validation_info = str_to_bool(include_validation_info, default=False)
 
         include_annotation_info = str_to_bool(include_annotation_info, default=False)
-        
+
         include_extinction = str_to_bool(include_extinction, default=False)
 
         with self.Session() as session:
