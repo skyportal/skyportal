@@ -222,14 +222,14 @@ const AllocationPage = () => {
 
   const [tabIndex, setTabIndex] = React.useState(0);
 
-  const handleChangeTab = (event, newValue) => {
-    setTabIndex(newValue);
-  };
-
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+        <Tabs
+          value={tabIndex}
+          onChange={(_, newValue) => setTabIndex(newValue)}
+          centered
+        >
           <Tab label="Allocations" />
           <Tab label="Default Observation Plans" />
           <Tab label="Default Survey Efficiencies" />

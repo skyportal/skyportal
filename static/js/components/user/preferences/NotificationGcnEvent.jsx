@@ -443,6 +443,7 @@ const NotificationGcnEvent = () => {
                       setSelectedLocalizationProperties={
                         setSelectedLocalizationProperties
                       }
+                      comparators={comparators}
                     />
                   </div>
                 </div>
