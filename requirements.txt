@@ -57,7 +57,7 @@ aiosmtpd==1.4.6
 ligo.skymap==2.0.1
 python-ligo-lw==1.8.4
 lalsuite<7.27
-healpy==1.18.0
+healpy==1.18.1
 pygcn==1.1.2
 pysedm==0.31.1
 xmlschema==4.1.0
