@@ -969,7 +969,7 @@ const PhotometryPlot = ({
     } else if (plotType === "flux") {
       newLayouts.yaxis = {
         title: {
-          text: "Flux",
+          text: "Flux (uJy)",
         },
         range: [...photStats_value.flux.range],
         ...BASE_LAYOUT,
