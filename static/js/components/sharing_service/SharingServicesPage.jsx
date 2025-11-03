@@ -816,7 +816,7 @@ const SharingServicesPage = () => {
 
   const validate = (errors) => {
     const { tns_source_group_id } = sharingServiceToManage;
-    if (tns_source_group_id !== "" && Number.isNaN(tns_source_group_id)) {
+    if (tns_source_group_id !== "" && Number.isNaN(Number(tns_source_group_id))) {
       errors.tns_source_group_id.addError(
         "TNS source group ID must be a number.",
       );
