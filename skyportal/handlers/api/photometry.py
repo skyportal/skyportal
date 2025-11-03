@@ -259,7 +259,6 @@ def serialize(
     owner=False,
     stream=False,
     validation=False,
-    extinction=False,
     extinction_dict=None,
 ):
     return_value = {
@@ -355,7 +354,7 @@ def serialize(
         extinction_value = None
         flux_corr = None
         mag_corr = None
-        if extinction and extinction_dict is not None:
+        if extinction_dict is not None:
             extinction_value = extinction_dict.get(phot.filter)
             if extinction_value is not None:
                 flux_corr = deredden_flux(phot.flux, extinction=extinction_value)
@@ -2015,7 +2014,6 @@ class ObjPhotometryHandler(BaseHandler):
                         owner=include_owner_info,
                         stream=include_stream_info,
                         validation=include_validation_info,
-                        extinction=include_extinction,
                         extinction_dict=extinction_dict,
                     )
                     for phot in photometry
