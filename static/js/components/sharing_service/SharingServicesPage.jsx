@@ -787,7 +787,7 @@ const SharingServicesPage = () => {
       } else {
         dispatch(
           showNotification(
-            `Error ${isEdit ? "editing" : "adding"} publishing sharingService.`,
+            `Error ${isEdit ? "editing" : "adding"} sharingService.`,
             "error",
           ),
         );
@@ -804,12 +804,7 @@ const SharingServicesPage = () => {
         setDeleteDialogOpen(false);
         setSharingServiceToManage({});
       } else {
-        dispatch(
-          showNotification(
-            "Error deleting publishing sharingService.",
-            "error",
-          ),
-        );
+        dispatch(showNotification("Error deleting sharingService.", "error"));
       }
     });
   };
