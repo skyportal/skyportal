@@ -385,7 +385,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
           >
             <div>
               <Chip
-                label="Tns"
+                label="TNS"
                 clickable
                 onClick={() => setSendToTNS(!sendToTNS)}
                 color={sendToTNS ? "primary" : "default"}
