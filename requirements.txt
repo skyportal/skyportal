@@ -84,7 +84,7 @@ confluent_kafka==2.11.0 # dependency of gcn-kafka: pinning to understand memory 
 iminuit==2.31.3
 watchdog==6.0.0
 PyAstronomy==0.24.0
-shapely==2.0.7
+shapely==2.1.2
 openai==1.109.1
 tiktoken==0.9.0
 simplejson==3.20.1
