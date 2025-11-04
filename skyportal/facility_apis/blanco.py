@@ -68,6 +68,7 @@ class BLANCO_NEWFIRM_Request:
 
         exp_time = request.payload["exposure_time"]
         sequence_repeats = int(request.payload["sequence_repeats"])
+        coadds = int(request.payload["coadds"])
 
         configurations = []
         for filt in request.payload["observation_choices"]:
@@ -80,6 +81,7 @@ class BLANCO_NEWFIRM_Request:
                         "dither_sequence": "5-point",
                         "detector_centering": "det_1",
                         "dither_sequence_random_offset": True,
+                        "coadds": coadds,
                     },
                     "constraints": constraints,
                     "target": target,
@@ -316,6 +318,11 @@ class NEWFIRMAPI(BLANCOAPI):
                 "type": "number",
                 "default": 1,
             },
+            "coadds": {
+                "title": "Number of coadds",
+                "type": "number",
+                "default": 1,
+            },
             "start_date": {
                 "type": "string",
                 "default": datetime.utcnow().isoformat(),
@@ -351,6 +358,7 @@ class NEWFIRMAPI(BLANCOAPI):
         "required": [
             "observation_choices",
             "sequence_repeats",
+            "coadds",
             "start_date",
             "end_date",
             "maximum_airmass",

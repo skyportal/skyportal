@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
-import InputLabel from "@mui/material/InputLabel";
-import makeStyles from "@mui/styles/makeStyles";
 import { withTheme } from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 
+import InputLabel from "@mui/material/InputLabel";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,17 +21,15 @@ import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-
-import validator from "@rjsf/validator-ajv8";
-
-import MUIDataTable from "mui-datatables";
-import { showNotification } from "baselayer/components/Notifications";
 import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import FormGroup from "@mui/material/FormGroup";
 import FormLabel from "@mui/material/FormLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import FormControl from "@mui/material/FormControl";
+import MUIDataTable from "mui-datatables";
+import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
 import TransferList from "../TransferList";
@@ -43,28 +41,12 @@ import { userLabel } from "../../utils/format";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
-const useStyles = makeStyles(() => ({
-  sharingServicesList: {
-    width: "100%",
-  },
-  manageButtons: {
-    display: "flex",
-    flexDirection: "row",
-  },
-  groupChipOwner: {
-    backgroundColor: "#457B9D",
-    color: "white",
-  },
-  groupChip: {},
-}));
-
 const SharingServiceGroup = ({
   sharingServiceGroup,
   sharingService,
   groupsLookup,
   usersLookup,
 }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -257,22 +239,20 @@ const SharingServiceGroup = ({
   };
 
   return (
-    <div key={sharingServiceGroup.id}>
+    <div>
       <Chip
         size="small"
         label={groupsLookup[sharingServiceGroup.group_id]?.name || "loading..."}
-        className={
-          sharingServiceGroup.owner ? classes.groupChipOwner : classes.groupChip
+        sx={
+          sharingServiceGroup.owner
+            ? { bgcolor: "#457B9D", color: "white" }
+            : undefined
         }
-        onClick={() => {
-          setOpen(true);
-        }}
+        onClick={() => setOpen(true)}
       />
       <Dialog
         open={open}
-        onClose={() => {
-          setOpen(false);
-        }}
+        onClose={() => setOpen(false)}
         aria-labelledby="form-dialog-title"
         maxWidth="lg"
       >
@@ -459,46 +439,37 @@ const NewSharingServiceGroup = ({ sharingService, groupsLookup }) => {
       />
       <Dialog
         open={open}
-        onClose={() => {
-          setOpen(false);
-        }}
+        onClose={() => setOpen(false)}
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle id="form-dialog-title">Add Group</DialogTitle>
         <DialogContent
-          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          sx={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
         >
-          <div>
+          <FormControl sx={{ marginTop: "0.4rem", minWidth: "20vw" }}>
             <InputLabel>Group</InputLabel>
             <Select
-              value={group}
+              label="Group"
+              value={group || ""}
               onChange={(e) => setGroup(e.target.value)}
-              style={{ minWidth: "20vw" }}
             >
               {groupOptions
                 .sort((a, b) => a?.name?.localeCompare(b?.name))
-                .map(
-                  (
-                    group, // eslint-disable-line no-shadow
-                  ) => (
-                    <MenuItem key={group.id} value={group.id}>
-                      {group.name || "loading..."}
-                    </MenuItem>
-                  ),
-                )}
+                .map((groupOption) => (
+                  <MenuItem key={groupOption.id} value={groupOption.id}>
+                    {groupOption.name || "loading..."}
+                  </MenuItem>
+                ))}
             </Select>
-          </div>
-          <div>
-            <InputLabel>Owner</InputLabel>
-            <Switch
-              checked={owner}
-              onChange={(e) => setOwner(e.target.checked)}
-            />
-          </div>
-          <div
-            style={{
+          </FormControl>
+          <InputLabel>Owner</InputLabel>
+          <Switch
+            checked={owner}
+            onChange={(e) => setOwner(e.target.checked)}
+          />
+          <Box
+            sx={{
               display: "flex",
-              flexDirection: "row",
               gap: "0.5rem",
               justifyContent: "space-between",
             }}
@@ -507,7 +478,7 @@ const NewSharingServiceGroup = ({ sharingService, groupsLookup }) => {
               Add
             </Button>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          </Box>
         </DialogContent>
       </Dialog>
     </div>
@@ -626,21 +597,19 @@ const NewSharingServiceCoauthor = ({ sharingService, usersLookup }) => {
       />
       <Dialog
         open={open}
-        onClose={() => {
-          setOpen(false);
-        }}
+        onClose={() => setOpen(false)}
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle id="form-dialog-title">Add Coauthor</DialogTitle>
         <DialogContent
-          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+          sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}
         >
-          <div>
+          <FormControl sx={{ marginTop: "0.4rem", minWidth: "20vw" }}>
             <InputLabel>Coauthor</InputLabel>
             <Select
-              value={user}
+              label="Coauthor"
+              value={user || ""}
               onChange={(e) => setUser(e.target.value)}
-              style={{ minWidth: "20vw" }}
             >
               {userOptions
                 .sort((a, b) =>
@@ -658,11 +627,10 @@ const NewSharingServiceCoauthor = ({ sharingService, usersLookup }) => {
                   ),
                 )}
             </Select>
-          </div>
-          <div
-            style={{
+          </FormControl>
+          <Box
+            sx={{
               display: "flex",
-              flexDirection: "row",
               gap: "0.5rem",
               justifyContent: "space-between",
             }}
@@ -671,7 +639,7 @@ const NewSharingServiceCoauthor = ({ sharingService, usersLookup }) => {
               Add
             </Button>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          </Box>
         </DialogContent>
       </Dialog>
     </div>
@@ -693,18 +661,16 @@ NewSharingServiceCoauthor.propTypes = {
 };
 
 const SharingServicesPage = () => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
-  const manageSharingServicePermission =
+  const managePermission =
     currentUser?.permissions?.includes("Manage sharing services") ||
     currentUser?.permissions?.includes("System admin");
-  const [openManageSharingServiceDialog, setOpenManageBotDialog] =
-    useState(false);
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sharingServiceToManage, setBotToManage] = useState(null);
   const [enablePublishToTNS, setEnablePublishToTNS] = useState(true);
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
+  const [sharingServiceToManage, setSharingServiceToManage] = useState({});
 
   const groups = useSelector((state) => state.groups.userAccessible);
   const allGroups = useSelector((state) => state.groups.all);
@@ -760,7 +726,8 @@ const SharingServicesPage = () => {
     });
   }
 
-  const submitSharingService = (formData, isEdit) => {
+  const submitSharingService = () => {
+    const isEdit = Boolean(sharingServiceToManage?.id);
     const {
       name,
       tns_bot_name,
@@ -775,7 +742,7 @@ const SharingServicesPage = () => {
       tns_bot_id,
       tns_source_group_id,
       tns_api_key,
-    } = formData.formData;
+    } = sharingServiceToManage;
 
     const data = {
       name,
@@ -815,12 +782,12 @@ const SharingServicesPage = () => {
             `Sharing service ${isEdit ? "edited" : "added"} successfully.`,
           ),
         );
-        setBotToManage(null);
-        setOpenManageBotDialog(false);
+        setManageDialogOpen(false);
+        setSharingServiceToManage({});
       } else {
         dispatch(
           showNotification(
-            `Error ${isEdit ? "editing" : "adding"} publishing sharingService.`,
+            `Error ${isEdit ? "editing" : "adding"} sharingService.`,
             "error",
           ),
         );
@@ -834,22 +801,20 @@ const SharingServicesPage = () => {
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Sharing service deleted successfully."));
-        setBotToManage(null);
         setDeleteDialogOpen(false);
+        setSharingServiceToManage({});
       } else {
-        dispatch(
-          showNotification(
-            "Error deleting publishing sharingService.",
-            "error",
-          ),
-        );
+        dispatch(showNotification("Error deleting sharingService.", "error"));
       }
     });
   };
 
-  const validate = (formData, errors) => {
-    const { tns_source_group_id } = formData;
-    if (tns_source_group_id !== "" && Number.isNaN(tns_source_group_id)) {
+  const validate = (errors) => {
+    const { tns_source_group_id } = sharingServiceToManage;
+    if (
+      tns_source_group_id !== "" &&
+      Number.isNaN(Number(tns_source_group_id))
+    ) {
       errors.tns_source_group_id.addError(
         "TNS source group ID must be a number.",
       );
@@ -861,15 +826,10 @@ const SharingServicesPage = () => {
     return (
       <Link
         to={`/sharing_service/${sharingServicesList[dataIndex].id}/submissions`}
-        id="submissions_button"
         target="_blank"
       >
         <Tooltip title="View publishing submissions">
-          <IconButton
-            classes={{
-              root: classes.sharingServiceSubmissions,
-            }}
-          >
+          <IconButton>
             <ChecklistIcon />
           </IconButton>
         </Tooltip>
@@ -879,19 +839,15 @@ const SharingServicesPage = () => {
 
   const renderEdit = (dataIndex) => (
     <IconButton
-      id="edit_button"
-      classes={{
-        root: classes.sharingServiceEdit,
-      }}
       onClick={() => {
-        setBotToManage(sharingServicesList[dataIndex]);
+        setSharingServiceToManage(sharingServicesList[dataIndex]);
         setEnablePublishToTNS(
           sharingServicesList[dataIndex].enable_sharing_with_tns,
         );
         setEnablePublishToHermes(
           sharingServicesList[dataIndex].enable_sharing_with_hermes,
         );
-        setOpenManageBotDialog(true);
+        setManageDialogOpen(true);
       }}
     >
       <EditIcon />
@@ -901,9 +857,8 @@ const SharingServicesPage = () => {
   const renderDelete = (dataIndex) => {
     return (
       <IconButton
-        id="delete_button"
         onClick={() => {
-          setBotToManage(sharingServicesList[dataIndex]);
+          setSharingServiceToManage(sharingServicesList[dataIndex]);
           setDeleteDialogOpen(true);
         }}
       >
@@ -1017,27 +972,26 @@ const SharingServicesPage = () => {
     );
   };
 
-  const getFormSchema = (isNewBot, enableTNS) => {
+  const getFormSchema = (enableTNS) => {
+    const isCreation = !sharingServiceToManage?.id;
     return {
       type: "object",
       properties: {
         name: { type: "string", title: "Sharing Service Name (unique)" },
-        ...(isNewBot
-          ? {
-              owner_group_ids: {
-                type: "array",
-                items: {
-                  type: "integer",
-                  enum: (groups || [])
-                    .sort((a, b) => a?.name?.localeCompare(b?.name))
-                    .map((group) => group.id),
-                },
-                uniqueItems: true,
-                default: [],
-                title: "Owner Group(s)",
-              },
-            }
-          : {}),
+        ...(isCreation && {
+          owner_group_ids: {
+            type: "array",
+            title: "Owner Group(s)",
+            items: {
+              type: "integer",
+              enum: (groups || [])
+                .sort((a, b) => a?.name?.localeCompare(b?.name))
+                .map((group) => group.id),
+            },
+            uniqueItems: true,
+            default: [],
+          },
+        }),
         acknowledgments: {
           type: "string",
           title: "Acknowledgments",
@@ -1047,24 +1001,24 @@ const SharingServicesPage = () => {
         },
         instrument_ids: {
           type: "array",
+          title: "Instruments to restrict photometry to",
           items: {
             type: "integer",
             enum: allowedInstruments.map((instrument) => instrument.id),
           },
           uniqueItems: true,
           default: sharingServiceToManage?.instruments?.map((i) => i.id) || [],
-          title: "Instruments to restrict photometry to",
         },
         ...(streams?.length > 0 && {
           stream_ids: {
             type: "array",
+            title: "Streams to restrict photometry to (optional)",
             items: {
               type: "integer",
               enum: (streams || []).map((stream) => stream.id),
             },
             uniqueItems: true,
             default: sharingServiceToManage?.streams?.map((s) => s.id) || [],
-            title: "Streams to restrict photometry to (optional)",
           },
         }),
         testing: {
@@ -1081,42 +1035,40 @@ const SharingServicesPage = () => {
           description:
             "If enabled, the sharing service will only publish objects with both a first and last detection (i.e., at least two detections).",
         },
-        ...(enableTNS
-          ? {
-              tns_bot_name: { type: "string", title: "TNS Bot Name" },
-              tns_bot_id: { type: "number", title: "TNS Bot ID" },
-              tns_source_group_id: {
-                type: "integer",
-                title: "TNS Source Group ID",
-              },
-              tns_api_key: { type: "string", title: "TNS API Key" },
-              publish_existing_tns_objects: {
-                type: "boolean",
-                title: "Publish existing TNS objects",
-                default: false,
-                description:
-                  "If disabled, skips objects within 2 arcsec already in TNS. If enabled, publish if not yet submitted under this internal name.",
-              },
-              auto_sharing_allow_archival: {
-                type: "boolean",
-                title: "Allow TNS archival auto-publishing",
-                default: false,
-                description:
-                  "If enabled, the sharing service will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
-              },
-            }
-          : {}),
+        ...(enableTNS && {
+          tns_bot_name: { type: "string", title: "TNS Bot Name" },
+          tns_bot_id: { type: "number", title: "TNS Bot ID" },
+          tns_source_group_id: {
+            type: "integer",
+            title: "TNS Source Group ID",
+          },
+          tns_api_key: { type: "string", title: "TNS API Key" },
+          publish_existing_tns_objects: {
+            type: "boolean",
+            title: "Publish existing TNS objects",
+            default: false,
+            description:
+              "If disabled, skips objects within 2 arcsec already in TNS. If enabled, publish if not yet submitted under this internal name.",
+          },
+          auto_sharing_allow_archival: {
+            type: "boolean",
+            title: "Allow TNS archival auto-publishing",
+            default: false,
+            description:
+              "If enabled, the sharing service will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
+          },
+        }),
       },
       required: [
         "name",
         "acknowledgments",
         "instrument_ids",
         "first_and_last_detections",
-        ...((isNewBot && ["owner_group_ids"]) || []),
+        ...((isCreation && ["owner_group_ids"]) || []),
         ...(enableTNS
           ? ["tns_bot_name", "tns_bot_id", "tns_source_group_id"]
           : []),
-        ...(isNewBot && enableTNS ? ["tns_api_key"] : []),
+        ...(isCreation && enableTNS ? ["tns_api_key"] : []),
       ],
     };
   };
@@ -1202,13 +1154,8 @@ const SharingServicesPage = () => {
       options: {
         customBodyRenderLite: (dataIndex) => {
           const { instruments } = sharingServicesList[dataIndex];
-          return (
-            <span>
-              {instruments?.length
-                ? instruments.map((i) => i.name).join(", ")
-                : ""}
-            </span>
-          );
+          if (!instruments?.length) return null;
+          return instruments.map((i) => i.name).join(", ");
         },
       },
     },
@@ -1217,14 +1164,9 @@ const SharingServicesPage = () => {
       label: "Streams (optional)",
       options: {
         customBodyRenderLite: (dataIndex) => {
-          const { streams } = sharingServicesList[dataIndex]; // eslint-disable-line no-shadow
-          return (
-            <span>
-              {streams?.length > 0
-                ? streams.map((stream) => stream.name).join(", ")
-                : ""}
-            </span>
-          );
+          const sharingService = sharingServicesList[dataIndex];
+          if (!sharingService?.streams?.length) return null;
+          return sharingService.streams.map((stream) => stream.name).join(", ");
         },
       },
     },
@@ -1233,10 +1175,10 @@ const SharingServicesPage = () => {
       label: " ",
       options: {
         customBodyRenderLite: (dataIndex) => (
-          <div className={classes.manageButtons}>
+          <div style={{ display: "flex" }}>
             {publishingSubmissionsLink(dataIndex)}
-            {manageSharingServicePermission && renderEdit(dataIndex)}
-            {manageSharingServicePermission && renderDelete(dataIndex)}
+            {managePermission && renderEdit(dataIndex)}
+            {managePermission && renderDelete(dataIndex)}
           </div>
         ),
       },
@@ -1246,7 +1188,6 @@ const SharingServicesPage = () => {
   return (
     <div>
       <MUIDataTable
-        className={classes.sharingServicesList}
         title="Sharing Services"
         data={sharingServicesList.sort((a, b) =>
           a?.name?.localeCompare(b?.name),
@@ -1261,14 +1202,14 @@ const SharingServicesPage = () => {
           pagination: false,
           search: false,
           customToolbar: () =>
-            manageSharingServicePermission && (
+            managePermission && (
               <IconButton
-                name="new_sharingService"
+                name="new_sharing_service"
                 onClick={() => {
-                  setBotToManage(null);
+                  setSharingServiceToManage({});
                   setEnablePublishToTNS(true);
                   setEnablePublishToHermes(true);
-                  setOpenManageBotDialog(true);
+                  setManageDialogOpen(true);
                 }}
               >
                 <AddIcon />
@@ -1277,10 +1218,10 @@ const SharingServicesPage = () => {
         }}
       />
       <Dialog
-        open={openManageSharingServiceDialog}
+        open={manageDialogOpen}
         onClose={() => {
-          setBotToManage(null);
-          setOpenManageBotDialog(false);
+          setManageDialogOpen(false);
+          setSharingServiceToManage({});
         }}
         aria-labelledby="form-dialog-title"
       >
@@ -1290,7 +1231,7 @@ const SharingServicesPage = () => {
             gap={1}
             style={{ alignItems: "center", justifyContent: "space-between" }}
           >
-            {sharingServiceToManage ? "Edit" : "New"} sharing service
+            {sharingServiceToManage.id ? "Edit" : "New"} sharing service
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
@@ -1302,7 +1243,7 @@ const SharingServicesPage = () => {
               </Tooltip>
               <div>
                 <Chip
-                  label="Tns"
+                  label="TNS"
                   clickable
                   onClick={() => setEnablePublishToTNS(!enablePublishToTNS)}
                   color={enablePublishToTNS ? "primary" : "default"}
@@ -1318,7 +1259,6 @@ const SharingServicesPage = () => {
                       href="https://hermes.lco.global/about"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={classes.tooltipLink}
                     >
                       here
                     </a>{" "}
@@ -1342,7 +1282,8 @@ const SharingServicesPage = () => {
         <DialogContent>
           <Form
             formData={sharingServiceToManage}
-            schema={getFormSchema(!sharingServiceToManage, enablePublishToTNS)}
+            onChange={(e) => setSharingServiceToManage(e.formData)}
+            schema={getFormSchema(enablePublishToTNS)}
             uiSchema={{
               owner_group_ids: {
                 "ui:enumNames": (groups || [])
@@ -1358,9 +1299,7 @@ const SharingServicesPage = () => {
                 "ui:enumNames": (streams || []).map((stream) => stream.name),
               },
             }}
-            onSubmit={(formData) =>
-              submitSharingService(formData, !!sharingServiceToManage)
-            }
+            onSubmit={submitSharingService}
             validator={validator}
             customValidate={validate}
           />
@@ -1370,10 +1309,10 @@ const SharingServicesPage = () => {
         deleteFunction={deleteSharingService}
         dialogOpen={deleteDialogOpen}
         closeDialog={() => {
-          setBotToManage(null);
           setDeleteDialogOpen(false);
+          setSharingServiceToManage({});
         }}
-        resourceName="Publishing Bot"
+        resourceName="sharing service"
       />
     </div>
   );

@@ -263,6 +263,7 @@ def submit_mmt_request(
             obj_id=request.obj.id,
             session=session,
             imsize=4.0,
+            use_cache=True,
             facility="Keck",
             image_source=image_source_dict[request.payload["primary_image_source"]],
             use_ztfref=request.payload["offset_position_origin"] == "ZTF Ref",
