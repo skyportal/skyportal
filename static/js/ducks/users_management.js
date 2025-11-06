@@ -3,8 +3,8 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-const FETCH_USERS_MANAGEMENT = "skyportal/FETCH_USERS";
-const FETCH_USERS_MANAGEMENT_OK = "skyportal/FETCH_USERS_OK";
+const FETCH_USERS_MANAGEMENT = "skyportal/FETCH_USERS_MANAGEMENT";
+const FETCH_USERS_MANAGEMENT_OK = "skyportal/FETCH_USERS_MANAGEMENT_OK";
 
 export function fetchUsersManagement(filterParams = {}) {
   return API.GET("/api/user", FETCH_USERS_MANAGEMENT, filterParams);

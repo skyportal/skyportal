@@ -392,15 +392,6 @@ class UserHandler(BaseHandler):
 
             sort_field = sort_field_map[sort_by]
 
-            # Order users by expiration date
-            stmt = stmt.order_by(
-                sa.case(
-                    (User.expiration_date.is_(None), 0),
-                    (User.expiration_date >= datetime.now(), 1),
-                    else_=2,
-                )
-            )
-
             if sort_order == "desc":
                 stmt = stmt.order_by(sort_field.desc())
             else:

@@ -16,6 +16,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -86,7 +88,9 @@ const UserManagement = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const { invitationsEnabled } = useSelector((state) => state.config);
   const currentUser = useSelector((state) => state.profile);
-  const { users, totalMatches } = useSelector((state) => state.users);
+  const { users, totalMatches } = useSelector(
+    (state) => state.users_management,
+  );
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -107,8 +111,13 @@ const UserManagement = () => {
     editUserExpirationDateDialogOpen,
     setEditUserExpirationDateDialogOpen,
   ] = useState(false);
+  const [
+    removeExpirationConfirmDialogOpen,
+    setRemoveExpirationConfirmDialogOpen,
+  ] = useState(false);
   const [clickedUser, setClickedUser] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
+  const [showExpiredUsers, setShowExpiredUsers] = useState(true);
 
   const {
     handleSubmit,
@@ -123,7 +132,12 @@ const UserManagement = () => {
 
   useEffect(() => {
     const fetchData = () => {
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       dispatch(streamsActions.fetchStreams());
       dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
@@ -194,7 +208,12 @@ const UserManagement = () => {
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -216,7 +235,12 @@ const UserManagement = () => {
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -232,7 +256,12 @@ const UserManagement = () => {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -244,7 +273,12 @@ const UserManagement = () => {
     if (result.status === "success") {
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -262,7 +296,12 @@ const UserManagement = () => {
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -275,7 +314,12 @@ const UserManagement = () => {
       dispatch(
         showNotification("User successfully removed from specified group."),
       );
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
     }
   };
 
@@ -285,7 +329,12 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
     }
   };
 
@@ -293,7 +342,12 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
     }
   };
 
@@ -306,7 +360,12 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully deleted user's affiliation."));
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
     }
   };
 
@@ -316,7 +375,12 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
     }
   };
 
@@ -330,7 +394,12 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully removed."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -354,7 +423,12 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
+      dispatch(
+        fetchUsersManagement({
+          ...fetchParams,
+          includeExpired: showExpiredUsers,
+        }),
+      );
       setClickedUser(null);
     }
   };
@@ -653,7 +727,7 @@ const UserManagement = () => {
     };
     setFetchParams(params);
     await dispatch(
-      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
+      fetchUsersManagement({ ...params, includeExpired: showExpiredUsers }),
     );
     setQueryInProgress(false);
   };
@@ -677,7 +751,7 @@ const UserManagement = () => {
     // Save state for future
     setFetchParams(params);
     await dispatch(
-      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
+      fetchUsersManagement({ ...params, includeExpired: showExpiredUsers }),
     );
     setQueryInProgress(false);
   };
@@ -694,7 +768,7 @@ const UserManagement = () => {
     };
     setFetchParams(params);
     await dispatch(
-      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
+      fetchUsersManagement({ ...params, includeExpired: showExpiredUsers }),
     );
     setQueryInProgress(false);
   };
@@ -715,6 +789,16 @@ const UserManagement = () => {
         break;
       default:
     }
+  };
+
+  const handleToggleExpiredUsers = async (event) => {
+    const newValue = event.target.checked;
+    setShowExpiredUsers(newValue);
+    setQueryInProgress(true);
+    await dispatch(
+      fetchUsersManagement({ ...fetchParams, includeExpired: newValue }),
+    );
+    setQueryInProgress(false);
   };
 
   const customFilterDisplay = () => {
@@ -897,6 +981,21 @@ const UserManagement = () => {
     },
   ];
 
+  const customToolbar = () => (
+    <FormControlLabel
+      control={
+        <Switch
+          checked={showExpiredUsers}
+          onChange={handleToggleExpiredUsers}
+          color="primary"
+          data-testid="showExpiredUsersToggle"
+        />
+      }
+      label="Show Expired Users"
+      style={{ marginRight: "1rem" }}
+    />
+  );
+
   const options = {
     fixedHeader: true,
     tableBodyHeight: "calc(100vh - 201px)",
@@ -918,6 +1017,7 @@ const UserManagement = () => {
     rowHover: false,
     count: totalMatches,
     onTableChange: handleTableChange,
+    customToolbar,
   };
 
   return (
@@ -1259,7 +1359,10 @@ const UserManagement = () => {
               defaultValue={null}
             />
             <br />
-            <div className={classes.submitButton}>
+            <div
+              className={classes.submitButton}
+              style={{ display: "flex", gap: "0.5rem" }}
+            >
               <Button
                 primary
                 type="submit"
@@ -1272,7 +1375,7 @@ const UserManagement = () => {
                 secondary
                 onClick={(e) => {
                   e.preventDefault();
-                  handleRemoveUserExpirationDate();
+                  setRemoveExpirationConfirmDialogOpen(true);
                 }}
                 name="removeExpirationDateButton"
                 data-testid="removeExpirationDateButton"
@@ -1281,6 +1384,44 @@ const UserManagement = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={removeExpirationConfirmDialogOpen}
+        onClose={() => setRemoveExpirationConfirmDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogContent>
+          <p>
+            Are you sure you want to remove the expiration date for user{" "}
+            <strong>{clickedUser?.username}</strong>? This will reactivate their
+            account.
+          </p>
+          <div
+            className={classes.submitButton}
+            style={{ display: "flex", gap: "0.5rem" }}
+          >
+            <Button
+              primary
+              onClick={() => {
+                handleRemoveUserExpirationDate();
+                setRemoveExpirationConfirmDialogOpen(false);
+                setEditUserExpirationDateDialogOpen(false);
+              }}
+              name="confirmRemoveExpirationButton"
+              data-testid="confirmRemoveExpirationButton"
+            >
+              Yes, Remove Expiration Date
+            </Button>
+            <Button
+              secondary
+              onClick={() => setRemoveExpirationConfirmDialogOpen(false)}
+              name="cancelRemoveExpirationButton"
+              data-testid="cancelRemoveExpirationButton"
+            >
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
