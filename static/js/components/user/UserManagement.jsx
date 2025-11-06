@@ -40,7 +40,8 @@ import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
 import UpdateUserParameter from "./UpdateUserParameter";
 import * as groupsActions from "../../ducks/groups";
-import * as usersActions from "../../ducks/users";
+import { patchUser } from "../../ducks/users";
+import { fetchUsersManagement } from "../../ducks/users_management";
 import * as streamsActions from "../../ducks/streams";
 import * as invitationsActions from "../../ducks/invitations";
 import * as aclsActions from "../../ducks/acls";
@@ -122,9 +123,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     const fetchData = () => {
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       dispatch(streamsActions.fetchStreams());
       dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
@@ -195,9 +194,7 @@ const UserManagement = () => {
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -219,9 +216,7 @@ const UserManagement = () => {
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -237,9 +232,7 @@ const UserManagement = () => {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -251,9 +244,7 @@ const UserManagement = () => {
     if (result.status === "success") {
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -271,9 +262,7 @@ const UserManagement = () => {
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -286,9 +275,7 @@ const UserManagement = () => {
       dispatch(
         showNotification("User successfully removed from specified group."),
       );
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
     }
   };
 
@@ -298,9 +285,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
     }
   };
 
@@ -308,9 +293,7 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
     }
   };
 
@@ -323,9 +306,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully deleted user's affiliation."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
     }
   };
 
@@ -335,15 +316,13 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
     }
   };
 
   const handleRemoveUserExpirationDate = async () => {
     const result = await dispatch(
-      usersActions.patchUser(clickedUser.id, {
+      patchUser(clickedUser.id, {
         expirationDate: null,
       }),
     );
@@ -351,9 +330,7 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully removed."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -369,7 +346,7 @@ const UserManagement = () => {
       return;
     }
     const result = await dispatch(
-      usersActions.patchUser(clickedUser.id, {
+      patchUser(clickedUser.id, {
         expirationDate: dayjs.utc(formData.date).toISOString(),
       }),
     );
@@ -377,9 +354,7 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      dispatch(fetchUsersManagement({ ...fetchParams, includeExpired: true }));
       setClickedUser(null);
     }
   };
@@ -678,7 +653,7 @@ const UserManagement = () => {
     };
     setFetchParams(params);
     await dispatch(
-      usersActions.fetchUsers({ ...params, includeExpired: true }),
+      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
     );
     setQueryInProgress(false);
   };
@@ -702,7 +677,7 @@ const UserManagement = () => {
     // Save state for future
     setFetchParams(params);
     await dispatch(
-      usersActions.fetchUsers({ ...params, includeExpired: true }),
+      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
     );
     setQueryInProgress(false);
   };
@@ -719,7 +694,7 @@ const UserManagement = () => {
     };
     setFetchParams(params);
     await dispatch(
-      usersActions.fetchUsers({ ...params, includeExpired: true }),
+      fetchUsersManagement({ ...fetchParams, includeExpired: true }),
     );
     setQueryInProgress(false);
   };

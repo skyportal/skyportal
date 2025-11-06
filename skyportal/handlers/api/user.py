@@ -629,6 +629,7 @@ class UserHandler(BaseHandler):
 
                 session.commit()
                 self.push_all(action="skyportal/FETCH_USERS")
+                self.push_all(action="skyportal/FETCH_USERS_MANAGEMENT")
                 return self.success()
         else:
             return self.error("User ID must be provided")
