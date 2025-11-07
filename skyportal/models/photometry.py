@@ -18,6 +18,7 @@ from baselayer.app.models import (
 )
 
 from ..enum_types import allowed_bandpasses
+from ..utils.extinction import calculate_extinction, deredden_flux
 from .group import accessible_by_groups_members, accessible_by_streams_members
 
 _, cfg = load_env()
