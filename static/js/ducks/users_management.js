@@ -5,8 +5,24 @@ import store from "../store";
 
 const FETCH_USERS_MANAGEMENT = "skyportal/FETCH_USERS_MANAGEMENT";
 const FETCH_USERS_MANAGEMENT_OK = "skyportal/FETCH_USERS_MANAGEMENT_OK";
+const SET_USERS_MANAGEMENT_FETCH_PARAMS =
+  "skyportal/SET_USERS_MANAGEMENT_FETCH_PARAMS";
 
-export function fetchUsersManagement(filterParams = {}) {
+// let's expose a function to set the fetchParams in the redux store
+export function setUsersManagementFetchParams(fetchParams) {
+  return {
+    type: SET_USERS_MANAGEMENT_FETCH_PARAMS,
+    fetchParams,
+  };
+}
+
+export function fetchUsersManagement() {
+  const state = store.getState();
+  const filterParams = {
+    pageNumber: 1,
+    numPerPage: 25,
+    ...state.users_management.fetchParams,
+  };
   return API.GET("/api/user", FETCH_USERS_MANAGEMENT, filterParams);
 }
 
@@ -17,7 +33,10 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { users: [], totalMatches: 0 }, action) => {
+const reducer = (
+  state = { users: [], fetchParams: {}, totalMatches: 0 },
+  action,
+) => {
   switch (action.type) {
     case FETCH_USERS_MANAGEMENT_OK: {
       const { users, totalMatches } = action.data;
@@ -25,6 +44,12 @@ const reducer = (state = { users: [], totalMatches: 0 }, action) => {
         ...state,
         users,
         totalMatches,
+      };
+    }
+    case SET_USERS_MANAGEMENT_FETCH_PARAMS: {
+      return {
+        ...state,
+        fetchParams: action.fetchParams,
       };
     }
     default:
