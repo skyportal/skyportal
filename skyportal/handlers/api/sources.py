@@ -695,11 +695,16 @@ async def get_sources(
                     )
                 else:
                     tns_name = None
-                statements.append(
-                    f"""
-                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""} OR lower(CAST(objs.alias AS text)) LIKE '%' || :sourceID_lower || '%')
-                        """
-                )
+
+                # search conditions for sourceID, TNS name, and aliases
+                conditions = [
+                    "objs.id LIKE '%' || :sourceID || '%'",
+                    "lower(array_to_string(objs.alias, ' ')) LIKE '%' || :sourceID_lower || '%'",
+                ]
+                if tns_name is not None:
+                    conditions.insert(1, "objs.tns_name LIKE '%' || :tns_name || '%'")
+
+                statements.append(f"({' OR '.join(conditions)})")
             except Exception as e:
                 raise ValueError(f"Invalid sourceID: {sourceID} ({e})")
         if rejectedSourceIDs is not None:
