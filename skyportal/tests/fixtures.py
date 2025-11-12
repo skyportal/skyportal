@@ -17,7 +17,6 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
-from baselayer.app.test_util import set_server_url
 from skyportal.models import (
     Allocation,
     Annotation,
@@ -53,6 +52,7 @@ from skyportal.models import (
     UserNotification,
     init_db,
 )
+from skyportal.tests.test_util import set_server_url
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
