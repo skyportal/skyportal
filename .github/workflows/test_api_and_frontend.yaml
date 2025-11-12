@@ -85,15 +85,7 @@ jobs:
           sudo add-apt-repository ppa:mozillateam/ppa
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
 
-          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
-
-          # if nginx is already installed, remove it
-          sudo apt purge -y nginx nginx-common nginx-core nginx-full
-
-          # add the PPA repository with brotli support for nginx
-          sudo add-apt-repository ppa:ondrej/nginx -y
-          sudo apt update -y
-          sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
+          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
