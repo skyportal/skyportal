@@ -722,6 +722,19 @@ async def get_sources(
                 raise ValueError(
                     f"Invalid rejectedSourceIDs: {rejectedSourceIDs} ({e})"
                 )
+        if alias is not None:
+            if alias in ["", None]:
+                raise ValueError(f"Invalid alias: {alias}")
+            query_params.append(
+                bindparam(
+                    "alias_only", value=str(alias).strip().lower(), type_=sa.String
+                )
+            )
+            statements.append(
+                """
+                (lower(array_to_string(objs.alias, ' ')) LIKE '%' || :alias_only || '%')
+                """
+            )
         if origin not in [None, ""]:
             query_params.append(
                 bindparam("origin", value=str(origin).strip().lower(), type_=sa.String)
