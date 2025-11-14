@@ -57,6 +57,7 @@ module.exports = [
       "jsx-a11y/control-has-associated-label": 0,
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/set-state-in-effect": "off",
       "react/jsx-wrap-multilines": 0,
       "react/jsx-one-expression-per-line": 0,
       "react/jsx-props-no-spreading": 0,
