@@ -13,8 +13,8 @@ from ...models import (
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
     Group,
+    Obj,
     Photometry,
-    Source,
     Spectrum,
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
@@ -302,12 +302,10 @@ class AnnotationHandler(BaseHandler):
 
             if associated_resource_type.lower() == "sources":
                 if not session.scalar(
-                    Source.select(session.user_or_token).where(
-                        Source.obj_id == resource_id
-                    )
+                    Obj.select(session.user_or_token).where(Obj.id == resource_id)
                 ):
                     return self.error(
-                        f"Could not access source {resource_id}.", status=403
+                        f"Could not access object {resource_id}.", status=403
                     )
 
                 data["obj_id"] = resource_id
