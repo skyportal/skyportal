@@ -213,7 +213,7 @@ const UserManagement = () => {
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -235,7 +235,7 @@ const UserManagement = () => {
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -251,7 +251,7 @@ const UserManagement = () => {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -263,7 +263,7 @@ const UserManagement = () => {
     if (result.status === "success") {
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -281,7 +281,7 @@ const UserManagement = () => {
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -294,7 +294,7 @@ const UserManagement = () => {
       dispatch(
         showNotification("User successfully removed from specified group."),
       );
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -304,7 +304,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -312,7 +312,7 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -325,7 +325,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully deleted user's affiliation."));
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -335,7 +335,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -349,7 +349,7 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully removed."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -373,7 +373,7 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(fetchUsersManagement());
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -672,7 +672,7 @@ const UserManagement = () => {
       includeExpired: fetchParams.includeExpired || false,
     };
     dispatch(setUsersManagementFetchParams(params));
-    dispatch(fetchUsersManagement());
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
@@ -694,7 +694,7 @@ const UserManagement = () => {
     const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
     // Save state for future
     dispatch(setUsersManagementFetchParams(params));
-    dispatch(fetchUsersManagement());
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
@@ -709,7 +709,7 @@ const UserManagement = () => {
       sortOrder,
     };
     dispatch(setUsersManagementFetchParams(params));
-    dispatch(fetchUsersManagement());
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
@@ -740,7 +740,7 @@ const UserManagement = () => {
       }),
     );
     setQueryInProgress(true);
-    dispatch(fetchUsersManagement());
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
