@@ -14,7 +14,6 @@ import pytest
 import sqlalchemy as sa
 
 from baselayer.app import models
-from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     Candidate,
@@ -59,6 +58,7 @@ from skyportal.tests.fixtures import (
     UserFactory,
     UserNotificationFactory,
 )
+from skyportal.tests.test_util import driver  # noqa: F401
 
 if shutil.which("geckodriver") is None:
     raise RuntimeError(
