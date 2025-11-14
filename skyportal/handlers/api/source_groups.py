@@ -62,11 +62,11 @@ class SourceGroupsHandler(BaseHandler):
             return self.error("Missing required parameter: objId")
 
         with self.Session() as session:
-            obj = session.scalars(
+            obj = session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
-            if obj is None:
-                return self.error("Invalid objId")
+            )
+            if not obj:
+                return self.error(f"Could not access source {obj_id}.", status=403)
             save_or_invite_group_ids = data.get("inviteGroupIds", [])
             unsave_group_ids = data.get("unsaveGroupIds", [])
             if not save_or_invite_group_ids and not unsave_group_ids:
