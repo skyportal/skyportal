@@ -10,11 +10,14 @@ import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
+import ClearIcon from "@mui/icons-material/Clear";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -39,7 +42,11 @@ import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
 import UpdateUserParameter from "./UpdateUserParameter";
 import * as groupsActions from "../../ducks/groups";
-import * as usersActions from "../../ducks/users";
+import { patchUser } from "../../ducks/users";
+import {
+  fetchUsersManagement,
+  setUsersManagementFetchParams,
+} from "../../ducks/users_management";
 import * as streamsActions from "../../ducks/streams";
 import * as invitationsActions from "../../ducks/invitations";
 import * as aclsActions from "../../ducks/acls";
@@ -84,11 +91,14 @@ const UserManagement = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const { invitationsEnabled } = useSelector((state) => state.config);
   const currentUser = useSelector((state) => state.profile);
-  const { users, totalMatches } = useSelector((state) => state.users);
-  const [fetchParams, setFetchParams] = useState({
-    pageNumber: 1,
-    numPerPage: defaultNumPerPage,
-  });
+  const { users, totalMatches } = useSelector(
+    (state) => state.users_management,
+  );
+  // read the fetchParams from the redux store to
+  // preserve state upon websocket-based updates
+  const fetchParams = useSelector(
+    (state) => state.users_management.fetchParams,
+  );
   const [tableFilterList, setTableFilterList] = useState([]);
   const streams = useSelector((state) => state.streams);
   let { all: allGroups } = useSelector((state) => state.groups);
@@ -104,6 +114,10 @@ const UserManagement = () => {
   const [
     editUserExpirationDateDialogOpen,
     setEditUserExpirationDateDialogOpen,
+  ] = useState(false);
+  const [
+    removeExpirationConfirmDialogOpen,
+    setRemoveExpirationConfirmDialogOpen,
   ] = useState(false);
   const [clickedUser, setClickedUser] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
@@ -122,8 +136,13 @@ const UserManagement = () => {
   useEffect(() => {
     const fetchData = () => {
       dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
+        setUsersManagementFetchParams({
+          pageNumber: 1,
+          numPerPage: 25,
+          ...fetchParams,
+        }),
       );
+      dispatch(fetchUsersManagement());
       dispatch(streamsActions.fetchStreams());
       dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
@@ -194,9 +213,7 @@ const UserManagement = () => {
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -218,9 +235,7 @@ const UserManagement = () => {
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -236,9 +251,7 @@ const UserManagement = () => {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -250,9 +263,7 @@ const UserManagement = () => {
     if (result.status === "success") {
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -270,9 +281,7 @@ const UserManagement = () => {
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -285,9 +294,7 @@ const UserManagement = () => {
       dispatch(
         showNotification("User successfully removed from specified group."),
       );
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -297,9 +304,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -307,9 +312,7 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -322,9 +325,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully deleted user's affiliation."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
     }
   };
 
@@ -334,9 +335,22 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
+    }
+  };
+
+  const handleRemoveUserExpirationDate = async () => {
+    const result = await dispatch(
+      patchUser(clickedUser.id, {
+        expirationDate: null,
+      }),
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("User expiration date successfully removed."));
+      reset({ date: null });
+      setEditUserExpirationDateDialogOpen(false);
+      await dispatch(fetchUsersManagement());
+      setClickedUser(null);
     }
   };
 
@@ -351,7 +365,7 @@ const UserManagement = () => {
       return;
     }
     const result = await dispatch(
-      usersActions.patchUser(clickedUser.id, {
+      patchUser(clickedUser.id, {
         expirationDate: dayjs.utc(formData.date).toISOString(),
       }),
     );
@@ -359,9 +373,7 @@ const UserManagement = () => {
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(
-        usersActions.fetchUsers({ ...fetchParams, includeExpired: true }),
-      );
+      await dispatch(fetchUsersManagement());
       setClickedUser(null);
     }
   };
@@ -654,14 +666,13 @@ const UserManagement = () => {
       Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
     );
     const params = {
-      pageNumber: 1,
-      numPerPage: fetchParams.numPerPage,
       ...formData,
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+      includeExpired: fetchParams.includeExpired || false,
     };
-    setFetchParams(params);
-    await dispatch(
-      usersActions.fetchUsers({ ...params, includeExpired: true }),
-    );
+    dispatch(setUsersManagementFetchParams(params));
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
@@ -682,10 +693,23 @@ const UserManagement = () => {
     setQueryInProgress(true);
     const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
     // Save state for future
-    setFetchParams(params);
-    await dispatch(
-      usersActions.fetchUsers({ ...params, includeExpired: true }),
-    );
+    dispatch(setUsersManagementFetchParams(params));
+    await dispatch(fetchUsersManagement());
+    setQueryInProgress(false);
+  };
+
+  const handleUserTableSorting = async (sortData) => {
+    setQueryInProgress(true);
+    const sortBy = sortData.name === "created_at" ? "createdAt" : "username";
+    const sortOrder = sortData.direction;
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      sortBy,
+      sortOrder,
+    };
+    dispatch(setUsersManagementFetchParams(params));
+    await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
   };
 
@@ -696,8 +720,28 @@ const UserManagement = () => {
       case "changeRowsPerPage":
         handlePageChange(tableState.page, tableState.rowsPerPage);
         break;
+      case "sort":
+        if (tableState.sortOrder.direction === "none") {
+          handleUserTableSorting({ name: "username", direction: "asc" });
+        } else {
+          handleUserTableSorting(tableState.sortOrder);
+        }
+        break;
       default:
     }
+  };
+
+  const handleToggleExpiredUsers = async (event) => {
+    const newValue = event.target.checked;
+    dispatch(
+      setUsersManagementFetchParams({
+        ...fetchParams,
+        includeExpired: newValue,
+      }),
+    );
+    setQueryInProgress(true);
+    await dispatch(fetchUsersManagement());
+    setQueryInProgress(false);
   };
 
   const customFilterDisplay = () => {
@@ -745,10 +789,6 @@ const UserManagement = () => {
           type: "string",
           enum: streams?.map((stream) => stream.name),
         },
-        includeExpired: {
-          title: "Include Expired?",
-          type: "boolean",
-        },
       },
     };
 
@@ -783,6 +823,7 @@ const UserManagement = () => {
         filterOptions: {
           display: () => <div />,
         },
+        sort: false,
       },
     },
     {
@@ -791,7 +832,24 @@ const UserManagement = () => {
       options: {
         // Turn off default filtering for custom form
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
         customBodyRenderLite: renderUsername,
+      },
+    },
+    {
+      name: "created_at",
+      label: "Created At",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: (dataIndex) => {
+          const user = users[dataIndex];
+          return user.created_at
+            ? dayjs.utc(user.created_at).format("YYYY/MM/DD")
+            : "";
+        },
       },
     },
     {
@@ -862,6 +920,21 @@ const UserManagement = () => {
     },
   ];
 
+  const customToolbar = () => (
+    <FormControlLabel
+      control={
+        <Switch
+          checked={fetchParams.includeExpired || false}
+          onChange={handleToggleExpiredUsers}
+          color="primary"
+          data-testid="showExpiredUsersToggle"
+        />
+      }
+      label="Show Expired Users"
+      style={{ marginRight: "1rem" }}
+    />
+  );
+
   const options = {
     fixedHeader: true,
     tableBodyHeight: "calc(100vh - 201px)",
@@ -871,7 +944,7 @@ const UserManagement = () => {
     search: false,
     selectableRows: "none",
     enableNestedDataAccess: ".",
-    sort: false,
+    sort: true,
     rowsPerPage,
     rowsPerPageOptions: [10, 25, 50, 100, 200],
     filter: !queryInProgress,
@@ -883,6 +956,7 @@ const UserManagement = () => {
     rowHover: false,
     count: totalMatches,
     onTableChange: handleTableChange,
+    customToolbar,
   };
 
   return (
@@ -1210,7 +1284,10 @@ const UserManagement = () => {
                   <DatePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    slotProps={{ textField: { variant: "outlined" } }}
+                    slotProps={{
+                      textField: { variant: "outlined" },
+                      field: { clearable: true },
+                    }}
                     label="Expiration date (UTC)"
                     showTodayButton={false}
                   />
@@ -1221,7 +1298,10 @@ const UserManagement = () => {
               defaultValue={null}
             />
             <br />
-            <div className={classes.submitButton}>
+            <div
+              className={classes.submitButton}
+              style={{ display: "flex", gap: "0.5rem" }}
+            >
               <Button
                 primary
                 type="submit"
@@ -1230,8 +1310,57 @@ const UserManagement = () => {
               >
                 Submit
               </Button>
+              <Button
+                secondary
+                onClick={(e) => {
+                  e.preventDefault();
+                  setRemoveExpirationConfirmDialogOpen(true);
+                }}
+                name="removeExpirationDateButton"
+                data-testid="removeExpirationDateButton"
+              >
+                Remove Expiration Date
+              </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={removeExpirationConfirmDialogOpen}
+        onClose={() => setRemoveExpirationConfirmDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogContent>
+          <p>
+            Are you sure you want to remove the expiration date for user{" "}
+            <strong>{clickedUser?.username}</strong>? This will reactivate their
+            account.
+          </p>
+          <div
+            className={classes.submitButton}
+            style={{ display: "flex", gap: "0.5rem" }}
+          >
+            <Button
+              primary
+              onClick={() => {
+                handleRemoveUserExpirationDate();
+                setRemoveExpirationConfirmDialogOpen(false);
+                setEditUserExpirationDateDialogOpen(false);
+              }}
+              name="confirmRemoveExpirationButton"
+              data-testid="confirmRemoveExpirationButton"
+            >
+              Yes, Remove Expiration Date
+            </Button>
+            <Button
+              secondary
+              onClick={() => setRemoveExpirationConfirmDialogOpen(false)}
+              name="cancelRemoveExpirationButton"
+              data-testid="cancelRemoveExpirationButton"
+            >
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
