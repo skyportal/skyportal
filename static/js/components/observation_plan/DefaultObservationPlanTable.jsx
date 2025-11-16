@@ -9,12 +9,12 @@ import {
   ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Chip from "@mui/material/Chip";
 import MUIDataTable from "mui-datatables";
 import { JSONTree } from "react-json-tree";
 
@@ -23,21 +23,6 @@ import * as defaultObservationPlansActions from "../../ducks/default_observation
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -81,24 +66,13 @@ const DefaultObservationPlanTable = ({
   sortingCallback,
   deletePermission,
 }) => {
-  const classes = useStyles();
   const theme = useTheme();
-
   const dispatch = useDispatch();
-
   const [setRowsPerPage] = useState(100);
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
     useState(null);
-
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
 
   const openDeleteDialog = (id) => {
     setDeleteDialogOpen(true);
@@ -127,85 +101,53 @@ const DefaultObservationPlanTable = ({
     const { allocation } = default_observation_plan;
     const { instrument_id } = allocation;
     const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    if (!instrument?.name || !telescope?.name) return null;
 
-    return (
-      <div>
-        {instrument?.name && telescope?.name
-          ? `${instrument.name}/${telescope.nickname} - ${default_observation_plan.default_plan_name}`
-          : ""}
-      </div>
-    );
+    return `${instrument.name}/${telescope.nickname} - ${default_observation_plan.default_plan_name}`;
   };
 
   const renderGcnEventFilters = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    if (!default_observation_plan?.filters) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_observation_plan ? (
-          <JSONTree data={default_observation_plan?.filters} hideRoot />
-        ) : (
-          ""
-        )}
+      <div style={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={default_observation_plan.filters} hideRoot />
       </div>
     );
   };
 
   const renderPayload = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
+    if (!default_observation_plan?.payload) return null;
 
     return (
-      <div style={cellStyle}>
-        {default_observation_plan ? (
-          <JSONTree data={default_observation_plan.payload} hideRoot />
-        ) : (
-          ""
-        )}
+      <div style={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={default_observation_plan.payload} hideRoot />
       </div>
     );
   };
 
   const renderAutoSend = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
-    return (
-      <div>
-        {default_observation_plan &&
-        Object.keys(default_observation_plan).includes("auto_send")
-          ? default_observation_plan?.auto_send?.toString()
-          : "false"}
-      </div>
-    );
+    if (!default_observation_plan?.auto_send) return <Chip label="No" />;
+
+    return <Chip label="Yes" color="success" />;
   };
 
   const renderDelete = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-    if (!deletePermission) {
-      return null;
-    }
+    if (!deletePermission) return null;
     return (
-      <div>
-        <Button
-          key={default_observation_plan.id}
-          id="delete_button"
-          classes={{
-            root: classes.defaultObservationPlanDelete,
-            disabled: classes.defaultObservationPlanDeleteDisabled,
-          }}
-          onClick={() => openDeleteDialog(default_observation_plan.id)}
-          disabled={!deletePermission}
-        >
-          <DeleteIcon />
-        </Button>
-      </div>
+      <Button
+        id="delete_button"
+        onClick={() =>
+          openDeleteDialog(default_observation_plans[dataIndex].id)
+        }
+      >
+        <DeleteIcon />
+      </Button>
     );
   };
 
@@ -293,12 +235,7 @@ const DefaultObservationPlanTable = ({
     filter: true,
     sort: true,
     customToolbar: () => (
-      <IconButton
-        name="new_default_observation_plan"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
+      <IconButton onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
     ),
@@ -306,7 +243,7 @@ const DefaultObservationPlanTable = ({
 
   return (
     <div>
-      <Paper className={classes.container}>
+      <Paper>
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
@@ -319,10 +256,16 @@ const DefaultObservationPlanTable = ({
         </StyledEngineProvider>
       </Paper>
       {newDialogOpen && (
-        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
+        <Dialog
+          open={newDialogOpen}
+          onClose={() => setNewDialogOpen(false)}
+          maxWidth="md"
+        >
           <DialogTitle>New Default Observation Plan</DialogTitle>
           <DialogContent dividers>
-            <NewDefaultObservationPlan onClose={closeNewDialog} />
+            <NewDefaultObservationPlan
+              onClose={() => setNewDialogOpen(false)}
+            />
           </DialogContent>
         </Dialog>
       )}
