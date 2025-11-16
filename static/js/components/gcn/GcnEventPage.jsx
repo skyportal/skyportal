@@ -46,6 +46,7 @@ import Reminders from "../Reminders";
 
 import { postLocalizationFromNotice } from "../../ducks/localization";
 import withRouter from "../withRouter";
+import Paper from "../Paper";
 
 dayjs.extend(utc);
 
@@ -422,29 +423,16 @@ const GcnEventPage = ({ route }) => {
                 </AccordionDetails>
               </Accordion>
             </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="observations-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Reminders
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                    <Reminders
-                      resourceId={gcnEvent.id.toString()}
-                      resourceType="gcn_event"
-                    />
-                  ) : (
-                    <p> Fetching event... </p>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
+            <Paper>
+              {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                <Reminders
+                  resourceId={gcnEvent.id.toString()}
+                  resourceType="gcn_event"
+                />
+              ) : (
+                <p> Fetching event... </p>
+              )}
+            </Paper>
           </div>
         </Drawer>
       </React.Fragment>

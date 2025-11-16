@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Paper from "@mui/material/Paper";
 import {
   createTheme,
   StyledEngineProvider,
   ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
-import { makeStyles, withStyles } from "@mui/styles";
+import { withStyles } from "@mui/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MUIDataTable from "mui-datatables";
@@ -33,33 +32,6 @@ import Button from "./Button";
 import * as Actions from "../ducks/reminders";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-  buttons: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  button: {
-    maxWidth: "1.2rem",
-  },
-  buttonIcon: {
-    maxWidth: "1.2rem",
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -114,7 +86,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       <Typography variant="h6" className={classes.title}>
         {children}
       </Typography>
-      {onClose ? (
+      {onClose && (
         <IconButton
           aria-label="close"
           className={classes.closeButton}
@@ -122,7 +94,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         >
           <Close />
         </IconButton>
-      ) : null}
+      )}
     </MuiDialogTitle>
   ),
 );
@@ -221,7 +193,6 @@ NewReminder.propTypes = {
 
 const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   // for now, we'll just show the reminders of the current user.
@@ -229,10 +200,9 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   // show the users in the reminders list (datatable)
   // and allow to choose users to add to the reminders to in the NewReminder dialog
   const currentUser = useSelector((state) => state.profile);
+  reminders = reminders.filter((r) => r.user_id === currentUser.id);
 
-  reminders = reminders.filter(
-    (reminder) => reminder.user_id === currentUser.id,
-  );
+  if (!reminders || !resourceType || !resourceId) return <CircularProgress />;
 
   const handleClose = () => {
     setOpen(false);
@@ -320,14 +290,9 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         sort: false,
         empty: true,
         customBodyRenderLite: (dataIndex) => (
-          <div className={classes.buttons}>
-            <Button
-              className={classes.button}
-              onClick={() => deleteReminder(dataIndex)}
-            >
-              <DeleteIcon className={classes.buttonIcon} />
-            </Button>
-          </div>
+          <Button onClick={() => deleteReminder(dataIndex)}>
+            <DeleteIcon />
+          </Button>
         ),
       },
     },
@@ -358,39 +323,29 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
 
   return (
     <div>
-      {reminders && resourceType && resourceId ? (
-        <Paper className={classes.container}>
-          <div data-testid="Reminders">
-            <StyledEngineProvider injectFirst>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title="Reminders"
-                  data={reminders}
-                  options={options}
-                  columns={columns}
-                />
-              </ThemeProvider>
-            </StyledEngineProvider>
-          </div>
-          {open && (
-            <Dialog open={open} onClose={handleClose} maxWidth="md">
-              <DialogTitle onClose={handleClose}>
-                New Reminder on {resourceType}
-              </DialogTitle>
-              <DialogContent dividers>
-                <div className={classes.dialogContent}>
-                  <NewReminder
-                    resourceId={resourceId}
-                    resourceType={resourceType}
-                    handleClose={handleClose}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </Paper>
-      ) : (
-        <CircularProgress />
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Reminders"
+            data={reminders}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
+      {open && (
+        <Dialog open={open} onClose={handleClose} maxWidth="md">
+          <DialogTitle onClose={handleClose}>
+            New Reminder on {resourceType}
+          </DialogTitle>
+          <DialogContent dividers>
+            <NewReminder
+              resourceId={resourceId}
+              resourceType={resourceType}
+              handleClose={handleClose}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
