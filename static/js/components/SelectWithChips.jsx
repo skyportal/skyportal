@@ -13,6 +13,10 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexWrap: "wrap",
   },
+  formControl: {
+    minWidth: "12rem",
+    width: "100%",
+  },
 }));
 
 const getStyles = (option, opts, theme) => ({
@@ -42,7 +46,7 @@ const SelectWithChips = (props) => {
       : -1;
 
   return (
-    <FormControl fullWidth>
+    <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
         id={id}
@@ -115,7 +119,7 @@ const SelectLabelWithChips = (props) => {
       : -1;
 
   return (
-    <FormControl fullWidth>
+    <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
         id={id}
@@ -133,7 +137,7 @@ const SelectLabelWithChips = (props) => {
         renderValue={(selected) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value) => (
-              <Chip key={value} label={value} />
+              <Chip key={value.id} label={value.label} />
             ))}
             {selected.length > max_chips_nb && (
               <Chip label={`+${selected.length - max_chips_nb}`} />
@@ -180,12 +184,13 @@ SelectLabelWithChips.defaultProps = {
 
 const SelectSingleLabelWithChips = (props) => {
   // the difference with SelectWithChips is that the initValue is not a list of strings, but a list of element with an id and a label
+  const classes = useStyles();
   const theme = useTheme();
   const opts = [];
   const { label, id, initValue, onChange, options } = props;
 
   return (
-    <FormControl fullWidth>
+    <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
         id={id}
