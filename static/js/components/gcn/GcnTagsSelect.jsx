@@ -18,7 +18,7 @@ const GcnTagsSelect = ({
     dispatch(gcnTagsActions.fetchGcnTags());
   }, [dispatch]);
 
-  if (!gcnTags?.length) return;
+  if (!gcnTags?.length) return null;
 
   const handleChange = (event) => setSelectedGcnTags(event.target.value);
 

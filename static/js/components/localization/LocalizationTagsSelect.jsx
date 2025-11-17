@@ -20,7 +20,7 @@ const LocalizationTagsSelect = ({
     dispatch(localizationTagsActions.fetchLocalizationTags());
   }, [dispatch]);
 
-  if (!localizationTags?.length) return;
+  if (!localizationTags?.length) return null;
 
   return (
     <SelectWithChips

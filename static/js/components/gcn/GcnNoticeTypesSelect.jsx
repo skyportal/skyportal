@@ -9,7 +9,7 @@ const GcnNoticeTypesSelect = ({
   setSelectedGcnNoticeTypes,
 }) => {
   const gcn_notice_types = useSelector((state) => state.config.gcnNoticeTypes);
-  if (!gcn_notice_types?.length) return;
+  if (!gcn_notice_types?.length) return null;
 
   return (
     <SelectWithChips

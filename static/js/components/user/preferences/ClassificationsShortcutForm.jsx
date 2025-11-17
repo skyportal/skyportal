@@ -78,7 +78,11 @@ const ClassificationsShortcutForm = () => {
               label="Shortcut Name"
               id="shortcutNameInput"
               error={!!errors.shortcutName}
-              helperText={errors.shortcutName?.message || ""}
+              helperText={
+                errors.shortcutName
+                  ? errors.shortcutName.message || "Required"
+                  : ""
+              }
             />
           </div>
           <Button primary type="submit" data-testid="addShortcutButton">
