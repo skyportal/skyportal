@@ -301,13 +301,6 @@ class AnnotationHandler(BaseHandler):
                 )
 
             if associated_resource_type.lower() == "sources":
-                if not session.scalar(
-                    Obj.select(session.user_or_token).where(Obj.id == resource_id)
-                ):
-                    return self.error(
-                        f"Could not access object {resource_id}.", status=403
-                    )
-
                 data["obj_id"] = resource_id
                 schema = Annotation.__schema__(exclude=["author_id"])
                 try:
@@ -390,6 +383,10 @@ class AnnotationHandler(BaseHandler):
             try:
                 session.commit()
             except IntegrityError as e:
+                if 'is not present in table "objs"' in str(e).lower():
+                    return self.error(
+                        f"Could not access object {resource_id}.", status=403
+                    )
                 return self.error(f"Annotation already exists: {str(e)}")
 
             if isinstance(
