@@ -384,9 +384,7 @@ class AnnotationHandler(BaseHandler):
                 session.commit()
             except IntegrityError as e:
                 if 'is not present in table "objs"' in str(e).lower():
-                    return self.error(
-                        f"Could not access object {resource_id}.", status=403
-                    )
+                    return self.error(f"Obj {resource_id} not found", status=404)
                 return self.error(f"Annotation already exists: {str(e)}")
 
             if isinstance(

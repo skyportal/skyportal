@@ -66,7 +66,7 @@ class SourceGroupsHandler(BaseHandler):
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             )
             if not obj:
-                return self.error(f"Could not access source {obj_id}.", status=403)
+                return self.error(f"Obj {obj_id} not found", status=404)
             save_or_invite_group_ids = data.get("inviteGroupIds", [])
             unsave_group_ids = data.get("unsaveGroupIds", [])
             if not save_or_invite_group_ids and not unsave_group_ids:
