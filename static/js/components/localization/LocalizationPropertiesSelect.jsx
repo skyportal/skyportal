@@ -102,17 +102,19 @@ const LocalizationPropertiesSelect = ({
           )}
         />
       </Box>
-      <ButtonGroup variant="outlined" color="primary">
-        <Button
-          variant="outlined"
-          primary
-          onClick={handleSubmit(handleSubmitProperties)}
-        >
-          Add
-        </Button>
-        <Button variant="outlined" primary onClick={reset}>
-          Reset
-        </Button>
+      <Box sx={{ display: "flex", gap: "0.2rem" }}>
+        <ButtonGroup variant="outlined" color="primary">
+          <Button
+            variant="outlined"
+            primary
+            onClick={handleSubmit(handleSubmitProperties)}
+          >
+            Add
+          </Button>
+          <Button variant="outlined" primary onClick={reset}>
+            Reset
+          </Button>
+        </ButtonGroup>
         <SelectWithChips
           label="Localization Properties"
           id="selectLocalizations"
@@ -120,7 +122,7 @@ const LocalizationPropertiesSelect = ({
           onChange={(e) => setSelectedLocalizationProperties(e.target.value)}
           options={selectedLocalizationProperties}
         />
-      </ButtonGroup>
+      </Box>
     </form>
   );
 };

@@ -97,17 +97,19 @@ const PlanPropertiesSelect = ({
           )}
         />
       </Box>
-      <ButtonGroup variant="outlined" color="primary">
-        <Button
-          variant="outlined"
-          primary
-          onClick={handleSubmit(handleSubmitProperties)}
-        >
-          Add
-        </Button>
-        <Button variant="outlined" primary onClick={reset}>
-          Reset
-        </Button>
+      <Box sx={{ display: "flex", gap: "0.2rem" }}>
+        <ButtonGroup variant="outlined" color="primary">
+          <Button
+            variant="outlined"
+            primary
+            onClick={handleSubmit(handleSubmitProperties)}
+          >
+            Add
+          </Button>
+          <Button variant="outlined" primary onClick={reset}>
+            Reset
+          </Button>
+        </ButtonGroup>
         <SelectWithChips
           label="Plan Properties"
           id="selectPlanProperties"
@@ -115,7 +117,7 @@ const PlanPropertiesSelect = ({
           onChange={(e) => setSelectedPlanProperties(e.target.value)}
           options={selectedPlanProperties}
         />
-      </ButtonGroup>
+      </Box>
     </form>
   );
 };
