@@ -124,8 +124,6 @@ app:
       component: source/Source
     - path: "/favorites"
       component: listing/FavoritesPage
-    - path: "/gcn_events/:dateobs"
-      component: gcn/GcnEventPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
@@ -186,6 +184,8 @@ app:
       component: DBStats
     - path: "/gcn_events"
       component: gcn/GcnEvents
+    - path: "/gcn_events/:dateobs"
+      component: gcn/GcnEventPage
     - path: "/telescopes"
       component: telescope/TelescopePage
     - path: "/instruments"

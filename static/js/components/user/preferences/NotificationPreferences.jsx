@@ -286,7 +286,7 @@ const NotificationPreferences = () => {
             <HelpOutlineOutlinedIcon />
           </Tooltip>
         </FormGroup>
-        {profile?.notifications?.sources?.active === true && (
+        {profile?.notifications?.sources?.active && (
           <FormGroup row className={classes.form_group}>
             <form onSubmit={handleSubmit(onSubmitSources)}>
               <div className={classes.form}>
@@ -295,30 +295,28 @@ const NotificationPreferences = () => {
                     selectedClassifications={selectedClassifications}
                     setSelectedClassifications={setSelectedClassifications}
                   />
-                  {sortedGroups?.length > 0 && (
-                    <SelectLabelWithChips
-                      label="Groups (optional)"
-                      id="groups-select"
-                      initValue={selectedGroups}
-                      onChange={onGroupSelectChange}
-                      options={sortedGroups}
-                    />
-                  )}
-                  {sortedGroups?.length > 0 && (
-                    <SelectLabelWithChips
-                      label="Allocations (optional)"
-                      id="allocations-select"
-                      initValue={selectedAllocations}
-                      onChange={onAllocationSelectChange}
-                      options={sortedAllocations}
-                    />
+                  {sortedGroups?.length && (
+                    <>
+                      <SelectLabelWithChips
+                        label="Groups (optional)"
+                        id="groups-select"
+                        initValue={selectedGroups}
+                        onChange={onGroupSelectChange}
+                        options={sortedGroups}
+                      />
+                      <SelectLabelWithChips
+                        label="Allocations (optional)"
+                        id="allocations-select"
+                        initValue={selectedAllocations}
+                        onChange={onAllocationSelectChange}
+                        options={sortedAllocations}
+                      />
+                    </>
                   )}
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={
-                          profile?.notifications?.sources?.new_spectra === true
-                        }
+                        checked={profile?.notifications?.sources?.new_spectra}
                         name="sources_new_spectra"
                         onChange={prefToggled}
                       />

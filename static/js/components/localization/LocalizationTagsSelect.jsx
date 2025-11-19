@@ -6,39 +6,35 @@ import SelectWithChips from "../SelectWithChips";
 
 import * as localizationTagsActions from "../../ducks/localizationTags";
 
-const LocalizationTagsSelect = (props) => {
+const LocalizationTagsSelect = ({
+  title = "Localization Tags",
+  selectedLocalizationTags,
+  setSelectedLocalizationTags,
+}) => {
   const dispatch = useDispatch();
-
-  const { selectedLocalizationTags, setSelectedLocalizationTags } = props;
-  let localizationTags = [];
-  localizationTags = localizationTags.concat(
-    useSelector((state) => state.localizationTags),
-  );
-  localizationTags.sort();
+  const localizationTags = [
+    ...(useSelector((state) => state.localizationTags) || []),
+  ].sort();
 
   useEffect(() => {
     dispatch(localizationTagsActions.fetchLocalizationTags());
   }, [dispatch]);
 
-  const handleChange = (event) =>
-    setSelectedLocalizationTags(event.target.value);
+  if (!localizationTags?.length) return null;
 
   return (
-    <div>
-      {localizationTags?.length > 0 && (
-        <SelectWithChips
-          label="Localization Tags"
-          id="selectLocalizations"
-          initValue={selectedLocalizationTags}
-          onChange={handleChange}
-          options={localizationTags}
-        />
-      )}
-    </div>
+    <SelectWithChips
+      label={title}
+      id="selectLocalizations"
+      initValue={selectedLocalizationTags}
+      onChange={(e) => setSelectedLocalizationTags(e.target.value)}
+      options={localizationTags}
+    />
   );
 };
 
 LocalizationTagsSelect.propTypes = {
+  title: PropTypes.string,
   selectedLocalizationTags: PropTypes.arrayOf(PropTypes.string).isRequired,
   setSelectedLocalizationTags: PropTypes.func.isRequired,
 };

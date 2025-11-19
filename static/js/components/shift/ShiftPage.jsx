@@ -209,10 +209,12 @@ const ShiftPage = ({ route }) => {
                 </Suspense>
               </div>
             </Paper>
-            <Reminders
-              resourceId={currentShift.id.toString()}
-              resourceType="shift"
-            />
+            <Paper>
+              <Reminders
+                resourceId={currentShift.id.toString()}
+                resourceType="shift"
+              />
+            </Paper>
           </>
         )}
       </Grid>

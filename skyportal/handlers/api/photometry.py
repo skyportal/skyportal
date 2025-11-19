@@ -379,9 +379,7 @@ def serialize(
                 maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
-                fluxerr = phot.fluxerr
-                fivesigma = 5 * fluxerr
-                maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
+                maglimit_out = -2.5 * np.log10(5 * phot.fluxerr) + corrected_db_zp
 
             mag_data = {
                 "mag": phot.mag + db_correction

@@ -866,16 +866,15 @@ const FilterCandidateList = ({
                 </div>
                 <div className={classes.rejectCandidatesSelect}>
                   <Switch
-                    checked={classificationsWith !== false}
-                    onChange={(event) => {
-                      setClassificationsWith(event.target.checked);
-                    }}
-                    data-testid="classificationsWithSelect"
+                    checked={classificationsWith}
+                    onChange={(event) =>
+                      setClassificationsWith(event.target.checked)
+                    }
                   />
-                  <InputLabel id="classificationsWithLabel">
-                    {classificationsWith !== false
-                      ? "With classification(s)"
-                      : "Without classification(s)"}
+                  <InputLabel>
+                    {`${
+                      classificationsWith ? "With" : "Without"
+                    } classification(s)`}
                   </InputLabel>
                 </div>
               </div>

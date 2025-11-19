@@ -7,16 +7,11 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewEarthquake from "./NewEarthquake";
 import EarthquakeInfo from "./EarthquakeInfo";
+import Spinner from "../Spinner";
 // lazy import the EarthquakeMap component
 const EarthquakeMap = lazy(() => import("./EarthquakeMap"));
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    backgroundColor: theme.palette.background.paper,
-    maxHeight: "90%",
-    overflowY: "auto",
-  },
   paperContent: {
     padding: "1rem",
   },
@@ -38,40 +33,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export function earthquakeTitle(earthquake) {
-  if (!earthquake?.event_id) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${earthquake?.event_id}`;
-  return result;
-}
-
-export function earthquakeInfo(earthquake) {
-  if (!earthquake?.event_id) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const array = [
-    ...(earthquake?.lat ? [`Latitude: ${earthquake.lat}`] : []),
-    ...(earthquake?.lon ? [`Longitude: ${earthquake.lon}`] : []),
-    ...(earthquake?.depth ? [`Depth: ${earthquake.depth}`] : []),
-  ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
-}
-
 const EarthquakePage = () => {
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -81,11 +42,7 @@ const EarthquakePage = () => {
     (state) => state.earthquake.currentEarthquakeMenu,
   );
 
-  if (!earthquakes) {
-    return <p>No earthquakes available...</p>;
-  }
-
-  const { events } = earthquakes;
+  if (!earthquakes) return <Spinner />;
 
   function setSelectedMenu(currentSelectedEarthquakeMenu) {
     const currentEarthquakes = null;
@@ -99,33 +56,22 @@ const EarthquakePage = () => {
   }
 
   function isMenuSelected(menu) {
-    let style;
-    if (menu === currentEarthquakeMenu) {
-      style = classes.selectedMenu;
-    } else {
-      style = classes.nonSelectedMenu;
-    }
-    return style;
+    return menu === currentEarthquakeMenu
+      ? classes.selectedMenu
+      : classes.nonSelectedMenu;
   }
 
   return (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
+    <Suspense fallback={<CircularProgress color="secondary" />}>
       <Grid container spacing={3}>
         <Grid item md={8} sm={12}>
           <Paper className={classes.paperContent}>
-            <EarthquakeMap earthquakes={events} />
+            <EarthquakeMap earthquakes={earthquakes.events} />
           </Paper>
         </Grid>
         <Grid item md={4} sm={12}>
           <Paper className={classes.menu}>
             <Button
-              id="earthquake-list"
               onClick={() => setSelectedMenu("Earthquake List")}
               className={isMenuSelected("Earthquake List")}
             >
@@ -133,7 +79,6 @@ const EarthquakePage = () => {
             </Button>
             {currentUser.permissions?.includes("Manage allocations") && (
               <Button
-                id="new-earthquake"
                 onClick={() => setSelectedMenu("New Earthquake")}
                 className={isMenuSelected("New Earthquake")}
               >

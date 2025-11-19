@@ -91,9 +91,7 @@ const Earthquake = () => {
     dispatch(earthquakeActions.fetchEarthquakes());
   }, [dispatch]);
 
-  if (!earthquakes) {
-    return <p>No earthquakes available...</p>;
-  }
+  if (!earthquakes) return <Spinner />;
 
   const { events, totalMatches } = earthquakes;
 
@@ -234,24 +232,16 @@ const Earthquake = () => {
   return (
     <Grid container spacing={3}>
       <Grid item md={12} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h5">Earthquake Events</Typography>
-            {earthquakes ? (
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={getMuiTheme(theme)}>
-                  <MUIDataTable
-                    data={earthquakes.events}
-                    options={options}
-                    columns={columns}
-                  />
-                </ThemeProvider>
-              </StyledEngineProvider>
-            ) : (
-              <Spinner />
-            )}
-          </div>
-        </Paper>
+        <Typography variant="h5">Earthquake Events</Typography>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              data={earthquakes.events}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
       </Grid>
     </Grid>
   );
