@@ -262,6 +262,21 @@ class UserHandler(BaseHandler):
             schema:
               type: boolean
             description: Include users with expired accounts in the results.
+          - in: query
+            name: sortBy
+            nullable: true
+            schema:
+              type: string
+              enum: [username, createdAt]
+            description: |
+              Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date).
+          - in: query
+            name: sortOrder
+            nullable: true
+            schema:
+              type: string
+              enum: [asc, desc]
+            description: Sort order - 'asc' for ascending (default) or 'desc' for descending.
           responses:
             200:
               content:
@@ -323,6 +338,8 @@ class UserHandler(BaseHandler):
         group = self.get_query_argument("group", None)
         stream = self.get_query_argument("stream", None)
         include_expired = self.get_query_argument("includeExpired", False)
+        sort_by = self.get_query_argument("sortBy", "username")
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         try:
             page_number = int(page_number)
@@ -335,7 +352,7 @@ class UserHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
 
         with self.Session() as session:
-            stmt = User.select(self.current_user).order_by(User.username)
+            stmt = User.select(self.current_user)
 
             if not include_expired:
                 stmt = stmt.where(
@@ -361,6 +378,24 @@ class UserHandler(BaseHandler):
                 stmt = stmt.join(GroupUser).join(Group).where(Group.name == group)
             if stream is not None:
                 stmt = stmt.join(StreamUser).join(Stream).where(Stream.name == stream)
+
+            sort_field_map = {
+                "username": User.username,
+                "createdAt": User.created_at,
+            }
+
+            if sort_by not in sort_field_map:
+                return self.error(f"Invalid sortBy value: {sort_by}")
+
+            if sort_order not in ["asc", "desc"]:
+                return self.error(f"Invalid sortOrder value: {sort_order}")
+
+            sort_field = sort_field_map[sort_by]
+
+            if sort_order == "desc":
+                stmt = stmt.order_by(sort_field.desc())
+            else:
+                stmt = stmt.order_by(sort_field.asc())
 
             total_matches = session.execute(
                 sa.select(func.count()).select_from(stmt)
@@ -564,14 +599,20 @@ class UserHandler(BaseHandler):
                 ).first()
                 if user is None:
                     return self.error(f"Cannot find user with ID {user_id}")
-                expiration_date = data.get("expirationDate")
-                if expiration_date is not None:
-                    try:
-                        user.expiration_date = arrow.get(
-                            expiration_date.strip()
-                        ).datetime
-                    except arrow.parser.ParserError:
-                        return self.error("Unable to parse `expirationDate` parameter.")
+
+                if "expirationDate" in data:
+                    expiration_date = data.get("expirationDate")
+                    if expiration_date is not None and expiration_date != "":
+                        try:
+                            user.expiration_date = arrow.get(
+                                expiration_date.strip()
+                            ).datetime
+                        except arrow.parser.ParserError:
+                            return self.error(
+                                "Unable to parse `expirationDate` parameter."
+                            )
+                    else:
+                        user.expiration_date = None
 
                 for k in data:
                     if k != "expiration_date":
@@ -579,6 +620,7 @@ class UserHandler(BaseHandler):
 
                 session.commit()
                 self.push_all(action="skyportal/FETCH_USERS")
+                self.push_all(action="skyportal/FETCH_USERS_MANAGEMENT")
                 return self.success()
         else:
             return self.error("User ID must be provided")

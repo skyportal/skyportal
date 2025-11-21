@@ -13,6 +13,7 @@ from ...models import (
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
     Group,
+    Obj,
     Photometry,
     Spectrum,
 )
@@ -300,8 +301,7 @@ class AnnotationHandler(BaseHandler):
                 )
 
             if associated_resource_type.lower() == "sources":
-                obj_id = resource_id
-                data["obj_id"] = obj_id
+                data["obj_id"] = resource_id
                 schema = Annotation.__schema__(exclude=["author_id"])
                 try:
                     schema.load(data)
@@ -312,23 +312,22 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = Annotation(
                     data=annotation_data,
-                    obj_id=obj_id,
+                    obj_id=resource_id,
                     origin=origin,
                     author=author,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "spectra":
-                spectrum_id = resource_id
-                spectrum = session.scalars(
+                spectrum = session.scalar(
                     Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == spectrum_id
+                        Spectrum.id == resource_id
                     )
-                ).first()
-                if spectrum is None:
+                )
+                if not spectrum:
                     return self.error(
-                        f"Could not access spectrum {spectrum_id}.", status=403
+                        f"Could not access spectrum {resource_id}.", status=403
                     )
-                data["spectrum_id"] = spectrum_id
+                data["spectrum_id"] = resource_id
                 data["obj_id"] = spectrum.obj_id
                 schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
                 try:
@@ -340,24 +339,23 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnSpectrum(
                     data=annotation_data,
-                    spectrum_id=spectrum_id,
+                    spectrum_id=resource_id,
                     obj_id=spectrum.obj_id,
                     origin=origin,
                     author=author,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "photometry":
-                photometry_id = resource_id
-                photometry = session.scalars(
+                photometry = session.scalar(
                     Photometry.select(session.user_or_token).where(
-                        Photometry.id == photometry_id
+                        Photometry.id == resource_id
                     )
-                ).first()
-                if photometry is None:
+                )
+                if not photometry:
                     return self.error(
-                        f"Could not access photometry {photometry_id}.", status=403
+                        f"Could not access photometry {resource_id}.", status=403
                     )
-                data["photometry_id"] = photometry_id
+                data["photometry_id"] = resource_id
                 data["obj_id"] = photometry.obj_id
                 schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
                 try:
@@ -369,7 +367,7 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnPhotometry(
                     data=annotation_data,
-                    photometry_id=photometry_id,
+                    photometry_id=resource_id,
                     obj_id=photometry.obj_id,
                     origin=origin,
                     author=author,
@@ -385,6 +383,8 @@ class AnnotationHandler(BaseHandler):
             try:
                 session.commit()
             except IntegrityError as e:
+                if 'is not present in table "objs"' in str(e).lower():
+                    return self.error(f"Obj {resource_id} not found", status=404)
                 return self.error(f"Annotation already exists: {str(e)}")
 
             if isinstance(
