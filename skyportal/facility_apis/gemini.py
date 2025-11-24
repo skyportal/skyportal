@@ -133,6 +133,12 @@ class GeminiRequest:
         # the ra dec are in deg, we need them in hms dms
         ra, dec = deg2hms(ra), deg2dms(dec)
 
+        ready = True  # default to ready
+        try:
+            ready = bool(request.payload.get("ready", True))
+        except Exception:
+            pass
+
         # target brightness
         # TODO: query the photometry of the object, get the latest detection
         # and build a string like: mag/filter/magsys
@@ -220,7 +226,7 @@ class GeminiRequest:
                 "posangle": gspa,
                 "noteTitle": notetitle,
                 "note": note,
-                "ready": True,
+                "ready": ready,
                 "windowDate": l_wDate,
                 "windowTime": l_wTime,
                 "windowDuration": l_wDur,
@@ -397,6 +403,12 @@ class GEMINIAPI(FollowUpAPI):
             "note": {
                 "title": "Note Content (optional)",
                 "type": "string",
+            },
+            "ready": {
+                "title": "Ready",
+                "type": "boolean",
+                "description": "Indicates if the request is ready to be observed",
+                "default": True,
             },
         },
         "required": [
