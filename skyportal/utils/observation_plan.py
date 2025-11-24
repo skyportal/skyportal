@@ -929,7 +929,7 @@ def convert_plan_to_rubin_format(plan):
     scripts = []
     for obs in observations:
         script = {
-            "name": "track_and_take_image_lsstcam.py",
+            "name": "track_target_and_take_image_lsstcam.py",
             "standard": True,
             "parameters": {
                 "ra": obs["field"]["ra"] / 15.0,  # convert degrees to hours
