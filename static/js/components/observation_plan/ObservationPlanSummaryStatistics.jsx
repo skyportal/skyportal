@@ -91,7 +91,7 @@ ObservationPlanSummaryStatistics.propTypes = {
               probability: PropTypes.number,
               area: PropTypes.number,
               num_observations: PropTypes.number,
-              dt: PropTypes.number,
+              dt: PropTypes.string,
               total_time: PropTypes.number,
               start_observation: PropTypes.string,
               unique_filters: PropTypes.arrayOf(PropTypes.string),
