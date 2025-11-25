@@ -616,7 +616,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   return Object.keys(requestsGroupedByInstId).map((instrument_id) => (
     <Accordion
       sx={{
-        with: "99%",
+        width: "99%",
         "&::before": { display: "none" },
         marginBottom: "0.2rem",
       }}
