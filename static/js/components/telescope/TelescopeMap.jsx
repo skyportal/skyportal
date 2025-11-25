@@ -4,15 +4,6 @@ import { useDispatch } from "react-redux";
 import { Marker } from "react-simple-maps";
 import { CustomMap } from "../CustomMap";
 
-let dispatch;
-
-function setCurrentTelescopes(currentTelescopes) {
-  dispatch({
-    type: "skyportal/CURRENT_TELESCOPES",
-    data: { currentTelescopes },
-  });
-}
-
 function telescopeLabel(nestedTelescope) {
   return nestedTelescope.telescopes
     .map((telescope) => telescope.nickname)
@@ -28,6 +19,7 @@ function normalizeLatitudeDiff(alpha, beta) {
 }
 
 const TelescopeMap = ({ telescopes }) => {
+  const dispatch = useDispatch();
   const filteredTelescopes = telescopes.filter(
     (telescope) => telescope.fixed_location,
   );
@@ -94,7 +86,6 @@ const TelescopeMap = ({ telescopes }) => {
     });
   }
 
-  dispatch = useDispatch();
   return (
     <CustomMap>
       {(position) =>
@@ -106,7 +97,12 @@ const TelescopeMap = ({ telescopes }) => {
                 key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
                 id="telescope_marker"
                 coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
-                onClick={() => setCurrentTelescopes(nestedTelescope.telescopes)}
+                onClick={() =>
+                  dispatch({
+                    type: "skyportal/CURRENT_TELESCOPES",
+                    data: nestedTelescope.telescopes,
+                  })
+                }
               >
                 {nestedTelescope.fixed_location ? (
                   <circle
