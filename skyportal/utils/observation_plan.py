@@ -925,11 +925,17 @@ def convert_plan_to_rubin_format(plan):
     """
     filt_dict = {
         "lsstu": "u_24",
+        "lsst_u": "u_24",
         "lsstg": "g_6",
+        "lsst_g": "g_6",
         "lsstr": "r_57",
+        "lsst_r": "r_57",
         "lssti": "i_39",
+        "lsst_i": "i_39",
         "lsstz": "z_20",
+        "lsst_z": "z_20",
         "lssty": "y_10",
+        "lsst_y": "y_10",
     }
     plan_name = plan["plan_name"]
     observations = plan["planned_observations"]
@@ -938,7 +944,8 @@ def convert_plan_to_rubin_format(plan):
     for obs in observations:
         if obs["filt"] not in filt_dict:
             raise ValueError(
-                f"Unsupported filter: {obs['filt']}. Supported filters are: lsstu, lsstg, lsstr, lssti, lsstz, lssty."
+                f"Error, unsupported filter {obs['filt']}. Supported filters are "
+                f"lsstu/lsst_u, lsstg/lsst_g, lsstr/lsst_r, lssti/lsst_i, lsstz/lsst_z, lssty/lsst_y."
             )
 
         script = {
