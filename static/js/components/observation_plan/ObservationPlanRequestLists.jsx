@@ -396,7 +396,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
             onClose={() => setAnchorEl(null)}
           >
             <MenuItem
-              component="a"
               onClick={async () => {
                 setAnchorEl(null);
                 await handleRubinDownload(false);
@@ -405,7 +404,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
               ZTF compatible
             </MenuItem>
             <MenuItem
-              component="a"
               onClick={async () => {
                 setAnchorEl(null);
                 await handleRubinDownload(true);
