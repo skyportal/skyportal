@@ -355,7 +355,6 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
           labelId="instrumentSelectLabel"
           value={selectedInstrumentId || ""}
           onChange={handleSelectedInstrumentChange}
-          name="gcnPageInstrumentSelect"
           className={classes.instrumentSelect}
         >
           {instrumentsWithSensitivities?.map((instrument) => (

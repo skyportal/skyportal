@@ -264,9 +264,13 @@ def test_get_desi_finding_chart():
 
 # test for failure on a too-small image size
 def test_get_finding_chart():
-    rez = get_finding_chart(123.0, 33.3, "testSource", imsize=1.0, image_source="dss")
+    rez = get_finding_chart(
+        123.0, 33.3, "testSource", imsize=1.0, image_source="dss", use_cache=False
+    )
     assert not rez["success"]
 
-    rez = get_finding_chart(123.0, 33.3, "testSource", image_source="zomg_telescope")
+    rez = get_finding_chart(
+        123.0, 33.3, "testSource", image_source="zomg_telescope", use_cache=False
+    )
     assert isinstance(rez, dict)
     assert not rez["success"]

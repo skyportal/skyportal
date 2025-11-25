@@ -12,7 +12,6 @@ const useStyles = makeStyles(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
-    maxWidth: "25rem",
   },
   formControl: {
     minWidth: "12rem",
@@ -26,6 +25,8 @@ const getStyles = (option, opts, theme) => ({
       ? theme.typography.fontWeightRegular
       : theme.typography.fontWeightMedium,
 });
+
+const menuProps = { PaperProps: { style: { maxHeight: "20rem" } } };
 
 const SelectWithChips = (props) => {
   const classes = useStyles();
@@ -44,20 +45,12 @@ const SelectWithChips = (props) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
-        label={label}
         id={id}
+        label={label}
         multiple
         value={initValue || []}
         onChange={(event) => {
@@ -70,21 +63,15 @@ const SelectWithChips = (props) => {
         }}
         renderValue={(selected) => (
           <div className={classes.chips}>
-            {selected.map((value) =>
-              selected.indexOf(value) < max_chips_nb ? (
-                <Chip key={value} label={value} />
-              ) : (
-                selected.indexOf(value) === max_chips_nb && (
-                  <Chip
-                    key={value}
-                    label={`+${selected?.length - max_chips_nb}`}
-                  />
-                )
-              ),
+            {selected.slice(0, max_chips_nb).map((value) => (
+              <Chip key={value} label={value} />
+            ))}
+            {selected.length > max_chips_nb && (
+              <Chip label={`+${selected.length - max_chips_nb}`} />
             )}
           </div>
         )}
-        MenuProps={MenuProps}
+        MenuProps={menuProps}
       >
         {options?.map((option, index) => (
           <MenuItem
@@ -131,21 +118,13 @@ const SelectLabelWithChips = (props) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
-        label={label}
         id={id}
         multiple
+        label={label}
         value={initValue || []}
         onChange={(event) => {
           onChange(event);
@@ -157,21 +136,15 @@ const SelectLabelWithChips = (props) => {
         }}
         renderValue={(selected) => (
           <div className={classes.chips}>
-            {selected.map((value) =>
-              selected.indexOf(value) < max_chips_nb ? (
-                <Chip key={value.id} label={value.label} />
-              ) : (
-                selected.indexOf(value) === max_chips_nb && (
-                  <Chip
-                    key={value.id}
-                    label={`+${selected?.length - max_chips_nb}`}
-                  />
-                )
-              ),
+            {selected.slice(0, max_chips_nb).map((value) => (
+              <Chip key={value.id} label={value.label} />
+            ))}
+            {selected.length > max_chips_nb && (
+              <Chip label={`+${selected.length - max_chips_nb}`} />
             )}
           </div>
         )}
-        MenuProps={MenuProps}
+        MenuProps={menuProps}
       >
         {options?.map((option) => (
           <MenuItem
@@ -216,30 +189,16 @@ const SelectSingleLabelWithChips = (props) => {
   const opts = [];
   const { label, id, initValue, onChange, options } = props;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
       <Select
-        label={label}
         id={id}
+        label={label}
         value={initValue || ""}
-        onChange={(event) => {
-          onChange(event);
-        }}
-        renderValue={(selected) => (
-          <div className={classes.chips}>
-            <Chip label={selected.label} />
-          </div>
-        )}
-        MenuProps={MenuProps}
+        onChange={(event) => onChange(event)}
+        renderValue={(selected) => <Chip label={selected.label} />}
+        MenuProps={menuProps}
       >
         {options?.map((option) => (
           <MenuItem

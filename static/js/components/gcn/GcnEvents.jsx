@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link } from "react-router-dom";
+import MUIDataTable from "mui-datatables";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import {
@@ -14,21 +16,17 @@ import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import JoinInnerIcon from "@mui/icons-material/JoinInner";
-import InfoIcon from "@mui/icons-material/Info";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import Close from "@mui/icons-material/Close";
 import grey from "@mui/material/colors/grey";
-
-import MUIDataTable from "mui-datatables";
-
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
-import { Link } from "react-router-dom";
 
+import { showNotification } from "baselayer/components/Notifications";
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import Spinner from "../Spinner";
@@ -44,13 +42,6 @@ const useStyles = makeStyles((theme) => ({
     "& > div": {
       margin: "0.25rem",
     },
-  },
-  filterAlert: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginTop: "1rem",
   },
   list: {
     listStyleType: "none",
@@ -103,6 +94,10 @@ const getMuiTheme = (theme) =>
             maxHeight: "2rem",
             padding: "0 0.75rem",
             margin: 0,
+          },
+          filterPaper: {
+            minWidth: "50vw",
+            maxWidth: "95vw",
           },
         },
       },
@@ -197,7 +192,6 @@ const GcnEvents = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
-  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
   const gcn_tags_classes = useSelector((state) => state.config.gcnTagsClasses);
 
@@ -282,7 +276,7 @@ const GcnEvents = () => {
       data.propertiesFilter = `${data.property}: ${data.propertyComparatorValue}: ${data.propertyComparator}`;
     }
     handleTableFilter(1, defaultNumPerPage, data);
-    setFilterFormSubmitted(true);
+    dispatch(showNotification("Filters submitted to server"));
   };
 
   const handleSearchChange = async (searchText) => {
@@ -295,13 +289,10 @@ const GcnEvents = () => {
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
-  const handleFilterReset = async (props) => {
-    const params = {
-      pageNumber: 1,
-    };
+  const handleFilterReset = async () => {
+    const params = { pageNumber: 1 };
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
-    setFilterFormSubmitted(false);
   };
 
   const handleTableChange = (action, tableState) => {
@@ -428,14 +419,7 @@ const GcnEvents = () => {
     );
 
   const customFilterDisplay = () => (
-    <div>
-      {filterFormSubmitted && (
-        <div className={classes.filterAlert}>
-          <InfoIcon /> &nbsp; Filters submitted to server!
-        </div>
-      )}
-      <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
-    </div>
+    <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
   );
   const columns = [
     {

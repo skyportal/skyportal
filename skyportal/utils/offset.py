@@ -4,6 +4,7 @@ import math
 import os
 import re
 import string
+import traceback
 import urllib
 import warnings
 from functools import wraps
@@ -24,19 +25,25 @@ from astropy.visualization import ImageNormalize, ZScaleInterval
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.wcs.wcs import FITSFixedWarning
-from joblib import Memory
+from joblib import Memory, hash
 from reproject import reproject_adaptive
 from scipy.ndimage import gaussian_filter
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from .cache import Cache
+from .. import __version__
+from .cache import Cache, dict_to_bytes
 from .tap_services.gaia import GaiaQuery
 
 log = make_log("finder-chart")
 
 _, cfg = load_env()
+
+cache_dir = "cache/finding_charts"
+cache_max_age_days = cfg.get("misc.days_to_keep_finding_charts_cache", 30)
+cache_max_age = cache_max_age_days * 24 * 60 * 60  # days to seconds
+finding_charts_cache = Cache(cache_dir=cache_dir, max_age=cache_max_age)
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
 
@@ -1328,6 +1335,29 @@ def fits_image(
     return get_hdu(url)
 
 
+def get_finding_chart_cache_key(*args, **kwargs):
+    cache_key_str = (
+        "_".join([str(arg) for arg in args])
+        + "_".join(
+            [
+                f"{key}={value}"
+                for key, value in kwargs.items()
+                if key not in ["obstime"]
+            ]
+        )
+        # also add the version, to invalidate the cache when
+        # the application is upgraded to a new version
+        + "_"
+        + str(__version__)
+        # use the secret key as a salt, so a cache key
+        # can't just be built using function parameters
+        + "_"
+        + str(cfg["app.secret_key"])
+    )
+
+    return hash(cache_key_str)
+
+
 @warningfilter(action="ignore", category=FITSFixedWarning)
 def get_finding_chart(
     source_ra,
@@ -1342,6 +1372,7 @@ def get_finding_chart(
     zscale_contrast=0.045,
     zscale_krej=2.5,
     extra_display_string="",
+    use_cache=True,
     **offset_star_kwargs,
 ):
     """Create a finder chart suitable for spectroscopic observations of
@@ -1375,6 +1406,8 @@ def get_finding_chart(
         Krej parameter for the Zscale interval
     extra_display_string :  str, optional
         What else to show for the source itself in the chart (e.g. proper motion)
+    use_cache : bool, optional
+        Cache finding charts to disk. Also provides a public URL to the cached finding chart
     **offset_star_kwargs : dict, optional
         Other parameters passed to `get_nearby_offset_stars`
 
@@ -1391,6 +1424,56 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
+    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
+    if use_cache:
+        cache_key = get_finding_chart_cache_key(
+            source_ra,
+            source_dec,
+            source_name,
+            image_source="ps1",
+            output_format="pdf",
+            imsize=3.0,
+            tick_offset=0.02,
+            tick_length=0.03,
+            fallback_image_source="ps1_cds",
+            zscale_contrast=0.045,
+            zscale_krej=2.5,
+            extra_display_string="",
+            **offset_star_kwargs,
+        )
+        value = finding_charts_cache[cache_key]
+        if value is not None:
+            try:
+                value = np.load(value, allow_pickle=True)
+                value = value.item()
+                # the cache records the obstime used to generate the finding chart
+                # if the request obstime is more than "max_cache_age" seconds away from
+                # the cached obstime, then do not use the cache
+                if "obstime" not in value:
+                    del finding_charts_cache[cache_key]
+                    raise Exception(
+                        "existing cache does not have obstime, cannot validate"
+                    )
+                try:
+                    cached_obstime = Time(value["obstime"])
+                    request_time = Time(obstime)
+                    if (
+                        abs((cached_obstime - request_time).to_value("sec"))
+                        > cache_max_age
+                    ):
+                        # the cache is too old, remove it.
+                        del finding_charts_cache[cache_key]
+                        raise Exception(
+                            f"existing cache was computed with obstime={cached_obstime.iso}, request has obstime={request_time.iso} (max age is {cache_max_age_days} days)"
+                        )
+                except Exception as e:
+                    log(f"Could not parse obstime: {e}")
+                    del finding_charts_cache[cache_key]
+                    raise Exception("Could not parse obstime")
+                return value
+            except Exception as e:
+                log(f"Failed to load cached finding chart: {e}")
+
     if (imsize < 2.0) or (imsize > 15):
         return {
             "success": False,
@@ -1523,7 +1606,6 @@ def get_finding_chart(
     ax.grid(color="white", ls="dotted")
     ax.set_xlabel(r"$\alpha$ (J2000)", fontsize="large")
     ax.set_ylabel(r"$\delta$ (J2000)", fontsize="large")
-    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     ax.set_title(
         f"{source_name} Finder (for {obstime.split('T')[0]})",
         fontsize="large",
@@ -1744,9 +1826,23 @@ def get_finding_chart(
     plt.close(fig)
     buf.seek(0)
 
-    return {
+    data = {
         "success": True,
         "name": f"finder_{source_name}.{output_format}",
         "data": buf.read(),
+        "starlist": star_list,
+        "obstime": obstime,
         "reason": "",
     }
+
+    if use_cache:
+        data["public_url"] = urllib.parse.urljoin(
+            HOST, f"/public/finding_charts/{cache_key}"
+        )
+        try:
+            finding_charts_cache[cache_key] = dict_to_bytes(data)
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Failed to cache finding chart: {e}")
+
+    return data

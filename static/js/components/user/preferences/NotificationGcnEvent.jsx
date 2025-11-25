@@ -174,18 +174,19 @@ const NotificationGcnEvent = () => {
   };
 
   const onSubmitGcns = (formValues) => {
-    const currentGcnPref = notifications.gcn_events.properties || {};
-    currentGcnPref[formValues.GcnNotificationName] = {
-      gcn_notice_types: selectedGcnNoticeTypes,
-      gcn_tags: selectedGcnTags,
-      gcn_properties: selectedGcnProperties,
-      localization_tags: selectedLocalizationTags,
-      localization_properties: selectedLocalizationProperties,
-    };
     const prefs = {
       notifications: {
         gcn_events: {
-          properties: currentGcnPref,
+          properties: {
+            ...(notifications.gcn_events.properties || {}),
+            [formValues.GcnNotificationName]: {
+              gcn_notice_types: selectedGcnNoticeTypes,
+              gcn_tags: selectedGcnTags,
+              gcn_properties: selectedGcnProperties,
+              localization_tags: selectedLocalizationTags,
+              localization_properties: selectedLocalizationProperties,
+            },
+          },
         },
       },
     };
@@ -216,12 +217,14 @@ const NotificationGcnEvent = () => {
   };
 
   const onDelete = (selected) => {
-    const current = notifications.gcn_events.properties;
-    delete current[selected];
     const prefs = {
       notifications: {
         gcn_events: {
-          properties: current,
+          properties: Object.fromEntries(
+            Object.entries(notifications.gcn_events.properties).filter(
+              ([key]) => key !== selected,
+            ),
+          ),
         },
       },
     };
@@ -443,6 +446,7 @@ const NotificationGcnEvent = () => {
                       setSelectedLocalizationProperties={
                         setSelectedLocalizationProperties
                       }
+                      comparators={comparators}
                     />
                   </div>
                 </div>

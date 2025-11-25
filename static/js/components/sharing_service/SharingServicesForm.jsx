@@ -248,15 +248,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "array",
         items: {
           type: "integer",
-          anyOf: allowedInstruments.map((instrument) => ({
-            enum: [instrument.id],
-            type: "integer",
-            title: `${
-              telescopeList.find(
-                (telescope) => telescope.id === instrument.telescope_id,
-              )?.name
-            } / ${instrument.name}`,
-          })),
+          enum: allowedInstruments.map((instrument) => instrument.id),
         },
         uniqueItems: true,
         default: defaultInstrumentIds,
@@ -266,11 +258,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "array",
         items: {
           type: "integer",
-          anyOf: streams.map((stream) => ({
-            enum: [stream.id],
-            type: "integer",
-            title: stream.name,
-          })),
+          enum: streams.map((stream) => stream.id),
         },
         uniqueItems: true,
         default: defaultStreamIds,
@@ -330,6 +318,22 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     required: ["publishers", "instrument_ids"],
   };
 
+  const uiSchema = {
+    instrument_ids: {
+      "ui:enumNames": allowedInstruments.map(
+        (instrument) =>
+          `${
+            telescopeList.find(
+              (telescope) => telescope.id === instrument.telescope_id,
+            )?.name
+          } / ${instrument.name}`,
+      ),
+    },
+    stream_ids: {
+      "ui:enumNames": streams.map((stream) => stream.name),
+    },
+  };
+
   const validate = (formData, errors) => {
     if (!sendToTNS && !sendToHermes) {
       errors.__errors.push(
@@ -381,7 +385,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
           >
             <div>
               <Chip
-                label="Tns"
+                label="TNS"
                 clickable
                 onClick={() => setSendToTNS(!sendToTNS)}
                 color={sendToTNS ? "primary" : "default"}
@@ -478,6 +482,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                 {defaultSharersString ? (
                   <Form
                     schema={formSchema}
+                    uiSchema={uiSchema}
                     validator={validator}
                     onSubmit={handleSubmit}
                     disabled={SharingRequestInProcess}

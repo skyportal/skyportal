@@ -111,6 +111,7 @@ jobs:
           pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
           pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
           pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
+          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
 
       - name: Save current Alembic head on main
         run: |

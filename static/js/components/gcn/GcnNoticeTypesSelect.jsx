@@ -4,24 +4,21 @@ import PropTypes from "prop-types";
 
 import SelectWithChips from "../SelectWithChips";
 
-const GcnNoticeTypesSelect = (props) => {
-  const { selectedGcnNoticeTypes, setSelectedGcnNoticeTypes } = props;
+const GcnNoticeTypesSelect = ({
+  selectedGcnNoticeTypes,
+  setSelectedGcnNoticeTypes,
+}) => {
   const gcn_notice_types = useSelector((state) => state.config.gcnNoticeTypes);
-
-  const handleChange = (event) => setSelectedGcnNoticeTypes(event.target.value);
+  if (!gcn_notice_types?.length) return null;
 
   return (
-    <div>
-      {gcn_notice_types?.length > 0 && (
-        <SelectWithChips
-          label="Gcn Notice Types"
-          id="selectGcns"
-          initValue={selectedGcnNoticeTypes}
-          onChange={handleChange}
-          options={gcn_notice_types}
-        />
-      )}
-    </div>
+    <SelectWithChips
+      label="Gcn Notice Types"
+      id="selectGcns"
+      initValue={selectedGcnNoticeTypes}
+      onChange={(e) => setSelectedGcnNoticeTypes(e.target.value)}
+      options={gcn_notice_types}
+    />
   );
 };
 

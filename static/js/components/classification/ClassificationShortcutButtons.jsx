@@ -11,29 +11,27 @@ const ClassificationShortcutButtons = ({
   const { classificationShortcuts } = useSelector(
     (state) => state.profile.preferences,
   );
+  if (!classificationShortcuts) return null;
+
   const handleClassificationShortcutClick = (shortcutClassifications) => {
     setSelectedClassifications([
       ...new Set([...selectedClassifications, ...shortcutClassifications]),
     ]);
   };
-  return (
-    <>
-      {classificationShortcuts &&
-        Object.entries(classificationShortcuts)?.map(
-          ([shortcutName, shortcutClassifications]) => (
-            <Button
-              secondary
-              key={shortcutName}
-              data-testid={inDialog ? `${shortcutName}_inDialog` : shortcutName}
-              onClick={() =>
-                handleClassificationShortcutClick(shortcutClassifications)
-              }
-            >
-              Select {shortcutName}
-            </Button>
-          ),
-        )}
-    </>
+
+  return Object.entries(classificationShortcuts)?.map(
+    ([shortcutName, shortcutClassifications]) => (
+      <Button
+        secondary
+        key={shortcutName}
+        data-testid={shortcutName + (inDialog ? `_inDialog` : "")}
+        onClick={() =>
+          handleClassificationShortcutClick(shortcutClassifications)
+        }
+      >
+        Select {shortcutName}
+      </Button>
+    ),
   );
 };
 
