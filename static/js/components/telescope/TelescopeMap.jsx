@@ -4,12 +4,6 @@ import { useDispatch } from "react-redux";
 import { Marker } from "react-simple-maps";
 import { CustomMap } from "../CustomMap";
 
-function telescopeLabel(nestedTelescope) {
-  return nestedTelescope.telescopes
-    .map((telescope) => telescope.nickname)
-    .join(" / ");
-}
-
 function normalizeLongitudeDiff(alpha, beta) {
   return 180 - Math.abs(Math.abs(alpha - beta) - 180);
 }
@@ -100,7 +94,7 @@ const TelescopeMap = ({ telescopes }) => {
                 onClick={() =>
                   dispatch({
                     type: "skyportal/CURRENT_TELESCOPES",
-                    data: nestedTelescope.telescopes,
+                    data: { currentTelescopes: nestedTelescope.telescopes },
                   })
                 }
               >
@@ -128,7 +122,9 @@ const TelescopeMap = ({ telescopes }) => {
                   fontSize={10 / position.k}
                   y={-10 / position.k}
                 >
-                  {telescopeLabel(nestedTelescope)}
+                  {nestedTelescope.telescopes
+                    .map((telescope) => telescope.nickname)
+                    .join(" / ")}
                 </text>
               </Marker>
             ),
