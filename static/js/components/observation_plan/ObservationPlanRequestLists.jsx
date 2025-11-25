@@ -27,11 +27,11 @@ import { JSONTree } from "react-json-tree";
 import Button from "../Button";
 
 import * as Actions from "../../ducks/gcnEvent";
-
 import AddSurveyEfficiencyObservationPlanPage from "../survey_efficiency/AddSurveyEfficiencyObservationPlanPage";
 import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
 import ObservationPlanGlobe from "./ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
+import { showNotification } from "baselayer/components/Notifications";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
@@ -340,6 +340,8 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     const renderManage = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
+      if (observationplanRequest.status === "running")
+        return <CircularProgress />;
 
       const downloadLink = (rubinFormat = false) =>
         `/api/observation_plan/${
@@ -348,8 +350,26 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
           rubinFormat ? "&rubinFormat=True" : ""
         }`;
 
-      if (observationplanRequest.status === "running")
-        return <CircularProgress />;
+      const handleRubinDownload = async (rubinFormat) => {
+        const response = await fetch(downloadLink(rubinFormat));
+        if (!response.ok) {
+          const json_response = await response.json();
+          dispatch(
+            showNotification(
+              json_response.message || "Error downloading file",
+              "error",
+            ),
+          );
+          return;
+        }
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${rubinFormat ? "rubin-" : ""}observation-plan-${
+          observationplanRequest.id
+        }.json`;
+        link.click();
+      };
 
       return (
         <div className={classes.actionButtons}>
@@ -377,17 +397,19 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
           >
             <MenuItem
               component="a"
-              href={downloadLink()}
-              download={`observation-plan-${observationplanRequest.id}`}
-              onClick={() => setAnchorEl(null)}
+              onClick={async () => {
+                setAnchorEl(null);
+                await handleRubinDownload(false);
+              }}
             >
               ZTF compatible
             </MenuItem>
             <MenuItem
               component="a"
-              href={downloadLink(true)}
-              download={`rubin-observation-plan-${observationplanRequest.id}`}
-              onClick={() => setAnchorEl(null)}
+              onClick={async () => {
+                setAnchorEl(null);
+                await handleRubinDownload(true);
+              }}
               disabled={!observationplanRequest.observation_plans?.length}
             >
               Rubin compatible
