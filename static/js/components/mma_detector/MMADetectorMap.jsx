@@ -1,34 +1,21 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
 import { Marker } from "react-simple-maps";
 import { CustomMap } from "../CustomMap";
-
-let dispatch;
-
-function mmadetectorlabel(nestedMMADetector) {
-  return nestedMMADetector.mmadetectors
-    .map((mmadetector) => mmadetector.nickname)
-    .join(" / ");
-}
-
-function mmadetectorCanObserve(nestedMMADetector) {
-  let color = "#f9d71c";
-  if (nestedMMADetector.is_night_astronomical_at_least_one) {
-    color = "#0c1445";
-  }
-  return color;
-}
 
 function MMADetectorMarker({ nestedMMADetector, position }) {
   return (
     <Marker coordinates={[nestedMMADetector.lon, nestedMMADetector.lat]}>
       <circle
         r={6.5 / position.k}
-        fill={mmadetectorCanObserve(nestedMMADetector)}
+        fill={
+          nestedMMADetector.is_night_astronomical_at_least_one
+            ? "#0c1445"
+            : "#f9d71c"
+        }
       />
       <text textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
-        {mmadetectorlabel(nestedMMADetector)}
+        {nestedMMADetector.mmadetectors.map((m) => m.nickname).join(" / ")}
       </text>
     </Marker>
   );
@@ -81,7 +68,6 @@ const MMADetectorMap = ({ mmadetectors }) => {
     }
   }
 
-  dispatch = useDispatch();
   return (
     <CustomMap>
       {(position) =>
@@ -126,6 +112,7 @@ MMADetectorMarker.propTypes = {
         lon: PropTypes.number.isRequired,
       }),
     ),
+    is_night_astronomical_at_least_one: PropTypes.bool.isRequired,
   }).isRequired,
   position: PropTypes.shape({
     k: PropTypes.number,
