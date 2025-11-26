@@ -5,51 +5,6 @@ import { Marker } from "react-simple-maps";
 import CircularProgress from "@mui/material/CircularProgress";
 import { CustomMap } from "../CustomMap";
 
-let dispatch;
-
-function setCurrentEarthquakes(currentEarthquakes) {
-  const currentEarthquakeMenu = "Earthquake List";
-  dispatch({
-    type: "skyportal/CURRENT_EARTHQUAKES_AND_MENU",
-    data: { currentEarthquakes, currentEarthquakeMenu },
-  });
-}
-
-function earthquakelabel(nestedEarthquake) {
-  return nestedEarthquake.earthquakes
-    .map((earthquake) => earthquake.event_id)
-    .join(" / ");
-}
-
-function earthquakeStatus(nestedEarthquake) {
-  let color = "#f9d71c";
-  if (nestedEarthquake.status === "canceled") {
-    color = "#0c1445";
-  }
-  return color;
-}
-
-function EarthquakeMarker({ nestedEarthquake, position }) {
-  return (
-    <Marker
-      id="earthquake_marker"
-      key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
-      coordinates={[nestedEarthquake.lon, nestedEarthquake.lat]}
-      onClick={() => setCurrentEarthquakes(nestedEarthquake)}
-    >
-      <circle r={6.5 / position.k} fill={earthquakeStatus(nestedEarthquake)} />
-      <text
-        id="earthquakes_label"
-        textAnchor="middle"
-        fontSize={10 / position.k}
-        y={-10 / position.k}
-      >
-        {earthquakelabel(nestedEarthquake)}
-      </text>
-    </Marker>
-  );
-}
-
 function normalizeLongitudeDiff(alpha, beta) {
   return 180 - Math.abs(Math.abs(alpha - beta) - 180);
 }
@@ -59,15 +14,9 @@ function normalizeLatitudeDiff(alpha, beta) {
 }
 
 const EarthquakeMap = ({ earthquakes }) => {
-  dispatch = useDispatch();
+  let dispatch = useDispatch();
 
-  if (!earthquakes) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (!earthquakes) return <CircularProgress />;
 
   const nestedEarthquakes = [];
   let cnt = 0;
@@ -118,11 +67,37 @@ const EarthquakeMap = ({ earthquakes }) => {
           (nestedEarthquake) =>
             nestedEarthquake.lon &&
             nestedEarthquake.lat && (
-              <EarthquakeMarker
+              <Marker
                 key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
-                nestedEarthquake={nestedEarthquake}
-                position={position}
-              />
+                coordinates={[nestedEarthquake.lon, nestedEarthquake.lat]}
+                onClick={() =>
+                  dispatch({
+                    type: "skyportal/CURRENT_EARTHQUAKES_AND_MENU",
+                    data: {
+                      currentEarthquakes: nestedEarthquake,
+                      currentEarthquakeMenu: "Earthquake List",
+                    },
+                  })
+                }
+              >
+                <circle
+                  r={6.5 / position.k}
+                  fill={
+                    nestedEarthquake.status === "canceled"
+                      ? "#0c1445"
+                      : "#f9d71c"
+                  }
+                />
+                <text
+                  textAnchor="middle"
+                  fontSize={10 / position.k}
+                  y={-10 / position.k}
+                >
+                  {nestedEarthquake.earthquakes
+                    .map((e) => e.event_id)
+                    .join(" / ")}
+                </text>
+              </Marker>
             ),
         )
       }
@@ -144,25 +119,6 @@ EarthquakeMap.propTypes = {
       ),
     }),
   ).isRequired,
-};
-
-EarthquakeMarker.propTypes = {
-  nestedEarthquake: PropTypes.shape({
-    lat: PropTypes.number.isRequired,
-    lon: PropTypes.number.isRequired,
-    earthquakes: PropTypes.arrayOf(
-      PropTypes.shape({
-        event_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
-          .isRequired,
-        lat: PropTypes.number,
-        lon: PropTypes.number,
-        depth: PropTypes.number,
-      }),
-    ),
-  }).isRequired,
-  position: PropTypes.shape({
-    k: PropTypes.number,
-  }).isRequired,
 };
 
 export default EarthquakeMap;

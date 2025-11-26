@@ -280,7 +280,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
 
   const handleSubmit = async () => {
     if (selectedGroupIds.length > 0) {
-      formData.default_share_group_ids = selectedGroupIds;
+      setFormData({ ...formData, default_share_group_ids: selectedGroupIds });
     }
     const result = await dispatch(
       allocationId == null

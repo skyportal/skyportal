@@ -1535,26 +1535,16 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
 
-  if (source.loadError) {
-    return <div>{source.loadError}</div>;
-  }
-  if (!isCached) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  }
-  if (source.id === undefined) {
-    return <div>Source not found</div>;
-  }
-  document.title = source.id;
+  useEffect(() => {
+    if (source.id !== undefined) {
+      document.title = source.id;
+    }
+  }, [source.id]);
 
-  return (
-    <div>
-      <SourceContent source={source} />
-    </div>
-  );
+  if (source.loadError) return source.loadError;
+  if (!isCached) return <Spinner />;
+  if (source.id === undefined) return "Source not found";
+  return <SourceContent source={source} />;
 };
 
 Source.propTypes = {
