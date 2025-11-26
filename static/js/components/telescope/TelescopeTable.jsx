@@ -192,8 +192,6 @@ const TelescopeTable = ({
     return (
       <div className={classes.telescopeManage}>
         <Button
-          key={`delete_${telescope.id}`}
-          id={`delete_button_${telescope.id}`}
           onClick={() => openDeleteDialog(telescope.id)}
           disabled={!deletePermission}
         >
@@ -354,7 +352,7 @@ const TelescopeTable = ({
 TelescopeTable.propTypes = {
   telescopes: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
       nickname: PropTypes.string,
       lat: PropTypes.number,

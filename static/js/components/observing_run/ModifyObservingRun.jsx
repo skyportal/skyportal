@@ -9,10 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import {
-  submitObservingRun,
-  modifyObservingRun,
-} from "../../ducks/observingRun";
+import { modifyObservingRun } from "../../ducks/observingRun";
 
 dayjs.extend(utc);
 
@@ -56,6 +53,7 @@ const ModifyObservingRun = ({ run_id, onClose }) => {
     const result = await dispatch(modifyObservingRun(run_id, formData));
     if (result.status === "success") {
       dispatch(showNotification("Observing run updated"));
+      if (onClose) onClose();
     }
   };
 

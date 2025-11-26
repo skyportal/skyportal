@@ -6,7 +6,6 @@ import store from "../store";
 const FETCH_TOP_SAVERS = "skyportal/FETCH_TOP_SAVERS";
 const FETCH_TOP_SAVERS_OK = "skyportal/FETCH_TOP_SAVERS_OK";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchTopSavers = () =>
   API.GET("/api/internal/source_savers", FETCH_TOP_SAVERS);
 

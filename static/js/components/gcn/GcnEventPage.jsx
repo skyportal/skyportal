@@ -540,7 +540,6 @@ const GcnEventPage = ({ route }) => {
                             <Chip
                               size="small"
                               label={gcn_notice.ivorn}
-                              key={gcn_notice.ivorn}
                               className={styles.noticeListElementIVORN}
                             />
                             <DownloadNoticeButton gcn_notice={gcn_notice} />
