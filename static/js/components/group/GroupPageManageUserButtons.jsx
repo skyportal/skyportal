@@ -11,6 +11,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -24,9 +25,8 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const handleConfirmDeleteDialogClose = () => {
-    setConfirmDeleteOpen(false);
-  };
+  if (!isAdmin(currentUser) && user.username !== currentUser.username)
+    return null;
 
   let numAdmins = 0;
   group?.users?.forEach((groupUser) => {
@@ -89,96 +89,87 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   return (
     <div>
       {isAdmin(currentUser) && (
-        <div>
+        <>
           <Button
             size="small"
-            onClick={() => {
-              toggleUserAdmin(user);
-            }}
+            onClick={() => toggleUserAdmin(user)}
             disabled={isAdmin(user) && numAdmins === 1}
+            sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
           >
-            <span style={{ whiteSpace: "nowrap" }}>
-              {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
-            </span>
+            {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
           </Button>
           &nbsp;|&nbsp;
           <Tooltip title="Manage whether user can save sources to this group.">
             <Button
               size="small"
-              onClick={() => {
-                toggleUserCanSave(user);
-              }}
+              onClick={() => toggleUserCanSave(user)}
+              sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
             >
-              <span style={{ whiteSpace: "nowrap" }}>
-                {canSave(user) ? "Revoke save access" : "Grant save access"}
-              </span>
+              {canSave(user) ? "Revoke save access" : "Grant save access"}
             </Button>
           </Tooltip>
           &nbsp;|&nbsp;
-        </div>
+        </>
       )}
-      {(isAdmin(currentUser) || user.username === currentUser.username) && (
-        <div>
-          <IconButton
-            edge="end"
-            aria-label="delete"
-            data-testid={`delete-${user.username}`}
-            onClick={() => setConfirmDeleteOpen(true)}
-            disabled={isAdmin(user) && numAdmins === 1}
-            size="large"
+      <IconButton
+        edge="end"
+        aria-label="delete"
+        data-testid={`delete-${user.username}`}
+        onClick={() => setConfirmDeleteOpen(true)}
+        disabled={isAdmin(user) && numAdmins === 1}
+      >
+        <DeleteIcon />
+      </IconButton>
+      <Dialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+      >
+        {user.username === currentUser.username ? (
+          <>
+            <DialogTitle>Remove yourself?</DialogTitle>
+            <DialogContent dividers>
+              <DialogContentText>
+                Are you sure you want to delete yourself from this group?
+                <br />
+                <Typography variant="caption" color="warning.dark">
+                  Warning! This will delete you from the group and all of its
+                  filters.
+                </Typography>
+              </DialogContentText>
+            </DialogContent>
+          </>
+        ) : (
+          <>
+            <DialogTitle>Remove user?</DialogTitle>
+            <DialogContent dividers>
+              <DialogContentText>
+                Are you sure you want to delete this user from this group?
+                <br />
+                <Typography variant="caption" color="warning.dark">
+                  (This will delete the user from this group and all of its
+                  filters.)
+                </Typography>
+              </DialogContentText>
+            </DialogContent>
+          </>
+        )}
+        <DialogActions>
+          <Button
+            secondary
+            autoFocus
+            onClick={() => setConfirmDeleteOpen(false)}
           >
-            <DeleteIcon />
-          </IconButton>
-          <Dialog
-            fullWidth
-            open={confirmDeleteOpen}
-            onClose={handleConfirmDeleteDialogClose}
+            Dismiss
+          </Button>
+          <Button
+            primary
+            onClick={handleDelete}
+            data-testid={`confirm-delete-${user.username}`}
           >
-            {user.username === currentUser.username ? (
-              <>
-                <DialogTitle>Remove yourself?</DialogTitle>
-                <DialogContent dividers>
-                  <DialogContentText>
-                    Are you sure you want to delete yourself from this group?
-                    <br />
-                    Warning! This will delete you from the group and all of its
-                    filters.
-                  </DialogContentText>
-                </DialogContent>
-              </>
-            ) : (
-              <>
-                <DialogTitle>Remove user?</DialogTitle>
-                <DialogContent dividers>
-                  <DialogContentText>
-                    Are you sure you want to delete this user from this group?
-                    <br />
-                    Warning! This will delete the user from this group and all
-                    of its filters.
-                  </DialogContentText>
-                </DialogContent>
-              </>
-            )}
-
-            <DialogActions>
-              <Button
-                secondary
-                autoFocus
-                onClick={() => setConfirmDeleteOpen(false)}
-              >
-                Dismiss
-              </Button>
-              <Button
-                primary
-                onClick={handleDelete}
-                data-testid={`confirm-delete-${user.username}`}
-              >
-                Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </div>
-      )}
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
