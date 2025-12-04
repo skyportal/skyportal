@@ -175,21 +175,19 @@ class GeminiRequest:
             request.payload.get("l_elmax", 1.6)
         ).strip()  # maximum airmass value
 
-        notetitle = request.payload.get("notetitle")  # optional
-        note = request.payload.get("note") or ""  # optional
-
-        if notetitle:
-            notetitle = str(notetitle).strip()
-
-        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
-
         # Guide star selection
         gstarg, gsra, gsdec, gsmag, gspa, finding_chart_public_url = (
             self._get_guide_star(request, session)
         )
-
         if gstarg is None:
             raise ValueError("No guide star found")
+
+        note = request.payload.get("note") or ""  # optional
+        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
+
+        notetitle = request.payload.get("notetitle")  # optional
+        if notetitle:
+            notetitle = str(notetitle).strip()
 
         # templates available for the allocation
         template_ids = get_list_typed(
