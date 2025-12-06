@@ -257,7 +257,6 @@ const TopSavers = ({ classes }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
-  console.log(savers);
 
   const topSaversPrefs = {
     ...defaultPrefs,
