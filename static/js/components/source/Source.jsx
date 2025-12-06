@@ -1,7 +1,6 @@
 import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
@@ -27,6 +26,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
+import { Link } from "react-router-dom";
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
@@ -102,16 +102,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     lineHeight: "1em",
     fontSize: "200%",
     fontWeight: "900",
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
+    color: theme.palette.primary.main,
     display: "inline-block",
     padding: 0,
     margin: 0,
   },
   noSpace: { padding: 0, margin: 0 },
-  dropdownText: { textDecoration: "none", color: "black" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -201,7 +197,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   tooltipLink: {
     textDecoration: "none",
-    color: theme.palette.secondary.dark,
+    color: theme.palette.secondary.main,
   },
 }));
 
@@ -813,8 +809,6 @@ const SourceContent = ({ source }) => {
                       >
                         <Link
                           to={`/source/${duplicate.obj_id}`}
-                          role="link"
-                          key={duplicate.obj_id}
                           className={classes.noSpace}
                         >
                           <Button size="small" className={classes.noSpace}>
@@ -872,20 +866,17 @@ const SourceContent = ({ source }) => {
                     component="a"
                     href={`/api/sources/${source.id}/finder`}
                     download="finder-chart"
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElFindingChart(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    target="_blank"
+                    href={`/source/${source.id}/finder`}
+                    onClick={() => setAnchorElFindingChart(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
@@ -924,20 +915,17 @@ const SourceContent = ({ source }) => {
                     href={`/api/sources/${source.id}/observability`}
                     download={`observabilityChartRequest-${source.id}`}
                     data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElObservability(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    href={`/observability/${source.id}`}
+                    target="_blank"
+                    onClick={() => setAnchorElObservability(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
@@ -1211,14 +1199,14 @@ const SourceContent = ({ source }) => {
                   >
                     Photometry Table
                   </Button>
-                  <Link to={`/share_data/${source.id}`} role="link">
+                  <Link to={`/share_data/${source.id}`}>
                     <Button secondary>Share data</Button>
                   </Link>
-                  <Link to={`/upload_photometry/${source.id}`} role="link">
+                  <Link to={`/upload_photometry/${source.id}`}>
                     <Button secondary>Upload photometry</Button>
                   </Link>
                   {source?.photometry_exists && (
-                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                    <Link to={`/source/${source.id}/periodogram`}>
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
@@ -1276,10 +1264,10 @@ const SourceContent = ({ source }) => {
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
-                  <Link to={`/share_data/${source.id}`} role="link">
+                  <Link to={`/share_data/${source.id}`}>
                     <Button secondary>Share data</Button>
                   </Link>
-                  <Link to={`/upload_spectrum/${source.id}`} role="link">
+                  <Link to={`/upload_spectrum/${source.id}`}>
                     <Button secondary>Upload spectroscopy</Button>
                   </Link>
                 </div>
@@ -1547,26 +1535,16 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
 
-  if (source.loadError) {
-    return <div>{source.loadError}</div>;
-  }
-  if (!isCached) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  }
-  if (source.id === undefined) {
-    return <div>Source not found</div>;
-  }
-  document.title = source.id;
+  useEffect(() => {
+    if (source.id !== undefined) {
+      document.title = source.id;
+    }
+  }, [source.id]);
 
-  return (
-    <div>
-      <SourceContent source={source} />
-    </div>
-  );
+  if (source.loadError) return source.loadError;
+  if (!isCached) return <Spinner />;
+  if (source.id === undefined) return "Source not found";
+  return <SourceContent source={source} />;
 };
 
 Source.propTypes = {

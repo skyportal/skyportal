@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -80,31 +79,26 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
     .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const groupLookUp = {};
-
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-
   allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const locLookUp = {};
-
   gcnevent.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });

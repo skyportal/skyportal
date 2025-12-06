@@ -18,6 +18,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as shiftsActions from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
 import * as sourcesActions from "../../ducks/sources";
+import { utcString } from "../../utils/format";
 
 const useStyles = makeStyles((theme) => ({
   content: {
@@ -67,15 +68,6 @@ const ShiftSummary = () => {
   // json document that summarizes the activity during shifts between the start and end dates
   const shiftsSummary = useSelector((state) => state.shifts.shiftsSummary);
 
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
   const shiftFormSchema = {
     type: "object",
     properties: {
@@ -83,13 +75,13 @@ const ShiftSummary = () => {
         type: "string",
         format: "date-time",
         title: "Start Date (Local Time)",
-        default: defaultStartDate,
+        default: utcString(dayjs().subtract(1, "day")),
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date (Local Time)",
-        default: defaultEndDate,
+        default: utcString(dayjs().add(1, "day")),
       },
     },
   };

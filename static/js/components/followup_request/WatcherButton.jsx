@@ -9,7 +9,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Tooltip from "@mui/material/Tooltip";
 import Button from "../Button";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import * as followupRequestActions from "../../ducks/followupRequests";
 
 const UnwatchButton = (requestID, textMode, serverSide = false) => {
   const dispatch = useDispatch();
@@ -100,10 +100,9 @@ const WatcherButton = ({ followupRequest, textMode, serverSide }) => {
     watcherIds.push(s.user_id);
   });
   if (watcherIds.includes(currentUser.id)) {
-    // eslint-disable-next-line no-return-assign
     return UnwatchButton(followupRequest.id, textMode, serverSide);
   }
-  // eslint-disable-next-line no-return-assign
+
   return WatchButton(followupRequest.id, textMode, serverSide);
 };
 

@@ -213,16 +213,12 @@ const TaxonomyTable = ({
     return (
       <div className={classes.taxonomyManage}>
         <Button
-          key={`edit_${taxonomy.id}`}
-          id={`edit_button_${taxonomy.id}`}
           onClick={() => openEditDialog(taxonomy.id)}
           disabled={!deletePermission}
         >
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${taxonomy.id}`}
-          id={`delete_button_${taxonomy.id}`}
           onClick={() => openDeleteDialog(taxonomy.id)}
           disabled={!deletePermission}
         >
@@ -376,7 +372,7 @@ const TaxonomyTable = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={detailsDialogOpen && taxonomyToViewEditDelete}
+        open={detailsDialogOpen && !!taxonomyToViewEditDelete}
         onClose={closeDetailsDialog}
         maxWidth="lg"
       >
@@ -399,15 +395,17 @@ const TaxonomyTable = ({
       >
         <DialogTitle>Edit Taxonomy</DialogTitle>
         <DialogContent dividers>
-          <ModifyTaxonomy
-            taxonomy_id={taxonomyToViewEditDelete}
-            onClose={closeEditDialog}
-          />
+          {taxonomyToViewEditDelete && (
+            <ModifyTaxonomy
+              taxonomy_id={taxonomyToViewEditDelete}
+              onClose={closeEditDialog}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteTaxonomy}
-        dialogOpen={deleteDialogOpen && taxonomyToViewEditDelete}
+        dialogOpen={deleteDialogOpen && !!taxonomyToViewEditDelete}
         closeDialog={closeDeleteDialog}
         resourceName="taxonomy"
       />

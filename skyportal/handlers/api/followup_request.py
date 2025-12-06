@@ -1396,7 +1396,10 @@ class FollowupRequestHandler(BaseHandler):
                     return self.error(
                         "Could not update existing request, not implemented for this instrument."
                     )
-
+            self.push_all(
+                action="skyportal/REFRESH_FOLLOWUP_REQUEST",
+                payload={"followup_request_id": followup_request.id},
+            )
             return self.success()
 
     @permissions(["Upload data"])

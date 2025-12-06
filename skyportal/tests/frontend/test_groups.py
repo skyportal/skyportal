@@ -78,7 +78,7 @@ def test_add_new_group_user_admin(
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
@@ -117,7 +117,7 @@ def test_add_new_group_user_nonadmin(
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
@@ -154,7 +154,7 @@ def test_add_new_group_user_cant_save(
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
@@ -194,7 +194,7 @@ def test_invite_all_users_from_other_group(
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user_group2.username}")]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.click_xpath('//*[@data-testid="addUsersFromGroupsTextField"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
@@ -210,7 +210,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
 
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
@@ -226,7 +226,7 @@ def test_delete_group(driver, super_admin_user, user, public_group):
     driver.get("/groups")
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//button[contains(.,"Delete Group")]')
@@ -253,7 +253,7 @@ def test_add_stream_add_delete_filter_group(
     driver.get("/groups")
     driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
 
     # Add stream
@@ -292,7 +292,7 @@ def test_cannot_add_stream_group_users_cant_access(
     driver.get("/groups")
     driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
     driver.click_xpath(
-        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+        f'//a[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
 
     # Cannot add stream that group members don't have access to

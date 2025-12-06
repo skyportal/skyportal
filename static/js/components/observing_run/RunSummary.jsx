@@ -4,46 +4,42 @@ import { useDispatch, useSelector } from "react-redux";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
-
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
-import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
-
-import Link from "@mui/material/Link";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
-
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
-import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-
 import { showNotification } from "baselayer/components/Notifications";
+
 import Button from "../Button";
-import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
 import * as Action from "../../ducks/observingRun";
-import { dec_to_dms, ra_to_hours } from "../../units";
 
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
+import {
+  renderTargetName,
+  renderStatus,
+  renderRA,
+  renderDec,
+  renderRise,
+  renderSet,
+  renderFinderButton,
+  ActionsMenu,
+} from "../../utils/displaySummary";
+import Box from "@mui/material/Box";
 import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
@@ -55,178 +51,50 @@ const useStyles = makeStyles((theme) => ({
   displayInlineBlock: {
     display: "inline-block",
   },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
 }));
 
-function getStatusColors(status) {
-  // if it starts with success, green
-  if (status.startsWith("complete")) {
-    return ["black", "MediumAquaMarine"];
+export function observingRunTitle(
+  observingRun,
+  instrumentList,
+  telescopeList,
+  groups,
+  isBold = false,
+) {
+  const { instrument_id } = observingRun;
+  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
+  const telescope = telescopeList?.filter(
+    (t) => t.id === instrument?.telescope_id,
+  )[0];
+  const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
+  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
+    return <CircularProgress color="secondary" />;
   }
-  // if any of these strings are present, yellow
-  if (status.includes("not observed")) {
-    return ["black", "Orange"];
-  }
-  // if it starts with error, red
-  if (status.startsWith("error")) {
-    return ["white", "Crimson"];
-  }
-  // else grey
-  return ["black", "LightGrey"];
-}
+  let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
+  let moreInfo =
+    (observingRun?.pi ? `PI: ${observingRun.pi}` : "") +
+    (observingRun?.pi && group?.name ? " / " : "") +
+    (group?.name ? `Group: ${group.name}` : "");
+  moreInfo = moreInfo ? ` (${moreInfo})` : "";
 
-const SimpleMenu = ({ assignment }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const dispatch = useDispatch();
-
-  const { observingRunList } = useSelector((state) => state.observingRuns);
-
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const updateAssignmentStatus = (status) => () => {
-    handleClose();
-    return dispatch(SourceAction.editAssignment({ status }, assignment.id));
-  };
-
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-  };
-
-  const reassignAssignment = () => () => {
-    handleClose();
-    openDialog();
-  };
-
-  return (
-    <div>
-      <IconButton
-        aria-controls="simple-menu"
-        aria-haspopup="true"
-        onClick={handleClick}
-        variant="contained"
-        size="large"
-      >
-        <BuildIcon />
-      </IconButton>
-      <Menu
-        id="simple-menu"
-        anchorEl={anchorEl}
-        keepMounted
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
-        {(assignment.status === "pending" ||
-          assignment.status === "not observed") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("complete")}
-            variant="contained"
-            key={`${assignment.id}_done`}
-          >
-            Mark Observed
-          </MenuItem>
-        )}
-        {(assignment.status === "pending" ||
-          assignment.status === "complete") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("not observed")}
-            variant="contained"
-            key={`${assignment.id}_notdone`}
-          >
-            Mark Not Observed
-          </MenuItem>
-        )}
-        {(assignment.status === "complete" ||
-          assignment.status === "not observed") && (
-          <MenuItem
-            onClick={updateAssignmentStatus("pending")}
-            variant="contained"
-            key={`${assignment.id}_pending`}
-          >
-            Mark Pending
-          </MenuItem>
-        )}
-        {assignment.status === "not observed" && (
-          <MenuItem
-            onClick={reassignAssignment()}
-            variant="contained"
-            key={`${assignment.id}_reassign`}
-          >
-            Reassign
-          </MenuItem>
-        )}
-        {assignment.status === "complete" && (
-          <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
-            <Link
-              href={`/upload_spectrum/${assignment.obj_id}`}
-              underline="none"
-              color="textPrimary"
-            >
-              Upload Spectrum
-            </Link>
-          </MenuItem>
-        )}
-        {assignment.status === "complete" && (
-          <MenuItem
-            key={`${assignment.id}_upload_phot`}
-            variant="contained"
-            onClick={handleClose}
-          >
-            <Link
-              href={`/upload_photometry/${assignment.obj_id}`}
-              underline="none"
-              color="textPrimary"
-            >
-              Upload Photometry
-            </Link>
-          </MenuItem>
-        )}
-      </Menu>
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md">
-        <DialogTitle>Reassign to Observing Run</DialogTitle>
-        <DialogContent dividers>
-          <AssignmentForm
-            obj_id={assignment.obj_id}
-            observingRunList={observingRunList}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+  return isBold ? (
+    <>
+      <b>{result}</b>
+      {moreInfo}
+    </>
+  ) : (
+    result + moreInfo
   );
-};
-
-SimpleMenu.propTypes = {
-  assignment: PropTypes.shape({
-    status: PropTypes.string,
-    id: PropTypes.number,
-    obj_id: PropTypes.string,
-  }).isRequired,
-};
+}
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
+  const { observingRunList } = useSelector((state) => state.observingRuns);
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
   const [dialog, setDialog] = useState(false);
-
-  const closeDialog = () => {
-    setDialog(false);
-  };
 
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
@@ -243,21 +111,15 @@ const RunSummary = ({ route }) => {
           dispatch(
             showNotification("Observing run assignments set to not observed"),
           );
-          closeDialog();
+          setDialog(false);
         }
       },
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (observingRun === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
+    if (observingRun === undefined)
+      return <CircularProgress color="secondary" />;
 
     const colSpan = rowData.length + 1;
     const assignment = assignments[rowMeta.dataIndex];
@@ -300,140 +162,28 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = assignments[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
-  };
-
-  const renderStatus = (dataIndex) => {
-    const { id, status } = assignments[dataIndex];
-    const colors = getStatusColors(status);
-    return (
-      <Typography
-        variant="body2"
-        style={{
-          backgroundColor: colors[1],
-          color: colors[0],
-          padding: "0.25rem 0.75rem 0.25rem 0.75rem",
-          borderRadius: "1rem",
-          maxWidth: "fit-content",
-          // don't allow line breaks unless the status contains "error"
-          whiteSpace: status.includes("error") ? "normal" : "nowrap",
-        }}
-        name={`${id}_status`}
-      >
-        {status}
-      </Typography>
-    );
-  };
-
-  const renderDateRequested = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_date_requested`}>{assignment.created_at}</div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderRA = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_ra`}>
-        {assignment.obj.ra}
-        <br />
-        {ra_to_hours(assignment.obj.ra)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_dec`}>
-        {assignment.obj.dec}
-        <br />
-        {dec_to_dms(assignment.obj.dec)}
-      </div>
-    );
-  };
-
-  const renderRise = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_rise`}>
-        {assignment.rise_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.rise_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  const renderSet = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_set`}>
-        {assignment.set_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.set_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderFinderButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <>
-        <IconButton size="small" key={`${assignment.id}_actions`}>
-          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small" key={`${assignment.id}_actions_int`}>
-          <Link
-            href={`/source/${assignment.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const RenderGroups = (dataIndex) => {
     const classes = useStyles();
     const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.obj.id}_groups`}>
-        {assignment.accessible_group_names?.map((name) => (
-          <div key={name}>
-            <Chip
-              label={name.substring(0, 15)}
-              key={name}
-              size="small"
-              className={classes.chip}
-              data-testid={`chip-assignment_${assignment.id}-group_${name}`}
-            />
-            <br />
-          </div>
-        ))}
+    return assignment.accessible_group_names?.map((name) => (
+      <div key={name}>
+        <Chip
+          label={name.substring(0, 15)}
+          size="small"
+          className={classes.chip}
+        />
+        <br />
       </div>
-    );
+    ));
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
+  const updateAssignmentStatus = async (assignment, status) => {
+    const result = await dispatch(
+      SourceAction.editAssignment({ status }, assignment.id),
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Assignment status updated successfully"));
+    }
   };
 
   const columns = [
@@ -441,35 +191,42 @@ const RunSummary = ({ route }) => {
       name: "Target Name",
       options: {
         filter: true,
-        customBodyRenderLite: renderObjId,
+        customBodyRenderLite: (dataIndex) =>
+          renderTargetName(assignments[dataIndex]),
+      },
+    },
+    {
+      name: "Request Date",
+      options: {
+        filter: true,
+        customBodyRenderLite: (dataIndex) => assignments[dataIndex].created_at,
       },
     },
     {
       name: "Status",
       options: {
         filter: true,
-        customBodyRenderLite: renderStatus,
-      },
-    },
-    {
-      name: "Date Requested",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderDateRequested,
+        setCellProps: () => ({
+          style: {
+            minWidth: "250px",
+          },
+        }),
+        customBodyRenderLite: (dataIndex) =>
+          renderStatus(assignments[dataIndex]),
       },
     },
     {
       name: "RA",
       options: {
         filter: false,
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => renderRA(assignments[dataIndex]),
       },
     },
     {
       name: "Dec",
       options: {
         filter: false,
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => renderDec(assignments[dataIndex]),
       },
     },
     {
@@ -500,14 +257,14 @@ const RunSummary = ({ route }) => {
       name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: renderRise,
+        customBodyRenderLite: (dataIndex) => renderRise(assignments[dataIndex]),
       },
     },
     {
       name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: renderSet,
+        customBodyRenderLite: (dataIndex) => renderSet(assignments[dataIndex]),
       },
     },
     {
@@ -521,14 +278,21 @@ const RunSummary = ({ route }) => {
       name: "Finder",
       options: {
         filter: false,
-        customBodyRenderLite: renderFinderButton,
+        customBodyRenderLite: (dataIndex) =>
+          renderFinderButton(assignments[dataIndex]),
       },
     },
     {
       name: "Actions",
       options: {
         filter: false,
-        customBodyRenderLite: renderActionsButton,
+        customBodyRenderLite: (dataIndex) => (
+          <ActionsMenu
+            item={assignments[dataIndex]}
+            updateFunction={updateAssignmentStatus}
+            observingRunList={observingRunList}
+          />
+        ),
       },
     },
   ];
@@ -547,8 +311,8 @@ const RunSummary = ({ route }) => {
 
   const data = assignments?.map((assignment) => [
     assignment.obj.id,
-    assignment.status,
     assignment.created_at,
+    assignment.status,
     assignment.obj.ra,
     assignment.obj.dec,
     assignment.obj.redshift,
@@ -563,17 +327,16 @@ const RunSummary = ({ route }) => {
   ]);
 
   return (
-    <div className={styles.center}>
-      <Typography variant="h4" gutterBottom color="textSecondary">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <Typography variant="h1" gutterBottom color="textSecondary">
         Plan for:{" "}
-        <b>
-          {observingRunTitle(
-            observingRun,
-            instrumentList,
-            telescopeList,
-            groups,
-          )}
-        </b>
+        {observingRunTitle(
+          observingRun,
+          instrumentList,
+          telescopeList,
+          groups,
+          true,
+        )}
       </Typography>
       <MUIDataTable
         title="Targets"
@@ -610,25 +373,21 @@ const RunSummary = ({ route }) => {
           <SkyCam telescope={observingRun.instrument.telescope} />
         </Grid>
       </Grid>
-      <div>
-        {dialog && (
-          <Dialog open={dialog} onClose={closeDialog} maxWidth="md">
-            <DialogContent dividers>
-              Is your observing run clouded out and want to set all pending
-              objects to not observered?
-            </DialogContent>
-            <DialogActions>
-              <Button secondary autoFocus onClick={closeDialog}>
-                Dismiss
-              </Button>
-              <Button primary onClick={() => notObservedFunction()}>
-                Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
-        )}
-      </div>
-    </div>
+      <Dialog open={dialog} onClose={() => setDialog(false)} maxWidth="md">
+        <DialogContent dividers>
+          Is your observing run clouded out and you want to set all pending
+          objects to not observed?
+        </DialogContent>
+        <DialogActions>
+          <Button secondary autoFocus onClick={() => setDialog(false)}>
+            Dismiss
+          </Button>
+          <Button primary onClick={() => notObservedFunction()}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

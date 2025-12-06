@@ -9,7 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import * as followupRequestActions from "../../ducks/followupRequests";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 
 const useStyles = makeStyles(() => ({
@@ -35,7 +35,7 @@ const FollowupRequestPrioritizationForm = () => {
     (state) => state.instruments,
   );
   const { followupRequestList } = useSelector(
-    (state) => state.followup_requests,
+    (state) => state.followupRequests,
   );
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =

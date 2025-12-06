@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   bibtex: {
     marginTop: "2rem",
     marginBottom: 0,
-    color: theme.palette.secondary.dark,
+    color: theme.palette.secondary.main,
   },
   hidden: {
     display: "none",
@@ -43,7 +43,7 @@ const useStyles = makeStyles((theme) => ({
     color: `${theme.palette.error.main} !important`,
   },
   gitlogPR: {
-    color: theme.palette.secondary.dark,
+    color: theme.palette.secondary.main,
   },
 }));
 

@@ -88,7 +88,6 @@ const NewGroupUserForm = ({ group_id }) => {
         defaultValue={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             label="Username"
             data-testid="newGroupUserTextInput"

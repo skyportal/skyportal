@@ -215,6 +215,20 @@ class AllocationHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: sortBy
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Sort by field.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Sort order, either asc or desc. Defaults to asc.
           responses:
             200:
                content:

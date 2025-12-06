@@ -131,7 +131,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
   };
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
@@ -407,7 +407,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
           </div>
         </div>
         <div className={classes.formButtons}>
-          <ButtonGroup primary aria-label="contained primary button group">
+          <ButtonGroup aria-label="contained primary button group">
             <Button primary type="submit">
               Submit
             </Button>

@@ -326,7 +326,6 @@ const QuickSearchBar = () => {
         popupIcon={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             variant="outlined"
             placeholder="Search"

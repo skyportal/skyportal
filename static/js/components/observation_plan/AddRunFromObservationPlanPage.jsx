@@ -11,7 +11,7 @@ import * as Actions from "../../ducks/gcnEvent";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 
-const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
+const AddRunFromObservationPlanPage = ({ observationPlanRequest }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
 
@@ -43,14 +43,14 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
         secondary
         size="small"
         onClick={openDialog}
-        data-testid={`addObservingRunButton_${observationplanRequest.id}`}
+        data-testid={`addObservingRunButton_${observationPlanRequest.id}`}
       >
         Create Observing Run
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Create Observing Run</DialogTitle>
         <DialogContent>
-          {isCreatingObservingRun === observationplanRequest.id ? (
+          {isCreatingObservingRun === observationPlanRequest.id ? (
             <Box sx={{ textAlign: "center" }}>
               <CircularProgress />
             </Box>
@@ -73,13 +73,13 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
                 secondary
                 onClick={() => {
                   handleCreateObservingRun(
-                    observationplanRequest.id,
+                    observationPlanRequest.id,
                     selectedGroupIds,
                   );
                 }}
                 size="small"
                 type="submit"
-                data-testid={`observingRunRequest_${observationplanRequest.id}`}
+                data-testid={`observingRunRequest_${observationPlanRequest.id}`}
               >
                 Create Observing Run
               </Button>
@@ -92,7 +92,7 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
 };
 
 AddRunFromObservationPlanPage.propTypes = {
-  observationplanRequest: PropTypes.shape({
+  observationPlanRequest: PropTypes.shape({
     id: PropTypes.number,
   }).isRequired,
 };

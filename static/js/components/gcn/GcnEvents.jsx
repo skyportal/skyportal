@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
+import MUIDataTable from "mui-datatables";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import {
@@ -18,18 +19,14 @@ import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import Close from "@mui/icons-material/Close";
 import grey from "@mui/material/colors/grey";
-
-import MUIDataTable from "mui-datatables";
-
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
-import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
 
+import { showNotification } from "baselayer/components/Notifications";
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import Spinner from "../Spinner";
@@ -45,13 +42,6 @@ const useStyles = makeStyles((theme) => ({
     "& > div": {
       margin: "0.25rem",
     },
-  },
-  gcnEventLink: {
-    padding: 0,
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
   },
   list: {
     listStyleType: "none",
@@ -338,7 +328,7 @@ const GcnEvents = () => {
           backgroundColor:
             gcn_tags_classes && tag in gcn_tags_classes
               ? gcn_tags_classes[tag]
-              : "#999999",
+              : "secondary.dark",
         }}
       />
     ));
@@ -417,9 +407,7 @@ const GcnEvents = () => {
 
   const renderDateObs = (dataIndex) => (
     <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`}>
-      <Button className={classes.gcnEventLink}>
-        {events[dataIndex]?.dateobs}
-      </Button>
+      {events[dataIndex]?.dateobs}
     </Link>
   );
 

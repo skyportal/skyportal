@@ -84,7 +84,6 @@ const ClassificationList = () => {
   const currentGroupUser = groupUsers?.filter(
     (groupUser) => groupUser.user_id === userProfile.id,
   )[0];
-  // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
   const [hideML, setHideML] = useState(false);
 

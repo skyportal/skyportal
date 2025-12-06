@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import { Link } from "react-router-dom";
 import {
   createTheme,
   StyledEngineProvider,
@@ -20,6 +19,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
+import { Link } from "react-router-dom";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
@@ -68,11 +68,8 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
 
   const openManageUserPopover = Boolean(anchorEl);
   const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
-  // Mobile manage user popover
   const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
 
-  // Set-up members table
-  // MUI DataTable functions
   const renderUsername = (dataIndex) => {
     const user = group?.users[dataIndex];
     return (
@@ -87,9 +84,12 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     return (
       user &&
       user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
-        </div>
+        <Chip
+          label="Admin"
+          size="small"
+          color="secondary"
+          id={`${user.id}-admin-chip`}
+        />
       )
     );
   };
@@ -97,53 +97,51 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   const renderActions = (dataIndex) => {
     const user = group?.users[dataIndex];
     return (
-      <div>
-        {group &&
-          (mobile ? (
-            <div>
-              <IconButton
-                edge="end"
-                aria-label="open-manage-user-popover"
-                onClick={(e) => handlePopoverOpen(e, user.id)}
-                size="large"
-              >
-                <MoreVertIcon />
-              </IconButton>
-              <Popover
-                id={popoverId}
-                open={openedPopoverId === user.id}
-                anchorEl={anchorEl}
-                onClose={handlePopoverClose}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "center",
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "center",
-                }}
-              >
-                <div className={classes.manageUserPopover}>
-                  <ManageUserButtons
-                    loadedId={group.id}
-                    user={user}
-                    isAdmin={isAdmin}
-                    group={group}
-                    currentUser={currentUser}
-                  />
-                </div>
-              </Popover>
+      group &&
+      (mobile ? (
+        <div>
+          <IconButton
+            edge="end"
+            aria-label="open-manage-user-popover"
+            onClick={(e) => handlePopoverOpen(e, user.id)}
+            size="large"
+          >
+            <MoreVertIcon />
+          </IconButton>
+          <Popover
+            id={popoverId}
+            open={openedPopoverId === user.id}
+            anchorEl={anchorEl}
+            onClose={handlePopoverClose}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "center",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "center",
+            }}
+          >
+            <div className={classes.manageUserPopover}>
+              <ManageUserButtons
+                loadedId={group.id}
+                user={user}
+                isAdmin={isAdmin}
+                group={group}
+                currentUser={currentUser}
+              />
             </div>
-          ) : (
-            <ManageUserButtons
-              loadedId={group.id}
-              user={user}
-              isAdmin={isAdmin}
-              group={group}
-              currentUser={currentUser}
-            />
-          ))}
-      </div>
+          </Popover>
+        </div>
+      ) : (
+        <ManageUserButtons
+          loadedId={group.id}
+          user={user}
+          isAdmin={isAdmin}
+          group={group}
+          currentUser={currentUser}
+        />
+      ))
     );
   };
 

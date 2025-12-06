@@ -11,25 +11,19 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import * as queuedObservationActions from "../../ducks/queued_observations";
 import * as allocationActions from "../../ducks/allocations";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
 const NewAPIQueuedObservation = ({ onClose }) => {
+  const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
-
-  const dispatch = useDispatch();
-
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = utcString(dayjs());
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -125,13 +119,13 @@ const NewAPIQueuedObservation = ({ onClose }) => {
         type: "string",
         format: "date-time",
         title: "Start Date (Local Time)",
-        default: defaultStartDate,
+        default: nowDate,
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date (Local Time)",
-        default: defaultEndDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       allocation_id: {
         type: "integer",

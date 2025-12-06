@@ -127,7 +127,7 @@ def test_insufficient_name_entry_in_profile(driver, user):
     driver.get("/profile")
 
     # give some time to load the current profile
-    time.sleep(1)
+    time.sleep(1.5)
 
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     driver.scroll_to_element_and_click(first_name_entry)
@@ -154,7 +154,7 @@ def test_profile_dropdown(driver, user):
     # check dropdown contents
     driver.wait_for_xpath("//p[contains(@data-testid, 'firstLastName')]")
     driver.wait_for_xpath("//p[contains(@data-testid, 'username')]")
-    driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
+    driver.wait_for_xpath("//li[contains(@data-testid, 'signOutButton')]")
 
 
 def add_classification_shortcut(driver, user, public_group, taxonomy_token):

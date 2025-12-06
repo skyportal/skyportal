@@ -25,7 +25,6 @@ import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 const useStyles = makeStyles(() => ({
-  header: {},
   timespanSelect: {
     display: "inline",
     "& > button": {
@@ -145,7 +144,7 @@ const TopSaversSearch = ({ savers, setOptions }) => {
 
 TopSaversSearch.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,
@@ -174,13 +173,8 @@ const TopSaversList = ({ savers, styles }) => {
     }
   }, [savers]);
 
-  if (savers === undefined) {
-    return <div>Loading top savers...</div>;
-  }
-
-  if (savers.length === 0) {
-    return <div>No top savers available.</div>;
-  }
+  if (savers === undefined) return <div>Loading top savers...</div>;
+  if (savers.length === 0) return <div>No top savers available.</div>;
 
   const renderRank = (index) => {
     const { rank } = options[index];
@@ -215,9 +209,7 @@ const TopSaversList = ({ savers, styles }) => {
   };
 
   const renderSaves = (index) => (
-    <div>
-      <p style={{ whiteSpace: "nowrap" }}>{options[index].saves} saved</p>
-    </div>
+    <p style={{ whiteSpace: "nowrap" }}>{options[index].saves} saved</p>
   );
 
   return (
@@ -225,17 +217,14 @@ const TopSaversList = ({ savers, styles }) => {
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver, index) => (
-          <>
-            <ListItem
-              key={saver.author.username}
-              className={styles.saverListItem}
-            >
+          <div key={saver.author.username}>
+            <ListItem className={styles.saverListItem}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
             </ListItem>
             {index < options.length - 1 && <Divider />}
-          </>
+          </div>
         ))}
       </List>
     </div>
@@ -244,7 +233,7 @@ const TopSaversList = ({ savers, styles }) => {
 
 TopSaversList.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,
@@ -269,18 +258,10 @@ const TopSavers = ({ classes }) => {
   const styles = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
 
-  const topSaversPrefs =
-    useSelector((state) => state.profile.preferences.topSavers) || defaultPrefs;
-
-  if (!Object.keys(topSaversPrefs).includes("maxNumSavers")) {
-    topSaversPrefs.maxNumSavers = defaultPrefs.maxNumSavers;
-  }
-  if (!Object.keys(topSaversPrefs).includes("sinceDaysAgo")) {
-    topSaversPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
-  }
-  if (!Object.keys(topSaversPrefs).includes("candidatesOnly")) {
-    topSaversPrefs.candidatesOnly = defaultPrefs.candidatesOnly;
-  }
+  const topSaversPrefs = {
+    ...defaultPrefs,
+    ...(useSelector((state) => state.profile.preferences.topSavers) || {}),
+  };
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
@@ -292,19 +273,20 @@ const TopSavers = ({ classes }) => {
   const open = Boolean(anchorEl);
 
   const switchTimespan = (selectedTimespan) => {
-    const newTimespan = timespans.find(
-      (timespan) => timespan.label === selectedTimespan.label,
-    );
-    setCurrentTimespan(newTimespan);
-    topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
-
+    setCurrentTimespan(selectedTimespan);
     dispatch(
-      profileActions.updateUserPreferences({ topSavers: topSaversPrefs }),
+      profileActions.updateUserPreferences({
+        topSavers: {
+          ...topSaversPrefs,
+          sinceDaysAgo: selectedTimespan.sinceDaysAgo,
+        },
+      }),
     );
+    setAnchorEl(null);
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+    <Paper className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
           <Typography
@@ -324,7 +306,6 @@ const TopSavers = ({ classes }) => {
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 size="small"
                 endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                data-testid="topSavers_timespanButton"
               >
                 {currentTimespan.label}
               </Button>
@@ -334,19 +315,13 @@ const TopSavers = ({ classes }) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
-                }}
+                MenuListProps={{ "aria-labelledby": "basic-button" }}
               >
                 {timespans.map((timespan) => (
                   <MenuItem
                     className={styles.timespanMenuItem}
                     key={timespan.label}
-                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
-                    onClick={() => {
-                      switchTimespan(timespan);
-                      setAnchorEl(null);
-                    }}
+                    onClick={() => switchTimespan(timespan)}
                   >
                     {timespan.label}
                   </MenuItem>

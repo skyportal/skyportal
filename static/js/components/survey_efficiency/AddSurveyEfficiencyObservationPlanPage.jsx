@@ -13,7 +13,7 @@ import Button from "../Button";
 
 const AddSurveyEfficiencyObservationPlanPage = ({
   gcnevent,
-  observationplanRequest,
+  observationPlanRequest,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
@@ -38,7 +38,7 @@ const AddSurveyEfficiencyObservationPlanPage = ({
       setFetchingSurveyEfficiencyAnalysisList(true);
       dispatch(
         GET(
-          `/api/observation_plan/${observationplanRequest.id}/survey_efficiency`,
+          `/api/observation_plan/${observationPlanRequest.id}/survey_efficiency`,
           "skyportal/FETCH_OBSERVATION_PLAN_SURVEY_EFFICIENCY",
         ),
       ).then((response) => {
@@ -49,11 +49,11 @@ const AddSurveyEfficiencyObservationPlanPage = ({
     if (
       !fetchingSurveyEfficiencyAnalysisList &&
       !surveyEfficiencyAnalysisList &&
-      observationplanRequest?.status === "complete"
+      observationPlanRequest?.status === "complete"
     ) {
       fetchSurveyEfficiencyAnalysisList();
     }
-  }, [dispatch, surveyEfficiencyAnalysisList, observationplanRequest]);
+  }, [dispatch, surveyEfficiencyAnalysisList, observationPlanRequest]);
 
   return (
     <>
@@ -62,23 +62,22 @@ const AddSurveyEfficiencyObservationPlanPage = ({
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}
+        disabled={!observationPlanRequest.observation_plans?.length}
       >
         SimSurvey Analysis
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
-          <div>
-            <SurveyEfficiencyForm
-              gcnevent={gcnevent}
-              observationplanRequest={observationplanRequest}
+          <SurveyEfficiencyForm
+            gcnevent={gcnevent}
+            observationplanRequest={observationPlanRequest}
+          />
+          {surveyEfficiencyAnalysisList?.length > 0 && (
+            <SurveyEfficiencyObservationPlanLists
+              survey_efficiency_analyses={surveyEfficiencyAnalysisList}
             />
-            {surveyEfficiencyAnalysisList?.length > 0 && (
-              <SurveyEfficiencyObservationPlanLists
-                survey_efficiency_analyses={surveyEfficiencyAnalysisList}
-              />
-            )}
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
@@ -96,9 +95,15 @@ AddSurveyEfficiencyObservationPlanPage.propTypes = {
     ),
     id: PropTypes.number,
   }).isRequired,
-  observationplanRequest: PropTypes.shape({
+  observationPlanRequest: PropTypes.shape({
     id: PropTypes.number,
     status: PropTypes.string,
+    observation_plans: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      }),
+    ),
   }).isRequired,
 };
 

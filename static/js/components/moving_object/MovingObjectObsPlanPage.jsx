@@ -266,8 +266,8 @@ const MovingObjectObsPlanPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {planData.map((row) => (
-                  <TableRow key={row.id}>
+                {planData.map((row, index) => (
+                  <TableRow key={index}>
                     <TableCell>{row.start_time}</TableCell>
                     <TableCell>{row.field_id}</TableCell>
                     <TableCell>{row.band}</TableCell>

@@ -9,6 +9,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchEarthquakes, submitEarthquake } from "../../ducks/earthquake";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -22,11 +23,6 @@ const NewEarthquake = () => {
       dispatch(fetchEarthquakes());
     }
   };
-
-  const defaultDate = dayjs()
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ")
-    .replace("+00:00", "");
 
   function validate(formData, errors) {
     if (formData.lon < -180 || formData.lon > 180) {
@@ -49,7 +45,7 @@ const NewEarthquake = () => {
       date: {
         type: "string",
         title: "Date (UTC)",
-        default: defaultDate,
+        default: utcString(dayjs()).replace("+00:00", ""),
       },
       latitude: {
         type: "number",

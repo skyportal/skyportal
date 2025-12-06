@@ -76,7 +76,6 @@ const AddUsersFromGroupForm = ({ groupID }) => {
               options={groups}
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
-              data-testid="addUsersFromGroupsSelect"
               renderInput={(field) => (
                 <TextField
                   {...field}

@@ -7,11 +7,13 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Dialog from "@mui/material/Dialog";
+import DownloadIcon from "@mui/icons-material/Download";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Menu from "@mui/material/Menu";
+import Dialog from "@mui/material/Dialog";
 import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
+import Box from "@mui/material/Box";
 import {
   createTheme,
   ThemeProvider,
@@ -32,19 +34,14 @@ import ObservationPlanGlobe from "./ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
 
 const useStyles = makeStyles(() => ({
-  observationplanRequestTable: {
-    borderSpacing: "0.7em",
-  },
   actionButtons: {
     display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
+    alignItems: "center",
+    flexDirection: "column",
+    gap: "0.3rem",
   },
   accordion: {
     width: "99%",
-  },
-  container: {
-    margin: "1rem 0",
   },
   localization: {
     minWidth: "500px",
@@ -52,11 +49,8 @@ const useStyles = makeStyles(() => ({
   summaryStatistics: {
     minWidth: "200px",
   },
-  dialog: {
-    minWidth: "60vw",
-    "& .MuiDialog-paper": {
-      minWidth: "60vw",
-    },
+  centered: {
+    textAlign: "center",
   },
 }));
 
@@ -65,13 +59,6 @@ const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
     components: {
-      MUIDataTable: {
-        styleOverrides: {
-          paper: {
-            width: "100%",
-          },
-        },
-      },
       MUIDataTableHeadCell: {
         styleOverrides: {
           root: {
@@ -98,24 +85,6 @@ const getMuiTheme = (theme) =>
         styleOverrides: {
           toolbar: {
             flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
           },
         },
       },
@@ -126,41 +95,35 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const [anchorEl, setAnchorEl] = useState(null);
-
-  const observationPlanRequestList = gcnEvent?.observation_plans || [];
-  const fetchedObservationPlan = gcnEvent?.observation_plan || null;
-
-  const [
-    observationPlanRequestFetchedForLocalization,
-    setObservationPlanRequestFetchedForLocalization,
-  ] = useState(null);
-
+  const [fetchedForLocalizationId, setFetchedForLocalizationId] =
+    useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
-
   const [showTable, setShowTable] = useState(null);
 
+  const observationPlanRequestList = gcnEvent?.observation_plans || [];
+
   useEffect(() => {
-    if (!gcnEvent) {
-      return;
-    }
+    if (!gcnEvent?.localizations?.length) return;
+    setSelectedLocalizationId(gcnEvent?.localizations[0]?.id);
+  }, [gcnEvent]);
+
+  useEffect(() => {
     if (
-      selectedLocalizationId !== observationPlanRequestFetchedForLocalization
+      gcnEvent &&
+      selectedLocalizationId &&
+      selectedLocalizationId !== fetchedForLocalizationId
     ) {
-      const fetchObservationPlanRequestList = async () => {
-        setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
-        dispatch(Actions.fetchObservationPlanRequests(gcnEvent.id));
-      };
-      fetchObservationPlanRequestList();
+      setFetchedForLocalizationId(selectedLocalizationId);
+      dispatch(Actions.fetchObservationPlanRequests(gcnEvent.id));
     }
   }, [
-    dispatch,
-    selectedLocalizationId,
     gcnEvent,
-    observationPlanRequestFetchedForLocalization,
+    selectedLocalizationId,
+    fetchedForLocalizationId,
     dateobs,
+    dispatch,
   ]);
 
   function handleShowTable(id) {
@@ -171,8 +134,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
-    await dispatch(Actions.deleteObservationPlanRequest(id));
-    setIsDeleting(null);
   };
 
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
@@ -208,44 +169,22 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     (state) => state.instruments,
   );
 
-  useEffect(() => {
-    const getLocalizations = async () => {
-      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
-    };
-
-    getLocalizations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch, setSelectedLocalizationId, gcnEvent]);
-
   if (
-    !instrumentList ||
-    instrumentList.length === 0 ||
-    Object.keys(instrumentObsplanFormParams).length === 0
+    !instrumentList?.length ||
+    !Object.keys(instrumentObsplanFormParams).length
   ) {
     return <CircularProgress />;
   }
 
-  if (!observationPlanRequestList || observationPlanRequestList.length === 0) {
+  if (!observationPlanRequestList.length) {
     return <p>No observation plan requests for this event...</p>;
   }
 
-  if (gcnEvent.localizations.length === 0 || !selectedLocalizationId) {
+  if (!gcnEvent.localizations?.length || !selectedLocalizationId) {
     return <h3>Fetching skymap...</h3>;
   }
 
-  const instLookUp = instrumentList.reduce((r, a) => {
-    r[a.id] = a;
-    return r;
-  }, {});
-
-  const locLookUp = {};
-
-  gcnEvent.localizations?.forEach((loc) => {
-    locLookUp[loc.id] = loc;
-  });
-
+  const instLookUp = Object.fromEntries(instrumentList.map((i) => [i.id, i]));
   observationPlanRequestList.sort(
     (a, b) => new Date(b.created_at) - new Date(a.created_at),
   );
@@ -269,433 +208,296 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       instrumentObsplanFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
       instrumentObsplanFormParams[instrument_id]?.methodsImplemented.remove;
-    const queuable = implementsSend || implementsRemove;
+    const queueable = implementsSend || implementsRemove;
 
-    const columns = [
-      { name: "requester.username", label: "Requester" },
-      { name: "allocation.group.name", label: "Allocation" },
-    ];
     const renderPayload = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-      const cellStyle = {
-        whiteSpace: "nowrap",
-      };
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
+      if (!request?.payload) return null;
 
       return (
-        <div style={cellStyle}>
-          {observationplanRequest ? (
-            <JSONTree data={observationplanRequest.payload} hideRoot />
-          ) : (
-            ""
-          )}
-        </div>
+        <Box sx={{ whiteSpace: "nowrap" }}>
+          <JSONTree data={request.payload} hideRoot />
+        </Box>
       );
     };
-    columns.push({
-      name: "payload",
-      label: "Payload",
-      options: {
-        customBodyRenderLite: renderPayload,
-      },
-    });
-
-    columns.push({ name: "status", label: "Status" });
 
     const renderSummaryStatistics = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-
-      return (
-        <div>
-          {observationplanRequest.status === "running" ? (
-            <div>
-              <CircularProgress />
-            </div>
-          ) : (
-            <div className={classes.summaryStatistics}>
-              <ObservationPlanSummaryStatistics
-                observationplanRequest={observationplanRequest}
-              />
-            </div>
-          )}
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
+      return request.status === "running" ? (
+        <Box className={classes.centered}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <div className={classes.summaryStatistics}>
+          <ObservationPlanSummaryStatistics observationPlanRequest={request} />
         </div>
       );
     };
-    columns.push({
-      name: "summarystatistics",
-      label: "Summary Statistics",
-      options: {
-        customBodyRenderLite: renderSummaryStatistics,
-      },
-    });
 
-    const renderLocalization = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-
+    const renderSkymap = (dataIndex) => {
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
       if (
         !["complete", "running", "submitted to telescope queue"].includes(
-          observationplanRequest?.status,
+          request?.status,
         )
-      ) {
-        return <div />;
-      }
-
+      )
+        return null;
       return (
         <div className={classes.localization}>
-          <ObservationPlanGlobe
-            observationplanRequest={observationplanRequest}
-          />
+          <ObservationPlanGlobe observationplanRequest={request} />
         </div>
       );
     };
-    columns.push({
-      name: "skymap",
-      label: "Skymap",
-      options: {
-        customBodyRenderLite: renderLocalization,
-      },
-    });
 
     const renderManage = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
       const downloadLink = (rubinFormat = false) =>
-        `/api/observation_plan/${
-          observationplanRequest.id
-        }?includePlannedObservations=True${
+        `/api/observation_plan/${request.id}?includePlannedObservations=True${
           rubinFormat ? "&rubinFormat=True" : ""
         }`;
-      return (
-        <div>
-          {observationplanRequest.status === "running" ? (
-            <div>
-              <CircularProgress />
-            </div>
-          ) : (
-            <div className={classes.actionButtons}>
-              <div>
-                <Button
-                  secondary
-                  href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
-                  download={`observation-plan-gcn-${observationplanRequest.id}`}
-                  size="small"
-                  type="submit"
-                  data-testid={`gcnRequest_${observationplanRequest.id}`}
-                  disabled={!observationplanRequest.observation_plans?.length}
-                >
-                  GCN
-                </Button>
-              </div>
-              <div>
-                <Button
-                  secondary
-                  size="small"
-                  onClick={(e) => setAnchorEl(e.currentTarget)}
-                >
-                  Download
-                </Button>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={() => setAnchorEl(null)}
-                >
-                  <MenuItem
-                    component="a"
-                    href={downloadLink()}
-                    download={`observation-plan-${observationplanRequest.id}`}
-                    onClick={() => setAnchorEl(null)}
-                  >
-                    ZTF compatible
-                  </MenuItem>
-                  <MenuItem
-                    component="a"
-                    href={downloadLink(true)}
-                    download={`rubin-observation-plan-${observationplanRequest.id}`}
-                    onClick={() => setAnchorEl(null)}
-                    disabled={!observationplanRequest.observation_plans?.length}
-                  >
-                    Rubin compatible
-                  </MenuItem>
-                </Menu>
-              </div>
-              <div>
-                <Button
-                  secondary
-                  href={`/api/observation_plan/${observationplanRequest.id}/movie`}
-                  download={`observation-plan-movie-${observationplanRequest.id}`}
-                  size="small"
-                  type="submit"
-                  data-testid={`movieRequest_${observationplanRequest.id}`}
-                  disabled={!observationplanRequest.observation_plans?.length}
-                >
-                  GIF
-                </Button>
-              </div>
-              <div>
-                <AddRunFromObservationPlanPage
-                  observationplanRequest={observationplanRequest}
-                />
-              </div>
-              <div>
-                <AddSurveyEfficiencyObservationPlanPage
-                  gcnevent={gcnEvent}
-                  observationplanRequest={observationplanRequest}
-                />
-              </div>
-              <div className={classes.actionButtons}>
-                {implementsDelete &&
-                isDeleting === observationplanRequest.id ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      primary
-                      onClick={() => {
-                        handleDelete(observationplanRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`deleteRequest_${observationplanRequest.id}`}
-                      disabled={
-                        observationplanRequest.status ===
-                        "submitted to telescope queue"
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+      return request.status === "running" ? (
+        <Box className={classes.centered}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <div className={classes.actionButtons}>
+          <Button
+            secondary
+            href={`/api/observation_plan/${request.id}/gcn`}
+            download={`observation-plan-gcn-${request.id}`}
+            data-testid={`gcnRequest_${request.id}`}
+            endIcon={<DownloadIcon />}
+            size="small"
+            disabled={!request.observation_plans?.length}
+          >
+            GCN
+          </Button>
+          <Button
+            secondary
+            size="small"
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            endIcon={<DownloadIcon />}
+          >
+            Download
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+          >
+            <MenuItem
+              component="a"
+              href={downloadLink()}
+              download={`observation-plan-${request.id}`}
+              onClick={() => setAnchorEl(null)}
+            >
+              ZTF compatible
+            </MenuItem>
+            <MenuItem
+              component="a"
+              href={downloadLink(true)}
+              download={`rubin-observation-plan-${request.id}`}
+              onClick={() => setAnchorEl(null)}
+              disabled={!request.observation_plans?.length}
+            >
+              Rubin compatible
+            </MenuItem>
+          </Menu>
+          <Button
+            secondary
+            href={`/api/observation_plan/${request.id}/movie`}
+            download={`observation-plan-movie-${request.id}`}
+            endIcon={<DownloadIcon />}
+            size="small"
+            disabled={!request.observation_plans?.length}
+          >
+            GIF
+          </Button>
+          <AddRunFromObservationPlanPage observationPlanRequest={request} />
+          <AddSurveyEfficiencyObservationPlanPage
+            gcnevent={gcnEvent}
+            observationPlanRequest={request}
+          />
+          {implementsDelete && (
+            <Button
+              primary
+              onClick={() => handleDelete(request.id)}
+              size="small"
+              data-testid={`deleteRequest_${request.id}`}
+              disabled={request.status === "submitted to telescope queue"}
+              loading={isDeleting === request.id}
+            >
+              Delete
+            </Button>
           )}
         </div>
       );
     };
 
-    columns.push({
-      name: "manage",
-      label: "Manage",
-      options: {
-        customBodyRenderLite: renderManage,
-      },
-    });
+    const renderQueue = (dataIndex) => {
+      if (!queueable) return null;
 
-    if (queuable) {
-      const renderQueue = (dataIndex) => {
-        const observationplanRequest =
-          requestsGroupedByInstId[instrument_id][dataIndex];
-        if (observationplanRequest.status === "running") {
-          return (
-            <div>
-              <CircularProgress />
-            </div>
-          );
-        }
-        if (
-          observationplanRequest?.observation_plans?.length > 0 &&
-          ["complete", "submitted to telescope queue"].includes(
-            observationplanRequest?.observation_plans[0]?.status,
-          ) &&
-          observationplanRequest?.observation_plans[0]?.statistics?.length >
-            0 &&
-          observationplanRequest?.observation_plans[0]?.statistics[0]
-            ?.statistics?.num_observations === 0
-        ) {
-          return <div> No observations planned. </div>;
-        }
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
+      if (request.status === "running")
         return (
-          <div>
-            <div className={classes.actionButtons}>
-              {implementsSend && isSending === observationplanRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display:
-                      observationplanRequest.status === "complete"
-                        ? "block"
-                        : "none",
-                  }}
-                >
+          <Box className={classes.centered}>
+            <CircularProgress />
+          </Box>
+        );
+
+      const plan = request?.observation_plans?.[0];
+      const stats = plan?.statistics?.[0]?.statistics;
+      if (
+        plan &&
+        ["complete", "submitted to telescope queue"].includes(plan.status) &&
+        stats?.num_observations === 0
+      ) {
+        return <div> No observations planned. </div>;
+      }
+      return (
+        <div className={classes.actionButtons}>
+          {implementsSend && request.status === "complete" && (
+            <Button
+              primary
+              onClick={() => handleShowTable(request.id)}
+              size="small"
+              loading={isSending === request.id}
+            >
+              Send to Queue
+            </Button>
+          )}
+          {implementsRemove &&
+            request.status === "submitted to telescope queue" && (
+              <Button
+                secondary
+                onClick={() => handleRemove(request.id)}
+                size="small"
+                loading={isRemoving === request.id}
+              >
+                Remove from Queue
+              </Button>
+            )}
+          <Dialog
+            open={showTable === request.id}
+            onClose={() => setShowTable(null)}
+          >
+            <DialogTitle>Observation plan</DialogTitle>
+            <DialogContent>
+              {gcnEvent?.observation_plan?.id === request.id ? (
+                <>
+                  <MUIDataTable // Display observations in chronological order
+                    data={
+                      gcnEvent.observation_plan.observation_plans?.[0]
+                        ?.planned_observations || []
+                    }
+                    columns={[
+                      { name: "obstime", label: "Time" },
+                      { name: "field_id", label: "Field ID" },
+                      { name: "filt", label: "Filter" },
+                      { name: "exposure_time", label: "Exposure Time" },
+                      { name: "weight", label: "Weight" },
+                    ]}
+                    options={{
+                      filter: false,
+                      sort: false,
+                      print: true,
+                      download: true,
+                      search: true,
+                      selectableRows: "none",
+                      enableNestedDataAccess: ".",
+                      elevation: 0,
+                    }}
+                  />
                   <Button
                     primary
-                    onClick={() => {
-                      handleShowTable(observationplanRequest.id);
-                    }}
+                    onClick={() => handleSend(request.id)}
                     size="small"
-                    type="submit"
-                    data-testid={`sendRequest_${observationplanRequest.id}`}
                   >
                     Send to Queue
                   </Button>
-                </div>
-              )}
-              {implementsRemove && isRemoving === observationplanRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
+                </>
               ) : (
-                <div
-                  style={{
-                    display:
-                      observationplanRequest.status ===
-                      "submitted to telescope queue"
-                        ? "block"
-                        : "none",
-                  }}
-                >
-                  <Button
-                    secondary
-                    onClick={() => {
-                      handleRemove(observationplanRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`removeRequest_${observationplanRequest.id}`}
-                  >
-                    Remove from Queue
-                  </Button>
-                </div>
-              )}
-            </div>
-            <Dialog
-              open={showTable === observationplanRequest.id}
-              onClose={() => {
-                setShowTable(null);
-              }}
-              className={classes.dialog}
-            >
-              <DialogTitle>Observation plan</DialogTitle>
-              <DialogContent>
-                {fetchedObservationPlan &&
-                fetchedObservationPlan.id === observationplanRequest.id ? (
-                  /* here will show a list (ordered by time) of all the observations in the plan */
-                  /* for each will show the time, field_id, filter */
-                  <>
-                    <MUIDataTable
-                      data={
-                        fetchedObservationPlan.observation_plans[0]
-                          .planned_observations
-                      }
-                      columns={[
-                        { name: "obstime", label: "Time" },
-                        { name: "field_id", label: "Field ID" },
-                        { name: "filt", label: "Filter" },
-                        { name: "exposure_time", label: "Exposure Time" },
-                        { name: "weight", label: "Weight" },
-                      ]}
-                      options={{
-                        filter: false,
-                        sort: false,
-                        print: true,
-                        download: true,
-                        search: true,
-                        selectableRows: "none",
-                        enableNestedDataAccess: ".",
-                        elevation: 0,
-                      }}
-                    />
-                    <Button
-                      primary
-                      onClick={() => {
-                        handleSend(observationplanRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`sendRequest_${observationplanRequest.id}`}
-                    >
-                      Send to Queue
-                    </Button>
-                  </>
-                ) : (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
-          </div>
-        );
-      };
-      columns.push({
-        name: "queue",
-        label: "Telescope Queue",
-        options: {
-          customBodyRenderLite: renderQueue,
-        },
-      });
-    }
-
-    const renderTreasureMap = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-      return (
-        <div>
-          {observationplanRequest.status === "running" ? (
-            <div>
-              <CircularProgress />
-            </div>
-          ) : (
-            <div className={classes.actionButtons}>
-              {isSubmittingTreasureMap === observationplanRequest.id ? (
-                <div>
+                <Box className={classes.centered}>
                   <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    secondary
-                    onClick={() => {
-                      handleSubmitTreasureMap(observationplanRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`treasuremapRequest_${observationplanRequest.id}`}
-                  >
-                    Send
-                  </Button>
-                </div>
+                </Box>
               )}
-              {isDeletingTreasureMap === observationplanRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    secondary
-                    onClick={() => {
-                      handleDeleteTreasureMap(observationplanRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`treasuremapDelete_${observationplanRequest.id}`}
-                  >
-                    Retract
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+            </DialogContent>
+          </Dialog>
         </div>
       );
     };
-    columns.push({
-      name: "treasuremap",
-      label: "Treasure Map",
-      options: {
-        customBodyRenderLite: renderTreasureMap,
-      },
-    });
 
-    return columns;
+    const renderTreasureMap = (dataIndex) => {
+      const request = requestsGroupedByInstId[instrument_id][dataIndex];
+      if (request.status === "running") {
+        return (
+          <Box className={classes.centered}>
+            <CircularProgress />
+          </Box>
+        );
+      }
+      return (
+        <div className={classes.actionButtons}>
+          <Button
+            secondary
+            onClick={() => handleSubmitTreasureMap(request.id)}
+            size="small"
+            data-testid={`treasuremapRequest_${request.id}`}
+            loading={isSubmittingTreasureMap === request.id}
+          >
+            Send
+          </Button>
+          <Button
+            secondary
+            onClick={() => handleDeleteTreasureMap(request.id)}
+            size="small"
+            loading={isDeletingTreasureMap === request.id}
+          >
+            Retract
+          </Button>
+        </div>
+      );
+    };
+
+    return [
+      { name: "requester.username", label: "Requester" },
+      { name: "allocation.group.name", label: "Allocation" },
+      {
+        name: "payload",
+        label: "Payload",
+        options: { customBodyRenderLite: renderPayload },
+      },
+      { name: "status", label: "Status" },
+      {
+        name: "statistics",
+        label: "Summary Statistics",
+        options: { customBodyRenderLite: renderSummaryStatistics },
+      },
+      {
+        name: "skymap",
+        label: "Skymap",
+        options: { customBodyRenderLite: renderSkymap },
+      },
+      {
+        name: "manage",
+        label: "Manage",
+        options: { customBodyRenderLite: renderManage },
+      },
+      ...(queueable
+        ? [
+            {
+              name: "queue",
+              label: "Telescope Queue",
+              options: { customBodyRenderLite: renderQueue },
+            },
+          ]
+        : []),
+      {
+        name: "treasureMap",
+        label: "Treasure Map",
+        options: { customBodyRenderLite: renderTreasureMap },
+      },
+    ];
   };
 
   const options = {
@@ -711,9 +513,8 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   };
 
   return (
-    <div className={classes.container}>
+    <Box sx={{ marginBottom: "1rem" }}>
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => (
-        // get the flat, unique list of all keys across all requests
         <Accordion
           className={classes.accordion}
           key={`instrument_${instrument_id}_table_div`}
@@ -742,7 +543,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
           </AccordionDetails>
         </Accordion>
       ))}
-    </div>
+    </Box>
   );
 };
 

@@ -11,9 +11,8 @@ import { fetchTaxonomies, submitTaxonomy } from "../../ducks/taxonomies";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 const NewTaxonomy = ({ onClose }) => {
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const dispatch = useDispatch();
-
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 

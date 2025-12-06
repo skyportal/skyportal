@@ -25,7 +25,7 @@ def one_request_comment_process(
     None
     """
     # Add a comment to the first request by clicking the edit button
-    driver.wait_for_xpath(request_comment_xpath + "//span").click()
+    driver.wait_for_xpath(request_comment_xpath + "/button").click()
     # Check that the comment in the pop-up is empty
     popup_textarea = driver.wait_for_xpath(
         '//div[@data-testid="updateCommentTextfield"]//textarea'
@@ -118,8 +118,8 @@ def test_allocation_comment_display(
     driver.get(f"/allocation/{allocation_id}")
 
     # Get the comment div for each request
-    request1_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-0"]//span[@aria-label="Update comment"]/..'
-    request2_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-1"]//span[@aria-label="Update comment"]/..'
+    request1_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-0"]//button[@aria-label="Update comment"]/..'
+    request2_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-1"]//button[@aria-label="Update comment"]/..'
     request1_div_comment = driver.wait_for_xpath(request1_comment_xpath)
     request2_div_comment = driver.wait_for_xpath(request2_comment_xpath)
     # Check that each comment is empty
@@ -136,7 +136,5 @@ def test_allocation_comment_display(
     one_request_comment_process(driver, request1_comment_xpath, "comment number 1", "")
 
     driver.get(f"/allocation/{allocation_id}")
-    request1_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-0"]//span[@aria-label="Update comment"]/..'
-    request2_comment_xpath = '//tr[@data-testid="MUIDataTableBodyRow-1"]//span[@aria-label="Update comment"]/..'
     assert driver.wait_for_xpath(request1_comment_xpath).text == ""
     assert driver.wait_for_xpath(request2_comment_xpath).text == "comment number 2"

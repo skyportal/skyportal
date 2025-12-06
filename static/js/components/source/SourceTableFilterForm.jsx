@@ -1287,7 +1287,7 @@ const SourceTableFilterForm = ({
           )}
         </div>
         <div className={classes.formButtons}>
-          <ButtonGroup primary aria-label="contained primary button group">
+          <ButtonGroup aria-label="contained primary button group">
             <Button primary type="submit">
               Submit
             </Button>

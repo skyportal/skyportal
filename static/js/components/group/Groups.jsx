@@ -2,9 +2,9 @@ import React from "react";
 import { useSelector } from "react-redux";
 
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 
-import GroupManagement from "./GroupManagement";
+import Spinner from "../Spinner";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
 import NonMemberGroupList from "./NonMemberGroupList";
@@ -18,9 +18,6 @@ const useStyles = makeStyles(() => ({
     padding: "1rem",
     height: "100%",
   },
-  widgetPaperFillSpace: {
-    height: "100%",
-  },
 }));
 
 const Groups = () => {
@@ -29,14 +26,9 @@ const Groups = () => {
   const { user: userGroups, all: allGroups } = useSelector(
     (state) => state.groups,
   );
+  const allRealGroups = allGroups?.filter((group) => !group.single_user_group);
 
-  if (userGroups.length === 0 || allGroups === null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (userGroups.length === 0 || allGroups === null) return <Spinner />;
 
   const nonMemberGroups = allGroups?.filter(
     (g) =>
@@ -44,17 +36,20 @@ const Groups = () => {
   );
 
   return (
-    <div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <GroupList title="My Groups" groups={userGroups} classes={classes} />
       {!!nonMemberGroups.length && (
-        <>
-          <br />
-          <NonMemberGroupList groups={nonMemberGroups} />
-        </>
+        <NonMemberGroupList groups={nonMemberGroups} />
       )}
       <NewGroupForm />
-      {permissions.includes("System admin") && <GroupManagement />}
-    </div>
+      {permissions.includes("System admin") && (
+        <GroupList
+          title="All Groups"
+          groups={allRealGroups}
+          classes={classes}
+        />
+      )}
+    </Box>
   );
 };
 

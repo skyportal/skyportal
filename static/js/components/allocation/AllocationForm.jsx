@@ -126,7 +126,7 @@ const ValidityRangeSelect = ({ ranges = [], onChange, errors, setErrors }) => {
           onClick={handleOpen}
           IconComponent={ArrowDropDown}
         ></Select>
-        <Typography variant="body2" color="text.secondary.dark">
+        <Typography variant="body2" color="textSecondary">
           Define time ranges to control when this allocation can be used. It
           will not be available outside these ranges. (Local timezone)
         </Typography>
@@ -280,7 +280,7 @@ const AllocationForm = ({ onClose, allocationId }) => {
 
   const handleSubmit = async () => {
     if (selectedGroupIds.length > 0) {
-      formData.default_share_group_ids = selectedGroupIds;
+      setFormData({ ...formData, default_share_group_ids: selectedGroupIds });
     }
     const result = await dispatch(
       allocationId == null

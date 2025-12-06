@@ -1,10 +1,7 @@
 import React, { useState } from "react";
-import propTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import CheckIcon from "@mui/icons-material/Check";
 import CircularProgress from "@mui/material/CircularProgress";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -17,53 +14,32 @@ import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Box from "@mui/material/Box";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
+
+import { Link } from "react-router-dom";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-
-import { observingRunTitle } from "./AssignmentForm";
+import { observingRunTitle } from "./RunSummary";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
 
 import * as observingRunActions from "../../ducks/observingRun";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-  },
+const useStyles = makeStyles(() => ({
   paperContent: {
     padding: "1rem",
-  },
-  observingRunDelete: {
-    fontSize: "2em",
-  },
-  observingRunDeleteDisabled: {
-    opacity: 0,
-  },
-  observingRunEdit: {
-    fontSize: "2em",
-  },
-  observingRunEditDisabled: {
-    opacity: 0,
-  },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
   },
 }));
 
@@ -102,45 +78,28 @@ export const observingRunInfo = (
 };
 
 const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [observingRunToModify, setObservingRunToModify] = useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setObservingRunToModify(id);
-  };
-
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setObservingRunToModify(null);
-  };
   return (
     <div>
       <Button
-        key={`${run.id}-edit_button`}
-        id="edit_button"
-        classes={{
-          root: classes.observingRunEdit,
-          disabled: classes.observingRunEditDisabled,
-        }}
-        onClick={() => openDialog(run.id)}
+        onClick={() => setObservingRunToModify(run.id)}
         disabled={!modifyPermission}
         size="small"
       >
         <EditIcon />
       </Button>
       <Dialog
-        open={dialogOpen && observingRunToModify !== null}
-        onClose={closeDialog}
-        maxWidth="md"
+        open={!!observingRunToModify}
+        onClose={() => setObservingRunToModify(null)}
       >
         <DialogTitle>Edit Observing Run</DialogTitle>
         <DialogContent dividers>
-          <ModifyObservingRun
-            run_id={observingRunToModify}
-            onClose={closeDialog}
-          />
+          {observingRunToModify && (
+            <ModifyObservingRun
+              run_id={observingRunToModify}
+              onClose={() => setObservingRunToModify(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -155,7 +114,6 @@ ModifyObservingRunDialog.propTypes = {
 };
 
 const DeleteObservingRunDialog = ({ run, deletePermission }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observingRunToDelete, setObservingRunToDelete] = useState(null);
@@ -181,15 +139,11 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
   return (
     <div>
       <Button
-        key={`${run.id}-delete_button`}
         id="delete_button"
-        classes={{
-          root: classes.observingRunDelete,
-          disabled: classes.observingRunDeleteDisabled,
-        }}
         onClick={() => openDialog(run.id)}
         disabled={!deletePermission}
         size="small"
+        color="error"
       >
         <DeleteIcon />
       </Button>
@@ -210,140 +164,108 @@ DeleteObservingRunDialog.propTypes = {
   deletePermission: PropTypes.bool.isRequired,
 };
 
-const ObservingRunList = ({ observingRuns, deletePermission }) => {
+const ObservingRunPage = () => {
   const classes = useStyles();
+  const currentUser = useSelector((state) => state.profile);
+  const { observingRunList } = useSelector((state) => state.observingRuns);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-
-  const nowDate = dayjs()
-    .utc()
-    .subtract(1.5, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const dt_month = dayjs.duration(1, "month");
-
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage observing runs");
   const [displayAll, setDisplayAll] = useState(false);
 
-  const toggleDisplayAllCheckbox = () => {
-    setDisplayAll(!displayAll);
-  };
+  const minusOneAndHalfDay = utcString(dayjs().subtract(1.5, "day"));
+  const dt_month = dayjs.duration(1, "month");
 
   let observingRunsToShow = [];
   if (!displayAll) {
-    observingRuns?.forEach((run) => {
+    observingRunList?.forEach((run) => {
       const dt = dayjs.duration(
         dayjs(run.calendar_date)
           .add(run.duration - 1, "day")
-          .diff(nowDate),
+          .diff(minusOneAndHalfDay),
       );
       if (dt.$ms < dt_month.$ms && dt.$ms > 0) {
         observingRunsToShow.push(run);
       }
     });
   } else {
-    observingRunsToShow = [...observingRuns];
+    observingRunsToShow = [...observingRunList];
   }
-
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        <Button
-          secondary
-          onClick={toggleDisplayAllCheckbox}
-          data-testid="observationRunButton"
-        >
-          {displayAll
-            ? "Show only upcoming observing runs"
-            : "Show all observing runs"}
-        </Button>
-        {observingRunsToShow === 0 ? (
-          <Typography>No observing runs to display...</Typography>
-        ) : (
-          ""
-        )}
-        {observingRunsToShow?.map((run) => (
-          <ListItem key={run.id}>
-            <ListItemText
-              primary={
-                <Link
-                  to={`/run/${run.id}`}
-                  role="link"
-                  className={classes.hover}
-                >
-                  {observingRunTitle(
-                    run,
-                    instrumentList,
-                    telescopeList,
-                    groups,
-                  )}
-                </Link>
-              }
-              secondary={observingRunInfo(run, instrumentList, telescopeList)}
-            />
-            <ModifyObservingRunDialog
-              run={run}
-              modifyPermission={deletePermission}
-            />
-            <DeleteObservingRunDialog
-              run={run}
-              deletePermission={deletePermission}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
-
-ObservingRunList.propTypes = {
-  observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
-};
-
-const ObservingRunPage = () => {
-  const { observingRunList } = useSelector((state) => state.observingRuns);
-  const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
-
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage observing runs");
 
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Observing Runs</Typography>
-            <ObservingRunList
-              observingRuns={observingRunList}
-              deletePermission={permission}
-            />
-          </div>
+        <Paper className={classes.paperContent}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="h6">
+              {displayAll ? "All observing" : "Upcoming observing"} runs
+            </Typography>
+            <Button
+              secondary
+              onClick={() => setDisplayAll(!displayAll)}
+              data-testid="observationRunButton"
+            >
+              {displayAll ? "Show only upcoming" : "Show all"} observing runs
+            </Button>
+          </Box>
+          <List>
+            {!observingRunsToShow?.length ? (
+              <ListItem>
+                <Typography variant="body1" color="textSecondary">
+                  No observing runs to display...
+                </Typography>
+              </ListItem>
+            ) : (
+              observingRunsToShow?.map((run) => (
+                <ListItem key={run.id}>
+                  <ListItemText
+                    primary={
+                      <Link to={`/run/${run.id}`}>
+                        {observingRunTitle(
+                          run,
+                          instrumentList,
+                          telescopeList,
+                          groups,
+                        )}
+                      </Link>
+                    }
+                    secondary={observingRunInfo(
+                      run,
+                      instrumentList,
+                      telescopeList,
+                    )}
+                  />
+                  <ModifyObservingRunDialog
+                    run={run}
+                    modifyPermission={permission}
+                  />
+                  <DeleteObservingRunDialog
+                    run={run}
+                    deletePermission={permission}
+                  />
+                </ListItem>
+              ))
+            )}
+          </List>
         </Paper>
       </Grid>
       <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Observing Run</Typography>
-            <NewObservingRun />
-          </div>
+        <Paper className={classes.paperContent}>
+          <Typography variant="h6">Add a New Observing Run</Typography>
+          <NewObservingRun />
         </Paper>
       </Grid>
     </Grid>
   );
-};
-
-ObservingRunList.propTypes = {
-  observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
-};
-
-DeleteObservingRunDialog.propTypes = {
-  run: PropTypes.shape({
-    id: PropTypes.number.isRequired,
-  }).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default ObservingRunPage;
