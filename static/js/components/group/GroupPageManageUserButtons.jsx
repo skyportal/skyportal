@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 
 import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -21,8 +20,6 @@ import * as groupsActions from "../../ducks/groups";
 
 const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   if (!isAdmin(currentUser) && user.username !== currentUser.username)
@@ -77,7 +74,6 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   };
 
   const handleDelete = () => {
-    navigate("/groups");
     dispatch(
       groupsActions.deleteGroupUser({
         userID: user.id,
@@ -96,7 +92,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
             disabled={isAdmin(user) && numAdmins === 1}
             sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
           >
-            {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
+            {`${isAdmin(user) ? "Revoke" : "Grant"} admin status`}
           </Button>
           &nbsp;|&nbsp;
           <Tooltip title="Manage whether user can save sources to this group.">
@@ -105,7 +101,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
               onClick={() => toggleUserCanSave(user)}
               sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
             >
-              {canSave(user) ? "Revoke save access" : "Grant save access"}
+              {`${canSave(user) ? "Revoke" : "Grant"} save access`}
             </Button>
           </Tooltip>
           &nbsp;|&nbsp;
@@ -132,8 +128,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
                 Are you sure you want to delete yourself from this group?
                 <br />
                 <Typography variant="caption" color="warning.dark">
-                  Warning! This will delete you from the group and all of its
-                  filters.
+                  (This will delete you from the group and all of its filters.)
                 </Typography>
               </DialogContentText>
             </DialogContent>
