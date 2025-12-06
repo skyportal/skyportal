@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -20,21 +19,7 @@ import * as groupActions from "../../ducks/group";
 import * as groupsActions from "../../ducks/groups";
 import * as streamsActions from "../../ducks/streams";
 
-const useStyles = makeStyles((theme) => ({
-  nested: {
-    paddingLeft: theme.spacing(2),
-  },
-  button_add: {
-    maxWidth: "8.75rem",
-  },
-  selectEmpty: {
-    width: "100%",
-    marginTop: theme.spacing(2),
-  },
-}));
-
 const Group = () => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -137,7 +122,6 @@ const Group = () => {
       />
       <GroupFiltersStreams
         group={group}
-        classes={classes}
         currentUser={currentUser}
         isAdmin={isAdmin}
         theme={theme}
