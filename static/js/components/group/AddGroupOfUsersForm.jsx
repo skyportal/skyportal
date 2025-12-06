@@ -1,50 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Typography from "@mui/material/Typography";
-import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
+import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
-
-import * as groupsActions from "../../ducks/groups";
-import FormValidationError from "../FormValidationError";
 import Button from "../Button";
 
-const useStyles = makeStyles(() => ({
-  groupSelect: {
-    width: "20rem",
-    marginBottom: "0.75rem",
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-}));
+import * as groupsActions from "../../ducks/groups";
 
-const AddUsersFromGroupForm = ({ groupID }) => {
+const AddGroupOfUsersForm = ({ groupID }) => {
   const dispatch = useDispatch();
-  let { all: groups } = useSelector((state) => state.groups);
-  const {
-    handleSubmit,
-    reset,
-    control,
-    getValues,
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const { all: groups } = useSelector((state) => state.groups);
+  const [isError, setIsError] = useState(false);
+  const multiUserGroups = groups.filter((group) => !group.single_user_group);
 
-    formState: { errors },
-  } = useForm();
-  const classes = useStyles();
-  groups = groups?.filter((g) => g.id !== groupID) || [];
-
-  const validateGroups = () => {
-    const formState = getValues();
-    return formState.groups.length >= 1;
-  };
-
-  const onSubmit = async (formData) => {
-    const fromGroupIDs = formData.groups?.map((g) => g.id);
+  const handleSubmit = async () => {
+    if (!selectedGroups?.length) {
+      setIsError(true);
+      return;
+    }
+    const fromGroupIDs = selectedGroups?.map((g) => g.id);
     const result = await dispatch(
       groupsActions.addAllUsersFromGroups({ toGroupID: groupID, fromGroupIDs }),
     );
@@ -52,65 +30,41 @@ const AddUsersFromGroupForm = ({ groupID }) => {
       dispatch(
         showNotification("Successfully added users from specified group(s)"),
       );
-      reset({ groups: [] });
+      setSelectedGroups([]);
     }
   };
 
   return (
-    <div>
-      <Typography className={classes.heading}>
-        Add all users from other group(s)
-      </Typography>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {!!errors.groups && (
-          <FormValidationError message="Please select at least one group/user" />
+    <Box sx={{ display: "flex", gap: 2 }}>
+      <Autocomplete
+        sx={{ minWidth: 400 }}
+        multiple
+        onChange={(_, data) => {
+          setIsError(false);
+          setSelectedGroups(data);
+        }}
+        value={selectedGroups}
+        options={multiUserGroups?.filter((g) => g.id !== groupID)}
+        getOptionLabel={(group) => group.name}
+        filterSelectedOptions
+        renderInput={(field) => (
+          <TextField
+            {...field}
+            error={isError}
+            helperText={isError ? "Select at least one group" : ""}
+            label="Group of users to add"
+            data-testid="addUsersFromGroupsTextField"
+          />
         )}
-        <Controller
-          name="groups"
-          render={({ field: { onChange, value } }) => (
-            <Autocomplete
-              multiple
-              id="addUsersFromGroupsSelect"
-              onChange={(e, data) => onChange(data)}
-              value={value}
-              options={groups}
-              getOptionLabel={(group) => group.name}
-              filterSelectedOptions
-              data-testid="addUsersFromGroupsSelect"
-              renderInput={(field) => (
-                <TextField
-                  {...field}
-                  error={!!errors.groups}
-                  variant="outlined"
-                  label="Select Groups/Users"
-                  size="small"
-                  className={classes.groupSelect}
-                  data-testid="addUsersFromGroupsTextField"
-                />
-              )}
-            />
-          )}
-          control={control}
-          rules={{ validate: validateGroups }}
-          defaultValue={[]}
-        />
-        <div>
-          <Button
-            primary
-            type="submit"
-            name="submitAddFromGroupsButton"
-            data-testid="submitAddFromGroupsButton"
-            size="small"
-          >
-            Add users
-          </Button>
-        </div>
-      </form>
-    </div>
+      />
+      <Button primary name="submitAddFromGroupsButton" onClick={handleSubmit}>
+        Add group of users
+      </Button>
+    </Box>
   );
 };
-AddUsersFromGroupForm.propTypes = {
+AddGroupOfUsersForm.propTypes = {
   groupID: PropTypes.number.isRequired,
 };
 
-export default AddUsersFromGroupForm;
+export default AddGroupOfUsersForm;
