@@ -67,9 +67,9 @@ const AddUserForm = ({ groupID }) => {
   if (!allUsers?.length) return <CircularProgress />;
 
   return (
-    <Box sx={{ display: "flex", gap: 2 }}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
       <Autocomplete
-        sx={{ minWidth: 400 }}
+        sx={{ minWidth: 320 }}
         onChange={(event, newValue) => {
           setFormState({ ...formState, userID: newValue?.id });
           setIsError(false);

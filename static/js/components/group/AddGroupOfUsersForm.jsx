@@ -15,7 +15,9 @@ const AddGroupOfUsersForm = ({ groupID }) => {
   const [selectedGroups, setSelectedGroups] = useState([]);
   const { all: groups } = useSelector((state) => state.groups);
   const [isError, setIsError] = useState(false);
-  const multiUserGroups = groups.filter((group) => !group.single_user_group);
+  const multiUserGroups = (groups || []).filter(
+    (group) => !group.single_user_group,
+  );
 
   const handleSubmit = async () => {
     if (!selectedGroups?.length) {
@@ -35,9 +37,9 @@ const AddGroupOfUsersForm = ({ groupID }) => {
   };
 
   return (
-    <Box sx={{ display: "flex", gap: 2 }}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
       <Autocomplete
-        sx={{ minWidth: 400 }}
+        sx={{ minWidth: 320 }}
         multiple
         onChange={(_, data) => {
           setIsError(false);
