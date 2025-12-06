@@ -14,13 +14,8 @@ const NonMemberGroupList = ({ groups }) => {
   const { id: currentUserID, groupAdmissionRequests } = useSelector(
     (state) => state.profile,
   );
-  if (currentUserID === null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (currentUserID === null) return <CircularProgress />;
+
   const pendingRequestGroupIDs = groupAdmissionRequests
     ?.filter((request) => request.status === "pending")
     ?.map((request) => request.group_id);
