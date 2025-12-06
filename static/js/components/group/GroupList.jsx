@@ -1,72 +1,53 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import Paper from "@mui/material/Paper";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import makeStyles from "@mui/styles/makeStyles";
 
-const useStyles = makeStyles(() => ({
-  listContainer: {
-    overflowX: "hidden",
-    overflowY: "scroll",
-    height: "calc(95% - 1.25rem);",
-  },
-  flex: {
-    display: "flex",
-    flexFlow: "column nowrap",
-  },
-}));
+import Paper from "../Paper";
 
-const GroupList = ({ title, groups, classes }) => {
-  const styles = useStyles();
+const GroupList = ({ title, groups, classes, listMaxHeight }) => {
+  if (!groups?.length) return null;
+  const multiUserGroups = groups.filter((group) => !group.single_user_group);
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={`${classes.widgetPaperDiv} ${styles.flex}`}>
-        <div>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <Typography variant="h6">{title}</Typography>
-        </div>
-        <List
-          component="nav"
-          aria-label="main mailbox folders"
-          className={styles.listContainer}
-        >
-          {groups &&
-            groups
-              .filter((group) => !group.single_user_group)
-              .map((group) => (
-                <Link to={`/group/${group.id}`} key={group.id}>
-                  <ListItem
-                    key={group.id}
-                    button
-                    data-testid={`${title}-${group.name}`}
-                  >
-                    <ListItemText primary={group.name} />
-                  </ListItem>
-                </Link>
-              ))}
+    <Paper sx={{ height: "100%", overflowY: "hidden" }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between">
+        <Typography variant="h6">{title}</Typography>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+      </Box>
+      <Box sx={{ overflowY: "scroll", maxHeight: listMaxHeight || "none" }}>
+        <List>
+          {multiUserGroups.map((group) => (
+            <Link to={`/group/${group.id}`} key={group.id}>
+              <ListItem data-testid={`${title}-${group.name}`}>
+                <ListItemText primary={group.name} />
+              </ListItem>
+            </Link>
+          ))}
         </List>
-      </div>
+      </Box>
     </Paper>
   );
 };
 
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
-  groups: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
+  groups: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired,
+      single_user_group: PropTypes.bool,
+    }),
+  ),
   classes: PropTypes.shape({
-    widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
-    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
-};
-GroupList.defaultProps = {
-  groups: [],
+  listMaxHeight: PropTypes.string,
 };
 
 export default GroupList;
