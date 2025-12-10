@@ -96,7 +96,9 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
                 session.add(public_group)
                 session.flush()
 
-        user.groups.append(public_group)
+            # Only add user to group if not already a member
+            if public_group not in user.groups:
+                user.groups.append(public_group)
         session.commit()
 
     return DBSession().query(User).filter(User.username == username).first()
