@@ -17,7 +17,6 @@ const ObservationPlanGlobe = ({
   retrieveLocalization,
 }) => {
   const dispatch = useDispatch();
-
   const displayOptions = [
     "localization",
     "sources",
@@ -30,10 +29,8 @@ const ObservationPlanGlobe = ({
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
-
   const [obsList, setObsList] = useState(null);
   const [localization, setLocalization] = useState(null);
-
   const [selectedObservations, setSelectedObservations] = useState([]);
 
   useEffect(() => {
@@ -70,6 +67,8 @@ const ObservationPlanGlobe = ({
     }
   }, [dispatch, setLocalization, observationplanRequest]);
 
+  if (!obsList) return <CircularProgress />;
+
   const handleDeleteObservationPlanFields = async (selectedIds) => {
     await dispatch(
       Actions.deleteObservationPlanFields(
@@ -80,47 +79,35 @@ const ObservationPlanGlobe = ({
   };
 
   return (
-    <div>
-      {!obsList ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyItems: "center",
-          }}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyItems: "center",
+      }}
+    >
+      <LocalizationPlot
+        localization={localization}
+        observations={obsList}
+        options={displayOptionsDefault}
+        height={600}
+        width={600}
+        type="obsplan"
+        projection="mollweide"
+        selectedObservations={selectedObservations}
+        setSelectedObservations={setSelectedObservations}
+      />
+      {obsList?.geojson?.filter((f) => f?.selected)?.length ? (
+        <Button
+          secondary
+          onClick={() =>
+            handleDeleteObservationPlanFields(selectedObservations)
+          }
+          sx={{ marginTop: "2px" }}
         >
-          <LocalizationPlot
-            localization={localization}
-            observations={obsList}
-            options={displayOptionsDefault}
-            height={600}
-            width={600}
-            type="obsplan"
-            projection="mollweide"
-            selectedObservations={selectedObservations}
-            setSelectedObservations={setSelectedObservations}
-          />
-          <Button
-            secondary
-            onClick={() =>
-              handleDeleteObservationPlanFields(selectedObservations)
-            }
-            style={{
-              marginTop: "2px",
-              display:
-                obsList?.geojson?.filter((f) => f?.selected)?.length > 0
-                  ? "block"
-                  : "none",
-            }}
-          >
-            Delete selected fields
-          </Button>
-        </div>
-      )}
+          Delete selected fields
+        </Button>
+      ) : null}
     </div>
   );
 };

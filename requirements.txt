@@ -3,7 +3,7 @@ numpy>=1.23.4,<3.0.0
 scipy>=1.13.1, <2.0.0
 pandas>=2.2.0, <3.0.0
 dask>=2024.5.2
-geopandas==1.0.1
+geopandas==1.1.1
 fiona==1.10.1
 intervals==0.9.2
 joblib>=1.5.0, <2.0.0
@@ -48,9 +48,9 @@ scp==0.15.0
 requests_toolbelt==1.0.0
 sendgrid==6.12.5
 responses==0.25.8
-twilio==9.8.2
+twilio==9.8.7
 numba>=0.59.0
-pyvo==1.5.2
+pyvo==1.8
 lxml==6.0.2
 suds-py3==1.4.5.0
 vcrpy==7.0.0
@@ -77,7 +77,7 @@ click==8.1.7
 arviz==0.19.0
 corner==2.2.3
 penquins==2.4.2
-selenium==4.8.3
+selenium==4.38.0
 selenium-requests==2.0.4
 afterglowpy==0.8.1
 gcn-kafka==0.3.3
@@ -91,7 +91,7 @@ tiktoken==0.9.0
 simplejson==3.20.1
 langchain==0.3.27
 langchain-openai==0.3.28
-pinecone==7.3.0
+pinecone==8.0.0
 pydantic==2.11.4
 sentry-sdk==2.34.1
 typing-inspect==0.9.0

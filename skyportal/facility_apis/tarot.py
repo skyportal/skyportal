@@ -26,14 +26,17 @@ station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 1,
+        "delay": 20,
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 2,
+        "delay": 250,
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
         "status_url": 8,
+        "delay": 28,
     },
 }
 
@@ -415,9 +418,9 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        # Set the start date to be at least 10 minutes in the future to avoid issues with the TAROT server
-        # This code is a workaround and should be removed after finding a solution
-        minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
+        # Add station latency delay: some sites take longer to ingest scenes into their DB.
+        delay = station_dict[specific_config["station_name"]]["delay"]
+        minimum_observing_time = Time.now() + TimeDelta(delay, format="sec")
         if request.payload["start_date"] < minimum_observing_time:
             request.payload["start_date"] = minimum_observing_time.iso
 
