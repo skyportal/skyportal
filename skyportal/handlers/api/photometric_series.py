@@ -648,9 +648,7 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         setattr(ps, k, v)
 
     # Update groups and streams relationships
-    ps.groups = session.scalars(
-        sa.select(Group).where(Group.id.in_(group_ids))
-    ).all()
+    ps.groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
     ps.streams = session.scalars(
         sa.select(Stream).where(Stream.id.in_(stream_ids))
     ).all()
