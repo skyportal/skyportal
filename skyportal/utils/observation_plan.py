@@ -923,13 +923,33 @@ def convert_plan_to_rubin_format(plan):
     Returns:
         dict: A dictionary formatted for Rubin LSSTCam observation scripts.
     """
+    filt_dict = {
+        "lsstu": "u_24",
+        "lsst_u": "u_24",
+        "lsstg": "g_6",
+        "lsst_g": "g_6",
+        "lsstr": "r_57",
+        "lsst_r": "r_57",
+        "lssti": "i_39",
+        "lsst_i": "i_39",
+        "lsstz": "z_20",
+        "lsst_z": "z_20",
+        "lssty": "y_10",
+        "lsst_y": "y_10",
+    }
     plan_name = plan["plan_name"]
     observations = plan["planned_observations"]
 
     scripts = []
     for obs in observations:
+        if obs["filt"] not in filt_dict:
+            raise ValueError(
+                f"Error, unsupported filter {obs['filt']}. Supported filters are "
+                f"lsstu/lsst_u, lsstg/lsst_g, lsstr/lsst_r, lssti/lsst_i, lsstz/lsst_z, lssty/lsst_y."
+            )
+
         script = {
-            "name": "track_and_take_image_lsstcam.py",
+            "name": "track_target_and_take_image_lsstcam.py",
             "standard": True,
             "parameters": {
                 "ra": obs["field"]["ra"] / 15.0,  # convert degrees to hours
@@ -939,7 +959,7 @@ def convert_plan_to_rubin_format(plan):
                 "obs_time": obs["obstime"],
                 "num_exp": 1,
                 "exp_times": [obs["exposure_time"]],
-                "band_filter": obs["filt"],
+                "band_filter": filt_dict[obs["filt"]],
             },
         }
         scripts.append(script)
