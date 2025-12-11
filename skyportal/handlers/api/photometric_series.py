@@ -536,7 +536,6 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     try:
         ps.save_data()
         session.add(ps)
-        session.commit()
 
         # Assign groups and streams to the relationships
         ps.groups = session.scalars(
@@ -545,6 +544,7 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         ps.streams = session.scalars(
             sa.select(Stream).where(Stream.id.in_(stream_ids))
         ).all()
+
         session.commit()
 
         return ps.id
