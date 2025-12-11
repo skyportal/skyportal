@@ -65,6 +65,74 @@ Some optional information can be given to the request body:
 Any of the above request body parameters can be given
 as metadata inside the photometry HDF5 file.
 
+### Sharing and Access Control
+
+PhotometricSeries data is subject to SkyPortal's permission-based access control system.
+
+#### Group Sharing
+
+By specifying `group_ids` when uploading a photometric series,
+you grant access to that series to members of those groups.
+- Members of the specified groups can **read** the photometric series
+- Members of the specified groups can **update** or **delete** the series if they have the "Manage photometry" permission
+- The owner of the series can always update or delete it
+- If `group_ids` is not specified, the series is only accessible to the owner (via their single-user group)
+- Use `group_ids: "all"` to share the series with all public groups
+
+#### Stream Association
+
+By specifying `stream_ids` when uploading a photometric series,
+you associate the series with data streams.
+This allows automated pipelines and data workflows to identify and process the data appropriately.
+
+#### Updating Sharing Permissions
+
+To change which groups have access to a photometric series after creation,
+use the `PATCH /api/photometric_series/<id>` endpoint with new `group_ids`:
+
+```json
+{
+  "group_ids": [1, 2, 3]
+}
+```
+
+This will update the group associations for the series.
+
+#### Permission Levels
+
+- **Read:** Members of a series' groups, members of associated streams, or the owner can read the series
+- **Update:** Only the owner or users with "Manage photometry" permission who are in one of the series' groups can update
+- **Delete:** Only the owner or system admins can delete a series
+- **System Admin:** System administrators can read, update, and delete any photometric series
+
+#### API Response Data
+
+When retrieving a photometric series via the API,
+the response includes group and stream information:
+
+```json
+{
+  "data": {...},
+  "groups": [
+    {
+      "id": 1,
+      "name": "Group Name",
+      "nickname": "short-name",
+      "single_user_group": false
+    }
+  ],
+  "streams": [
+    {
+      "id": 1,
+      "name": "Stream Name"
+    }
+  ]
+}
+```
+
+You can disable the inclusion of group/stream information by using
+query parameters in the API request if needed.
+
 ### Creating a binary file
 
 To generate an HDF5 file for upload as a photometric series,

@@ -538,6 +538,15 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         session.add(ps)
         session.commit()
 
+        # Assign groups and streams to the relationships
+        ps.groups = session.scalars(
+            sa.select(Group).where(Group.id.in_(group_ids))
+        ).all()
+        ps.streams = session.scalars(
+            sa.select(Stream).where(Stream.id.in_(stream_ids))
+        ).all()
+        session.commit()
+
         return ps.id
 
     except Exception:
@@ -637,6 +646,14 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     # update the metadata on the PhotometricSeries object
     for k, v in metadata.items():
         setattr(ps, k, v)
+
+    # Update groups and streams relationships
+    ps.groups = session.scalars(
+        sa.select(Group).where(Group.id.in_(group_ids))
+    ).all()
+    ps.streams = session.scalars(
+        sa.select(Stream).where(Stream.id.in_(stream_ids))
+    ).all()
 
     try:
         # make sure we can get the file name:

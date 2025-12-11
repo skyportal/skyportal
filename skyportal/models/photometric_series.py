@@ -23,7 +23,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import reconstructor, relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, accessible_by_owner
+from baselayer.app.models import Base, CustomUserAccessControl, accessible_by_owner, public
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
@@ -236,6 +236,24 @@ def verify_metadata(metadata):
     return verified_metadata
 
 
+def manage_photometric_series_access_logic(cls, user_or_token):
+    """
+    Users with 'Manage photometry' permission can modify photometric series
+    for objects accessible to their groups.
+    """
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+    elif "Manage photometry" in user_or_token.permissions:
+        return manage_photometric_series_access.query_accessible_rows(cls, user_or_token)
+    else:
+        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+
+
+manage_photometric_series_access = (
+    accessible_by_groups_members | accessible_by_streams_members | accessible_by_owner
+)
+
+
 class PhotometricSeries(conesearch_alchemy.Point, Base):
     """
     A series of photometric measurements taken
@@ -360,7 +378,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         except Exception:
             pass  # silently fail to load
 
-    def to_dict(self, data_format="json"):
+    def to_dict(self, data_format="json", include_groups=True, include_streams=True):
         """
         Convert the object into a dictionary.
 
@@ -369,6 +387,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         data_format : str
             The format of the data to return.
             Can be "json" or "hdf5' or 'none'.
+        include_groups : bool
+            Whether to include group information. Defaults to True.
+        include_streams : bool
+            Whether to include stream information. Defaults to True.
         """
         # use the baselayer base model's method
         d = super().to_dict()
@@ -387,6 +409,29 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             )
 
         d["data"] = output_data
+
+        # Add groups if requested
+        if include_groups:
+            d["groups"] = [
+                {
+                    "id": group.id,
+                    "name": group.name,
+                    "nickname": group.nickname,
+                    "single_user_group": group.single_user_group,
+                }
+                for group in self.groups
+            ]
+
+        # Add streams if requested
+        if include_streams:
+            d["streams"] = [
+                {
+                    "id": stream.id,
+                    "name": stream.name,
+                }
+                for stream in self.streams
+            ]
+
         return d
 
     @staticmethod
@@ -898,7 +943,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         | accessible_by_streams_members
         | accessible_by_owner
     )
-    update = delete = accessible_by_owner
+    update = delete = CustomUserAccessControl(manage_photometric_series_access_logic)
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
