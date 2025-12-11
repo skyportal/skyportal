@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
+import ButtonGroup from "@mui/material/ButtonGroup";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -12,6 +14,9 @@ import * as groupActions from "../../ducks/group";
 
 const GroupAdmissionRequestsManagement = ({ groupID }) => {
   const dispatch = useDispatch();
+  const groupAdmissionRequests = useSelector(
+    (state) => state.groupAdmissionRequests,
+  );
 
   useEffect(() => {
     if (groupID) {
@@ -21,18 +26,8 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     }
   }, [groupID, dispatch]);
 
-  const groupAdmissionRequests = useSelector(
-    (state) => state.groupAdmissionRequests,
-  );
-  if (
-    !groupAdmissionRequests ||
-    !Object.keys(groupAdmissionRequests)
-      .map((k) => String(k))
-      .includes(String(groupID))
-  ) {
-    return <></>;
-  }
-  const requests = groupAdmissionRequests[groupID];
+  const requests = groupAdmissionRequests?.[groupID];
+  if (!requests) return null;
 
   const handleAcceptRequest = async ({ requestID, userID }) => {
     const addGroupUserResult = await dispatch(
@@ -74,33 +69,9 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
 
   const renderActions = (dataIndex) => {
     const request = requests[dataIndex];
-    if (request.status === "pending") {
-      return (
-        <>
-          <Button
-            primary
-            size="small"
-            onClick={() =>
-              handleAcceptRequest({
-                requestID: request.id,
-                userID: request.user_id,
-              })
-            }
-            data-testid={`acceptRequestButton${request.user_id}`}
-          >
-            Accept
-          </Button>
-          <Button
-            secondary
-            size="small"
-            onClick={() => handleDeclineRequest({ requestID: request.id })}
-            data-testid={`declineRequestButton${request.user_id}`}
-          >
-            Decline
-          </Button>
-        </>
-      );
-    }
+    if (request.status !== "declined" && request.status !== "pending")
+      return null;
+
     if (request.status === "declined") {
       return (
         <Button
@@ -118,7 +89,31 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
         </Button>
       );
     }
-    return <></>;
+
+    return (
+      <ButtonGroup>
+        <Button
+          primary
+          size="small"
+          onClick={() =>
+            handleAcceptRequest({
+              requestID: request.id,
+              userID: request.user_id,
+            })
+          }
+          data-testid={`acceptRequestButton${request.user_id}`}
+        >
+          Accept
+        </Button>
+        <Button
+          secondary
+          size="small"
+          onClick={() => handleDeclineRequest({ requestID: request.id })}
+        >
+          Decline
+        </Button>
+      </ButtonGroup>
+    );
   };
 
   const renderUserInfo = (value) => {
@@ -160,6 +155,7 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     responsive: "standard",
     download: false,
     search: true,
+    elevation: 0,
     selectableRows: "none",
     rowsPerPage: 10,
     rowsPerPageOptions: [10, 25, 50, 100, 200],
@@ -170,12 +166,14 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     print: false,
   };
   return (
-    <MUIDataTable
-      title="Admission requests"
-      columns={columns}
-      data={requests}
-      options={options}
-    />
+    <Box sx={{ width: "100%" }}>
+      <MUIDataTable
+        title="Admission requests"
+        columns={columns}
+        data={requests}
+        options={options}
+      />
+    </Box>
   );
 };
 
