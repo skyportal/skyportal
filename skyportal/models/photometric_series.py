@@ -23,7 +23,12 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import reconstructor, relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, CustomUserAccessControl, accessible_by_owner, public
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    accessible_by_owner,
+    public,
+)
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
@@ -244,7 +249,9 @@ def manage_photometric_series_access_logic(cls, user_or_token):
     if user_or_token.is_admin:
         return public.query_accessible_rows(cls, user_or_token)
     elif "Manage photometry" in user_or_token.permissions:
-        return manage_photometric_series_access.query_accessible_rows(cls, user_or_token)
+        return manage_photometric_series_access.query_accessible_rows(
+            cls, user_or_token
+        )
     else:
         return accessible_by_owner.query_accessible_rows(cls, user_or_token)
 
