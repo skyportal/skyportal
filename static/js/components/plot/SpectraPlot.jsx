@@ -109,11 +109,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
   // Memoize user custom lines to avoid recreating on every render
   const userCustomLines = useMemo(() => {
-    return Object.keys(preferences?.spectroscopyButtons || {}).map((key) => ({
-      name: key,
-      color: preferences?.spectroscopyButtons[key].color,
-      x: preferences?.spectroscopyButtons[key].wavelengths,
-    }));
+    return Object.entries(preferences.spectroscopyButtons || {}).map(
+      ([name, { color, wavelengths }]) => ({
+        name,
+        color,
+        x: wavelengths,
+      }),
+    );
   }, [preferences?.spectroscopyButtons]);
 
   // Memoize the combined lines array to avoid recreating on every render
@@ -232,7 +234,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           text,
         };
       })
-      .filter((spectrum) => spectrum !== null);
+      .filter(Boolean);
 
     // Finalize stats ranges
     spectrumTypes.forEach((type) => {
@@ -379,42 +381,44 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     const maxFlux = specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05;
     const yArray = Array.from({ length: 100 }, (_, i) => maxFlux * (i / 99));
 
-    const lineTraces = LINES.map((line) => {
-      const isVisible = selectedLines.includes(line.name);
-      return line.x.map((x) => {
-        const redshiftedX =
-          line?.fixed === true
-            ? x
-            : x * (1 + (parseFloat(redshiftInput, 10) || 0));
-        const shiftedX =
-          line?.fixed === true
-            ? x
-            : redshiftedX / (1 + (parseFloat(vExpInput, 10) || 0) / C);
-        return {
-          type: "scatter",
-          mode: "lines",
-          dataType: "spectraLine",
-          lineIdentifier: `${line.name}_${x}`, // unique identifier for this specific line
-          x: Array(100).fill(shiftedX),
-          y: yArray,
-          line: {
-            color: line.color,
-            width: 1,
-          },
-          hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x?.toFixed(
-            3,
-          )} Å<br>Wavelength: ${redshiftedX?.toFixed(3)} Å<extra></extra>`,
-          name: line.name,
-          legendgroup: line.name,
-          showlegend: false,
-          visible: isVisible,
-        };
-      });
-    }).flat();
+    const lineTraces = allLines
+      .map((line) => {
+        const isVisible = selectedLines.includes(line.name);
+        return line.x.map((x) => {
+          const redshiftedX =
+            line?.fixed === true
+              ? x
+              : x * (1 + (parseFloat(redshiftInput, 10) || 0));
+          const shiftedX =
+            line?.fixed === true
+              ? x
+              : redshiftedX / (1 + (parseFloat(vExpInput, 10) || 0) / C);
+          return {
+            type: "scatter",
+            mode: "lines",
+            dataType: "spectraLine",
+            lineIdentifier: `${line.name}_${x}`, // unique identifier for this specific line
+            x: Array(100).fill(shiftedX),
+            y: yArray,
+            line: {
+              color: line.color,
+              width: 1,
+            },
+            hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x?.toFixed(
+              3,
+            )} Å<br>Wavelength: ${redshiftedX?.toFixed(3)} Å<extra></extra>`,
+            name: line.name,
+            legendgroup: line.name,
+            showlegend: false,
+            visible: isVisible,
+          };
+        });
+      })
+      .flat();
 
     // add a placeholder for the customWavelengthInput
-    const redshiftedX =
-      customWavelengthInput * (1 + (parseFloat(redshiftInput, 10) || 0));
+    let value = parseFloat(customWavelengthInput, 10) || 0;
+    const redshiftedX = value * (1 + (parseFloat(redshiftInput, 10) || 0));
     const shiftedX = redshiftedX / (1 + (parseFloat(vExpInput, 10) || 0) / C);
 
     lineTraces.push({
@@ -429,16 +433,16 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         width: 1,
         dash: "dot",
       },
-      hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${customWavelengthInput?.toFixed(
+      hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${value?.toFixed(
         3,
       )} Å<br>Redshifted Wavelength: ${(
-        customWavelengthInput *
+        value *
         (1 + (parseFloat(redshiftInput, 10) || 0))
       )?.toFixed(3)} Å<extra></extra>`,
       name: "Custom Wavelength",
       legendgroup: "Custom Wavelength",
       showlegend: false,
-      visible: customWavelengthInput !== 0,
+      visible: value !== 0,
     });
     return lineTraces;
   };
@@ -464,7 +468,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       const lineTraces = createLineTraces();
       setPlotData([...traces, ...lineTraces]);
     }
-  }, [data, types, specStats, selectedLines, tabIndex]);
+  }, [data, types, specStats, selectedLines, tabIndex, allLines]);
 
   // Effect for updating only smoothing (update y-values in place)
   useEffect(() => {
@@ -516,23 +520,24 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         if (trace.dataType !== "spectraLine") return trace;
 
         if (trace.name === "Custom Wavelength") {
-          const redshiftedX = customWavelengthInput * (1 + redshift_val);
+          let value = parseFloat(customWavelengthInput, 10) || 0;
+          const redshiftedX = value * (1 + redshift_val);
           const shiftedX = redshiftedX / (1 + vExp_val / C);
 
           return {
             ...trace,
             x: Array(100).fill(shiftedX),
-            visible: customWavelengthInput !== 0,
-            hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${customWavelengthInput?.toFixed(
+            visible: value !== 0,
+            hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${value?.toFixed(
               3,
             )} Å<br>Redshifted Wavelength: ${(
-              customWavelengthInput *
+              value *
               (1 + redshift_val)
             )?.toFixed(3)} Å<extra></extra>`,
           };
         }
 
-        const originalLine = LINES.find((line) => trace.name === line.name);
+        const originalLine = allLines.find((line) => trace.name === line.name);
         if (originalLine) {
           const wavelength = parseFloat(trace.lineIdentifier.split("_").pop());
           const redshiftedX =
@@ -705,10 +710,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   );
 
   // Memoize event handlers to prevent re-renders
-  const handleDoubleClick = useMemo(
-    () => () => setLayoutReset((prev) => prev + 1),
-    [],
-  );
+  const handleDoubleClick = useCallback(() => {
+    setLayoutReset((prev) => prev + 1);
+  }, []);
 
   const handleLegendDoubleClick = useMemo(
     () => (e) => {
