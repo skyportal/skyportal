@@ -346,8 +346,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._data_bytes = None
 
         # these should be filled out by sqlalchemy when committing
-        self.group_ids = None
-        self.stream_ids = None
+        self.group_ids = []
+        self.stream_ids = []
 
         # when setting data into the the public "data"
         # attribute, we check the validity of the data
@@ -375,8 +375,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._data_bytes = None
 
         # these should be filled out by sqlalchemy when loading relationships
-        self.group_ids = None
-        self.stream_ids = None
+        # populate from relationships if already present, otherwise empty lists
+        try:
+            self.group_ids = [g.id for g in self.groups]
+            self.stream_ids = [s.id for s in self.streams]
+        except Exception:
+            self.group_ids = []
+            self.stream_ids = []
 
         try:
             self.load_data()
@@ -416,6 +421,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             )
 
         d["data"] = output_data
+
+        # Always expose group_ids/stream_ids for API consumers
+        d["group_ids"] = [g.id for g in self.groups]
+        d["stream_ids"] = [s.id for s in self.streams]
 
         # Add groups if requested
         if include_groups:
@@ -832,11 +841,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         That data is kept for later when
         it can be dumped to file.
         """
-
         # first make sure to order the lists
         # so that the hash is the same
-        self.group_ids = sorted(self.group_ids)
-        self.stream_ids = sorted(self.stream_ids)
+        self.group_ids = sorted(self.group_ids or [])
+        self.stream_ids = sorted(self.stream_ids or [])
 
         self.hash = hashlib.md5()
         self.hash.update(self.get_data_bytes())
