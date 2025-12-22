@@ -91,6 +91,7 @@ const useStyles = makeStyles(() => ({
 const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const classes = useStyles();
   const plotRef = useRef(null);
+  const singleClickTimerRef = useRef(null);
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -714,42 +715,103 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     setLayoutReset((prev) => prev + 1);
   }, []);
 
-  const handleLegendDoubleClick = useMemo(
-    () => (e) => {
-      // e contains a curveNumber and a data object (plotting data)
-      // we customize the legend double click behavior
-      const visibleTraces = e.data.filter(
-        (trace) => trace.dataType === "Spectrum" && trace.visible === true,
-      ).length;
-      const visibleTraceIndex = e.data.findIndex(
-        (trace) => trace.dataType === "Spectrum" && trace.visible === true,
-      );
-      e.data.forEach((trace, index) => {
-        if (
-          ["secondaryAxisX", "spectraLine"].includes(trace.name) ||
-          index === e.curveNumber
-        ) {
-          // if its a marker or secondary axis, always visible
-          trace.visible = true;
-        } else if (
-          (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
-          visibleTraces === 0 ||
-          (trace.dataType === "SpectrumNoSmooth" &&
-            trace.spectrumId === e.data[e.curveNumber].spectrumId)
-        ) {
-          // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
-          // OR, if its the unsmoothed version of the trace we double clicked on, keep it visible
-          trace.visible = true;
-        } else {
-          // otherwise, hide all except if SpectrumNoSmooth trace
-          trace.visible = "legendonly";
+  const handleLegendDoubleClick = (e) => {
+    // e contains a curveNumber and a data object (plotting data)
+    // we customize the legend double click behavior
+    const nbAvailableTraces = e.data.filter(
+      (trace) => trace.dataType === "Spectrum",
+    ).length;
+    if (nbAvailableTraces <= 1) {
+      // if there's only one trace, do nothing
+      return false;
+    }
+    const visibleTraces = e.data.filter(
+      (trace) => trace.dataType === "Spectrum" && trace.visible === true,
+    ).length;
+    const visibleTraceIndex = e.data.findIndex(
+      (trace) => trace.dataType === "Spectrum" && trace.visible === true,
+    );
+
+    // let's create a mapper of spectrum id to main trace visibility
+    let spectrumVisibilityMap = {};
+
+    // First pass: update Spectrum traces visibility
+    let newTraces = e.data.map((trace, index) => {
+      if (trace.dataType !== "Spectrum") {
+        return trace;
+      }
+      let newVisible;
+      if (
+        // if none are visible, show all
+        visibleTraces === 0 ||
+        // if one is visible and it's the clicked one, show all
+        (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
+        // otherwise (multiple visible, or one but not the clicked one),
+        // then hide all but the clicked one
+        index === e.curveNumber
+      ) {
+        // show all
+        newVisible = true;
+      } else {
+        // hide all others
+        newVisible = "legendonly";
+      }
+      spectrumVisibilityMap[trace.spectrumId] = newVisible;
+      return { ...trace, visible: newVisible };
+    });
+
+    // Second pass: update SpectrumNoSmooth traces based on updated Spectrum traces
+    // (we only need to perform an update here IF smoothing is active)
+    const smoothingValue = parseFloat(smoothingInput, 10) || 0;
+    if (smoothingValue > 0) {
+      newTraces.forEach((trace) => {
+        if (trace.dataType === "SpectrumNoSmooth") {
+          const newVisible =
+            spectrumVisibilityMap[trace.spectrumId] !== "legendonly" &&
+            spectrumVisibilityMap[trace.spectrumId] !== false;
+          trace.visible = newVisible;
         }
       });
-      setPlotData(e.data);
-      return false;
-    },
-    [],
-  );
+    }
+    setPlotData(newTraces);
+    // we prevent the default behavior by returning false (otherwise would reset layout)
+    return false;
+  };
+
+  const handleLegendSingleClick = (e) => {
+    // reverse the visibility of the clicked trace
+    let spectrumId = e.data[e.curveNumber].spectrumId;
+    let newVisible;
+    let newTraces = e.data.map((trace, index) => {
+      if (index === e.curveNumber) {
+        // if its true, set to legend only. if legendonly, set to false. if false, set to true.
+        if (trace.visible === true) {
+          newVisible = "legendonly";
+        } else {
+          newVisible = true;
+        }
+        return { ...trace, visible: newVisible };
+      }
+      return trace;
+    });
+
+    // if smoothing is active, we need to update the associated unsmoothed traces as well
+    const smoothingValue = parseFloat(smoothingInput, 10) || 0;
+    if (smoothingValue > 0) {
+      newTraces.forEach((trace) => {
+        if (
+          trace.dataType === "SpectrumNoSmooth" &&
+          trace.spectrumId === spectrumId
+        ) {
+          // keep the unsmoothed version in sync with the main trace
+          trace.visible = newVisible === true;
+        }
+      });
+    }
+    setPlotData(newTraces);
+    // prevent default behavior
+    return false;
+  };
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
@@ -790,6 +852,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           style={{ width: "100%", height: "100%" }}
           onDoubleClick={handleDoubleClick}
           onLegendDoubleClick={handleLegendDoubleClick}
+          onLegendClick={handleLegendSingleClick}
         />
       </div>
       <div className={classes.gridContainerLines}>
