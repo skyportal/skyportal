@@ -91,6 +91,7 @@ const useStyles = makeStyles(() => ({
 const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const classes = useStyles();
   const plotRef = useRef(null);
+  const singleClickTimerRef = useRef(null);
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -104,6 +105,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const [specStats, setSpecStats] = useState(null);
 
   const [layoutReset, setLayoutReset] = useState(1);
+  const lastKnownXRangeRef = useRef(null);
+  const isSyncingRef = useRef(false);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -344,12 +347,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
       const allTraces = [...traces, ...tracesOriginal];
 
+      const redshift_value = parseFloat(redshiftInput, 10) || 0;
+      const denom = 1 + redshift_value;
       const secondaryAxisX = {
         x: [
-          specStats[spectrumTypes[tabValue]].wavelength.min /
-            (1 + redshift || 0),
-          specStats[spectrumTypes[tabValue]].wavelength.max /
-            (1 + redshift || 0),
+          specStats[spectrumTypes[tabValue]].wavelength.min / denom,
+          specStats[spectrumTypes[tabValue]].wavelength.max / denom,
         ],
         y: [
           specStats[spectrumTypes[tabValue]].flux.min,
@@ -591,7 +594,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     }
 
     const spectrumType = types[tabIndex];
-    const redshift_value = parseFloat(redshiftInput, 10);
+    const redshift_value = parseFloat(redshiftInput, 10) || 0;
+    const denom = 1 + redshift_value;
 
     return {
       uirevision: layoutReset, // Use the number directly instead of string template
@@ -614,9 +618,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         side: "top",
         overlaying: "x",
         showgrid: false,
-        range: specStats[spectrumType].wavelength.range.map(
-          (w) => w / (1 + redshift_value || 0),
-        ),
+        range: specStats[spectrumType].wavelength.range.map((w) => w / denom),
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
@@ -663,17 +665,35 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     if (plotRef.current?.el && specStats && types[tabIndex] && plotData) {
       const redshift_value = parseFloat(redshiftInput, 10) || 0;
       const spectrumType = types[tabIndex];
-      const newRange = specStats[spectrumType].wavelength.range.map(
-        (w) => w / (1 + redshift_value),
-      );
-
-      // Access the actual Plotly div element - react-plotly stores it in .el
+      const denom = 1 + redshift_value;
+      // If user is zoomed, sync x2 to the current primary x range; else use full mapped range
       const plotElement = plotRef.current.el;
+      const currentXRange =
+        plotElement?._fullLayout?.xaxis?.range ||
+        specStats[spectrumType].wavelength.range;
+      const newRange = [currentXRange[0] / denom, currentXRange[1] / denom];
+
       // Check that the element has been initialized by Plotly with _fullLayout
       if (plotElement._fullLayout?.xaxis2) {
         try {
           // Use Plotly.relayout to update only the secondary axis range
-          Plotly.relayout(plotElement, { "xaxis2.range": newRange });
+          const currentX2 = plotElement?._fullLayout?.xaxis2?.range;
+          if (
+            currentX2 &&
+            currentX2[0] === newRange[0] &&
+            currentX2[1] === newRange[1]
+          ) {
+            // already in sync; no-op
+          } else {
+            isSyncingRef.current = true;
+            Plotly.relayout(plotElement, { "xaxis2.range": newRange })
+              .catch(() => {})
+              .finally(() => {
+                isSyncingRef.current = false;
+              });
+          }
+          lastKnownXRangeRef.current =
+            plotElement?._fullLayout?.xaxis?.range || null;
         } catch (err) {
           // Silently catch errors during initial render
           console.warn("Plotly relayout error:", err);
@@ -681,6 +701,93 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       }
     }
   }, [redshiftInput, specStats, types, tabIndex, plotData]);
+
+  // Keep secondary axis in sync with primary on any zoom/pan/relayout
+  const handleRelayout = useCallback(
+    (e) => {
+      const plotElement = plotRef.current?.el;
+      if (!plotElement) return;
+
+      if (isSyncingRef.current) return; // prevent re-entrant loops
+
+      const redshift_value = parseFloat(redshiftInput, 10) || 0;
+      const denom = 1 + redshift_value;
+
+      // Determine the new primary x range from the event or from the layout
+      let x0;
+      let x1;
+      if (e["xaxis.range[0]"] != null && e["xaxis.range[1]"] != null) {
+        x0 = e["xaxis.range[0]"];
+        x1 = e["xaxis.range[1]"];
+      } else if (plotElement?._fullLayout?.xaxis?.range) {
+        [x0, x1] = plotElement._fullLayout.xaxis.range;
+      }
+
+      if (x0 != null && x1 != null) {
+        lastKnownXRangeRef.current = [x0, x1];
+        try {
+          const target = [x0 / denom, x1 / denom];
+          const currentX2 = plotElement?._fullLayout?.xaxis2?.range;
+          if (
+            currentX2 &&
+            currentX2[0] === target[0] &&
+            currentX2[1] === target[1]
+          ) {
+            return;
+          }
+          isSyncingRef.current = true;
+          Plotly.relayout(plotElement, {
+            "xaxis2.range": target,
+          })
+            .catch(() => {})
+            .finally(() => {
+              isSyncingRef.current = false;
+            });
+        } catch (err) {
+          console.warn("Plotly relayout sync error:", err);
+        }
+      }
+    },
+    [redshiftInput],
+  );
+
+  // After traces change (e.g., toggling lines), resync x2 to current x range
+  useEffect(() => {
+    const plotElement = plotRef.current?.el;
+    if (!plotElement) return;
+    const redshift_value = parseFloat(redshiftInput, 10) || 0;
+    const denom = 1 + redshift_value;
+
+    // Defer until after Plotly processes the new data
+    const id = window.requestAnimationFrame(() => {
+      const range =
+        plotElement?._fullLayout?.xaxis?.range || lastKnownXRangeRef.current;
+      if (range && plotElement?._fullLayout?.xaxis2) {
+        try {
+          const target = [range[0] / denom, range[1] / denom];
+          const currentX2 = plotElement?._fullLayout?.xaxis2?.range;
+          if (
+            currentX2 &&
+            currentX2[0] === target[0] &&
+            currentX2[1] === target[1]
+          ) {
+            return;
+          }
+          isSyncingRef.current = true;
+          Plotly.relayout(plotElement, {
+            "xaxis2.range": target,
+          })
+            .catch(() => {})
+            .finally(() => {
+              isSyncingRef.current = false;
+            });
+        } catch (err) {
+          // noop
+        }
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [plotData, redshiftInput]);
 
   // Memoize the plot config to prevent re-renders
   const plotConfig = useMemo(
@@ -714,42 +821,103 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     setLayoutReset((prev) => prev + 1);
   }, []);
 
-  const handleLegendDoubleClick = useMemo(
-    () => (e) => {
-      // e contains a curveNumber and a data object (plotting data)
-      // we customize the legend double click behavior
-      const visibleTraces = e.data.filter(
-        (trace) => trace.dataType === "Spectrum" && trace.visible === true,
-      ).length;
-      const visibleTraceIndex = e.data.findIndex(
-        (trace) => trace.dataType === "Spectrum" && trace.visible === true,
-      );
-      e.data.forEach((trace, index) => {
-        if (
-          ["secondaryAxisX", "spectraLine"].includes(trace.name) ||
-          index === e.curveNumber
-        ) {
-          // if its a marker or secondary axis, always visible
-          trace.visible = true;
-        } else if (
-          (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
-          visibleTraces === 0 ||
-          (trace.dataType === "SpectrumNoSmooth" &&
-            trace.spectrumId === e.data[e.curveNumber].spectrumId)
-        ) {
-          // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
-          // OR, if its the unsmoothed version of the trace we double clicked on, keep it visible
-          trace.visible = true;
-        } else {
-          // otherwise, hide all except if SpectrumNoSmooth trace
-          trace.visible = "legendonly";
+  const handleLegendDoubleClick = (e) => {
+    // e contains a curveNumber and a data object (plotting data)
+    // we customize the legend double click behavior
+    const nbAvailableTraces = e.data.filter(
+      (trace) => trace.dataType === "Spectrum",
+    ).length;
+    if (nbAvailableTraces <= 1) {
+      // if there's only one trace, do nothing
+      return false;
+    }
+    const visibleTraces = e.data.filter(
+      (trace) => trace.dataType === "Spectrum" && trace.visible === true,
+    ).length;
+    const visibleTraceIndex = e.data.findIndex(
+      (trace) => trace.dataType === "Spectrum" && trace.visible === true,
+    );
+
+    // let's create a mapper of spectrum id to main trace visibility
+    let spectrumVisibilityMap = {};
+
+    // First pass: update Spectrum traces visibility
+    let newTraces = e.data.map((trace, index) => {
+      if (trace.dataType !== "Spectrum") {
+        return trace;
+      }
+      let newVisible;
+      if (
+        // if none are visible, show all
+        visibleTraces === 0 ||
+        // if one is visible and it's the clicked one, show all
+        (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
+        // otherwise (multiple visible, or one but not the clicked one),
+        // then hide all but the clicked one
+        index === e.curveNumber
+      ) {
+        // show all
+        newVisible = true;
+      } else {
+        // hide all others
+        newVisible = "legendonly";
+      }
+      spectrumVisibilityMap[trace.spectrumId] = newVisible;
+      return { ...trace, visible: newVisible };
+    });
+
+    // Second pass: update SpectrumNoSmooth traces based on updated Spectrum traces
+    // (we only need to perform an update here IF smoothing is active)
+    const smoothingValue = parseFloat(smoothingInput, 10) || 0;
+    if (smoothingValue > 0) {
+      newTraces.forEach((trace) => {
+        if (trace.dataType === "SpectrumNoSmooth") {
+          const newVisible =
+            spectrumVisibilityMap[trace.spectrumId] !== "legendonly" &&
+            spectrumVisibilityMap[trace.spectrumId] !== false;
+          trace.visible = newVisible;
         }
       });
-      setPlotData(e.data);
-      return false;
-    },
-    [],
-  );
+    }
+    setPlotData(newTraces);
+    // we prevent the default behavior by returning false (otherwise would reset layout)
+    return false;
+  };
+
+  const handleLegendSingleClick = (e) => {
+    // reverse the visibility of the clicked trace
+    let spectrumId = e.data[e.curveNumber].spectrumId;
+    let newVisible;
+    let newTraces = e.data.map((trace, index) => {
+      if (index === e.curveNumber) {
+        // if its true, set to legend only. if legendonly, set to false. if false, set to true.
+        if (trace.visible === true) {
+          newVisible = "legendonly";
+        } else {
+          newVisible = true;
+        }
+        return { ...trace, visible: newVisible };
+      }
+      return trace;
+    });
+
+    // if smoothing is active, we need to update the associated unsmoothed traces as well
+    const smoothingValue = parseFloat(smoothingInput, 10) || 0;
+    if (smoothingValue > 0) {
+      newTraces.forEach((trace) => {
+        if (
+          trace.dataType === "SpectrumNoSmooth" &&
+          trace.spectrumId === spectrumId
+        ) {
+          // keep the unsmoothed version in sync with the main trace
+          trace.visible = newVisible === true;
+        }
+      });
+    }
+    setPlotData(newTraces);
+    // prevent default behavior
+    return false;
+  };
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
@@ -790,6 +958,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           style={{ width: "100%", height: "100%" }}
           onDoubleClick={handleDoubleClick}
           onLegendDoubleClick={handleLegendDoubleClick}
+          onLegendClick={handleLegendSingleClick}
+          onRelayout={handleRelayout}
         />
       </div>
       <div className={classes.gridContainerLines}>
