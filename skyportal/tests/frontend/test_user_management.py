@@ -130,7 +130,7 @@ def test_add_user_to_group(driver, user, super_admin_user, public_group, public_
     driver.click_xpath(f'//*[@data-testid="addUserGroupsButton{user.id}"]')
     driver.click_xpath('//*[@data-testid="addUserToGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
-    driver.click_xpath('//button[@data-testid="submitAddFromGroupsButton"]')
+    driver.click_xpath('//button[@name="submitAddFromGroupsButton"]')
     driver.wait_for_xpath(
         '//*[text()="User successfully added to specified group(s)."]'
     )

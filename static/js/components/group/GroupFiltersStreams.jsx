@@ -16,13 +16,13 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -38,48 +38,28 @@ import * as filterActions from "../../ducks/filter";
 import * as groupActions from "../../ducks/group";
 import * as streamsActions from "../../ducks/streams";
 
-const GroupFiltersStreams = ({
-  group,
-  classes,
-  currentUser,
-  isAdmin,
-  theme,
-}) => {
+const GroupFiltersStreams = ({ group, currentUser, isAdmin, theme }) => {
   const [addFilterDialogOpen, setAddFilterDialogOpen] = useState(false);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [panelStreamsExpanded, setPanelStreamsExpanded] =
-    useState("panel-streams");
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
-
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
   } = useForm();
-
   const { handleSubmit: handleSubmit2, control: control2 } = useForm();
-
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
+
+  if (!streams?.length) return null;
 
   const handleAddFilterDialogClose = () => {
     setAddFilterDialogOpen(false);
   };
 
-  const handleAddFilterDialogOpen = () => {
-    setAddFilterDialogOpen(true);
-  };
-
-  const handleAddStreamOpen = () => {
-    setAddStreamOpen(true);
-  };
-
   const handleAddStreamClose = () => {
     setAddStreamOpen(false);
-  };
-  const handlePanelStreamsChange = (panel) => (event, isExpanded) => {
-    setPanelStreamsExpanded(isExpanded ? panel : false);
   };
 
   // add filter to group
@@ -120,106 +100,82 @@ const GroupFiltersStreams = ({
 
   return (
     <>
-      {streams?.length > 0 && (
-        <Accordion
-          expanded={panelStreamsExpanded === "panel-streams"}
-          onChange={handlePanelStreamsChange("panel-streams")}
+      <Accordion defaultExpanded>
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-controls="panel-streams-content"
+          id="panel-streams-header"
         >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel-streams-content"
-            id="panel-streams-header"
-            style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
-          >
-            <Typography className={classes.heading}>
-              Alert streams and filters
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails className={classes.accordion_details}>
-            <List component="nav" className={classes.padding_bottom}>
-              {group.streams?.map((stream) => (
-                <div key={stream.name}>
-                  <ListItem key={stream.name}>
-                    <ListItemText primary={stream.name} />
-                  </ListItem>
-                  <List component="nav" disablePadding>
-                    {group.filters?.map((filter) =>
-                      filter.stream_id === stream.id ? (
-                        <ListItem button key={filter.id}>
-                          <Link
-                            to={`/filter/${filter.id}`}
-                            className={classes.filterLink}
-                          >
-                            <ListItemText
-                              key={filter.id}
-                              className={classes.nested}
-                              primary={filter.name}
-                            />
-                          </Link>
-                          {isAdmin(currentUser) && (
-                            <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                aria-label="delete"
-                                onClick={async () => {
-                                  const result = await dispatch(
-                                    filterActions.deleteGroupFilter({
-                                      filter_id: filter.id,
-                                    }),
+          <Typography variant="h6">Alert streams and filters</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <List>
+            {group.streams?.map((stream) => (
+              <ListItem key={stream.name}>
+                <ListItemText primary={stream.name} />
+                <List disablePadding>
+                  {group.filters
+                    ?.filter((f) => f.stream_id === stream.id)
+                    .map((filter) => (
+                      <ListItem key={filter.id}>
+                        <Link to={`/filter/${filter.id}`}>
+                          <ListItemText primary={filter.name} />
+                        </Link>
+                        {isAdmin(currentUser) && (
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              aria-label="delete"
+                              onClick={async () => {
+                                const result = await dispatch(
+                                  filterActions.deleteGroupFilter({
+                                    filter_id: filter.id,
+                                  }),
+                                );
+                                if (result.status === "success") {
+                                  dispatch(
+                                    showNotification(
+                                      "Deleted filter from group",
+                                    ),
                                   );
-                                  if (result.status === "success") {
-                                    dispatch(
-                                      showNotification(
-                                        "Deleted filter from group",
-                                      ),
-                                    );
-                                  }
-                                  dispatch(groupActions.fetchGroup(group.id));
-                                }}
-                                size="large"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          )}
-                        </ListItem>
-                      ) : (
-                        ""
-                      ),
-                    )}
-                  </List>
-                </div>
-              ))}
-            </List>
+                                }
+                                dispatch(groupActions.fetchGroup(group.id));
+                              }}
+                              size="large"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        )}
+                      </ListItem>
+                    ))}
+                </List>
+              </ListItem>
+            ))}
+          </List>
 
-            <div>
-              {/* only Super admins can add streams to groups */}
-              {currentUser.permissions.includes("System admin") &&
-                streams?.length > 0 &&
-                group?.streams?.length < streams?.length && (
-                  <Button
-                    primary
-                    className={classes.button_add}
-                    onClick={handleAddStreamOpen}
-                    style={{ marginRight: 10 }}
-                  >
-                    Add stream
-                  </Button>
-                )}
-
-              {isAdmin(currentUser) && group?.streams?.length > 0 && (
+          <div>
+            {/* only Super admins can add streams to groups */}
+            {currentUser.permissions.includes("System admin") &&
+              streams?.length > 0 &&
+              group?.streams?.length < streams?.length && (
                 <Button
                   primary
-                  className={classes.button_add}
-                  onClick={handleAddFilterDialogOpen}
+                  onClick={() => setAddStreamOpen(true)}
+                  style={{ marginRight: 10 }}
                 >
-                  Add filter
+                  Add stream
                 </Button>
               )}
-            </div>
-          </AccordionDetails>
-        </Accordion>
-      )}
+
+            {isAdmin(currentUser) && group?.streams?.length > 0 && (
+              <Button primary onClick={() => setAddFilterDialogOpen(true)}>
+                Add filter
+              </Button>
+            )}
+          </div>
+        </AccordionDetails>
+      </Accordion>
       <Dialog
         fullScreen={fullScreen}
         open={addStreamOpen}
@@ -231,12 +187,10 @@ const GroupFiltersStreams = ({
             Add alert stream to group
           </DialogTitle>
           <DialogContent dividers>
-            <FormControl required className={classes.selectEmpty}>
-              <InputLabel name="alert-stream-select-required-label">
-                Alert stream
-              </InputLabel>
+            <FormControl required fullWidth>
+              <InputLabel>Alert stream</InputLabel>
               <Controller
-                labelId="alert-stream-select-required-label"
+                label="Alert stream"
                 name="stream_id"
                 defaultValue={0}
                 control={control2}
@@ -266,7 +220,6 @@ const GroupFiltersStreams = ({
             <Button
               primary
               type="submit"
-              className={classes.button_add}
               data-testid="add-stream-dialog-submit"
             >
               Add
@@ -320,17 +273,14 @@ const GroupFiltersStreams = ({
               name="filter_name"
               control={control}
             />
-            <FormControl required className={classes.selectEmpty}>
-              <InputLabel name="alert-stream-select-required-label">
-                Alert stream
-              </InputLabel>
+            <FormControl required fullWidth>
+              <InputLabel>Alert stream</InputLabel>
               {errors.filter_stream_id && (
                 <FormValidationError
                   message={errors.filter_stream_id.message}
                 />
               )}
               <Controller
-                labelId="alert-stream-select-required-label"
                 name="filter_stream_id"
                 defaultValue={0}
                 control={control}
@@ -355,7 +305,6 @@ const GroupFiltersStreams = ({
           <DialogActions>
             <Button
               primary
-              className={classes.button_add}
               type="submit"
               data-testid="add-filter-dialog-submit"
             >
@@ -387,7 +336,6 @@ GroupFiltersStreams.propTypes = {
     streams: PropTypes.arrayOf(PropTypes.shape()).isRequired,
     filters: PropTypes.arrayOf(PropTypes.shape()).isRequired,
   }).isRequired,
-  classes: PropTypes.shape().isRequired,
   theme: PropTypes.shape().isRequired,
   currentUser: PropTypes.shape({
     username: PropTypes.string,
