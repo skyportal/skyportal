@@ -133,6 +133,12 @@ class GeminiRequest:
         # the ra dec are in deg, we need them in hms dms
         ra, dec = deg2hms(ra), deg2dms(dec)
 
+        ready = True  # default to ready
+        try:
+            ready = bool(request.payload.get("ready", True))
+        except Exception:
+            pass
+
         # target brightness
         # TODO: query the photometry of the object, get the latest detection
         # and build a string like: mag/filter/magsys
@@ -169,21 +175,19 @@ class GeminiRequest:
             request.payload.get("l_elmax", 1.6)
         ).strip()  # maximum airmass value
 
-        notetitle = request.payload.get("notetitle")  # optional
-        note = request.payload.get("note") or ""  # optional
-
-        if notetitle:
-            notetitle = str(notetitle).strip()
-
-        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
-
         # Guide star selection
         gstarg, gsra, gsdec, gsmag, gspa, finding_chart_public_url = (
             self._get_guide_star(request, session)
         )
-
         if gstarg is None:
             raise ValueError("No guide star found")
+
+        note = request.payload.get("note") or ""  # optional
+        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
+
+        notetitle = request.payload.get("notetitle")  # optional
+        if notetitle:
+            notetitle = str(notetitle).strip()
 
         # templates available for the allocation
         template_ids = get_list_typed(
@@ -220,7 +224,7 @@ class GeminiRequest:
                 "posangle": gspa,
                 "noteTitle": notetitle,
                 "note": note,
-                "ready": True,
+                "ready": ready,
                 "windowDate": l_wDate,
                 "windowTime": l_wTime,
                 "windowDuration": l_wDur,
@@ -397,6 +401,12 @@ class GEMINIAPI(FollowUpAPI):
             "note": {
                 "title": "Note Content (optional)",
                 "type": "string",
+            },
+            "ready": {
+                "title": "Ready",
+                "type": "boolean",
+                "description": "Indicates if the request is ready to be observed",
+                "default": True,
             },
         },
         "required": [

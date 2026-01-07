@@ -168,6 +168,53 @@ deletable_phot_query = Photometry.query_records_accessible_by(user, mode="delete
 filtered_deletable_query = deletable_phot_query.filter(Photometry.snr > 10)
 ```
 
+## PhotometricSeries Permissions
+
+PhotometricSeries records follow a similar access control pattern to Photometry,
+with additional support for group-based and stream-based access:
+
+### Read Access
+
+A user can **read** a PhotometricSeries if:
+- The user is a member of one of the series' groups, OR
+- The user is a member of one of the series' associated streams, OR
+- The user is the owner of the series
+
+### Update and Delete Access
+
+A user can **update** or **delete** a PhotometricSeries if:
+- The user is the owner of the series, OR
+- The user is a system administrator, OR
+- The user has the "Manage photometry" permission AND is a member of one of the series' groups
+
+### Example Permission Checks
+
+```python
+# Retrieve all photometric series a user can read
+readable_series = PhotometricSeries.get_records_accessible_by(user, mode="read")
+
+# Check if a user can delete a specific series
+deletable_series = session.scalars(
+    PhotometricSeries.query_records_accessible_by(user, mode="delete").where(
+        PhotometricSeries.id == series_id
+    )
+).first()
+
+if deletable_series is None:
+    return self.error("You do not have permission to delete this photometric series")
+```
+
+### Group and Stream Management
+
+When uploading a PhotometricSeries:
+- Specify `group_ids` to grant access to specific groups
+- Specify `stream_ids` to associate the series with data streams
+- Omitting `group_ids` means only the owner (via their single-user group) has access
+- Use `group_ids: "all"` to share with all public groups
+
+When updating a PhotometricSeries:
+- Use a PATCH request to modify the `group_ids` and `stream_ids`
+- This updates which groups and streams have access to the series
 
 ## Enforcing Permissions in Handlers
 

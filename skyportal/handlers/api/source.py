@@ -2069,30 +2069,29 @@ class SourceHandler(BaseHandler):
     def patch(self, obj_id):
         """
         ---
-        single:
-          summary: Update a source
-          description: Update a source
-          tags:
-            - sources
-          parameters:
-            - in: path
-              name: obj_id
-              required: True
-              schema:
-                type: string
-          requestBody:
+        summary: Update a source
+        description: Update a source
+        tags:
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: True
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema: ObjNoID
+        responses:
+          200:
             content:
               application/json:
-                schema: ObjNoID
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            400:
-              content:
-                application/json:
-                  schema: Error
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         data["id"] = obj_id
