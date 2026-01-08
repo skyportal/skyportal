@@ -121,7 +121,7 @@
     "@babel/plugin-transform-async-to-generator": "7.27.1",
     "@babel/polyfill": "7.12.1",
     "@babel/preset-env": "7.28.0",
-    "@babel/preset-react": "7.25.9",
+    "@babel/preset-react": "7.28.5",
     "@rspack/cli": "1.6.8",
     "@rspack/core": "1.3.8",
     "@types/eslint": "9.6.1",
