@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from astropy import units as u
 from dustmaps.config import config
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -753,6 +753,14 @@ Obj.candidates = relationship(
     cascade="delete",
     passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
+)
+
+Obj.__table_args__ = (
+    sa.Index(
+        "idx_objs_alias_gin_trgm",
+        text("objs_alias_to_lower_text(alias) gin_trgm_ops"),
+        postgresql_using="gin",
+    ),
 )
 
 # See source.py for Obj.sources relationship
