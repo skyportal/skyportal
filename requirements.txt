@@ -38,7 +38,7 @@ jsonschema==4.23.0
 jsonpath_ng==1.7.0
 pytest-rerunfailures>=14.0
 tables>=3.10.1,<4.0.0
-timezonefinder==7.0.1
+timezonefinder==8.2.0
 astroplan==0.10.1
 email-validator==2.3.0
 alembic==1.17.1
@@ -60,7 +60,7 @@ python-ligo-lw==1.8.4
 lalsuite<7.27
 healpy==1.18.1
 pygcn==1.1.2
-pysedm==0.31.1
+pysedm==0.41.0
 xmlschema==4.1.0
 requests>=2.30.0, <3.0.0
 geojson==3.2.0
@@ -72,7 +72,7 @@ humanize==4.14.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
-black==25.9.0
+black==25.12.0
 click==8.1.7
 arviz==0.19.0
 corner==2.2.3
@@ -87,7 +87,7 @@ watchdog==6.0.0
 PyAstronomy==0.24.0
 shapely==2.1.2
 openai==1.109.1
-tiktoken==0.9.0
+tiktoken==0.12.0
 simplejson==3.20.1
 langchain==0.3.27
 langchain-openai==0.3.28
