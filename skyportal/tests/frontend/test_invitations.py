@@ -33,7 +33,7 @@ def test_invite_single_user(driver, super_admin_user, public_group, public_strea
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 
-    textarea = driver.wait_for_xpath("//*[@data-testid='newUserEmail']//input")
+    textarea = driver.wait_for_xpath("//*[@label='Enter user email']//input")
     driver.scroll_to_element_and_click(textarea)
     textarea.send_keys(user_email)
 
