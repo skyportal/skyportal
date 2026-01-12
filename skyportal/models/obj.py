@@ -14,8 +14,9 @@ import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from astropy import units as u
 from dustmaps.config import config
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
@@ -468,6 +469,19 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
+    @declared_attr
+    def __table_args__(cls):
+        """Extend parent table args with GIN trigram index on alias."""
+        # Get parent table args from Point mixin
+        *args, kwargs = super().__table_args__
+        alias_index = sa.Index(
+            "ix_objs_alias_gin",
+            "alias",
+            postgresql_using="gin",
+            postgresql_ops={"alias": "gin_trgm_ops"},
+        )
+        return (*args, alias_index, kwargs)
+
     def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
@@ -753,15 +767,6 @@ Obj.candidates = relationship(
     cascade="delete",
     passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
-)
-
-Obj.__table_args__ = (
-    sa.Index(
-        "idx_objs_alias_gin_trgm",
-        text("objs_alias_to_lower_text(alias)"),
-        postgresql_using="gin",
-        postgresql_ops={"objs_alias_to_lower_text(alias)": "gin_trgm_ops"},
-    ),
 )
 
 # See source.py for Obj.sources relationship

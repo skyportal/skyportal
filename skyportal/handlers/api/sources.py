@@ -699,7 +699,7 @@ async def get_sources(
                 # search conditions for sourceID, TNS name, and aliases
                 conditions = [
                     "objs.id LIKE '%' || :sourceID || '%'",
-                    "objs_alias_to_lower_text(objs.alias) LIKE '%' || :sourceID_lower || '%'",
+                    "EXISTS (SELECT 1 FROM unnest(objs.alias) AS a WHERE lower(a) LIKE '%' || :sourceID_lower || '%')",
                 ]
                 if tns_name is not None:
                     conditions.insert(1, "objs.tns_name LIKE '%' || :tns_name || '%'")
@@ -730,7 +730,7 @@ async def get_sources(
             )
             statements.append(
                 """
-                (objs_alias_to_lower_text(objs.alias) LIKE '%' || :alias || '%')
+                (EXISTS (SELECT 1 FROM unnest(objs.alias) AS a WHERE lower(a) LIKE '%' || :alias || '%'))
                 """
             )
         if origin not in [None, ""]:
