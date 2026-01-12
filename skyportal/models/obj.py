@@ -758,8 +758,9 @@ Obj.candidates = relationship(
 Obj.__table_args__ = (
     sa.Index(
         "idx_objs_alias_gin_trgm",
-        text("objs_alias_to_lower_text(alias) gin_trgm_ops"),
+        text("objs_alias_to_lower_text(alias)"),
         postgresql_using="gin",
+        postgresql_ops={"objs_alias_to_lower_text(alias)": "gin_trgm_ops"},
     ),
 )
 
