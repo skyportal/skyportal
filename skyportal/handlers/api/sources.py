@@ -693,7 +693,7 @@ async def get_sources(
                     tns_name = None
                 statements.append(
                     f"""
-                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""})
+                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""} OR EXISTS (SELECT 1 FROM unnest(objs.alias) AS a WHERE a LIKE '%' || :sourceID || '%'))
                         """
                 )
             except Exception as e:

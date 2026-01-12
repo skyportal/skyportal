@@ -185,6 +185,14 @@ class Obj(Base, conesearch_alchemy.Point):
     update = public
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
+    __table_args__ = (
+        sa.Index(
+            "ix_objs_alias_gin",
+            "alias",
+            postgresql_using="gin",
+        ),
+    )
+
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precision numeric
 
@@ -287,7 +295,9 @@ class Obj(Base, conesearch_alchemy.Point):
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
     alias = sa.Column(
-        sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
+        sa.ARRAY(sa.String),
+        nullable=True,
+        doc="Alternative names for this object.",
     )
 
     healpix = sa.Column(healpix_alchemy.Point, index=True)

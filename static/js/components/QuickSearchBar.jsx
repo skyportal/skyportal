@@ -218,6 +218,14 @@ const QuickSearchBar = () => {
                   )}`;
                 }
               }
+              // Add aliases to the match_name for better filtering
+              if (
+                matchingEntries[key]?.alias &&
+                matchingEntries[key].alias.length > 0
+              ) {
+                const aliases = matchingEntries[key].alias.join(" ");
+                match_name = `${match_name} ${aliases}`;
+              }
               return {
                 id: matchingEntries[key].id,
                 name,
@@ -299,8 +307,8 @@ const QuickSearchBar = () => {
         // isOptionEqualToValue={(option, val) => option.name === val.name}
         getOptionLabel={(option) => option.name || ""}
         filterOptions={filterOptions}
-        onInputChange={(e, val) => setInputValue(val)}
-        onChange={(event, newValue, reason) => {
+        onInputChange={(_, val) => setInputValue(val)}
+        onChange={(_event, newValue, reason) => {
           if (reason === "selectOption") {
             setInputValue("");
             setValue("");
