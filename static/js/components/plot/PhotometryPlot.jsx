@@ -267,6 +267,8 @@ const PhotometryPlot = ({
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
+  const [showExtinctionCorrection, setShowExtinctionCorrection] =
+    useState(false);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -276,7 +278,11 @@ const PhotometryPlot = ({
 
   const daysToSec = (days) => days * 24 * 60 * 60;
 
-  const preparePhotometry = (photometryData, distance_modulus) => {
+  const preparePhotometry = (
+    photometryData,
+    distance_modulus,
+    showExtinctionCorrectionValue,
+  ) => {
     const stats = {
       mag: {
         min: 100,
@@ -346,21 +352,46 @@ const PhotometryPlot = ({
       }
 
       if (newPoint.mag) {
+        const magToShow =
+          showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+            ? newPoint.mag_corr
+            : newPoint.mag;
+        const magLabel =
+          showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+            ? "Mag (corrected)"
+            : "Mag";
+
         newPoint.text += `
-        <br>Mag: ${newPoint.mag.toFixed(3)}
+        <br>${magLabel}: ${magToShow.toFixed(3)}
         <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
         `;
+        if (
+          showExtinctionCorrectionValue &&
+          newPoint.extinction !== undefined
+        ) {
+          newPoint.text += `<br>Extinction: ${newPoint.extinction.toFixed(3)}`;
+        }
         if (distance_modulus) {
           newPoint.text += `<br>m - DM: ${(
-            newPoint.mag - distance_modulus
+            magToShow - distance_modulus
           ).toFixed(3)}`;
         }
       }
+
+      const fluxToShow =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? newPoint.flux_corr
+          : newPoint.flux;
+      const fluxLabel =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? "Flux (corrected)"
+          : "Flux";
+
       newPoint.text += `
         <br>Limiting Mag: ${
           newPoint.limiting_mag ? newPoint.limiting_mag.toFixed(3) : "NaN"
         }
-        <br>Flux: ${newPoint.flux ? newPoint.flux.toFixed(3) : "NaN"}
+        <br>${fluxLabel}: ${fluxToShow ? fluxToShow.toFixed(3) : "NaN"}
       `;
       if (newPoint.mag) {
         newPoint.text += `<br>Fluxerr: ${newPoint.fluxerr.toFixed(3) || "NaN"}`;
@@ -386,13 +417,23 @@ const PhotometryPlot = ({
         newPoint.text += `<br>Streams: ${newPoint.streams.join(", ")}`;
       }
 
+      // Store display values for plotting
+      newPoint.magDisplay =
+        showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+          ? newPoint.mag_corr
+          : newPoint.mag;
+      newPoint.fluxDisplay =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? newPoint.flux_corr
+          : newPoint.flux;
+
       stats.mag.min = Math.min(
         stats.mag.min,
-        newPoint.mag || newPoint.limiting_mag,
+        newPoint.magDisplay || newPoint.limiting_mag,
       );
       stats.mag.max = Math.max(
         stats.mag.max,
-        newPoint.mag || newPoint.limiting_mag,
+        newPoint.magDisplay || newPoint.limiting_mag,
       );
       stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
       stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
@@ -411,11 +452,11 @@ const PhotometryPlot = ({
       }
       stats.flux.min = Math.min(
         stats.flux.min,
-        newPoint.flux || newPoint.fluxerr,
+        newPoint.fluxDisplay || newPoint.fluxerr,
       );
       stats.flux.max = Math.max(
         stats.flux.max,
-        newPoint.flux || newPoint.fluxerr,
+        newPoint.fluxDisplay || newPoint.fluxerr,
       );
 
       return newPoint;
@@ -551,7 +592,7 @@ const PhotometryPlot = ({
               t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
             ),
             y: upperLimits.map((point) =>
-              plotType === "mag" ? point.limiting_mag : point.flux,
+              plotType === "mag" ? point.limiting_mag : point.fluxDisplay,
             ),
             text: upperLimits.map((point) => point.text),
             mode: "markers",
@@ -588,7 +629,7 @@ const PhotometryPlot = ({
               t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
             ),
             y: detections.map((point) =>
-              plotType === "mag" ? point.mag : point.flux,
+              plotType === "mag" ? point.magDisplay : point.fluxDisplay,
             ),
             error_y: {
               type: "data",
@@ -715,7 +756,7 @@ const PhotometryPlot = ({
 
           // split the y in det and non det
           let y = groupedPhotometry[key].map(
-            (point) => point.mag || point.limiting_mag,
+            (point) => point.magDisplay || point.limiting_mag,
           );
           let yerr = groupedPhotometry[key].map(
             (point) => point.magerr || null,
@@ -876,7 +917,12 @@ const PhotometryPlot = ({
     return null;
   };
 
-  const createLayouts = (plotType, photStats_value, dm_value) => {
+  const createLayouts = (
+    plotType,
+    photStats_value,
+    dm_value,
+    showExtinctionCorrectionValue,
+  ) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
       if (t0 && displayXAxisInlog) {
@@ -942,9 +988,12 @@ const PhotometryPlot = ({
     }
 
     if (plotType === "mag" || plotType === "period") {
+      const magLabel = showExtinctionCorrectionValue
+        ? magsys.toUpperCase().concat(" Mag (Extinction-Corrected)")
+        : magsys.toUpperCase().concat(" Mag");
       newLayouts.yaxis = {
         title: {
-          text: magsys.toUpperCase().concat(" Mag"),
+          text: magLabel,
         },
         range: [...photStats_value.mag.range],
         zeroline: false,
@@ -967,9 +1016,12 @@ const PhotometryPlot = ({
         };
       }
     } else if (plotType === "flux") {
+      const fluxLabel = showExtinctionCorrectionValue
+        ? "Flux (Extinction-Corrected)"
+        : "Flux";
       newLayouts.yaxis = {
         title: {
-          text: "Flux",
+          text: fluxLabel,
         },
         range: [...photStats_value.flux.range],
         ...BASE_LAYOUT,
@@ -1034,6 +1086,7 @@ const PhotometryPlot = ({
       const [newPhotometry, newPhotStats] = preparePhotometry(
         photometryFiltered,
         dm,
+        showExtinctionCorrection,
       );
       const groupedPhotometry = groupPhotometry(
         newPhotometry,
@@ -1088,6 +1141,7 @@ const PhotometryPlot = ({
         tabToPlotType(tabIndex),
         newPhotStats,
         dm,
+        showExtinctionCorrection,
       );
       setLayouts(newLayouts);
       setInitialized(true);
@@ -1102,6 +1156,17 @@ const PhotometryPlot = ({
     displayXAxisSinceT0,
     displayXAxisInlog,
   ]);
+
+  // Refetch photometry with extinction data when toggle changes
+  useEffect(() => {
+    if (obj_id && initialized) {
+      const params = { magsys };
+      if (showExtinctionCorrection) {
+        params.includeExtinction = true;
+      }
+      dispatch(photometryActions.fetchSourcePhotometry(obj_id, params));
+    }
+  }, [showExtinctionCorrection, obj_id, magsys, dispatch, initialized]);
 
   useEffect(() => {
     if (initialized && filter2color) {
@@ -1119,14 +1184,24 @@ const PhotometryPlot = ({
         filter2color,
       );
       setPlotData(traces);
-      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        photStats,
+        dm,
+        showExtinctionCorrection,
+      );
       setLayouts(newLayouts);
     }
   }, [tabIndex, phase]);
 
   useEffect(() => {
     if (initialized && filter2color && layoutReset) {
-      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        photStats,
+        dm,
+        showExtinctionCorrection,
+      );
       setLayouts(newLayouts);
       setLayoutReset(false);
     }
@@ -1497,6 +1572,22 @@ const PhotometryPlot = ({
                 inputProps={{ "aria-label": "controlled" }}
               />
             </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <Typography id="photometry-extinction-correction" noWrap>
+              Extinction Correction
+            </Typography>
+            <Tooltip title="Uses G23 extinction law with Rv=3.1">
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={showExtinctionCorrection}
+                  onChange={() =>
+                    setShowExtinctionCorrection(!showExtinctionCorrection)
+                  }
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              </div>
+            </Tooltip>
           </div>
         </div>
         <div className={classes.gridItem}>
