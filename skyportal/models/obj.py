@@ -16,8 +16,7 @@ from astropy import units as u
 from dustmaps.config import config
 from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declared_attr, relationship
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -288,7 +287,9 @@ class Obj(Base, conesearch_alchemy.Point):
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
     alias = sa.Column(
-        sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
+        sa.ARRAY(sa.String),
+        nullable=True,
+        doc="Alternative names for this object.",
     )
 
     healpix = sa.Column(healpix_alchemy.Point, index=True)
