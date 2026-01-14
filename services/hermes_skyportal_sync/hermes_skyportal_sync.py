@@ -18,7 +18,6 @@ import sqlalchemy as sa
 from confluent_kafka import Consumer
 
 from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import nan_to_none
@@ -30,7 +29,6 @@ from skyportal.models import (
     PhotometricSeries,
     Photometry,
     Source,
-    Stream,
     User,
 )
 from skyportal.utils.parse import safe_round
@@ -41,6 +39,7 @@ env, cfg = load_env()
 init_db(**cfg["database"])
 
 log = make_log("hermes_sync")
+log_verbose = make_log("hermes_sync_verbose")
 
 
 def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
@@ -56,13 +55,6 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
         Right ascension in degrees
     dec : float
         Declination in degrees
-
-    Returns
-    -------
-    obj : Obj
-        The Obj instance (existing or newly created)
-    created : bool
-        True if a new Obj was created, False if it already existed
     """
     obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
 
@@ -71,9 +63,6 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
         session.add(obj)
         session.flush()
         log(f"Created new Obj: {obj_id}")
-        return True
-    else:
-        return False
 
 
 def build_instrument_mapping(session, tns_ids: list[int]):
@@ -122,11 +111,6 @@ def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
         List of group IDs to save the source to
     user_id : int
         User ID of the bot/user saving the source
-
-    Returns
-    -------
-    sources_created : int
-        Number of new Source associations created
     """
     sources_created = 0
 
@@ -295,10 +279,6 @@ class SourceProcessor:
         self.default_group_ids = default_group_ids or []
         self.instrument_mapping = instrument_mapping or {}
         self.bot_user_id = bot_user_id
-        self.processed_sources = set()
-        self.message_count = 0
-        self.created_sources = 0
-        self.errors = 0
 
     def process_message(self, session, data: dict[str, Any]) -> None:
         """Process a single Kafka message containing source data.
@@ -311,10 +291,8 @@ class SourceProcessor:
         data : dict
             Kafka message data
         """
-        self.message_count += 1
-
         title = data.get("title", "No title")
-        log(f"Processing message: {title}")
+        log_verbose(f"Processing message: {title}")
 
         targets = data.get("data", {}).get("targets", [])
         photometry = data.get("data", {}).get("photometry", [])
@@ -340,9 +318,9 @@ class SourceProcessor:
         ra = target.get("ra")
         dec = target.get("dec")
 
-        log(f"  Target: {name}")
-        log(f"    RA: {ra}")
-        log(f"    Dec: {dec}")
+        log_verbose(f"  Target: {name}")
+        log_verbose(f"    RA: {ra}")
+        log_verbose(f"    Dec: {dec}")
 
         target_photometry = [p for p in photometry if p.get("target_name") == name]
 
@@ -353,11 +331,10 @@ class SourceProcessor:
             )
 
             for inst_key, count in sorted(instrument_counts.items()):
-                log(f"      {inst_key}: {count} points")
+                log_verbose(f"      {inst_key}: {count} points")
         else:
-            log("    No photometry data for this target")
+            log_verbose("    No photometry data for this target")
 
-        self.processed_sources.add(name)
         self._sync_with_skyportal(session, name, target, target_photometry)
 
     def _sync_with_skyportal(
@@ -381,19 +358,15 @@ class SourceProcessor:
             List of photometry dictionaries
         """
         try:
-            obj_created = create_or_get_obj(
+            create_or_get_obj(
                 session, obj_id, target.get("ra"), target.get("dec")
             )
-
-            if obj_created:
-                self.created_sources += 1
-
             create_source(session, obj_id, self.default_group_ids, self.bot_user_id)
 
             # Add photometry with deduplication
             if photometry:
                 if not self.instrument_mapping:
-                    log("    ✗ No instruments configured, skipping photometry")
+                    log_verbose("    ✗ No instruments configured, skipping photometry")
                     return
 
                 # Group photometry by instrument name
@@ -408,7 +381,7 @@ class SourceProcessor:
                     instrument_id = self.instrument_mapping.get(instrument_name)
 
                     if instrument_id is None:
-                        log(
+                        log_verbose(
                             f"    ✗ Instrument '{instrument_name}' not in configured instruments, skipping {len(inst_phot)} points"
                         )
                         continue
@@ -423,47 +396,17 @@ class SourceProcessor:
                     )
 
                     skipped_count = len(inst_phot) - added_count - duplicate_count
-                    log(
+                    log_verbose(
                         f"    → {instrument_name}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
                     )
 
             session.commit()
-            log(f"    ✓ Successfully synced {obj_id}")
-
-            if obj_created:
-                try:
-                    flow = Flow()
-                    flow.push(
-                        "*",
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": f"New source {obj_id} synced from Hermes",
-                            "type": "info",
-                            "duration": 5000,
-                        },
-                    )
-                except Exception:
-                    pass
+            log_verbose(f"    ✓ Successfully synced {obj_id}")
 
         except Exception as e:
             log(f"    ✗ Error syncing {obj_id} with SkyPortal: {e}")
             traceback.print_exc()
             session.rollback()
-            self.errors += 1
-
-            try:
-                flow = Flow()
-                flow.push(
-                    "*",
-                    action_type="baselayer/SHOW_NOTIFICATION",
-                    payload={
-                        "note": f"Error syncing {obj_id} from Hermes: {str(e)}",
-                        "type": "error",
-                        "duration": 8000,
-                    },
-                )
-            except Exception:
-                pass
 
 
 class HermesSyncService:
@@ -496,7 +439,7 @@ class HermesSyncService:
         )
 
         instrument_names = list(instrument_mapping.keys()) if instrument_mapping else []
-        log(
+        log_verbose(
             f"Initialized Hermes sync service with bot_user_id={bot_user_id}, "
             f"group_ids={group_ids}, instruments={instrument_names}"
         )
@@ -532,14 +475,13 @@ class HermesSyncService:
     def run(self) -> None:
         """Main monitoring loop."""
         log("Starting Hermes SkyPortal Synchronization Service")
-        log(f"Topic: {self.topic}")
-        log(f"Username: {self.username}")
-        log(f"Read from start: {self.from_start}")
-        log(f"Max age (days): {self.max_age_days}")
+        log_verbose(f"Username: {self.username}")
+        log_verbose(f"Read from start: {self.from_start}")
+        log_verbose(f"Max age (days): {self.max_age_days}")
 
         self.consumer = self.build_consumer()
         self.consumer.subscribe([self.topic])
-        log(f"Subscribed to {self.topic}")
+        log_verbose(f"Subscribed to {self.topic}")
         log("Waiting for messages...")
 
         try:
@@ -555,13 +497,11 @@ class HermesSyncService:
 
                 ts = msg.timestamp()[1]
                 if ts > 0 and self.is_too_old(ts):
-                    log(f"Skipping old message (offset {msg.offset()})")
+                    log_verbose(f"Skipping old message (offset {msg.offset()})")
                     continue
 
                 self._process_kafka_message(msg)
 
-        except KeyboardInterrupt:
-            log("Service interrupted")
         finally:
             self._cleanup()
 
@@ -571,12 +511,12 @@ class HermesSyncService:
             ts = msg.timestamp()[1]
             if ts > 0:
                 msg_timestamp = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
-                log("=" * 60)
-                log(f"Message timestamp: {msg_timestamp.isoformat()}")
+                log_verbose("=" * 60)
+                log_verbose(f"Message timestamp: {msg_timestamp.isoformat()}")
 
             payload = msg.value()
             if not payload:
-                log("Empty payload received")
+                log_verbose("Empty payload received")
                 return
 
             try:
@@ -614,7 +554,7 @@ def service(*args, **kwargs):
     # Kafka/SCiMMA configuration
     username = hermes_sync_cfg.get("scimma_username")
     password = hermes_sync_cfg.get("scimma_password")
-    server_url = hermes_sync_cfg.get("kafka_server", "kafka.scimma.org")
+    server_url = hermes_sync_cfg.get("kafka_server")
 
     topic = cfg.get("app.hermes.topic")
 
@@ -661,11 +601,12 @@ def service(*args, **kwargs):
             if missing_tns_ids:
                 log(
                     f"Warning: Instruments with TNS IDs {missing_tns_ids} not found in database. "
-                    f"Please create these instruments or remove them from 'app.hermes.sync.instrument_tns_ids' in config.yaml"
                 )
 
             if instrument_mapping:
-                log(f"Configured instruments: {list(instrument_mapping.keys())}")
+                log_verbose(
+                    f"Configured instruments: {list(instrument_mapping.keys())}"
+                )
             else:
                 log(
                     "Warning: No instruments found for configured TNS IDs. Photometry will be skipped."
