@@ -16,7 +16,7 @@ from astropy import units as u
 from dustmaps.config import config
 from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declared_attr, relationship
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -184,14 +184,6 @@ class Obj(Base, conesearch_alchemy.Point):
 
     update = public
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
-
-    __table_args__ = (
-        sa.Index(
-            "ix_objs_alias_gin",
-            "alias",
-            postgresql_using="gin",
-        ),
-    )
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precision numeric
@@ -477,6 +469,20 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         doc="Sharing submissions associated with this obj.",
     )
+
+    @declared_attr
+    def __table_args__(cls):
+        """Extend parent table args with our own indexes."""
+        # Get parent table args from Point mixin
+        *args, kwargs = super().__table_args__
+        # Add our GIN index with trigram ops for efficient LIKE queries on alias array
+        alias_index = sa.Index(
+            "ix_objs_alias_gin",
+            "alias",
+            postgresql_using="gin",
+            postgresql_ops={"alias": "gin_trgm_ops"},
+        )
+        return (*args, alias_index, kwargs)
 
     def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
