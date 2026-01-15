@@ -358,9 +358,7 @@ class SourceProcessor:
             List of photometry dictionaries
         """
         try:
-            create_or_get_obj(
-                session, obj_id, target.get("ra"), target.get("dec")
-            )
+            create_or_get_obj(session, obj_id, target.get("ra"), target.get("dec"))
             create_source(session, obj_id, self.default_group_ids, self.bot_user_id)
 
             # Add photometry with deduplication
