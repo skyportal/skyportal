@@ -104,6 +104,18 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise e
 
 
+def get_unique_username(base_username):
+    """Generate a unique username by appending a number if needed (jdoe, jdoe1, jdoe2, etc.)"""
+    username = base_username
+    counter = 1
+    while (
+        DBSession().scalar(sa.select(User).where(User.username == username)) is not None
+    ):
+        username = f"{base_username}{counter}"
+        counter += 1
+    return username
+
+
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     if "username" not in backend.setting("USER_FIELDS", USER_FIELDS):
         raise Exception("PSA configuration error: `username` not properly captured.")
@@ -112,11 +124,22 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
     if not user and existing_user is None:
-        email_as_username = strategy.setting("USERNAME_IS_FULL_EMAIL", False)
-        if email_as_username and details.get("email"):
-            username = details["email"]
+        username_format = strategy.setting("USERNAME_FORMAT", None)
+
+        if username_format == "first_initial_lastname":
+            first_name = details.get("first_name", "")
+            last_name = details.get("last_name", "")
+            if first_name and last_name:
+                base_username = (first_name[0] + last_name).lower()
+                username = get_unique_username(base_username)
+            else:
+                username = details.get("email") or details.get("username")
         else:
-            username = details["username"]
+            email_as_username = strategy.setting("USERNAME_IS_FULL_EMAIL", False)
+            if email_as_username and details.get("email"):
+                username = details["email"]
+            else:
+                username = details["username"]
 
     elif existing_user is not None:
         return {"username": existing_user.username}
