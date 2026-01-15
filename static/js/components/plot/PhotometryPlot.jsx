@@ -267,6 +267,7 @@ const PhotometryPlot = ({
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
+  const [showOnlyValidated, setShowOnlyValidated] = useState(false);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -1027,9 +1028,18 @@ const PhotometryPlot = ({
 
       // Filter out SwiftXRT points as they are not relevant for in the vega system
       const allPhotometry = [...objPhotometry, ...duplicatesPhotometry];
-      const photometryFiltered = allPhotometry.filter(
+      let photometryFiltered = allPhotometry.filter(
         (point) => !(point.filter === "swiftxrt" && magsys === "vega"),
       );
+
+      if (showOnlyValidated) {
+        photometryFiltered = photometryFiltered.filter(
+          (point) =>
+            point.validations &&
+            point.validations.length > 0 &&
+            point.validations[0]?.validated === true,
+        );
+      }
 
       const [newPhotometry, newPhotStats] = preparePhotometry(
         photometryFiltered,
@@ -1101,6 +1111,7 @@ const PhotometryPlot = ({
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
+    showOnlyValidated,
   ]);
 
   useEffect(() => {
@@ -1533,6 +1544,22 @@ const PhotometryPlot = ({
                 <Switch
                   checked={displayXAxisInlog}
                   onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              </div>
+            </div>
+          )}
+          {config?.usePhotometryValidation && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="photometry-validation-filter" noWrap>
+                Only validated
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={showOnlyValidated}
+                  onChange={() => setShowOnlyValidated(!showOnlyValidated)}
                   inputProps={{ "aria-label": "controlled" }}
                 />
               </div>
