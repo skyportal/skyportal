@@ -35,9 +35,9 @@ CustomCheckboxWidget.propTypes = {
   value: PropTypes.bool.isRequired,
   onChange: PropTypes.func.isRequired,
   label: PropTypes.string.isRequired,
-  schema: PropTypes.objectOf({
+  schema: PropTypes.shape({
     description: PropTypes.string,
-  }).isRequired,
+  }),
 };
 
 export const CustomCheckboxWidgetMuiTheme = {

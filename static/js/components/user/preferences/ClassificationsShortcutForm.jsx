@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
-import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
@@ -11,19 +10,11 @@ import ClassificationSelect from "../../classification/ClassificationSelect";
 import DeletableChips from "../../DeletableChips";
 
 const useStyles = makeStyles(() => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-    maxWidth: "20rem",
-  },
   form: {
     display: "flex",
     gap: "1rem",
     flexWrap: "wrap",
     paddingBottom: "1.5rem",
-  },
-  classificationsMenu: {
-    minWidth: "12rem",
   },
 }));
 
@@ -34,7 +25,6 @@ const ClassificationsShortcutForm = () => {
     handleSubmit,
     register,
     reset,
-
     formState: { errors },
   } = useForm();
   const dispatch = useDispatch();
@@ -42,23 +32,24 @@ const ClassificationsShortcutForm = () => {
   const [selectedClassifications, setSelectedClassifications] = useState([]);
 
   const onSubmit = (formValues) => {
-    const shortcuts = profile?.classificationShortcuts || {};
-    shortcuts[formValues.shortcutName] = selectedClassifications;
     const prefs = {
-      classificationShortcuts: shortcuts,
+      classificationShortcuts: {
+        ...(profile?.classificationShortcuts || {}),
+        [formValues.shortcutName]: selectedClassifications,
+      },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedClassifications([]);
-    reset({
-      shortcutName: "",
-    });
+    reset({ shortcutName: "" });
   };
 
   const onDelete = (shortcutName) => {
-    const shortcuts = profile?.classificationShortcuts;
-    delete shortcuts[shortcutName];
     const prefs = {
-      classificationShortcuts: shortcuts,
+      classificationShortcuts: Object.fromEntries(
+        Object.entries(profile?.classificationShortcuts || {}).filter(
+          ([key]) => key !== shortcutName,
+        ),
+      ),
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -76,28 +67,23 @@ const ClassificationsShortcutForm = () => {
               selectedClassifications={selectedClassifications}
               setSelectedClassifications={setSelectedClassifications}
             />
-            <div>
-              <InputLabel htmlFor="shortcutNameInput">Shortcut Name</InputLabel>
-              <TextField
-                {...register("shortcutName", {
-                  required: true,
-                  validate: (value) => {
-                    if (profile?.classificationShortcuts) {
-                      return !(value in profile?.classificationShortcuts);
-                    }
-                    return null;
-                  },
-                })}
-                name="shortcutName"
-                id="shortcutNameInput"
-                error={!!errors.shortcutName}
-                helperText={
-                  errors.shortcutName
-                    ? "Required/Shortcut with that name already exists"
-                    : ""
-                }
-              />
-            </div>
+            <TextField
+              {...register("shortcutName", {
+                required: true,
+                validate: (value) =>
+                  !profile?.classificationShortcuts ||
+                  !(value in profile.classificationShortcuts) ||
+                  "Shortcut with that name already exists",
+              })}
+              label="Shortcut Name"
+              id="shortcutNameInput"
+              error={!!errors.shortcutName}
+              helperText={
+                errors.shortcutName
+                  ? errors.shortcutName.message || "Required"
+                  : ""
+              }
+            />
           </div>
           <Button primary type="submit" data-testid="addShortcutButton">
             Add Shortcut

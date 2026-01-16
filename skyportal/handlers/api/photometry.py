@@ -48,6 +48,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
@@ -258,6 +259,7 @@ def serialize(
     owner=False,
     stream=False,
     validation=False,
+    extinction_dict=None,
 ):
     return_value = {
         "obj_id": phot.obj_id,
@@ -349,6 +351,16 @@ def serialize(
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
 
+        extinction_value = None
+        flux_corr = None
+        mag_corr = None
+        if extinction_dict is not None:
+            extinction_value = extinction_dict.get(phot.filter)
+            if extinction_value is not None:
+                flux_corr = deredden_flux(phot.flux, extinction=extinction_value)
+                if nan_to_none(phot.mag) is not None:
+                    mag_corr = phot.mag + db_correction - extinction_value
+
         if format not in ["mag", "flux", "both"]:
             raise ValueError(
                 "Invalid output format specified. Must be one of "
@@ -367,22 +379,27 @@ def serialize(
                 maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
-                fluxerr = phot.fluxerr
-                fivesigma = 5 * fluxerr
-                maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
+                maglimit_out = -2.5 * np.log10(5 * phot.fluxerr) + corrected_db_zp
 
-            return_value.update(
-                {
-                    "mag": phot.mag + db_correction
-                    if nan_to_none(phot.mag) is not None
-                    else None,
-                    "magerr": phot.e_mag
-                    if nan_to_none(phot.e_mag) is not None
-                    else None,
-                    "magsys": outsys.name,
-                    "limiting_mag": maglimit_out,
-                }
-            )
+            mag_data = {
+                "mag": phot.mag + db_correction
+                if nan_to_none(phot.mag) is not None
+                else None,
+                "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
+                "magsys": outsys.name,
+                "limiting_mag": maglimit_out,
+            }
+
+            if extinction_dict is not None:
+                mag_data.update(
+                    {
+                        "extinction": extinction_value,
+                        "mag_corr": mag_corr,
+                        "flux_corr": flux_corr,
+                    }
+                )
+
+            return_value.update(mag_data)
             if (
                 phot.ref_flux is not None
                 and not np.isnan(phot.ref_flux)
@@ -401,14 +418,22 @@ def serialize(
                 )
 
         if format in ["flux", "both"]:
-            return_value.update(
-                {
-                    "flux": nan_to_none(phot.flux),
-                    "magsys": outsys.name,
-                    "zp": corrected_db_zp,
-                    "fluxerr": phot.fluxerr,
-                }
-            )
+            flux_data = {
+                "flux": nan_to_none(phot.flux),
+                "magsys": outsys.name,
+                "zp": corrected_db_zp,
+                "fluxerr": phot.fluxerr,
+            }
+
+            if extinction_dict is not None:
+                flux_data.update(
+                    {
+                        "extinction": extinction_value,
+                        "flux_corr": nan_to_none(flux_corr),
+                    }
+                )
+
+            return_value.update(flux_data)
             if (
                 phot.ref_flux is not None
                 and not np.isnan(phot.ref_flux)
@@ -1902,6 +1927,7 @@ class ObjPhotometryHandler(BaseHandler):
         include_annotation_info = self.get_query_argument(
             "includeAnnotationInfo", False
         )
+        include_extinction = self.get_query_argument("includeExtinction", False)
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
         include_owner_info = str_to_bool(include_owner_info, default=False)
@@ -1911,6 +1937,8 @@ class ObjPhotometryHandler(BaseHandler):
         include_validation_info = str_to_bool(include_validation_info, default=False)
 
         include_annotation_info = str_to_bool(include_annotation_info, default=False)
+
+        include_extinction = str_to_bool(include_extinction, default=False)
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1960,6 +1988,21 @@ class ObjPhotometryHandler(BaseHandler):
                 )
                 photometry = session.scalars(stmt).unique().all()
 
+                # Compute extinction for all filters
+                extinction_dict = None
+                if (
+                    include_extinction
+                    and len(photometry) > 0
+                    and nan_to_none(obj.ra) is not None
+                    and nan_to_none(obj.dec) is not None
+                ):
+                    extinction_dict = {}
+                    filters = {phot.filter for phot in photometry}
+                    for filt in filters:
+                        extinction_dict[filt] = calculate_extinction(
+                            obj.ra, obj.dec, filt
+                        )
+
                 phot_data = [
                     serialize(
                         phot,
@@ -1969,6 +2012,7 @@ class ObjPhotometryHandler(BaseHandler):
                         owner=include_owner_info,
                         stream=include_stream_info,
                         validation=include_validation_info,
+                        extinction_dict=extinction_dict,
                     )
                     for phot in photometry
                 ]

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
@@ -25,6 +25,7 @@ import Typography from "@mui/material/Typography";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
+import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
@@ -37,6 +38,7 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "ra_unc",
   "dec_unc",
   "created_at",
+  "flux_corr",
 ];
 
 const useStyles = makeStyles(() => ({
@@ -108,8 +110,29 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [downloadParams, setDownloadParams] = useState(null);
+  const [showExtinction, setShowExtinction] = useState(false);
 
   const data = photometry[obj_id] || [];
+
+  useEffect(() => {
+    if (obj_id && open) {
+      const params = {
+        includeOwnerInfo: true,
+        includeStreamInfo: true,
+        includeValidationInfo: true,
+      };
+
+      if (showExtinction) {
+        params.includeExtinction = true;
+      }
+
+      if (magsys) {
+        params.magsys = magsys;
+      }
+
+      dispatch(Actions.fetchSourcePhotometry(obj_id, params));
+    }
+  }, [showExtinction, obj_id, open, magsys, dispatch]);
 
   const handleDelete = async () => {
     if (!deleteDialogOpen) {
@@ -175,18 +198,32 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         "dec_unc",
         "created_at",
       ];
+
+      if (showExtinction) {
+        keys.splice(
+          keys.indexOf("magerr") + 1,
+          0,
+          "extinction",
+          "mag_corr",
+          "flux_corr",
+        );
+      }
       Object.keys(data[0]).forEach((key) => {
-        if (
-          !keys.includes(key) &&
-          ![
-            "groups",
-            "owner",
-            "obj_id",
-            "id",
-            "streams",
-            "validations",
-          ].includes(key)
-        ) {
+        const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
+        const excludedKeys = [
+          "groups",
+          "owner",
+          "obj_id",
+          "id",
+          "streams",
+          "validations",
+        ];
+
+        if (extinctionColumns.includes(key) && !showExtinction) {
+          return;
+        }
+
+        if (!keys.includes(key) && !excludedKeys.includes(key)) {
           keys.push(key);
         }
       });
@@ -463,6 +500,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                     {magsys && typeof setMagsys === "function" && (
                       <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                     )}
+                    <PhotometryExtinction
+                      showExtinction={showExtinction}
+                      setShowExtinction={setShowExtinction}
+                    />
                   </div>
                 }
                 columns={columns}

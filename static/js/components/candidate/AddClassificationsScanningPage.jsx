@@ -13,6 +13,7 @@ import ClassificationSelect from "../classification/ClassificationSelect";
 import * as Actions from "../../ducks/source";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
+import Box from "@mui/material/Box";
 
 const AddClassificationsScanningPage = ({ obj_id }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -59,7 +60,6 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
     <>
       <Tooltip title="Add Classifications">
         <IconButton
-          size="small"
           onClick={openDialog}
           data-testid={`addClassificationsButton_${obj_id}`}
         >
@@ -69,21 +69,21 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Add Classifications</DialogTitle>
         <DialogContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <Box sx={{ pt: "0.4rem", mb: "0.8rem" }}>
             <ClassificationSelect
               selectedClassifications={selectedClassifications}
               setSelectedClassifications={setSelectedClassifications}
               showShortcuts
               inDialog
             />
-            <Button
-              primary
-              type="submit"
-              data-testid="addClassificationsButtonInDialog"
-            >
-              Add Classifications
-            </Button>
-          </form>
+          </Box>
+          <Button
+            primary
+            data-testid="addClassificationsButtonInDialog"
+            onClick={handleSubmit(onSubmit)}
+          >
+            Add Classifications
+          </Button>
         </DialogContent>
       </Dialog>
     </>

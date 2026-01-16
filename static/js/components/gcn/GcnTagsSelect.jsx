@@ -6,36 +6,35 @@ import SelectWithChips from "../SelectWithChips";
 
 import * as gcnTagsActions from "../../ducks/gcnTags";
 
-const GcnTagsSelect = (props) => {
+const GcnTagsSelect = ({
+  title = "Gcn Tags",
+  selectedGcnTags,
+  setSelectedGcnTags,
+}) => {
   const dispatch = useDispatch();
-
-  const { selectedGcnTags, setSelectedGcnTags } = props;
-  let gcnTags = [];
-  gcnTags = gcnTags.concat(useSelector((state) => state.gcnTags));
-  gcnTags.sort();
+  const gcnTags = [...(useSelector((state) => state.gcnTags) || [])].sort();
 
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());
   }, [dispatch]);
 
+  if (!gcnTags?.length) return null;
+
   const handleChange = (event) => setSelectedGcnTags(event.target.value);
 
   return (
-    <div>
-      {gcnTags?.length > 0 && (
-        <SelectWithChips
-          label="Gcn Tags"
-          id="selectGcns"
-          initValue={selectedGcnTags}
-          onChange={handleChange}
-          options={gcnTags}
-        />
-      )}
-    </div>
+    <SelectWithChips
+      label={title}
+      id="selectGcns"
+      initValue={selectedGcnTags}
+      onChange={handleChange}
+      options={gcnTags}
+    />
   );
 };
 
 GcnTagsSelect.propTypes = {
+  title: PropTypes.string,
   selectedGcnTags: PropTypes.arrayOf(PropTypes.string).isRequired,
   setSelectedGcnTags: PropTypes.func.isRequired,
 };

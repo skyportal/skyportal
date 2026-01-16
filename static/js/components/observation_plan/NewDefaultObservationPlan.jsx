@@ -8,7 +8,9 @@ import Typography from "@mui/material/Typography";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
+import Divider from "@mui/material/Divider";
+import FormControl from "@mui/material/FormControl";
+import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
 import GcnNoticeTypesSelect from "../gcn/GcnNoticeTypesSelect";
@@ -43,68 +45,8 @@ const comparators = {
   gt: ">=",
 };
 
-const useStyles = makeStyles((theme) => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
-  marginTop: {
-    marginTop: "1rem",
-  },
-  Select: {
-    width: "100%",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
-  form_group: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "left",
-    gap: "0.5rem",
-    width: "100%",
-    marginTop: "0.5rem",
-    marginBottom: "0.5rem",
-  },
-  form_group_title: {
-    fontSize: "1.2rem",
-  },
-  form_subgroup: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "left",
-    alignItems: "center",
-    gap: "0.25rem",
-    width: "100%",
-    "& > div": {
-      width: "100%",
-    },
-  },
-  formGroupDivider: {
-    width: "100%",
-    height: "2px",
-    background: theme.palette.grey[600],
-    margin: "0.5rem 0",
-  },
-  formSubGroupDivider: {
-    width: "100%",
-    height: "2px",
-    background: theme.palette.grey[300],
-    margin: "0.5rem 0",
-  },
-}));
-
 const NewDefaultObservationPlan = ({ onClose }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
-
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState([]);
   const [selectedGcnTags, setSelectedGcnTags] = useState([]);
   const [selectedGcnProperties, setSelectedGcnProperties] = useState([]);
@@ -112,12 +54,10 @@ const NewDefaultObservationPlan = ({ onClose }) => {
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState([]);
   const [selectedPlanProperties, setSelectedPlanProperties] = useState([]);
-
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations,
   );
-
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
@@ -167,53 +107,36 @@ const NewDefaultObservationPlan = ({ onClose }) => {
   // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (
-    allocationListApiObsplan.length === 0 ||
+    !allocationListApiObsplan.length ||
     !selectedAllocationId ||
-    Object.keys(instrumentObsplanFormParams).length === 0
+    !Object.keys(instrumentObsplanFormParams).length
   ) {
     return <h3>No allocations with an observation plan API...</h3>;
   }
 
-  if (
-    !allGroups ||
-    allGroups.length === 0 ||
-    telescopeList.length === 0 ||
-    instrumentList.length === 0
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (!allGroups?.length || !telescopeList.length || !instrumentList.length) {
+    return <CircularProgress color="secondary" />;
   }
 
   const groupLookUp = {};
-
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-
   allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
-
-  const handleSelectedAllocationChange = (e) => {
-    setSelectedAllocationId(e.target.value);
-  };
 
   const handleSubmit = async ({ formData }) => {
     const { default_plan_name, auto_send } = formData;
@@ -278,109 +201,79 @@ const NewDefaultObservationPlan = ({ onClose }) => {
   });
 
   return (
-    <div className={classes.container}>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        value={selectedAllocationId}
-        onChange={handleSelectedAllocationChange}
-        name="followupRequestAllocationSelect"
-        className={classes.Select}
-      >
-        {allocationListApiObsplan?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
-      <div className={classes.formGroupDivider} />
-      <GroupShareSelect
-        groupList={allGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <FormControl fullWidth>
+        <InputLabel>Allocation</InputLabel>
+        <Select
+          label="Allocation"
+          value={selectedAllocationId}
+          onChange={(e) => setSelectedAllocationId(e.target.value)}
+          name="followupRequestAllocationSelect"
+        >
+          {allocationListApiObsplan?.map((allocation) => (
+            <MenuItem value={allocation.id} key={allocation.id}>
+              {`${
+                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                  .name
+              } / ${instLookUp[allocation.instrument_id].name} - ${
+                groupLookUp[allocation.group_id].name
+              } (PI ${allocation.pi})`}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <div>
+        <GroupShareSelect
+          groupList={allGroups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
+      </div>
+      <Typography variant="h6">Event Filtering</Typography>
+      <Box sx={{ display: "flex", gap: "0.2rem" }}>
+        <GcnNoticeTypesSelect
+          selectedGcnNoticeTypes={selectedGcnNoticeTypes}
+          setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+        />
+        <GcnTagsSelect
+          selectedGcnTags={selectedGcnTags}
+          setSelectedGcnTags={setSelectedGcnTags}
+        />
+      </Box>
+      <GcnPropertiesSelect
+        selectedGcnProperties={selectedGcnProperties}
+        setSelectedGcnProperties={setSelectedGcnProperties}
+        conversions={conversions}
+        comparators={comparators}
       />
-      <div className={classes.formGroupDivider} />
-      <div className={classes.form_group}>
-        <Typography className={classes.form_group_title}>
-          Event Filtering
-        </Typography>
-        <div className={classes.form_subgroup}>
-          <GcnNoticeTypesSelect
-            selectedGcnNoticeTypes={selectedGcnNoticeTypes}
-            setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
-          />
-          <GcnTagsSelect
-            selectedGcnTags={selectedGcnTags}
-            setSelectedGcnTags={setSelectedGcnTags}
-          />
-        </div>
-        <div className={classes.formSubGroupDivider} />
-        <div className={classes.form_subgroup}>
-          <GcnPropertiesSelect
-            selectedGcnProperties={selectedGcnProperties}
-            setSelectedGcnProperties={setSelectedGcnProperties}
-            conversions={conversions}
-            comparators={comparators}
-          />
-        </div>
-      </div>
-      <div className={classes.formGroupDivider} />
-      <div className={classes.form_group}>
-        <Typography className={classes.form_group_title}>
-          Localization Filtering
-        </Typography>
-        <div className={classes.form_subgroup}>
-          <LocalizationTagsSelect
-            selectedLocalizationTags={selectedLocalizationTags}
-            setSelectedLocalizationTags={setSelectedLocalizationTags}
-          />
-        </div>
-        <div className={classes.formSubGroupDivider} />
-        <div className={classes.form_subgroup}>
-          <LocalizationPropertiesSelect
-            selectedLocalizationProperties={selectedLocalizationProperties}
-            setSelectedLocalizationProperties={
-              setSelectedLocalizationProperties
-            }
-          />
-        </div>
-      </div>
-      <div className={classes.formGroupDivider} />
-      <div className={classes.form_group}>
-        <Typography className={classes.form_group_title}>
-          Observation Plan Stats Filtering
-        </Typography>
-        <div className={classes.form_subgroup}>
-          <PlanPropertiesSelect
-            selectedPlanProperties={selectedPlanProperties}
-            setSelectedPlanProperties={setSelectedPlanProperties}
-          />
-        </div>
-      </div>
-      <div className={classes.formGroupDivider} />
-      <div data-testid="observationplan-request-form">
-        <Typography className={classes.form_group_title}>
-          Observation Plan Parameters
-        </Typography>
-        <div>
-          <Form
-            schema={formSchemaCopy}
-            validator={validator}
-            uiSchema={uiSchema}
-            onSubmit={handleSubmit}
-          />
-        </div>
-      </div>
-    </div>
+      <Divider />
+      <Typography variant="h6">Localization Filtering</Typography>
+      <LocalizationTagsSelect
+        selectedLocalizationTags={selectedLocalizationTags}
+        setSelectedLocalizationTags={setSelectedLocalizationTags}
+      />
+      <LocalizationPropertiesSelect
+        selectedLocalizationProperties={selectedLocalizationProperties}
+        setSelectedLocalizationProperties={setSelectedLocalizationProperties}
+        comparators={comparators}
+      />
+      <Divider />
+      <Typography variant="h6">Observation Plan Stats Filtering</Typography>
+      <PlanPropertiesSelect
+        selectedPlanProperties={selectedPlanProperties}
+        setSelectedPlanProperties={setSelectedPlanProperties}
+        comparators={comparators}
+      />
+      <Divider />
+      <Typography variant="h6">Observation Plan Parameters</Typography>
+      <Form
+        data-testid="observationplan-request-form"
+        schema={formSchemaCopy}
+        validator={validator}
+        uiSchema={uiSchema}
+        onSubmit={handleSubmit}
+      />
+    </Box>
   );
 };
 

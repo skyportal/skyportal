@@ -3,231 +3,136 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import Box from "@mui/material/Box";
 import { Controller, useForm } from "react-hook-form";
 import Button from "../Button";
 import SelectWithChips from "../SelectWithChips";
 
 import * as gcnPropertiesActions from "../../ducks/gcnProperties";
 
-const useStyles = makeStyles(() => ({
-  root: {
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-    gap: "0.5rem",
-    marginBottom: "1rem",
-  },
-  form_group: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "justify-between",
-    alignItems: "top",
-    gap: "0.2rem",
-    width: "100%",
-  },
-  formItem: {
-    width: "100%",
-  },
-  select: {
-    width: "100%",
-    height: "3rem",
-    "& > div": {
-      width: "100%",
-      height: "3rem",
-    },
-  },
-  selectWithMargin: {
-    width: "100%",
-    height: "3rem",
-    "& > div": {
-      width: "100%",
-      height: "3rem",
-    },
-    marginBottom: "0.5rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
-}));
-
-const GcnPropertiesSelect = (props) => {
-  const classes = useStyles();
+const GcnPropertiesSelect = ({
+  selectedGcnProperties,
+  setSelectedGcnProperties,
+  conversions,
+  comparators,
+}) => {
   const dispatch = useDispatch();
-  const {
-    selectedGcnProperties,
-    setSelectedGcnProperties,
-    conversions,
-    comparators,
-  } = props;
-
-  let gcnProperties = [];
-  gcnProperties = gcnProperties.concat(
-    useSelector((state) => state.gcnProperties),
-  );
-  gcnProperties.sort();
+  const gcnProperties = [
+    ...(useSelector((state) => state.gcnProperties) || []),
+  ].sort();
+  const { handleSubmit, control, reset, getValues } = useForm();
 
   useEffect(() => {
     dispatch(gcnPropertiesActions.fetchGcnProperties());
   }, [dispatch]);
 
-  const handleChange = (event) => setSelectedGcnProperties(event.target.value);
-
-  const { handleSubmit, register, control, reset, getValues } = useForm();
-
   const handleSubmitProperties = async () => {
-    const filterData = getValues();
-    if (
-      filterData.property === "" ||
-      filterData.propertyComparator === "" ||
-      filterData.propertyComparatorValue === ""
-    ) {
-      return;
-    }
-    if (Object.keys(conversions).includes(filterData.property)) {
-      // we have a unit conversion to do
-      filterData.propertyComparatorValue = conversions[
-        filterData.property
-      ].FrontendToBackend(filterData.propertyComparatorValue);
-    }
-    const propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
-    const selectedGcnPropertiesCopy = [...selectedGcnProperties];
-    selectedGcnPropertiesCopy.push(propertiesFilter);
-    setSelectedGcnProperties(selectedGcnPropertiesCopy);
-  };
+    const { property, propertyComparator, propertyComparatorValue } =
+      getValues();
+    if (!property || !propertyComparator || !propertyComparatorValue) return;
 
-  const handleClickReset = () => {
-    reset();
+    const value =
+      conversions[property]?.FrontendToBackend(propertyComparatorValue) ||
+      propertyComparatorValue;
+    setSelectedGcnProperties([
+      ...selectedGcnProperties,
+      `${property}: ${value}: ${propertyComparator}`,
+    ]);
   };
 
   return (
-    <div>
-      <form className={classes.root}>
-        <div className={classes.form_group}>
-          <div className={classes.formItem}>
-            <Controller
-              render={({ field: { value } }) => (
-                <>
-                  <InputLabel>Property</InputLabel>
-                  <Select
-                    inputProps={{ MenuProps: { disableScrollLock: true } }}
-                    labelId="gcnPropertySelectLabel"
-                    value={value || ""}
-                    onChange={(event) => {
-                      reset({
-                        ...getValues(),
-                        property:
-                          event.target.value === -1 ? "" : event.target.value,
-                      });
-                    }}
-                    className={classes.select}
-                  >
-                    {gcnProperties?.map((gcnProperty) => (
-                      <MenuItem
-                        value={gcnProperty}
-                        key={gcnProperty}
-                        className={classes.selectItem}
-                      >
-                        {`${gcnProperty}${
-                          Object.keys(conversions).includes(gcnProperty)
-                            ? ` (${conversions[gcnProperty].frontendUnit})`
-                            : ""
-                        }`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </>
-              )}
-              name="property"
-              control={control}
-              defaultValue=""
-            />
-          </div>
-          <div className={classes.formItem}>
-            <Controller
-              render={({ field: { value } }) => (
-                <>
-                  <InputLabel>Comparator</InputLabel>
-                  <Select
-                    label="Comparator"
-                    inputProps={{ MenuProps: { disableScrollLock: true } }}
-                    labelId="gcnPropertyComparatorSelectLabel"
-                    value={value || ""}
-                    onChange={(event) => {
-                      reset({
-                        ...getValues(),
-                        propertyComparator:
-                          event.target.value === -1 ? "" : event.target.value,
-                      });
-                    }}
-                    className={classes.select}
-                  >
-                    {Object.keys(comparators)?.map((key) => (
-                      <MenuItem
-                        value={key}
-                        key={key}
-                        className={classes.selectItem}
-                      >
-                        {`${comparators[key]}`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </>
-              )}
-              name="propertyComparator"
-              control={control}
-              defaultValue="="
-            />
-          </div>
-          <div className={classes.formItem}>
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <InputLabel>Value</InputLabel>
-                  <TextField
-                    size="small"
-                    name="propertyComparatorValue"
-                    inputRef={register("propertyComparatorValue")}
-                    placeholder="0.0"
-                    onChange={onChange}
-                    value={value}
-                    className={classes.select}
-                  />
-                </>
-              )}
-              name="propertyComparatorValue"
-              control={control}
-            />
-          </div>
-        </div>
-        <div className={classes.form_group}>
-          <ButtonGroup
-            variant="contained"
-            color="primary"
-            aria-label="contained primary button group"
+    <form
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.5rem",
+      }}
+    >
+      <Box sx={{ display: "flex", gap: "0.2rem" }}>
+        <Controller
+          name="property"
+          control={control}
+          defaultValue=""
+          render={({ field: { value } }) => (
+            <FormControl fullWidth>
+              <InputLabel>Property</InputLabel>
+              <Select
+                label="Property"
+                value={value}
+                onChange={(e) =>
+                  reset({ ...getValues(), property: e.target.value })
+                }
+              >
+                {gcnProperties?.map((prop) => (
+                  <MenuItem value={prop} key={prop}>
+                    {prop}
+                    {conversions[prop]
+                      ? ` (${conversions[prop].frontendUnit})`
+                      : ""}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
+        <Controller
+          name="propertyComparator"
+          control={control}
+          defaultValue="eq"
+          render={({ field: { value } }) => (
+            <FormControl fullWidth>
+              <InputLabel>Comparator</InputLabel>
+              <Select
+                label="Comparator"
+                value={value}
+                onChange={(e) =>
+                  reset({ ...getValues(), propertyComparator: e.target.value })
+                }
+              >
+                {Object.keys(comparators).map((key) => (
+                  <MenuItem key={key} value={key}>
+                    {comparators[key]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
+        <Controller
+          name="propertyComparatorValue"
+          control={control}
+          defaultValue="0.0"
+          render={({ field }) => (
+            <TextField {...field} label="Value" placeholder="0.0" />
+          )}
+        />
+      </Box>
+      <Box sx={{ display: "flex", gap: "0.2rem" }}>
+        <ButtonGroup variant="outlined" color="primary">
+          <Button
+            variant="outlined"
+            primary
+            onClick={handleSubmit(handleSubmitProperties)}
           >
-            <Button primary onClick={handleSubmit(handleSubmitProperties)}>
-              Add
-            </Button>
-            <Button primary onClick={handleClickReset}>
-              Reset
-            </Button>
-          </ButtonGroup>
-        </div>
-      </form>
-      <div className={classes.selectWithMargin}>
+            Add
+          </Button>
+          <Button variant="outlined" primary onClick={reset}>
+            Reset
+          </Button>
+        </ButtonGroup>
         <SelectWithChips
           label="Gcn Properties"
           id="selectGcns"
           initValue={selectedGcnProperties}
-          onChange={handleChange}
+          onChange={(e) => setSelectedGcnProperties(e.target.value)}
           options={selectedGcnProperties}
         />
-      </div>
-    </div>
+      </Box>
+    </form>
   );
 };
 
@@ -235,7 +140,7 @@ GcnPropertiesSelect.propTypes = {
   selectedGcnProperties: PropTypes.arrayOf(PropTypes.string).isRequired,
   setSelectedGcnProperties: PropTypes.func.isRequired,
   conversions: PropTypes.oneOfType([PropTypes.object]).isRequired,
-  comparators: PropTypes.oneOfType([PropTypes.object]).isRequired,
+  comparators: PropTypes.objectOf(PropTypes.string).isRequired,
 };
 
 export default GcnPropertiesSelect;
