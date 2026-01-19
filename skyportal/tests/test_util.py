@@ -150,7 +150,13 @@ def driver(request):
     from webdriver_manager.firefox import GeckoDriverManager
 
     options = webdriver.FirefoxOptions()
-    if "BASELAYER_TEST_HEADLESS" in os.environ:
+    if str(os.getenv("FRONTEND_TEST_HEADLESS", "0")).strip().lower() in (
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+    ):
         options.add_argument("-headless")
     options.set_preference("devtools.console.stdout.content", True)
     options.set_preference("browser.download.manager.showWhenStarting", False)

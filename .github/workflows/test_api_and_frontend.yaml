@@ -7,7 +7,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
 env:
-  BASELAYER_TEST_HEADLESS: "1"
+  FRONTEND_TEST_HEADLESS: "1"
 
 jobs:
   test-api-and-frontend:
