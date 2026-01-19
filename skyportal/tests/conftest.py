@@ -749,7 +749,8 @@ def user_group2(public_group2, public_stream):
 
 @pytest.fixture()
 def public_groupuser(public_group, user):
-    user.groups.append(public_group)
+    if public_group not in user.groups:
+        user.groups.append(public_group)
     DBSession().commit()
     return (
         DBSession()
