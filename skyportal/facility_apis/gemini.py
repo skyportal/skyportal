@@ -16,11 +16,16 @@ from ..utils.parse import get_list_typed
 from . import FollowUpAPI
 
 env, cfg = load_env()
-
-# Submission URL
-API_URL = f"{cfg['app.gemini.protocol']}://{cfg['app.gemini.host']}:{cfg['app.gemini.port']}/too"
-
 log = make_log("facility_apis/gemini")
+
+
+def get_api_url(is_south_site=True):
+    prefix = (
+        cfg["app.gemini.south_prefix"]
+        if is_south_site
+        else cfg["app.gemini.north_prefix"]
+    )
+    return f"{cfg['app.gemini.protocol']}://{prefix}.{cfg['app.gemini.domain']}:{cfg['app.gemini.port']}/too"
 
 
 class GeminiRequest:
@@ -109,9 +114,9 @@ class GeminiRequest:
         if not altdata:
             raise ValueError("No altdata provided")
 
-        user_email = altdata.get("user_email")
-        programid = altdata.get("programid")
-        user_password = altdata.get("user_password")
+        user_email = str(altdata.get("user_email")).strip()
+        programid = str(altdata.get("programid")).strip()
+        user_password = str(altdata.get("user_password")).strip()
 
         if user_email is None or programid is None or user_password is None:
             raise ValueError("user_email, user_password, and programid are required")
@@ -302,6 +307,7 @@ class GEMINIAPI(FollowUpAPI):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError("Missing allocation information.")
+        is_south_site = altdata.get("programid", "").startswith("GS")
 
         try:
             gemini_request = GeminiRequest(request, session)
@@ -311,7 +317,7 @@ class GEMINIAPI(FollowUpAPI):
 
         failed_requests = []
         for payload in gemini_request.payload:
-            r = requests.post(API_URL, verify=False, params=payload)
+            r = requests.post(get_api_url(is_south_site), verify=False, params=payload)
             if r.status_code != 200:
                 failed_requests.append(
                     {
