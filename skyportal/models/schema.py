@@ -1922,8 +1922,7 @@ class SpectrumPost(_Schema):
         metadata={"description": "ID of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.List(
-        fields.Integer,
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
@@ -2036,8 +2035,7 @@ class SpectrumHead(_Schema):
         metadata={"description": "Name of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.List(
-        fields.Integer,
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
@@ -2094,8 +2092,7 @@ class MMADetectorSpectrumPost(_Schema):
         metadata={"description": "ID of the MMADetector that acquired the Spectrum."},
     )
 
-    group_ids = fields.List(
-        fields.Integer,
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
