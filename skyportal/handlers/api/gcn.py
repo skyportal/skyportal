@@ -3658,8 +3658,8 @@ class GcnSummaryHandler(BaseHandler):
         acknowledgements = data.get("acknowledgements", None)
 
         class Validator(Schema):
-            start_date = UTCTZnaiveDateTime(required=False, missing=None)
-            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+            start_date = UTCTZnaiveDateTime(required=False)
+            end_date = UTCTZnaiveDateTime(required=False)
             number_of_detections = Integer(
                 required=False, missing=2, validate=validate.Range(min=1)
             )
@@ -4352,8 +4352,8 @@ class GcnReportHandler(BaseHandler):
         instrument_ids = data.get("instrumentIds", None)
 
         class Validator(Schema):
-            start_date = UTCTZnaiveDateTime(required=False, missing=None)
-            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+            start_date = UTCTZnaiveDateTime(required=False)
+            end_date = UTCTZnaiveDateTime(required=False)
 
         validator_instance = Validator()
         params_to_be_validated = {}
