@@ -19,10 +19,12 @@ env, cfg = load_env()
 log = make_log("facility_apis/gemini")
 
 
-def get_api_url(is_south_site=True):
+def get_api_url(program_id):
+    if not any(program_id.startswith(x) for x in ["GN", "GS"]):
+        raise ValueError("Invalid program ID, must start with GN or GS")
     prefix = (
         cfg["app.gemini.south_prefix"]
-        if is_south_site
+        if program_id.startswith("GS")
         else cfg["app.gemini.north_prefix"]
     )
     return f"{cfg['app.gemini.protocol']}://{prefix}.{cfg['app.gemini.domain']}:{cfg['app.gemini.port']}/too"
@@ -308,10 +310,6 @@ class GEMINIAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        if not any(altdata.get("programid", "").startswith(x) for x in ["GN", "GS"]):
-            raise ValueError("Invalid program ID, must start with GN or GS")
-        is_south_site = altdata.get("programid", "").startswith("GS")
-
         try:
             gemini_request = GeminiRequest(request, session)
         except Exception as e:
@@ -319,8 +317,9 @@ class GEMINIAPI(FollowUpAPI):
             raise ValueError(f"Error building Gemini request: {e}")
 
         failed_requests = []
+        url = get_api_url(altdata.get("programid", ""))
         for payload in gemini_request.payload:
-            r = requests.post(get_api_url(is_south_site), verify=False, params=payload)
+            r = requests.post(url, verify=False, params=payload)
             if r.status_code != 200:
                 failed_requests.append(
                     {
