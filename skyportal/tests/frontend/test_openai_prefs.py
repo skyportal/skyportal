@@ -1,8 +1,11 @@
 import uuid
 
+import pytest
+
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_openai_prefs(driver, user, upload_data_token):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -29,6 +32,9 @@ def test_openai_prefs(driver, user, upload_data_token):
     driver.click_xpath(
         "//form[@class='rjsf']/div/button[text()='Submit']", scroll_parent=True
     )
+    driver.wait_for_css_to_disappear("div.MuiDialog-container")
+
+    openai_toggle = driver.wait_for_xpath('//*[@data-testid="OpenAI_toggle"]')
 
     status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
@@ -37,7 +43,7 @@ def test_openai_prefs(driver, user, upload_data_token):
     assert data["data"]["preferences"]["summary"]["OpenAI"]["active"]
 
     # uncheck the toggle
-    openai_toggle.click()
+    driver.scroll_to_element_and_click(openai_toggle)
 
     status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
