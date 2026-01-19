@@ -2090,9 +2090,9 @@ def photometric_series_low_flux_with_outliers(
     df["flux"] = np.random.normal(100, 10, 100)
 
     # add some outliers
-    df["flux"].iloc[5] = 5000
-    df["flux"].iloc[50] = 6000
-    df["flux"].iloc[95] = 0
+    df.loc[5, "flux"] = 5000
+    df.loc[50, "flux"] = 6000
+    df.loc[95, "flux"] = 0
 
     data = {
         "obj_id": public_source.id,
