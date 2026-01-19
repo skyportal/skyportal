@@ -36,7 +36,6 @@ import withRouter from "../withRouter";
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
-  header: {},
   eventTags: {
     marginLeft: "1rem",
     "& > div": {
@@ -59,14 +58,6 @@ const useStyles = makeStyles((theme) => ({
   },
   columnItem: {
     marginBottom: theme.spacing(2),
-  },
-  noSources: {
-    padding: theme.spacing(2),
-    display: "flex",
-    flexDirection: "row",
-  },
-  sourceList: {
-    padding: "0",
   },
 }));
 
@@ -98,7 +89,6 @@ DownloadXMLButton.propTypes = {
 const EarthquakePage = ({ route }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
-
   const earthquake = useSelector((state) => state.earthquake);
   const dispatch = useDispatch();
   const styles = useStyles();
@@ -110,13 +100,7 @@ const EarthquakePage = ({ route }) => {
     fetchEarthquake(route.event_id);
   }, [route, dispatch]);
 
-  if (!earthquake) {
-    return <Spinner />;
-  }
-
-  if (!earthquake?.event_id) {
-    return <Spinner />;
-  }
+  if (!earthquake?.event_id) return <Spinner />;
 
   return (
     <div>

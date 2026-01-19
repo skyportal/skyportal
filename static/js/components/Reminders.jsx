@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Paper from "@mui/material/Paper";
 import {
   createTheme,
   StyledEngineProvider,
   ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
-import { makeStyles, withStyles } from "@mui/styles";
+import { withStyles } from "@mui/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MUIDataTable from "mui-datatables";
@@ -33,33 +32,6 @@ import Button from "./Button";
 import * as Actions from "../ducks/reminders";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-  buttons: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  button: {
-    maxWidth: "1.2rem",
-  },
-  buttonIcon: {
-    maxWidth: "1.2rem",
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -93,13 +65,6 @@ const getMuiTheme = (theme) =>
   });
 
 const dialogTitleStyles = (theme) => ({
-  root: {
-    margin: 0,
-    padding: theme.spacing(2),
-  },
-  title: {
-    marginRight: theme.spacing(2),
-  },
   closeButton: {
     position: "absolute",
     right: theme.spacing(1),
@@ -110,11 +75,11 @@ const dialogTitleStyles = (theme) => ({
 
 const DialogTitle = withStyles(dialogTitleStyles)(
   ({ children, classes, onClose }) => (
-    <MuiDialogTitle className={classes.root}>
+    <MuiDialogTitle component="div" className={classes.root}>
       <Typography variant="h6" className={classes.title}>
         {children}
       </Typography>
-      {onClose ? (
+      {onClose && (
         <IconButton
           aria-label="close"
           className={classes.closeButton}
@@ -122,7 +87,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         >
           <Close />
         </IconButton>
-      ) : null}
+      )}
     </MuiDialogTitle>
   ),
 );
@@ -219,9 +184,8 @@ NewReminder.propTypes = {
   handleClose: PropTypes.func.isRequired,
 };
 
-const RemindersTable = ({ reminders, resourceId, resourceType }) => {
+const Reminders = ({ resourceId, resourceType }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   // for now, we'll just show the reminders of the current user.
@@ -229,39 +193,36 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   // show the users in the reminders list (datatable)
   // and allow to choose users to add to the reminders to in the NewReminder dialog
   const currentUser = useSelector((state) => state.profile);
-
-  reminders = reminders.filter(
-    (reminder) => reminder.user_id === currentUser.id,
+  const reminders = useSelector((state) => state.reminders);
+  const remindersList = reminders.remindersList.filter(
+    (r) => r.user_id === currentUser.id,
   );
 
-  const handleClose = () => {
-    setOpen(false);
-  };
+  useEffect(() => {
+    if (
+      !reminders?.remindersList?.length ||
+      resourceId !== reminders.resourceId ||
+      resourceType !== reminders.resourceType
+    ) {
+      dispatch(Actions.fetchReminders(resourceId, resourceType));
+    }
+  }, [resourceType, resourceId]);
 
-  const renderReminderText = (dataIndex) => {
-    const reminder = reminders[dataIndex];
-    return reminder.text;
-  };
-
-  const renderNextReminder = (dataIndex) => {
-    const reminder = reminders[dataIndex];
-    return reminder.next_reminder;
-  };
-
-  const renderNbReminders = (dataIndex) => {
-    const reminder = reminders[dataIndex];
-    return reminder.number_of_reminders;
-  };
-
-  const renderReminderDelay = (dataIndex) => {
-    const reminder = reminders[dataIndex];
-    return reminder.reminder_delay;
-  };
+  if (!resourceType || !resourceId) return <CircularProgress />;
+  if (
+    !reminders ||
+    reminders.resourceType !== resourceType ||
+    reminders.resourceId !== resourceId
+  )
+    return null;
 
   const deleteReminder = (dataIndex) => {
-    const reminder = reminders[dataIndex];
     dispatch(
-      Actions.deleteReminder(resourceId, resourceType, reminder.id),
+      Actions.deleteReminder(
+        resourceId,
+        resourceType,
+        remindersList[dataIndex].id,
+      ),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification("Reminder deleted"));
@@ -280,7 +241,6 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderReminderText,
       },
     },
     {
@@ -290,7 +250,6 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderNextReminder,
       },
     },
     {
@@ -300,7 +259,6 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderNbReminders,
       },
     },
     {
@@ -310,7 +268,6 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderReminderDelay,
       },
     },
     {
@@ -320,14 +277,9 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
         sort: false,
         empty: true,
         customBodyRenderLite: (dataIndex) => (
-          <div className={classes.buttons}>
-            <Button
-              className={classes.button}
-              onClick={() => deleteReminder(dataIndex)}
-            >
-              <DeleteIcon className={classes.buttonIcon} />
-            </Button>
-          </div>
+          <Button onClick={() => deleteReminder(dataIndex)}>
+            <DeleteIcon />
+          </Button>
         ),
       },
     },
@@ -347,9 +299,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
     customToolbar: () => (
       <IconButton
         name={`new_reminder_${resourceId}`}
-        onClick={() => {
-          setOpen(true);
-        }}
+        onClick={() => setOpen(true)}
       >
         <AddIcon />
       </IconButton>
@@ -357,101 +307,36 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   };
 
   return (
-    <div>
-      {reminders && resourceType && resourceId ? (
-        <Paper className={classes.container}>
-          <div data-testid="Reminders">
-            <StyledEngineProvider injectFirst>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title="Reminders"
-                  data={reminders}
-                  options={options}
-                  columns={columns}
-                />
-              </ThemeProvider>
-            </StyledEngineProvider>
-          </div>
-          {open && (
-            <Dialog open={open} onClose={handleClose} maxWidth="md">
-              <DialogTitle onClose={handleClose}>
-                New Reminder on {resourceType}
-              </DialogTitle>
-              <DialogContent dividers>
-                <div className={classes.dialogContent}>
-                  <NewReminder
-                    resourceId={resourceId}
-                    resourceType={resourceType}
-                    handleClose={handleClose}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+    <div data-testid="reminders-table">
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Reminders"
+            data={remindersList}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogTitle onClose={() => setOpen(false)}>
+          New Reminder on {resourceType}
+        </DialogTitle>
+        <DialogContent dividers>
+          <NewReminder
+            resourceId={resourceId}
+            resourceType={resourceType}
+            handleClose={() => setOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-};
-
-RemindersTable.propTypes = {
-  reminders: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      number_of_reminders: PropTypes.number,
-      reminder_delay: PropTypes.number,
-      next_reminder: PropTypes.string,
-      text: PropTypes.string,
-    }),
-  ),
-  resourceId: PropTypes.string,
-  resourceType: PropTypes.string,
-};
-RemindersTable.defaultProps = {
-  reminders: null,
-  resourceId: null,
-  resourceType: null,
-};
-
-const Reminders = ({ resourceId, resourceType }) => {
-  const dispatch = useDispatch();
-  const reminders = useSelector((state) => state.reminders);
-
-  useEffect(() => {
-    if (
-      resourceId !== reminders.resourceId ||
-      resourceType !== reminders.resourceType ||
-      reminders.remindersList.length === 0
-    ) {
-      dispatch(Actions.fetchReminders(resourceId, resourceType));
-    }
-  }, [resourceType, resourceId]);
-
-  if (
-    !reminders ||
-    reminders.resourceType !== resourceType ||
-    reminders.resourceId !== resourceId
-  )
-    return null;
-
-  return (
-    <RemindersTable
-      reminders={reminders.remindersList}
-      resourceId={resourceId}
-      resourceType={resourceType}
-    />
   );
 };
 
 Reminders.propTypes = {
   resourceId: PropTypes.string,
   resourceType: PropTypes.string,
-};
-Reminders.defaultProps = {
-  resourceId: null,
-  resourceType: null,
 };
 
 export default Reminders;

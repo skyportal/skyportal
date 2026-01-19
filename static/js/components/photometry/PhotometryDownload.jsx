@@ -25,6 +25,8 @@ const DEFAULT_COLUMN_ORDER = [
   "utc",
   "mag",
   "magerr",
+  "mag_corr",
+  "extinction",
   "limiting_mag",
   "filter",
   "snr",
@@ -34,6 +36,7 @@ const DEFAULT_COLUMN_ORDER = [
   "origin",
   "flux",
   "fluxerr",
+  "flux_corr",
   "ra",
   "dec",
   "ra_unc",
@@ -48,11 +51,14 @@ const DEFAULT_COLUMNS = [
   "mjd",
   "mag",
   "magerr",
+  "mag_corr",
+  "extinction",
   "limiting_mag",
   "filter",
   "instrument_name",
   "flux",
   "fluxerr",
+  "flux_corr",
 ];
 
 const DEFAULT_VALIDATION_FILTER = {
@@ -271,6 +277,12 @@ const PhotometryDownload = ({
                 return phot.snr;
               case "utc":
                 return utcValue;
+              case "extinction":
+                return phot.extinction;
+              case "mag_corr":
+                return phot.mag_corr;
+              case "flux_corr":
+                return phot.flux_corr;
               default:
                 return phot[colKey];
             }

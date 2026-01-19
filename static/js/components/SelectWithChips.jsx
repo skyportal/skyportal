@@ -12,7 +12,6 @@ const useStyles = makeStyles(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
-    maxWidth: "25rem",
   },
   formControl: {
     minWidth: "12rem",
@@ -26,6 +25,8 @@ const getStyles = (option, opts, theme) => ({
       ? theme.typography.fontWeightRegular
       : theme.typography.fontWeightMedium,
 });
+
+const menuProps = { PaperProps: { style: { maxHeight: "20rem" } } };
 
 const SelectWithChips = (props) => {
   const classes = useStyles();
@@ -44,60 +45,45 @@ const SelectWithChips = (props) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
-    <>
-      <FormControl key={`${id}${label}`} className={classes.formControl}>
-        <InputLabel key={`${id}${label}`}>{label}</InputLabel>
-        <Select
-          id={id}
-          multiple
-          value={initValue || []}
-          onChange={(event) => {
-            onChange(event);
-            setOpts(
-              event.target.value.includes("Clear selections")
-                ? []
-                : event.target.value,
-            );
-          }}
-          renderValue={(selected) => (
-            <div className={classes.chips}>
-              {selected.map((value) =>
-                selected.indexOf(value) < max_chips_nb ? (
-                  <Chip key={value} label={value} />
-                ) : (
-                  selected.indexOf(value) === max_chips_nb && (
-                    <Chip
-                      key={value}
-                      label={`+${selected?.length - max_chips_nb}`}
-                    />
-                  )
-                ),
-              )}
-            </div>
-          )}
-          MenuProps={MenuProps}
-        >
-          {options?.map((option, index) => (
-            <MenuItem
-              key={index}
-              value={option}
-              style={getStyles(option, opts, theme)}
-            >
-              {option}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </>
+    <FormControl className={classes.formControl}>
+      <InputLabel>{label}</InputLabel>
+      <Select
+        id={id}
+        label={label}
+        multiple
+        value={initValue || []}
+        onChange={(event) => {
+          onChange(event);
+          setOpts(
+            event.target.value.includes("Clear selections")
+              ? []
+              : event.target.value,
+          );
+        }}
+        renderValue={(selected) => (
+          <div className={classes.chips}>
+            {selected.slice(0, max_chips_nb).map((value) => (
+              <Chip key={value} label={value} />
+            ))}
+            {selected.length > max_chips_nb && (
+              <Chip label={`+${selected.length - max_chips_nb}`} />
+            )}
+          </div>
+        )}
+        MenuProps={menuProps}
+      >
+        {options?.map((option, index) => (
+          <MenuItem
+            key={index}
+            value={option}
+            style={getStyles(option, opts, theme)}
+          >
+            {option}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 };
 
@@ -132,60 +118,45 @@ const SelectLabelWithChips = (props) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
-    <>
-      <FormControl key={`${id}${label}`} className={classes.formControl}>
-        <InputLabel key={`${id}${label}`}>{label}</InputLabel>
-        <Select
-          id={id}
-          multiple
-          value={initValue || []}
-          onChange={(event) => {
-            onChange(event);
-            setOpts(
-              event.target.value.includes("Clear selections")
-                ? []
-                : event.target.value,
-            );
-          }}
-          renderValue={(selected) => (
-            <div className={classes.chips}>
-              {selected.map((value) =>
-                selected.indexOf(value) < max_chips_nb ? (
-                  <Chip key={value.id} label={value.label} />
-                ) : (
-                  selected.indexOf(value) === max_chips_nb && (
-                    <Chip
-                      key={value.id}
-                      label={`+${selected?.length - max_chips_nb}`}
-                    />
-                  )
-                ),
-              )}
-            </div>
-          )}
-          MenuProps={MenuProps}
-        >
-          {options?.map((option) => (
-            <MenuItem
-              key={option.id}
-              value={option}
-              style={getStyles(option, opts, theme)}
-            >
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </>
+    <FormControl className={classes.formControl}>
+      <InputLabel>{label}</InputLabel>
+      <Select
+        id={id}
+        multiple
+        label={label}
+        value={initValue || []}
+        onChange={(event) => {
+          onChange(event);
+          setOpts(
+            event.target.value.includes("Clear selections")
+              ? []
+              : event.target.value,
+          );
+        }}
+        renderValue={(selected) => (
+          <div className={classes.chips}>
+            {selected.slice(0, max_chips_nb).map((value) => (
+              <Chip key={value.id} label={value.label} />
+            ))}
+            {selected.length > max_chips_nb && (
+              <Chip label={`+${selected.length - max_chips_nb}`} />
+            )}
+          </div>
+        )}
+        MenuProps={menuProps}
+      >
+        {options?.map((option) => (
+          <MenuItem
+            key={option.id}
+            value={option}
+            style={getStyles(option, opts, theme)}
+          >
+            {option.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 };
 
@@ -218,43 +189,28 @@ const SelectSingleLabelWithChips = (props) => {
   const opts = [];
   const { label, id, initValue, onChange, options } = props;
 
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: "20rem",
-      },
-    },
-  };
-
   return (
-    <>
-      <FormControl key={`${id}${label}`} className={classes.formControl}>
-        <InputLabel key={`${id}${label}`}>{label}</InputLabel>
-        <Select
-          id={id}
-          value={initValue || ""}
-          onChange={(event) => {
-            onChange(event);
-          }}
-          renderValue={(selected) => (
-            <div className={classes.chips}>
-              <Chip key={selected.id} label={selected.label} />
-            </div>
-          )}
-          MenuProps={MenuProps}
-        >
-          {options?.map((option) => (
-            <MenuItem
-              key={option.id}
-              value={option}
-              style={getStyles(option, opts, theme)}
-            >
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </>
+    <FormControl className={classes.formControl}>
+      <InputLabel>{label}</InputLabel>
+      <Select
+        id={id}
+        label={label}
+        value={initValue || ""}
+        onChange={(event) => onChange(event)}
+        renderValue={(selected) => <Chip label={selected.label} />}
+        MenuProps={menuProps}
+      >
+        {options?.map((option) => (
+          <MenuItem
+            key={option.id}
+            value={option}
+            style={getStyles(option, opts, theme)}
+          >
+            {option.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 };
 
