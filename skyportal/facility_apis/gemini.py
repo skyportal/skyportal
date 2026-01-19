@@ -112,11 +112,11 @@ class GeminiRequest:
     def _build_payload(self, request, session):
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError("No altdata provided")
+            raise ValueError("Missing allocation information.")
 
-        user_email = str(altdata.get("user_email")).strip()
-        programid = str(altdata.get("programid")).strip()
-        user_password = str(altdata.get("user_password")).strip()
+        user_email = altdata.get("user_email")
+        programid = altdata.get("programid")
+        user_password = altdata.get("user_password")
 
         if user_email is None or programid is None or user_password is None:
             raise ValueError("user_email, user_password, and programid are required")
@@ -307,6 +307,9 @@ class GEMINIAPI(FollowUpAPI):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError("Missing allocation information.")
+
+        if not any(altdata.get("programid", "").startswith(x) for x in ["GN", "GS"]):
+            raise ValueError("Invalid program ID, must start with GN or GS")
         is_south_site = altdata.get("programid", "").startswith("GS")
 
         try:
