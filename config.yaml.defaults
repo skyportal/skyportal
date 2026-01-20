@@ -86,8 +86,10 @@ app:
 
   gemini:
     protocol: https
-    host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
-    port: 8443 # this is the test server port, production is 443
+    north_prefix: gnodbtest # this is the test prefix, just remove 'test' for production
+    south_prefix: gsodbtest # this is the test prefix, just remove 'test' for production
+    domain: gemini.edu
+    port: 8443
 
   treasuremap_endpoint: https://treasuremap.space
 

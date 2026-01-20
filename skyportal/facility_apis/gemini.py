@@ -16,11 +16,18 @@ from ..utils.parse import get_list_typed
 from . import FollowUpAPI
 
 env, cfg = load_env()
-
-# Submission URL
-API_URL = f"{cfg['app.gemini.protocol']}://{cfg['app.gemini.host']}:{cfg['app.gemini.port']}/too"
-
 log = make_log("facility_apis/gemini")
+
+
+def get_api_url(program_id):
+    if not any(program_id.startswith(x) for x in ["GN", "GS"]):
+        raise ValueError("Invalid program ID, must start with GN or GS")
+    prefix = (
+        cfg["app.gemini.south_prefix"]
+        if program_id.startswith("GS")
+        else cfg["app.gemini.north_prefix"]
+    )
+    return f"{cfg['app.gemini.protocol']}://{prefix}.{cfg['app.gemini.domain']}:{cfg['app.gemini.port']}/too"
 
 
 class GeminiRequest:
@@ -107,7 +114,7 @@ class GeminiRequest:
     def _build_payload(self, request, session):
         altdata = request.allocation.altdata
         if not altdata:
-            raise ValueError("No altdata provided")
+            raise ValueError("Missing allocation information.")
 
         user_email = altdata.get("user_email")
         programid = altdata.get("programid")
@@ -310,8 +317,9 @@ class GEMINIAPI(FollowUpAPI):
             raise ValueError(f"Error building Gemini request: {e}")
 
         failed_requests = []
+        url = get_api_url(altdata.get("programid", ""))
         for payload in gemini_request.payload:
-            r = requests.post(API_URL, verify=False, params=payload)
+            r = requests.post(url, verify=False, params=payload)
             if r.status_code != 200:
                 failed_requests.append(
                     {
