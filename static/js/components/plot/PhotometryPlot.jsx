@@ -233,6 +233,7 @@ const PhotometryPlot = ({
   plotStyle,
   magsys,
   t0,
+  showExtinctionCorrection,
 }) => {
   const theme = useTheme();
   const classes = useStyles(theme);
@@ -267,8 +268,6 @@ const PhotometryPlot = ({
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
-  const [showExtinctionCorrection, setShowExtinctionCorrection] =
-    useState(false);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -1549,7 +1548,9 @@ const PhotometryPlot = ({
       </div>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ columnGap: 0 }}>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div
+            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+          >
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
             </Typography>
@@ -1558,10 +1559,13 @@ const PhotometryPlot = ({
                 checked={showNonDetections}
                 onChange={() => setShowNonDetections(!showNonDetections)}
                 inputProps={{ "aria-label": "controlled" }}
+                size="small"
               />
             </div>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div
+            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+          >
             <Typography id="photometry-show-hide" noWrap>
               Forced Photometry
             </Typography>
@@ -1570,30 +1574,15 @@ const PhotometryPlot = ({
                 checked={showForcedPhotometry}
                 onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
                 inputProps={{ "aria-label": "controlled" }}
+                size="small"
               />
             </div>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <Typography id="photometry-extinction-correction" noWrap>
-              Extinction Correction
-            </Typography>
-            <Tooltip title="Uses G23 extinction law with Rv=3.1">
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={showExtinctionCorrection}
-                  onChange={() =>
-                    setShowExtinctionCorrection(!showExtinctionCorrection)
-                  }
-                  inputProps={{ "aria-label": "controlled" }}
-                />
-              </div>
-            </Tooltip>
           </div>
         </div>
         <div className={classes.gridItem}>
           {t0 && (
             <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
             >
               <Typography id="T0-start-range" noWrap>
                 X axis since T0
@@ -1608,6 +1597,7 @@ const PhotometryPlot = ({
                       setDisplayXAxisSinceT0(!displayXAxisSinceT0);
                     }}
                     inputProps={{ "aria-label": "controlled" }}
+                    size="small"
                   />
                 </div>
               </Tooltip>
@@ -1615,7 +1605,7 @@ const PhotometryPlot = ({
           )}
           {t0 && displayXAxisSinceT0 && (
             <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
             >
               <Typography id="T0-start-range" noWrap>
                 T - T0 in log
@@ -1625,6 +1615,7 @@ const PhotometryPlot = ({
                   checked={displayXAxisInlog}
                   onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
                   inputProps={{ "aria-label": "controlled" }}
+                  size="small"
                 />
               </div>
             </div>
@@ -1636,7 +1627,14 @@ const PhotometryPlot = ({
             alignItems: "end",
           }}
         >
-          <div style={{ alignItems: "center" }}>
+          <div
+            style={{
+              alignItems: "center",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
             <Typography id="input-slider" noWrap>
               Marker Size
             </Typography>
@@ -1884,6 +1882,7 @@ PhotometryPlot.propTypes = {
   }),
   magsys: PropTypes.string,
   t0: PropTypes.number,
+  showExtinctionCorrection: PropTypes.bool,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1898,6 +1897,7 @@ PhotometryPlot.defaultProps = {
   },
   magsys: "ab",
   t0: null,
+  showExtinctionCorrection: false,
 };
 
 export default PhotometryPlot;
