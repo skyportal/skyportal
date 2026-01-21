@@ -29,7 +29,7 @@ def format_date(date_str: str) -> str:
     """Format date string to LCO API expected format."""
     return (
         arrow.get(date_str, tzinfo=timezone.utc).format("YYYY-MM-DDTHH:mm:ss.SSSSSS")
-        + "+00:00Z"
+        + "+00:00"
     )
 
 
