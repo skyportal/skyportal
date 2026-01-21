@@ -142,7 +142,7 @@ class UserObjListHandler(BaseHandler):
 
         data = self.get_json()
 
-        schema = Listing.__schema__(exclude=["user_id", "user", "obj"])
+        schema = Listing.__schema__(exclude=["user_id"])
         user_id = data.pop("user_id", None)
 
         if user_id is None:

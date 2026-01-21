@@ -302,7 +302,7 @@ class AnnotationHandler(BaseHandler):
 
             if associated_resource_type.lower() == "sources":
                 data["obj_id"] = resource_id
-                schema = Annotation.__schema__(exclude=["author_id", "author", "obj"])
+                schema = Annotation.__schema__(exclude=["author_id"])
                 try:
                     schema.load(data)
                 except ValidationError as e:
@@ -329,9 +329,7 @@ class AnnotationHandler(BaseHandler):
                     )
                 data["spectrum_id"] = resource_id
                 data["obj_id"] = spectrum.obj_id
-                schema = AnnotationOnSpectrum.__schema__(
-                    exclude=["author_id", "author", "obj", "spectrum"]
-                )
+                schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
                 try:
                     schema.load(data)
                 except ValidationError as e:
@@ -359,9 +357,7 @@ class AnnotationHandler(BaseHandler):
                     )
                 data["photometry_id"] = resource_id
                 data["obj_id"] = photometry.obj_id
-                schema = AnnotationOnPhotometry.__schema__(
-                    exclude=["author_id", "author", "obj", "photometry"]
-                )
+                schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
                 try:
                     schema.load(data)
                 except ValidationError as e:
