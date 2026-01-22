@@ -663,8 +663,12 @@ async def get_sources(
         if sourceID not in [None, ""]:
             try:
                 sourceID = str(sourceID).strip()
+                sourceID_lower = sourceID.lower()
                 query_params.append(
                     bindparam("sourceID", value=sourceID, type_=sa.String)
+                )
+                query_params.append(
+                    bindparam("sourceID_lower", value=sourceID_lower, type_=sa.String)
                 )
 
                 # we try to detect a potential TNS name as the sourceID,
@@ -693,7 +697,7 @@ async def get_sources(
                     tns_name = None
                 statements.append(
                     f"""
-                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""})
+                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""} OR EXISTS (SELECT 1 FROM unnest(objs.alias) AS a WHERE a LIKE '%' || :sourceID || '%'))
                         """
                 )
             except Exception as e:
@@ -721,7 +725,7 @@ async def get_sources(
             )
             statements.append(
                 """
-                (lower(objs.alias) LIKE '%' || :alias || '%')
+                (EXISTS (SELECT 1 FROM unnest(objs.alias) AS a WHERE lower(a) LIKE '%' || :alias || '%'))
                 """
             )
         if origin not in [None, ""]:

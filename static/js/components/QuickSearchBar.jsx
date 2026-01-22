@@ -179,7 +179,9 @@ const QuickSearchBar = () => {
               let match_name = matchingEntries[key].dateobs;
               if ((matchingEntries[key].aliases || []).length > 0) {
                 name = `${name} (${matchingEntries[key].aliases[0]})`;
-                match_name = `${match_name} ${matchingEntries[key].aliases[0]}`;
+                match_name = `${match_name} ${matchingEntries[key].aliases.join(
+                  " ",
+                )}`;
               }
               return {
                 id: matchingEntries[key].dateobs,
@@ -217,6 +219,16 @@ const QuickSearchBar = () => {
                     "",
                   )}`;
                 }
+              }
+              // Add aliases to match_name for searching
+              if (
+                (matchingEntries[key].alias || []).length > 0 &&
+                matchingEntries[key].alias[0]
+              ) {
+                match_name = `${match_name} ${matchingEntries[key].alias.join(
+                  " ",
+                )}`;
+                name = `${name} (${matchingEntries[key].alias[0]})`;
               }
               return {
                 id: matchingEntries[key].id,
@@ -326,7 +338,6 @@ const QuickSearchBar = () => {
         popupIcon={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             variant="outlined"
             placeholder="Search"
