@@ -1554,15 +1554,17 @@ const PhotometryPlot = ({
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
               <Typography id="photometry-validation-filter" noWrap>
-                Only validated
+                If validated
               </Typography>
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={showOnlyValidated}
-                  onChange={() => setShowOnlyValidated(!showOnlyValidated)}
-                  inputProps={{ "aria-label": "controlled" }}
-                />
-              </div>
+              <Tooltip title="Show only photometry points that have been validated">
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={showOnlyValidated}
+                    onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                    inputProps={{ "aria-label": "controlled" }}
+                  />
+                </div>
+              </Tooltip>
             </div>
           )}
         </div>
