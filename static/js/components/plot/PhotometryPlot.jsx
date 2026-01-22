@@ -540,6 +540,7 @@ const PhotometryPlot = ({
     phaseValue,
     showNonDetectionsValue,
     showForcedPhotometryValue,
+    showExtinctionCorrectionValue,
     existingPlotData,
     filter2colorMapper,
   ) => {
@@ -610,6 +611,7 @@ const PhotometryPlot = ({
             },
             visible:
               showNonDetectionsValue === false ||
+              showExtinctionCorrectionValue === true ||
               (upperLimitisFP === true && showForcedPhotometryValue === false)
                 ? false
                 : existingUpperLimitsTraceVisibility,
@@ -870,7 +872,8 @@ const PhotometryPlot = ({
               symbol: "triangle-down",
             },
             visible:
-              showNonDetectionsValue === false
+              showNonDetectionsValue === false ||
+              showExtinctionCorrectionValue === true
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
@@ -1104,6 +1107,7 @@ const PhotometryPlot = ({
         phase,
         showNonDetections,
         showForcedPhotometry,
+        showExtinctionCorrection,
         plotData || [],
         filter2color,
       );
@@ -1179,6 +1183,7 @@ const PhotometryPlot = ({
         phase,
         showNonDetections,
         showForcedPhotometry,
+        showExtinctionCorrection,
         plotData,
         filter2color,
       );
@@ -1218,6 +1223,7 @@ const PhotometryPlot = ({
         phase,
         showNonDetections,
         showForcedPhotometry,
+        showExtinctionCorrection,
         plotData,
         filter2color,
       );
@@ -1277,18 +1283,24 @@ const PhotometryPlot = ({
           newTrace.dataType === "upperLimits" &&
           newTrace.isForcedPhotometry
         ) {
-          newTrace.visible = showForcedPhotometry && showNonDetections;
-          newTrace.showlegend = showForcedPhotometry && showNonDetections;
+          newTrace.visible =
+            showForcedPhotometry &&
+            showNonDetections &&
+            !showExtinctionCorrection;
+          newTrace.showlegend =
+            showForcedPhotometry &&
+            showNonDetections &&
+            !showExtinctionCorrection;
         } else if (newTrace.dataType === "upperLimits") {
-          newTrace.visible = showNonDetections;
-          newTrace.showlegend = showNonDetections;
+          newTrace.visible = showNonDetections && !showExtinctionCorrection;
+          newTrace.showlegend = showNonDetections && !showExtinctionCorrection;
         }
 
         return newTrace;
       });
       setPlotData(newPlotData);
     }
-  }, [showNonDetections]);
+  }, [showNonDetections, showExtinctionCorrection]);
 
   useEffect(() => {
     if (plotData) {
@@ -1554,14 +1566,23 @@ const PhotometryPlot = ({
             <Typography id="photometry-show-hide" noWrap>
               Non-Detections
             </Typography>
-            <div className={classes.switchContainer}>
-              <Switch
-                checked={showNonDetections}
-                onChange={() => setShowNonDetections(!showNonDetections)}
-                inputProps={{ "aria-label": "controlled" }}
-                size="small"
-              />
-            </div>
+            <Tooltip
+              title={
+                showExtinctionCorrection
+                  ? "Non-detections are hidden when extinction correction is enabled"
+                  : ""
+              }
+            >
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={showNonDetections && !showExtinctionCorrection}
+                  onChange={() => setShowNonDetections(!showNonDetections)}
+                  disabled={showExtinctionCorrection}
+                  inputProps={{ "aria-label": "controlled" }}
+                  size="small"
+                />
+              </div>
+            </Tooltip>
           </div>
           <div
             style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
