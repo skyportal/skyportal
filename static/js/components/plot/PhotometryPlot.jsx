@@ -336,7 +336,11 @@ const PhotometryPlot = ({
         );
         return names.length === 0;
       });
-      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+      const utcDate = new Date((newPoint.mjd - 40587) * 86400000);
+      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}<br>UTC: ${utcDate
+        .toISOString()
+        .slice(0, 19)
+        .replace("T", " ")}`;
 
       if (newPoint.sec_since_t0) {
         newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
