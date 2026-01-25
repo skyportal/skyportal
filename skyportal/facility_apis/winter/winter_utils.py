@@ -54,8 +54,8 @@ class WINTERRequest:
             "filters": filters,
             "target_priority": target_priority,
             "target_name": str(request.obj.id)[:30],  # 30 characters max
-            "t_exp": t_exp,  # Total exposure time = exposure time (per dither) * n_dither
-            "n_exp": 1,  # We force it to 1 for now
+            "total_exposure_time": t_exp,  # Total exposure time = exposure time (per dither) * n_dither
+            "n_repetitions": 1,  # We force it to 1 for now
             "n_dither": n_dither,
             "dither_distance": dither_distance,
             "start_time_mjd": start_time_mjd,
