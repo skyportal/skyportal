@@ -105,6 +105,15 @@ app:
       token:
       topic: skyportal.skyportal
       test_topic: skyportal.skyportal_test
+      sync:
+        scimma_username: # SCiMMA/Kafka username for authentication
+        scimma_password: # SCiMMA/Kafka password for authentication
+        kafka_server: kafka.scimma.org
+        from_start: False  # Start from beginning of topic (true) or latest message (false)
+        max_age_days:  # Skip messages older than N days (null/empty = no limit)
+        bot_user_id:   # User ID of the bot account that will save sources and own photometry
+        group_ids: []  # List of group IDs to assign imported sources to
+        instrument_tns_ids: # List of TNS IDs of instruments for imported photometry
 
   winter:
     protocol: http
