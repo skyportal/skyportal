@@ -66,7 +66,7 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
 
 
 def build_instrument_mapping(session, tns_ids: list[int]):
-    """Build a mapping from instrument names to database IDs based on TNS IDs.
+    """Build mappings from instrument names and TNS IDs to database IDs.
 
     Parameters
     ----------
@@ -77,23 +77,26 @@ def build_instrument_mapping(session, tns_ids: list[int]):
 
     Returns
     -------
-    mapping : dict[str, int]
+    name_mapping : dict[str, int]
         Dictionary mapping instrument names to database IDs
+    tns_id_mapping : dict[int, int]
+        Dictionary mapping instrument TNS IDs to database IDs
     missing_tns_ids : list[int]
         List of TNS IDs that were not found in the database
     """
     if not tns_ids:
-        return {}, []
+        return {}, {}, []
 
     instruments = session.scalars(
         sa.select(Instrument).where(Instrument.tns_id.in_(tns_ids))
     ).all()
 
-    mapping = {inst.name: inst.id for inst in instruments}
+    name_mapping = {inst.name: inst.id for inst in instruments}
+    tns_id_mapping = {inst.tns_id: inst.id for inst in instruments if inst.tns_id}
     found_tns_ids = {inst.tns_id for inst in instruments}
     missing_tns_ids = [tns_id for tns_id in tns_ids if tns_id not in found_tns_ids]
 
-    return mapping, missing_tns_ids
+    return name_mapping, tns_id_mapping, missing_tns_ids
 
 
 def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
@@ -273,11 +276,13 @@ class SourceProcessor:
     def __init__(
         self,
         default_group_ids: list[int] = None,
-        instrument_mapping: dict[str, int] = None,
+        instrument_name_mapping: dict[str, int] = None,
+        instrument_tns_id_mapping: dict[int, int] = None,
         bot_user_id: int = 1,
     ):
         self.default_group_ids = default_group_ids or []
-        self.instrument_mapping = instrument_mapping or {}
+        self.instrument_name_mapping = instrument_name_mapping or {}
+        self.instrument_tns_id_mapping = instrument_tns_id_mapping or {}
         self.bot_user_id = bot_user_id
 
     def process_message(self, session, data: dict[str, Any]) -> None:
@@ -363,27 +368,62 @@ class SourceProcessor:
 
             # Add photometry with deduplication
             if photometry:
-                if not self.instrument_mapping:
+                if (
+                    not self.instrument_name_mapping
+                    and not self.instrument_tns_id_mapping
+                ):
                     log_verbose("    ✗ No instruments configured, skipping photometry")
                     return
 
-                # Group photometry by instrument name
-                phot_by_instrument = defaultdict(list)
+                # Group photometry by resolved instrument_id
+                phot_by_instrument_id = defaultdict(list)
+                unresolved_instruments = defaultdict(int)
+                matched_by_tns_id = defaultdict(int)
+
                 for point in photometry:
+                    instrument_id = None
                     instrument_name = point.get("instrument")
-                    if instrument_name:
-                        phot_by_instrument[instrument_name].append(point)
 
-                # Process photometry for each instrument
-                for instrument_name, inst_phot in phot_by_instrument.items():
-                    instrument_id = self.instrument_mapping.get(instrument_name)
+                    # Try to extract instrument_tns_id from comments field
+                    instrument_tns_id = None
+                    comments = point.get("comments", "")
+                    if "instrument_tns_id=" in comments:
+                        try:
+                            instrument_tns_id = int(
+                                comments.split("instrument_tns_id=")[1].split()[0]
+                            )
+                        except (ValueError, IndexError):
+                            pass
 
-                    if instrument_id is None:
-                        log_verbose(
-                            f"    ✗ Instrument '{instrument_name}' not in configured instruments, skipping {len(inst_phot)} points"
+                    # see if TNS ID are available
+                    if instrument_tns_id and self.instrument_tns_id_mapping:
+                        instrument_id = self.instrument_tns_id_mapping.get(
+                            instrument_tns_id
                         )
-                        continue
+                        if instrument_id:
+                            matched_by_tns_id[instrument_tns_id] += 1
 
+                    # name matching
+                    if instrument_id is None and instrument_name:
+                        instrument_id = self.instrument_name_mapping.get(
+                            instrument_name
+                        )
+
+                    if instrument_id:
+                        phot_by_instrument_id[instrument_id].append(point)
+                    else:
+                        key = instrument_tns_id or instrument_name or "unknown"
+                        unresolved_instruments[key] += 1
+
+                for tns_id, count in matched_by_tns_id.items():
+                    log_verbose(f"    Matched {count} points by TNS ID {tns_id}")
+
+                for key, count in unresolved_instruments.items():
+                    log_verbose(
+                        f"    ✗ Instrument '{key}' not in configured instruments, skipping {count} points"
+                    )
+
+                for instrument_id, inst_phot in phot_by_instrument_id.items():
                     added_count, duplicate_count = add_photometry_with_deduplication(
                         session,
                         obj_id,
@@ -395,7 +435,7 @@ class SourceProcessor:
 
                     skipped_count = len(inst_phot) - added_count - duplicate_count
                     log_verbose(
-                        f"    → {instrument_name}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
+                        f"    → instrument_id {instrument_id}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
                     )
 
             session.commit()
@@ -419,7 +459,8 @@ class HermesSyncService:
         from_start: bool = False,
         max_age_days: float | None = None,
         group_ids: list[int] | None = None,
-        instrument_mapping: dict[str, int] | None = None,
+        instrument_name_mapping: dict[str, int] | None = None,
+        instrument_tns_id_mapping: dict[int, int] | None = None,
         bot_user_id: int = 1,
     ):
         self.username = username
@@ -432,11 +473,14 @@ class HermesSyncService:
 
         self.processor = SourceProcessor(
             default_group_ids=group_ids or [],
-            instrument_mapping=instrument_mapping,
+            instrument_name_mapping=instrument_name_mapping,
+            instrument_tns_id_mapping=instrument_tns_id_mapping,
             bot_user_id=bot_user_id,
         )
 
-        instrument_names = list(instrument_mapping.keys()) if instrument_mapping else []
+        instrument_names = (
+            list(instrument_name_mapping.keys()) if instrument_name_mapping else []
+        )
         log_verbose(
             f"Initialized Hermes sync service with bot_user_id={bot_user_id}, "
             f"group_ids={group_ids}, instruments={instrument_names}"
@@ -592,8 +636,8 @@ def service(*args, **kwargs):
 
         # Build instrument mapping from TNS IDs
         if instrument_tns_ids:
-            instrument_mapping, missing_tns_ids = build_instrument_mapping(
-                session, instrument_tns_ids
+            instrument_name_mapping, instrument_tns_id_mapping, missing_tns_ids = (
+                build_instrument_mapping(session, instrument_tns_ids)
             )
 
             if missing_tns_ids:
@@ -601,16 +645,17 @@ def service(*args, **kwargs):
                     f"Warning: Instruments with TNS IDs {missing_tns_ids} not found in database. "
                 )
 
-            if instrument_mapping:
+            if instrument_name_mapping:
                 log_verbose(
-                    f"Configured instruments: {list(instrument_mapping.keys())}"
+                    f"Configured instruments: {list(instrument_name_mapping.keys())}"
                 )
             else:
                 log(
                     "Warning: No instruments found for configured TNS IDs. Photometry will be skipped."
                 )
         else:
-            instrument_mapping = {}
+            instrument_name_mapping = {}
+            instrument_tns_id_mapping = {}
             log(
                 "Warning: No instrument_tns_ids configured. Photometry will be skipped. "
                 "Please configure 'app.hermes.sync.instrument_tns_ids' in config.yaml"
@@ -624,7 +669,8 @@ def service(*args, **kwargs):
         from_start=from_start,
         max_age_days=max_age_days,
         group_ids=group_ids,
-        instrument_mapping=instrument_mapping,
+        instrument_name_mapping=instrument_name_mapping,
+        instrument_tns_id_mapping=instrument_tns_id_mapping,
         bot_user_id=bot_user_id,
     )
 
