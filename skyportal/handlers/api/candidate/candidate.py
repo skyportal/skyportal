@@ -1078,7 +1078,7 @@ class CandidateHandler(BaseHandler):
                         c.strip() for c in photometry_annotations_filter.split(",")
                     ]
                 else:
-                    raise ValueError(
+                    return self.error(
                         "Invalid annotationsFilter value -- must provide at least one string value"
                     )
             if photometry_annotations_filter_origin is not None:
@@ -1088,7 +1088,7 @@ class CandidateHandler(BaseHandler):
                         for c in photometry_annotations_filter_origin.split(",")
                     ]
                 else:
-                    raise ValueError(
+                    return self.error(
                         "Invalid annotationsFilterOrigin value -- must provide at least one string value"
                     )
 
@@ -1102,7 +1102,7 @@ class CandidateHandler(BaseHandler):
                     for ann_filt in photometry_annotations_filter:
                         ann_split = ann_filt.split(":")
                         if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            raise ValueError(
+                            return self.error(
                                 "Invalid photometryAnnotationsFilter value -- annotation filter must have 1 or 3 values"
                             )
                         name = ann_split[0].strip()
@@ -1119,13 +1119,13 @@ class CandidateHandler(BaseHandler):
                             try:
                                 value = float(value)
                             except ValueError as e:
-                                raise ValueError(
+                                return self.error(
                                     f"Invalid annotation filter value: {e}"
                                 )
                             op = ann_split[2].strip()
                             op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                             if op not in op_options:
-                                raise ValueError(f"Invalid operator: {op}")
+                                return self.error(f"Invalid operator: {op}")
                             comp_function = getattr(operator, op)
 
                             photometry_annotations_query = (
@@ -1241,11 +1241,11 @@ class CandidateHandler(BaseHandler):
                     ).first()
                 if localization is None:
                     if localization_name is not None:
-                        raise ValueError(
+                        return self.error(
                             f"Localization {localization_dateobs} with name {localization_name} not found",
                         )
                     else:
-                        raise ValueError(
+                        return self.error(
                             f"Localization {localization_dateobs} not found",
                         )
 
