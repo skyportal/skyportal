@@ -20,6 +20,7 @@ RUN apt-get update && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
     apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter && \
+    npm install -g npm@latest && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ARG SKYPORTAL_UID=1000
