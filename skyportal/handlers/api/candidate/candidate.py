@@ -958,10 +958,16 @@ class CandidateHandler(BaseHandler):
                 )
 
             if list_name is not None:
-                q = q.where(
-                    Listing.list_name == list_name,
-                    Listing.user_id == self.associated_user_object.id,
+                listing_subquery = (
+                    Obj.select(session.user_or_token, columns=[Obj.id])
+                    .join(Listing)
+                    .where(
+                        Listing.list_name == list_name,
+                        Listing.user_id == self.associated_user_object.id,
+                    )
+                    .subquery()
                 )
+                q = q.join(listing_subquery, Obj.id == listing_subquery.c.id)
             if list_name_reject is not None:
                 right = (
                     Obj.select(session.user_or_token, columns=[Obj.id])
