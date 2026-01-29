@@ -1093,6 +1093,12 @@ class CandidateHandler(BaseHandler):
                 or photometry_annotations_filter_after is not None
                 or photometry_annotations_filter is not None
             ):
+                photometry_annotations_query = create_photometry_annotations_query(
+                    session,
+                    photometry_annotations_filter_origin=photometry_annotations_filter_origin,
+                    photometry_annotations_filter_before=photometry_annotations_filter_before,
+                    photometry_annotations_filter_after=photometry_annotations_filter_after,
+                )
                 if photometry_annotations_filter is not None:
                     for ann_filt in photometry_annotations_filter:
                         ann_split = ann_filt.split(":")
@@ -1101,13 +1107,6 @@ class CandidateHandler(BaseHandler):
                                 "Invalid photometryAnnotationsFilter value -- annotation filter must have 1 or 3 values"
                             )
                         name = ann_split[0].strip()
-
-                        photometry_annotations_query = create_photometry_annotations_query(
-                            session,
-                            photometry_annotations_filter_origin=photometry_annotations_filter_origin,
-                            photometry_annotations_filter_before=photometry_annotations_filter_before,
-                            photometry_annotations_filter_after=photometry_annotations_filter_after,
-                        )
 
                         if len(ann_split) == 3:
                             value = ann_split[1].strip()
@@ -1138,14 +1137,6 @@ class CandidateHandler(BaseHandler):
                                     )
                                 )
                             )
-
-                else:
-                    photometry_annotations_query = create_photometry_annotations_query(
-                        session,
-                        photometry_annotations_filter_origin=photometry_annotations_filter_origin,
-                        photometry_annotations_filter_before=photometry_annotations_filter_before,
-                        photometry_annotations_filter_after=photometry_annotations_filter_after,
-                    )
 
                 photometry_annotations_subquery = (
                     photometry_annotations_query.subquery()
