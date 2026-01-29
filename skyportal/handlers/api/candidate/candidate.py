@@ -66,17 +66,13 @@ log = make_log("api/candidate")
 
 def update_summary_history_if_relevant(results_data, obj, user):
     if "summary" in results_data:
-        if obj.summary_history is None:
-            summary_history = []
-        else:
-            summary_history = copy(obj.summary_history)
-
+        summary_history = copy(obj.summary_history) if obj.summary_history else []
         summary_params = {
             "set_by_user_id": user.id,
             "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "summary": results_data["summary"],
             "is_bot": results_data.get("is_bot", False),
-            "analysis_id": results_data.get("analysis_id", None),
+            "analysis_id": results_data.get("analysis_id"),
         }
 
         if "summary_origin" in results_data:
@@ -89,20 +85,16 @@ def update_summary_history_if_relevant(results_data, obj, user):
 
 def update_redshift_history_if_relevant(request_data, obj, user):
     if "redshift" in request_data:
-        if obj.redshift_history is None:
-            redshift_history = []
-        else:
-            redshift_history = copy(obj.redshift_history)
-
+        redshift_history = copy(obj.redshift_history) if obj.redshift_history else []
         history_params = {
             "set_by_user_id": user.id,
             "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "value": request_data["redshift"],
-            "uncertainty": request_data.get("redshift_error", None),
+            "uncertainty": request_data.get("redshift_error"),
         }
 
-        origin = request_data.get("redshift_origin", None)
-        if isinstance(origin, str) and len(origin.strip()) > 0:
+        origin = request_data.get("redshift_origin")
+        if isinstance(origin, str) and origin.strip():
             history_params["origin"] = origin
 
         redshift_history.append(history_params)
@@ -111,8 +103,8 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 def update_healpix_if_relevant(request_data, obj):
     # first check if the ra and dec is being updated
-    ra = request_data.get("ra", None)
-    dec = request_data.get("dec", None)
+    ra = request_data.get("ra")
+    dec = request_data.get("dec")
 
     if ra is not None and dec is not None:
         # This adds a healpix index for a new object being created
@@ -124,7 +116,6 @@ def update_healpix_if_relevant(request_data, obj):
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(
             obj.ra * u.deg, obj.dec * u.deg
         )
-        return
 
 
 def create_photometry_annotations_query(
@@ -249,7 +240,7 @@ def include_requested_obj_data(
 
 
 def add_computed_fields(candidate_info, obj):
-    if len(obj.photstats) > 0 and obj.photstats[-1].last_detected_mjd is not None:
+    if obj.photstats and obj.photstats[-1].last_detected_mjd is not None:
         candidate_info["last_detected_at"] = Time(
             obj.photstats[-1].last_detected_mjd, format="mjd"
         ).datetime
@@ -920,7 +911,7 @@ class CandidateHandler(BaseHandler):
 
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
-                # the LIMT/OFFSET helper function down the line once other query
+                # the LIMIT/OFFSET helper function down the line once other query
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
@@ -1147,16 +1138,13 @@ class CandidateHandler(BaseHandler):
                 photometry_annotations_subquery = (
                     photometry_annotations_query.subquery()
                 )
-                obj_photometry_annotations_query = sa.select(Obj.id)
-                obj_photometry_annotations_query = (
-                    obj_photometry_annotations_query.join(
-                        photometry_annotations_subquery,
-                        sa.and_(
-                            photometry_annotations_subquery.c.count
-                            >= photometry_annotations_filter_min_count,
-                            photometry_annotations_subquery.c.obj_id == Obj.id,
-                        ),
-                    )
+                obj_photometry_annotations_query = sa.select(Obj.id).join(
+                    photometry_annotations_subquery,
+                    sa.and_(
+                        photometry_annotations_subquery.c.count
+                        >= photometry_annotations_filter_min_count,
+                        photometry_annotations_subquery.c.obj_id == Obj.id,
+                    ),
                 )
                 obj_photometry_annotations_subquery = (
                     obj_photometry_annotations_query.subquery()
@@ -1204,7 +1192,7 @@ class CandidateHandler(BaseHandler):
                     photstat_subquery_columns.append(column)
                     photstat_subquery_conditions.append(column >= number_of_detections)
 
-                if len(photstat_subquery_conditions) > 0:
+                if photstat_subquery_conditions:
                     photstat_subquery = (
                         PhotStat.select(
                             session.user_or_token, columns=photstat_subquery_columns
@@ -1577,14 +1565,13 @@ class CandidateHandler(BaseHandler):
                 .where(Candidate.obj_id == obj_id)
                 .where(Candidate.filter_id == filter_id)
             ).all()
-            if len(cands_to_delete) == 0:
+            if not cands_to_delete:
                 return self.error(
                     "Invalid (obj_id, filter_id) pairing - no matching candidates"
                 )
             for cand in cands_to_delete:
                 session.delete(cand)
             session.commit()
-
             return self.success()
 
 
@@ -1607,15 +1594,7 @@ def get_obj_id_values(obj_ids):
             column("id", String),
             column("ordering", Integer),
         )
-        .data(
-            [
-                (
-                    obj_id,
-                    idx,
-                )
-                for idx, obj_id in enumerate(obj_ids)
-            ]
-        )
+        .data([(obj_id, idx) for idx, obj_id in enumerate(obj_ids)])
         .alias("values_table")
     )
     return values_table
@@ -1644,7 +1623,7 @@ def grab_query_results(
     # We want to essentially grab only the candidate objects as they first appear
     # in the query results, and ignore these other irrelevant annotation entries.
 
-    # Add a "row_num" column to the desire query that explicitly encodes the ordering
+    # Add a "row_num" column to the desired query that explicitly encodes the ordering
     # of the query results - remember that these query rows are essentially
     # (Obj, Annotation) tuples, so the earliest row numbers for a given Obj is
     # the one we want to adhere to (and the later ones are annotation records for
@@ -1663,7 +1642,7 @@ def grab_query_results(
     # in the order that they first appear in the query (per the row_num values)
     # NOTE: It is probably possible to grab the full Obj records here instead of
     # just the ID values, but querying "full_query" here means we lost the original
-    # ORM mappings, so we would have to explicity re-label the columns here.
+    # ORM mappings, so we would have to explicitly re-label the columns here.
     # It is much more straightforward to just get an ordered list of Obj ID
     # values here and get the corresponding n_items_per_page full Obj objects
     # at the end, I think, for minimal additional overhead.
@@ -1741,7 +1720,7 @@ def grab_query_results(
         options.append(joinedload(Obj.photstats))
 
     items = []
-    if len(obj_ids_in_page) > 0:
+    if obj_ids_in_page:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
