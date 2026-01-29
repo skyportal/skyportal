@@ -1,6 +1,6 @@
 import datetime
 import json
-import operator  # noqa: F401
+import operator
 import re
 import time
 import uuid
@@ -73,7 +73,7 @@ def update_summary_history_if_relevant(results_data, obj, user):
 
         summary_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "summary": results_data["summary"],
             "is_bot": results_data.get("is_bot", False),
             "analysis_id": results_data.get("analysis_id", None),
@@ -96,7 +96,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
         history_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "value": request_data["redshift"],
             "uncertainty": request_data.get("redshift_error", None),
         }
@@ -114,13 +114,13 @@ def update_healpix_if_relevant(request_data, obj):
     ra = request_data.get("ra", None)
     dec = request_data.get("dec", None)
 
-    if (ra is not None) and (dec is not None):
+    if ra is not None and dec is not None:
         # This adds a healpix index for a new object being created
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         return
 
     # otherwise make sure healpix is correct
-    if (obj.ra is not None) and (obj.dec is not None):
+    if obj.ra is not None and obj.dec is not None:
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(
             obj.ra * u.deg, obj.dec * u.deg
         )
@@ -248,6 +248,20 @@ def include_requested_obj_data(
     return candidate
 
 
+def add_computed_fields(candidate_info, obj):
+    if len(obj.photstats) > 0 and obj.photstats[-1].last_detected_mjd is not None:
+        candidate_info["last_detected_at"] = Time(
+            obj.photstats[-1].last_detected_mjd, format="mjd"
+        ).datetime
+    else:
+        candidate_info["last_detected_at"] = None
+    candidate_info["gal_lon"] = obj.gal_lon_deg
+    candidate_info["gal_lat"] = obj.gal_lat_deg
+    candidate_info["luminosity_distance"] = obj.luminosity_distance
+    candidate_info["dm"] = obj.dm
+    candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
@@ -292,10 +306,9 @@ class CandidateHandler(BaseHandler):
             result = connection.execute(stmt)
             if result.fetchone():
                 return self.success()
-            else:
-                return self.error(
-                    message=f"No candidate with object ID {obj_id}", status=404
-                )
+            return self.error(
+                message=f"No candidate with object ID {obj_id}", status=404
+            )
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -621,7 +634,7 @@ class CandidateHandler(BaseHandler):
             description: |
               Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True.
           - in: query
-            name: ignoreForcedPhotometry
+            name: excludeForcedPhotometry
             schema:
               type: boolean
             description: |
@@ -734,23 +747,7 @@ class CandidateHandler(BaseHandler):
                         .unique()
                         .all()
                     )
-                if len(c.photstats) > 0:
-                    if c.photstats[-1].last_detected_mjd is not None:
-                        candidate_info["last_detected_at"] = Time(
-                            c.photstats[-1].last_detected_mjd, format="mjd"
-                        ).datetime
-                    else:
-                        candidate_info["last_detected_at"] = None
-                else:
-                    candidate_info["last_detected_at"] = None
-                candidate_info["gal_lon"] = c.gal_lon_deg
-                candidate_info["gal_lat"] = c.gal_lat_deg
-                candidate_info["luminosity_distance"] = c.luminosity_distance
-                candidate_info["dm"] = c.dm
-                candidate_info["angular_diameter_distance"] = (
-                    c.angular_diameter_distance
-                )
-
+                add_computed_fields(candidate_info, c)
                 candidate_info = recursive_to_dict(candidate_info)
 
                 query_size = sizeof(candidate_info)
@@ -810,7 +807,7 @@ class CandidateHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        if localization_dateobs or localization_name and require_detections:
+        if (localization_dateobs or localization_name) and require_detections:
             if not first_detected_date or not last_detected_date:
                 return self.error(
                     "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
@@ -969,7 +966,7 @@ class CandidateHandler(BaseHandler):
                 right = (
                     Obj.select(session.user_or_token, columns=[Obj.id])
                     .join(Listing)
-                    .filter(
+                    .where(
                         Listing.list_name == list_name_reject,
                         Listing.user_id == self.associated_user_object.id,
                     )
@@ -991,12 +988,12 @@ class CandidateHandler(BaseHandler):
                         )
 
                     if "origin" not in new_filter:
-                        self.error(
+                        return self.error(
                             f'Invalid annotation filter list item {item}: "origin" is required.'
                         )
 
                     if "key" not in new_filter:
-                        self.error(
+                        return self.error(
                             f'Invalid annotation filter list item {item}: "key" is required.'
                         )
 
@@ -1024,7 +1021,7 @@ class CandidateHandler(BaseHandler):
                                 # If not, this is just a string field and we don't
                                 # need the string formatting above
                                 pass
-                            q = q.filter(
+                            q = q.where(
                                 Annotation.origin == new_filter["origin"],
                                 Annotation.data[new_filter["key"]].astext == value,
                             )
@@ -1051,11 +1048,9 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None:
                 sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
                 sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
-                # Define a custom sort order to have annotations from the correct
-                # origin first, all others afterwards
+                # Define a custom sort order to have annotations from the correct origin first, all others afterward
                 origin_sort_order = case(
-                    {sort_by_origin: 1},
-                    value=Annotation.origin,
+                    (Annotation.origin == sort_by_origin, 1),
                     else_=None,
                 )
                 annotation_sort_criterion = (
@@ -1064,7 +1059,7 @@ class CandidateHandler(BaseHandler):
                     else Annotation.data[sort_by_key].nullslast()
                 )
                 # Don't apply the order by just yet. Save it so we can pass it to
-                # the LIMT/OFFSET helper function.
+                # the LIMIT/OFFSET helper function.
                 order_by = [
                     origin_sort_order.nullslast(),
                     annotation_sort_criterion,
@@ -1093,15 +1088,15 @@ class CandidateHandler(BaseHandler):
                     )
 
             if (
-                (photometry_annotations_filter_origin is not None)
-                or (photometry_annotations_filter_before is not None)
-                or (photometry_annotations_filter_after is not None)
-                or (photometry_annotations_filter is not None)
+                photometry_annotations_filter_origin is not None
+                or photometry_annotations_filter_before is not None
+                or photometry_annotations_filter_after is not None
+                or photometry_annotations_filter is not None
             ):
                 if photometry_annotations_filter is not None:
                     for ann_filt in photometry_annotations_filter:
                         ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
+                        if len(ann_split) not in (1, 3):
                             return self.error(
                                 "Invalid photometryAnnotationsFilter value -- annotation filter must have 1 or 3 values"
                             )
@@ -1123,8 +1118,7 @@ class CandidateHandler(BaseHandler):
                                     f"Invalid annotation filter value: {e}"
                                 )
                             op = ann_split[2].strip()
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
+                            if op not in {"lt", "le", "eq", "ne", "ge", "gt"}:
                                 return self.error(f"Invalid operator: {op}")
                             comp_function = getattr(operator, op)
 
@@ -1287,7 +1281,7 @@ class CandidateHandler(BaseHandler):
                 )
 
                 localizationtile_subquery = (
-                    sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    sa.select(localizationtilescls.probdensity, cum_prob).where(
                         localizationtilescls.localization_id == localization.id
                     )
                 ).subquery()
@@ -1295,7 +1289,7 @@ class CandidateHandler(BaseHandler):
                 min_probdensity = (
                     sa.select(
                         sa.func.min(localizationtile_subquery.columns.probdensity)
-                    ).filter(
+                    ).where(
                         localizationtile_subquery.columns.cum_prob
                         <= localization_cumprob
                     )
@@ -1310,7 +1304,7 @@ class CandidateHandler(BaseHandler):
 
                 tiles_subquery = (
                     sa.select(Obj.id)
-                    .filter(
+                    .where(
                         localizationtilescls.id.in_(tile_ids),
                         localizationtilescls.healpix.contains(Obj.healpix),
                     )
@@ -1350,6 +1344,9 @@ class CandidateHandler(BaseHandler):
                 .all()
             )
             candidate_list = []
+            if autosave:
+                from ..source import post_source
+
             for (obj,) in query_results["candidates"]:
                 with session.no_autoflush:
                     obj.is_source = obj.id in matching_source_ids
@@ -1390,8 +1387,6 @@ class CandidateHandler(BaseHandler):
                         ).all()
                     ]
                     if autosave:
-                        from ..source import post_source
-
                         source = {
                             "id": obj.id,
                             "group_ids": autosave_group_ids,
@@ -1419,22 +1414,7 @@ class CandidateHandler(BaseHandler):
                     candidate_list[-1]["annotations"] = (
                         selected_groups_annotations + other_annotations
                     )
-                    if len(obj.photstats) > 0:
-                        if obj.photstats[-1].last_detected_mjd is not None:
-                            candidate_list[-1]["last_detected_at"] = Time(
-                                obj.photstats[-1].last_detected_mjd, format="mjd"
-                            ).datetime
-                        else:
-                            candidate_list[-1]["last_detected_at"] = None
-                    else:
-                        candidate_list[-1]["last_detected_at"] = None
-                    candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
-                    candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
-                    candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
-                    candidate_list[-1]["dm"] = obj.dm
-                    candidate_list[-1]["angular_diameter_distance"] = (
-                        obj.angular_diameter_distance
-                    )
+                    add_computed_fields(candidate_list[-1], obj)
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
@@ -1506,19 +1486,13 @@ class CandidateHandler(BaseHandler):
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
             ).first()
-            if obj is None:
-                obj_already_exists = False
-            else:
-                obj_already_exists = True
+            obj_already_exists = obj is not None
             schema = Obj.__schema__()
 
-            ra = data.get("ra", None)
-            dec = data.get("dec", None)
-
-            if ra is None and not obj_already_exists:
+            if data.get("ra") is None and not obj_already_exists:
                 return self.error("RA must not be null for a new Obj")
 
-            if dec is None and not obj_already_exists:
+            if data.get("dec") is None and not obj_already_exists:
                 return self.error("Dec must not be null for a new Obj")
 
             passing_alert_id = data.pop("passing_alert_id", None)
@@ -1545,7 +1519,7 @@ class CandidateHandler(BaseHandler):
 
             filters = session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
-            )
+            ).all()
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
