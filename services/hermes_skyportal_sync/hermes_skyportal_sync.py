@@ -434,8 +434,9 @@ class SourceProcessor:
                     )
 
                     skipped_count = len(inst_phot) - added_count - duplicate_count
+                    inst_name = inst_phot[0].get("instrument", instrument_id)
                     log_verbose(
-                        f"    → instrument_id {instrument_id}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
+                        f"    → {inst_name}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
                     )
 
             session.commit()
