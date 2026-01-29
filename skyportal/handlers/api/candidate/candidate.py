@@ -799,9 +799,14 @@ class CandidateHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
         if (localization_dateobs or localization_name) and require_detections:
-            if not first_detected_date or not last_detected_date:
+            if (
+                not first_detected_date
+                or not last_detected_date
+                or number_of_detections is None
+            ):
                 return self.error(
-                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
+                    "must specify startDate, endDate and numberDetections when requireDetections is True and "
+                    "filtering by localizationDateobs or localizationName"
                 )
             try:
                 first_detected_date = arrow.get(first_detected_date).datetime
