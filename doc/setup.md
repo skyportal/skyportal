@@ -2,8 +2,7 @@
 
 ## Dependencies
 
-SkyPortal requires the following software to be installed.  We show
-how to install them on MacOS and Debian-based systems below.
+SkyPortal requires the following software to be installed. We show how to install them on MacOS and Debian-based systems below.
 
 - Python 3.9 or later (<3.13, since `numba` requires <3.13)
 - Supervisor (v>=4.2.1)
@@ -18,8 +17,7 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 
 ## Source download, Python environment
 
-Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
-virtual environment.
+Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new virtual environment.
 
 ```
 git clone https://github.com/skyportal/skyportal.git
@@ -30,7 +28,7 @@ source skyportal_env/bin/activate
 
 You can also use `conda` or `pipenv` to create your environment.
 
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
+If you are developing on a Mac with an ARM (M-series) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric). Packages known to have ARM64 compatibility issues (as of Jan 2026): `sncosmo`, `python-ligo-lw`, `igwn-ligolw`, `ligo-segments`, `ligo.skymap`. 
 
 ```
 CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
@@ -41,7 +39,21 @@ conda config --add channels conda-forge
 conda config --set channel_priority strict
 ```
 
+Verify your environment is correctly configured
+```
+# check which Python and pip you're using
+which python
+which pip
 
+# verify architecture and environment paths
+python -c "import platform,sys; print(platform.machine()); print(sys.executable)"
+python -m pip -V
+```
+
+Expected output:
+- `platform.machine()` should show `x86_64` (not `arm64`)
+- `sys.executable` should point to your conda environment (should contain `skyportal_env`)
+- `pip -V` should point inside the conda environment
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
@@ -51,38 +63,38 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 1. Install project dependencies
 
-Using Homebrew, install core dependencies:
-```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
-```
-If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
-```
-brew tap denji/nginx && brew install nginx-full --with-brotli
-```
+	Using Homebrew, install core dependencies:
+	```
+	brew install supervisor nginx postgresql node llvm libomp gsl rust
+	```
+	If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
+	```
+	brew tap denji/nginx && brew install nginx-full --with-brotli
+	```
 
- _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
+	_If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
-Then, install Node.js with NVM:
-```
-nvm install node
-```
-Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
-```
-brew install hdf5 c-blosc lzo bzip2
-```
-After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
+	Then, install Node.js with NVM:
+	```
+	nvm install node
+	```
+	Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
+	```
+	brew install hdf5 c-blosc lzo bzip2
+	```
+	After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
 
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+	- To start automatically at login: `brew services start postgresql`
+	- To start manually: `pg_ctl -D /usr/local/var/postgres start`
 
-  You may also need to run the following command to create the proper admin user:
+	You may also need to run the following command to create the proper admin user:
 
-  ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
-  ```
+	```bash
+	/usr/local/opt/postgres/bin/createuser -s postgres
+	```
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -103,12 +115,25 @@ After installing each package, Homebrew will print out the installation paths. Y
 	conda install pyproj numba Shapely
 	```
 
-5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
+6. (ARM M-series) Explicitly install packages with known ARM64 compatibility issues using conda rather than pip:
 
    ```
    conda activate skyportal_env
-   conda install ligo.skymap
+   CONDA_NO_PLUGINS=true CONDA_SUBDIR=osx-64 conda install --solver=classic -c conda-forge -y \
+     sncosmo timezonefinder python-ligo-lw igwn-ligolw ligo-segments ligo.skymap
    ```
+   These packages have compiled extensions that can cause architecture mismatch errors if installed via pip on Apple Silicon. Installing them via conda-forge with the osx-64 subdir ensures x86_64 compatibility.
+
+7. (Optional but Recommended) Configure pip Guardrails
+   When launching, `make run` uses pip to install requirements. It helps to set pip guardrails so that the conda-installed packages do not get reinstalled/updated using ARM64 wheels.
+	```
+	python -m pip config set global.no-binary \
+		"extinction,pymongo,pyzmq,sncosmo,timezonefinder,igwn-ligolw,python-ligo-lw,ligo.skymap"
+	python -m pip config set global.upgrade-strategy only-if-needed
+	```
+
+   Note: These guardrails reduce but do not fully eliminate architecture mismatch issues if wheels are built or cached incorrectly.
+
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -147,12 +172,28 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability
-SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+SkyPortal defaults to using port 5000. However, this port may already be in use on MacOS (e.g., by AirPlay Receiver or other services). To verify port availability, use the `lsof` command in the terminal:
 
 ```
 lsof -i :5000
+lsof -i :5001
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+
+If either command outputs information about a service, that port is already in use. To configure SkyPortal to use a different port, update the following lines in `config.yaml`:
+
+```yaml
+server:
+  port: 5001  # Change from 5000 to 5001
+
+ports:
+  app: 5001  # Change from 5000 to 5001
+
+docs:
+  servers:
+    - url: http://localhost:5001  # Change from 5000 to 5001
+```
+
+If you plan to run `make load_demo_data`, also update the port in `test_config.yaml` to match. Port mismatches between configs can cause 403 errors during demo data loading.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -223,11 +264,10 @@ If the command outputs information about a service, it means that port 5000 is a
 ## Launch
 
 0. Make sure you are in the skyportal env: `conda activate skyportal_env`
-1. Initialize the database with `make db_init` (this only needs to
-   happen once).
+1. Initialize the database with `make db_init` (this only needs to happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
-3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. Direct your browser to `http://localhost:5000`.
+3. Run `make log` to monitor the service and, in a separate window, activate the environment (`conda activate skyportal_env`) and run `make run` to start the server.
+4. Direct your browser to `http://localhost:5000` (or `http://localhost:[PORT]` if you changed the port in `config.yaml`).
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
@@ -242,7 +282,62 @@ and then, from a different window, do `make load_demo_data`.
 
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
 
-Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
+Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error. If you change the default port 5000 in `config.yaml`, remember to also update it in `test_config.yaml` to match.
+
+####  Apple Silicon (M-series): Architecture Mismatch Errors
+On Apple Silicon (ARM64), some SkyPortal Python dependencies can be installed as ARM64 wheels even when you intend to run SkyPortal in an x86_64 Rosetta conda environment (osx-64). This causes runtime import failures like:
+- `mach-o file, but is an incompatible architecture (have 'arm64', need 'x86_64')`
+- Import failures for compiled extensions (`*.so`) while `platform.machine()` reports `x86_64`
+
+The reason why this happens is because `make run` triggers a pip-based dependency installation step (via `baselayer/tools/pip_install_requirements.py`) that may build or install ARM64 wheels, or reuse cached ARM64 wheels from previous installations.
+
+To fix this issue, follow these steps:
+1. Scan Environment for ARM64-Only Extensions
+Run this inside the SkyPortal environment to detect ARM64 compiled extensions:
+	``` 
+	python - <<'PY'
+	import glob, os, subprocess, sys
+	site = next(iter(glob.glob(os.path.join(sys.prefix, "lib", "python*", "site-packages"))), None)
+	bad = []
+	for p in glob.glob(os.path.join(site, "**", "*.so"), recursive=True):
+		out = subprocess.check_output(["file", p]).decode().strip()
+		if "arm64" in out and "x86_64" not in out:
+			bad.append(out)
+	print("\n".join(bad) if bad else "No arm64-only extensions found.")
+	PY
+	```
+ 	You can also check the migration logs:
+	```
+	grep -i "incompatible architecture" logs/migration.log
+	```
+	Or check a specific binary's architecture, e.g.:
+	```
+	file "$CONDA_PREFIX/lib/python3.10/site-packages/ligo/lw/tokenizer.cpython-310-darwin.so"
+	```
+
+2. Purge Pip Cache
+	If you accidentally ran `make run` in the base environment (or any other environment), pip may have cached ARM64 wheels. Purge the cache:
+	```
+	python -m pip cache purge
+	```
+
+3. Uninstall and Reinstall via conda-forge (osx-64)
+	Uninstall pip versions and purge cache
+	```
+	python -m pip uninstall -y \
+  		sncosmo timezonefinder \
+  		python-ligo-lw igwn-ligolw ligo-segments ligo-gracedb ligo.skymap \
+ 		|| true
+	python -m pip cache purge
+	```
+	Force reinstall from conda-forge with osx-64
+	```
+	CONDA_NO_PLUGINS=true CONDA_SUBDIR=osx-64 conda install --solver=classic -c conda-forge -y \
+     --force-reinstall sncosmo timezonefinder python-ligo-lw igwn-ligolw ligo-segments ligo.skymap
+	```
+	Re-run the ARM64 scan (Step 1) to confirm all extensions are now x86_64
+
+If issues persist, try destroying and recreating the conda environment from scratch instead of manually resolving dependency conflicts.
 
 ## Additional Configuration
 
