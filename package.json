@@ -66,7 +66,7 @@
     "raw-loader": "4.0.2",
     "react": "18.3.1",
     "react-big-calendar": "1.19.4",
-    "react-datepicker": "3.4.1",
+    "react-datepicker": "9.1.0",
     "react-device-detect": "2.2.3",
     "react-dnd": "7.7.0",
     "react-dom": "18.2.0",
