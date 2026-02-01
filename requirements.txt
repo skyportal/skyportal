@@ -41,7 +41,7 @@ tables>=3.10.1,<4.0.0
 timezonefinder==8.2.0
 astroplan==0.10.1
 email-validator==2.3.0
-alembic==1.17.1
+alembic==1.18.3
 marshmallow-jsonschema==0.13.0
 paramiko==4.0.0
 scp==0.15.0
