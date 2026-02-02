@@ -63,7 +63,9 @@ ObjTag.author = relationship(User, doc="The associated User")
 GroupObjTag = join_model("group_obj_tags", Group, ObjTag)
 GroupObjTag.__doc__ = "Join table mapping Groups to ObjTags."
 GroupObjTag.create = accessible_by_group_members
-GroupObjTag.delete = GroupObjTag.update = accessible_by_group_admins & GroupObjTag.read
+# Delete/update allowed for group members; fine-grained authorization
+# (author check, "Manage sources") is handled in the API handler
+GroupObjTag.delete = GroupObjTag.update = accessible_by_group_members
 
 ObjTag.groups = relationship(
     "Group",
