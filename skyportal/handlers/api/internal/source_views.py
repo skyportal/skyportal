@@ -54,11 +54,30 @@ class SourceViewsHandler(BaseHandler):
                 self.current_user, session
             )
             tags = session.scalars(
-                ObjTag.select(session.user_or_token).where(
-                    ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results}))
-                )
+                ObjTag.select(session.user_or_token)
+                .where(ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results})))
+                .distinct()
             ).all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+
+            is_admin = session.user_or_token.is_system_admin
+            user_group_ids = (
+                None
+                if is_admin
+                else {g.id for g in session.user_or_token.accessible_groups}
+            )
+
+            tags = [
+                {
+                    **tag.to_dict(),
+                    "name": tag.objtagoption.name,
+                    "groups": [
+                        g.to_dict()
+                        for g in tag.groups
+                        if user_group_ids is None or g.id in user_group_ids
+                    ],
+                }
+                for tag in tags
+            ]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:

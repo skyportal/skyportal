@@ -580,8 +580,27 @@ async def get_source(
                 ]
             )
     if include_tags:
-        tags = session.scalars(ObjTag.select(user).where(ObjTag.obj_id == obj_id)).all()
-        tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+        tags = session.scalars(
+            ObjTag.select(user).where(ObjTag.obj_id == obj_id).distinct()
+        ).all()
+
+        is_admin = user.is_system_admin
+        user_group_ids = (
+            None if is_admin else {g.id for g in user.accessible_groups}
+        )
+
+        tags = [
+            {
+                **tag.to_dict(),
+                "name": tag.objtagoption.name,
+                "groups": [
+                    g.to_dict()
+                    for g in tag.groups
+                    if user_group_ids is None or g.id in user_group_ids
+                ],
+            }
+            for tag in tags
+        ]
         source_info["tags"] = tags
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
