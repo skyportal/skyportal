@@ -28,7 +28,7 @@ source skyportal_env/bin/activate
 
 You can also use `conda` or `pipenv` to create your environment.
 
-If you are developing on a Mac with an ARM (M-series) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric). Packages known to have ARM64 compatibility issues (as of Jan 2026): `sncosmo`, `python-ligo-lw`, `igwn-ligolw`, `ligo-segments`, `ligo.skymap`. 
+If you are developing on a Mac with an ARM (M-series) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric). Packages known to have ARM64 compatibility issues (as of Jan 2026): `sncosmo`, `python-ligo-lw`, `igwn-ligolw`, `ligo-segments`, `ligo.skymap`.
 
 ```
 CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
@@ -294,7 +294,7 @@ The reason why this happens is because `make run` triggers a pip-based dependenc
 To fix this issue, follow these steps:
 1. Scan Environment for ARM64-Only Extensions
 Run this inside the SkyPortal environment to detect ARM64 compiled extensions:
-	``` 
+	```
 	python - <<'PY'
 	import glob, os, subprocess, sys
 	site = next(iter(glob.glob(os.path.join(sys.prefix, "lib", "python*", "site-packages"))), None)
