@@ -260,6 +260,7 @@ def serialize(
     stream=False,
     validation=False,
     extinction_dict=None,
+    t0=None,
 ):
     return_value = {
         "obj_id": phot.obj_id,
@@ -276,6 +277,8 @@ def serialize(
         "id": phot.id,
         "altdata": phot.altdata,
     }
+    if t0 is not None:
+        return_value["t-t0"] = phot.mjd - t0
     if created_at:
         return_value["created_at"] = phot.created_at
     if groups:
@@ -1928,6 +1931,9 @@ class ObjPhotometryHandler(BaseHandler):
             "includeAnnotationInfo", False
         )
         include_extinction = self.get_query_argument("includeExtinction", False)
+
+        include_t0 = self.get_query_argument("includet0", False)
+        
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
         include_owner_info = str_to_bool(include_owner_info, default=False)
@@ -1939,6 +1945,8 @@ class ObjPhotometryHandler(BaseHandler):
         include_annotation_info = str_to_bool(include_annotation_info, default=False)
 
         include_extinction = str_to_bool(include_extinction, default=False)
+
+        include_t0 = str_to_bool(include_t0, default=False)
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1988,6 +1996,10 @@ class ObjPhotometryHandler(BaseHandler):
                 )
                 photometry = session.scalars(stmt).unique().all()
 
+                t0_value = None
+                if include_t0 and nan_to_none(obj.t0) is not None:
+                    t0_value = obj.t0
+
                 # Compute extinction for all filters
                 extinction_dict = None
                 if (
@@ -2013,6 +2025,7 @@ class ObjPhotometryHandler(BaseHandler):
                         stream=include_stream_info,
                         validation=include_validation_info,
                         extinction_dict=extinction_dict,
+                        t0=t0_value,
                     )
                     for phot in photometry
                 ]
