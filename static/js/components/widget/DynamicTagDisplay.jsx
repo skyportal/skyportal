@@ -59,7 +59,11 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
 
   // Calculate how many tags we can put on the container
   const calculateVisibleTags = () => {
-    if (!accessibleTags || accessibleTags.length === 0 || !containerRef.current) {
+    if (
+      !accessibleTags ||
+      accessibleTags.length === 0 ||
+      !containerRef.current
+    ) {
       return accessibleTags?.length || 0;
     }
 

@@ -585,9 +585,7 @@ async def get_source(
         ).all()
 
         is_admin = user.is_system_admin
-        user_group_ids = (
-            None if is_admin else {g.id for g in user.accessible_groups}
-        )
+        user_group_ids = None if is_admin else {g.id for g in user.accessible_groups}
 
         tags = [
             {

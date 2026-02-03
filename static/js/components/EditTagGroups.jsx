@@ -105,9 +105,7 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
     const groupsToRemove = currentUserTagGroupIds.filter(
       (id) => !selectedGroupIds.includes(id),
     );
-    const groupsToAdd = selectedGroupIds.filter(
-      (id) => !tagGroupIds.has(id),
-    );
+    const groupsToAdd = selectedGroupIds.filter((id) => !tagGroupIds.has(id));
 
     try {
       // Remove groups if needed
@@ -149,20 +147,20 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
   const handleDelete = () => {
     setIsDeleting(true);
 
-    dispatch(
-      objectTagsActions.deleteObjectTag({ id: tag.id }),
-    ).then((result) => {
-      setIsDeleting(false);
+    dispatch(objectTagsActions.deleteObjectTag({ id: tag.id })).then(
+      (result) => {
+        setIsDeleting(false);
 
-      if (result.status === "success") {
-        dispatch(showNotification("Tag removed from source"));
-        handleClose();
-      } else {
-        dispatch(
-          showNotification(result.message || "Failed to delete tag", "error"),
-        );
-      }
-    });
+        if (result.status === "success") {
+          dispatch(showNotification("Tag removed from source"));
+          handleClose();
+        } else {
+          dispatch(
+            showNotification(result.message || "Failed to delete tag", "error"),
+          );
+        }
+      },
+    );
   };
 
   if (!tag) return null;
@@ -208,13 +206,19 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
           {isDeleting ? "Deleting..." : "Delete"}
         </Button>
         <div>
-          <Button onClick={handleClose} secondary style={{ marginRight: "0.5rem" }}>
+          <Button
+            onClick={handleClose}
+            secondary
+            style={{ marginRight: "0.5rem" }}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             primary
-            disabled={isSubmitting || isDeleting || selectedGroupIds.length === 0}
+            disabled={
+              isSubmitting || isDeleting || selectedGroupIds.length === 0
+            }
             data-testid="save-tag-groups-button"
           >
             {isSubmitting ? "Saving..." : "Save"}
