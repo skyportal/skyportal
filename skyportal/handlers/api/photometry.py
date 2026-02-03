@@ -1933,7 +1933,7 @@ class ObjPhotometryHandler(BaseHandler):
         include_extinction = self.get_query_argument("includeExtinction", False)
 
         include_t0 = self.get_query_argument("includet0", False)
-        
+
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
         include_owner_info = str_to_bool(include_owner_info, default=False)
