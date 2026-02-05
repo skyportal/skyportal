@@ -1,15 +1,16 @@
 import * as API from "../API";
 import store from "../store";
 
-const FETCH_SOURCE_PHOTOMETRY_MINI = "skyportal/FETCH_SOURCE_PHOTOMETRY_MINI";
-const FETCH_SOURCE_PHOTOMETRY_MINI_OK =
-  "skyportal/FETCH_SOURCE_PHOTOMETRY_MINI_OK";
-const CLEAR_PHOTOMETRY_MINI = "skyportal/CLEAR_PHOTOMETRY_MINI";
+const FETCH_SOURCE_PHOTOMETRY_MINIMAL =
+  "skyportal/FETCH_SOURCE_PHOTOMETRY_MINIMAL";
+const FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK =
+  "skyportal/FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK";
+const CLEAR_PHOTOMETRY_MINIMAL = "skyportal/CLEAR_PHOTOMETRY_MINIMAL";
 
 export function fetchSourcePhotometryMini(id) {
   return API.GET(
     `/api/sources/${id}/photometry`,
-    FETCH_SOURCE_PHOTOMETRY_MINI,
+    FETCH_SOURCE_PHOTOMETRY_MINIMAL,
     {
       format: "mag",
       magsys: "ab",
@@ -27,14 +28,14 @@ export function fetchSourcePhotometryMini(id) {
 
 export function clearPhotometryMini(sourceIds = null) {
   return {
-    type: CLEAR_PHOTOMETRY_MINI,
+    type: CLEAR_PHOTOMETRY_MINIMAL,
     sourceIds,
   };
 }
 
 const reducer = (state = {}, action) => {
   switch (action.type) {
-    case FETCH_SOURCE_PHOTOMETRY_MINI_OK: {
+    case FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK: {
       // only keep the following fields: id, obj_id, filter, limiting_mag, mag, magerr, mjd, origin
       const photometry = (action?.data || []).map((datum) => ({
         id: datum.id,
@@ -56,7 +57,7 @@ const reducer = (state = {}, action) => {
       }
       return state;
     }
-    case CLEAR_PHOTOMETRY_MINI: {
+    case CLEAR_PHOTOMETRY_MINIMAL: {
       const { sourceIds } = action;
       // If no sourceIds provided, clear everything
       if (!sourceIds) {
@@ -76,4 +77,4 @@ const reducer = (state = {}, action) => {
   }
 };
 
-store.injectReducer("photometry_mini", reducer);
+store.injectReducer("photometry_minimal", reducer);

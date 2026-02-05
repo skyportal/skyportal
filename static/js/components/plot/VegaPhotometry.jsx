@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import Switch from "@mui/material/Switch";
 
-import * as photometryMiniActions from "../../ducks/photometry_mini";
+import * as photometryMiniActions from "../../ducks/photometry_minimal";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -158,7 +158,7 @@ ToggleButton.propTypes = {
 const VegaPhotometry = (props) => {
   const { sourceId, annotations, folded, style } = props;
   const dispatch = useDispatch();
-  const photometry = useSelector((state) => state.photometry_mini[sourceId]);
+  const photometry = useSelector((state) => state.photometry_minimal[sourceId]);
   const config = useSelector((state) => state.config);
   const [filters, setFilters] = useState(null);
   const [wavelengths, setWavelengths] = useState(null);
