@@ -192,7 +192,7 @@ const VegaPhotometry = (props) => {
     async function fetchPhotometry() {
       if (photometry === null || photometry === undefined) {
         return await dispatch(
-          photometryMinimalActions.fetchSourcePhotometryMini(sourceId),
+          photometryMinimalActions.fetchSourcePhotometryMinimal(sourceId),
         );
       }
       if (

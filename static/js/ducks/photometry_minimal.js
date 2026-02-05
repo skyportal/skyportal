@@ -7,7 +7,7 @@ const FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK =
   "skyportal/FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK";
 const CLEAR_PHOTOMETRY_MINIMAL = "skyportal/CLEAR_PHOTOMETRY_MINIMAL";
 
-export function fetchSourcePhotometryMini(id) {
+export function fetchSourcePhotometryMinimal(id) {
   return API.GET(
     `/api/sources/${id}/photometry`,
     FETCH_SOURCE_PHOTOMETRY_MINIMAL,
