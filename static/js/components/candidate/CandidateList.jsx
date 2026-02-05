@@ -37,6 +37,7 @@ import CandidatePlugins from "./CandidatePlugins";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
+import { clearPhotometryMini } from "../../ducks/photometry_mini";
 
 const numPerPage = 50;
 
@@ -796,6 +797,11 @@ const CandidateList = () => {
       setSortOrder(defaultScanningProfile.sortingOrder);
     }
   }, [dispatch, defaultScanningProfile]);
+
+  // Clear photometry cache on page change
+  useEffect(() => {
+    dispatch(clearPhotometryMini());
+  }, [pageNumber, dispatch]);
 
   const groupIds = [];
   filterGroups?.forEach((g) => {

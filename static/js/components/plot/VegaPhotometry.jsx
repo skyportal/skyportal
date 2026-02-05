@@ -1,11 +1,11 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import Switch from "@mui/material/Switch";
 
-import * as photometryActions from "../../ducks/photometry";
+import * as photometryMiniActions from "../../ducks/photometry_mini";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -158,17 +158,28 @@ ToggleButton.propTypes = {
 const VegaPhotometry = (props) => {
   const { sourceId, annotations, folded, style } = props;
   const dispatch = useDispatch();
-  const photometry = useSelector((state) => state.photometry[sourceId]);
+  const photometry = useSelector((state) => state.photometry_mini[sourceId]);
   const config = useSelector((state) => state.config);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState([]);
-  const [wavelengths, setWavelengths] = useState([]);
+  const [filters, setFilters] = useState(null);
+  const [wavelengths, setWavelengths] = useState(null);
   const [period, setPeriod] = useState(null);
   const [showUpperLimits, setShowUpperLimits] = useState(true);
   const [showForcedPhotometry, setShowForcedPhotometry] = useState(true);
   const [hasForcedPhotometry, setHasForcedPhotometry] = useState(false);
-
-  const filter2color = config?.bandpassesColors || {};
+  const photDisplayData = useMemo(() => {
+    if (photometry === null || photometry === undefined) {
+      return null;
+    }
+    return photometry.filter((datum) => {
+      if (!showUpperLimits && datum.mag === null) {
+        return false;
+      }
+      if (!showForcedPhotometry && ["fp", "alert_fp"].includes(datum.origin)) {
+        return false;
+      }
+      return true;
+    });
+  }, [showUpperLimits, showForcedPhotometry, photometry]);
 
   useEffect(() => {
     const p = findPeriodInAnnotations(annotations || []);
@@ -179,84 +190,54 @@ const VegaPhotometry = (props) => {
 
   useEffect(() => {
     async function fetchPhotometry() {
-      if (!(folded && (period === undefined || period === null))) {
-        if ((!photometry || filters.length === 0) && !loading) {
-          setLoading(true);
-        }
-        // make sure we have the AB photometry
-        if (
-          (!photometry && !loading) ||
-          (photometry &&
-            photometry?.length > 0 &&
-            photometry[0]?.magsys !== "ab")
-        ) {
-          await dispatch(photometryActions.fetchSourcePhotometry(sourceId));
-        }
-        if (photometry && photometry?.length > 0 && filters.length === 0) {
-          // Filter out SwiftXRT points as they are not relevant for in the vega system
-          const photometryFiltered = photometry.filter(
-            (datum) =>
-              !(datum.magsys === "vega" && datum.filter === "swiftxrt"),
-          );
-
-          const newFilters = [
-            ...new Set(photometryFiltered.map((datum) => datum.filter)),
-          ];
-          const newWavelengths = newFilters.map(
-            (filter) => filter2color[filter] || [0, 0, 0],
-          );
-          newWavelengths.forEach((color, i) => {
-            newWavelengths[i] = `#${color
-              .map((c) => c.toString(16).padStart(2, "0"))
-              .join("")}`;
-          });
-          setFilters(newFilters);
-          setWavelengths(newWavelengths);
-          setHasForcedPhotometry(
-            photometryFiltered.some((datum) =>
-              ["fp", "alert_fp"].includes(datum.origin),
-            ),
-          );
-        }
-        setLoading(false);
+      if (photometry === null || photometry === undefined) {
+        return await dispatch(
+          photometryMiniActions.fetchSourcePhotometryMini(sourceId),
+        );
+      }
+      if (
+        filters === null &&
+        wavelengths === null &&
+        config?.bandpassesColors
+      ) {
+        const filter2color = config?.bandpassesColors || {};
+        const newFilters = [
+          ...new Set(photometry.map((datum) => datum.filter)),
+        ];
+        const newWavelengths = newFilters.map(
+          (filter) => filter2color[filter] || [0, 0, 0],
+        );
+        newWavelengths.forEach((color, i) => {
+          newWavelengths[i] = `#${color
+            .map((c) => c.toString(16).padStart(2, "0"))
+            .join("")}`;
+        });
+        setFilters(newFilters);
+        setWavelengths(newWavelengths);
+        setHasForcedPhotometry(
+          photometry.some((datum) => ["fp", "alert_fp"].includes(datum.origin)),
+        );
       }
     }
     fetchPhotometry();
-  }, [sourceId, photometry, folded, filters, period, dispatch]);
+  }, [sourceId, photometry, config, dispatch]);
 
   if (folded && (period === undefined || period === null)) {
     return <div>No period found.</div>;
   }
 
-  if (!photometry && !loading) {
+  if (photometry?.length === 0) {
     return <div>No photometry found.</div>;
   }
 
-  if (loading) {
+  if (photDisplayData === null || filters === null || wavelengths === null) {
     return <CircularProgress color="secondary" />;
-  }
-
-  let photometryFiltered = photometry;
-
-  photometryFiltered = photometryFiltered.filter(
-    (datum) => !(datum.magsys === "vega" && datum.filter === "swiftxrt"),
-  );
-
-  if (!showUpperLimits) {
-    photometryFiltered = photometryFiltered.filter(
-      (datum) => datum.mag !== null,
-    );
-  }
-  if (!showForcedPhotometry) {
-    photometryFiltered = photometryFiltered.filter(
-      (datum) => !["fp", "alert_fp"].includes(datum.origin),
-    );
   }
 
   return (
     <div>
       <VegaPhotometryMemo
-        values={photometryFiltered}
+        values={photDisplayData}
         filters={filters}
         wavelengths={wavelengths}
         period={period}
