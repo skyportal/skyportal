@@ -1554,7 +1554,7 @@ const PhotometryPlot = ({
               style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
               <Typography id="photometry-validation-filter" noWrap>
-                If validated
+                Validated Only
               </Typography>
               <Tooltip title="Show only photometry points that have been validated">
                 <div className={classes.switchContainer}>
