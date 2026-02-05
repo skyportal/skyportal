@@ -339,12 +339,18 @@ class AllocationHandler(BaseHandler):
                     request_data["obj"]["thumbnails"] = [
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
                     ]
-                    request_data["set_time_utc"] = request.set_time().iso
+                    set_time = request.set_time()
+                    request_data["set_time_utc"] = (
+                        set_time.iso if set_time is not None else None
+                    )
                     if isinstance(
                         request_data["set_time_utc"], np.ma.MaskedArray | MaskedNDArray
                     ):
                         request_data["set_time_utc"] = None
-                    request_data["rise_time_utc"] = request.rise_time().iso
+                    rise_time = request.rise_time()
+                    request_data["rise_time_utc"] = (
+                        rise_time.iso if rise_time is not None else None
+                    )
                     if isinstance(
                         request_data["rise_time_utc"],
                         np.ma.MaskedArray | MaskedNDArray,
