@@ -26,7 +26,7 @@ export function fetchSourcePhotometryMini(id) {
   );
 }
 
-export function clearPhotometryMini(sourceIds = null) {
+export function clearPhotometryMinimal(sourceIds = null) {
   return {
     type: CLEAR_PHOTOMETRY_MINIMAL,
     sourceIds,

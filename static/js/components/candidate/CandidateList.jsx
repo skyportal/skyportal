@@ -37,7 +37,7 @@ import CandidatePlugins from "./CandidatePlugins";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import { clearPhotometryMini } from "../../ducks/photometry_minimal";
+import { clearPhotometryMinimal } from "../../ducks/photometry_minimal";
 
 const numPerPage = 50;
 
@@ -800,7 +800,7 @@ const CandidateList = () => {
 
   // Clear photometry cache on page change
   useEffect(() => {
-    dispatch(clearPhotometryMini());
+    dispatch(clearPhotometryMinimal());
   }, [pageNumber, dispatch]);
 
   const groupIds = [];
