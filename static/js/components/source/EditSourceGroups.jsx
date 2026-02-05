@@ -11,6 +11,9 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Tooltip from "@mui/material/Tooltip";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import SearchIcon from "@mui/icons-material/Search";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -31,6 +34,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   const classes = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState("");
   const dispatch = useDispatch();
 
   const {
@@ -66,6 +70,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
 
   const closeDialog = () => {
     setDialogOpen(false);
+    setSearchFilter("");
   };
 
   const validateGroups = () => {
@@ -138,6 +143,20 @@ const EditSourceGroups = ({ source, groups, icon }) => {
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Unsave or save to new groups:</DialogTitle>
         <DialogContent>
+          <TextField
+            style={{ marginTop: "0.5rem", marginBottom: "1rem", width: "100%" }}
+            label="Search groups"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            data-testid="searchGroupsInput"
+          />
           <form onSubmit={handleSubmit(onSubmit)}>
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
@@ -152,27 +171,35 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                   <b>Save</b> (or request save, for groups you do not belong to)
                   to selected groups:
                 </>
-                {unsavedGroups.map((unsavedGroup, idx) => (
-                  <FormControlLabel
-                    key={unsavedGroup.id}
-                    control={
-                      <Controller
-                        render={({ field: { onChange, value } }) => (
-                          <Checkbox
-                            onChange={(event) => onChange(event.target.checked)}
-                            checked={value}
-                            data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
+                <div>
+                  {unsavedGroups.map((unsavedGroup, idx) =>
+                    unsavedGroup.name
+                      .toLowerCase()
+                      .includes(searchFilter.toLowerCase()) ? (
+                      <FormControlLabel
+                        key={unsavedGroup.id}
+                        control={
+                          <Controller
+                            render={({ field: { onChange, value } }) => (
+                              <Checkbox
+                                onChange={(event) =>
+                                  onChange(event.target.checked)
+                                }
+                                checked={value}
+                                data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
+                              />
+                            )}
+                            name={`inviteGroupIds[${idx}]`}
+                            defaultValue={false}
+                            control={control}
+                            rules={{ validate: validateGroups }}
                           />
-                        )}
-                        name={`inviteGroupIds[${idx}]`}
-                        defaultValue={false}
-                        control={control}
-                        rules={{ validate: validateGroups }}
+                        }
+                        label={unsavedGroup.name}
                       />
-                    }
-                    label={unsavedGroup.name}
-                  />
-                ))}
+                    ) : null,
+                  )}
+                </div>
                 <br />
               </>
             )}
@@ -187,27 +214,35 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     for all group members
                   </em>
                 </div>
-                {savedGroups.map((savedGroup, idx) => (
-                  <FormControlLabel
-                    key={savedGroup.id}
-                    control={
-                      <Controller
-                        render={({ field: { onChange, value } }) => (
-                          <Checkbox
-                            onChange={(event) => onChange(event.target.checked)}
-                            checked={value}
-                            data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                <div>
+                  {savedGroups.map((savedGroup, idx) =>
+                    savedGroup.name
+                      .toLowerCase()
+                      .includes(searchFilter.toLowerCase()) ? (
+                      <FormControlLabel
+                        key={savedGroup.id}
+                        control={
+                          <Controller
+                            render={({ field: { onChange, value } }) => (
+                              <Checkbox
+                                onChange={(event) =>
+                                  onChange(event.target.checked)
+                                }
+                                checked={value}
+                                data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                              />
+                            )}
+                            name={`unsaveGroupIds[${idx}]`}
+                            control={control}
+                            rules={{ validate: validateGroups }}
+                            defaultValue={false}
                           />
-                        )}
-                        name={`unsaveGroupIds[${idx}]`}
-                        control={control}
-                        rules={{ validate: validateGroups }}
-                        defaultValue={false}
+                        }
+                        label={savedGroup.name}
                       />
-                    }
-                    label={savedGroup.name}
-                  />
-                ))}
+                    ) : null,
+                  )}
+                </div>
               </>
             )}
             <div style={{ textAlign: "center" }}>
