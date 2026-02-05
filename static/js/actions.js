@@ -40,7 +40,7 @@ import * as gcnEventsActions from "./ducks/gcnEvents";
 import * as weatherActions from "./ducks/weather";
 import * as spatialCatalogsActions from "./ducks/spatialCatalogs";
 import * as photometryActions from "./ducks/photometry";
-import * as photometryMiniActions from "./ducks/photometry_minimal";
+import * as photometryMinimalActions from "./ducks/photometry_minimal";
 import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";
 import * as candidateActions from "./ducks/candidate/candidate";

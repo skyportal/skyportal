@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import Switch from "@mui/material/Switch";
 
-import * as photometryMiniActions from "../../ducks/photometry_minimal";
+import * as photometryMinimalActions from "../../ducks/photometry_minimal";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -192,7 +192,7 @@ const VegaPhotometry = (props) => {
     async function fetchPhotometry() {
       if (photometry === null || photometry === undefined) {
         return await dispatch(
-          photometryMiniActions.fetchSourcePhotometryMini(sourceId),
+          photometryMinimalActions.fetchSourcePhotometryMini(sourceId),
         );
       }
       if (
