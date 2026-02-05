@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
@@ -208,27 +208,75 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
 const VegaFoldedPlot = React.memo((props) => {
   const { dataUrl, colorScale, values } = props;
   const theme = useTheme();
-  return (
-    <div
-      ref={(node) => {
-        if (node) {
-          embed(
-            node,
-            spec(
-              dataUrl,
-              colorScale,
-              theme.plotFontSizes.titleFontSize,
-              theme.plotFontSizes.labelFontSize,
-              values,
-            ),
-            {
-              actions: false,
-            },
-          );
-        }
-      }}
-    />
-  );
+  const containerRef = useRef(null);
+  const viewRef = useRef(null);
+
+  useEffect(() => {
+    // Flag to prevent memory leaks when the component unmounts before async render completes
+    let cancelled = false;
+
+    const renderPlot = async () => {
+      if (!containerRef.current) {
+        return;
+      }
+
+      // Finalize any previous Vega view to clean up its event listeners, scales, and DOM resources.
+      // This is critical: Vega views hold references to DOM nodes and register event handlers.
+      // Without calling finalize(), these resources persist and cause memory growth in virtualized lists.
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+
+      // Embed the new Vega visualization. This is async because it may fetch data.
+      const result = await embed(
+        containerRef.current,
+        spec(
+          dataUrl,
+          colorScale,
+          theme.plotFontSizes.titleFontSize,
+          theme.plotFontSizes.labelFontSize,
+          values,
+        ),
+        {
+          actions: false,
+        },
+      );
+
+      // If the component was unmounted or dependencies changed while we were rendering,
+      // immediately finalize the newly created view to avoid leaking it.
+      if (cancelled) {
+        result?.view?.finalize();
+        return;
+      }
+
+      // Store the view reference for cleanup on next render or unmount.
+      viewRef.current = result?.view || null;
+    };
+
+    renderPlot();
+
+    // Cleanup function: runs when dependencies change or component unmounts.
+    // This ensures Vega views are properly disposed, preventing memory leaks.
+    return () => {
+      cancelled = true;
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
+      }
+    };
+  }, [
+    dataUrl,
+    colorScale,
+    values,
+    theme.plotFontSizes.titleFontSize,
+    theme.plotFontSizes.labelFontSize,
+  ]);
+
+  return <div ref={containerRef} />;
 });
 
 VegaFoldedPlot.propTypes = {
