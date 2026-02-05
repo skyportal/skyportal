@@ -1,6 +1,7 @@
 __all__ = ["Filter"]
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
@@ -25,6 +26,11 @@ class Filter(Base):
         nullable=False,
         index=True,
         doc="ID of the Filter's Stream.",
+    )
+    altdata = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="Arbitrary additional JSON data associated with the Filter.",
     )
     stream = relationship(
         "Stream",
