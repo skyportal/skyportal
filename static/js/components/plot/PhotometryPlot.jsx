@@ -268,6 +268,7 @@ const PhotometryPlot = ({
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
+  const [showOnlyValidated, setShowOnlyValidated] = useState(false);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -461,9 +462,7 @@ const PhotometryPlot = ({
       return newPoint;
     });
 
-    setT0Max(
-      !Number.isNaN(t0Max) ? Math.min(t0Max, stats.mjd.max) : stats.mjd.max,
-    );
+    setT0Max(stats.mjd.max);
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [
       t0 && displayXAxisSinceT0 ? t0 - 1 : stats.mjd.min - 1,
@@ -1081,9 +1080,18 @@ const PhotometryPlot = ({
 
       // Filter out SwiftXRT points as they are not relevant for in the vega system
       const allPhotometry = [...objPhotometry, ...duplicatesPhotometry];
-      const photometryFiltered = allPhotometry.filter(
+      let photometryFiltered = allPhotometry.filter(
         (point) => !(point.filter === "swiftxrt" && magsys === "vega"),
       );
+
+      if (showOnlyValidated) {
+        photometryFiltered = photometryFiltered.filter(
+          (point) =>
+            point.validations &&
+            point.validations.length > 0 &&
+            point.validations[0]?.validated === true,
+        );
+      }
 
       const [newPhotometry, newPhotStats] = preparePhotometry(
         photometryFiltered,
@@ -1158,6 +1166,7 @@ const PhotometryPlot = ({
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
+    showOnlyValidated,
   ]);
 
   // Refetch photometry with extinction data when toggle changes
@@ -1639,6 +1648,25 @@ const PhotometryPlot = ({
                   size="small"
                 />
               </div>
+            </div>
+          )}
+          {config?.usePhotometryValidation && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="photometry-validation-filter" noWrap>
+                Validated Only
+              </Typography>
+              <Tooltip title="Show only photometry points that have been validated">
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={showOnlyValidated}
+                    onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                    inputProps={{ "aria-label": "controlled" }}
+                    size="small"
+                  />
+                </div>
+              </Tooltip>
             </div>
           )}
         </div>
