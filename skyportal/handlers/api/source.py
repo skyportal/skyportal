@@ -216,16 +216,7 @@ async def get_source(
 
     options = []
     if include_thumbnails:
-        if obj_id not in [None, ""]:
-            # retain only the last thumbnail of each type
-            subquery = (
-                sa.select(func.max(Thumbnail.id).label("id"))
-                .where(Thumbnail.obj_id == str(obj_id).strip())
-                .group_by(Thumbnail.type)
-            )
-            options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
-        else:
-            options.append(joinedload(Obj.thumbnails))
+        options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
@@ -244,6 +235,18 @@ async def get_source(
     s = session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
+
+    # only keep the latest Thumbnail for each type (by created_at)
+    if include_thumbnails and isinstance(s.thumbnails, list):
+        latest_by_type = {}
+        for t in s.thumbnails:
+            if (
+                t.type not in latest_by_type
+                or t.created_at > latest_by_type[t.type].created_at
+            ):
+                latest_by_type[t.type] = t
+        s.thumbnails = list(latest_by_type.values())
+
     source_info = s.to_dict()
 
     followup_requests = (
