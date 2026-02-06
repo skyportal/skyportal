@@ -237,6 +237,8 @@ const SourceContent = ({ source }) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [magsys, setMagsys] = useState("ab");
+  const [showExtinctionCorrection, setShowExtinctionCorrection] =
+    useState(false);
 
   const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
@@ -1171,6 +1173,41 @@ const SourceContent = ({ source }) => {
                     display_header={false}
                   />
                   <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.25rem",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Tooltip
+                      title={`On click, correct photometry for extinction, using G23 extinction law with Rv=3.1 (currently ${
+                        showExtinctionCorrection ? "" : "NOT"
+                      } corrected)`}
+                    >
+                      <div className={classes.switchContainer}>
+                        <Button
+                          size="small"
+                          variant={
+                            showExtinctionCorrection ? "contained" : "outlined"
+                          }
+                          style={{
+                            height: "1.5rem",
+                            fontSize: "0.75rem",
+                            marginTop: "-0.2rem",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowExtinctionCorrection(
+                              !showExtinctionCorrection,
+                            );
+                          }}
+                        >
+                          Extinction
+                        </Button>
+                      </div>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             </AccordionSummary>
@@ -1197,6 +1234,7 @@ const SourceContent = ({ source }) => {
                       }}
                       mode={downMd ? "mobile" : "desktop"}
                       t0={source.t0}
+                      showExtinctionCorrection={showExtinctionCorrection}
                     />
                   )}
                 </div>
@@ -1560,6 +1598,7 @@ const Source = ({ route }) => {
   if (source.id === undefined) {
     return <div>Source not found</div>;
   }
+  // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;
 
   return (
