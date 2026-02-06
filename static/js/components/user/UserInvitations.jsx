@@ -14,6 +14,8 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -42,6 +44,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import * as invitationsActions from "../../ducks/invitations";
 import * as streamsActions from "../../ducks/streams";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
 
 dayjs.extend(utc);
@@ -112,6 +115,8 @@ const UserInvitations = () => {
   ] = useState(false);
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
+  const [deleteInvitationDialogOpen, setDeleteInvitationDialogOpen] =
+    useState(false);
 
   const {
     handleSubmit,
@@ -284,7 +289,7 @@ const UserInvitations = () => {
     );
     const results = await Promise.all(promises);
     if (results.every((result) => result.status === "success")) {
-      dispatch(showNotification("User(s) successfully invited."));
+      dispatch(showNotification("User(s) invitation(s) successfully created."));
       dispatch(invitationsActions.fetchInvitations(fetchParams));
       setCsvData("");
     }
@@ -317,16 +322,38 @@ const UserInvitations = () => {
   // MUI DataTable functions
   const renderActions = (dataIndex) => {
     const invitation = invitations[dataIndex];
+    const handleCopyInvitationLink = () => {
+      const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
+      const invitationLink = `${appBaseUrl}/login/google-oauth2/?invite_token=${invitation.token}`;
+      navigator.clipboard.writeText(invitationLink);
+      dispatch(
+        showNotification("Invitation link copied to clipboard.", "info"),
+      );
+    };
     return (
-      <Button
-        secondary
-        data-testid={`deleteInvitation_${invitation.user_email}`}
-        onClick={() => {
-          handleDeleteInvitation(invitation.id);
-        }}
-      >
-        Delete
-      </Button>
+      <div>
+        <Tooltip title="Copy invitation link to clipboard">
+          <IconButton
+            aria-label="copy-invitation-link"
+            data-testid={`copyInvitationLink_${invitation.user_email}`}
+            onClick={handleCopyInvitationLink}
+            size="small"
+          >
+            <ContentCopyIcon />
+          </IconButton>
+        </Tooltip>
+        <IconButton
+          aria-label="delete-invitation"
+          data-testid={`deleteInvitation_${invitation.user_email}`}
+          onClick={() => {
+            setClickedInvitation(invitation);
+            setDeleteInvitationDialogOpen(true);
+          }}
+          size="small"
+        >
+          <DeleteIcon />
+        </IconButton>
+      </div>
     );
   };
 
@@ -876,6 +903,15 @@ const UserInvitations = () => {
           </form>
         </DialogContent>
       </Dialog>
+      <ConfirmDeletionDialog
+        dialogOpen={deleteInvitationDialogOpen}
+        closeDialog={() => setDeleteInvitationDialogOpen(false)}
+        deleteFunction={() => {
+          handleDeleteInvitation(clickedInvitation.id);
+          setDeleteInvitationDialogOpen(false);
+        }}
+        resourceName={`invitation for ${clickedInvitation?.user_email}`}
+      />
     </>
   );
 };

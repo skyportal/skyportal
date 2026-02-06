@@ -652,6 +652,7 @@ smtp:
   port: 587  # Default Gmail settings; modify as needed
 
 # This value needs to be either "sendgrid" or "smtp" (without quotes)
+# Alternatively, set to "disable" to turn off all email sending functionality (e.g., for testing)
 email_service:
 
 invitations:

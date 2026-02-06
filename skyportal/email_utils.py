@@ -10,7 +10,7 @@ from baselayer.app.env import load_env
 _, cfg = load_env()
 
 
-def send_email(recipients, subject, body):
+def send_email(recipients, subject, body) -> bool:
     if cfg.get("email_service") == "sendgrid":
         sendgrid_client = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
         message = Mail(
@@ -33,5 +33,8 @@ def send_email(recipients, subject, body):
             smtp_server.send_message(msg)
         finally:
             smtp_server.quit()
+    elif cfg.get("email_service") == "disable":
+        return False
     else:
         raise Exception("Invalid email service; update config.yaml")
+    return True

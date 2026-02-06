@@ -7,12 +7,16 @@ from sqlalchemy.orm import relationship
 from sqlalchemy_utils import EmailType
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.models import AccessibleIfUserMatches, Base
+from baselayer.log import make_log
 
 from ..app_utils import get_app_base_url
 from ..email_utils import send_email
 
 _, cfg = load_env()
+
+log = make_log("invitations")
 
 
 class Invitation(Base):
@@ -60,7 +64,7 @@ class Invitation(Base):
 def send_user_invite_email(mapper, connection, target):
     app_base_url = get_app_base_url()
     link_location = f"{app_base_url}/login/google-oauth2/?invite_token={target.token}"
-    send_email(
+    sent = send_email(
         recipients=[target.user_email],
         subject=cfg["invitations.email_subject"],
         body=(
@@ -68,3 +72,21 @@ def send_user_invite_email(mapper, connection, target):
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
+    if not sent:
+        # If email sending is disabled, log the invite link for testing purposes
+        log(
+            f"Invitation created with token {target.token}; invite link: {link_location}"
+        )
+        if target.invited_by:
+            try:
+                flow = Flow()
+                flow.push(
+                    target.invited_by.id,
+                    "baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"Email sending is disabled, invitation email not sent.",
+                        "type": "warning",
+                    },
+                )
+            except Exception as e:
+                log(f"Failed to send notification: {e}")
