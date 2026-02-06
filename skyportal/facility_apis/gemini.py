@@ -123,18 +123,6 @@ class GeminiRequest:
         if user_email is None or programid is None or user_key is None:
             raise ValueError("user_email, user_key, and programid are required")
 
-        # create the group str from the allocation's group nickname, PI, and id
-        allocation_group_name = (
-            request.allocation.group.nickname
-            if request.allocation.group.nickname
-            else request.allocation.group.name
-        )
-        allocation_group_name = allocation_group_name.replace(" ", "")
-        allocation_group_pi = request.allocation.pi.replace(" ", "")
-        allocation_id = request.allocation.id
-        group = f"{allocation_group_name}_{allocation_group_pi}_{allocation_id}"
-        group = str(group.replace(" ", "_")).strip()
-
         target = request.obj.id
         ra, dec = request.obj.ra, request.obj.dec
         # the ra dec are in deg, we need them in hms dms
@@ -189,12 +177,13 @@ class GeminiRequest:
         if gstarg is None:
             raise ValueError("No guide star found")
 
-        note = request.payload.get("note") or ""  # optional
+        # optional
+        group_name = (
+            str(request.payload.get("group_name", "")).strip() or request.obj.id
+        )
+        note_title = str(request.payload.get("note_title", "")).strip() or None
+        note = request.payload.get("note", "")
         note = f"{str(note).strip()}\n(finder chart: {finding_chart_public_url})"
-
-        notetitle = request.payload.get("notetitle")  # optional
-        if notetitle:
-            notetitle = str(notetitle).strip()
 
         # templates available for the allocation
         template_ids = get_list_typed(
@@ -229,7 +218,7 @@ class GeminiRequest:
                 "ra": ra,
                 "dec": dec,
                 "posangle": gspa,
-                "noteTitle": notetitle,
+                "noteTitle": note_title,
                 "note": note,
                 "ready": ready,
                 "windowDate": l_wDate,
@@ -243,7 +232,7 @@ class GeminiRequest:
                 "gsdec": gsdec,
                 "gsmag": gsmag,
                 "gsprobe": "OIWFS",
-                "group": group,
+                "group": group_name,
             }
 
             if round(l_exptime) != 0:
@@ -402,7 +391,12 @@ class GEMINIAPI(FollowUpAPI):
             },
             "l_elmin": {"title": "Minimum airmass", "type": "number", "default": 1.0},
             "l_elmax": {"title": "Maximum airmass", "type": "number", "default": 1.6},
-            "notetitle": {
+            "group_name": {
+                "title": "Group Name (optional)",
+                "type": "string",
+                "description": "Defaults to object ID if not provided",
+            },
+            "note_title": {
                 "title": "Note Title (optional)",
                 "type": "string",
             },
