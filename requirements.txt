@@ -41,14 +41,14 @@ tables>=3.10.1,<4.0.0
 timezonefinder==8.2.0
 astroplan==0.10.1
 email-validator==2.3.0
-alembic==1.17.1
+alembic==1.18.3
 marshmallow-jsonschema==0.13.0
 paramiko==4.0.0
 scp==0.15.0
 requests_toolbelt==1.0.0
 sendgrid==6.12.5
 responses==0.25.8
-twilio==9.8.7
+twilio==9.10.0
 numba>=0.59.0
 pyvo==1.8
 lxml==6.0.2
@@ -81,7 +81,7 @@ selenium==4.38.0
 selenium-requests==2.0.4
 afterglowpy==0.8.1
 gcn-kafka==0.3.3
-confluent_kafka==2.11.0
+confluent_kafka==2.13.0
 iminuit==2.31.3
 watchdog==6.0.0
 PyAstronomy==0.24.0
