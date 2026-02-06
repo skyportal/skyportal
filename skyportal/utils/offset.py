@@ -1041,8 +1041,8 @@ def get_nearby_offset_stars(
                         use_original = False
                 except Exception as e:
                     log(
-                        f"Warning: ZTF catalog matching failed... "
-                        f"Error: str{e} "
+                        f"Warning: ZTF catalog matching failed..."
+                        f"Error: {str(e)}"
                         f"Failed catalog: {str(ztfcatalog)}"
                     )
 
@@ -1430,15 +1430,15 @@ def get_finding_chart(
             source_ra,
             source_dec,
             source_name,
-            image_source="ps1",
-            output_format="pdf",
-            imsize=3.0,
-            tick_offset=0.02,
-            tick_length=0.03,
-            fallback_image_source="ps1_cds",
-            zscale_contrast=0.045,
-            zscale_krej=2.5,
-            extra_display_string="",
+            image_source=image_source,
+            output_format=output_format,
+            imsize=imsize,
+            tick_offset=tick_offset,
+            tick_length=tick_length,
+            fallback_image_source=fallback_image_source,
+            zscale_contrast=zscale_contrast,
+            zscale_krej=zscale_krej,
+            extra_display_string=extra_display_string,
             **offset_star_kwargs,
         )
         value = finding_charts_cache[cache_key]
