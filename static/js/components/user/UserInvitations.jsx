@@ -327,7 +327,10 @@ const UserInvitations = () => {
       const invitationLink = `${appBaseUrl}/login/google-oauth2/?invite_token=${invitation.token}`;
       navigator.clipboard.writeText(invitationLink);
       dispatch(
-        showNotification("Invitation link copied to clipboard.", "info"),
+        showNotification(
+          `Invitation link for ${invitation.user_email} copied to clipboard.`,
+          "info",
+        ),
       );
     };
     return (

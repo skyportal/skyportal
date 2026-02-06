@@ -64,15 +64,7 @@ class Invitation(Base):
 def send_user_invite_email(mapper, connection, target):
     app_base_url = get_app_base_url()
     link_location = f"{app_base_url}/login/google-oauth2/?invite_token={target.token}"
-    sent = send_email(
-        recipients=[target.user_email],
-        subject=cfg["invitations.email_subject"],
-        body=(
-            f"{cfg['invitations.email_body_preamble']}<br /><br />"
-            f'Please click <a href="{link_location}">here</a> to join.'
-        ),
-    )
-    if not sent:
+    if cfg.get("invitations.disable_emailing", False) is True:
         # If email sending is disabled, log the invite link for testing purposes
         log(
             f"Invitation created with token {target.token}; invite link: {link_location}"
@@ -90,3 +82,12 @@ def send_user_invite_email(mapper, connection, target):
                 )
             except Exception as e:
                 log(f"Failed to send notification: {e}")
+    else:
+        send_email(
+            recipients=[target.user_email],
+            subject=cfg["invitations.email_subject"],
+            body=(
+                f"{cfg['invitations.email_body_preamble']}<br /><br />"
+                f'Please click <a href="{link_location}">here</a> to join.'
+            ),
+        )
