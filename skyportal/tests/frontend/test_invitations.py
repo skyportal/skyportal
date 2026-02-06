@@ -64,6 +64,11 @@ def test_delete_invitation(driver, super_admin_user, public_group, public_stream
 
     # Try deleting
     driver.click_xpath(f"//*[@data-testid='deleteInvitation_{user_email}']")
+
+    # it opens a confirmation dialog, we need to confirm
+    driver.wait_for_xpath("//*[@data-testid='confirmDeletetionButton']")
+    driver.click_xpath("//*[@data-testid='confirmDeletetionButton']")
+
     driver.wait_for_xpath_to_disappear(
         f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
     )
