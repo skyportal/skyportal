@@ -118,10 +118,10 @@ class GeminiRequest:
 
         user_email = altdata.get("user_email")
         programid = altdata.get("programid")
-        user_password = altdata.get("user_password")
+        user_key = altdata.get("user_key")
 
-        if user_email is None or programid is None or user_password is None:
-            raise ValueError("user_email, user_password, and programid are required")
+        if user_email is None or programid is None or user_key is None:
+            raise ValueError("user_email, user_key, and programid are required")
 
         # create the group str from the allocation's group nickname, PI, and id
         allocation_group_name = (
@@ -190,7 +190,7 @@ class GeminiRequest:
             raise ValueError("No guide star found")
 
         note = request.payload.get("note") or ""  # optional
-        note = f"{str(note).strip()}(finder chart: {finding_chart_public_url})"
+        note = f"{str(note).strip()}\n(finder chart: {finding_chart_public_url})"
 
         notetitle = request.payload.get("notetitle")  # optional
         if notetitle:
@@ -223,7 +223,7 @@ class GeminiRequest:
             payload = {
                 "prog": programid,
                 "email": user_email,
-                "password": user_password,
+                "password": user_key,
                 "obsnum": obsnum,
                 "target": target,
                 "ra": ra,
@@ -264,7 +264,7 @@ class GEMINIAPI(FollowUpAPI):
             raise ValueError("Invalid altdata format")
 
         user_email = str(altdata.get("user_email")).strip()
-        user_password = str(altdata.get("user_password")).strip()
+        user_key = str(altdata.get("user_key")).strip()
         programid = str(altdata.get("programid")).strip()
         if not any(programid.startswith(x) for x in ["GN", "GS"]):
             raise ValueError("Invalid program ID, must start with GN or GS")
@@ -285,8 +285,8 @@ class GEMINIAPI(FollowUpAPI):
         elif not any(x in instrument_name for x in ["north", "south", "gn", "gs"]):
             raise ValueError("Invalid instrument, must be Gemini North or South")
 
-        if not user_email or not user_password or not programid:
-            raise ValueError("user_email, user_password, and programid are required")
+        if not user_email or not user_key or not programid:
+            raise ValueError("user_email, user_key, and programid are required")
 
         template_ids = altdata.get("template_ids")
         if template_ids:
@@ -431,7 +431,11 @@ class GEMINIAPI(FollowUpAPI):
         "type": "object",
         "properties": {
             "user_email": {"type": "string", "title": "Email"},
-            "user_password": {"type": "string", "title": "Password"},
+            "user_key": {
+                "type": "string",
+                "title": "User Key",
+                "description": "CAUTION: A User Key is different from the allocation’s Program Key provided by the Gemini staff.",
+            },
             "programid": {
                 "type": "string",
                 "title": "Program ID",
@@ -443,7 +447,7 @@ class GEMINIAPI(FollowUpAPI):
                 "description": "List of available templates, comma separated (optional)",
             },
         },
-        "required": ["user_email", "user_password", "programid"],
+        "required": ["user_email", "user_key", "programid"],
     }
 
     ui_json_schema = {}
