@@ -16,7 +16,7 @@ log = make_log("api/source")
 
 class CachedSourceFinderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, cache_key):
+    async def get(self, cache_key=None):
         """
         ---
         summary: Retrieve a cached finding chart
@@ -48,6 +48,9 @@ class CachedSourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        if not cache_key:
+            return self.error("Missing cache key", status=400)
 
         try:
             value = finding_charts_cache[cache_key]
