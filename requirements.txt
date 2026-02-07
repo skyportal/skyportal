@@ -68,7 +68,7 @@ typing-extensions==4.15.0
 swifttools==3.0.23
 pip>=24.0.0
 gwemopt==0.3.6
-humanize==4.14.0
+humanize==4.15.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
