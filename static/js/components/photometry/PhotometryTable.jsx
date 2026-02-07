@@ -126,6 +126,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         params.includeExtinction = true;
       }
 
+      params.includet0 = true;
+
       if (magsys) {
         params.magsys = magsys;
       }
@@ -208,6 +210,9 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           "flux_corr",
         );
       }
+
+      const hasT0 = data.length > 0 && "t-t0" in data[0];
+
       Object.keys(data[0]).forEach((key) => {
         const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
         const excludedKeys = [
@@ -217,6 +222,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           "id",
           "streams",
           "validations",
+          "t-t0",
         ];
 
         if (extinctionColumns.includes(key) && !showExtinction) {
@@ -268,6 +274,24 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           display: openColumns.UTC === false ? "false" : "true",
         },
       });
+
+      // Add t-t0 column after UTC if obj has t0
+      if (hasT0) {
+        const renderTMinusT0 = (dataIndex) => {
+          const phot = data[dataIndex];
+          const value = phot["t-t0"];
+          return isFloat(value) ? value.toFixed(6) : value;
+        };
+        const utcIndex = columns.findIndex((col) => col.name === "UTC");
+        columns.splice(utcIndex + 1, 0, {
+          name: "t-t0",
+          label: "t-t0",
+          options: {
+            customBodyRenderLite: renderTMinusT0,
+            display: openColumns["t-t0"] === false ? "false" : "true",
+          },
+        });
+      }
 
       const renderOwner = (dataIndex) => {
         const phot = data[dataIndex];
