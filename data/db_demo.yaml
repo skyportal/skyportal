@@ -680,6 +680,15 @@ instrument:
     field_fov_attributes: [1.2,1]
     # field_data:
     #   file: ../data/WINTER_Fields.csv.bz2
+  - band: optical
+    name: SPRING
+    telescope_id: =WINTER-1m
+    type: imager
+    =id: SPRING
+    api_classname: SPRINGAPI
+    filters: [ "desy", "2massj", "2massh" ]
+    field_fov_type: rectangle
+    field_fov_attributes: [1.2,1]
   - band: Optical
     name: TESS
     =id: TESS
@@ -767,6 +776,17 @@ allocation:
     group_id: =program_A
     instrument_id: =WINTER
     =id: WINTER_allocation
+  - pi: Robert Stein
+    proposal_id: WINTER-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+      - start_date: "3030-08-01T00:00:00"
+        end_date: "3030-12-31T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SPRING
+    =id: SPRING_allocation
   - pi: Michael Coughlin
     proposal_id: SEDM-001
     validity_ranges:
