@@ -252,9 +252,9 @@ class GEMINIAPI(FollowUpAPI):
         if not isinstance(altdata, dict):
             raise ValueError("Invalid altdata format")
 
-        user_email = str(altdata.get("user_email")).strip()
-        user_key = str(altdata.get("user_key")).strip()
-        programid = str(altdata.get("programid")).strip()
+        user_email = str(altdata.get("user_email") or "").strip()
+        user_key = str(altdata.get("user_key") or "").strip()
+        programid = str(altdata.get("programid") or "").strip()
         if not any(programid.startswith(x) for x in ["GN", "GS"]):
             raise ValueError("Invalid program ID, must start with GN or GS")
 

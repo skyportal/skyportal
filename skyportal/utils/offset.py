@@ -1041,8 +1041,8 @@ def get_nearby_offset_stars(
                         use_original = False
                 except Exception as e:
                     log(
-                        f"Warning: ZTF catalog matching failed..."
-                        f"Error: {str(e)}"
+                        f"Warning: ZTF catalog matching failed... "
+                        f"Error: {str(e)} "
                         f"Failed catalog: {str(ztfcatalog)}"
                     )
 
