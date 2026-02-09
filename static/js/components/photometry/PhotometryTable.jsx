@@ -98,7 +98,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
-const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
+const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
   const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
@@ -125,8 +125,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       if (showExtinction) {
         params.includeExtinction = true;
       }
-
-      params.includet0 = true;
 
       if (magsys) {
         params.magsys = magsys;
@@ -211,8 +209,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       }
 
-      const hasT0 = data.length > 0 && "t-t0" in data[0];
-
       Object.keys(data[0]).forEach((key) => {
         const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
         const excludedKeys = [
@@ -222,7 +218,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           "id",
           "streams",
           "validations",
-          "t-t0",
         ];
 
         if (extinctionColumns.includes(key) && !showExtinction) {
@@ -276,10 +271,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       });
 
       // Add t-t0 column after UTC if obj has t0
-      if (hasT0) {
+      if (t0 != null) {
         const renderTMinusT0 = (dataIndex) => {
           const phot = data[dataIndex];
-          const value = phot["t-t0"];
+          const value = phot.mjd - t0;
           return isFloat(value) ? value.toFixed(6) : value;
         };
         const utcIndex = columns.findIndex((col) => col.name === "UTC");
@@ -573,11 +568,13 @@ PhotometryTable.propTypes = {
   onClose: PropTypes.func.isRequired,
   magsys: PropTypes.string,
   setMagsys: PropTypes.func,
+  t0: PropTypes.number,
 };
 
 PhotometryTable.defaultProps = {
   magsys: null,
   setMagsys: null,
+  t0: null,
 };
 
 export default PhotometryTable;
