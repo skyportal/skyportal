@@ -812,6 +812,7 @@ const SharingServicesPage = () => {
   const validate = (errors) => {
     const { tns_source_group_id } = sharingServiceToManage;
     if (
+      enablePublishToTNS &&
       tns_source_group_id !== "" &&
       Number.isNaN(Number(tns_source_group_id))
     ) {
@@ -1300,6 +1301,9 @@ const SharingServicesPage = () => {
               },
             }}
             onSubmit={submitSharingService}
+            onError={(errors) =>
+              console.log("Form validation errors: ", errors)
+            }
             validator={validator}
             customValidate={validate}
           />
