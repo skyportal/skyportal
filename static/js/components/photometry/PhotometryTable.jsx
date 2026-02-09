@@ -8,6 +8,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
+import DeleteIcon from "@mui/icons-material/Delete";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
@@ -28,7 +29,6 @@ import PhotometryMagsys from "./PhotometryMagsys";
 import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import Button from "../Button";
 import * as Actions from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 const DEFAULT_HIDDEN_COLUMNS = [
@@ -260,7 +260,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         return (
           <div>
             <div className={classes.actionButtons}>
-              <div>{mjd_to_utc(phot.mjd)}</div>
+              <div>{mjd_to_utc(phot.mjd).replace("T", " ")}</div>
             </div>
           </div>
         );
@@ -453,7 +453,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 </div>
               ) : (
                 <div>
-                  <Button
+                  <IconButton
                     primary
                     onClick={() => {
                       setDeleteDialogOpen(phot.id);
@@ -462,8 +462,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                     type="submit"
                     data-testid={`deleteRequest_${photometry.id}`}
                   >
-                    Delete
-                  </Button>
+                    <DeleteIcon />
+                  </IconButton>
                 </div>
               )}
             </div>
