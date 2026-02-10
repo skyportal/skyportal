@@ -1,7 +1,7 @@
 """Add SPRING camera
 
 Revision ID: 7678f8674917
-Revises: 9f2a7c3e1b45
+Revises: a3953142b501
 Create Date: 2026-01-24 20:30:27.205614
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "7678f8674917"
-down_revision = "9f2a7c3e1b45"
+down_revision = "a3953142b501"
 branch_labels = None
 depends_on = None
 
