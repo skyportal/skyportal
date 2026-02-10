@@ -118,7 +118,7 @@ class GeminiRequest:
 
         user_email = altdata.get("user_email")
         programid = altdata.get("programid")
-        user_key = altdata.get("user_key")
+        user_key = altdata.get("user_key", altdata.get("user_password"))
 
         if user_email is None or programid is None or user_key is None:
             raise ValueError("user_email, user_key, and programid are required")
@@ -253,7 +253,9 @@ class GEMINIAPI(FollowUpAPI):
             raise ValueError("Invalid altdata format")
 
         user_email = str(altdata.get("user_email") or "").strip()
-        user_key = str(altdata.get("user_key") or "").strip()
+        user_key = str(
+            altdata.get("user_key", altdata.get("user_password")) or ""
+        ).strip()
         programid = str(altdata.get("programid") or "").strip()
         if not any(programid.startswith(x) for x in ["GN", "GS"]):
             raise ValueError("Invalid program ID, must start with GN or GS")
