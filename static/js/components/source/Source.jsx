@@ -1440,6 +1440,7 @@ const SourceContent = ({ source }) => {
           onClose={() => setShowPhotometry(false)}
           magsys={magsys}
           setMagsys={setMagsys}
+          t0={source.t0}
         />
       </Grid>
     </Grid>
