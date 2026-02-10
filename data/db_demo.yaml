@@ -95,6 +95,8 @@ filters:
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    altdata:
+      origin: boom
     =id: example_filter2
 
 mmadetector:
