@@ -106,6 +106,7 @@ app:
       topic: skyportal.skyportal
       test_topic: skyportal.skyportal_test
 
+  # Configuration for the WINTER and SPRING instruments.
   winter:
     protocol: http
     host: winter.caltech.edu
