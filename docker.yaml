@@ -1,3 +1,13 @@
+app:
+  title: SkyPortal
+  secret_key: abc01234  # This secret key can be any random string of
+                        # characters.
+                        #
+                        # You should re-generate this for your application
+                        # using:
+                        #
+                        # base64.b64encode(os.urandom(50)).decode('ascii')
+
 database:
     database: skyportal
     host: db
@@ -6,7 +16,84 @@ database:
     password: password
 
 server:
-    port: 5000 # Internal port
+  # From https://console.developers.google.com/
+  # - Create Client ID
+  # - Javascript origins: https://localhost:5000
+  # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
+  # You need to have Google+ API enabled; it takes a few minutes to activate.
+  protocol: http
+  host: localhost
+  port: 443 # This is the public-facing port (set to 80 if not using SSL)
+
+  ssl: False # Whether the base URL is http or https
+
+  # According to the Tornado docs at
+  # https://www.tornadoweb.org/en/stable/guide/running.html#processes-and-ports:
+  #   Due to the Python GIL (Global Interpreter Lock), it is necessary
+  #   to run multiple Python processes to take full advantage of
+  #   multi-CPU machines. Typically, it is best to run one process per CPU.
+  processes: 4
+  # How many of the above processes should be dedicated to
+  # frontend only (i.e., no token authorized API requests)
+  dedicated_frontend_processes: 2
+
+services:
+  disabled: # List of services to disable, EDIT THIS AS NEEDED
+  - dask
+  - facility_queue
+  - observation_plan_queue
+  - gcn_service
+  - pdl_service
+  - recurring_apis
+  - reminders
+  - slack
+  - sn_analysis_service
+  - spectral_cube_analysis_service
+  - tns_retrieval_queue
+  - tns_submission_queue
+  - watch_list
+  - openai_analysis_service
+  - ngsf_analysis_service
+
+weather:
+  # time in seconds to wait before fetching weather for a given telescope
+  refresh_time: 3600.0
+  # Get an API key at OpenWeatherMap https://openweathermap.org/price
+  # the free tier should be sufficient, as we cache the weather results
+  # for each telescope
+  openweather_api_key:
+
+twilio:
+  # Twilio Sendgrid API configs
+  # This needs to be set to a valid, Sendgrid-registered address in config.yaml
+  from_email:
+  # This needs to be obtained via Sendgrid setup on their site
+  sendgrid_api_key:
+
+  # Twilio SMS API configs
+  # These values must be valid ones from the Twitter API console
+  from_number:
+  sms_account_sid:
+  sms_auth_token:
+
+smtp:
+  from_email:  # This is both the email used to authenticate with smtplib and the sender address
+  password:
+  host: smtp.gmail.com  # Default Gmail settings; modify as needed
+  port: 587  # Default Gmail settings; modify as needed
+
+# This value needs to be either "sendgrid" or "smtp" (without quotes)
+email_service:
+
+invitations:
+  enabled: False  # If debug_login=True above, invite tokens won't be used during auth
+  days_until_expiry: 3
+  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
+  email_subject: "You've been invited to collaborate on SkyPortal"
+  email_body_preamble: | # This can include HTML tags
+    Welcome to <b>SkyPortal</b>!
+    <br />
+    Some other text here.
 
 ports:
-    app: 5000 # External port
+  app: 5000 # This is the internal port

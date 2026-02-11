@@ -501,26 +501,21 @@ database:
 
 server:
   # From https://console.developers.google.com/
-  #
   # - Create Client ID
   # - Javascript origins: https://localhost:5000
   # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
-  #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
   port: 5000  # This is the public-facing port
 
-  # Whether the base URL is http or https
-  ssl: False
+  ssl: False # Whether the base URL is http or https
 
   # According to the Tornado docs at
   # https://www.tornadoweb.org/en/stable/guide/running.html#processes-and-ports:
-  #
-  # Due to the Python GIL (Global Interpreter Lock), it is necessary
-  # to run multiple Python processes to take full advantage of
-  # multi-CPU machines. Typically it is best to run one process per
-  # CPU.
+  #   Due to the Python GIL (Global Interpreter Lock), it is necessary
+  #   to run multiple Python processes to take full advantage of
+  #   multi-CPU machines. Typically, it is best to run one process per CPU.
   processes: 4
 
   # How many of the above processes should be dedicated to
@@ -556,7 +551,8 @@ server:
     google_oauth2_timeout: 15
 
 services:
-  dask: False
+    disabled: # List of microservices to disable, EDIT THIS AS NEEDED
+    - dask
 
 misc:
   days_to_keep_unsaved_candidates: 7
@@ -586,7 +582,7 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
-  # whether or not the frontend show photometry validation information
+  # whether the frontend show photometry validation information
   # and if the backend allows adding/editing/deleting it
   photometry_validation: True
 
@@ -600,7 +596,7 @@ weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
   # Get an API key at OpenWeatherMap https://openweathermap.org/price
-  # the free tier should be sufficent, as we cache the weather results
+  # the free tier should be sufficient, as we cache the weather results
   # for each telescope
   openweather_api_key:
 
