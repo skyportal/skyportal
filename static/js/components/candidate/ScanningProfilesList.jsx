@@ -160,37 +160,26 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked, dataIndex) => {
-    if (checked) {
-      // If setting new default, unset the old default first
-      profiles.forEach((profile) => {
-        profile.default = false;
-      });
-      profiles[dataIndex].default = true;
-    } else {
-      // If unchecking, just set default to false
-      profiles[dataIndex].default = false;
-    }
     const prefs = {
-      scanningProfiles: profiles,
+      scanningProfiles: profiles.map((profile, index) => ({
+        ...profile,
+        default: checked ? index === dataIndex : false,
+      })),
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
   const renderDefault = (dataIndex) => {
     const profile = profiles[dataIndex];
-    return profile ? (
-      <div>
-        <Checkbox
-          checked={profile.default}
-          key={`default${dataIndex}`}
-          onChange={(event) =>
-            handleDefaultChange(event.target.checked, dataIndex)
-          }
-          inputProps={{ "aria-label": "primary checkbox" }}
-        />
-      </div>
-    ) : (
-      <div />
+    if (!profile) return null;
+    return (
+      <Checkbox
+        checked={profile.default}
+        onChange={(event) =>
+          handleDefaultChange(event.target.checked, dataIndex)
+        }
+        inputProps={{ "aria-label": "primary checkbox" }}
+      />
     );
   };
 
@@ -290,15 +279,10 @@ const ScanningProfilesList = ({
   const renderActions = (dataIndex) => {
     return (
       <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
+        <IconButton onClick={() => editProfile(profiles[dataIndex])}>
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${dataIndex}`}
           id={`delete_button_${dataIndex}`}
           onClick={() => deleteProfile(dataIndex)}
         >
