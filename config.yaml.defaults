@@ -9,17 +9,19 @@ app:
       https://github.com/skyportal/skyportal
     </a>
 
-  secret_key: abc01234  # This secret key can be any random string of
-                        # characters.
-                        #
-                        # You should re-generate this for your application
-                        # using:
-                        #
-                        # base64.b64encode(os.urandom(50)).decode('ascii')
+  # This secret key can be any random string of
+  # characters.
+  #
+  # You should re-generate this for your application
+  # using:
+  #
+  # base64.b64encode(os.urandom(50)).decode('ascii')
+  secret_key: abc01234
+
   factory: skyportal.app_server.make_app
 
   observation_plan:
-    default_filters: ['ztfg', 'ztfr', 'ztfi']
+    default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
     use_parallel: False
     Ncores: 1
@@ -101,10 +103,10 @@ app:
     look_back_days: 1
 
   hermes:
-      endpoint: https://hermes.lco.global/api/v0
-      token:
-      topic: skyportal.skyportal
-      test_topic: skyportal.skyportal_test
+    endpoint: https://hermes.lco.global/api/v0
+    token:
+    topic: skyportal.skyportal
+    test_topic: skyportal.skyportal_test
 
   winter:
     protocol: http
@@ -344,7 +346,6 @@ app:
           permissions: ["Manage users", "System admin"]
           url: /user_management
 
-
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
     # This section describes the grid on which Home Page widgets are laid out.
@@ -507,7 +508,7 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
-  port: 5000  # This is the public-facing port
+  port: 5000 # This is the public-facing port
 
   ssl: False # Whether the base URL is http or https
 
@@ -551,7 +552,7 @@ server:
     google_oauth2_timeout: 15
 
 services:
-    disabled: # List of microservices to disable, EDIT THIS AS NEEDED
+  disabled: # List of microservices to disable, EDIT THIS AS NEEDED
     - dask
 
 misc:
@@ -642,18 +643,18 @@ twilio:
   sms_auth_token:
 
 smtp:
-  from_email:  # This is both the email used to authenticate with smtplib and the sender address
+  from_email: # This is both the email used to authenticate with smtplib and the sender address
   password:
-  host: smtp.gmail.com  # Default Gmail settings; modify as needed
-  port: 587  # Default Gmail settings; modify as needed
+  host: smtp.gmail.com # Default Gmail settings; modify as needed
+  port: 587 # Default Gmail settings; modify as needed
 
 # This value needs to be either "sendgrid" or "smtp" (without quotes)
 email_service:
 
 invitations:
-  enabled: False  # If debug_login=True above, invite tokens won't be used during auth
+  enabled: False # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
-  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
+  disable_emailing: False # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
@@ -680,9 +681,9 @@ slack:
 
 spectrum_types:
   types:
-   - source
-   - host
-   - host_center
+    - source
+    - host
+    - host_center
   default: source
 
 cross_match:
@@ -691,7 +692,6 @@ cross_match:
     radius: 2.0
     limmag: 20.5
     number: 1
-
 
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
@@ -702,29 +702,29 @@ cross_match:
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
 additional_bandpasses:
-#  - name: 'atlasc'
-#    filterset: 'atlas'
-#    wavelength: [4150, 4157, 6556, 6560]
-#    transmission: [0, 1, 1, 0]
-#    description: "basic ATLAS C filter - tophat transmission"
-#  - name: 'atlaso'
-#    filterset: 'atlas'
-#    wavelength: [5580, 5582, 8249, 8250]
-#    transmission: [0, 1, 1, 0]
-#    description: "basic ATLAS O filter - tophat transmission"
-  - name: 'swiftxrt'
-    filterset: 'xrt'
+  #  - name: 'atlasc'
+  #    filterset: 'atlas'
+  #    wavelength: [4150, 4157, 6556, 6560]
+  #    transmission: [0, 1, 1, 0]
+  #    description: "basic ATLAS C filter - tophat transmission"
+  #  - name: 'atlaso'
+  #    filterset: 'atlas'
+  #    wavelength: [5580, 5582, 8249, 8250]
+  #    transmission: [0, 1, 1, 0]
+  #    description: "basic ATLAS O filter - tophat transmission"
+  - name: "swiftxrt"
+    filterset: "xrt"
     wavelength: [0.1, 1, 62, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XRT filter - tophat transmission"
-  - name: 'nicerxti'
-    filterset: 'xti'
+  - name: "nicerxti"
+    filterset: "xti"
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
 
 user:
-  default_role: 'Full user'
+  default_role: "Full user"
   default_groups: []
   default_acls: []
 
@@ -823,8 +823,6 @@ analysis_services:
         cloud: aws
         region: us-east-1
 
-
-
 comments_folder: persistentdata/comments
 localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
@@ -834,14 +832,8 @@ colors:
   classifications:
     classification:
       # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
-      {
-        "variable": "#3a87ad",
-        "Time-domain Source": "#ff0000",
-      }
-    origin:
-      {
-        "SCoPe": "#3a87ad",
-      }
+      { "variable": "#3a87ad", "Time-domain Source": "#ff0000" }
+    origin: { "SCoPe": "#3a87ad" }
   gcnTags:
     {
       "BNS": "#468847",
@@ -854,18 +846,18 @@ colors:
     }
 
   summary_sources:
-  - score: 0.9
-    fw: bold
-    col: green
-  - score: 0.8
-    fw: bold
-    col: black
-  - score: 0.7
-    fw: normal
-    col: black
-  - score: 0.0
-    fw: normal
-    col: grey
+    - score: 0.9
+      fw: bold
+      col: green
+    - score: 0.8
+      fw: bold
+      col: black
+    - score: 0.7
+      fw: normal
+      col: black
+    - score: 0.0
+      fw: normal
+      col: grey
 
 docs:
   servers:

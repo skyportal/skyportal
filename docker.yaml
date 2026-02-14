@@ -1,19 +1,21 @@
 app:
   title: SkyPortal
-  secret_key: abc01234  # This secret key can be any random string of
-                        # characters.
-                        #
-                        # You should re-generate this for your application
-                        # using:
-                        #
-                        # base64.b64encode(os.urandom(50)).decode('ascii')
+
+  # This secret key can be any random string of
+  # characters.
+  #
+  # You should re-generate this for your application
+  # using:
+  #
+  # base64.b64encode(os.urandom(50)).decode('ascii')
+  secret_key: abc01234
 
 database:
-    database: skyportal
-    host: db
-    port: 5432
-    user: skyportal
-    password: password
+  database: skyportal
+  host: db
+  port: 5432
+  user: skyportal
+  password: password
 
 server:
   # From https://console.developers.google.com/
@@ -39,21 +41,21 @@ server:
 
 services:
   disabled: # List of services to disable, EDIT THIS AS NEEDED
-  - dask
-  - facility_queue
-  - observation_plan_queue
-  - gcn_service
-  - pdl_service
-  - recurring_apis
-  - reminders
-  - slack
-  - sn_analysis_service
-  - spectral_cube_analysis_service
-  - tns_retrieval_queue
-  - tns_submission_queue
-  - watch_list
-  - openai_analysis_service
-  - ngsf_analysis_service
+    - dask
+    - facility_queue
+    - observation_plan_queue
+    - gcn_service
+    - pdl_service
+    - recurring_apis
+    - reminders
+    - slack
+    - sn_analysis_service
+    - spectral_cube_analysis_service
+    - tns_retrieval_queue
+    - tns_submission_queue
+    - watch_list
+    - openai_analysis_service
+    - ngsf_analysis_service
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope
@@ -77,18 +79,18 @@ twilio:
   sms_auth_token:
 
 smtp:
-  from_email:  # This is both the email used to authenticate with smtplib and the sender address
+  from_email: # This is both the email used to authenticate with smtplib and the sender address
   password:
-  host: smtp.gmail.com  # Default Gmail settings; modify as needed
-  port: 587  # Default Gmail settings; modify as needed
+  host: smtp.gmail.com # Default Gmail settings; modify as needed
+  port: 587 # Default Gmail settings; modify as needed
 
 # This value needs to be either "sendgrid" or "smtp" (without quotes)
 email_service:
 
 invitations:
-  enabled: False  # If debug_login=True above, invite tokens won't be used during auth
+  enabled: False # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
-  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
+  disable_emailing: False # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
