@@ -20,9 +20,8 @@ server:
   # - Javascript origins: https://localhost:5000
   # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
   # You need to have Google+ API enabled; it takes a few minutes to activate.
-  protocol: http
-  host: localhost
 
+  host: localhost
   ssl: False # Whether the base URL is http or https
 
   # According to the Tornado docs at

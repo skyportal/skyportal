@@ -11,8 +11,8 @@ from baselayer.app.flow import Flow
 from baselayer.app.models import AccessibleIfUserMatches, Base
 from baselayer.log import make_log
 
-from ..app_utils import get_app_base_url
-from ..email_utils import send_email
+from ..utils.app import get_app_base_url
+from ..utils.email import send_email
 
 _, cfg = load_env()
 

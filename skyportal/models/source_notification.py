@@ -13,8 +13,8 @@ from baselayer.app.models import (
     DBSession,
 )
 
-from ..app_utils import get_app_base_url
-from ..email_utils import send_email
+from ..utils.app import get_app_base_url
+from ..utils.email import send_email
 from .group import Group
 from .obj import Obj
 
