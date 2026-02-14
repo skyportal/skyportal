@@ -9,12 +9,9 @@ app:
       https://github.com/skyportal/skyportal
     </a>
 
-  # This secret key can be any random string of
-  # characters.
-  #
-  # You should re-generate this for your application
-  # using:
-  #
+  # This secret key can be any random string of characters.
+  # To ensure privacy of cookies and websocket communications, you
+  # should re-generate this token for your application using:
   # base64.b64encode(os.urandom(50)).decode('ascii')
   secret_key: abc01234
 
@@ -552,7 +549,7 @@ server:
     google_oauth2_timeout: 15
 
 services:
-  disabled: # List of microservices to disable, EDIT THIS AS NEEDED
+  disabled: # List of microservices to disable
     - dask
 
 misc:
@@ -583,7 +580,7 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
-  # whether the frontend show photometry validation information
+  # whether the frontend should show photometry validation information
   # and if the backend allows adding/editing/deleting it
   photometry_validation: True
 

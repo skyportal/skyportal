@@ -1,12 +1,9 @@
 app:
   title: SkyPortal
 
-  # This secret key can be any random string of
-  # characters.
-  #
-  # You should re-generate this for your application
-  # using:
-  #
+  # This secret key can be any random string of characters.
+  # To ensure privacy of cookies and websocket communications, you
+  # should re-generate this token for your application using:
   # base64.b64encode(os.urandom(50)).decode('ascii')
   secret_key: abc01234
 
@@ -40,7 +37,7 @@ server:
   dedicated_frontend_processes: 2
 
 services:
-  disabled: # List of services to disable, EDIT THIS AS NEEDED
+  disabled: # List of services to disable
     - dask
     - facility_queue
     - observation_plan_queue
