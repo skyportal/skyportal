@@ -62,14 +62,15 @@ weather:
   # for each telescope
   openweather_api_key:
 
+# This value needs to be either "sendgrid" or "smtp" (without quotes)
+email_service:
+
+# See also `email_service` above.
 smtp:
   from_email: # This is both the email used to authenticate with smtplib and the sender address
   password:
   host: smtp.gmail.com # Default Gmail settings; modify as needed
   port: 587 # Default Gmail settings; modify as needed
-
-# This value needs to be either "sendgrid" or "smtp" (without quotes)
-email_service:
 
 invitations:
   enabled: False # If debug_login=True above, invite tokens won't be used during auth
