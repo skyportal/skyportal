@@ -49,11 +49,12 @@ services:
     - slack
     - sn_analysis_service
     - spectral_cube_analysis_service
+    - sharing_service_submission_queue
     - tns_retrieval_queue
-    - tns_submission_queue
     - watch_list
     - openai_analysis_service
     - ngsf_analysis_service
+    - thumbnail_queue
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope
