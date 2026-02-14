@@ -22,7 +22,6 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
-  port: 443 # This is the public-facing port (set to 80 if not using SSL)
 
   ssl: False # Whether the base URL is http or https
 
