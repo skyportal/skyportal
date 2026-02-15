@@ -22,6 +22,7 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
 
   host: localhost
+  port: 5000 # This is the public-facing port (remove for production)
   ssl: False # Whether the base URL is http or https
 
   # According to the Tornado docs at
