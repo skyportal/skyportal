@@ -1,6 +1,16 @@
-version: "3.7"
-
 services:
+  db:
+    container_name: postgres14.4
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: skyportal
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: skyportal
+    image: postgres:14.4
+    restart: on-failure:3
+    volumes:
+      - ./data/dbdata:/var/lib/postgresql/data:z
+
   web:
     image: skyportal/web
     ports:
@@ -13,19 +23,7 @@ services:
       - thumbnails:/skyportal/static/thumbnails:z
       - persistentdata:/skyportal/persistentdata:z
 
-  db:
-    image: postgres:14.4
-    container_name: postgres14.4
-    environment:
-      POSTGRES_USER: skyportal
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: skyportal
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - ./data/dbdata:/var/lib/postgresql/data:z
-    restart: on-failure:3
-
 volumes:
   dbdata:
-  thumbnails:
   persistentdata:
+  thumbnails:
