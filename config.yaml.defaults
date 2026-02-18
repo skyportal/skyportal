@@ -657,6 +657,7 @@ email_service:
 invitations:
   enabled: False  # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
+  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
