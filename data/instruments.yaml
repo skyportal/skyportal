@@ -427,9 +427,15 @@
   telescope_id: =PGIR
   type: imager
 - =id: WNTR
-  band: NIR
-  filters: ['2massj', '2massh', '2massks']
+  band: optical
+  filters: ['desy', '2massj', '2massh']
   name: WNTR
+  telescope_id: =WINTER
+  type: imager
+- =id: SPRING
+  band: optical
+  filters: ['desy', '2massj', '2massh']
+  name: SPRING
   telescope_id: =WINTER
   type: imager
 - =id: SUMMER
