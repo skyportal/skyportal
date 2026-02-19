@@ -10,6 +10,8 @@ import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -174,7 +176,7 @@ const UpdatePhotometry = ({ phot, magsys }) => {
 
   return (
     <>
-      <Button
+      <IconButton
         primary
         data-testid="updatePhotometryIconButton"
         size="small"
@@ -183,8 +185,8 @@ const UpdatePhotometry = ({ phot, magsys }) => {
           setDialogOpen(true);
         }}
       >
-        Edit
-      </Button>
+        <EditIcon />
+      </IconButton>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Photometry</DialogTitle>
         <DialogContent>

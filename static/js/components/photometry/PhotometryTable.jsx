@@ -8,6 +8,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
+import DeleteIcon from "@mui/icons-material/Delete";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
@@ -28,7 +29,6 @@ import PhotometryMagsys from "./PhotometryMagsys";
 import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import Button from "../Button";
 import * as Actions from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 const DEFAULT_HIDDEN_COLUMNS = [
@@ -98,7 +98,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
-const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
+const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
   const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
@@ -208,6 +208,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           "flux_corr",
         );
       }
+
       Object.keys(data[0]).forEach((key) => {
         const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
         const excludedKeys = [
@@ -254,7 +255,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         return (
           <div>
             <div className={classes.actionButtons}>
-              <div>{mjd_to_utc(phot.mjd)}</div>
+              <div>{mjd_to_utc(phot.mjd).replace("T", " ")}</div>
             </div>
           </div>
         );
@@ -268,6 +269,24 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           display: openColumns.UTC === false ? "false" : "true",
         },
       });
+
+      // Add t-t0 column after UTC if obj has t0
+      if (t0 != null) {
+        const renderTMinusT0 = (dataIndex) => {
+          const phot = data[dataIndex];
+          const value = phot.mjd - t0;
+          return isFloat(value) ? value.toFixed(6) : value;
+        };
+        const utcIndex = columns.findIndex((col) => col.name === "UTC");
+        columns.splice(utcIndex + 1, 0, {
+          name: "t-t0",
+          label: "t-t0",
+          options: {
+            customBodyRenderLite: renderTMinusT0,
+            display: openColumns["t-t0"] === false ? "false" : "true",
+          },
+        });
+      }
 
       const renderOwner = (dataIndex) => {
         const phot = data[dataIndex];
@@ -429,7 +448,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 </div>
               ) : (
                 <div>
-                  <Button
+                  <IconButton
                     primary
                     onClick={() => {
                       setDeleteDialogOpen(phot.id);
@@ -438,8 +457,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                     type="submit"
                     data-testid={`deleteRequest_${photometry.id}`}
                   >
-                    Delete
-                  </Button>
+                    <DeleteIcon />
+                  </IconButton>
                 </div>
               )}
             </div>
@@ -549,11 +568,13 @@ PhotometryTable.propTypes = {
   onClose: PropTypes.func.isRequired,
   magsys: PropTypes.string,
   setMagsys: PropTypes.func,
+  t0: PropTypes.number,
 };
 
 PhotometryTable.defaultProps = {
   magsys: null,
   setMagsys: null,
+  t0: null,
 };
 
 export default PhotometryTable;
