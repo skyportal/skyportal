@@ -16,8 +16,8 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..email_utils import send_email
 from ..utils import http
+from ..utils.email import send_email
 from . import FollowUpAPI
 
 log = make_log("api/observation_plan")

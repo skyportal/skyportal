@@ -24,7 +24,6 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ...app_utils import get_app_base_url
 from ...enum_types import (
     ANALYSIS_INPUT_TYPES,
     ANALYSIS_TYPES,
@@ -45,6 +44,7 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.app import get_app_base_url
 from ..base import BaseHandler
 from .photometry import serialize
 

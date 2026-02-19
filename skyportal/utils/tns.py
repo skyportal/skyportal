@@ -14,14 +14,11 @@ from bs4 import BeautifulSoup
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
 
 from ..models import Instrument
 from .calculations import great_circle_distance
 
 env, cfg = load_env()
-
-app_url = get_app_base_url()
 
 TNS_URL = cfg.get("app.tns.endpoint")
 

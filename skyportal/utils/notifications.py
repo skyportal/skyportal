@@ -8,11 +8,12 @@ from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
-from skyportal.email_utils import send_email
 from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
+
+from .app import get_app_base_url
+from .calculations import deg2dms, deg2hms, radec2lb
+from .email import send_email
 
 env, cfg = load_env()
 
