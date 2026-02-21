@@ -236,18 +236,32 @@ async def get_source(
     if s is None:
         raise ValueError("Source not found")
 
+    # Convert to a plain dict first so that the deduplication below operates on
+    # copied data rather than on the SQLAlchemy-tracked relationship collection.
+    #
+    # Otherwise, a line like
+    #
+    #   source_info["thumbnails"] = list(latest_by_type.values())
+    #
+    # mutates the collection.
+    #
+    # (Longer explanation of why that is a problem: SQLAlchemy detects
+    # that some Thumbnail objects were removed from the collection. It
+    # then tries to orphan those removed thumbnails by setting their
+    # obj_id = NULL during the next autoflush, violating that
+    # field's NOT NULL constraint.)
+    source_info = s.to_dict()
+
     # only keep the latest Thumbnail for each type (by created_at)
-    if include_thumbnails and isinstance(s.thumbnails, list):
+    if include_thumbnails and source_info.get("thumbnails"):
         latest_by_type = {}
-        for t in s.thumbnails:
+        for t in source_info["thumbnails"]:
             if (
                 t.type not in latest_by_type
                 or t.created_at > latest_by_type[t.type].created_at
             ):
                 latest_by_type[t.type] = t
-        s.thumbnails = list(latest_by_type.values())
-
-    source_info = s.to_dict()
+        source_info["thumbnails"] = list(latest_by_type.values())
 
     followup_requests = (
         session.scalars(
