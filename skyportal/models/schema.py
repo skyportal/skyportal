@@ -202,7 +202,7 @@ class PhotBaseFlexible:
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
-    mjd = fields.Field(
+    mjd = fields.Raw(
         metadata={
             "description": (
                 "MJD of the observation(s). Can be a given as a "
@@ -214,7 +214,7 @@ class PhotBaseFlexible:
         required=True,
     )
 
-    filter = fields.Field(
+    filter = fields.Raw(
         required=True,
         metadata={
             "description": (
@@ -227,7 +227,7 @@ class PhotBaseFlexible:
         },
     )
 
-    obj_id = fields.Field(
+    obj_id = fields.Raw(
         metadata={
             "description": (
                 "ID of the `Obj`(s) to which the "
@@ -240,7 +240,7 @@ class PhotBaseFlexible:
         required=True,
     )
 
-    instrument_id = fields.Field(
+    instrument_id = fields.Raw(
         metadata={
             "description": (
                 "ID of the `Instrument`(s) with which the "
@@ -261,7 +261,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    ra = fields.Field(
+    ra = fields.Raw(
         metadata={
             "description": (
                 "ICRS Right Ascension of the centroid "
@@ -275,7 +275,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    dec = fields.Field(
+    dec = fields.Raw(
         metadata={
             "description": (
                 "ICRS Declination of the centroid "
@@ -289,7 +289,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    ra_unc = fields.Field(
+    ra_unc = fields.Raw(
         metadata={
             "description": "Uncertainty on RA [arcsec]. "
             "Can be given as a scalar or a 1D list. "
@@ -300,7 +300,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    dec_unc = fields.Field(
+    dec_unc = fields.Raw(
         metadata={
             "description": "Uncertainty on dec [arcsec]. "
             "Can be given as a scalar or a 1D list. "
@@ -311,7 +311,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    origin = fields.Field(
+    origin = fields.Raw(
         metadata={
             "description": "Provenance of the Photometry. If a record is "
             "already present with identical origin, only the "
@@ -321,7 +321,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         metadata={
             "description": "List of group IDs to which photometry points will be visible. "
             "If 'all', will be shared with site-wide public group (visible to all users "
@@ -331,7 +331,7 @@ class PhotBaseFlexible:
         load_default=[],
     )
 
-    stream_ids = fields.Field(
+    stream_ids = fields.Raw(
         metadata={
             "description": "List of stream IDs to which photometry points will be visible."
         },
@@ -339,7 +339,7 @@ class PhotBaseFlexible:
         load_default=[],
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={
             "description": (
                 "Misc. alternative metadata stored in JSON "
@@ -371,7 +371,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         "zp",
     ]
 
-    magsys = fields.Field(
+    magsys = fields.Raw(
         required=True,
         metadata={
             "description": (
@@ -385,7 +385,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         },
     )
 
-    flux = fields.Field(
+    flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the observation(s) in counts. "
@@ -405,7 +405,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    fluxerr = fields.Field(
+    fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -416,7 +416,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         validate=validate_fluxerr,
     )
 
-    zp = fields.Field(
+    zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint, given by `zp` in the "
             "equation `m = -2.5 log10(flux) + zp`. "
@@ -428,7 +428,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         required=True,
     )
 
-    ref_flux = fields.Field(
+    ref_flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the reference image in counts. "
@@ -442,7 +442,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    ref_fluxerr = fields.Field(
+    ref_fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -454,7 +454,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         validate=validate_fluxerr,
     )
 
-    ref_zp = fields.Field(
+    ref_zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint for the reference flux, "
             "given by `zp` in the "
@@ -484,7 +484,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         "instrument_id",
     ]
 
-    magsys = fields.Field(
+    magsys = fields.Raw(
         required=True,
         metadata={
             "description": "The magnitude system to which the magnitude, "
@@ -496,7 +496,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         },
     )
 
-    mag = fields.Field(
+    mag = fields.Raw(
         metadata={
             "description": "Magnitude of the observation in the "
             "magnitude system `magsys`. "
@@ -510,7 +510,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    magerr = fields.Field(
+    magerr = fields.Raw(
         metadata={
             "description": "Error on the magnitude in the "
             "magnitude system `magsys`. "
@@ -524,7 +524,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    limiting_mag = fields.Field(
+    limiting_mag = fields.Raw(
         metadata={
             "description": "Limiting magnitude of the image "
             "in the magnitude system `magsys`. "
@@ -535,7 +535,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         required=True,
     )
 
-    limiting_mag_nsigma = fields.Field(
+    limiting_mag_nsigma = fields.Raw(
         metadata={
             "description": "Number of standard deviations "
             "above the background that the limiting "
@@ -546,7 +546,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=PHOT_DETECTION_THRESHOLD,
     )
 
-    magref = fields.Field(
+    magref = fields.Raw(
         metadata={
             "description": (
                 "Magnitude of the reference image. "
@@ -561,7 +561,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    e_magref = fields.Field(
+    e_magref = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference magnitude. "
             "Can be given as a scalar or a 1D list. "
@@ -580,7 +580,7 @@ class PhotBase:
     PhotometryHandler.get`.
     """
 
-    mjd = fields.Number(
+    mjd = fields.Float(
         metadata={"description": "MJD of the observation."}, required=True
     )
     magsys = ApispecEnumField(
@@ -621,7 +621,7 @@ class PhotBase:
         load_default=None,
     )
 
-    origin = fields.Field(
+    origin = fields.Raw(
         metadata={
             "description": (
                 "Provenance of the Photometry. If a record is "
@@ -633,7 +633,7 @@ class PhotBase:
         load_default=None,
     )
 
-    ra = fields.Number(
+    ra = fields.Float(
         metadata={
             "description": (
                 "ICRS Right Ascension of the centroid "
@@ -643,7 +643,7 @@ class PhotBase:
         load_default=None,
         dump_default=None,
     )
-    dec = fields.Number(
+    dec = fields.Float(
         metadata={
             "description": "ICRS Declination of the centroid "
             "of the photometric aperture [deg]."
@@ -652,13 +652,13 @@ class PhotBase:
         dump_default=None,
     )
 
-    ra_unc = fields.Number(
+    ra_unc = fields.Float(
         metadata={"description": "Uncertainty on RA [arcsec]."},
         load_default=None,
         dump_default=None,
     )
 
-    dec_unc = fields.Number(
+    dec_unc = fields.Float(
         metadata={"description": "Uncertainty on dec [arcsec]."},
         load_default=None,
         dump_default=None,
@@ -705,7 +705,7 @@ class PhotometryFlux(_Schema, PhotBase):
     PhotometryHandler.get`.
     """
 
-    flux = fields.Number(
+    flux = fields.Float(
         metadata={
             "description": "Flux of the observation in counts. "
             "Can be null to accommodate upper "
@@ -719,11 +719,11 @@ class PhotometryFlux(_Schema, PhotBase):
         dump_default=None,
     )
 
-    fluxerr = fields.Number(
+    fluxerr = fields.Float(
         metadata={"description": "Gaussian error on the flux in counts."}, required=True
     )
 
-    zp = fields.Number(
+    zp = fields.Float(
         metadata={
             "description": "Magnitude zeropoint, given by `ZP` in the "
             "equation m = -2.5 log10(flux) + `ZP`. "
@@ -733,7 +733,7 @@ class PhotometryFlux(_Schema, PhotBase):
         required=True,
     )
 
-    ref_flux = fields.Field(
+    ref_flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the reference image in counts. "
@@ -747,7 +747,7 @@ class PhotometryFlux(_Schema, PhotBase):
         load_default=None,
     )
 
-    ref_fluxerr = fields.Field(
+    ref_fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -759,7 +759,7 @@ class PhotometryFlux(_Schema, PhotBase):
         validate=validate_fluxerr,
     )
 
-    ref_zp = fields.Field(
+    ref_zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint of the reference image, "
             "given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. "
@@ -881,7 +881,7 @@ class PhotometryMag(_Schema, PhotBase):
     `PhotometryHandler.get`.
     """
 
-    mag = fields.Number(
+    mag = fields.Float(
         metadata={
             "description": "Magnitude of the observation in the "
             "magnitude system `magsys`. Can be null "
@@ -891,7 +891,7 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
         dump_default=None,
     )
-    magerr = fields.Number(
+    magerr = fields.Float(
         metadata={
             "description": "Magnitude error of the observation in "
             "the magnitude system `magsys`. Can be "
@@ -901,14 +901,14 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
         dump_default=None,
     )
-    limiting_mag = fields.Number(
+    limiting_mag = fields.Float(
         metadata={
             "description": "Limiting magnitude of the image "
             "in the magnitude system `magsys`."
         },
         required=True,
     )
-    magref = fields.Field(
+    magref = fields.Raw(
         metadata={
             "description": (
                 "Magnitude of the reference image. "
@@ -923,7 +923,7 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
     )
 
-    e_magref = fields.Field(
+    e_magref = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference magnitude. "
             "Can be given as a scalar or a 1D list. "
@@ -1094,17 +1094,17 @@ class ObservationHandlerPost(_Schema):
         required=True,
         metadata={"description": ("The instrument name associated with the fields")},
     )
-    observationData = fields.Field(
+    observationData = fields.Dict(
         metadata={"description": "Observation data dictionary list"}
     )
 
 
 class ObservationExternalAPIHandlerPost(_Schema):
-    start_date = fields.Field(
+    start_date = fields.Raw(
         required=True, metadata={"description": "start date of the request."}
     )
 
-    end_date = fields.Field(
+    end_date = fields.Raw(
         required=True, metadata={"description": "end date of the request."}
     )
 
@@ -1125,7 +1125,7 @@ class SkymapQueueAPIHandlerPost(_Schema):
         metadata={"description": "Localization ID."},
     )
 
-    integrated_probability = fields.Number(
+    integrated_probability = fields.Float(
         required=False,
         metadata={"description": "Integrated probability within skymap."},
     )
@@ -1136,7 +1136,7 @@ class ObservationASCIIFileHandlerPost(_Schema):
         required=True,
         metadata={"description": ("The instrument ID associated with the fields")},
     )
-    observationData = fields.Field(
+    observationData = fields.Dict(
         metadata={"description": "Observation data Ascii string"}
     )
 
@@ -1162,26 +1162,24 @@ class ObservingRunPost(_Schema):
 
 
 class GcnHandlerPut(_Schema):
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
+    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
     xml = fields.String(metadata={"description": "VOEvent XML content."})
     json = fields.String(metadata={"description": "JSON notice content."})
 
 
 class GcnEventHandlerGet(_Schema):
-    tags = fields.List(fields.Field(), metadata={"description": "Event tags"})
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
+    tags = fields.List(fields.Raw(), metadata={"description": "Event tags"})
+    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
     localizations = fields.List(
-        fields.Field(), metadata={"description": "Healpix localizations"}
+        fields.Raw(), metadata={"description": "Healpix localizations"}
     )
-    notices = fields.List(
-        fields.Field(), metadata={"description": "VOEvent XML notices"}
-    )
+    notices = fields.List(fields.Raw(), metadata={"description": "VOEvent XML notices"})
     lightcurve = fields.String(metadata={"description": "URL for light curve"})
 
 
 class GcnEventTagPost(_Schema):
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
-    text = fields.Field(metadata={"description": "GCN Event tag"})
+    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
+    text = fields.String(metadata={"description": "GCN Event tag"})
 
 
 class LocalizationHandlerGet(_Schema):
@@ -1190,11 +1188,11 @@ class LocalizationHandlerGet(_Schema):
     flat_2d = fields.List(
         fields.Float, metadata={"description": "Flattened 2D healpix map"}
     )
-    contour = fields.Field(metadata={"description": "GeoJSON contours of healpix map"})
+    contour = fields.Raw(metadata={"description": "GeoJSON contours of healpix map"})
 
 
 class GcnEventViewsHandlerGet(_Schema):
-    tags = fields.List(fields.Field(), metadata={"description": "Event list"})
+    tags = fields.List(fields.Raw(), metadata={"description": "Event list"})
 
 
 class FollowupRequestPost(_Schema):
@@ -1203,7 +1201,7 @@ class FollowupRequestPost(_Schema):
         metadata={"description": "ID of the target Obj."},
     )
 
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False, metadata={"description": "Content of the followup request."}
     )
 
@@ -1324,7 +1322,7 @@ class ObservationPlanPost(_Schema):
         metadata={"description": "ID of the GcnEvent."},
     )
 
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the observation plan request."},
     )
@@ -1393,13 +1391,13 @@ class ObservationPlanManualHandlerPost(_Schema):
         },
     )
 
-    observation_plan_data = fields.Field(
+    observation_plan_data = fields.Dict(
         metadata={"description": "Observation plan data json"}
     )
 
 
 class CatalogQueryPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the catalog query request."},
     )
@@ -1427,7 +1425,7 @@ class CatalogQueryPost(_Schema):
 
 
 class DefaultGcnTagPost(_Schema):
-    filters = fields.Field(
+    filters = fields.Raw(
         required=True,
         metadata={
             "description": "Filters to determine which of the default gcn tags get executed for which events"
@@ -1441,7 +1439,7 @@ class DefaultGcnTagPost(_Schema):
 
 
 class DefaultObservationPlanPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default observation plan request."},
     )
@@ -1463,7 +1461,7 @@ class DefaultObservationPlanPost(_Schema):
 
 
 class DefaultFollowupRequestPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default follow-up request."},
     )
@@ -1485,7 +1483,7 @@ class DefaultFollowupRequestPost(_Schema):
 
 
 class DefaultSurveyEfficiencyPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default survey efficiency analysis."},
     )
@@ -1500,7 +1498,7 @@ class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={"description": "The User ID of the owner of this run."}
     )
-    ephemeris = fields.Field(metadata={"description": "Observing run ephemeris data."})
+    ephemeris = fields.Raw(metadata={"description": "Observing run ephemeris data."})
     id = fields.Integer(metadata={"description": "Unique identifier for the run."})
 
     @pre_dump
@@ -1510,8 +1508,8 @@ class ObservingRunGet(ObservingRunPost):
 
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
-    assignments = fields.List(fields.Field())
-    instrument = fields.Field()
+    assignments = fields.List(fields.Raw())
+    instrument = fields.Raw()
 
 
 class PhotometryRangeQuery(_Schema):
@@ -1924,7 +1922,7 @@ class SpectrumPost(_Schema):
         metadata={"description": "ID of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
@@ -1948,7 +1946,7 @@ class SpectrumPost(_Schema):
         },
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={"description": "Miscellaneous alternative metadata."}
     )
 
@@ -2037,7 +2035,7 @@ class SpectrumHead(_Schema):
         metadata={"description": "Name of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
@@ -2061,7 +2059,7 @@ class SpectrumHead(_Schema):
         },
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={"description": "Miscellaneous alternative metadata."}
     )
 
@@ -2094,7 +2092,7 @@ class MMADetectorSpectrumPost(_Schema):
         metadata={"description": "ID of the MMADetector that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
@@ -2122,7 +2120,7 @@ class GalaxyHandlerPost(_Schema):
         load_default=None,
     )
     catalog_data = fields.List(
-        fields.Field(), metadata={"description": "Galaxy catalog data"}, required=True
+        fields.Dict(), metadata={"description": "Galaxy catalog data"}, required=True
     )
 
 
@@ -2141,7 +2139,7 @@ class GalaxyASCIIFileHandlerPost(_Schema):
         load_default=None,
     )
 
-    catalogData = fields.Field(
+    catalogData = fields.String(
         metadata={"description": "Catalog data Ascii string"}, required=True
     )
 
@@ -2149,13 +2147,13 @@ class GalaxyASCIIFileHandlerPost(_Schema):
 class SpatialCatalogHandlerPost(_Schema):
     catalog_name = fields.String(metadata={"description": "Spatial catalog name."})
     catalog_data = fields.List(
-        fields.Field(), metadata={"description": "Spatial catalog data"}
+        fields.Dict(), metadata={"description": "Spatial catalog data"}
     )
 
 
 class SpatialCatalogASCIIFileHandlerPost(_Schema):
     catalogName = fields.String(metadata={"description": "Spatial catalog name."})
-    catalogData = fields.Field(metadata={"description": "Catalog data Ascii string"})
+    catalogData = fields.Dict(metadata={"description": "Catalog data Ascii string"})
 
 
 def register_components(spec):

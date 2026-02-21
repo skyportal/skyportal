@@ -724,7 +724,9 @@ def standardize_photometry_data(data):
 
     instrument_cache = {}
     for iid in df["instrument_id"].unique():
-        instrument = Instrument.query.get(int(iid))
+        instrument = DBSession().scalar(
+            sa.select(Instrument).where(Instrument.id == int(iid))
+        )
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {iid}")
         instrument_cache[iid] = instrument
@@ -733,7 +735,7 @@ def standardize_photometry_data(data):
     df["obj_id"] = df["obj_id"].astype(str)
 
     for oid in df["obj_id"].unique():
-        obj = Obj.query.get(oid)
+        obj = DBSession().scalar(sa.select(Obj).where(Obj.id == str(oid)))
         if not obj:
             raise ValidationError(f"Invalid object ID: {oid}")
 

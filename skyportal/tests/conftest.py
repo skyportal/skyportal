@@ -14,7 +14,6 @@ import pytest
 import sqlalchemy as sa
 
 from baselayer.app import models
-from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     Candidate,
@@ -59,6 +58,7 @@ from skyportal.tests.fixtures import (
     UserFactory,
     UserNotificationFactory,
 )
+from skyportal.tests.test_util import driver  # noqa: F401
 
 if shutil.which("geckodriver") is None:
     raise RuntimeError(
@@ -749,7 +749,8 @@ def user_group2(public_group2, public_stream):
 
 @pytest.fixture()
 def public_groupuser(public_group, user):
-    user.groups.append(public_group)
+    if public_group not in user.groups:
+        user.groups.append(public_group)
     DBSession().commit()
     return (
         DBSession()
@@ -2089,9 +2090,9 @@ def photometric_series_low_flux_with_outliers(
     df["flux"] = np.random.normal(100, 10, 100)
 
     # add some outliers
-    df["flux"].iloc[5] = 5000
-    df["flux"].iloc[50] = 6000
-    df["flux"].iloc[95] = 0
+    df.loc[5, "flux"] = 5000
+    df.loc[50, "flux"] = 6000
+    df.loc[95, "flux"] = 0
 
     data = {
         "obj_id": public_source.id,

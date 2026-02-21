@@ -6,6 +6,8 @@ on:
       - main
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+env:
+  FRONTEND_TEST_HEADLESS: "1"
 
 jobs:
   test-api-and-frontend:
@@ -56,9 +58,10 @@ jobs:
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: "22.x"
+          package-manager-cache: false
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
@@ -84,15 +87,7 @@ jobs:
           sudo add-apt-repository ppa:mozillateam/ppa
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
 
-          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
-
-          # if nginx is already installed, remove it
-          sudo apt purge -y nginx nginx-common nginx-core nginx-full
-
-          # add the PPA repository with brotli support for nginx
-          sudo add-apt-repository ppa:ondrej/nginx -y
-          sudo apt update -y
-          sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
+          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -154,34 +149,34 @@ jobs:
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_observingruns_etc'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_and_observingruns_etc'
 
       - name: Run front-end tests part 2
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_observingruns_etc skyportal/tests/frontend'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/frontend/sources_and_observingruns_etc skyportal/tests/frontend'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api/candidates_sources_events'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/candidates_sources_events'
 
       - name: Run API & utils tests part 2
         if: ${{ matrix.test_subset == 'api_and_utils_pt2' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/api/candidates_sources_events skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/api_tests/candidates_sources_events skyportal/tests/api_tests skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
 
       - name: Run flaky tests
         if: ${{ matrix.test_subset == 'flaky' }}
         continue-on-error: true
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/flaky'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/flaky'
 
       - name: Run external tests
         if: ${{ matrix.test_subset == 'external' }}
         continue-on-error: true
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/external'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/external'
 
       - name: Upload logs
         uses: actions/upload-artifact@v4

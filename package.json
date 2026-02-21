@@ -5,6 +5,7 @@
     "build": "make bundle",
     "test": "eslint -c esling.config.js && make test"
   },
+  "packageManager": "npm@10.8.1",
   "dependencies": {
     "@date-io/dayjs": "1.3.13",
     "@emotion/react": "11.14.0",

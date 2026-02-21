@@ -53,3 +53,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "skyportal/facility_apis/__init__.py" = ['I']
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"

@@ -105,7 +105,13 @@ def service(*args, **kwargs):
                         log(
                             f"Error processing thumbnail request for object {obj.id}: {str(e)}"
                         )
-                        session.rollback()
+                        if isinstance(e, sa.exc.SQLAlchemyError):
+                            try:
+                                session.rollback()
+                            except Exception as rollback_err:
+                                log(
+                                    f"Error rolling back session after thumbnail failure for object {obj.id}: {str(rollback_err)}"
+                                )
 
             if internal_key is not None:
                 flow = Flow()
