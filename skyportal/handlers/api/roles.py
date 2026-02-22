@@ -74,8 +74,8 @@ class UserRoleHandler(BaseHandler):
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
             return self.error("Missing required parameter roleIds")
-        if (not isinstance(new_role_ids, list | tuple)) or (
-            not all(Role.query.get(role_id) is not None for role_id in new_role_ids)
+        if not isinstance(new_role_ids, list | tuple) or not all(
+            Role.query.get(r) for r in new_role_ids
         ):
             return self.error(
                 "Improperly formatted parameter roleIds; must be an array of strings."

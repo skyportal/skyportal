@@ -210,7 +210,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.error("declination should span -90<dec<90.")
 
         # check for cone or ellipse keys
-        if (not {"radius"}.issubset(set(catalog_data.keys()))) and (
+        if not {"radius"}.issubset(set(catalog_data.keys())) and (
             not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
@@ -391,7 +391,7 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
             return self.error("declination should span -90<dec<90.")
 
         # check for cone or ellipse keys
-        if (not {"radius"}.issubset(set(catalog_data.keys()))) and (
+        if not {"radius"}.issubset(set(catalog_data.keys())) and (
             not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")

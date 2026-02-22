@@ -73,7 +73,7 @@ class UserACLHandler(BaseHandler):
         if new_acl_ids is None:
             return self.error("Missing required parameter aclIds")
         with self.Session() as session:
-            if (not isinstance(new_acl_ids, list | tuple)) or (
+            if not isinstance(new_acl_ids, list | tuple) or (
                 not all(
                     session.scalars(
                         ACL.select(session.user_or_token).where(ACL.id == acl_id)

@@ -4,12 +4,14 @@ import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from slugify import slugify
 from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 
 from ....models import (
+    Group,
     GroupUser,
     SharingServiceCoauthor,
     SharingServiceGroup,
@@ -176,11 +178,24 @@ class ProfileHandler(BaseHandler):
             if user is None:
                 return self.error(f"Cannot find User with ID: {user_id}")
 
-            if data.get("username") is not None:
+            if (
+                data.get("username") is not None
+                and data.get("username") != user.username
+            ):
                 username = data.pop("username").strip()
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
+                single_user_group = session.scalars(
+                    sa.select(Group)
+                    .join(GroupUser)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == user.id,
+                    )
+                ).first()
+                if single_user_group is not None:
+                    single_user_group.name = slugify(username)
 
             if data.get("first_name") is not None:
                 user.first_name = data.pop("first_name")
