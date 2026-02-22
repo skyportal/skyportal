@@ -7,11 +7,12 @@ This module provides REST API endpoints for:
 
 import re
 
+import sqlalchemy as sa
 from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Obj, ObjTag, ObjTagOption
+from ...models import Group, GroupObjTag, Obj, ObjTag, ObjTagOption
 from ..base import BaseHandler
 
 
@@ -182,6 +183,12 @@ class ObjTagOptionHandler(BaseHandler):
         if not new_name or not isinstance(new_name, str):
             return self.error("`name` must be provided as a non-empty string")
 
+        if not re.fullmatch(r"[A-Za-z0-9]+", new_name):
+            return self.error(
+                "`name` must contain only letters and numbers (no spaces, underscores, or special characters)",
+                status=400,
+            )
+
         if new_color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", new_color):
             return self.error(
                 "`color` must be a valid hex color code (e.g., #3a87ad)",
@@ -318,7 +325,7 @@ class ObjTagHandler(BaseHandler):
         """
         ---
         summary: Create object-tag association
-        description: Create a new association between an object and a tag option
+        description: Create a new association between an object and a tag option, with group access
         tags:
           - object tags
         requestBody:
@@ -333,9 +340,15 @@ class ObjTagHandler(BaseHandler):
                   obj_id:
                     type: string
                     description: ID of the object to tag
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: IDs of groups that can access this tag association
                 required:
                   - objtagoption_id
                   - obj_id
+                  - group_ids
         responses:
           200:
             content:
@@ -359,43 +372,106 @@ class ObjTagHandler(BaseHandler):
         data = self.get_json()
         objtagoption_id = data.get("objtagoption_id")
         obj_id = data.get("obj_id")
+        group_ids = data.get("group_ids", [])
 
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
 
-        with self.Session() as session:
-            # Check if association already exists
-            if session.scalars(
-                ObjTag.select(session.user_or_token)
-                .where(ObjTag.objtagoption_id == objtagoption_id)
-                .where(ObjTag.obj_id == obj_id)
-            ).first():
-                return self.error("This tag-obj association already exists")
+        if not group_ids or not isinstance(group_ids, list) or len(group_ids) == 0:
+            return self.error("`group_ids` must be provided as a non-empty list")
 
-            # Verify tag exists
-            if not session.scalars(
-                ObjTagOption.select(session.user_or_token).where(
-                    ObjTagOption.id == objtagoption_id
-                )
-            ).first():
-                return self.error("Specified tag does not exist", status=404)
+        with self.Session() as session:
+            # Verify tag option exists
+            if not session.scalar(
+                sa.select(ObjTagOption.id).where(ObjTagOption.id == objtagoption_id)
+            ):
+                return self.error("Specified tag option does not exist", status=404)
 
             # Verify obj exists
-            if not session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first():
+            obj = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+            if not obj:
                 return self.error("Specified obj does not exist", status=404)
 
-            author_id = self.associated_user_object.id
+            # System admins can add tags to any group
+            requested_group_ids = set(group_ids)
+            if self.current_user.is_system_admin:
+                existing_group_ids = set(
+                    session.scalars(
+                        sa.select(Group.id).where(Group.id.in_(requested_group_ids))
+                    ).all()
+                )
+                if len(existing_group_ids) != len(requested_group_ids):
+                    return self.error(
+                        "One or more specified groups do not exist", status=404
+                    )
+                valid_group_ids = requested_group_ids
+            else:
+                # Regular users can only add tags to their accessible groups
+                user_group_ids = {g.id for g in self.current_user.accessible_groups}
+                valid_group_ids = requested_group_ids.intersection(user_group_ids)
+
+                if not valid_group_ids:
+                    return self.error(
+                        "You don't have access to any of the specified groups",
+                        status=403,
+                    )
+
+            # Check if association already exists
+            existing_assoc_id = session.scalar(
+                sa.select(ObjTag.id)
+                .where(ObjTag.objtagoption_id == objtagoption_id)
+                .where(ObjTag.obj_id == obj_id)
+            )
+
+            if existing_assoc_id:
+                existing_group_ids = set(
+                    session.scalars(
+                        sa.select(GroupObjTag.group_id).where(
+                            GroupObjTag.obj_tag_id == existing_assoc_id
+                        )
+                    ).all()
+                )
+
+                groups_to_add = valid_group_ids - existing_group_ids
+
+                if not groups_to_add:
+                    return self.error(
+                        "This tag is already associated with all the selected groups",
+                        status=400,
+                    )
+
+                for group_id in groups_to_add:
+                    group_obj_tag = GroupObjTag(
+                        group_id=group_id,
+                        obj_tag_id=existing_assoc_id,
+                    )
+                    session.add(group_obj_tag)
+                session.commit()
+
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                return self.success(
+                    {"id": existing_assoc_id, "message": "Groups added to existing tag"}
+                )
+
+            groups = session.scalars(
+                sa.select(Group).where(Group.id.in_(valid_group_ids))
+            ).all()
 
             new_assoc = ObjTag(
-                objtagoption_id=objtagoption_id, obj_id=obj_id, author_id=author_id
+                objtagoption_id=objtagoption_id,
+                obj_id=obj_id,
+                author_id=self.associated_user_object.id,
             )
+            new_assoc.groups = groups
             session.add(new_assoc)
             session.commit()
+
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": new_assoc.obj.internal_key},
+                payload={"obj_key": obj.internal_key},
             )
             return self.success(new_assoc)
 
@@ -404,7 +480,11 @@ class ObjTagHandler(BaseHandler):
         """
         ---
         summary: Delete object-tag association
-        description: Delete an existing association between an object and a tag option
+        description: >
+            Remove group associations with a tag. If group_ids is provided, only those
+            specific groups are removed. Otherwise, all user's group associations are removed.
+            If no group associations remain after removal, the tag is deleted entirely.
+            System admins can remove any group; regular users can only remove their groups.
         tags:
           - object tags
         parameters:
@@ -413,6 +493,19 @@ class ObjTagHandler(BaseHandler):
             required: true
             schema:
               type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: >
+                        Optional list of group IDs to remove. If not provided,
+                        all user's group associations are removed.
         responses:
           200:
             content:
@@ -429,15 +522,87 @@ class ObjTagHandler(BaseHandler):
         except Exception:
             raise ValueError("Invalid association ID")
 
+        data = self.get_json() or {}
+        requested_group_ids = data.get("group_ids")
+
         with self.Session() as session:
-            assoc = session.scalars(
-                ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)
+            obj_tag = session.scalars(
+                sa.select(ObjTag).where(ObjTag.id == association_id)
             ).first()
 
-            if not assoc:
+            if not obj_tag:
                 return self.error("Association not found", status=404)
-            obj_key = assoc.obj.internal_key
-            session.delete(assoc)
+
+            obj_key = obj_tag.obj.internal_key
+            is_system_admin = self.current_user.is_system_admin
+            current_tag_group_ids = {g.id for g in obj_tag.groups}
+
+            if is_system_admin:
+                if requested_group_ids:
+                    groups_to_remove = set(requested_group_ids)
+                else:
+                    groups_to_remove = current_tag_group_ids
+
+                for group_id in groups_to_remove:
+                    group_obj_tag = session.scalars(
+                        sa.select(GroupObjTag).where(
+                            GroupObjTag.obj_tag_id == association_id,
+                            GroupObjTag.group_id == group_id,
+                        )
+                    ).first()
+                    if group_obj_tag:
+                        session.delete(group_obj_tag)
+
+                remaining_count = len(current_tag_group_ids) - len(
+                    groups_to_remove & current_tag_group_ids
+                )
+
+                if remaining_count == 0:
+                    session.delete(obj_tag)
+
+                session.commit()
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_key},
+                )
+                return self.success(f"Successfully deleted tag {association_id}")
+
+            # For non-admin users, only remove their group associations
+            user_group_ids = {g.id for g in self.current_user.accessible_groups}
+
+            if requested_group_ids:
+                groups_to_remove = set(requested_group_ids) & user_group_ids
+                if not groups_to_remove:
+                    return self.error(
+                        "You don't have access to any of the specified groups",
+                        status=403,
+                    )
+            else:
+                groups_to_remove = current_tag_group_ids & user_group_ids
+
+            if not groups_to_remove:
+                return self.error(
+                    "You don't have any group associations with this tag to remove",
+                    status=403,
+                )
+
+            for group_id in groups_to_remove:
+                group_obj_tag = session.scalars(
+                    sa.select(GroupObjTag).where(
+                        GroupObjTag.obj_tag_id == association_id,
+                        GroupObjTag.group_id == group_id,
+                    )
+                ).first()
+                if group_obj_tag:
+                    session.delete(group_obj_tag)
+
+            remaining_count = len(current_tag_group_ids) - len(
+                groups_to_remove & current_tag_group_ids
+            )
+
+            if remaining_count == 0:
+                session.delete(obj_tag)
+
             session.commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
