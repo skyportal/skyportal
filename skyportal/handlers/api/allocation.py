@@ -267,10 +267,11 @@ class AllocationHandler(BaseHandler):
                 if sortOrder not in ["asc", "desc"]:
                     return self.error("Invalid sortOrder value.")
 
-                allocations = Allocation.select(self.current_user).where(
-                    Allocation.id == allocation_id
+                allocation = session.scalar(
+                    Allocation.select(self.current_user).where(
+                        Allocation.id == allocation_id
+                    )
                 )
-                allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
 
