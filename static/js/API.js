@@ -50,7 +50,7 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
         return dispatch({ type: `${actionType}_ERROR`, ...json });
       }
 
-      return dispatch({ type: `${actionType}_OK`, ...json });
+      return dispatch({ type: `${actionType}_OK`, ...json, parameters });
     } catch (error) {
       /* In case of an unintentional error, dispatch an action that contains
            every piece of information we have about the request.

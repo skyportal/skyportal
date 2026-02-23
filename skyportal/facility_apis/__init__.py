@@ -23,7 +23,7 @@ from .tarot import TAROTAPI
 from .tess import TESSAPI
 from .trt import TRTAPI
 from .ttt import TTTAPI
-from .winter import WINTERAPI
+from .winter import SPRINGAPI, WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
 from .mmt.binospec import BINOSPECAPI
 from .mmt.mmirs import MMIRSAPI
@@ -58,6 +58,7 @@ APIS = (
     TESSAPI,
     TRTAPI,
     WINTERAPI,
+    SPRINGAPI,
     ZTFAPI,
     ZTFMMAAPI,
     GEMINIAPI,

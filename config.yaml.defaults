@@ -86,8 +86,10 @@ app:
 
   gemini:
     protocol: https
-    host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
-    port: 8443 # this is the test server port, production is 443
+    north_prefix: gnodbtest # this is the test prefix, just remove 'test' for production
+    south_prefix: gsodbtest # this is the test prefix, just remove 'test' for production
+    domain: gemini.edu
+    port: 8443
 
   treasuremap_endpoint: https://treasuremap.space
 
@@ -113,11 +115,12 @@ app:
         group_ids: []  # List of group IDs to assign imported sources to
         instrument_tns_ids: # List of TNS IDs of instruments for imported photometry
 
+  # Configuration for the WINTER and SPRING instruments.
   winter:
     protocol: http
     host: winter.caltech.edu
     port: 82
-    submit_trigger: False # if False, the API POST call will only validate the payload
+    submit_trigger: False # if False, the API POST call to WINTER and SPRING will only validate the payload
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
   # See https://computing.docs.ligo.org/guide/auth/x509/ for example
@@ -664,6 +667,7 @@ email_service:
 invitations:
   enabled: False  # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
+  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!

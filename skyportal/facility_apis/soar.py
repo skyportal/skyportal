@@ -203,8 +203,7 @@ class SOAR_GHTS_Request:
             "GHTS_R_2100_5000A_1x2_slit1p0": 0.5,
         }
 
-        configurations = []
-        configurations = configurations + [
+        configurations = [
             {
                 "type": "SPECTRUM",
                 "instrument_type": request.payload["instrument_type"],
@@ -229,7 +228,7 @@ class SOAR_GHTS_Request:
             },
         ]
         if request.payload.get("include_calibrations", False):
-            configurations = configurations + [
+            arcs = [
                 {
                     "type": "ARC",
                     "instrument_type": request.payload["instrument_type"],
@@ -255,6 +254,7 @@ class SOAR_GHTS_Request:
                     "constraints": arc_constraints,
                 },
             ]
+            configurations = arcs + configurations + arcs
 
         tstart = request.payload["start_date"]
         tend = request.payload["end_date"]
