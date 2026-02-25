@@ -702,7 +702,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
 
     skymap = payload.get("skymap", None)
     if skymap is None:
-        return event.id
+        return dateobs, event.id
 
     localization_properties, localization_tags = None, None
     if type(skymap) is dict:
@@ -787,7 +787,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
                 tags=localization_tags,
             )
 
-    return event.id
+    return dateobs, event.id
 
 
 class GcnEventAliasesHandler(BaseHandler):
@@ -1338,7 +1338,7 @@ class GcnEventHandler(BaseHandler):
                         data["json"], self.associated_user_object.id, session
                     )
                 else:
-                    event_id = post_gcnevent_from_dictionary(
+                    dateobs, event_id = post_gcnevent_from_dictionary(
                         data, self.associated_user_object.id, session
                     )
 
@@ -3658,8 +3658,8 @@ class GcnSummaryHandler(BaseHandler):
         acknowledgements = data.get("acknowledgements", None)
 
         class Validator(Schema):
-            start_date = UTCTZnaiveDateTime(required=False, missing=None)
-            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+            start_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            end_date = UTCTZnaiveDateTime(required=False, load_default=None)
             number_of_detections = Integer(
                 required=False, missing=2, validate=validate.Range(min=1)
             )
@@ -4352,8 +4352,8 @@ class GcnReportHandler(BaseHandler):
         instrument_ids = data.get("instrumentIds", None)
 
         class Validator(Schema):
-            start_date = UTCTZnaiveDateTime(required=False, missing=None)
-            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+            start_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            end_date = UTCTZnaiveDateTime(required=False, load_default=None)
 
         validator_instance = Validator()
         params_to_be_validated = {}

@@ -18,10 +18,19 @@ const ConfirmDeletionDialog = ({
       Are you sure you want to delete this/these {resourceName}?
     </DialogContent>
     <DialogActions>
-      <Button secondary autoFocus onClick={closeDialog}>
+      <Button
+        data-testid="dismissDeletetionButton"
+        secondary
+        autoFocus
+        onClick={closeDialog}
+      >
         Dismiss
       </Button>
-      <Button primary onClick={() => deleteFunction()}>
+      <Button
+        data-testid="confirmDeletetionButton"
+        primary
+        onClick={() => deleteFunction()}
+      >
         Confirm
       </Button>
     </DialogActions>
