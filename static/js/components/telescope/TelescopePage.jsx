@@ -5,7 +5,9 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import ReplayIcon from "@mui/icons-material/Replay";
 import * as telescopesActions from "../../ducks/telescopes";
 import { Link } from "react-router-dom";
 import List from "@mui/material/List";
@@ -33,8 +35,17 @@ const useStyles = makeStyles((theme) => ({
   paperContent: {
     padding: "0.5rem",
   },
-  help: {
-    textAlign: "right",
+  mapContainer: {
+    position: "relative",
+    width: "100%",
+  },
+  overlayButtons: {
+    position: "absolute",
+    bottom: "0.3rem",
+    right: "0.3rem",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.2rem",
   },
   tooltip: {
     padding: "1rem",
@@ -113,6 +124,7 @@ const TelescopePage = () => {
   const [telescopeToDelete, setTelescopeToDelete] = useState(null);
   const [selectedTelescope, setSelectedTelescope] = useState(null);
   const [displayTelescopeTable, setDisplayTelescopeTable] = useState(false);
+  const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
     setDisplayedTelescopes(telescopeList);
@@ -266,15 +278,25 @@ const TelescopePage = () => {
           }}
         >
           <Paper className={classes.paperContent}>
-            <TelescopeMap telescopes={telescopeList} />
-            <div className={classes.help}>
-              <Tooltip
-                title={legend()}
-                placement="bottom-end"
-                classes={{ tooltip: classes.tooltip }}
-              >
-                <HelpOutlineOutlinedIcon />
-              </Tooltip>
+            <div className={classes.mapContainer}>
+              <TelescopeMap key={mapKey} telescopes={telescopeList} />
+              <div className={classes.overlayButtons}>
+                <Tooltip title="Reset view" placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={() => setMapKey((k) => k + 1)}
+                  >
+                    <ReplayIcon color="action" fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip
+                  title={legend()}
+                  placement="bottom-end"
+                  classes={{ tooltip: classes.tooltip }}
+                >
+                  <HelpOutlineOutlinedIcon color="action" />
+                </Tooltip>
+              </div>
             </div>
           </Paper>
         </Grid>
