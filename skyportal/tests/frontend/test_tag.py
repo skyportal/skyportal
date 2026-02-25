@@ -19,8 +19,6 @@ def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_us
     )
     assert status == 200
 
-    tag_id = data["data"]["id"]
-
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//h6[contains(text(), "{public_source.id}")]', timeout=20)
 
@@ -53,10 +51,18 @@ def test_add_delete_tag(driver, public_source, super_admin_token, super_admin_us
     driver.wait_for_xpath(f'//span[contains(text(), "{tag_name}")]')
 
     driver.click_xpath(
-        f"//*[@data-testid='tag-chip-{tag_id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        f"//div[contains(@class,'MuiChip-root') and .//span[contains(text(),'{tag_name}')]]//*[contains(@class,'MuiChip-deleteIcon')]"
     )
-    driver.wait_for_xpath('//*[contains(text(), "Source Tag deleted")]', timeout=10)
-    driver.wait_for_xpath_to_disappear(f"//div[@data-testid='tag-chip-{tag_id}']")
+    driver.wait_for_xpath_to_be_clickable(
+        '//*[@data-testid="delete-tag-button"]', timeout=10
+    )
+    driver.click_xpath('//*[@data-testid="delete-tag-button"]')
+    driver.wait_for_xpath(
+        '//*[contains(text(), "Tag removed from source")]', timeout=10
+    )
+    driver.wait_for_xpath_to_disappear(
+        f"//div[contains(@class,'MuiChip-root') and .//span[contains(text(),'{tag_name}')]]"
+    )
 
 
 def test_create_new_tag(driver, user, public_source, super_admin_user):

@@ -175,11 +175,6 @@ const ObjectTags = ({ source }) => {
     const formValues = getValues();
     const tagToAdd = formValues.tag;
 
-    if (selectedGroupIds.length === 0) {
-      dispatch(showNotification("Please select at least one group", "error"));
-      return;
-    }
-
     setIsAddingTag(true);
 
     dispatch(
@@ -313,11 +308,22 @@ const ObjectTags = ({ source }) => {
 
           {availableTags.length > 0 &&
             (availableGroups.length > 0 ? (
-              <GroupShareSelect
-                groupList={availableGroups}
-                groupIDs={selectedGroupIds}
-                setGroupIDs={setSelectedGroupIds}
-              />
+              <>
+                <GroupShareSelect
+                  groupList={availableGroups}
+                  groupIDs={selectedGroupIds}
+                  setGroupIDs={setSelectedGroupIds}
+                />
+                {selectedGroupIds.length === 0 && (
+                  <Typography
+                    variant="caption"
+                    color="textSecondary"
+                    style={{ marginTop: "0.25rem", display: "block" }}
+                  >
+                    No group selected — will default to the sitewide group.
+                  </Typography>
+                )}
+              </>
             ) : (
               <Typography
                 variant="body2"

@@ -11,9 +11,12 @@ import sqlalchemy as sa
 from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 
 from ...models import Group, GroupObjTag, Obj, ObjTag, ObjTagOption
 from ..base import BaseHandler
+
+env, cfg = load_env()
 
 
 class ObjTagOptionHandler(BaseHandler):
@@ -377,10 +380,21 @@ class ObjTagHandler(BaseHandler):
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
 
-        if not group_ids or not isinstance(group_ids, list) or len(group_ids) == 0:
-            return self.error("`group_ids` must be provided as a non-empty list")
-
         with self.Session() as session:
+            if not group_ids or not isinstance(group_ids, list) or len(group_ids) == 0:
+                public_group_id = session.scalar(
+                    sa.select(Group.id).where(
+                        Group.name == cfg["misc.public_group_name"]
+                    )
+                )
+                if public_group_id is None:
+                    return self.error(
+                        f"No group_ids were specified and the public group "
+                        f'"{cfg["misc.public_group_name"]}" does not exist. '
+                        f"Cannot create tag association."
+                    )
+                group_ids = [public_group_id]
+
             # Verify tag option exists
             if not session.scalar(
                 sa.select(ObjTagOption.id).where(ObjTagOption.id == objtagoption_id)
