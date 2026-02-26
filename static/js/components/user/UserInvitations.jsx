@@ -138,7 +138,7 @@ const UserInvitations = () => {
     }
   }, [dataFetched, dispatch]);
 
-  if (!allGroups?.length || !streams?.length) {
+  if (!allGroups?.length || streams === null) {
     return (
       <Box
         display={queryInProgress ? "block" : "none"}
