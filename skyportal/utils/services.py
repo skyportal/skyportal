@@ -4,13 +4,13 @@ import requests
 
 from baselayer.app.env import load_env
 
+from .app import get_app_base_url
+
 env, cfg = load_env()
 
 REQUEST_TIMEOUT_SECONDS = cfg["health_monitor.request_timeout_seconds"]
 
-HOST = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
-    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
-)
+HOST = get_app_base_url()
 
 
 def is_loaded():

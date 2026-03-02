@@ -8,8 +8,8 @@ from astropy.coordinates import SkyCoord
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
-from ..app_utils import get_app_base_url
 from ..utils import http
+from ..utils.app import get_app_base_url
 from . import FollowUpAPI
 
 env, cfg = load_env()

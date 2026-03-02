@@ -4,8 +4,8 @@ from twilio.rest import Client as TwilioClient
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ....email_utils import send_email
 from ....models import User
+from ....utils.email import send_email
 from ...base import BaseHandler
 
 env, cfg = load_env()
