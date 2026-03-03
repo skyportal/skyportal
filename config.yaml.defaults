@@ -741,6 +741,7 @@ ports:
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
   sharing_service_submission_queue: 64812
+  mcp: 8000  # MCP server port; change if 8000 conflicts with another service
 
 gcn:
   server: gcn.nasa.gov
