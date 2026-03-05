@@ -216,16 +216,7 @@ async def get_source(
 
     options = []
     if include_thumbnails:
-        if obj_id not in [None, ""]:
-            # retain only the last thumbnail of each type
-            subquery = (
-                sa.select(func.max(Thumbnail.id).label("id"))
-                .where(Thumbnail.obj_id == str(obj_id).strip())
-                .group_by(Thumbnail.type)
-            )
-            options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
-        else:
-            options.append(joinedload(Obj.thumbnails))
+        options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
@@ -244,7 +235,33 @@ async def get_source(
     s = session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
+
+    # Convert to a plain dict first so that the deduplication below operates on
+    # copied data rather than on the SQLAlchemy-tracked relationship collection.
+    #
+    # Otherwise, a line like
+    #
+    #   source_info["thumbnails"] = list(latest_by_type.values())
+    #
+    # mutates the collection.
+    #
+    # (Longer explanation of why that is a problem: SQLAlchemy detects
+    # that some Thumbnail objects were removed from the collection. It
+    # then tries to orphan those removed thumbnails by setting their
+    # obj_id = NULL during the next autoflush, violating that
+    # field's NOT NULL constraint.)
     source_info = s.to_dict()
+
+    # only keep the latest Thumbnail for each type (by created_at)
+    if include_thumbnails and source_info.get("thumbnails"):
+        latest_by_type = {}
+        for t in source_info["thumbnails"]:
+            if (
+                t.type not in latest_by_type
+                or t.created_at > latest_by_type[t.type].created_at
+            ):
+                latest_by_type[t.type] = t
+        source_info["thumbnails"] = list(latest_by_type.values())
 
     followup_requests = (
         session.scalars(
@@ -1751,16 +1768,18 @@ class SourceHandler(BaseHandler):
         query_id = self.get_query_argument("queryID", None)
 
         class Validator(Schema):
-            saved_after = UTCTZnaiveDateTime(required=False, missing=None)
-            saved_before = UTCTZnaiveDateTime(required=False, missing=None)
+            saved_after = UTCTZnaiveDateTime(required=False, load_default=None)
+            saved_before = UTCTZnaiveDateTime(required=False, load_default=None)
             save_summary = fields.Boolean()
             remove_nested = fields.Boolean()
             include_thumbnails = fields.Boolean()
-            first_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
-            last_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
-            has_spectrum_after = UTCTZnaiveDateTime(required=False, missing=None)
-            has_spectrum_before = UTCTZnaiveDateTime(required=False, missing=None)
-            created_or_modified_after = UTCTZnaiveDateTime(required=False, missing=None)
+            first_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            last_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            has_spectrum_after = UTCTZnaiveDateTime(required=False, load_default=None)
+            has_spectrum_before = UTCTZnaiveDateTime(required=False, load_default=None)
+            created_or_modified_after = UTCTZnaiveDateTime(
+                required=False, load_default=None
+            )
 
         validator_instance = Validator()
         params_to_be_validated = {}

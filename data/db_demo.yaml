@@ -1537,7 +1537,7 @@ earthquake:
 
 shifts:
   - group_id: =program_A
-    start_date: "2022-03-18 8:00:00"
+    start_date: "2022-03-18 08:00:00"
     end_date: "2022-03-18 14:00:00"
     name: "the Night Shift"
     shift_admins:
