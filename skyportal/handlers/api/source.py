@@ -3253,6 +3253,11 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient="list"),
             }
 
-            add_external_photometry(data_out, self.associated_user_object, refresh=True)
+            add_external_photometry(
+                data_out,
+                self.associated_user_object,
+                parent_session=session,
+                refresh=True,
+            )
 
             return self.success()
