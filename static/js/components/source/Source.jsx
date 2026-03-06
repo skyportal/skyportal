@@ -843,6 +843,41 @@ const SourceContent = ({ source }) => {
                 </div>
               </div>
             )}
+            {source?.associated_objs?.length > 0 && (
+              <div className={classes.sourceInfo}>
+                <b className={classes.noWrapMargin}>
+                  <font color="#457b9d">Associated with:</font>
+                </b>
+                <div
+                  className={classes.flexRow}
+                  style={{
+                    width: "auto",
+                    alignItems: "center",
+                    flexFlow: "wrap",
+                    columnGap: "0.25rem",
+                  }}
+                >
+                  {source.associated_objs.map((associatedObj) => (
+                    <div key={associatedObj.obj_id}>
+                      <Tooltip
+                        title={`${associatedObj.separation.toFixed(2)} arcsec`}
+                      >
+                        <Link
+                          to={`/source/${associatedObj.obj_id}`}
+                          role="link"
+                          key={associatedObj.obj_id}
+                          className={classes.noSpace}
+                        >
+                          <Button size="small" className={classes.noSpace}>
+                            {associatedObj.obj_id}
+                          </Button>
+                        </Link>
+                      </Tooltip>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.showSimilarSources === true ? (
               <SimilarSources source={source} min_score={0.9} k={3} />
@@ -1228,6 +1263,7 @@ const SourceContent = ({ source }) => {
                       spectra={spectra || []}
                       gcn_events={source.gcn_crossmatch || []}
                       duplicates={source.duplicates || []}
+                      associated_objs={source.associated_objs || []}
                       magsys={magsys}
                       plotStyle={{
                         height: rightPanelVisible ? "65vh" : "75vh",
@@ -1544,6 +1580,14 @@ SourceContent.propTypes = {
       }),
     ),
     duplicates: PropTypes.arrayOf(
+      PropTypes.shape({
+        obj_id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        separation: PropTypes.number,
+      }),
+    ),
+    associated_objs: PropTypes.arrayOf(
       PropTypes.shape({
         obj_id: PropTypes.string,
         ra: PropTypes.number,

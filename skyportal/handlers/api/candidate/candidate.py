@@ -39,12 +39,15 @@ from ....models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjToSuperObj,
     Photometry,
     PhotStat,
     Source,
     Spectrum,
+    SuperObj,
 )
 from ....utils.cache import Cache, array_to_bytes
+from ....utils.calculations import great_circle_distance
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
@@ -239,6 +242,38 @@ def include_requested_obj_data(
             ],
             obj_id,
             session,
+        )
+
+    if get_query_argument("includeAssociatedObjs", True):
+        # For each associated obj, we include the same info as for duplicates (obj_id, ra, dec, separation),
+        # but we also include the super_obj_id (and name) through which it is associated to the current obj
+        super_objs = session.scalars(
+            sa.select(SuperObj).where(
+                ObjToSuperObj.obj_id == obj_id,
+            )
+        ).all()
+        associated_objs = []
+        for super_obj in super_objs:
+            super_obj_id = super_obj.id
+            super_obj_name = super_obj.name
+            for obj in super_obj.objs:
+                if obj.id == obj_id:
+                    continue
+                associated_objs.append(
+                    {
+                        "obj_id": obj.id,
+                        "ra": obj.ra,
+                        "dec": obj.dec,
+                        "separation": great_circle_distance(
+                            candidate["ra"], candidate["dec"], obj.ra, obj.dec
+                        )
+                        * 3600,
+                        "super_obj_id": super_obj_id,
+                        "super_obj_name": super_obj_name,
+                    }
+                )
+        candidate["associated_objs"] = sorted(
+            associated_objs, key=lambda x: x["separation"]
         )
 
     candidate["annotations"] = sorted(
