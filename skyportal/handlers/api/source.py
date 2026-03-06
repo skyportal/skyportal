@@ -380,7 +380,7 @@ async def get_source(
             is_token=True,
         )
         session.add(sv)
-        # To keep loaded relationships from being cleared in verify_and_commit:
+        # To keep loaded relationships from being cleared in session.commit()
         source_info = recursive_to_dict(source_info)
         session.commit()
 
