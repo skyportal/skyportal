@@ -228,16 +228,20 @@ class ObjColorMagHandler(BaseHandler):
 
         with self.Session() as session:
             obj = session.scalar(
-                Obj.select(self.associated_user_object).filter(Obj.id == obj_id)
+                Obj.select(self.associated_user_object).where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error("Invalid object id.")
 
-            annotations = session.scalars(
-                Annotation.select(self.associated_user_object).filter(
-                    Annotation.obj_id == obj_id
+            annotations = (
+                session.scalars(
+                    Annotation.select(self.associated_user_object).where(
+                        Annotation.obj_id == obj_id
+                    )
                 )
-            ).all()
+                .unique()
+                .all()
+            )
 
             output = get_color_mag(
                 annotations,
