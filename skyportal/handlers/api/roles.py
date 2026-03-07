@@ -92,7 +92,7 @@ class UserRoleHandler(BaseHandler):
             # if some of the requested role IDs are invalid, return an error listing the invalid IDs
             valid_role_ids = set(
                 session.scalars(
-                    Role.select(self.associated_user_object).where(
+                    Role.select(self.associated_user_object, columns=[Role.id]).where(
                         Role.id.in_(new_role_ids)
                     )
                 ).all()
