@@ -2,8 +2,7 @@
 
 ## Dependencies
 
-SkyPortal requires the following software to be installed.  We show
-how to install them on MacOS and Debian-based systems below.
+SkyPortal requires the following software to be installed. We show how to install them on MacOS and Debian-based systems below.
 
 - Python 3.9 or later (<3.13, since `numba` requires <3.13)
 - Supervisor (v>=4.2.1)
@@ -18,8 +17,7 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 
 ## Source download, Python environment
 
-Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
-virtual environment.
+Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new virtual environment.
 
 ```
 git clone https://github.com/skyportal/skyportal.git
@@ -28,20 +26,9 @@ virtualenv skyportal_env
 source skyportal_env/bin/activate
 ```
 
-You can also use `conda` or `pipenv` to create your environment.
+You can also use `pipenv` or `python -m venv` to create your environment. Make sure to use Python 3.11 or lower if you want to install the ligo related packages (`python-ligo-lw` and `ligo-segments`).
 
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
-
-```
-CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.10
-conda activate skyportal_env
-conda config --env --set subdir osx-64
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-```
-
-
+If you are developing on a Mac with an ARM (M-series) architecture, we strongly recommend using `venv` instead of `conda` environments.
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
@@ -51,38 +38,38 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 1. Install project dependencies
 
-Using Homebrew, install core dependencies:
-```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
-```
-If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
-```
-brew tap denji/nginx && brew install nginx-full --with-brotli
-```
+	Using Homebrew, install core dependencies:
+	```
+	brew install supervisor nginx postgresql node llvm libomp gsl rust
+	```
+	If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
+	```
+	brew tap denji/nginx && brew install nginx-full --with-brotli
+	```
 
- _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
+	_If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
-Then, install Node.js with NVM:
-```
-nvm install node
-```
-Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
-```
-brew install hdf5 c-blosc lzo bzip2
-```
-After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
+	Then, install Node.js with NVM:
+	```
+	nvm install node
+	```
+	Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
+	```
+	brew install hdf5 c-blosc lzo bzip2
+	```
+	After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
 
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+	- To start automatically at login: `brew services start postgresql`
+	- To start manually: `pg_ctl -D /usr/local/var/postgres start`
 
-  You may also need to run the following command to create the proper admin user:
+	You may also need to run the following command to create the proper admin user:
 
-  ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
-  ```
+	```bash
+	/usr/local/opt/postgres/bin/createuser -s postgres
+	```
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -96,19 +83,6 @@ After installing each package, Homebrew will print out the installation paths. Y
 	brew install graphviz
 	```
 
-5. Activate the environment and add a few (hard-to install-with-pip) packages by hand:
-
-	```
-	conda activate skyportal_env
-	conda install pyproj numba Shapely
-	```
-
-5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
-
-   ```
-   conda activate skyportal_env
-   conda install ligo.skymap
-   ```
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -147,12 +121,28 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability
-SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+SkyPortal defaults to using port 5000. However, this port may already be in use on MacOS (e.g., by AirPlay Receiver or other services). To verify port availability, use the `lsof` command in the terminal:
 
 ```
 lsof -i :5000
+lsof -i :5001
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+
+If either command outputs information about a service, that port is already in use. To configure SkyPortal to use a different port, update the following lines in `config.yaml`:
+
+```yaml
+server:
+  port: 5001  # Change from 5000 to 5001
+
+ports:
+  app: 5001  # Change from 5000 to 5001
+
+docs:
+  servers:
+    - url: http://localhost:5001  # Change from 5000 to 5001
+```
+
+If you plan to run `make load_demo_data`, also update the port in `test_config.yaml` to match. Port mismatches between configs can cause 403 errors during demo data loading.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -222,12 +212,11 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env: `conda activate skyportal_env`
-1. Initialize the database with `make db_init` (this only needs to
-   happen once).
+0. Make sure you are in the `skyportal_env`: `source skyportal_env/bin/activate`
+1. Initialize the database with `make db_init` (this only needs to happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
-3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. Direct your browser to `http://localhost:5000`.
+3. Run `make log` to monitor the service and, in a separate window, activate `skyportal_env` and run `make run` to start the server.
+4. Direct your browser to `http://localhost:5000` (or `http://localhost:[PORT]` if you changed the port in `config.yaml`).
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
@@ -242,7 +231,28 @@ and then, from a different window, do `make load_demo_data`.
 
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
 
-Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
+Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error. If you change the default port 5000 in `config.yaml`, remember to also update it in `test_config.yaml` to match.
+
+Additionally, for Mac users, installing `ligo.skymap` may fail with OpenMP-related compilation errors. To circumvent this, use Homebrew's LLVM compiler, which includes OpenMP support.
+
+Set the compiler environment variables:
+```shell
+export CC=/opt/homebrew/opt/llvm/bin/clang
+export CXX=/opt/homebrew/opt/llvm/bin/clang++
+export LDFLAGS="-L/opt/homebrew/opt/llvm/lib -L/opt/homebrew/opt/libomp/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/llvm/include -I/opt/homebrew/opt/libomp/include"
+```
+
+Then install `ligo.skymap`:
+```shell
+pip install ligo.skymap
+```
+
+If you encounter `ModuleNotFoundError: No module named 'pkg_resources'`, install `setuptools`:
+```shell
+pip install setuptools
+```
+
 
 ## Additional Configuration
 
