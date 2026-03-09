@@ -3,7 +3,10 @@ SHELL = /bin/bash
 BOLD=\033[1m
 NORMAL=\033[0m
 
-VER := $(shell uv run python -c "import skyportal; print(skyportal.__version__)")
+PYTHON:=PYTHONPATH=. uv run python
+FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
+
+VER := $(shell uv run python -c "import baselayer; print(baselayer.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 SKYPORTAL_UID ?= 1000
@@ -26,7 +29,9 @@ baselayer/Makefile:
 	git submodule update --init
 
 dependencies_no_js:
-	@echo "$$ uv sync --inexact"
+# 	@echo "$$ uv sync --inexact"
+# DEBUG, print the value of the PYTHON variable to ensure it's correct
+	@echo "PYTHON variable is: $(PYTHON)"
 	@uv sync --inexact  # don't remove additional dependencies installed by the user
 	@$(PYTHON) ./baselayer/tools/check_app_environment.py
 
@@ -48,7 +53,6 @@ docker-local: ## Build docker images locally
 doc_reqs:
 	uv sync --inexact --group docs
 
-api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
 	@$(PYTHON) tools/docs/patch-api-doc-template.py $(FLAGS)
@@ -58,27 +62,22 @@ docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
-prepare_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 prepare_seed_data:
 	@$(PYTHON) tools/prepare_seed_data.py $(FLAGS)
 
 load_demo_data: ## Import example dataset
-load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 load_demo_data: | dependencies_no_js prepare_seed_data
 	@$(PYTHON) tools/data_loader.py data/db_demo.yaml $(FLAGS)
 
 load_seed_data: ## Seed database with common telescopes, instruments, and a taxonomy
-load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 load_seed_data: | dependencies_no_js prepare_seed_data
 	@$(PYTHON) tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
 db_create_tables: ## Create tables in the database
-db_create_tables: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
 
 db_migrate: ## Migrate database to latest schema
-db_migrate: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
 db_migrate:
 	@$(PYTHON) -m alembic $(FLAGS) upgrade head
