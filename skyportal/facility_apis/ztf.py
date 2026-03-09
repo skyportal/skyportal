@@ -757,12 +757,10 @@ class ZTFAPI(FollowUpAPI):
             "ipac_http_user": {
                 "type": "string",
                 "title": "IPAC HTTP User",
-                "default": "ztf",
             },
-            "ipac_http_pass": {
+            "ipac_http_password": {
                 "type": "string",
                 "title": "IPAC HTTP Password",
-                "default": "ztf",
             },
             "ipac_email": {
                 "type": "string",
