@@ -125,11 +125,6 @@ jobs:
 
           npm ls --depth 0 || true
 
-      - name: Install Geckodriver / Selenium
-        run: |
-          geckodriver --version
-          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
-
       - name: Refresh SkyPortal dependencies for tested version
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
