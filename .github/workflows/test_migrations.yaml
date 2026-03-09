@@ -93,6 +93,7 @@ jobs:
 
           pip install pip==24.0
           pip install wheel numpy
+          pip install "setuptools<71"
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -113,7 +114,6 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
-          pip install setuptools<71
           pip install black
           pip install fiona==1.9.6 # 1.10.0 breaks geopandas
           pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
