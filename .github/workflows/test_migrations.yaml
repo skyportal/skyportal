@@ -123,7 +123,7 @@ jobs:
       - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
-          head=$( PYTHONPATH=. alembic history | grep '(head)' )
+          head=$( PYTHONPATH=. uvx alembic history | grep '(head)' )
 
           # Split by space; index 2 should be latest revision
           tokens=($head)
@@ -176,7 +176,7 @@ jobs:
           npm ls --depth 0
 
           # Stamp Alembic HEAD
-          PYTHONPATH=. alembic -x config=config.yaml stamp head
+          PYTHONPATH=. uvx alembic -x config=config.yaml stamp head
 
       - name: Test loading demo data
         run: |
@@ -204,7 +204,7 @@ jobs:
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
           pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
           # Make sure latest revision on main is included in Alembic history
-          n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
+          n_current_head=$( PYTHONPATH=. uvx alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
           then
             cat << EOF
@@ -217,7 +217,7 @@ jobs:
           fi
 
           # Make sure there are not multiple heads to the Alembic history
-          num_heads=$( PYTHONPATH=. alembic history | grep -c '(head)' )
+          num_heads=$( PYTHONPATH=. uvx alembic history | grep -c '(head)' )
           if [[ $num_heads -ne 1 ]]
           then
             cat << EOF
@@ -235,13 +235,13 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           # Update to latest dependencies
           make dependencies
-          PYTHONPATH=. alembic -x config=config.yaml upgrade head
-          PYTHONPATH=. alembic current
+          PYTHONPATH=. uvx alembic -x config=config.yaml upgrade head
+          PYTHONPATH=. uvx alembic current
 
       - name: Check migration completeness with Alembic
         run: |
           # Try generating a new migration
-          PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
+          PYTHONPATH=. uvx alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
           # The generated migration should be empty if the migration script provided in the PR
           # completely encompasses the changes in the database.
@@ -277,14 +277,12 @@ jobs:
           make run &
           sleep 60 && make load_demo_data
           kill %1
-          PYTHONPATH=. alembic -x config=config.yaml stamp head
+          PYTHONPATH=. uvx alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra
         run: |
-          pip install migra
-
           # SQL needed to go from migrated database to fresh database
-          migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          uvx migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
           if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
