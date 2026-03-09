@@ -133,11 +133,6 @@ jobs:
           # Stamp Alembic HEAD
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
-      - name: Install Geckodriver / Selenium
-        run: |
-          geckodriver --version
-          .venv/bin/python -c "import selenium; print(f'Selenium {selenium.__version__}')"
-
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
