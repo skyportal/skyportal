@@ -144,6 +144,11 @@ jobs:
           ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
 
+      - name: Switch to Python 3.10 for reference commit
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -171,11 +176,6 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          # numpy < 1.26 has no Python 3.12 wheels; pre-install a compatible version
-          # so the reference commit's >=1.21.4 constraint is satisfied without building from source
-          pip install --upgrade pip
-          pip install "numpy>=1.26.0"
-          pip install "setuptools<76.1.0"
           make db_init
 
           npm ls --depth 0
