@@ -6,7 +6,7 @@ NORMAL=\033[0m
 PYTHON:=PYTHONPATH=. uv run python
 FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
 
-VER := $(shell uv run python -c "import baselayer; print(baselayer.__version__)")
+VER := $(shell uv run python -c "import skyportal; print(skyportal.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 SKYPORTAL_UID ?= 1000
