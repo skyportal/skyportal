@@ -123,7 +123,7 @@ jobs:
       - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
-          head=$( PYTHONPATH=. .venv/bin/python -m alembic history | grep '(head)' )
+          head=$( PYTHONPATH=. alembic history | grep '(head)' )
 
           # Split by space; index 2 should be latest revision
           tokens=($head)
@@ -280,7 +280,8 @@ jobs:
       - name: Compare databases with migra
         run: |
           # SQL needed to go from migrated database to fresh database
-          uvx migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          uv pip install migra
+          .venv/bin/python -m migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
           if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
