@@ -25,10 +25,10 @@ help: baselayer/Makefile
 baselayer/Makefile:
 	git submodule update --init
 
-dependencies_no_js: ## Install Python dependencies and check environment, without checking/installing JS dependencies
-	@PYTHONPATH=. pip install packaging
-	@baselayer/tools/check_app_environment.py
-	@PYTHONPATH=. python baselayer/tools/pip_install_requirements.py baselayer/requirements.txt requirements.txt
+dependencies_no_js:
+	@echo "$$ uv sync --inexact"
+	@uv sync --inexact  # don't remove additional dependencies installed by the user
+	@$(PYTHON) ./baselayer/tools/check_app_environment.py
 
 docker-images: ## Make and upload docker images
 docker-images: docker-local

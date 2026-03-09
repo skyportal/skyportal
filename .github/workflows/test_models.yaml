@@ -39,11 +39,17 @@ jobs:
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
           package-manager-cache: false
@@ -87,9 +93,6 @@ jobs:
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==24.0
-          pip install wheel numpy
-
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
@@ -120,7 +123,6 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
-          pip list --format=columns
           npm ls --depth 0 || true
 
       - name: Install Geckodriver / Selenium
@@ -137,8 +139,7 @@ jobs:
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+          uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
         run: |
