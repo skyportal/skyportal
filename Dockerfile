@@ -8,6 +8,9 @@ ENV NODE_MAJOR=20
 ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
 ENV PATH="/root/.cargo/bin:${PATH}"
 ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
+ENV UV_NO_DEV=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common ca-certificates gnupg \
@@ -33,11 +36,9 @@ WORKDIR /skyportal
 
 RUN bash -c "\
     cp docker.yaml config.yaml && \
-    python3 -m venv /skyportal_env && \
+    uv venv /skyportal_env && \
     source /skyportal_env/bin/activate && \
-    pip install --upgrade pip wheel packaging 'setuptools<76.1.0' --no-cache && \
-    pip install -r baselayer/requirements.txt --no-cache && \
-    pip install -r requirements.txt --no-cache && \
+    uv sync --inexact && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
