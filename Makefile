@@ -50,8 +50,7 @@ docker-local: ## Build docker images locally
 		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
 		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
 
-doc_reqs:
-	uv sync --inexact --group docs
+doc_reqs: uv sync --inexact --group docs
 
 api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
@@ -60,7 +59,7 @@ api-docs: | doc_reqs
 
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
-	export SPHINXOPTS=-W; make -C doc html
+	export SPHINXOPTS=-W; uv run make -C doc html
 
 prepare_seed_data:
 	@$(PYTHON) tools/prepare_seed_data.py $(FLAGS)
