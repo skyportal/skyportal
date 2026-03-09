@@ -141,7 +141,9 @@ jobs:
         run: |
           make run &
           sleep 180 && make load_demo_data
-          kill %1
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
 
       - name: Run test suite
         run: |
