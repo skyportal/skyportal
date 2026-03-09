@@ -46,7 +46,7 @@ docker-local: ## Build docker images locally
 		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
 
 doc_reqs:
-	pip install -q -r requirements.docs.txt
+	uv sync --inexact --group docs
 
 api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 api-docs: | doc_reqs

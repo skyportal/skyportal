@@ -125,9 +125,9 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
 
           # Install dependencies, and initialize the database
+          uv sync --inexact --group test
           make db_init
 
-          pip list --format=columns
           npm ls --depth 0 || true
 
           # Stamp Alembic HEAD
