@@ -175,7 +175,7 @@ jobs:
           # so the reference commit's >=1.21.4 constraint is satisfied without building from source
           pip install --upgrade pip
           pip install "numpy>=1.26.0"
-          pip install setuptools<76.1.0
+          pip install "setuptools<76.1.0"
           make db_init
 
           npm ls --depth 0
