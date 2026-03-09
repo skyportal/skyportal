@@ -131,12 +131,12 @@ jobs:
           npm ls --depth 0 || true
 
           # Stamp Alembic HEAD
-          PYTHONPATH=. uvx alembic -x config=config.yaml stamp head
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Install Geckodriver / Selenium
         run: |
           geckodriver --version
-          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+          .venv/bin/python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
