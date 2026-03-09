@@ -62,7 +62,7 @@ RUN bash -c "\
     mkdir -p /skyportal/persistentdata/sncosmo && \
     chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
     # we remove the cache and temp files to reduce the image size
-    rm -rf /root/.cache/pip && rm -rf /tmp/* && \
+    rm -rf /root/.cache/pip && rm -rf /root/.cache/uv && rm -rf /tmp/* && \
     # we remove some unused data from the gwemopt package to reduce the image size
     rm -rf /skyportal_env/lib/python3.11/site-packages/gwemopt/data/tesselations/*.tess"
 
