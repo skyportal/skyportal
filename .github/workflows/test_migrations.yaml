@@ -93,7 +93,7 @@ jobs:
 
           pip install pip==24.0
           pip install wheel numpy
-          pip install "setuptools<71"
+          pip install "setuptools<76.1.0"
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -171,6 +171,9 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          # numpy < 1.26 has no Python 3.12 wheels; pre-install a compatible version
+          # so the reference commit's >=1.21.4 constraint is satisfied without building from source
+          pip install "numpy>=1.26.0"
           make db_init
 
           npm ls --depth 0

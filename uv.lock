@@ -4466,7 +4466,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2,<1.0.0" },
     { name = "sendgrid", specifier = "==6.12.5" },
     { name = "sentry-sdk", specifier = "==2.34.1" },
-    { name = "setuptools", specifier = "<71" },
+    { name = "setuptools", specifier = "<76.1.0" },
     { name = "shapely", specifier = "==2.1.2" },
     { name = "simplejson", specifier = "==3.20.1" },
     { name = "simsurvey", specifier = "==0.7.5" },
