@@ -50,7 +50,8 @@ docker-local: ## Build docker images locally
 		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
 		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
 
-doc_reqs: uv sync --group docs --inexact
+doc_reqs:
+	uv sync --group docs --inexact
 
 api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
