@@ -114,13 +114,6 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
-          pip install black
-          pip install fiona==1.9.6 # 1.10.0 breaks geopandas
-          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
-          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
-          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
-          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
-
       - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
@@ -176,6 +169,14 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+
+          pip install black
+          pip install 'fiona==1.9.6' # 1.10.0 breaks geopandas
+          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
+          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
+          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
+          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
+
           make db_init
 
           npm ls --depth 0
