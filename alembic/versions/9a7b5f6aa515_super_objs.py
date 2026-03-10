@@ -42,7 +42,7 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ["super_obj_id"], ["super_objs.id"], ondelete="CASCADE"
         ),
-        sa.PrimaryKeyConstraint("obj_id", "super_obj_id", "id"),
+        sa.PrimaryKeyConstraint("id", "obj_id", "super_obj_id"),
     )
     op.create_index(
         op.f("ix_obj_to_super_obj_created_at"),
