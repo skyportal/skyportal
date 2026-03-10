@@ -16,16 +16,6 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -34,11 +24,20 @@ jobs:
 
       - name: Build Docker image
         run: |
-          make docker-local
+          docker compose build
 
       - name: Start containers
         run: |
           docker compose up -d
+
+      - name: Wait for web service to be healthy
+        run: |
+          sleep 30
+          if ! docker compose ps --services --filter "status=running" | grep -q "web"; then
+            echo "Web service is not running. Logs:"
+            docker compose logs web
+            exit 1
+          fi
 
       - name: Test loading demo data
         run: |
