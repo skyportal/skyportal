@@ -209,7 +209,7 @@ jobs:
           make dependencies
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
-          uv pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
+          uv pip uninstall pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
