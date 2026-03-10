@@ -19,7 +19,7 @@ runs:
     - uses: actions/cache/save@v4
       with:
         path: |
-          ~/.cache/pip
+          ~/.cache/uv
         key: ${{ inputs.key-prefix }}-${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
     # caching dustmap & sncosmo files is dependent on their corresponding

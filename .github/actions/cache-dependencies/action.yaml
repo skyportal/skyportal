@@ -21,7 +21,7 @@ runs:
     - uses: actions/cache@v5
       with:
         path: |
-          ~/.cache/pip
+          ~/.cache/uv
         key: ${{ inputs.key-prefix }}-${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
         restore-keys: |
           ${{ inputs.key-prefix }}-${{ runner.os }}-pip-
