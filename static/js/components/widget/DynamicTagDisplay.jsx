@@ -96,6 +96,8 @@ const DynamicTagDisplay = ({ source, styles }) => {
     }
   }, []);
 
+  if (!source.tags) return null;
+
   const hasMoreTags = source.tags.length > visibleTagsCount;
   const visibleTags = source.tags.slice(0, visibleTagsCount);
   const hiddenTags = source.tags.slice(visibleTagsCount);
