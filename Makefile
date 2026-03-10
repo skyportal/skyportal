@@ -29,7 +29,7 @@ baselayer/Makefile:
 	git submodule update --init
 
 dependencies_no_js:
-  @uv sync --inexact  # don't remove additional dependencies installed by the user
+	@uv sync --inexact  # don't remove additional dependencies installed by the user
 	@$(PYTHON) ./baselayer/tools/check_app_environment.py
 
 docker-images: ## Make and upload docker images
