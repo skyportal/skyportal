@@ -217,14 +217,14 @@ const TopSaversList = ({ savers, styles }) => {
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver, index) => (
-          <div key={saver.author.username}>
+          <React.Fragment key={saver.author.username}>
             <ListItem className={styles.saverListItem}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
             </ListItem>
             {index < options.length - 1 && <Divider />}
-          </div>
+          </React.Fragment>
         ))}
       </List>
     </div>
