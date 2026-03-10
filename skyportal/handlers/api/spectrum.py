@@ -1725,7 +1725,9 @@ class SyntheticPhotometryHandler(BaseHandler):
                     "group_ids": [g.id for g in self.current_user.accessible_groups],
                     **df.to_dict(orient="list"),
                 }
-                add_external_photometry(data_out, self.associated_user_object)
+                add_external_photometry(
+                    data_out, self.associated_user_object, parent_session=session
+                )
 
                 return self.success()
             return self.success()
