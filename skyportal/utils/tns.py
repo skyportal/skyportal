@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import traceback
 import urllib
@@ -47,6 +48,8 @@ TNS_INSTRUMENT_IDS = {
     "gaia": 163,
     "goodman": 136,
     "goto": [218, 264, 265, 266],
+    "lsst": 287,
+    "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
     "ps1": [98, 154, 155, 257],
     "sedm": [149, 225],
     "sprat": 156,
@@ -72,6 +75,12 @@ SNCOSMO_TO_TNSFILTER = {
     "gotor": 122,
     "gotog": 123,
     "gotob": 124,
+    "lsstu": 160,
+    "lsstg": 161,
+    "lsstr": 162,
+    "lssti": 163,
+    "lsstz": 164,
+    "lssty": 165,
     "ps1::g": 56,
     "ps1::r": 57,
     "ps1::i": 58,
@@ -84,11 +93,49 @@ SNCOSMO_TO_TNSFILTER = {
 
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
-# here we store regex patterns, to validate that a source name is in the correct format
-# for a given TNS source group. Used to not submit incorrect sources to TNS.
-TNS_SOURCE_GROUP_NAMING_CONVENTIONS = {
-    48: r"ZTF\d{2}[a-z]{7}",  # ZTF: ZTF + 2 digits + 7 lowercase characters
-    135: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+
+def normalize_rubin_obj_id(obj_id):
+    """Normalize a Rubin/LSST object ID to the TNS-friendly format LSST-P-DO-<int64>.
+
+    Accepts various input formats:
+    - Already correct: LSST-P-DO-<int64>
+    - Variant separators: LSST_P_DO_<int64>, lsst-p-do-<int64>, etc.
+    - With diaObject prefix: diaObject_<int64>, diaObject-<int64>
+    - Raw diaObjectId (int64): <digits>
+
+    Returns the normalized name or None if the format is not recognized.
+    """
+    if re.match(r"^LSST-P-DO-\d+$", obj_id):
+        return obj_id
+
+    match = re.match(r"^LSST[-_\s]?P[-_\s]?DO[-_\s]?(\d+)$", obj_id, re.IGNORECASE)
+    if match:
+        return f"LSST-P-DO-{match.group(1)}"
+
+    match = re.match(r"^diaObject[-_\s]?(\d+)$", obj_id, re.IGNORECASE)
+    if match:
+        return f"LSST-P-DO-{match.group(1)}"
+
+    if re.match(r"^\d+$", obj_id):
+        return f"LSST-P-DO-{obj_id}"
+
+    return None
+
+
+TNS_SOURCE_GROUPS = {
+    48: {
+        "name": "ZTF",
+        "regex": r"ZTF\d{2}[a-z]{7}",  # ZTF + 2 digits + 7 lowercase characters
+    },
+    135: {
+        "name": "DECAM",
+        "regex": r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+    },
+    165: {
+        "name": "LSST",
+        "regex": r"LSST-P-DO-\d+",  # LSST-P-DO- + diaObjectId (int64)
+        "normalizer": normalize_rubin_obj_id,  # function to normalize Rubin object IDs to the correct format
+    },
 }
 
 
