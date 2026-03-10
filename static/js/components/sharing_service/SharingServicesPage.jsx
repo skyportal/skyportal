@@ -680,6 +680,7 @@ const SharingServicesPage = () => {
   const allowedInstrumentsForSharing = useSelector(
     (state) => state.config.allowedInstrumentsForSharing,
   );
+  const tnsSourceGroups = useSelector((state) => state.config.tnsSourceGroups);
   const streams = useSelector((state) => state.streams);
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -1041,7 +1042,11 @@ const SharingServicesPage = () => {
           tns_bot_id: { type: "number", title: "TNS Bot ID" },
           tns_source_group_id: {
             type: "integer",
-            title: "TNS Source Group ID",
+            title: "TNS Source Group",
+            enum: (tnsSourceGroups || []).map((g) => g.id),
+            enumNames: (tnsSourceGroups || []).map(
+              (g) => `${g.name} (id: ${g.id})`,
+            ),
           },
           tns_api_key: { type: "string", title: "TNS API Key" },
           publish_existing_tns_objects: {
@@ -1096,8 +1101,13 @@ const SharingServicesPage = () => {
                     <br />- Bot Name:{" "}
                     {sharingServicesList[dataIndex].tns_bot_name}
                     <br />- Bot ID: {sharingServicesList[dataIndex].tns_bot_id}
-                    <br />- Source Group ID:{" "}
-                    {sharingServicesList[dataIndex].tns_source_group_id}
+                    <br />- Source Group:{" "}
+                    {(tnsSourceGroups || []).find(
+                      (g) =>
+                        g.id ===
+                        sharingServicesList[dataIndex].tns_source_group_id,
+                    )?.name || ""}{" "}
+                    ({sharingServicesList[dataIndex].tns_source_group_id})
                     <br />- Report existing TNS objects:{" "}
                     {sharingServicesList[dataIndex].publish_existing_tns_objects
                       ? "Yes"
