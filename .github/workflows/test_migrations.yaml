@@ -14,7 +14,8 @@ on:
       - "alembic/versions/**"
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
-      - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/test_migrations.yaml"
       - ".github/actions/cache-dependencies/action.yaml"
       - ".github/actions/cache-dependencies-save/action.yaml"
@@ -208,7 +209,7 @@ jobs:
           make dependencies
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
-          pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
+          uv pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
@@ -282,13 +283,13 @@ jobs:
           make run &
           sleep 60 && make load_demo_data
           kill %1
-          # PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra
         run: |
           # SQL needed to go from migrated database to fresh database
           uv pip install migra
-          .venv/bin/python -m migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          uv run migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
           if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."

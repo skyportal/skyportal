@@ -22,16 +22,13 @@ help: baselayer/Makefile
 	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
 	@echo Please choose one of the following make targets:
-	@python baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
+	@$(PYTHON) baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
 	@echo
 
 baselayer/Makefile:
 	git submodule update --init
 
 dependencies_no_js:
-# 	@echo "$$ uv sync --inexact"
-# DEBUG, print the value of the PYTHON variable to ensure it's correct
-	@echo "PYTHON variable is: $(PYTHON)"
 	@uv sync --inexact  # don't remove additional dependencies installed by the user
 	@$(PYTHON) ./baselayer/tools/check_app_environment.py
 
