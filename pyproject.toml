@@ -128,7 +128,7 @@ workspace = { members = ["baselayer"] }
 baselayer = { workspace = true }
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'
