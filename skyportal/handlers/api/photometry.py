@@ -207,7 +207,7 @@ def to_numeric(col):
         return col
 
 
-def save_data_using_copy(rows, table, columns):
+def save_data_using_copy(rows, table, columns, session):
     # Prepare data
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
@@ -226,7 +226,9 @@ def save_data_using_copy(rows, table, columns):
     output.seek(0)
 
     # Insert data
-    connection = DBSession().connection().connection
+    # Use the provided session's connection so that the COPY runs within the
+    # same database connection/transaction that holds any table-level locks.
+    connection = session.connection().connection
     cursor = connection.cursor()
     cursor.copy_from(
         output,
@@ -459,7 +461,7 @@ def serialize(
     return return_value
 
 
-def standardize_photometry_data(data):
+def standardize_photometry_data(data, session):
     if not isinstance(data, dict):
         raise ValidationError(
             f"Top level JSON must be an instance of `dict`, got {type(data)}."
@@ -726,7 +728,7 @@ def standardize_photometry_data(data):
 
     instrument_cache = {}
     for iid in df["instrument_id"].unique():
-        instrument = DBSession().scalar(
+        instrument = session.scalar(
             sa.select(Instrument).where(Instrument.id == int(iid))
         )
         if not instrument:
@@ -737,7 +739,7 @@ def standardize_photometry_data(data):
     df["obj_id"] = df["obj_id"].astype(str)
 
     for oid in df["obj_id"].unique():
-        obj = DBSession().scalar(sa.select(Obj).where(Obj.id == str(oid)))
+        obj = session.scalar(sa.select(Obj).where(Obj.id == str(oid)))
         if not obj:
             raise ValidationError(f"Invalid object ID: {oid}")
 
@@ -965,6 +967,7 @@ def insert_new_photometry_data(
                 "ref_flux",
                 "ref_fluxerr",
             ),
+            session=session,
         )
 
     if len(group_photometry_params) > 0:
@@ -973,6 +976,7 @@ def insert_new_photometry_data(
             group_photometry_params,
             "group_photometry",
             ("photometr_id", "group_id", "created_at", "modified"),
+            session=session,
         )
 
     if len(stream_photometry_params) > 0:
@@ -981,6 +985,7 @@ def insert_new_photometry_data(
             stream_photometry_params,
             "stream_photometry",
             ("photometr_id", "stream_id", "created_at", "modified"),
+            session=session,
         )
 
     # add a phot stats for each photometry
@@ -1006,7 +1011,7 @@ def insert_new_photometry_data(
             phot_stat.add_photometry_point(phot)
 
     session.add(phot_stat)
-    session.commit()  # add the updated phot_stats
+    session.commit()  # add the updated phot_stats and release any potential locks on the Photometry table
 
     if refresh:
         flow = Flow()
@@ -1141,7 +1146,7 @@ def add_external_photometry(
 
     group_ids = get_group_ids(json, user, session)
     stream_ids = get_stream_ids(json, user, session)
-    df, instrument_cache = standardize_photometry_data(json)
+    df, instrument_cache = standardize_photometry_data(json, session)
 
     if len(df.index) > MAX_NUMBER_ROWS:
         raise ValueError(
@@ -1330,41 +1335,48 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-        try:
-            group_ids = get_group_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
-        try:
-            stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
-
         refresh = self.get_query_argument("refresh", default=False)
+        refresh = str_to_bool(refresh, default=False)
 
-        try:
-            df, instrument_cache = standardize_photometry_data(self.get_json())
-        except (ValidationError, RuntimeError) as e:
-            return self.error(e.args[0])
+        with self.Session() as session:
+            try:
+                group_ids = get_group_ids(
+                    self.get_json(), self.associated_user_object, parent_session=session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
+            try:
+                stream_ids = get_stream_ids(
+                    self.get_json(), self.associated_user_object, parent_session=session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
 
-        if len(df.index) > MAX_NUMBER_ROWS:
-            return self.error(
-                f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
-                "Please break up the data into smaller sets and try again"
+            try:
+                df, instrument_cache = standardize_photometry_data(
+                    self.get_json(), session
+                )
+            except (ValidationError, RuntimeError) as e:
+                return self.error(e.args[0])
+
+            if len(df.index) > MAX_NUMBER_ROWS:
+                return self.error(
+                    f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
+                    "Please break up the data into smaller sets and try again"
+                )
+
+            obj_id = df["obj_id"].unique()[0]
+            username = self.associated_user_object.username
+            log(
+                f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
             )
 
-        obj_id = df["obj_id"].unique()[0]
-        username = self.associated_user_object.username
-        log(
-            f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
-        )
-
-        # This lock ensures that the Photometry table data are not modified in any way
-        # between when the query for duplicate photometry is first executed and
-        # when the insert statement with the new photometry is performed.
-        # From the psql docs: This mode protects a table against concurrent
-        # data changes, and is self-exclusive so that only one session can
-        # hold it at a time.
-        with DBSession() as session:
+            # This lock ensures that the Photometry table data are not modified in any way
+            # between when the query for duplicate photometry is first executed and
+            # when the insert statement with the new photometry is performed.
+            # From the psql docs: This mode protects a table against concurrent
+            # data changes, and is self-exclusive so that only one session can
+            # hold it at a time.
             try:
                 session.execute(
                     sa.text(
@@ -1460,34 +1472,13 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-        try:
-            group_ids = get_group_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
-
-        try:
-            stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
-
         refresh = self.get_query_argument("refresh", default=False)
-
         refresh = str_to_bool(refresh, default=False)
 
-        try:
-            df, instrument_cache = standardize_photometry_data(self.get_json())
-        except ValidationError as e:
-            return self.error(e.args[0])
-
-        if len(df.index) > MAX_NUMBER_ROWS:
-            return self.error(
-                f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
-                "Please break up the data into smaller sets and try again"
-            )
+        overwrite_flux = self.get_query_argument("overwrite_flux", False)
+        overwrite_flux = str_to_bool(overwrite_flux, default=False)
 
         ignore_flux = self.get_query_argument("duplicate_ignore_flux", False)
-        overwrite_flux = self.get_query_argument("overwrite_flux", False)
-
         ignore_flux = str_to_bool(ignore_flux, default=False)
 
         # if ignore_flux is True, verify that the current_user is a super admin
@@ -1496,24 +1487,46 @@ class PhotometryHandler(BaseHandler):
                 "Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only"
             )
 
-        overwrite_flux = str_to_bool(overwrite_flux, default=False)
+        with self.Session() as session:
+            try:
+                group_ids = get_group_ids(
+                    self.get_json(), self.associated_user_object, parent_session=session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
+            try:
+                stream_ids = get_stream_ids(
+                    self.get_json(), self.associated_user_object, parent_session=session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
+            try:
+                df, instrument_cache = standardize_photometry_data(
+                    self.get_json(), session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
 
-        obj_id = df["obj_id"].unique()[0]
-        username = self.associated_user_object.username
-        log(
-            f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
-        )
+            if len(df.index) > MAX_NUMBER_ROWS:
+                return self.error(
+                    f"Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. "
+                    "Please break up the data into smaller sets and try again"
+                )
 
-        values_table, condition = get_values_table_and_condition(df, ignore_flux)
+            obj_id = df["obj_id"].unique()[0]
+            username = self.associated_user_object.username
+            log(
+                f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
+            )
 
-        # This lock ensures that the Photometry table data are not modified
-        # in any way between when the query for duplicate photometry is first
-        # executed and when the insert statement with the new photometry is
-        # performed. From the psql docs: This mode protects a table against
-        # concurrent data changes, and is self-exclusive so that only one
-        # session can hold it at a time.
+            values_table, condition = get_values_table_and_condition(df, ignore_flux)
 
-        with DBSession() as session:
+            # This lock ensures that the Photometry table data are not modified
+            # in any way between when the query for duplicate photometry is first
+            # executed and when the insert statement with the new photometry is
+            # performed. From the psql docs: This mode protects a table against
+            # concurrent data changes, and is self-exclusive so that only one
+            # session can hold it at a time.
             try:
                 session.execute(
                     sa.text(
@@ -1646,7 +1659,7 @@ class PhotometryHandler(BaseHandler):
                         id_map[df_index] = id
 
                 # release the lock
-                self.verify_and_commit()
+                session.commit()
 
                 # get ids in the correct order
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]

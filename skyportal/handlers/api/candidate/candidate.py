@@ -1473,7 +1473,6 @@ class CandidateHandler(BaseHandler):
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
-            self.verify_and_commit()
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
