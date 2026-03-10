@@ -33,6 +33,7 @@ tns_url_dict = {
     "object": "api/get/object",
     "report": "api/set/bulk-report",
     "report_reply": "api/get/bulk-report-reply",
+    "groups": "groups",
 }
 
 log = make_log("tns_utils")
@@ -93,50 +94,61 @@ SNCOSMO_TO_TNSFILTER = {
 
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
-
-def normalize_rubin_obj_id(obj_id):
-    """Normalize a Rubin/LSST object ID to the TNS-friendly format LSST-P-DO-<int64>.
-
-    Accepts various input formats:
-    - Already correct: LSST-P-DO-<int64>
-    - Variant separators: LSST_P_DO_<int64>, lsst-p-do-<int64>, etc.
-    - With diaObject prefix: diaObject_<int64>, diaObject-<int64>
-    - Raw diaObjectId (int64): <digits>
-
-    Returns the normalized name or None if the format is not recognized.
-    """
-    if re.match(r"^LSST-P-DO-\d+$", obj_id):
-        return obj_id
-
-    match = re.match(r"^LSST[-_\s]?P[-_\s]?DO[-_\s]?(\d+)$", obj_id, re.IGNORECASE)
-    if match:
-        return f"LSST-P-DO-{match.group(1)}"
-
-    match = re.match(r"^diaObject[-_\s]?(\d+)$", obj_id, re.IGNORECASE)
-    if match:
-        return f"LSST-P-DO-{match.group(1)}"
-
-    if re.match(r"^\d+$", obj_id):
-        return f"LSST-P-DO-{obj_id}"
-
-    return None
-
-
-TNS_SOURCE_GROUPS = {
-    48: {
-        "name": "ZTF",
+SURVEYS = {
+    "ZTF": {
+        "discovery_data_source_id": 48,
         "regex": r"ZTF\d{2}[a-z]{7}",  # ZTF + 2 digits + 7 lowercase characters
     },
-    135: {
-        "name": "DECAM",
+    "DECAM": {
+        "discovery_data_source_id": 88,
         "regex": r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
     },
-    165: {
-        "name": "LSST",
+    "LSST": {
+        "discovery_data_source_id": 165,
         "regex": r"LSST-P-DO-\d+",  # LSST-P-DO- + diaObjectId (int64)
-        "normalizer": normalize_rubin_obj_id,  # function to normalize Rubin object IDs to the correct format
     },
 }
+
+
+def get_tns_object_id_and_data_source_id(obj_id):
+    """Determine the TNS object ID and discovery data source ID for a given input object ID,
+    supporting multiple surveys and input formats.
+
+    Parameters
+    ----------
+    obj_id : str
+        The object ID to analyze.
+        For Rubin/LSST, accepts various formats:
+        - Already correct: LSST-P-DO-<int64>
+        - Variant separators: lsst-p-do-<int64>
+        - With diaObject prefix: diaObject_<int64>, diaObject-<int64>
+        - Raw diaObjectId (int64): <digits>
+
+    Returns
+    -------
+    tuple
+        A tuple containing the normalized object ID and the discovery data source ID, or (None, None) if the input format is unrecognized.
+    """
+    if re.match(SURVEYS["ZTF"]["regex"], obj_id):
+        survey = SURVEYS["ZTF"]
+    elif re.match(SURVEYS["DECAM"]["regex"], obj_id):
+        survey = SURVEYS["DECAM"]
+    else:  # Accept various input formats for Rubin/LSST object IDs and normalize to the TNS-friendly format
+        survey = SURVEYS["LSST"]
+        if re.match(r"^\d+$", obj_id):  # Most common case in SkyPortal for LSST
+            obj_id = f"LSST-P-DO-{obj_id}"
+        # := is the walrus operator, which allows us to assign and check a regex match in one step
+        elif match := re.match(
+            r"^LSST[-_\s]?P[-_\s]?DO[-_\s]?(\d+)$", obj_id, re.IGNORECASE
+        ):
+            obj_id = f"LSST-P-DO-{match.group(1)}"
+        elif match := re.match(r"^diaObject[-_\s]?(\d+)$", obj_id, re.IGNORECASE):
+            obj_id = f"LSST-P-DO-{match.group(1)}"
+        elif re.match(SURVEYS["LSST"]["regex"], obj_id):
+            pass  # already in correct format
+        else:
+            return None, None
+    return obj_id, survey["discovery_data_source_id"]
 
 
 def get_tns_headers(bot_id, bot_name):

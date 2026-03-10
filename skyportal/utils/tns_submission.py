@@ -15,12 +15,13 @@ from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
+    SURVEYS,
     TNS_INSTRUMENT_IDS,
-    TNS_SOURCE_GROUPS,
     TNS_URL,
     get_IAUname,
     get_internal_names,
     get_tns_headers,
+    get_tns_object_id_and_data_source_id,
     get_tns_url,
 )
 
@@ -92,7 +93,8 @@ def build_tns_report(
     photometry_options,
     stream_ids,
     session,
-    internal_name=None,
+    tns_internal_name,
+    tns_data_source_id,
 ):
     """Build the AT report for a TNS submission.
 
@@ -114,9 +116,10 @@ def build_tns_report(
         The stream IDs that were used to query for the photometry.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
-    internal_name : str, optional
+    tns_internal_name : str
         The TNS internal name to use (possibly normalized from obj_id).
-        If None, uses submission_request.obj_id.
+    tns_data_source_id : int
+        The TNS discovery data source ID of the survey
 
     Returns
     -------
@@ -126,7 +129,6 @@ def build_tns_report(
     from skyportal.models import Obj
 
     obj_id = submission_request.obj_id
-    tns_internal_name = internal_name or obj_id
     archival = submission_request.archival
     archival_comment = submission_request.archival_comment
 
@@ -216,7 +218,7 @@ def build_tns_report(
         "ra": {"value": obj.ra},
         "dec": {"value": obj.dec},
         "reporting_group_id": sharing_service.tns_source_group_id,
-        "discovery_data_source_id": sharing_service.tns_source_group_id,
+        "discovery_data_source_id": tns_data_source_id,
         "internal_name_format": {
             "prefix": phot_first["instrument_value"],
             "year_format": "YY",
@@ -344,23 +346,12 @@ def submit_to_tns(
             )
 
         # Normalize the object ID to TNS-friendly format if a normalizer exists
-        tns_internal_name = obj_id
-        tns_source_group = TNS_SOURCE_GROUPS.get(sharing_service.tns_source_group_id)
-        # Validate that the object ID is valid for submission to TNS with the given TNS source group ID.
-        if tns_source_group is None:
+        tns_internal_name, tns_data_source_id = get_tns_object_id_and_data_source_id(
+            obj_id
+        )
+        if tns_internal_name is None or tns_data_source_id is None:
             raise ValueError(
-                f"Unknown naming convention for TNS source group ID {sharing_service.tns_source_group_id}, cannot validate object ID."
-            )
-
-        normalizer = tns_source_group.get("normalizer")
-        if callable(normalizer):
-            normalized = normalizer(obj_id)
-            if normalized:
-                tns_internal_name = normalized
-
-        if not re.match(tns_source_group.get("regex"), tns_internal_name):
-            raise ValueError(
-                f"Object ID {obj_id} does not match the expected naming convention for TNS source group {tns_source_group.get('name')}"
+                f"Object ID {obj_id} does not match the expected naming convention for any of the supported Surveys {SURVEYS.keys()}."
             )
 
         apply_existing_tns_report_rules(
@@ -384,7 +375,8 @@ def submit_to_tns(
             photometry_options,
             stream_ids,
             session,
-            internal_name=tns_internal_name,
+            tns_internal_name,
+            tns_data_source_id,
         )
         submission_request.tns_payload = json.dumps(tns_report)
 
