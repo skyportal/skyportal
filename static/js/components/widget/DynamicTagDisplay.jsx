@@ -4,7 +4,7 @@ import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
 
-const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
+const DynamicTagDisplay = ({ source, styles }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
@@ -95,10 +95,6 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
       setContainerWidth(containerRef.current.offsetWidth);
     }
   }, []);
-
-  if (!displayTags || !source.tags || source.tags.length === 0) {
-    return null;
-  }
 
   const hasMoreTags = source.tags.length > visibleTagsCount;
   const visibleTags = source.tags.slice(0, visibleTagsCount);
@@ -199,7 +195,6 @@ DynamicTagDisplay.propTypes = {
     tagsContainer: PropTypes.string.isRequired,
     tagChip: PropTypes.string.isRequired,
   }).isRequired,
-  displayTags: PropTypes.bool.isRequired,
 };
 
 export default DynamicTagDisplay;

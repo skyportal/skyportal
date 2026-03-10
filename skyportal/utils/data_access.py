@@ -376,9 +376,9 @@ def get_photometry_by_instruments_stream_and_options(
             )
             is not None
         ]
-    detections = [phot for phot in photometry if not is_null(phot.mag)]
 
     # if no photometry or only non-detections photometry is found, raise an error
+    detections = [phot for phot in photometry if not is_null(phot.mag)]
     if not detections:
         stream_names = None
         if stream_ids:
