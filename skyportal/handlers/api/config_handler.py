@@ -6,10 +6,7 @@ from matplotlib.colors import rgb2hex
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
-from skyportal.utils.tns import (
-    TNS_INSTRUMENT_IDS,
-    TNS_SOURCE_GROUPS,
-)
+from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from ...enum_types import (
     ALLOWED_ALLOCATION_TYPES,
@@ -30,12 +27,6 @@ _, cfg = load_env()
 TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 ALLOWED_INSTRUMENTS_FOR_SHARING = list(TNS_INSTRUMENT_IDS.keys())
-
-# Build a list of {id, name} for TNS source groups
-FORMAT_TNS_SOURCE_GROUPS = [
-    {"id": group_id, "name": group["name"]}
-    for group_id, group in TNS_SOURCE_GROUPS.items()
-]
 
 cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
 
@@ -115,7 +106,6 @@ class ConfigHandler(BaseHandler):
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "allowedInstrumentsForSharing": ALLOWED_INSTRUMENTS_FOR_SHARING,
-                "tnsSourceGroups": FORMAT_TNS_SOURCE_GROUPS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": cmap,
                 "bandpassesColors": BANDPASSES_COLORS,
