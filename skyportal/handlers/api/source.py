@@ -198,6 +198,7 @@ async def get_source(
     include_gcn_crossmatches=False,
     include_gcn_notes=False,
     include_candidates=False,
+    include_associated_objs=False,
     include_tags=False,
 ):
     """Query source from database.
@@ -380,7 +381,7 @@ async def get_source(
             is_token=True,
         )
         session.add(sv)
-        # To keep loaded relationships from being cleared in verify_and_commit:
+        # To keep loaded relationships from being cleared in session.commit()
         source_info = recursive_to_dict(source_info)
         session.commit()
 
@@ -641,6 +642,33 @@ async def get_source(
             ],
             key=lambda x: x["passed_at"],
             reverse=True,
+        )
+
+    if include_associated_objs:
+        # For each associated obj, we include the same info as for duplicates (obj_id, ra, dec, separation),
+        # but we also include the super_obj_id (and name) through which it is associated to the current obj
+        associated_objs = []
+        for super_obj in s.super_objs:
+            super_obj_id = super_obj.id
+            super_obj_name = super_obj.name
+            for obj in super_obj.objs:
+                if obj.id == s.id:
+                    continue
+                associated_objs.append(
+                    {
+                        "obj_id": obj.id,
+                        "ra": obj.ra,
+                        "dec": obj.dec,
+                        "separation": great_circle_distance(
+                            s.ra, s.dec, obj.ra, obj.dec
+                        )
+                        * 3600,
+                        "super_obj_id": super_obj_id,
+                        "super_obj_name": super_obj_name,
+                    }
+                )
+        source_info["associated_objs"] = sorted(
+            associated_objs, key=lambda x: x["separation"]
         )
 
     source_info = recursive_to_dict(source_info)
@@ -1762,6 +1790,7 @@ class SourceHandler(BaseHandler):
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         include_candidates = self.get_query_argument("includeCandidates", False)
         include_tags = self.get_query_argument("includeTags", True)
+        include_associated_objs = self.get_query_argument("includeAssociatedObjs", True)
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -1900,6 +1929,7 @@ class SourceHandler(BaseHandler):
                         include_gcn_notes=include_gcn_notes,
                         include_candidates=include_candidates,
                         include_tags=include_tags,
+                        include_associated_objs=include_associated_objs,
                     )
                 except Exception as e:
                     traceback.print_exc()
@@ -3253,6 +3283,11 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient="list"),
             }
 
-            add_external_photometry(data_out, self.associated_user_object, refresh=True)
+            add_external_photometry(
+                data_out,
+                self.associated_user_object,
+                parent_session=session,
+                refresh=True,
+            )
 
             return self.success()

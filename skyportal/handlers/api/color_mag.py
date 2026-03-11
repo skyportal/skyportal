@@ -217,17 +217,6 @@ class ObjColorMagHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        obj = Obj.query.get(obj_id)
-        if obj is None:
-            return self.error("Invalid object id.")
-
-        annotations = (
-            Annotation.query_records_accessible_by(self.current_user)
-            .filter(Annotation.obj_id == obj_id)
-            .all()
-        )
-
         catalog = self.get_query_argument("catalog", None)  # "GAIA"
         mag_key = self.get_query_argument("apparentMagKey", None)  # "Mag_G"
         parallax_key = self.get_query_argument("parallaxKey", None)  # "Plx"
@@ -237,18 +226,33 @@ class ObjColorMagHandler(BaseHandler):
         red_mag_key = self.get_query_argument("redMagKey", None)  # "Mag_Rp"
         color_key = self.get_query_argument("colorKey", None)  # None
 
-        output = get_color_mag(
-            annotations,
-            catalog=catalog,
-            apparentMagKey=mag_key,
-            parallaxKey=parallax_key,
-            absorptionKey=absorption_key,
-            absoluteMagKey=abs_mag_key,
-            blueMagKey=blue_mag_key,
-            redMagKey=red_mag_key,
-            colorKey=color_key,
-        )
+        with self.Session() as session:
+            obj = session.scalar(
+                Obj.select(self.associated_user_object).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error("Invalid object id.")
 
-        self.verify_and_commit()
+            annotations = (
+                session.scalars(
+                    Annotation.select(self.associated_user_object).where(
+                        Annotation.obj_id == obj_id
+                    )
+                )
+                .unique()
+                .all()
+            )
 
-        return self.success(data=output)
+            output = get_color_mag(
+                annotations,
+                catalog=catalog,
+                apparentMagKey=mag_key,
+                parallaxKey=parallax_key,
+                absorptionKey=absorption_key,
+                absoluteMagKey=abs_mag_key,
+                blueMagKey=blue_mag_key,
+                redMagKey=red_mag_key,
+                colorKey=color_key,
+            )
+
+            return self.success(data=output)

@@ -64,6 +64,11 @@ streams:
       collection: ZTF_alerts
       selector: [1, 2, 3]
     =id: ztf_caltech
+  - name: LSST
+    altdata:
+      collection: LSST_alerts
+      selector: [1]
+    =id: lsst
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
