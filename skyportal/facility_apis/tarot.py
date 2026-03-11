@@ -233,7 +233,7 @@ def get_filters_exposures(last_detected_mag, phase_angle, station_name):
                 filters_exposures = {
                     "r": [12, 200],
                     "g": [0, 0],
-                    "i": [12, 200] if station_name is "Tarot_Calern" else [0, 0],
+                    "i": [12, 200] if station_name == "Tarot_Calern" else [0, 0],
                     "NoFilter": [12, 120],
                 }
 

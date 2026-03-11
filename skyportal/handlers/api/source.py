@@ -380,7 +380,7 @@ async def get_source(
             is_token=True,
         )
         session.add(sv)
-        # To keep loaded relationships from being cleared in verify_and_commit:
+        # To keep loaded relationships from being cleared in session.commit()
         source_info = recursive_to_dict(source_info)
         session.commit()
 
@@ -3270,6 +3270,11 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient="list"),
             }
 
-            add_external_photometry(data_out, self.associated_user_object, refresh=True)
+            add_external_photometry(
+                data_out,
+                self.associated_user_object,
+                parent_session=session,
+                refresh=True,
+            )
 
             return self.success()

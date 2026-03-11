@@ -39,11 +39,17 @@ jobs:
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
           package-manager-cache: false
@@ -87,9 +93,6 @@ jobs:
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==24.0
-          pip install wheel numpy
-
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
@@ -118,15 +121,10 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          uv sync --inexact --group test
           make db_init
 
-          pip list --format=columns
           npm ls --depth 0 || true
-
-      - name: Install Geckodriver / Selenium
-        run: |
-          geckodriver --version
-          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
@@ -137,18 +135,19 @@ jobs:
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+          uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
         run: |
           make run &
           sleep 180 && make load_demo_data
-          kill %1
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
 
       - name: Run test suite
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/models'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/models'
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
