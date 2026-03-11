@@ -34,11 +34,13 @@ from ...models import (
     GroupPhotometry,
     Instrument,
     Obj,
+    ObjToSuperObj,
     PhotometricSeries,
     Photometry,
     PhotStat,
     Stream,
     StreamPhotometry,
+    SuperObj,
     User,
 )
 from ...models.schema import (
@@ -1943,7 +1945,9 @@ class ObjPhotometryHandler(BaseHandler):
             "includeAnnotationInfo", False
         )
         include_extinction = self.get_query_argument("includeExtinction", False)
-
+        include_superobjs_photometry = self.get_query_argument(
+            "includeSuperObjsPhotometry", False
+        )
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
 
         include_owner_info = str_to_bool(include_owner_info, default=False)
@@ -1957,9 +1961,10 @@ class ObjPhotometryHandler(BaseHandler):
         include_extinction = str_to_bool(include_extinction, default=False)
 
         with self.Session() as session:
-            obj = session.scalars(
+            obj: Obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
+            print(dir(obj))
             if obj is None:
                 return self.error(
                     f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
@@ -1994,12 +1999,26 @@ class ObjPhotometryHandler(BaseHandler):
                         )
                     )
 
+                obj_ids = {obj_id}
+                if include_superobjs_photometry:
+                    super_objs = session.scalars(
+                        sa.select(SuperObj).where(
+                            ObjToSuperObj.obj_id == obj_id,
+                        )
+                    ).all()
+                    for super_obj in super_objs:
+                        obj_ids.update({o.id for o in super_obj.objs})
+
                 stmt = (
                     Photometry.select(
                         session.user_or_token,
                         options=options,
                     )
-                    .where(Photometry.obj_id == obj_id)
+                    .where(
+                        Photometry.obj_id.in_(obj_ids)
+                        if len(obj_ids) > 1
+                        else Photometry.obj_id == obj_id
+                    )
                     .distinct()
                 )
                 photometry = session.scalars(stmt).unique().all()

@@ -22,6 +22,7 @@ export function fetchSourcePhotometryMinimal(id) {
       includeExtinctionInfo: false,
       deduplicatePhotometry: false,
       phaseFoldData: false,
+      includeSuperObjsPhotometry: true,
     },
   );
 }

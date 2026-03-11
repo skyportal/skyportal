@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -229,6 +229,7 @@ const PhotometryPlot = ({
   spectra,
   gcn_events,
   duplicates,
+  associated_objs,
   mode,
   plotStyle,
   magsys,
@@ -243,7 +244,21 @@ const PhotometryPlot = ({
   const config = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
 
-  const [selectedDuplicates, setSelectedDuplicates] = useState([]);
+  const duplicateOptions = useMemo(() => {
+    const allDuplicates = [...(duplicates || []), ...(associated_objs || [])];
+    const uniqueDuplicates = [];
+    const seenObjIds = new Set();
+    allDuplicates.forEach((dup) => {
+      if (!seenObjIds.has(dup.obj_id)) {
+        uniqueDuplicates.push(dup);
+        seenObjIds.add(dup.obj_id);
+      }
+    });
+    return uniqueDuplicates;
+  }, [duplicates, associated_objs]);
+  const [selectedDuplicates, setSelectedDuplicates] = useState(
+    associated_objs?.map((a) => a.obj_id) || [],
+  );
 
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
@@ -1729,7 +1744,7 @@ const PhotometryPlot = ({
             </div>
           </div>
         </div>
-        {duplicates?.length > 0 && (
+        {duplicateOptions?.length > 0 && (
           <div
             className={classes.gridItem}
             style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
@@ -1740,8 +1755,13 @@ const PhotometryPlot = ({
                 value={selectedDuplicates}
                 onChange={(e) => {
                   if (e.target.value.includes("Select all")) {
-                    if (e.target.value?.length !== duplicates.length + 1) {
-                      setSelectedDuplicates(duplicates.map((d) => d.obj_id));
+                    if (
+                      e.target.value?.length !==
+                      duplicateOptions.length + 1
+                    ) {
+                      setSelectedDuplicates(
+                        duplicateOptions.map((d) => d.obj_id),
+                      );
                     } else {
                       setSelectedDuplicates([]);
                     }
@@ -1754,7 +1774,7 @@ const PhotometryPlot = ({
                 multiple
                 renderValue={(selected) => {
                   // show chips for each
-                  const duplicatesValue = duplicates.filter((d) =>
+                  const duplicatesValue = duplicateOptions.filter((d) =>
                     selected.includes(d.obj_id),
                   );
                   return (
@@ -1771,16 +1791,18 @@ const PhotometryPlot = ({
                 }}
               >
                 {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
-                {duplicates.length > 1 && (
+                {duplicateOptions.length > 1 && (
                   <MenuItem value="Select all" key="Select all">
                     <Checkbox
                       size="small"
-                      checked={selectedDuplicates.length === duplicates.length}
+                      checked={
+                        selectedDuplicates.length === duplicateOptions.length
+                      }
                     />
                     Select all
                   </MenuItem>
                 )}
-                {duplicates.map((d) => (
+                {duplicateOptions.map((d) => (
                   <MenuItem key={d.obj_id} value={d.obj_id}>
                     <Checkbox
                       checked={selectedDuplicates.includes(d.obj_id)}
@@ -1923,6 +1945,13 @@ PhotometryPlot.propTypes = {
   ),
   gcn_events: PropTypes.arrayOf(PropTypes.string),
   duplicates: PropTypes.arrayOf(
+    PropTypes.shape({
+      obj_id: PropTypes.string.isRequired,
+      ra: PropTypes.number.isRequired,
+      dec: PropTypes.number.isRequired,
+    }),
+  ),
+  associated_objs: PropTypes.arrayOf(
     PropTypes.shape({
       obj_id: PropTypes.string.isRequired,
       ra: PropTypes.number.isRequired,
