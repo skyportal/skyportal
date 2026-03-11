@@ -1,7 +1,7 @@
 [project]
 name = 'skyportal'
 version = '1.4.0'
-requires-python = '>=3.12,<3.13'
+requires-python = '>=3.12,<3.14'
 dependencies = [
     "baselayer",
     "astroscrappy==1.3.0",
@@ -68,7 +68,7 @@ dependencies = [
     "geojson==3.2.0",
     "typing-extensions==4.15.0",
     "swifttools==3.0.23",
-    "gwemopt==0.3.6",
+    "gwemopt",
     "humanize==4.14.0",
     "xarray>=21.1",
     "simsurvey==0.7.5",
@@ -126,6 +126,7 @@ workspace = { members = ["baselayer"] }
 
 [tool.uv.sources]
 baselayer = { workspace = true }
+gwemopt = { git = "https://github.com/Theodlz/gwemopt", rev = "ligo-to-igwm-segments" }
 
 [tool.ruff]
 target-version = "py312"
