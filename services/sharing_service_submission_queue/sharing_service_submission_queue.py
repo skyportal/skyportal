@@ -533,6 +533,14 @@ def validate_submission_requests():
                                 "duration": 8000,
                             },
                         )
+                        flow.push(
+                            "*",
+                            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                            payload={
+                                "sharing_service_id": submission_request.sharing_service_id
+                            },
+                        )
+
                     except Exception:
                         pass
                     try:

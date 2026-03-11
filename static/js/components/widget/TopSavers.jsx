@@ -96,9 +96,7 @@ const starColor = (rank) => {
 };
 
 const TopSaversSearch = ({ savers, setOptions }) => {
-  if (savers === undefined || savers.length === 0) {
-    return null;
-  }
+  if (!savers) return null;
 
   const handleChange = (event) => {
     let newValue = event.target.value;
@@ -145,7 +143,7 @@ const TopSaversSearch = ({ savers, setOptions }) => {
 
 TopSaversSearch.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,
@@ -169,7 +167,7 @@ const TopSaversList = ({ savers, styles }) => {
   const [options, setOptions] = useState(savers || []);
 
   useEffect(() => {
-    if (savers?.length > 0) {
+    if (savers?.length) {
       setOptions(savers);
     }
   }, [savers]);
@@ -184,16 +182,12 @@ const TopSaversList = ({ savers, styles }) => {
 
   const renderRank = (index) => {
     const { rank } = options[index];
-    return (
-      <div>
-        {rank < 4 ? (
-          <WorkspacePremiumIcon
-            sx={{ color: starColor(rank), marginTop: "0.3rem" }}
-          />
-        ) : (
-          rank
-        )}
-      </div>
+    return rank < 4 ? (
+      <WorkspacePremiumIcon
+        sx={{ color: starColor(rank), marginTop: "0.3rem" }}
+      />
+    ) : (
+      rank
     );
   };
 
@@ -215,9 +209,7 @@ const TopSaversList = ({ savers, styles }) => {
   };
 
   const renderSaves = (index) => (
-    <div>
-      <p style={{ whiteSpace: "nowrap" }}>{options[index].saves} saved</p>
-    </div>
+    <p style={{ whiteSpace: "nowrap" }}>{options[index].saves} saved</p>
   );
 
   return (
@@ -225,17 +217,14 @@ const TopSaversList = ({ savers, styles }) => {
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver, index) => (
-          <>
-            <ListItem
-              key={saver.author.username}
-              className={styles.saverListItem}
-            >
+          <React.Fragment key={saver.author.username}>
+            <ListItem className={styles.saverListItem}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
             </ListItem>
             {index < options.length - 1 && <Divider />}
-          </>
+          </React.Fragment>
         ))}
       </List>
     </div>
@@ -244,7 +233,7 @@ const TopSaversList = ({ savers, styles }) => {
 
 TopSaversList.propTypes = {
   savers: PropTypes.arrayOf(
-    PropTypes.objectOf({
+    PropTypes.shape({
       rank: PropTypes.number.isRequired,
       author: PropTypes.shape({
         first_name: PropTypes.string,
@@ -269,18 +258,10 @@ const TopSavers = ({ classes }) => {
   const styles = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
 
-  const topSaversPrefs =
-    useSelector((state) => state.profile.preferences.topSavers) || defaultPrefs;
-
-  if (!Object.keys(topSaversPrefs).includes("maxNumSavers")) {
-    topSaversPrefs.maxNumSavers = defaultPrefs.maxNumSavers;
-  }
-  if (!Object.keys(topSaversPrefs).includes("sinceDaysAgo")) {
-    topSaversPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
-  }
-  if (!Object.keys(topSaversPrefs).includes("candidatesOnly")) {
-    topSaversPrefs.candidatesOnly = defaultPrefs.candidatesOnly;
-  }
+  const storedPrefs = useSelector(
+    (state) => state.profile.preferences.topSavers,
+  );
+  const topSaversPrefs = { ...defaultPrefs, ...storedPrefs };
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(

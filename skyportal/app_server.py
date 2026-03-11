@@ -188,6 +188,7 @@ from skyportal.handlers.api import (
     TelescopeHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
+    TNSGroupsHandler,
     UnsourcedFinderHandler,
     UserACLHandler,
     UserHandler,
@@ -485,6 +486,7 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
+    (r"/api/tns/groups", TNSGroupsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",

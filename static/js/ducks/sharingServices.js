@@ -33,6 +33,10 @@ const FETCH_SHARING_SERVICE_SUBMISSIONS_OK =
 const REFRESH_SHARING_SERVICE_SUBMISSIONS =
   "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS";
 
+const FETCH_TNS_GROUPS = "skyportal/FETCH_TNS_GROUPS";
+const FETCH_TNS_GROUPS_OK = "skyportal/FETCH_TNS_GROUPS_OK";
+const FETCH_TNS_GROUPS_FAIL = "skyportal/FETCH_TNS_GROUPS_FAIL";
+
 export const fetchSharingServices = (params = {}) =>
   API.GET("/api/sharing_service", FETCH_SHARING_SERVICES, params);
 
@@ -107,6 +111,9 @@ export function addSharingServiceSubmission(formData) {
   );
 }
 
+export const fetchTNSGroups = () =>
+  API.GET("/api/tns/groups", FETCH_TNS_GROUPS);
+
 export const fetchSharingServiceSubmissions = (params = {}) =>
   API.GET(
     `/api/sharing_service/submission`,
@@ -134,7 +141,13 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 const reducer = (
-  state = { sharingServicesList: [], submissions: {}, loading: false },
+  state = {
+    sharingServicesList: [],
+    submissions: {},
+    loading: false,
+    tnsGroups: null,
+    tnsGroupsLoading: false,
+  },
   action,
 ) => {
   switch (action.type) {
@@ -161,6 +174,19 @@ const reducer = (
           },
         },
       };
+    }
+    case FETCH_TNS_GROUPS: {
+      return { ...state, tnsGroupsLoading: true };
+    }
+    case FETCH_TNS_GROUPS_OK: {
+      return {
+        ...state,
+        tnsGroups: action.data,
+        tnsGroupsLoading: false,
+      };
+    }
+    case FETCH_TNS_GROUPS_FAIL: {
+      return { ...state, tnsGroupsLoading: false };
     }
     default:
       return state;
