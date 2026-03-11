@@ -39,7 +39,7 @@ dependencies = [
     "conesearch-alchemy==1.1.0",
     "regions==0.10",
     "jsonschema==4.23.0",
-    "jsonpath_ng==1.7.0",
+    "jsonpath_ng==1.8.0",
     "tables>=3.10.1,<4.0.0",
     "timezonefinder==8.2.0",
     "astroplan==0.10.1",
