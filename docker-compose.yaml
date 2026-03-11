@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   web:
-    image: skyportal/web
+    build: .
     ports:
       - "9000:5000"
       - "9001:5001"
@@ -14,8 +14,8 @@ services:
       - persistentdata:/skyportal/persistentdata:z
 
   db:
-    image: postgres:14.4
-    container_name: postgres14.4
+    image: postgres:17
+    container_name: postgres17
     environment:
       POSTGRES_USER: skyportal
       POSTGRES_PASSWORD: password
