@@ -10,7 +10,7 @@ on:
 runs:
   using: "composite"
   steps:
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           ~/.npm
@@ -18,28 +18,28 @@ runs:
         restore-keys: |
           ${{ inputs.key-prefix }}-${{ runner.os }}-npm-
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
-          ~/.cache/pip
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          ~/.cache/uv
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
         restore-keys: |
-          ${{ inputs.key-prefix }}-${{ runner.os }}-pip-
+          ${{ inputs.key-prefix }}-${{ runner.os }}-uv-
 
     # caching dustmap & sncosmo files is dependent on their corresponding
     # python package versions, so we use that as the cache key
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           persistentdata/dustmap/sfd
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-${{ hashFiles('uv.lock') }}
         restore-keys: |
           ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           ~/.astropy/cache/sncosmo/bandpasses
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-${{ hashFiles('uv.lock') }}
         restore-keys: |
           ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-

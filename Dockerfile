@@ -8,6 +8,10 @@ ENV NODE_MAJOR=20
 ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
 ENV PATH="/root/.cargo/bin:${PATH}"
 ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
+ENV UV_NO_DEV=1
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common ca-certificates gnupg \
@@ -33,18 +37,17 @@ WORKDIR /skyportal
 
 RUN bash -c "\
     cp docker.yaml config.yaml && \
-    python3 -m venv /skyportal_env && \
-    source /skyportal_env/bin/activate && \
-    pip install --upgrade pip wheel packaging 'setuptools<76.1.0' --no-cache && \
-    pip install -r baselayer/requirements.txt --no-cache && \
-    pip install -r requirements.txt --no-cache && \
+    uv venv && \
+    source .venv/bin/activate && \
+    uv sync --inexact && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
     rm -rf node_modules && \
     \
-    chown -R skyportal.skyportal /skyportal_env && \
+    chown -R skyportal.skyportal .venv && \
     chown -R skyportal.skyportal /skyportal && \
+    chown -R skyportal.skyportal /opt/uv-python && \
     \
     mkdir -p /skyportal/static/thumbnails && \
     chown -R skyportal.skyportal /skyportal/static/thumbnails && \
@@ -61,9 +64,9 @@ RUN bash -c "\
     mkdir -p /skyportal/persistentdata/sncosmo && \
     chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
     # we remove the cache and temp files to reduce the image size
-    rm -rf /root/.cache/pip && rm -rf /tmp/* && \
+    rm -rf /root/.cache/pip && rm -rf /root/.cache/uv && rm -rf /tmp/* && \
     # we remove some unused data from the gwemopt package to reduce the image size
-    rm -rf /skyportal_env/lib/python3.11/site-packages/gwemopt/data/tesselations/*.tess"
+    rm -rf .venv/lib/python3.12/site-packages/gwemopt/data/tesselations/*.tess"
 
 
 USER skyportal
@@ -73,6 +76,4 @@ USER skyportal
 # specifying ports in docker-compose.yaml already
 EXPOSE 5000
 
-CMD bash -c "source /skyportal_env/bin/activate && \
-    (make log &) && \
-    make run_production"
+CMD ["bash", "-c", "source .venv/bin/activate && (make log &) && make run_production"]
