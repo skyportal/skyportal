@@ -1,16 +1,39 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
+import * as groupsActions from "../../ducks/groups";
 
 const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
   const measureRef = useRef(null);
+  const dispatch = useDispatch();
 
   const tagOptions = useSelector((state) => state.objectTags || []);
+  const userGroups = useSelector((state) => state.groups.userAccessible);
+
+  useEffect(() => {
+    if (!userGroups || userGroups.length === 0) {
+      dispatch(groupsActions.fetchGroups());
+    }
+  }, [dispatch, userGroups]);
+
+  // Filter tags to only show those the user has access to (via group membership)
+  const userGroupIds = useMemo(
+    () => new Set(userGroups?.map((g) => g.id) || []),
+    [userGroups],
+  );
+
+  const accessibleTags = useMemo(() => {
+    if (!source.tags) return [];
+    return source.tags.filter((tag) => {
+      if (!tag.groups || tag.groups.length === 0) return false;
+      return tag.groups.some((group) => userGroupIds.has(group.id));
+    });
+  }, [source.tags, userGroupIds]);
 
   const measureTextWidth = (text) => {
     if (!measureRef.current) return 0;
@@ -36,18 +59,22 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
 
   // Calculate how many tags we can put on the container
   const calculateVisibleTags = () => {
-    if (!source.tags || source.tags.length === 0 || !containerRef.current) {
-      return source.tags?.length || 0;
+    if (
+      !accessibleTags ||
+      accessibleTags.length === 0 ||
+      !containerRef.current
+    ) {
+      return accessibleTags?.length || 0;
     }
 
     const availableWidth = containerRef.current.offsetWidth;
     let totalWidth = 0;
     let visibleCount = 0;
 
-    for (let i = 0; i < source.tags.length; i++) {
-      const tagWidth = measureTextWidth(source.tags[i].name);
+    for (let i = 0; i < accessibleTags.length; i++) {
+      const tagWidth = measureTextWidth(accessibleTags[i].name);
 
-      const remainingTags = source.tags.length - i;
+      const remainingTags = accessibleTags.length - i;
       const needsPlusChip = remainingTags > 1;
       const plusChipWidth = needsPlusChip
         ? measureTextWidth(`+${remainingTags - 1}`)
@@ -61,7 +88,7 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
       }
     }
 
-    return Math.max(1, Math.min(visibleCount, source.tags.length));
+    return Math.max(1, Math.min(visibleCount, accessibleTags.length));
   };
 
   useEffect(() => {
@@ -84,11 +111,11 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
   }, [containerWidth]);
 
   useEffect(() => {
-    if (containerWidth > 0 && source.tags) {
+    if (containerWidth > 0 && accessibleTags) {
       const newVisibleCount = calculateVisibleTags();
       setVisibleTagsCount(newVisibleCount);
     }
-  }, [containerWidth, source.tags]);
+  }, [containerWidth, accessibleTags]);
 
   useEffect(() => {
     if (containerRef.current && containerWidth === 0) {
@@ -96,13 +123,13 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
     }
   }, []);
 
-  if (!displayTags || !source.tags || source.tags.length === 0) {
+  if (!displayTags || !accessibleTags || accessibleTags.length === 0) {
     return null;
   }
 
-  const hasMoreTags = source.tags.length > visibleTagsCount;
-  const visibleTags = source.tags.slice(0, visibleTagsCount);
-  const hiddenTags = source.tags.slice(visibleTagsCount);
+  const hasMoreTags = accessibleTags.length > visibleTagsCount;
+  const visibleTags = accessibleTags.slice(0, visibleTagsCount);
+  const hiddenTags = accessibleTags.slice(visibleTagsCount);
 
   const visibleTagsWithColors = visibleTags.map((tag) => {
     const tagOption = tagOptions.find(
@@ -192,6 +219,11 @@ DynamicTagDisplay.propTypes = {
       PropTypes.shape({
         id: PropTypes.number.isRequired,
         name: PropTypes.string.isRequired,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number.isRequired,
+          }),
+        ),
       }),
     ),
   }).isRequired,
