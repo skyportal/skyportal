@@ -10,7 +10,7 @@ import time
 import traceback
 import uuid
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import numpy as np
@@ -511,9 +511,9 @@ class HermesSyncService:
         if self.max_age_days is None:
             return False
 
-        msg_dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+        msg_dt = datetime.fromtimestamp(ts_ms / 1000, tz=UTC)
         max_age = timedelta(days=self.max_age_days)
-        return datetime.now(timezone.utc) - msg_dt > max_age
+        return datetime.now(UTC) - msg_dt > max_age
 
     def run(self) -> None:
         """Main monitoring loop."""
@@ -553,7 +553,7 @@ class HermesSyncService:
         try:
             ts = msg.timestamp()[1]
             if ts > 0:
-                msg_timestamp = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+                msg_timestamp = datetime.fromtimestamp(ts / 1000, tz=UTC)
                 log_verbose("=" * 60)
                 log_verbose(f"Message timestamp: {msg_timestamp.isoformat()}")
 
