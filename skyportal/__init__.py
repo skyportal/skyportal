@@ -1,3 +1,21 @@
+try:
+    # NumPy 2 removed np.float_; keep legacy code paths compatible.
+    import numpy as np
+
+    if "float_" not in np.__dict__:
+        np.float64 = np.float64
+except ImportError:
+    pass
+
+# similarly, matplotlib has removed the "matplotlib.docstring" attribute in version 3.10.8, so we add it back for compatibility with older versions of matplotlib
+try:
+    import matplotlib
+
+    if not hasattr(matplotlib, "docstring"):
+        matplotlib.docstring = lambda x: x
+except ImportError:
+    pass
+
 __version__ = "1.4.0"
 
 if "dev" in __version__:

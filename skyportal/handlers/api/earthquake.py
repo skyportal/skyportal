@@ -1,14 +1,13 @@
-import io
+from datetime import UTC, datetime, timezone
 
 import arrow
 import astropy.units as u
 import numpy as np
-import obspy
 import sqlalchemy as sa
 from astropy.time import Time, TimeDelta
-from obspy.geodetics.base import gps2dist_azimuth
-from obspy.taup import TauPyModel
-from obspy.taup.helper_classes import TauModelError
+from lxml import etree
+from pyproj import Geod
+from pyrocko import cake as _cake
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -30,6 +29,79 @@ from ..base import BaseHandler
 
 log = make_log("earthquake")
 
+_TRAVEL_TIME_MODEL = None
+
+
+def _get_travel_time_model():
+    global _TRAVEL_TIME_MODEL
+    if _TRAVEL_TIME_MODEL is None:
+        _TRAVEL_TIME_MODEL = _cake.load_model("iasp91")
+    return _TRAVEL_TIME_MODEL
+
+
+def _parse_quakeml(xml_str):
+    """Parse a QuakeML XML string and return event data as a dict.
+
+    Returns a dict with keys: resource_id, event_type, magnitude,
+    latitude, longitude, depth (metres), time (datetime, UTC).
+    """
+    xml_bytes = xml_str.encode("utf-8") if isinstance(xml_str, str) else xml_str
+    root = etree.fromstring(xml_bytes)
+
+    def _lname(el):
+        return etree.QName(el.tag).localname
+
+    def _find(parent, name):
+        return next((c for c in parent if _lname(c) == name), None)
+
+    def _findall(parent, name):
+        return [c for c in parent if _lname(c) == name]
+
+    def _text(el, *path):
+        cur = el
+        for name in path:
+            cur = _find(cur, name)
+            if cur is None:
+                return None
+        return cur.text
+
+    event_params = _find(root, "eventParameters")
+    if event_params is None:
+        raise ValueError("No eventParameters element found in QuakeML")
+    event_el = _find(event_params, "event")
+    if event_el is None:
+        raise ValueError("No event element found in QuakeML")
+
+    resource_id = event_el.get("publicID", "")
+    event_type = _text(event_el, "type")
+
+    magnitudes = _findall(event_el, "magnitude")
+    mag = float(_text(magnitudes[-1], "mag", "value")) if magnitudes else None
+
+    origins = _findall(event_el, "origin")
+    if not origins:
+        raise ValueError("No origin element found in QuakeML")
+    origin_el = origins[-1]
+
+    lat = float(_text(origin_el, "latitude", "value"))
+    lon = float(_text(origin_el, "longitude", "value"))
+    depth = float(_text(origin_el, "depth", "value"))
+    time_val = _text(origin_el, "time", "value").rstrip("Z")
+    if "." in time_val:
+        dt = datetime.strptime(time_val, "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=UTC)
+    else:
+        dt = datetime.strptime(time_val, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
+
+    return {
+        "resource_id": resource_id,
+        "event_type": event_type,
+        "magnitude": mag,
+        "latitude": lat,
+        "longitude": lon,
+        "depth": depth,  # metres (QuakeML standard)
+        "time": dt,
+    }
+
 
 def post_earthquake_from_xml(payload, user_id, session):
     """Post Earthquake to database from quakeml xml.
@@ -43,8 +115,8 @@ def post_earthquake_from_xml(payload, user_id, session):
 
     user = session.query(User).get(user_id)
 
-    event = obspy.core.event.read_events(io.StringIO(payload), format="QUAKEML")[0]
-    event_uri = event.resource_id.id.replace("/", "-")
+    parsed = _parse_quakeml(payload)
+    event_uri = parsed["resource_id"].replace("/", "-")
 
     split_strings = ["1-query?eventid=", "-EVENT-", "-Event-", "-event-", "-geofon-"]
     event_id = None
@@ -56,7 +128,7 @@ def post_earthquake_from_xml(payload, user_id, session):
     if event_id is None:
         event_id = event_uri
 
-    event_type = event.event_type
+    event_type = parsed["event_type"]
     if event_type == "not existing":
         event = session.scalars(
             EarthquakeEvent.select(user, mode="update").where(
@@ -72,12 +144,10 @@ def post_earthquake_from_xml(payload, user_id, session):
         else:
             return None
 
-    magnitudes = event.magnitudes
-    if len(magnitudes) == 0:
+    if parsed["magnitude"] is None:
         raise ValueError("Must have magnitude information to create Earthquake.")
 
-    mag = magnitudes[-1].mag
-    origin = event.origins[-1]
+    mag = parsed["magnitude"]
 
     event = session.scalars(
         EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
@@ -94,16 +164,16 @@ def post_earthquake_from_xml(payload, user_id, session):
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
 
-    country = get_country(origin.latitude, origin.longitude)
+    country = get_country(parsed["latitude"], parsed["longitude"])
     earthquake_notice = EarthquakeNotice(
         content=payload.encode("utf-8"),
         event_id=event_id,
-        lat=origin.latitude,
-        lon=origin.longitude,
-        depth=origin.depth,
+        lat=parsed["latitude"],
+        lon=parsed["longitude"],
+        depth=parsed["depth"],
         magnitude=mag,
         country=country,
-        date=origin.time.datetime,
+        date=parsed["time"],
         sent_by_id=user.id,
     )
     session.add(earthquake_notice)
@@ -602,36 +672,36 @@ def compute_traveltimes(earthquake, detector):
         MMA Detector to compute parameters for
     """
 
-    depth = earthquake.depth
+    depth = earthquake.depth / 1000  # metres → km for the iasp91 travel-time model
     eqtime = Time(earthquake.date, format="datetime")
     eqlat = earthquake.lat
     eqlon = earthquake.lon
     ifolat = detector.lat
     ifolon = detector.lon
 
-    distance, fwd, back = gps2dist_azimuth(eqlat, eqlon, ifolat, ifolon)
+    fwd, back, distance = Geod(ellps="WGS84").inv(eqlon, eqlat, ifolon, ifolat)
     Dist = distance / 1000
     degree = (distance / 6370000) * (180 / np.pi)
-
-    model = TauPyModel(model="iasp91")
 
     Rtwotime = eqtime + TimeDelta(distance / 2000.0 * u.s)
     RthreePointFivetime = eqtime + TimeDelta(distance / 3500.0 * u.s)
     Rfivetime = eqtime + TimeDelta(distance / 5000.0 * u.s)
 
     try:
-        arrivals = model.get_travel_times(
-            source_depth_in_km=depth, distance_in_degree=degree
+        model = _get_travel_time_model()
+        p_arrivals = model.arrivals(
+            distances=[degree],
+            phases=[_cake.PhaseDef("P")],
+            zstart=depth,
         )
-
-        Ptime = -1
-        Stime = -1
-        for phase in arrivals:
-            if Ptime == -1 and phase.name.lower()[0] == "p":
-                Ptime = eqtime + TimeDelta(phase.time * u.s)
-            if Stime == -1 and phase.name.lower()[0] == "s":
-                Stime = eqtime + TimeDelta(phase.time * u.s)
-    except TauModelError:
+        s_arrivals = model.arrivals(
+            distances=[degree],
+            phases=[_cake.PhaseDef("S")],
+            zstart=depth,
+        )
+        Ptime = eqtime + TimeDelta(p_arrivals[0].t * u.s) if p_arrivals else Rtwotime
+        Stime = eqtime + TimeDelta(s_arrivals[0].t * u.s) if s_arrivals else Rtwotime
+    except Exception:
         Ptime, Stime = Rtwotime, Rtwotime
 
     return (

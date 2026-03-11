@@ -416,6 +416,30 @@ class PhotStat(Base):
         ),
     )
 
+    @staticmethod
+    def _to_python_value(value):
+        """Convert NumPy scalars/containers to native Python values."""
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return [PhotStat._to_python_value(v) for v in value.tolist()]
+        if isinstance(value, list):
+            return [PhotStat._to_python_value(v) for v in value]
+        if isinstance(value, tuple):
+            return tuple(PhotStat._to_python_value(v) for v in value)
+        if isinstance(value, dict):
+            return {
+                PhotStat._to_python_value(k): PhotStat._to_python_value(v)
+                for k, v in value.items()
+            }
+        return value
+
+    def normalize_numpy_values(self):
+        """Normalize all persisted columns so DB adapters receive native Python types."""
+        for column in self.__table__.columns:
+            attr = column.name
+            setattr(self, attr, self._to_python_value(getattr(self, attr)))
+
     def add_photometry_point(self, phot):
         """
         Add a new photometry point to the object's list of statistics.
@@ -947,3 +971,9 @@ def insert_into_phot_stat(mapper, connection, target):
         else:
             phot_stat.add_photometry_point(target)
             session.add(phot_stat)
+
+
+@event.listens_for(PhotStat, "before_insert")
+@event.listens_for(PhotStat, "before_update")
+def normalize_phot_stat_before_persist(mapper, connection, target):
+    target.normalize_numpy_values()
