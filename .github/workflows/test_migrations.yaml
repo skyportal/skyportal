@@ -114,7 +114,7 @@ jobs:
       - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
-          head=$( PYTHONPATH=. source .venv/bin/python -m alembic history | grep '(head)' )
+          head=$( PYTHONPATH=. .venv/bin/python -m alembic history | grep '(head)' )
 
           # Split by space; index 2 should be latest revision
           tokens=($head)
