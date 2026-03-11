@@ -92,10 +92,6 @@ jobs:
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
 
-          pip install pip==24.0
-          pip install wheel numpy
-          pip install "setuptools<76.1.0"
-
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
@@ -171,6 +167,12 @@ jobs:
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
 
+          # Reference commit pre-dates using uv, so we will re-install some dependencies with pip directly here.
+          # We will also install some dependencies with specific versions, to fix known issues
+          # with dependency updates  that have occurred since the reference commit.
+          pip install pip==24.0
+          pip install wheel numpy
+          pip install "setuptools<76.1.0"
           pip install black
           pip install 'fiona==1.9.6' # 1.10.0 breaks geopandas
           pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
