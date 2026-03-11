@@ -90,7 +90,7 @@ dependencies = [
     "tiktoken==0.12.0",
     "simplejson==3.20.1",
     "langchain==0.3.27",
-    "langchain-openai==0.3.28",
+    "langchain-openai==1.1.11",
     "pinecone==8.0.0",
     "pydantic==2.11.4",
     "sentry-sdk==2.34.1",
