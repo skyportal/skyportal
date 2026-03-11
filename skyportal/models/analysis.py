@@ -20,7 +20,6 @@ from sqlalchemy import cast, event, func, inspect, or_
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import EmailType, URLType
 from sqlalchemy_utils.types import JSONType
@@ -243,22 +242,22 @@ class AnalysisMixin:
     def calc_hash(self):
         self.hash = joblib.hash(self.filename)
 
-    @hybrid_property
+    @property
     def has_inference_data(self):
         return self.data.get("inference_data", None) is not None
 
-    @hybrid_property
+    @property
     def has_plot_data(self):
         return self.data.get("plots", None) is not None
 
-    @hybrid_property
+    @property
     def number_of_analysis_plots(self):
         if not self.has_plot_data:
             return 0
         else:
             return len(self.data.get("plots", []))
 
-    @hybrid_property
+    @property
     def has_results_data(self):
         return self.data.get("results", None) is not None
 
@@ -441,7 +440,7 @@ class AnalysisMixin:
         if not reg.match(string):
             raise ValueError(f'Illegal characters in string "{string}".')
 
-    @hybrid_property
+    @property
     def data(self):
         """Lazy load the data dictionary"""
         if not hasattr(self, "_data") or self._data is None:
