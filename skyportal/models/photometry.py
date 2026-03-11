@@ -457,14 +457,10 @@ class Photometry(conesearch_alchemy.Point, Base):
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        self.flux != "NaN", self.fluxerr != "NaN", self.fluxerr != 0
-                    ),  # noqa
-                    self.flux / self.fluxerr,
-                )
-            ],
+            (
+                sa.and_(self.flux != "NaN", self.fluxerr != "NaN", self.fluxerr != 0),  # noqa
+                self.flux / self.fluxerr,
+            ),
             else_=None,
         )
 

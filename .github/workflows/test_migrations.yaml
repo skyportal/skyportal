@@ -14,7 +14,8 @@ on:
       - "alembic/versions/**"
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
-      - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/test_migrations.yaml"
       - ".github/actions/cache-dependencies/action.yaml"
       - ".github/actions/cache-dependencies-save/action.yaml"
@@ -65,11 +66,17 @@ jobs:
         with:
           key-prefix: main
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
           package-manager-cache: false
@@ -84,9 +91,6 @@ jobs:
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
-
-          pip install pip==24.0
-          pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -107,17 +111,10 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
-          pip install black
-          pip install fiona==1.9.6 # 1.10.0 breaks geopandas
-          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
-          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
-          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
-          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
-
       - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
-          head=$( PYTHONPATH=. alembic history | grep '(head)' )
+          head=$( PYTHONPATH=. .venv/bin/python -m alembic history | grep '(head)' )
 
           # Split by space; index 2 should be latest revision
           tokens=($head)
@@ -136,6 +133,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
+
+      - name: Switch to Python 3.10 for reference commit
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
 
       - name: Write SkyPortal configs
         run: |
@@ -164,9 +166,22 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+
+          # Reference commit pre-dates using uv, so we will re-install some dependencies with pip directly here.
+          # We will also install some dependencies with specific versions, to fix known issues
+          # with dependency updates  that have occurred since the reference commit.
+          pip install pip==24.0
+          pip install wheel numpy
+          pip install "setuptools<76.1.0"
+          pip install black
+          pip install 'fiona==1.9.6' # 1.10.0 breaks geopandas
+          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
+          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
+          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
+          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
+
           make db_init
 
-          pip list --format=columns
           npm ls --depth 0
 
           # Stamp Alembic HEAD
@@ -196,9 +211,9 @@ jobs:
           make dependencies
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
-          pip uninstall -y pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
+          uv pip uninstall pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
           # Make sure latest revision on main is included in Alembic history
-          n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
+          n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
           then
             cat << EOF
@@ -211,7 +226,7 @@ jobs:
           fi
 
           # Make sure there are not multiple heads to the Alembic history
-          num_heads=$( PYTHONPATH=. alembic history | grep -c '(head)' )
+          num_heads=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c '(head)' )
           if [[ $num_heads -ne 1 ]]
           then
             cat << EOF
@@ -229,14 +244,13 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           # Update to latest dependencies
           make dependencies
-          PYTHONPATH=. alembic -x config=config.yaml upgrade head
-          PYTHONPATH=. alembic current
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml upgrade head
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml current
 
       - name: Check migration completeness with Alembic
         run: |
           # Try generating a new migration
-          PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
-
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml revision --autogenerate -m "Test migration"
           # The generated migration should be empty if the migration script provided in the PR
           # completely encompasses the changes in the database.
           pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass ) || true
@@ -271,14 +285,13 @@ jobs:
           make run &
           sleep 60 && make load_demo_data
           kill %1
-          PYTHONPATH=. alembic -x config=config.yaml stamp head
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra
         run: |
-          pip install migra
-
           # SQL needed to go from migrated database to fresh database
-          migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          uv pip install migra
+          uv run migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
           if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
