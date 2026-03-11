@@ -34,7 +34,7 @@ dependencies = [
     "sncosmo==2.11.1",
     "tdtax==0.1.7",
     "healpix-alchemy==1.1.0",
-    "mocpy==0.18.0",
+    "mocpy==0.20.0",
     "obspy==1.4.0",
     "conesearch-alchemy==1.1.0",
     "regions==0.10",
