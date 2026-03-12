@@ -1,7 +1,7 @@
-import datetime
 import functools
 import io
 import json
+from datetime import UTC, datetime
 
 import requests
 
@@ -267,7 +267,7 @@ def submit_mmt_request(
             facility="Keck",
             image_source=image_source_dict[request.payload["primary_image_source"]],
             use_ztfref=request.payload["offset_position_origin"] == "ZTF Ref",
-            obstime=datetime.datetime.utcnow().isoformat(),
+            obstime=datetime.now(UTC).isoformat(),
             output_type="pdf",
             num_offset_stars=request.payload.get("number_offset_Stars", 3),
         )

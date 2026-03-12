@@ -1,6 +1,6 @@
-import datetime
 import functools
 import io
+from datetime import UTC, datetime
 
 from astropy.time import Time
 from dateutil.parser import isoparse
@@ -147,10 +147,8 @@ class UnsourcedFinderHandler(BaseHandler):
         if location_type not in ["gaia_dr3", "gaia_dr2", "pos"]:
             return self.error(f"Invalid argument for `location_type`: {location_type}")
 
-        obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        obstime = self.get_query_argument("obstime", datetime.now(UTC).isoformat())
+        if not isinstance(isoparse(obstime), datetime):
             return self.error("obstime is not valid isoformat")
 
         catalog_id = self.get_query_argument("catalog_id", "unknown")

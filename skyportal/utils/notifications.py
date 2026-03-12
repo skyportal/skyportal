@@ -1,5 +1,5 @@
-import datetime
 import json
+from datetime import UTC, datetime, timedelta
 
 import lxml
 import requests
@@ -58,9 +58,9 @@ def gcn_notification_content(target, session):
         localization = localizations[-1]
         tags = [tag.text for tag in localization.tags]
 
-    time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
+    time_since_dateobs = datetime.now(UTC) - gcn_event.dateobs
     # remove the microseconds from the timedelta
-    time_since_dateobs = time_since_dateobs - datetime.timedelta(
+    time_since_dateobs = time_since_dateobs - timedelta(
         microseconds=time_since_dateobs.microseconds
     )
 

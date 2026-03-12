@@ -1,7 +1,7 @@
 import ast
 import functools
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 import numpy as np
 import requests
@@ -370,7 +370,7 @@ class SEDMV2API(FollowUpAPI):
             status = {k: v for k, v in status.items() if v not in [None, "", {}, []]}
 
             instrument.status = status
-            instrument.last_status_update = datetime.utcnow()
+            instrument.last_status_update = datetime.now(UTC)
             session.commit()
 
         except Exception as e:

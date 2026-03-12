@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 import arrow
 import astropy.units as u
@@ -221,7 +221,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
+                    Allocation.id == int(data["allocation_id"])
                 )
             ).first()
             if allocation is None:
@@ -382,7 +382,7 @@ class InstrumentStatusHandler(BaseHandler):
                         )
 
                     instrument.status = status
-                    instrument.last_status_update = datetime.utcnow()
+                    instrument.last_status_update = datetime.now(UTC)
                     session.commit()
 
                     self.push_all(

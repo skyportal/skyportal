@@ -34,7 +34,7 @@ def post_classification(data, user_id, session):
         Database session for this transaction
     """
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
+    user = session.scalar(sa.select(User).where(User.id == int(user_id)))
     obj_id = data["obj_id"]
 
     obj = session.scalars(
@@ -69,7 +69,7 @@ def post_classification(data, user_id, session):
     # check the taxonomy
     taxonomy_id = data["taxonomy_id"]
     taxonomy = session.scalars(
-        Taxonomy.select(session.user_or_token).where(Taxonomy.id == taxonomy_id)
+        Taxonomy.select(session.user_or_token).where(Taxonomy.id == int(taxonomy_id))
     ).first()
     if taxonomy is None:
         raise ValueError(f"Cannot find a taxonomy with ID: {taxonomy_id}.")
@@ -283,7 +283,7 @@ class ClassificationHandler(BaseHandler):
             if classification_id is not None:
                 classification = session.scalars(
                     Classification.select(session.user_or_token).where(
-                        Classification.id == classification_id
+                        Classification.id == int(classification_id)
                     )
                 ).first()
                 if classification is None:
@@ -466,7 +466,7 @@ class ClassificationHandler(BaseHandler):
         with self.Session() as session:
             c = session.scalars(
                 Classification.select(session.user_or_token, mode="update").where(
-                    Classification.id == classification_id
+                    Classification.id == int(classification_id)
                 )
             ).first()
             if c is None:
@@ -557,7 +557,7 @@ class ClassificationHandler(BaseHandler):
         with self.Session() as session:
             c = session.scalars(
                 Classification.select(session.user_or_token, mode="delete").where(
-                    Classification.id == classification_id
+                    Classification.id == int(classification_id)
                 )
             ).first()
             if c is None:
@@ -850,6 +850,10 @@ class ClassificationVotesHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            classification_id = int(classification_id)
+        except ValueError:
+            return self.error(f"Invalid classification_id: {classification_id}")
         data = self.get_json()
         vote = data.get("vote")
         if vote is None:
@@ -927,11 +931,15 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            classification_id = int(classification_id)
+        except ValueError:
+            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             classification = session.scalars(
                 Classification.select(session.user_or_token).where(
-                    Classification.id == classification_id
+                    Classification.id == int(classification_id)
                 )
             ).first()
             if classification is None:

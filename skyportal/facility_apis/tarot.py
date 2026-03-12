@@ -1,6 +1,6 @@
 import functools
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import astroplan
 import astropy.units as u
@@ -172,7 +172,7 @@ def check_payload(payload, station_name):
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
 
-    if payload["end_date"] < str(datetime.utcnow()):
+    if payload["end_date"] < str(datetime.now(UTC)):
         raise ValueError("end_date must be in the future.")
 
     if payload["observation_preference"] not in [
@@ -552,9 +552,9 @@ class TAROTAPI(FollowUpAPI):
             }
 
             if not match_status or not match_status.groups():
-                if observing_time > datetime.utcnow() + timedelta(days=1):
+                if observing_time > datetime.now(UTC) + timedelta(days=1):
                     request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
-                elif observing_time >= datetime.utcnow():
+                elif observing_time >= datetime.now(UTC):
                     # If the status is not found, it means the tarot server is not yet aware of the request
                     return
                 # if observing time is in the past, we pass here and will check the observation status in a future step
@@ -594,9 +594,8 @@ class TAROTAPI(FollowUpAPI):
             except Exception:
                 pass
 
-        if (
-            not request.status.startswith("rejected")
-            and observing_time < datetime.utcnow()
+        if not request.status.startswith("rejected") and observing_time < datetime.now(
+            UTC
         ):
             # check if the scene has been observed
             response_observation = requests.get(
@@ -620,7 +619,7 @@ class TAROTAPI(FollowUpAPI):
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
                 request.status = f"complete"
-            elif observing_time + timedelta(hours=3) < datetime.utcnow():
+            elif observing_time + timedelta(hours=3) < datetime.now(UTC):
                 previous_status = (
                     "planified"
                     if request.status.startswith("planified")
@@ -772,13 +771,13 @@ class TAROTAPI(FollowUpAPI):
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()).replace("T", ""),
+                    "default": str(datetime.now(UTC)).replace("T", ""),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
-                    "default": str(datetime.utcnow() + timedelta(days=7)).replace(
+                    "default": str(datetime.now(UTC) + timedelta(days=7)).replace(
                         "T", ""
                     ),
                 },

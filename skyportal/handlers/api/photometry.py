@@ -1,8 +1,8 @@
 import copy
-import datetime
 import json
 import traceback
 import uuid
+from datetime import UTC, datetime
 from io import StringIO
 
 import arrow
@@ -229,15 +229,11 @@ def save_data_using_copy(rows, table, columns, session):
     # Use the provided session's connection so that the COPY runs within the
     # same database connection/transaction that holds any table-level locks.
     connection = session.connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep="\t",
-        null="",
-        columns=columns,
-    )
-    cursor.close()
+    with connection.cursor() as cursor:
+        with cursor.copy(
+            f"COPY {table} ({', '.join(columns)}) FROM STDIN WITH (FORMAT csv, DELIMITER E'\\t', NULL 'null', QUOTE '''')"
+        ) as copy:
+            copy.write(output.getvalue())
     output.close()
 
 
@@ -890,7 +886,7 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        utcnow = datetime.datetime.utcnow().isoformat()
+        utcnow = datetime.now(UTC).isoformat()
         phot = {
             "id": packet["id"],
             "original_user_data": json.dumps(original_user_data),
@@ -1628,7 +1624,7 @@ class PhotometryHandler(BaseHandler):
                             "ref_standardized_fluxerr"
                         ]
                         duplicate.altdata = json.dumps(df.loc[df_index]["altdata"])
-                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        duplicate.modified = datetime.now(UTC).isoformat()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 

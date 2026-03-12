@@ -1,4 +1,4 @@
-import datetime
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from sqlalchemy import desc, func
@@ -20,9 +20,7 @@ class SourceSaverHandler(BaseHandler):
 
         max_num_savers = int(top_savers_prefs["maxNumSavers"])
         since_days_ago = float(top_savers_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
+        cutoff_day = datetime.now(UTC) - timedelta(days=since_days_ago)
 
         stmt = Source.select(
             session.user_or_token,

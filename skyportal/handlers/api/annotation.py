@@ -172,7 +172,7 @@ class AnnotationHandler(BaseHandler):
             annotation = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user)
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
             if annotation is None:
                 return self.error(
@@ -320,14 +320,14 @@ class AnnotationHandler(BaseHandler):
             elif associated_resource_type.lower() == "spectra":
                 spectrum = session.scalar(
                     Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == resource_id
+                        Spectrum.id == int(resource_id)
                     )
                 )
                 if not spectrum:
                     return self.error(
                         f"Could not access spectrum {resource_id}.", status=403
                     )
-                data["spectrum_id"] = resource_id
+                data["spectrum_id"] = int(resource_id)
                 data["obj_id"] = spectrum.obj_id
                 schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
                 try:
@@ -339,7 +339,7 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnSpectrum(
                     data=annotation_data,
-                    spectrum_id=resource_id,
+                    spectrum_id=int(resource_id),
                     obj_id=spectrum.obj_id,
                     origin=origin,
                     author=author,
@@ -348,14 +348,14 @@ class AnnotationHandler(BaseHandler):
             elif associated_resource_type.lower() == "photometry":
                 photometry = session.scalar(
                     Photometry.select(session.user_or_token).where(
-                        Photometry.id == resource_id
+                        Photometry.id == int(resource_id)
                     )
                 )
                 if not photometry:
                     return self.error(
                         f"Could not access photometry {resource_id}.", status=403
                     )
-                data["photometry_id"] = resource_id
+                data["photometry_id"] = int(resource_id)
                 data["obj_id"] = photometry.obj_id
                 schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
                 try:
@@ -367,7 +367,7 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnPhotometry(
                     data=annotation_data,
-                    photometry_id=resource_id,
+                    photometry_id=int(resource_id),
                     obj_id=photometry.obj_id,
                     origin=origin,
                     author=author,
@@ -470,7 +470,7 @@ class AnnotationHandler(BaseHandler):
             a = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user, mode="update")
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
             if a is None:
                 return self.error(
@@ -575,7 +575,7 @@ class AnnotationHandler(BaseHandler):
             a = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user, mode="delete")
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
 
             if a is None:

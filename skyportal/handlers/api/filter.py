@@ -53,7 +53,7 @@ class FilterHandler(BaseHandler):
                 f = session.scalars(
                     Filter.select(
                         session.user_or_token, options=[joinedload(Filter.stream)]
-                    ).where(Filter.id == filter_id)
+                    ).where(Filter.id == int(filter_id))
                 ).first()
                 if f is None:
                     return self.error(f"Cannot find a filter with ID: {filter_id}.")
@@ -135,14 +135,14 @@ class FilterHandler(BaseHandler):
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="update").where(
-                    Filter.id == filter_id
+                    Filter.id == int(filter_id)
                 )
             ).first()
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
 
             data = self.get_json()
-            data["id"] = filter_id
+            data["id"] = int(filter_id)
 
             schema = Filter.__schema__()
             try:
@@ -185,7 +185,7 @@ class FilterHandler(BaseHandler):
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="delete").where(
-                    Filter.id == filter_id
+                    Filter.id == int(filter_id)
                 )
             ).first()
             if f is None:

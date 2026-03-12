@@ -52,7 +52,9 @@ class StreamHandler(BaseHandler):
         with self.Session() as session:
             if stream_id is not None:
                 s = session.scalars(
-                    Stream.select(session.user_or_token).where(Stream.id == stream_id)
+                    Stream.select(session.user_or_token).where(
+                        Stream.id == int(stream_id)
+                    )
                 ).first()
                 if s is None:
                     return self.error(f"Could not retrieve stream with ID {stream_id}.")
@@ -145,11 +147,11 @@ class StreamHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        data["id"] = stream_id
+        data["id"] = int(stream_id)
         with self.Session() as session:
             s = session.scalars(
                 Stream.select(session.user_or_token, mode="update").where(
-                    Stream.id == stream_id
+                    Stream.id == int(stream_id)
                 )
             ).first()
             if s is None:
@@ -191,7 +193,7 @@ class StreamHandler(BaseHandler):
         with self.Session() as session:
             stream = session.scalars(
                 Stream.select(session.user_or_token, mode="delete").where(
-                    Stream.id == stream_id
+                    Stream.id == int(stream_id)
                 )
             ).first()
             if stream is None:
@@ -254,6 +256,7 @@ class StreamUserHandler(BaseHandler):
             return self.error("User ID must be specified")
 
         stream_id = int(stream_id)
+        user_id = int(user_id)
         with self.Session() as session:
             su = session.scalars(
                 StreamUser.select(session.user_or_token)
@@ -297,8 +300,8 @@ class StreamUserHandler(BaseHandler):
         with self.Session() as session:
             su = session.scalars(
                 StreamUser.select(session.user_or_token, mode="delete")
-                .where(StreamUser.stream_id == stream_id)
-                .where(StreamUser.user_id == user_id)
+                .where(StreamUser.stream_id == int(stream_id))
+                .where(StreamUser.user_id == int(user_id))
             ).first()
             if su is None:
                 return self.error("Stream user does not exist.")

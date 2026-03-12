@@ -36,7 +36,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
 
     try:
         flow = Flow()
-        user = session.scalars(sa.select(User).where(User.id == user_id)).first()
+        user = session.scalars(sa.select(User).where(User.id == int(user_id))).first()
         stmt = GcnEvent.select(user, mode="update").where(GcnEvent.dateobs == dateobs)
         gcn_event = session.scalars(stmt).first()
         if gcn_event is None:

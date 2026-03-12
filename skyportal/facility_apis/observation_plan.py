@@ -1,8 +1,9 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
+import arrow
 import paramiko
 import requests
 import sqlalchemy as sa
@@ -164,18 +165,16 @@ class MMAAPI(FollowUpAPI):
                         "filter_strategy must be either block or integrated"
                     )
 
-                start_time = Time(
-                    request.payload["start_date"], format="iso", scale="utc"
-                )
-                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
+                start_time = arrow.get(request.payload["start_date"].strip()).datetime
+                end_time = arrow.get(request.payload["end_date"].strip()).datetime
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,
                     dateobs=request.gcnevent.dateobs,
                     plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
+                    validity_window_start=start_time,
+                    validity_window_end=end_time,
                 )
 
                 DBSession().add(plan)
@@ -330,18 +329,16 @@ class MMAAPI(FollowUpAPI):
                         "filter_strategy must be either block or integrated"
                     )
 
-                start_time = Time(
-                    request.payload["start_date"], format="iso", scale="utc"
-                )
-                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
+                start_time = arrow.get(request.payload["start_date"].strip()).datetime
+                end_time = arrow.get(request.payload["end_date"].strip()).datetime
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,
                     dateobs=request.gcnevent.dateobs,
                     plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
+                    validity_window_start=start_time,
+                    validity_window_end=end_time,
                 )
 
                 session.add(plan)
@@ -441,7 +438,7 @@ class MMAAPI(FollowUpAPI):
             ]
         end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
-            end_date = str(datetime.utcnow() + timedelta(days=1))
+            end_date = str(datetime.now(UTC) + timedelta(days=1))
         else:
             end_date = Time(end_date, format="jd").iso
 
@@ -451,7 +448,7 @@ class MMAAPI(FollowUpAPI):
             .query(InstrumentField)
             .filter(
                 InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters != "{}",
+                sa.func.cardinality(InstrumentField.reference_filters) > 0,
             )
             .count()
             > 0
@@ -462,11 +459,11 @@ class MMAAPI(FollowUpAPI):
             "properties": {
                 "queue_name": {
                     "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
+                    "default": f"ToO_{str(datetime.now(UTC)).replace(' ', 'T')}",
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()),
+                    "default": str(datetime.now(UTC)),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {

@@ -326,7 +326,7 @@ class CommentHandler(BaseHandler):
             if associated_resource_type.lower() == "sources":
                 comment = session.scalars(
                     Comment.select(session.user_or_token).where(
-                        Comment.id == comment_id
+                        Comment.id == int(comment_id)
                     )
                 ).first()
                 if comment is None:
@@ -338,7 +338,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "spectra":
                 comment = session.scalars(
                     CommentOnSpectrum.select(session.user_or_token).where(
-                        CommentOnSpectrum.id == comment_id
+                        CommentOnSpectrum.id == int(comment_id)
                     )
                 ).first()
                 if comment is None:
@@ -349,7 +349,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "gcn_event":
                 comment = session.scalars(
                     CommentOnGCN.select(session.user_or_token).where(
-                        CommentOnGCN.id == comment_id
+                        CommentOnGCN.id == int(comment_id)
                     )
                 ).first()
                 if comment is None:
@@ -371,7 +371,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "shift":
                 comment = session.scalars(
                     CommentOnShift.select(session.user_or_token).where(
-                        CommentOnShift.id == comment_id
+                        CommentOnShift.id == int(comment_id)
                     )
                 ).first()
                 if comment is None:
@@ -547,10 +547,10 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "spectra":
-                    spectrum_id = resource_id
+                    spectrum_id = int(resource_id)
                     spectrum = session.scalars(
                         Spectrum.select(session.user_or_token).where(
-                            Spectrum.id == spectrum_id
+                            Spectrum.id == int(spectrum_id)
                         )
                     ).first()
                     if spectrum is None:
@@ -560,7 +560,7 @@ class CommentHandler(BaseHandler):
                     existing = session.scalars(
                         CommentOnSpectrum.select(session.user_or_token).where(
                             CommentOnSpectrum.text == comment_text,
-                            CommentOnSpectrum.spectrum_id == spectrum_id,
+                            CommentOnSpectrum.spectrum_id == int(spectrum_id),
                             CommentOnSpectrum.attachment_bytes == attachment_bytes,
                             CommentOnSpectrum.attachment_name == attachment_name,
                             CommentOnSpectrum.author_id == author.id,
@@ -583,10 +583,10 @@ class CommentHandler(BaseHandler):
                         )
 
                 elif associated_resource_type.lower() == "gcn_event":
-                    gcnevent_id = resource_id
+                    gcnevent_id = int(resource_id)
                     gcn_event = session.scalars(
                         GcnEvent.select(session.user_or_token).where(
-                            GcnEvent.id == gcnevent_id
+                            GcnEvent.id == int(gcnevent_id)
                         )
                     ).first()
                     if gcn_event is None:
@@ -617,10 +617,10 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "earthquake":
-                    earthquake_id = resource_id
+                    earthquake_id = int(resource_id)
                     earthquake = session.scalars(
                         EarthquakeEvent.select(session.user_or_token).where(
-                            EarthquakeEvent.id == earthquake_id
+                            EarthquakeEvent.id == int(earthquake_id)
                         )
                     ).first()
                     if earthquake is None:
@@ -630,7 +630,7 @@ class CommentHandler(BaseHandler):
                     existing = session.scalars(
                         CommentOnEarthquake.select(session.user_or_token).where(
                             CommentOnEarthquake.text == comment_text,
-                            CommentOnEarthquake.earthquake_id == earthquake_id,
+                            CommentOnEarthquake.earthquake_id == int(earthquake_id),
                             CommentOnEarthquake.attachment_bytes == attachment_bytes,
                             CommentOnEarthquake.attachment_name == attachment_name,
                             CommentOnEarthquake.author_id == author.id,
@@ -651,9 +651,11 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "shift":
-                    shift_id = resource_id
+                    shift_id = int(resource_id)
                     shift = session.scalars(
-                        Shift.select(session.user_or_token).where(Shift.id == shift_id)
+                        Shift.select(session.user_or_token).where(
+                            Shift.id == int(shift_id)
+                        )
                     ).first()
                     if shift is None:
                         return self.error(
@@ -900,7 +902,7 @@ class CommentHandler(BaseHandler):
                     schema = Comment.__schema__()
                     c = session.scalars(
                         Comment.select(session.user_or_token, mode="update").where(
-                            Comment.id == comment_id
+                            Comment.id == int(comment_id)
                         )
                     ).first()
                     if c is None:
@@ -914,7 +916,7 @@ class CommentHandler(BaseHandler):
                     c = session.scalars(
                         CommentOnSpectrum.select(
                             session.user_or_token, mode="update"
-                        ).where(CommentOnSpectrum.id == comment_id)
+                        ).where(CommentOnSpectrum.id == int(comment_id))
                     ).first()
                     if c is None:
                         return self.error(
@@ -926,7 +928,7 @@ class CommentHandler(BaseHandler):
                     schema = CommentOnGCN.__schema__()
                     c = session.scalars(
                         CommentOnGCN.select(session.user_or_token, mode="update").where(
-                            CommentOnGCN.id == comment_id
+                            CommentOnGCN.id == int(comment_id)
                         )
                     ).first()
                     if c is None:
@@ -939,7 +941,7 @@ class CommentHandler(BaseHandler):
                     c = session.scalars(
                         CommentOnEarthquake.select(
                             session.user_or_token, mode="update"
-                        ).where(CommentOnEarthquake.id == comment_id)
+                        ).where(CommentOnEarthquake.id == int(comment_id))
                     ).first()
                     if c is None:
                         return self.error(
@@ -951,7 +953,7 @@ class CommentHandler(BaseHandler):
                     c = session.scalars(
                         CommentOnShift.select(
                             session.user_or_token, mode="update"
-                        ).where(CommentOnShift.id == comment_id)
+                        ).where(CommentOnShift.id == int(comment_id))
                     ).first()
                     if c is None:
                         return self.error(
@@ -1100,7 +1102,7 @@ class CommentHandler(BaseHandler):
             if associated_resource_type.lower() == "sources":
                 c = session.scalars(
                     Comment.select(session.user_or_token, mode="delete").where(
-                        Comment.id == comment_id
+                        Comment.id == int(comment_id)
                     )
                 ).first()
                 if c is None:
@@ -1112,7 +1114,7 @@ class CommentHandler(BaseHandler):
                 c = session.scalars(
                     CommentOnSpectrum.select(
                         session.user_or_token, mode="delete"
-                    ).where(CommentOnSpectrum.id == comment_id)
+                    ).where(CommentOnSpectrum.id == int(comment_id))
                 ).first()
                 if c is None:
                     return self.error(
@@ -1122,7 +1124,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "gcn_event":
                 c = session.scalars(
                     CommentOnGCN.select(session.user_or_token, mode="delete").where(
-                        CommentOnGCN.id == comment_id
+                        CommentOnGCN.id == int(comment_id)
                     )
                 ).first()
                 if c is None:
@@ -1134,7 +1136,7 @@ class CommentHandler(BaseHandler):
                 c = session.scalars(
                     CommentOnEarthquake.select(
                         session.user_or_token, mode="delete"
-                    ).where(CommentOnEarthquake.id == comment_id)
+                    ).where(CommentOnEarthquake.id == int(comment_id))
                 ).first()
                 if c is None:
                     return self.error(
@@ -1144,7 +1146,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "shift":
                 c = session.scalars(
                     CommentOnShift.select(session.user_or_token, mode="delete").where(
-                        CommentOnShift.id == comment_id
+                        CommentOnShift.id == int(comment_id)
                     )
                 ).first()
                 if c is None:

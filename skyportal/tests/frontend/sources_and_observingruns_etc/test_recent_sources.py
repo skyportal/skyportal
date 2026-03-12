@@ -1,5 +1,5 @@
-import datetime
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from selenium.common.exceptions import TimeoutException
@@ -91,7 +91,7 @@ def test_recently_saved_candidate(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
         },
         token=upload_data_token,
     )

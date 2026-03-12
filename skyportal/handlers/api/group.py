@@ -142,7 +142,7 @@ class GroupHandler(BaseHandler):
         with self.Session() as session:
             if group_id is not None:
                 group = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id == group_id)
+                    Group.select(session.user_or_token).where(Group.id == int(group_id))
                 ).first()
                 if group is None:
                     return self.error(f"Cannot find Group with id {group_id}")
@@ -340,13 +340,13 @@ class GroupHandler(BaseHandler):
         """
 
         data = self.get_json()
-        data["id"] = group_id
+        data["id"] = int(group_id)
 
         with self.Session() as session:
             # permission check
             group = session.scalars(
                 Group.select(session.user_or_token, mode="update").where(
-                    Group.id == group_id
+                    Group.id == int(group_id)
                 )
             ).first()
             if group is None:
@@ -391,7 +391,7 @@ class GroupHandler(BaseHandler):
             # permission check
             group = session.scalars(
                 Group.select(session.user_or_token, mode="delete").where(
-                    Group.id == group_id
+                    Group.id == int(group_id)
                 )
             ).first()
             if group is None:
@@ -488,7 +488,7 @@ class GroupUserHandler(BaseHandler):
         with self.Session() as session:
             group = session.scalars(
                 Group.select(session.user_or_token, mode="update").where(
-                    Group.id == group_id
+                    Group.id == int(group_id)
                 )
             ).first()
             if group is None:
@@ -499,7 +499,7 @@ class GroupUserHandler(BaseHandler):
                 )
 
             user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == int(user_id))
             ).first()
             if user is None:
                 return self.error(f"User with ID {user_id} not accessible")
@@ -738,7 +738,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
         with self.Session() as session:
             group = session.scalars(
-                Group.select(self.current_user).where(Group.id == group_id)
+                Group.select(self.current_user).where(Group.id == int(group_id))
             ).first()
             if group is None:
                 return self.error("Cannot access group with given ID.")
@@ -760,11 +760,11 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 # Add user to group
                 gu = session.scalars(
                     sa.select(GroupUser)
-                    .where(GroupUser.group_id == group_id)
-                    .where(GroupUser.user_id == user_id)
+                    .where(GroupUser.group_id == int(group_id))
+                    .where(GroupUser.user_id == int(user_id))
                 ).first()
                 user = session.scalars(
-                    sa.select(User).where(User.id == user_id)
+                    sa.select(User).where(User.id == int(user_id))
                 ).first()
                 if gu is None:
                     session.add(
@@ -839,7 +839,7 @@ class GroupStreamHandler(BaseHandler):
         with self.Session() as session:
             group = session.scalars(
                 Group.select(session.user_or_token, mode="update").where(
-                    Group.id == group_id
+                    Group.id == int(group_id)
                 )
             ).first()
             if group is None:

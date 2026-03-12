@@ -1,7 +1,7 @@
 import json
 import traceback
 import urllib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import requests
 from astropy.time import Time
@@ -331,13 +331,13 @@ def build_form_json_schema(filter_defaults):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(datetime.now(UTC)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=7)).replace("T", ""),
+                "default": str(datetime.now(UTC) + timedelta(days=7)).replace("T", ""),
             },
             "filter": {
                 "type": "string",

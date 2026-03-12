@@ -2,7 +2,7 @@ import base64
 import functools
 import json
 import urllib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import arrow
 import requests
@@ -28,8 +28,7 @@ log = make_log("facility_apis/lco")
 def format_date(date_str: str) -> str:
     """Format date string to LCO API expected format."""
     return (
-        arrow.get(date_str, tzinfo=timezone.utc).format("YYYY-MM-DDTHH:mm:ss.SSSSSS")
-        + "+00:00"
+        arrow.get(date_str, tzinfo=UTC).format("YYYY-MM-DDTHH:mm:ss.SSSSSS") + "+00:00"
     )
 
 
@@ -810,14 +809,14 @@ class SINISTROAPI(LCOAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -941,14 +940,14 @@ class SPECTRALAPI(LCOAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -1064,14 +1063,14 @@ class MUSCATAPI(LCOAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -1188,14 +1187,14 @@ class FLOYDSAPI(LCOAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

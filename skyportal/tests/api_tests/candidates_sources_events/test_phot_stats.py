@@ -1,6 +1,6 @@
 import traceback
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import numpy as np
 
@@ -487,7 +487,7 @@ def test_phot_stats_update_handler(
     source_ids = []
 
     # keep track of when we started posting
-    t0 = datetime.utcnow()
+    t0 = datetime.now(UTC)
 
     for j in range(num_sources):
         source_ids.append(str(uuid.uuid4()))
@@ -601,7 +601,7 @@ def test_phot_stats_update_handler(
     assert data["data"]["totalWithoutPhotStats"] == 1
 
     # time before we re-calculate the missing PhotStats
-    t1 = datetime.utcnow()
+    t1 = datetime.now(UTC)
 
     # only update sources from this test
     # that don't have PhotStats (the deleted one)
@@ -641,7 +641,7 @@ def test_phot_stats_update_handler(
     assert data["data"]["totalWithPhotStats"] == 1
     assert data["data"]["totalWithoutPhotStats"] == 0
 
-    t2 = datetime.utcnow()
+    t2 = datetime.now(UTC)
 
     # no sources have had a quick update after t2
     status, data = api(

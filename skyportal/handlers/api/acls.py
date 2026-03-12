@@ -86,7 +86,7 @@ class UserACLHandler(BaseHandler):
                     "Improperly formatted parameter aclIds; must be an array of strings."
                 )
             user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == int(user_id))
             ).first()
             if user is None:
                 return self.error("Invalid user_id parameter.")
@@ -128,7 +128,7 @@ class UserACLHandler(BaseHandler):
         """
         with self.Session() as session:
             user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == int(user_id))
             ).first()
             if user is None:
                 return self.error("Invalid user_id")
@@ -139,7 +139,7 @@ class UserACLHandler(BaseHandler):
                 return self.error("Invalid acl_id")
             user_acl = session.scalars(
                 UserACL.select(session.user_or_token, mode="delete")
-                .where(UserACL.user_id == user_id)
+                .where(UserACL.user_id == int(user_id))
                 .where(UserACL.acl_id == acl_id)
             ).first()
             session.delete(user_acl)

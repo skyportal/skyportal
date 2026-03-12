@@ -17,7 +17,7 @@ def process_link_name_validation(session, link_name, release_id):
         session.scalar(
             PublicRelease.select(session.user_or_token, mode="read").where(
                 PublicRelease.link_name == link_name,
-                PublicRelease.id != release_id if release_id is not None else True,
+                PublicRelease.id != int(release_id) if release_id is not None else True,
             )
         )
         is None
@@ -174,7 +174,7 @@ class PublicReleaseHandler(BaseHandler):
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="update").where(
-                    PublicRelease.id == release_id
+                    PublicRelease.id == int(release_id)
                 )
             )
 
@@ -297,7 +297,7 @@ class PublicReleaseHandler(BaseHandler):
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(
-                    PublicRelease.id == release_id
+                    PublicRelease.id == int(release_id)
                 )
             )
 

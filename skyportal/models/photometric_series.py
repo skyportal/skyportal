@@ -39,6 +39,11 @@ _, cfg = load_env()
 
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+
+def not_nan_sql(column):
+    return column != sa.cast("NaN", sa.Float)
+
+
 RE_SLASHES = re.compile(r"^[\w_\-\+\/\\]*$")
 RE_NO_SLASHES = re.compile(r"^[\w_\-\+]*$")
 MAX_FILEPATH_LENGTH = 255
@@ -1359,7 +1364,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    not_nan_sql(cls.ref_flux),
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -1394,7 +1399,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    not_nan_sql(cls.ref_flux),
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711

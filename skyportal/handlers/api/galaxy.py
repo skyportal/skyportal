@@ -1,6 +1,6 @@
-import datetime
 import os
 import time
+from datetime import UTC, datetime
 from io import StringIO
 
 import arrow
@@ -849,7 +849,7 @@ def delete_galaxies(catalog_id):
         with DBSession() as session:
             session.execute(sa.delete(Galaxy).where(Galaxy.catalog_id == catalog_id))
             session.execute(
-                sa.delete(GalaxyCatalog).where(GalaxyCatalog.id == catalog_id)
+                sa.delete(GalaxyCatalog).where(GalaxyCatalog.id == int(catalog_id))
             )
             session.commit()
             log(f"Deleted galaxy catalog with id {catalog_id}")
@@ -1256,7 +1256,7 @@ def add_glade(file_path=None, file_url=None):
             ]
 
             df["catalog_id"] = catalog_id
-            utcnow = datetime.datetime.utcnow().isoformat()
+            utcnow = datetime.now(UTC).isoformat()
             df["created_at"] = utcnow
             df["modified_at"] = utcnow
             blueshift_length = len(df[(df["redshift"] < 0)])

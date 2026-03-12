@@ -5,7 +5,7 @@ import os
 import tarfile
 import tempfile
 import traceback
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import requests
@@ -641,14 +641,14 @@ class UVOTXRTAPI(FollowUpAPI):
                             "start_date": {
                                 "type": "string",
                                 "default": str(
-                                    datetime.utcnow() - timedelta(days=365)
+                                    datetime.now(UTC) - timedelta(days=365)
                                 ).replace("T", ""),
                                 "title": "Start Date (UT)",
                             },
                             "end_date": {
                                 "type": "string",
                                 "title": "End Date (UT)",
-                                "default": str(datetime.utcnow()).replace("T", ""),
+                                "default": str(datetime.now(UTC)).replace("T", ""),
                             },
                             "XRT": {
                                 "title": "Do you want XRT data?",
@@ -688,7 +688,7 @@ class UVOTXRTAPI(FollowUpAPI):
                             "T0": {
                                 "type": "string",
                                 "title": "Date (UT)",
-                                "default": str(datetime.utcnow()).replace("T", ""),
+                                "default": str(datetime.now(UTC)).replace("T", ""),
                             },
                             "poserr": {
                                 "title": "Position Error [arcmin]",
