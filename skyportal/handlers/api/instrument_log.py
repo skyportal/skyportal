@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 import arrow
 import astropy.units as u
@@ -382,7 +382,7 @@ class InstrumentStatusHandler(BaseHandler):
                         )
 
                     instrument.status = status
-                    instrument.last_status_update = datetime.utcnow()
+                    instrument.last_status_update = datetime.now(UTC)
                     session.commit()
 
                     self.push_all(

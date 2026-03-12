@@ -1,5 +1,4 @@
 import base64
-import datetime
 import functools
 import io
 import json
@@ -7,6 +6,7 @@ import operator  # noqa: F401
 import re
 import time
 import traceback
+from datetime import UTC, datetime, timedelta
 from json.decoder import JSONDecodeError
 
 import astropy
@@ -2354,10 +2354,8 @@ class SourceOffsetsHandler(BaseHandler):
             num_offset_stars = self.get_query_argument("num_offset_stars", "3")
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
-            obstime = self.get_query_argument(
-                "obstime", datetime.datetime.utcnow().isoformat()
-            )
-            if not isinstance(isoparse(obstime), datetime.datetime):
+            obstime = self.get_query_argument("obstime", datetime.now(UTC).isoformat())
+            if not isinstance(isoparse(obstime), datetime):
                 return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
@@ -2746,10 +2744,8 @@ class SourceFinderHandler(BaseHandler):
         facility = self.get_query_argument("facility", "Keck")
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
-        obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        obstime = self.get_query_argument("obstime", datetime.now(UTC).isoformat())
+        if not isinstance(isoparse(obstime), datetime):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")
@@ -2787,12 +2783,9 @@ class SourceFinderHandler(BaseHandler):
                     if "public_url" in rez:
                         data["public_url"] = rez["public_url"]
                         if finding_charts_cache._max_age:
-                            data["public_url_expires_at"] = (
-                                datetime.datetime.utcnow()
-                                + datetime.timedelta(
-                                    seconds=finding_charts_cache._max_age
-                                )
-                            )
+                            data["public_url_expires_at"] = datetime.now(
+                                UTC
+                            ) + timedelta(seconds=finding_charts_cache._max_age)
                     return self.success(data)
                 filename = rez["name"]
                 data = io.BytesIO(rez["data"])

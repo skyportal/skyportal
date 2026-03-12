@@ -1,7 +1,7 @@
 import json
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from skyportal.tests import api
 
@@ -9,7 +9,7 @@ from skyportal.tests import api
 def test_post_and_verify_recurring_api(
     view_only_token, public_group, super_admin_token
 ):
-    next_call = datetime.utcnow() + timedelta(seconds=1)
+    next_call = datetime.now(UTC) + timedelta(seconds=1)
     obj_id = str(uuid.uuid4())
 
     request_data = {

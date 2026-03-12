@@ -1,8 +1,8 @@
 import copy
-import datetime
 import json
 import traceback
 import uuid
+from datetime import UTC, datetime
 from io import StringIO
 
 import arrow
@@ -884,7 +884,7 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        utcnow = datetime.datetime.utcnow().isoformat()
+        utcnow = datetime.now(UTC).isoformat()
         phot = {
             "id": packet["id"],
             "original_user_data": json.dumps(original_user_data),
@@ -1622,7 +1622,7 @@ class PhotometryHandler(BaseHandler):
                             "ref_standardized_fluxerr"
                         ]
                         duplicate.altdata = json.dumps(df.loc[df_index]["altdata"])
-                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        duplicate.modified = datetime.now(UTC).isoformat()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 

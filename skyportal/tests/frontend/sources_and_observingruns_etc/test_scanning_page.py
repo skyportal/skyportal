@@ -1,6 +1,6 @@
-import datetime
 import time
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from selenium.webdriver import ActionChains
@@ -32,7 +32,7 @@ def test_candidate_group_filtering(
                 "altdata": {"simbad": {"class": "RRLyr"}},
                 "transient": False,
                 "ra_dis": 2.3,
-                "passed_at": str(datetime.datetime.utcnow()),
+                "passed_at": str(datetime.now(UTC)),
                 "filter_ids": [public_filter.id],
             },
             token=upload_data_token,
@@ -114,7 +114,7 @@ def test_candidate_saved_status_filtering(
                 "transient": False,
                 "ra_dis": 2.3,
                 "filter_ids": [public_filter.id],
-                "passed_at": str(datetime.datetime.utcnow()),
+                "passed_at": str(datetime.now(UTC)),
             },
             token=upload_data_token,
         )
@@ -350,7 +350,7 @@ def test_candidate_classifications_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
         },
         token=upload_data_token,
     )
@@ -444,7 +444,7 @@ def test_candidate_redshift_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
         },
         token=upload_data_token,
     )
@@ -460,7 +460,7 @@ def test_candidate_redshift_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
         },
         token=upload_data_token,
     )
@@ -505,7 +505,7 @@ def test_candidate_rejection_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
         },
         token=upload_data_token,
     )
@@ -774,7 +774,7 @@ def test_add_classification_on_scanning_page(
             "altdata": {"simbad": {"class": "RRLyr"}},
             "transient": False,
             "ra_dis": 2.3,
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.now(UTC)),
             "filter_ids": [public_filter.id],
         },
         token=upload_data_token,

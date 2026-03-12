@@ -10,7 +10,7 @@ import tempfile
 import time
 import urllib
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import afterglowpy
 import arrow
@@ -258,7 +258,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
             return
 
         # if the plan request's created_at date (when we received the GCN) is more than 1 hour ago, we skip the auto-send
-        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+        if observation_plan_request.created_at < datetime.now(UTC) - timedelta(hours=1):
             log(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
@@ -269,7 +269,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         if plan_request_end_date:
             if (
                 arrow.get(plan_request_end_date).timestamp()
-                < datetime.utcnow().timestamp()
+                < datetime.now(UTC).timestamp()
             ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
@@ -3537,18 +3537,18 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
             else:
-                payload["start_date"] = str(datetime.utcnow())
+                payload["start_date"] = str(datetime.now(UTC))
 
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
             else:
-                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(datetime.now(UTC) + timedelta(days=1))
 
             if "queue_name" in payload:
                 return self.error("Cannot have queue_name in the payload")
             else:
                 payload["queue_name"] = (
-                    f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}"
+                    f"ToO_{str(datetime.now(UTC)).replace(' ', 'T')}"
                 )
 
             # validate the payload

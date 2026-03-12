@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import urllib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import astropy.units as u
@@ -314,14 +314,14 @@ class TTTAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
         },
         "required": [

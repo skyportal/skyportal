@@ -3,13 +3,13 @@
 import ast
 import asyncio
 import binascii
-import datetime
 import io
 import json
 import operator  # noqa: F401
 import os
 import tempfile
 import traceback
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -2403,7 +2403,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
-        start_date = str(datetime.datetime.utcnow()).replace("T", "")
+        start_date = str(datetime.now(UTC)).replace("T", "")
 
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
             allocation_id = gcn_observation_plan["allocation_id"]
@@ -2415,9 +2415,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
             end_date = allocation.instrument.telescope.next_sunrise()
             if end_date is None:
-                end_date = str(
-                    datetime.datetime.utcnow() + datetime.timedelta(days=1)
-                ).replace("T", "")
+                end_date = str(datetime.now(UTC) + timedelta(days=1)).replace("T", "")
             else:
                 end_date = Time(end_date, format="jd").iso
 
@@ -3413,8 +3411,7 @@ def add_gcn_summary(
                         )
                         for obs in observations:
                             t0s.append(
-                                (obs["obstime"] - event.dateobs)
-                                / datetime.timedelta(hours=1)
+                                (obs["obstime"] - event.dateobs) / timedelta(hours=1)
                                 if "obstime" in obs
                                 else None
                             )
@@ -3971,7 +3968,7 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error("Summary not found", status=404)
 
             if summary.text.strip().lower() == "pending" and datetime.datetime.now() < (
-                summary.created_at + datetime.timedelta(hours=1)
+                summary.created_at + timedelta(hours=1)
             ):
                 return self.error(
                     "Cannot delete a recently created summary (less than 1 hour) that is still pending"
@@ -4714,7 +4711,7 @@ class GcnReportHandler(BaseHandler):
                 data = json.loads(data)
 
             if len(data.keys()) == 0 and datetime.datetime.now() < (
-                report.created_at + datetime.timedelta(hours=1)
+                report.created_at + timedelta(hours=1)
             ):
                 return self.error(
                     "Cannot delete a recently created report (less than 1 hour) that is still pending"

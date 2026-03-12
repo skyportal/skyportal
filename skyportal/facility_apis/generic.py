@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -381,7 +381,7 @@ class GENERICAPI(FollowUpAPI):
                 "start_date": {
                     "type": "string",
                     "format": "date",
-                    "default": datetime.utcnow().date().isoformat(),
+                    "default": datetime.now(UTC).date().isoformat(),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
@@ -389,7 +389,7 @@ class GENERICAPI(FollowUpAPI):
                     "format": "date",
                     "title": "End Date (UT)",
                     "default": (
-                        datetime.utcnow().date() + timedelta(days=7)
+                        datetime.now(UTC).date() + timedelta(days=7)
                     ).isoformat(),
                 },
             },

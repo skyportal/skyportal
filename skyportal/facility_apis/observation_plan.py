@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import paramiko
 import requests
@@ -441,7 +441,7 @@ class MMAAPI(FollowUpAPI):
             ]
         end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
-            end_date = str(datetime.utcnow() + timedelta(days=1))
+            end_date = str(datetime.now(UTC) + timedelta(days=1))
         else:
             end_date = Time(end_date, format="jd").iso
 
@@ -462,11 +462,11 @@ class MMAAPI(FollowUpAPI):
             "properties": {
                 "queue_name": {
                     "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
+                    "default": f"ToO_{str(datetime.now(UTC)).replace(' ', 'T')}",
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()),
+                    "default": str(datetime.now(UTC)),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {

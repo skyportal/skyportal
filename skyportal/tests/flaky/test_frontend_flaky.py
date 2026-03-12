@@ -1,7 +1,7 @@
-import datetime
 import os
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -736,8 +736,8 @@ def test_candidate_date_filtering(
     upload_data_token,
     ztf_camera,
 ):
-    now_utc = datetime.datetime.utcnow()
-    now = datetime.datetime.now()
+    now_utc = datetime.now(UTC)
+    now = datetime.now()
 
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -784,7 +784,7 @@ def test_candidate_date_filtering(
         wait_clickable=False,
     )
 
-    now_str = (now - datetime.timedelta(minutes=2)).strftime("%Y %m %d %I %M %p")
+    now_str = (now - timedelta(minutes=2)).strftime("%Y %m %d %I %M %p")
 
     # find the div at the same level of this
     start_date_input = driver.wait_for_xpath(
@@ -799,7 +799,7 @@ def test_candidate_date_filtering(
     start_date_input.send_keys(now_str[14:16])
     start_date_input.send_keys(now_str[17])
 
-    now_str = (now - datetime.timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
+    now_str = (now - timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
 
     end_date_input = driver.wait_for_xpath(
         "//label[text()='End (Local Time)']/../div/input"
@@ -822,7 +822,7 @@ def test_candidate_date_filtering(
 
     driver.wait_for_xpath('//*[contains(., "Found 0 candidates")]')
 
-    now_str = (now + datetime.timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
+    now_str = (now + timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
 
     end_date_input.clear()
     end_date_input.click()
@@ -864,7 +864,7 @@ def test_user_expiration(
 
     # Set expiration date to today
     driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
-    date = datetime.datetime.now().strftime("%m/%d/%Y")
+    date = datetime.now().strftime("%m/%d/%Y")
 
     date_input_xpath = "//input[@placeholder='MM/DD/YYYY']"
     date_input = driver.wait_for_xpath(date_input_xpath)

@@ -1,4 +1,4 @@
-import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import contains_eager, scoped_session, sessionmaker
 
@@ -94,13 +94,10 @@ class AnalysisWebhookHandler(BaseHandler):
                     f" and message={analysis.status_message}",
                     status=403,
                 )
-            if (
-                analysis.invalid_after
-                and datetime.datetime.utcnow() > analysis.invalid_after
-            ):
+            if analysis.invalid_after and datetime.now(UTC) > analysis.invalid_after:
                 analysis.status = "timed_out"
-                analysis.status_message = f"Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}"
-                analysis.last_activity = datetime.datetime.utcnow()
+                analysis.status_message = f"Analysis timed out before webhook call at {str(datetime.now(UTC))}"
+                analysis.last_activity = datetime.now(UTC)
                 analysis.duration = (
                     analysis.last_activity - last_active
                 ).total_seconds()
@@ -111,7 +108,7 @@ class AnalysisWebhookHandler(BaseHandler):
             # lock the analysis associated with this token and commit immediately to avoid race conditions,
             # so that the results are not written more than once
             analysis.status = "completed"
-            analysis.last_activity = datetime.datetime.utcnow()
+            analysis.last_activity = datetime.now(UTC)
             analysis.duration = (analysis.last_activity - last_active).total_seconds()
             session.commit()
         except Exception as e:

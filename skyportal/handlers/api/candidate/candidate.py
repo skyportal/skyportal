@@ -1,10 +1,10 @@
-import datetime
 import json
 import operator  # noqa: F401
 import re
 import time
 import uuid
 from copy import copy
+from datetime import UTC, datetime
 
 import arrow
 import astropy.units as u
@@ -73,7 +73,7 @@ def update_summary_history_if_relevant(results_data, obj, user):
 
         summary_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.now(UTC).isoformat(),
             "summary": results_data["summary"],
             "is_bot": results_data.get("is_bot", False),
             "analysis_id": results_data.get("analysis_id", None),
@@ -96,7 +96,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
         history_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.now(UTC).isoformat(),
             "value": request_data["redshift"],
             "uncertainty": request_data.get("redshift_error", None),
         }

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import arrow
 import astropy.units as u
@@ -369,7 +369,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     obj_id = str(uuid.uuid4())
     alias = str(uuid.uuid4())
     origin = str(uuid.uuid4())
-    t0 = datetime.now(timezone.utc)
+    t0 = datetime.now(UTC)
     status, data = api(
         "POST",
         "sources",
@@ -563,7 +563,7 @@ def test_source_notifications_unauthorized(
 def test_token_user_source_summary(
     public_group, public_source, view_only_token_two_groups, public_group2
 ):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
 
     status, data = api(
         "GET",
@@ -1076,7 +1076,7 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     )
     assert status == 200
     assert data["data"]["id"] == obj_id1
-    test_time = datetime.now(timezone.utc)
+    test_time = datetime.now(UTC)
     status, data = api(
         "POST",
         "sources",
@@ -1157,7 +1157,7 @@ def test_sources_filter_by_time_spectrum(
         "spectrum",
         data={
             "obj_id": obj_id1,
-            "observed_at": str(datetime.now(timezone.utc) - timedelta(days=1)),
+            "observed_at": str(datetime.now(UTC) - timedelta(days=1)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -1168,14 +1168,14 @@ def test_sources_filter_by_time_spectrum(
     assert status == 200
     assert data["status"] == "success"
 
-    test_time = datetime.now(timezone.utc)
+    test_time = datetime.now(UTC)
     # Add spectrum to source 2
     status, data = api(
         "POST",
         "spectrum",
         data={
             "obj_id": obj_id2,
-            "observed_at": str(datetime.now(timezone.utc) + timedelta(days=1)),
+            "observed_at": str(datetime.now(UTC) + timedelta(days=1)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -1949,7 +1949,7 @@ def test_filter_sources_by_created_at(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
-    time_before_both = datetime.now(timezone.utc)
+    time_before_both = datetime.now(UTC)
 
     # Upload two new sources
     status, data = api(
@@ -1966,7 +1966,7 @@ def test_filter_sources_by_created_at(
     assert status == 200
     assert data["data"]["id"] == obj_id1
 
-    partition_time = datetime.now(timezone.utc)
+    partition_time = datetime.now(UTC)
 
     status, data = api(
         "POST",
@@ -1982,7 +1982,7 @@ def test_filter_sources_by_created_at(
     assert status == 200
     assert data["data"]["id"] == obj_id2
 
-    time_after_both = datetime.now(timezone.utc)
+    time_after_both = datetime.now(UTC)
 
     # Filter for obj 2 only
     status, data = api(
@@ -2031,7 +2031,7 @@ def test_filter_sources_by_modified(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
-    time_before_both = datetime.now(timezone.utc)
+    time_before_both = datetime.now(UTC)
 
     # Upload two new sources
     status, data = api(
@@ -2062,7 +2062,7 @@ def test_filter_sources_by_modified(
     assert status == 200
     assert data["data"]["id"] == obj_id2
 
-    partition_time = datetime.now(timezone.utc)
+    partition_time = datetime.now(UTC)
 
     status, data = api(
         "PATCH",
@@ -2075,7 +2075,7 @@ def test_filter_sources_by_modified(
     )
     assert status == 200
 
-    time_after_both = datetime.now(timezone.utc)
+    time_after_both = datetime.now(UTC)
 
     # Filter for obj 2 only
     status, data = api(

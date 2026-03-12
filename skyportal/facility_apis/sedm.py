@@ -1,7 +1,7 @@
 import json
 import traceback
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -450,14 +450,14 @@ class SEDMAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.now(UTC).date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.now(UTC).date() + timedelta(days=7)).isoformat(),
             },
             "advanced": {
                 "type": "boolean",

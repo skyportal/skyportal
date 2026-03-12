@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import arviz
@@ -708,7 +708,7 @@ def create_default_analysis(mapper, connection, target):
                         DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
                     ),
                     DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
-                    < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
+                    < cast(datetime.now(UTC) - timedelta(days=1), sa.DateTime),
                 ),
                 # make sure that the default analysis is associated with a group that the classification is associated with
                 DefaultAnalysis.groups.any(
@@ -748,20 +748,20 @@ def create_default_analysis(mapper, connection, target):
                                 default_analysis.stats = {
                                     "daily_limit": 10,
                                     "daily_count": 1,
-                                    "last_run": datetime.utcnow().strftime(
+                                    "last_run": datetime.now(UTC).strftime(
                                         "%Y-%m-%dT%H:%M:%S.%f"
                                     ),
                                 }
                             if datetime.strptime(
                                 default_analysis.stats["last_run"],
                                 "%Y-%m-%dT%H:%M:%S.%f",
-                            ) < datetime.utcnow() - timedelta(days=1):
+                            ) < datetime.now(UTC) - timedelta(days=1):
                                 default_analysis.stats = {
                                     "daily_limit": default_analysis.stats[
                                         "daily_limit"
                                     ],
                                     "daily_count": 0,
-                                    "last_run": datetime.utcnow().strftime(
+                                    "last_run": datetime.now(UTC).strftime(
                                         "%Y-%m-%dT%H:%M:%S.%f"
                                     ),
                                 }
@@ -769,7 +769,7 @@ def create_default_analysis(mapper, connection, target):
                                 "daily_limit": default_analysis.stats["daily_limit"],
                                 "daily_count": default_analysis.stats["daily_count"]
                                 + 1,
-                                "last_run": datetime.utcnow().strftime(
+                                "last_run": datetime.now(UTC).strftime(
                                     "%Y-%m-%dT%H:%M:%S.%f"
                                 ),
                             }

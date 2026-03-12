@@ -1,5 +1,5 @@
 import traceback
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from json import JSONDecodeError
 
 import arrow
@@ -378,12 +378,12 @@ class GEMINIAPI(FollowUpAPI):
             "start_date": {
                 "title": "Start Date (UT)",
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=7)).replace("T", ""),
+                "default": str(datetime.now(UTC) - timedelta(days=7)).replace("T", ""),
             },
             "end_date": {
                 "title": "End Date (UT)",
                 "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(datetime.now(UTC)).replace("T", ""),
             },
             "l_exptime": {
                 "title": "Exposure Time",
