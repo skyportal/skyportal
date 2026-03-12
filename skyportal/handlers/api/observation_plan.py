@@ -3513,7 +3513,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             target_groups = session.scalars(stmt).all()
 
             stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == data["allocation_id"],
+                Allocation.id == int(data["allocation_id"]),
             )
             allocation = session.scalars(stmt).first()
             if allocation is None:

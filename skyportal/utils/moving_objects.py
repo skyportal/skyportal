@@ -261,12 +261,12 @@ def get_instrument_fields(
     """
     # TODO: account for positional uncertainties (currently not returned by JPL Horizons API call)
     conditions = [
-        InstrumentFieldTile.instrument_id == instrument_id,
+        InstrumentFieldTile.instrument_id == int(instrument_id),
         InstrumentFieldTile.instrument_field_id == InstrumentField.id,
         InstrumentFieldTile.healpix.contains(row["healpix"]),
     ]
     if references_only:
-        conditions.append(InstrumentField.reference_filters != "{}")
+        conditions.append(sa.func.cardinality(InstrumentField.reference_filters) > 0)
     stmt = sa.select(InstrumentField).where(sa.and_(*conditions))
     if primary_only and instrument_name == "ZTF":
         stmt = stmt.where(InstrumentField.field_id < 880)

@@ -227,15 +227,11 @@ def save_data_using_copy(rows, table, columns, session):
     # Use the provided session's connection so that the COPY runs within the
     # same database connection/transaction that holds any table-level locks.
     connection = session.connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep="\t",
-        null="",
-        columns=columns,
-    )
-    cursor.close()
+    with connection.cursor() as cursor:
+        with cursor.copy(
+            f"COPY {table} ({', '.join(columns)}) FROM STDIN WITH (FORMAT csv, DELIMITER E'\\t', NULL 'null', QUOTE '''')"
+        ) as copy:
+            copy.write(output.getvalue())
     output.close()
 
 

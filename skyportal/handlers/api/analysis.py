@@ -1971,7 +1971,7 @@ class DefaultAnalysisHandler(BaseHandler):
             try:
                 analysis_service = session.scalars(
                     AnalysisService.select(self.current_user).where(
-                        AnalysisService.id == analysis_service_id
+                        AnalysisService.id == int(analysis_service_id)
                     )
                 ).first()
                 if analysis_service is None:
@@ -1980,7 +1980,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     )
 
                 stmt = DefaultAnalysis.select(self.current_user).where(
-                    DefaultAnalysis.analysis_service_id == analysis_service_id,
+                    DefaultAnalysis.analysis_service_id == int(analysis_service_id),
                     DefaultAnalysis.author_id == self.associated_user_object.id,
                 )
                 default_analysis = session.scalars(stmt).first()
@@ -2152,7 +2152,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 default_analysis = session.scalars(
                     DefaultAnalysis.select(self.current_user).where(
                         DefaultAnalysis.analysis_service_id == analysis_service_id,
-                        DefaultAnalysis.id == default_analysis_id,
+                        DefaultAnalysis.id == int(default_analysis_id),
                     )
                 ).first()
                 if default_analysis is None:
