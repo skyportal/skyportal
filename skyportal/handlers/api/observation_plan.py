@@ -3634,6 +3634,12 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        try:
+            default_observation_plan_id = int(default_observation_plan_id)
+        except (ValueError, TypeError):
+            return self.error(
+                f"Invalid default_observation_plan_id: {default_observation_plan_id}"
+            )
 
         with self.Session() as session:
             if default_observation_plan_id is not None:

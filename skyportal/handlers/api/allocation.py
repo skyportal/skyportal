@@ -95,7 +95,7 @@ class AllocationObservationPlanHandler(BaseHandler):
                 return self.error("Invalid sortOrder value.")
 
             allocations = Allocation.select(self.current_user).where(
-                Allocation.id == allocation_id
+                Allocation.id == int(allocation_id)
             )
             allocation = session.scalars(allocations).first()
             if allocation is None:
@@ -269,7 +269,7 @@ class AllocationHandler(BaseHandler):
 
                 allocation = session.scalar(
                     Allocation.select(self.current_user).where(
-                        Allocation.id == allocation_id
+                        Allocation.id == int(allocation_id)
                     )
                 )
                 if allocation is None:

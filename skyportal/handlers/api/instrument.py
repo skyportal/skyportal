@@ -59,7 +59,7 @@ class InstrumentHandler(BaseHandler):
         # it could be made an f-string.
 
         data = self.get_json()
-        telescope_id = data.get("telescope_id")
+        telescope_id = int(data.get("telescope_id"))
         with self.Session() as session:
             stmt = Telescope.select(session.user_or_token).filter(
                 Telescope.id == telescope_id
@@ -1467,7 +1467,7 @@ class InstrumentFieldHandler(BaseHandler):
 
             instrument = session.scalars(
                 sa.select(Instrument).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == int(instrument_id),
                 )
             ).first()
             if instrument is not None and len(instrument.fields) > 0:

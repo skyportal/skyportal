@@ -221,7 +221,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
+                    Allocation.id == int(data["allocation_id"])
                 )
             ).first()
             if allocation is None:

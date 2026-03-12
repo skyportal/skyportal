@@ -172,7 +172,7 @@ class AnnotationHandler(BaseHandler):
             annotation = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user)
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
             if annotation is None:
                 return self.error(
@@ -470,7 +470,7 @@ class AnnotationHandler(BaseHandler):
             a = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user, mode="update")
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
             if a is None:
                 return self.error(
@@ -575,7 +575,7 @@ class AnnotationHandler(BaseHandler):
             a = session.scalars(
                 associated_resource["class"]
                 .select(self.current_user, mode="delete")
-                .where(associated_resource["class"].id == annotation_id)
+                .where(associated_resource["class"].id == int(annotation_id))
             ).first()
 
             if a is None:

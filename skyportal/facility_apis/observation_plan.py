@@ -3,6 +3,7 @@ import os
 import tempfile
 from datetime import UTC, datetime, timedelta
 
+import arrow
 import paramiko
 import requests
 import sqlalchemy as sa
@@ -164,10 +165,8 @@ class MMAAPI(FollowUpAPI):
                         "filter_strategy must be either block or integrated"
                     )
 
-                start_time = Time(
-                    request.payload["start_date"], format="iso", scale="utc"
-                )
-                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
+                start_time = arrow.get(request.payload["start_date"].strip()).datetime
+                end_time = arrow.get(request.payload["end_date"].strip()).datetime
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,
@@ -330,10 +329,8 @@ class MMAAPI(FollowUpAPI):
                         "filter_strategy must be either block or integrated"
                     )
 
-                start_time = Time(
-                    request.payload["start_date"], format="iso", scale="utc"
-                )
-                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
+                start_time = arrow.get(request.payload["start_date"].strip()).datetime
+                end_time = arrow.get(request.payload["end_date"].strip()).datetime
 
                 plan = EventObservationPlan(
                     observation_plan_request_id=request.id,

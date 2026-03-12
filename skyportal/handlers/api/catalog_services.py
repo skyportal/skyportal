@@ -100,7 +100,7 @@ class CatalogQueryHandler(BaseHandler):
 
         with self.Session() as session:
             allocation = session.scalar(
-                sa.select(Allocation).where(Allocation.id == data["allocation_id"])
+                sa.select(Allocation).where(Allocation.id == int(data["allocation_id"]))
             )
 
             group_ids = []
@@ -150,9 +150,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
     obj_ids = []
 
     try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
         allocation = session.scalar(
-            sa.select(Allocation).where(Allocation.id == allocation_id)
+            sa.select(Allocation).where(Allocation.id == int(allocation_id))
         )
 
         groups = session.scalars(
@@ -467,7 +467,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
     obj_ids = []
 
     try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
 
         groups = session.scalars(
             Group.select(user).where(Group.id.in_(group_ids))
@@ -727,7 +727,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
         start_date = payload.get("start_date", None)
         end_date = payload.get("end_date", None)
 
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
 
         for row in table:
             name = row["#Name"]
@@ -951,7 +951,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
         start_date = payload.get("start_date", None)
         end_date = payload.get("end_date", None)
 
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
 
         for row in table:
             name = row["name"]

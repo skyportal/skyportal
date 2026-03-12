@@ -60,7 +60,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             if admission_request_id is not None:
                 admission_request = session.scalars(
                     GroupAdmissionRequest.select(session.user_or_token).where(
-                        GroupAdmissionRequest.id == admission_request_id
+                        GroupAdmissionRequest.id == int(admission_request_id)
                     )
                 ).first()
                 if admission_request is None:
@@ -161,12 +161,12 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
         with self.Session() as session:
             group = session.scalars(
-                Group.select(session.user_or_token).where(Group.id == group_id)
+                Group.select(session.user_or_token).where(Group.id == int(group_id))
             ).first()
             if group is None or group.single_user_group:
                 return self.error("Invalid group ID")
             requesting_user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == int(user_id))
             ).first()
             if requesting_user is None:
                 return self.error("Invalid user ID")
@@ -268,7 +268,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             admission_request = session.scalars(
                 GroupAdmissionRequest.select(
                     session.user_or_token, mode="update"
-                ).where(GroupAdmissionRequest.id == admission_request_id)
+                ).where(GroupAdmissionRequest.id == int(admission_request_id))
             ).first()
             if admission_request is None:
                 return self.error(
@@ -317,7 +317,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             admission_request = session.scalars(
                 GroupAdmissionRequest.select(
                     session.user_or_token, mode="delete"
-                ).where(GroupAdmissionRequest.id == admission_request_id)
+                ).where(GroupAdmissionRequest.id == int(admission_request_id))
             ).first()
             if admission_request is None:
                 return self.error(

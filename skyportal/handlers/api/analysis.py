@@ -760,7 +760,7 @@ class AnalysisServiceHandler(BaseHandler):
             if analysis_service_id is not None:
                 s = session.scalars(
                     AnalysisService.select(session.user_or_token).where(
-                        AnalysisService.id == analysis_service_id
+                        AnalysisService.id == int(analysis_service_id)
                     )
                 ).first()
                 if s is None:
@@ -912,7 +912,7 @@ class AnalysisServiceHandler(BaseHandler):
         with self.Session() as session:
             s = session.scalars(
                 AnalysisService.select(session.user_or_token, mode="update").where(
-                    AnalysisService.id == analysis_service_id
+                    AnalysisService.id == int(analysis_service_id)
                 )
             ).first()
             if s is None:
@@ -929,7 +929,7 @@ class AnalysisServiceHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            new_analysis_service.id = analysis_service_id
+            new_analysis_service.id = int(analysis_service_id)
             session.merge(new_analysis_service)
 
             if group_ids is not None:
@@ -980,7 +980,7 @@ class AnalysisServiceHandler(BaseHandler):
         with self.Session() as session:
             analysis_service = session.scalars(
                 AnalysisService.select(session.user_or_token, mode="delete").where(
-                    AnalysisService.id == analysis_service_id
+                    AnalysisService.id == int(analysis_service_id)
                 )
             ).first()
             if analysis_service is None:
@@ -1078,7 +1078,7 @@ class AnalysisHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
-                AnalysisService.id == analysis_service_id
+                AnalysisService.id == int(analysis_service_id)
             )
             analysis_service = session.scalars(stmt).first()
             if analysis_service is None:
@@ -1303,7 +1303,7 @@ class AnalysisHandler(BaseHandler):
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
                     stmt = ObjAnalysis.select(self.current_user).where(
-                        ObjAnalysis.id == analysis_id
+                        ObjAnalysis.id == int(analysis_id)
                     )
                     if obj_id:
                         stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
@@ -1426,7 +1426,7 @@ class AnalysisHandler(BaseHandler):
                     .join(ObjAnalysis.analysis_service)
                     .options(contains_eager(ObjAnalysis.analysis_service))
                     .options(contains_eager(ObjAnalysis.obj))
-                    .where(ObjAnalysis.id == analysis_id)
+                    .where(ObjAnalysis.id == int(analysis_id))
                 )
                 analysis = session.scalars(stmt).first()
                 if analysis is None:
@@ -1542,7 +1542,7 @@ class AnalysisProductsHandler(BaseHandler):
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
                     stmt = ObjAnalysis.select(self.current_user).where(
-                        ObjAnalysis.id == analysis_id
+                        ObjAnalysis.id == int(analysis_id)
                     )
                     analysis = session.scalars(stmt).first()
                     if analysis is None:
@@ -1720,7 +1720,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
-                AnalysisService.id == analysis_service_id
+                AnalysisService.id == int(analysis_service_id)
             )
             analysis_service = session.scalars(stmt).first()
             if analysis_service is None:
@@ -1878,8 +1878,8 @@ class DefaultAnalysisHandler(BaseHandler):
             try:
                 if default_analysis_id is not None and analysis_service_id is not None:
                     stmt = DefaultAnalysis.select(self.current_user).where(
-                        DefaultAnalysis.analysis_service_id == analysis_service_id,
-                        DefaultAnalysis.id == default_analysis_id,
+                        DefaultAnalysis.analysis_service_id == int(analysis_service_id),
+                        DefaultAnalysis.id == int(default_analysis_id),
                     )
                     default_analysis = session.scalars(stmt).first()
                     if default_analysis is None:
@@ -1890,7 +1890,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     return self.success(data=default_analysis)
                 elif analysis_service_id is not None:
                     stmt = DefaultAnalysis.select(self.current_user).where(
-                        DefaultAnalysis.analysis_service_id == analysis_service_id
+                        DefaultAnalysis.analysis_service_id == int(analysis_service_id)
                     )
                     default_analysis = session.scalars(stmt).all()
                     return self.success(data=default_analysis)

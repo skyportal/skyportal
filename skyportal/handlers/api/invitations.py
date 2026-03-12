@@ -391,7 +391,7 @@ class InvitationHandler(BaseHandler):
         with self.Session() as session:
             invitation = session.scalars(
                 Invitation.select(session.user_or_token, mode="update").where(
-                    Invitation.id == invitation_id
+                    Invitation.id == int(invitation_id)
                 )
             ).first()
             if invitation is None:
@@ -508,7 +508,7 @@ class InvitationHandler(BaseHandler):
         with self.Session() as session:
             invitation = session.scalars(
                 Invitation.select(session.user_or_token, mode="delete").where(
-                    Invitation.id == invitation_id
+                    Invitation.id == int(invitation_id)
                 )
             ).first()
             if invitation is None:

@@ -610,7 +610,7 @@ class EarthquakePredictionHandler(BaseHandler):
 
             detector = session.scalars(
                 MMADetector.select(session.user_or_token).where(
-                    MMADetector.id == mma_detector_id
+                    MMADetector.id == int(mma_detector_id)
                 )
             ).first()
             if detector is None:
@@ -760,7 +760,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
 
             detector = session.scalars(
                 MMADetector.select(session.user_or_token).where(
-                    MMADetector.id == mma_detector_id
+                    MMADetector.id == int(mma_detector_id)
                 )
             ).first()
             if detector is None:

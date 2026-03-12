@@ -406,7 +406,7 @@ def post_skymap_from_notice(
     user = session.query(User).get(user_id)
 
     gcn_notice = session.scalars(
-        GcnNotice.select(user).where(GcnNotice.id == notice_id)
+        GcnNotice.select(user).where(GcnNotice.id == int(notice_id))
     ).first()
 
     if gcn_notice is None:
@@ -1158,7 +1158,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 GcnEvent.select(
                     session.user_or_token,
                     options=[joinedload(GcnEvent.survey_efficiency_analyses)],
-                ).where(GcnEvent.id == gcnevent_id)
+                ).where(GcnEvent.id == int(gcnevent_id))
             ).first()
             if event is None:
                 return self.error("GCN event not found", status=404)
@@ -1223,7 +1223,7 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         .joinedload(ObservationPlanRequest.observation_plans)
                         .joinedload(EventObservationPlan.statistics),
                     ],
-                ).where(GcnEvent.id == gcnevent_id)
+                ).where(GcnEvent.id == int(gcnevent_id))
             ).first()
 
             # go through some pain to get probability and area included
@@ -1562,6 +1562,10 @@ class GcnEventHandler(BaseHandler):
                 )
 
         if dateobs is not None:
+            try:
+                dateobs = arrow.get(dateobs.strip()).datetime
+            except Exception:
+                return self.error("Invalid dateobs value", status=400)
             with self.Session() as session:
                 options = [
                     joinedload(GcnEvent.localizations).joinedload(Localization.tags),
@@ -2042,13 +2046,13 @@ class GcnEventUserHandler(BaseHandler):
             )
 
             user = session.scalar(
-                User.select(session.user_or_token).where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == int(user_id))
             )
 
             gu = session.scalar(
                 GcnEventUser.select(session.user_or_token)
                 .where(GcnEventUser.gcnevent_id == event.id)
-                .where(GcnEventUser.user_id == user_id)
+                .where(GcnEventUser.user_id == int(user_id))
             )
             if gu is not None:
                 return self.error(
@@ -2158,9 +2162,9 @@ def add_tiles_and_properties_and_contour(
         session = parent_session
 
     try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
         localization = session.scalar(
-            sa.select(Localization).where(Localization.id == localization_id)
+            sa.select(Localization).where(Localization.id == int(localization_id))
         )
 
         log(f"Retrieving skymap properties for localization {localization_id}")
@@ -2338,16 +2342,16 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         session = parent_session
 
     try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
         localization = session.scalars(
-            sa.select(Localization).where(Localization.id == localization_id)
+            sa.select(Localization).where(Localization.id == int(localization_id))
         ).first()
         dateobs = localization.dateobs
         localization_tags = [
             tags.text
             for tags in session.scalars(
                 sa.select(LocalizationTag).where(
-                    LocalizationTag.localization_id == localization_id
+                    LocalizationTag.localization_id == int(localization_id)
                 )
             ).all()
         ]
@@ -2408,7 +2412,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
             allocation_id = gcn_observation_plan["allocation_id"]
             allocation = session.scalars(
-                Allocation.select(user).where(Allocation.id == allocation_id)
+                Allocation.select(user).where(Allocation.id == int(allocation_id))
             ).first()
             if allocation is None:
                 continue
@@ -2768,7 +2772,7 @@ class LocalizationNoticeHandler(BaseHandler):
         with self.Session() as session:
             gcn_notice = session.scalars(
                 GcnNotice.select(session.user_or_token).where(
-                    GcnNotice.dateobs == dateobs, GcnNotice.id == notice_id
+                    GcnNotice.dateobs == dateobs, GcnNotice.id == int(notice_id)
                 )
             ).first()
 
@@ -3744,7 +3748,7 @@ class GcnSummaryHandler(BaseHandler):
             if event is None:
                 return self.error("Event not found", status=404)
 
-            stmt = Group.select(session.user_or_token).where(Group.id == group_id)
+            stmt = Group.select(session.user_or_token).where(Group.id == int(group_id))
             group = session.scalars(stmt).first()
             if group is None:
                 return self.error(f"Group not found with ID {group_id}")
@@ -3845,7 +3849,7 @@ class GcnSummaryHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="read").where(
-                GcnSummary.id == summary_id,
+                GcnSummary.id == int(summary_id),
                 GcnSummary.dateobs == dateobs,
             )
             summary = session.scalars(stmt).first()
@@ -3908,7 +3912,7 @@ class GcnSummaryHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
-                GcnSummary.id == summary_id,
+                GcnSummary.id == int(summary_id),
                 GcnSummary.dateobs == dateobs,
             )
             summary = session.scalars(stmt).first()
@@ -3960,7 +3964,7 @@ class GcnSummaryHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="delete").where(
-                GcnSummary.id == summary_id,
+                GcnSummary.id == int(summary_id),
                 GcnSummary.dateobs == dateobs,
             )
             summary = session.scalars(stmt).first()
@@ -4402,7 +4406,7 @@ class GcnReportHandler(BaseHandler):
             if event is None:
                 return self.error("Event not found", status=404)
 
-            stmt = Group.select(session.user_or_token).where(Group.id == group_id)
+            stmt = Group.select(session.user_or_token).where(Group.id == int(group_id))
             group = session.scalars(stmt).first()
             if group is None:
                 return self.error(f"Group not found with ID {group_id}")
@@ -4513,7 +4517,7 @@ class GcnReportHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="read").where(
-                GcnReport.id == report_id,
+                GcnReport.id == int(report_id),
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
@@ -4568,7 +4572,7 @@ class GcnReportHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="update").where(
-                GcnReport.id == report_id,
+                GcnReport.id == int(report_id),
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
@@ -4699,7 +4703,7 @@ class GcnReportHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="delete").where(
-                GcnReport.id == report_id,
+                GcnReport.id == int(report_id),
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
@@ -4856,12 +4860,12 @@ class LocalizationCrossmatchHandler(BaseHandler):
             try:
                 localization1 = session.scalars(
                     Localization.select(session.user_or_token).where(
-                        Localization.id == id1,
+                        Localization.id == int(id1),
                     )
                 ).first()
                 localization2 = session.scalars(
                     Localization.select(session.user_or_token).where(
-                        Localization.id == id2,
+                        Localization.id == int(id2),
                     )
                 ).first()
 
@@ -5104,7 +5108,7 @@ class GcnEventTriggerHandler(BaseHandler):
                         return self.error(f"No event with dateobs: {dateobs}")
                     allocation = session.scalars(
                         Allocation.select(session.user_or_token).where(
-                            Allocation.id == allocation_id
+                            Allocation.id == int(allocation_id)
                         )
                     ).first()
                     if allocation is None:
@@ -5286,7 +5290,7 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
+    user = session.scalar(sa.select(User).where(User.id == int(user_id)))
 
     try:
         obj = session.scalars(
@@ -5303,7 +5307,7 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
                     options=[
                         joinedload(GcnEvent.localizations),
                     ],
-                ).where(GcnEvent.id == event_id)
+                ).where(GcnEvent.id == int(event_id))
             ).first()
             if event is None:
                 continue
@@ -5496,7 +5500,7 @@ class DefaultGcnTagHandler(BaseHandler):
                 default_gcn_tag = session.scalars(
                     DefaultGcnTag.select(
                         session.user_or_token,
-                    ).where(DefaultGcnTag.id == default_gcn_tag_id)
+                    ).where(DefaultGcnTag.id == int(default_gcn_tag_id))
                 ).first()
                 if default_gcn_tag is None:
                     return self.error(
@@ -5539,7 +5543,7 @@ class DefaultGcnTagHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = DefaultGcnTag.select(session.user_or_token).where(
-                DefaultGcnTag.id == default_gcn_tag_id
+                DefaultGcnTag.id == int(default_gcn_tag_id)
             )
             default_gcn_tag = session.scalars(stmt).first()
 

@@ -182,7 +182,7 @@ class AssignmentHandler(BaseHandler):
                     return self.error("Assignment ID must be an integer.")
 
                 assignments = assignments.where(
-                    ClassicalAssignment.id == assignment_id
+                    ClassicalAssignment.id == int(assignment_id)
                 ).options(
                     joinedload(ClassicalAssignment.obj).joinedload(Obj.thumbnails),
                     joinedload(ClassicalAssignment.requester),
@@ -581,7 +581,7 @@ def post_followup_request(
                     f"Source within {radius} arcsec is already assigned to an observing run, not submitting request (as per constraint)."
                 )
     stmt = Allocation.select(session.user_or_token).where(
-        Allocation.id == data["allocation_id"],
+        Allocation.id == int(data["allocation_id"]),
     )
     allocation = session.scalars(stmt).first()
     if allocation is None:
@@ -631,7 +631,7 @@ def post_followup_request(
         Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
     )
     requester = session.scalar(
-        User.select(session.user_or_token).where(User.id == data["requester_id"])
+        User.select(session.user_or_token).where(User.id == int(data["requester_id"]))
     )
 
     watcher_ids = data.pop("watcher_ids", None)
@@ -741,7 +741,7 @@ def post_followup_request(
 def post_default_followup_requests(obj_id, default_followup_requests, user_id):
     # only called with `run_async`, so we open the session here with DBSession()
     with DBSession() as session:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        user = session.scalar(sa.select(User).where(User.id == int(user_id)))
         if user is None:
             raise ValueError(
                 f"Could not find user with ID {user_id} to post default followup requests."
@@ -972,7 +972,7 @@ class FollowupRequestHandler(BaseHandler):
                 # verify that the user can access the allocation
                 allocation = session.scalars(
                     Allocation.select(session.user_or_token).where(
-                        Allocation.id == allocationID
+                        Allocation.id == int(allocationID)
                     )
                 ).first()
                 if allocation is None:
@@ -1001,7 +1001,7 @@ class FollowupRequestHandler(BaseHandler):
                     return self.error("Assignment ID must be an integer.")
 
                 followup_requests = followup_requests.where(
-                    FollowupRequest.id == followup_request_id
+                    FollowupRequest.id == int(followup_request_id)
                 ).options(
                     joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails)
                     if include_obj_thumbnails
@@ -1298,7 +1298,7 @@ class FollowupRequestHandler(BaseHandler):
         with self.Session() as session:
             followup_request = session.scalars(
                 FollowupRequest.select(session.user_or_token, mode="update").where(
-                    FollowupRequest.id == request_id
+                    FollowupRequest.id == int(request_id)
                 )
             ).first()
             if followup_request is None:
@@ -1432,7 +1432,7 @@ class FollowupRequestHandler(BaseHandler):
         with self.Session() as session:
             followup_request = session.scalars(
                 FollowupRequest.select(session.user_or_token, mode="delete").where(
-                    FollowupRequest.id == request_id
+                    FollowupRequest.id == int(request_id)
                 )
             ).first()
             if followup_request is None:
@@ -1502,7 +1502,7 @@ class FollowupRequestCommentHandler(BaseHandler):
             try:
                 stmt = FollowupRequest.select(
                     session.user_or_token, mode="update"
-                ).where(FollowupRequest.id == followup_request_id)
+                ).where(FollowupRequest.id == int(followup_request_id))
                 followup_request = session.scalar(stmt)
 
                 if followup_request is None:
@@ -2061,7 +2061,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 Instrument.select(
                     session.user_or_token,
                 ).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == int(instrument_id),
                 )
             ).first()
             if instrument is None:
@@ -2278,7 +2278,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 followup_request = session.scalars(
                     FollowupRequest.select(session.user_or_token, mode="update")
                     .options(joinedload(FollowupRequest.obj).joinedload(Obj.photstats))
-                    .where(FollowupRequest.id == request_id)
+                    .where(FollowupRequest.id == int(request_id))
                 ).first()
                 if followup_request is None:
                     return self.error(
@@ -2297,7 +2297,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
                 localization = session.scalars(
                     Localization.select(session.user_or_token).where(
-                        Localization.id == localization_id,
+                        Localization.id == int(localization_id),
                     )
                 ).first()
                 if localization is None:
@@ -2372,7 +2372,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 payload = followup_request.payload
                 payload["priority"] = priority
                 session.query(FollowupRequest).filter(
-                    FollowupRequest.id == request_id
+                    FollowupRequest.id == int(request_id)
                 ).update({"payload": payload})
                 session.commit()
 
@@ -2448,7 +2448,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             target_groups = session.scalars(stmt).all()
 
             stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == data["allocation_id"],
+                Allocation.id == int(data["allocation_id"]),
             )
             allocation = session.scalars(stmt).first()
             if allocation is None:
@@ -2560,7 +2560,9 @@ class DefaultFollowupRequestHandler(BaseHandler):
                         session.user_or_token,
                         mode="update",
                         options=[joinedload(DefaultFollowupRequest.allocation)],
-                    ).where(DefaultFollowupRequest.id == default_followup_request_id)
+                    ).where(
+                        DefaultFollowupRequest.id == int(default_followup_request_id)
+                    )
                 ).first()
                 if default_followup_request is None:
                     return self.error(
@@ -2615,7 +2617,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
         with self.Session() as session:
             stmt = DefaultFollowupRequest.select(
                 session.user_or_token, mode="delete"
-            ).where(DefaultFollowupRequest.id == default_followup_request_id)
+            ).where(DefaultFollowupRequest.id == int(default_followup_request_id))
             default_followup_request = session.scalars(stmt).first()
 
             if default_followup_request is None:
