@@ -1,6 +1,7 @@
 import time
 import traceback
 
+import arrow
 import astropy_healpix as ah
 import healpix_alchemy as ha
 import healpy as hp
@@ -382,9 +383,21 @@ def generate_plan(
         )
         session.user_or_token = user
 
-        event_time = Time(requests[0].gcnevent.dateobs, format="datetime", scale="utc")
-        start_time = Time(requests[0].payload["start_date"], format="iso", scale="utc")
-        end_time = Time(requests[0].payload["end_date"], format="iso", scale="utc")
+        event_time = Time(
+            arrow.get(requests[0].gcnevent.dateobs).datetime,
+            format="datetime",
+            scale="utc",
+        )
+        start_time = Time(
+            arrow.get(requests[0].payload["start_date"]).datetime,
+            format="datetime",
+            scale="utc",
+        )
+        end_time = Time(
+            arrow.get(requests[0].payload["end_date"]).datetime,
+            format="datetime",
+            scale="utc",
+        )
 
         params = {
             # time

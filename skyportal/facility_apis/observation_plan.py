@@ -173,8 +173,8 @@ class MMAAPI(FollowUpAPI):
                     dateobs=request.gcnevent.dateobs,
                     plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
+                    validity_window_start=start_time,
+                    validity_window_end=end_time,
                 )
 
                 DBSession().add(plan)
@@ -337,8 +337,8 @@ class MMAAPI(FollowUpAPI):
                     dateobs=request.gcnevent.dateobs,
                     plan_name=request.payload["queue_name"],
                     instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
+                    validity_window_start=start_time,
+                    validity_window_end=end_time,
                 )
 
                 session.add(plan)

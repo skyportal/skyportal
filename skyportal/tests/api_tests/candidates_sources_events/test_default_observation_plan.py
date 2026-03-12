@@ -12,7 +12,7 @@ from skyportal.tests.external.test_moving_objects import (
 )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_default_observation_plan_tiling(super_admin_token, public_group):
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(200, 250))
