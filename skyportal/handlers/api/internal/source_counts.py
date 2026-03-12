@@ -20,9 +20,9 @@ class SourceCountHandler(BaseHandler):
 
         since_days_ago = int(source_count_prefs["sinceDaysAgo"])
 
-        cutoff_day = (
-            datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        ).isoformat()
+        cutoff_day = datetime.datetime.now(datetime.UTC) - datetime.timedelta(
+            days=since_days_ago
+        )
 
         with self.Session() as session:
             stmt = Source.select(session.user_or_token).where(
