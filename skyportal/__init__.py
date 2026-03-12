@@ -4,6 +4,9 @@ try:
 
     if "float_" not in np.__dict__:
         np.float64 = np.float64
+
+    # Use the legacy print (i.e. the to string behavior) to avoid issues with sqlalchemy/psycopg2 when trying to insert numpy.float64 values into the database.
+    np.set_printoptions(legacy="1.25")
 except ImportError:
     pass
 
