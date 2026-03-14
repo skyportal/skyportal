@@ -48,11 +48,17 @@ jobs:
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
           package-manager-cache: false
@@ -75,11 +81,6 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y libcurl4-gnutls-dev libgnutls28-dev
-
-          python -m pip install pip==24.0
-          pip install numpy wheel
-          pip install -r baselayer/requirements.txt
-          pip install -r requirements.txt
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH

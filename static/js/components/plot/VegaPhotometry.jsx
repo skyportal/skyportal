@@ -166,6 +166,8 @@ const VegaPhotometry = (props) => {
   const [showUpperLimits, setShowUpperLimits] = useState(true);
   const [showForcedPhotometry, setShowForcedPhotometry] = useState(true);
   const [hasForcedPhotometry, setHasForcedPhotometry] = useState(false);
+  const [showMatches, setShowMatches] = useState(true);
+  const [hasMatches, setHasMatches] = useState(false);
   const photDisplayData = useMemo(() => {
     if (photometry === null || photometry === undefined) {
       return null;
@@ -177,9 +179,18 @@ const VegaPhotometry = (props) => {
       if (!showForcedPhotometry && ["fp", "alert_fp"].includes(datum.origin)) {
         return false;
       }
+      if (!showMatches && datum.obj_id !== sourceId) {
+        return false;
+      }
       return true;
     });
-  }, [showUpperLimits, showForcedPhotometry, photometry]);
+  }, [
+    showUpperLimits,
+    showForcedPhotometry,
+    showMatches,
+    photometry,
+    sourceId,
+  ]);
 
   useEffect(() => {
     const p = findPeriodInAnnotations(annotations || []);
@@ -217,6 +228,7 @@ const VegaPhotometry = (props) => {
         setHasForcedPhotometry(
           photometry.some((datum) => ["fp", "alert_fp"].includes(datum.origin)),
         );
+        setHasMatches(photometry.some((datum) => datum.obj_id !== sourceId));
       }
     }
     fetchPhotometry();
@@ -252,6 +264,7 @@ const VegaPhotometry = (props) => {
           gap: "0.5rem",
           width: "100%",
           marginLeft: "0.75rem",
+          fontSize: "0.95rem",
         }}
       >
         <div
@@ -266,6 +279,7 @@ const VegaPhotometry = (props) => {
             onChange={() => setShowUpperLimits(!showUpperLimits)}
             name="showUpperLimits"
             inputProps={{ "aria-label": "show upper limits" }}
+            size="small"
           />
           <div>Upper limits</div>
         </div>
@@ -282,8 +296,27 @@ const VegaPhotometry = (props) => {
               onChange={() => setShowForcedPhotometry(!showForcedPhotometry)}
               name="showForcedPhotometry"
               inputProps={{ "aria-label": "show forced photometry" }}
+              size="small"
             />
             <div>Forced photometry</div>
+          </div>
+        )}
+        {hasMatches && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Switch
+              checked={showMatches}
+              onChange={() => setShowMatches(!showMatches)}
+              name="showMatches"
+              inputProps={{ "aria-label": "show matches" }}
+              size="small"
+            />
+            <div>Matches</div>
           </div>
         )}
       </div>
