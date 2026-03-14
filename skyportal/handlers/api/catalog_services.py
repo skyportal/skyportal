@@ -283,7 +283,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
-                    add_external_photometry(data_out, user)
+                    add_external_photometry(data_out, user, parent_session=session)
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
@@ -567,7 +567,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                     }
 
                     if len(df.index) > 0:
-                        add_external_photometry(data_out, user)
+                        add_external_photometry(data_out, user, parent_session=session)
                         log(f"Photometry committed to database for {obj_id}")
                     else:
                         log(f"No photometry to commit to database for {obj_id}")
@@ -810,7 +810,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             }
 
             if len(df.index) > 0:
-                add_external_photometry(data_out, user)
+                add_external_photometry(data_out, user, parent_session=session)
                 log(f"Photometry committed to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")
