@@ -170,11 +170,11 @@ class ProfileHandler(BaseHandler):
         with self.Session() as session:
             if user_id is None:
                 user_id = self.associated_user_object.id
-            user = session.scalars(
+            user = session.scalar(
                 User.select(session.user_or_token, mode="update").where(
                     User.id == user_id
                 )
-            ).first()
+            )
             if user is None:
                 return self.error(f"Cannot find User with ID: {user_id}")
 
@@ -186,16 +186,20 @@ class ProfileHandler(BaseHandler):
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
-                single_user_group = session.scalars(
-                    sa.select(Group)
-                    .join(GroupUser)
+                single_user_group_id = session.scalar(
+                    sa.select(Group.id)
+                    .join(GroupUser, GroupUser.group_id == Group.id)
                     .where(
                         Group.single_user_group.is_(True),
                         GroupUser.user_id == user.id,
                     )
-                ).first()
-                if single_user_group is not None:
-                    single_user_group.name = slugify(username)
+                )
+                if single_user_group_id is not None:
+                    session.execute(
+                        sa.update(Group)
+                        .where(Group.id == single_user_group_id)
+                        .values(name=slugify(username))
+                    )
 
             if data.get("first_name") is not None:
                 user.first_name = data.pop("first_name")
