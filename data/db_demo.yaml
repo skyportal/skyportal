@@ -397,9 +397,19 @@ telescope:
     nickname: SOAR
     lat: -30.2379
     lon: -70.7337
-    elevation: 2738
-    robotic: true
     diameter: 4.1
+    elevation: 2734.0
+    robotic: true
+    fixed_location: true
+    =id: SOAR-T
+  - name: Southern Astrophysical Research Telescope
+    nickname: SOAR
+    lat: -30.2380
+    lon: -70.7337
+    diameter: 4.1
+    elevation: 2738.0
+    robotic: false
+    fixed_location: true
     =id: SOAR
   - name: FRAM-Auger Telescope
     nickname: FRAM-Auger
