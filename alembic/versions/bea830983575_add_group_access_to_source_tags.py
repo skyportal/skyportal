@@ -1,7 +1,7 @@
 """Add group access to source tags
 
 Revision ID: bea830983575
-Revises: 7678f8674917
+Revises: 9a7b5f6aa515
 Create Date: 2026-03-05 10:07:06.254535
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "bea830983575"
-down_revision = "7678f8674917"
+down_revision = "9a7b5f6aa515"
 branch_labels = None
 depends_on = None
 
