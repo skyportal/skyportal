@@ -1,12 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-} from "@mui/material/styles";
+import { StyledEngineProvider } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
 import MUIDataTable from "mui-datatables";
@@ -19,138 +15,90 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 
 import ManageUserButtons from "./GroupPageManageUserButtons";
-import NewGroupUserForm from "./NewGroupUserForm";
-import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
-import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
+import AddUserForm from "./AddUserForm";
+import InviteNewUserForm from "./InviteNewUserForm";
+import AddGroupOfUsersForm from "./AddGroupOfUsersForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableHeadCell: {
-        hintIconAlone: {
-          marginTop: 0,
-        },
-        hintIconWithSortIcon: {
-          marginTop: 0,
-        },
-        sortLabelRoot: {
-          height: "auto",
-          marginBottom: "auto",
-        },
-      },
-    },
-  });
-
-const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [openedPopoverId, setOpenedPopoverId] = React.useState(null);
-  const [panelMembersExpanded, setPanelMembersExpanded] =
-    React.useState("panel-members");
+const GroupUsers = ({ group, currentUser, theme, isAdmin }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [openedPopover, setOpenedPopover] = useState(null);
   const { invitationsEnabled } = useSelector((state) => state.config);
+  const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
 
   const handlePopoverOpen = (event, popoverId) => {
-    setOpenedPopoverId(popoverId);
+    setOpenedPopover(popoverId);
     setAnchorEl(event.target);
   };
 
   const handlePopoverClose = () => {
-    setOpenedPopoverId(null);
+    setOpenedPopover(null);
     setAnchorEl(null);
   };
 
-  const handlePanelMembersChange = (panel) => (event, isExpanded) => {
-    setPanelMembersExpanded(isExpanded ? panel : false);
-  };
-
-  const openManageUserPopover = Boolean(anchorEl);
-  const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
-  // Mobile manage user popover
-  const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
-
-  // Set-up members table
-  // MUI DataTable functions
   const renderUsername = (dataIndex) => {
     const user = group?.users[dataIndex];
-    return (
-      <Link to={`/user/${user.id}`} className={classes.filterLink}>
-        {user.username}
-      </Link>
-    );
+    return <Link to={`/user/${user.id}`}>{user.username}</Link>;
   };
 
   const renderAdmin = (dataIndex) => {
     const user = group?.users[dataIndex];
     return (
-      user &&
-      user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
-        </div>
+      user?.admin && (
+        <Chip
+          label="Admin"
+          size="small"
+          id={`${user.id}-admin-chip`}
+          color="primary"
+        />
       )
     );
   };
 
   const renderActions = (dataIndex) => {
-    const user = group?.users[dataIndex];
-    return (
+    if (!group) return null;
+    const user = group.users[dataIndex];
+    return mobile ? (
       <div>
-        {group &&
-          (mobile ? (
-            <div>
-              <IconButton
-                edge="end"
-                aria-label="open-manage-user-popover"
-                onClick={(e) => handlePopoverOpen(e, user.id)}
-                size="large"
-              >
-                <MoreVertIcon />
-              </IconButton>
-              <Popover
-                id={popoverId}
-                open={openedPopoverId === user.id}
-                anchorEl={anchorEl}
-                onClose={handlePopoverClose}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "center",
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "center",
-                }}
-              >
-                <div className={classes.manageUserPopover}>
-                  <ManageUserButtons
-                    loadedId={group.id}
-                    user={user}
-                    isAdmin={isAdmin}
-                    group={group}
-                    currentUser={currentUser}
-                  />
-                </div>
-              </Popover>
-            </div>
-          ) : (
-            <ManageUserButtons
-              loadedId={group.id}
-              user={user}
-              isAdmin={isAdmin}
-              group={group}
-              currentUser={currentUser}
-            />
-          ))}
+        <IconButton
+          edge="end"
+          onClick={(e) => handlePopoverOpen(e, user.id)}
+          size="large"
+        >
+          <MoreVertIcon />
+        </IconButton>
+        <Popover
+          open={openedPopover === user.id}
+          anchorEl={anchorEl}
+          onClose={handlePopoverClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        >
+          <ManageUserButtons
+            loadedId={group.id}
+            user={user}
+            isAdmin={isAdmin}
+            group={group}
+            currentUser={currentUser}
+          />
+        </Popover>
       </div>
+    ) : (
+      <ManageUserButtons
+        loadedId={group.id}
+        user={user}
+        isAdmin={isAdmin}
+        group={group}
+        currentUser={currentUser}
+      />
     );
   };
 
-  // Map first and last name into a single name field
   const groupUsers = group?.users?.map((user) => ({
-    name: `${user.first_name ? user.first_name : ""} ${
-      user.last_name ? user.last_name : ""
+    name: `${user.first_name || ""}${user.first_name && user.last_name && " "}${
+      user.last_name || ""
     }`,
     ...user,
   }));
@@ -202,6 +150,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     print: true,
     download: true,
     search: true,
+    elevation: 0,
     selectableRows: "none",
     enableNestedDataAccess: ".",
     rowsPerPage: 25,
@@ -213,48 +162,40 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   };
 
   return (
-    <Accordion
-      expanded={panelMembersExpanded === "panel-members"}
-      onChange={handlePanelMembersChange("panel-members")}
-    >
+    <Accordion defaultExpanded>
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
         aria-controls="panel-members-content"
         id="panel-members-header"
-        className={classes.accordion_summary}
       >
-        <Typography className={classes.heading}>Members</Typography>
+        <Typography variant="h6">Members</Typography>
       </AccordionSummary>
-      <AccordionDetails className={classes.accordion_details}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
+      <AccordionDetails>
+        <Box display="flex" flexDirection="column" gap={3}>
+          <StyledEngineProvider injectFirst>
             <MUIDataTable
               columns={columns}
-              data={group?.users ? groupUsers : []}
+              data={groupUsers || []}
               options={options}
             />
-          </ThemeProvider>
-        </StyledEngineProvider>
-        <Divider />
-        <div className={classes.paper}>
+          </StyledEngineProvider>
           {isAdmin(currentUser) && (
             <>
-              <br />
-              <NewGroupUserForm group_id={group.id} />
-              <br />
+              <Divider />
+              <Typography variant="h6">Adding users to this group</Typography>
+              <AddUserForm groupID={group.id} />
+              <AddGroupOfUsersForm groupID={group.id} />
               {invitationsEnabled && (
                 <>
-                  <br />
-                  <InviteNewGroupUserForm group_id={group.id} />
+                  <Divider />
+                  <InviteNewUserForm groupID={group.id} />
                 </>
               )}
-              <br />
-              <AddUsersFromGroupForm groupID={group.id} />
-              <br />
+              <Divider />
               <GroupAdmissionRequestsManagement groupID={group.id} />
             </>
           )}
-        </div>
+        </Box>
       </AccordionDetails>
     </Accordion>
   );
@@ -274,7 +215,6 @@ GroupUsers.propTypes = {
       }),
     ),
   }).isRequired,
-  classes: PropTypes.shape().isRequired,
   theme: PropTypes.shape().isRequired,
   currentUser: PropTypes.shape({
     username: PropTypes.string,
