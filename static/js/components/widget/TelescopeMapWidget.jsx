@@ -8,7 +8,7 @@ import { Tooltip, IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
 
-const TelescopeMap = lazy(() => import("./TelescopeMap"));
+const TelescopeMap = lazy(() => import("../telescope/TelescopeMap"));
 
 const useStyles = makeStyles((theme) => ({
   mapContainer: {
