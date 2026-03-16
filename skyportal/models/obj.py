@@ -551,8 +551,7 @@ class Obj(Base, conesearch_alchemy.Point):
             log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
         except Exception as e:
             log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
-        finally:
-            return cutout_url
+        return cutout_url
 
     @property
     def target(self):
