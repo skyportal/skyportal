@@ -347,14 +347,6 @@ telescope:
     nickname: ATLAS-0.5m
     skycam_link: null
     =id: ATLAS-0p5m
-  - diameter: 8.4
-    elevation: 2207.0
-    lat: -30.1716
-    lon: -70.8009
-    name: Rubin Observatory Simonyi Survey Telescope
-    nickname: Rubin
-    skycam_link: null
-    =id: Rubin
   - diameter: 1.2
     elevation: 2207.0
     lat: -30.1716
@@ -694,18 +686,16 @@ instrument:
     =id: ATLAS
     api_classname: ATLASAPI
     filters: ["atlasc", "atlaso"]
-  - band: optical
-    name: LSST
-    telescope_id: =Rubin
+  - name: LSST
     type: imager
-    =id: LSST
-    api_classname: GENERICAPI
-    api_classname_obsplan: MMAAPI
+    band: optical
+    telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
     # field_data:
     #   file: ../data/LSST_Fields.csv
-    field_fov_type: circle
-    field_fov_attributes: 1.75
+    field_fov_type: rectangle
+    field_fov_attributes: [3.113, 3.113]
+    =id: LSST
   - band: optical
     name: AuxTel
     telescope_id: =AuxTel-1p2m
@@ -821,12 +811,6 @@ instrument:
     telescope_id: =GOTO-N
     filters: [ 'gotob', 'gotog', 'gotol', 'gotor' ]
     =id: GOTO
-  - name: LSST
-    type: imager
-    band: optical
-    telescope_id: =Simonyi
-    filters: ['lsstg', 'lssti', 'lsstr', 'lsstu', 'lssty', 'lsstz']
-    =id: LSST
   - name: ASAS-SN
     type: imager
     band: optical
