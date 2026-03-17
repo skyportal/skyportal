@@ -214,7 +214,6 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
-from .tns.tns_groups import TNSGroupsHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
