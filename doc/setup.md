@@ -18,11 +18,17 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 
 ## Source download, Python environment
 
-First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal):
+First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and its submodule [Baselayer](https://github.com/cesium-ml/baselayer/):
 
 ```
-git clone https://github.com/skyportal/skyportal.git
+git clone --recurse-submodules https://github.com/skyportal/skyportal.git
 cd skyportal/
+```
+
+If you already cloned the repository without `--recurse-submodules`, you can initialize the submodules with:
+
+```
+git submodule update --init --recursive
 ```
 
 Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in once command:
