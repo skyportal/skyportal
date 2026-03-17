@@ -21,8 +21,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GroupList = ({ title, groups, classes }) => {
+const GroupList = ({ title, groups, classes, linkToGroupSources }) => {
   const styles = useStyles();
+
+  const getLink = (group) =>
+    linkToGroupSources ? `/group_sources/${group.id}` : `/group/${group.id}`;
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -40,7 +43,7 @@ const GroupList = ({ title, groups, classes }) => {
             groups
               .filter((group) => !group.single_user_group)
               .map((group) => (
-                <Link to={`/group/${group.id}`} key={group.id}>
+                <Link to={getLink(group)} key={group.id}>
                   <ListItem
                     key={group.id}
                     button
@@ -64,9 +67,11 @@ GroupList.propTypes = {
     widgetIcon: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
+  linkToGroupSources: PropTypes.bool,
 };
 GroupList.defaultProps = {
   groups: [],
+  linkToGroupSources: false,
 };
 
 export default GroupList;
