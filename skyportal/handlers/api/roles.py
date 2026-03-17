@@ -28,12 +28,14 @@ class RoleHandler(BaseHandler):
                             $ref: '#/components/schemas/Role'
                           description: List of all Roles.
         """
-        roles = Role.query.all()
-        for i, role in enumerate(roles):
-            roles[i] = role.to_dict()
-            roles[i]["acls"] = [acl.id for acl in role.acls]
-        self.verify_and_commit()
-        return self.success(data=roles)
+        with self.Session() as session:
+            roles = session.scalars(Role.select(self.associated_user_object)).all()
+            output = []
+            for role in roles:
+                role_dict = role.to_dict()
+                role_dict["acls"] = [acl.id for acl in role.acls]
+                output.append(role_dict)
+            return self.success(data=output)
 
 
 class UserRoleHandler(BaseHandler):
@@ -74,19 +76,38 @@ class UserRoleHandler(BaseHandler):
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
             return self.error("Missing required parameter roleIds")
-        if (not isinstance(new_role_ids, list | tuple)) or (
-            not all(Role.query.get(role_id) is not None for role_id in new_role_ids)
+        if not isinstance(new_role_ids, list) or not all(
+            isinstance(role_id, str) for role_id in new_role_ids
         ):
             return self.error(
                 "Improperly formatted parameter roleIds; must be an array of strings."
             )
-        user = User.query.get(user_id)
-        if user is None:
-            return self.error("Invalid user_id parameter.")
-        new_roles = Role.query.filter(Role.id.in_(new_role_ids)).all()
-        user.roles = list(set(user.roles).union(set(new_roles)))
-        self.verify_and_commit()
-        return self.success()
+
+        with self.Session() as session:
+            user = session.scalar(
+                User.select(self.associated_user_object).where(User.id == user_id)
+            )
+            if user is None:
+                return self.error("Invalid user_id parameter.")
+            # if some of the requested role IDs are invalid, return an error listing the invalid IDs
+            valid_role_ids = set(
+                session.scalars(
+                    Role.select(self.associated_user_object, columns=[Role.id]).where(
+                        Role.id.in_(new_role_ids)
+                    )
+                ).all()
+            )
+            invalid_role_ids = set(new_role_ids) - valid_role_ids
+            if invalid_role_ids:
+                return self.error(f"Invalid role_id(s): {', '.join(invalid_role_ids)}")
+            new_roles = session.scalars(
+                Role.select(self.associated_user_object).where(
+                    Role.id.in_(new_role_ids)
+                )
+            ).all()
+            user.roles = list(set(user.roles).union(set(new_roles)))
+            session.commit()
+            return self.success()
 
     @permissions(["Manage users"])
     def delete(self, user_id, role_id):
@@ -113,16 +134,19 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = User.query.get(user_id)
-        if user is None:
-            return self.error("Invalid user_id")
-        role = Role.query.get(role_id)
-        if role is None:
-            return self.error("Invalid role_id")
-        (
-            UserRole.query.filter(UserRole.user_id == user_id)
-            .filter(UserRole.role_id == role_id)
-            .delete()
-        )
-        self.verify_and_commit()
-        return self.success()
+        with self.Session() as session:
+            user = session.scalar(
+                User.select(self.associated_user_object).where(User.id == user_id)
+            )
+            if user is None:
+                return self.error("Invalid user_id parameter.")
+            user_role = session.scalar(
+                UserRole.select(self.associated_user_object).where(
+                    UserRole.user_id == user_id, UserRole.role_id == role_id
+                )
+            )
+            if user_role is None:
+                return self.error("User does not have specified role.")
+            session.delete(user_role)
+            session.commit()
+            return self.success()

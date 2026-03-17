@@ -18,30 +18,22 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 
 ## Source download, Python environment
 
-Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
-virtual environment.
+First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal):
 
 ```
 git clone https://github.com/skyportal/skyportal.git
 cd skyportal/
-virtualenv skyportal_env
-source skyportal_env/bin/activate
 ```
 
-You can also use `conda` or `pipenv` to create your environment.
-
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
-
+Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in once command:
 ```
-CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.10
-conda activate skyportal_env
-conda config --env --set subdir osx-64
-conda config --add channels conda-forge
-conda config --set channel_priority strict
+uv sync
 ```
 
-
+Thereafter, to enter the environment, simply run:
+```
+source .venv/bin/activate
+```
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
@@ -96,19 +88,6 @@ After installing each package, Homebrew will print out the installation paths. Y
 	brew install graphviz
 	```
 
-5. Activate the environment and add a few (hard-to install-with-pip) packages by hand:
-
-	```
-	conda activate skyportal_env
-	conda install pyproj numba Shapely
-	```
-
-5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
-
-   ```
-   conda activate skyportal_env
-   conda install ligo.skymap
-   ```
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -134,6 +113,15 @@ Typically, Homebrew provides these paths upon successful installation. You can a
 ```
 brew info <name_of_package>
 ```
+
+If you want to build the docs and installed graphviz, you may need to add its `include` and `lib` directories to your `CFLAGS` and `LDFLAGS` environment variables, respectively, in your `.zshrc` file:
+```
+export CFLAGS="-I$(brew --prefix graphviz)/include"
+export LDFLAGS="-L$(brew --prefix graphviz)/lib"
+```
+
+*Remember to source your `.zshrc` file after making these changes with `source ~/.zshrc`.*
+
 #### Alias pip3 and python3
 Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
 
@@ -152,7 +140,7 @@ SkyPortal defaults to using port 5000. However, this port may already be in use 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port (in `config.yaml`, and if you intend to run the unit tests, then also in `test_config.yaml`).
 
 ## Installation: Debian-based Linux and WSL
 
@@ -222,7 +210,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env: `conda activate skyportal_env`
+0. Make sure you are in the skyportal env: `uv sync && source .venv/bin/activate`.
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.

@@ -23,8 +23,8 @@ class Validator(Schema):
     method = fields.Str(required=True)
     dateobs = UTCTZnaiveDateTime(required=True)
     source_id = fields.String()
-    start_date = UTCTZnaiveDateTime(required=False, missing=None)
-    end_date = UTCTZnaiveDateTime(required=False, missing=None)
+    start_date = UTCTZnaiveDateTime(required=False, load_default=None)
+    end_date = UTCTZnaiveDateTime(required=False, load_default=None)
     confirmed = fields.Boolean(
         truthy=["true", "True", "confirmed", True],
         falsy=["false", "False", "rejected", False],

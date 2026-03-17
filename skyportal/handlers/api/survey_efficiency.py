@@ -58,39 +58,43 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-
-        # get owned efficiency analyses
-        survey_efficiency_analyses = (
-            SurveyEfficiencyForObservationPlan.query_records_accessible_by(
-                self.current_user
-            )
-        )
-
-        if survey_efficiency_analysis_id is not None:
-            try:
-                survey_efficiency_analysis_id = int(survey_efficiency_analysis_id)
-            except ValueError:
-                return self.error(
-                    "SurveyEfficiencyForObservationPlan ID must be an integer."
+        with self.Session() as session:
+            if survey_efficiency_analysis_id is not None:
+                try:
+                    survey_efficiency_analysis_id = int(survey_efficiency_analysis_id)
+                except ValueError:
+                    return self.error(
+                        "SurveyEfficiencyForObservationPlan ID must be an integer."
+                    )
+                survey_efficiency_analyses = session.scalar(
+                    SurveyEfficiencyForObservationPlan.select(
+                        self.associated_user_object
+                    ).where(
+                        SurveyEfficiencyForObservationPlan.id
+                        == survey_efficiency_analysis_id
+                    )
                 )
-            survey_efficiency_analyses = survey_efficiency_analyses.filter(
-                SurveyEfficiencyForObservationPlan.id == survey_efficiency_analysis_id
-            ).all()
-            if len(survey_efficiency_analyses) == 0:
-                return self.error("Could not retrieve survey efficiency analyses.")
-            return self.success(data=survey_efficiency_analyses[0])
+                if survey_efficiency_analyses is None:
+                    return self.error(
+                        f"Could not retrieve survey efficiency analysis with id {survey_efficiency_analysis_id}."
+                    )
+                return self.success(data=survey_efficiency_analyses)
 
-        observation_plan_id = self.get_query_argument("observation_plan_id", None)
-        if observation_plan_id is not None:
-            survey_efficiency_analyses = survey_efficiency_analyses.filter(
-                SurveyEfficiencyForObservationPlan.observation_plan_id
-                == observation_plan_id
+            stmt = SurveyEfficiencyForObservationPlan.select(
+                self.associated_user_object
             )
-
-        survey_efficiency_analyses = survey_efficiency_analyses.all()
-        self.verify_and_commit()
-
-        return self.success(data=survey_efficiency_analyses)
+            observation_plan_id = self.get_query_argument("observation_plan_id", None)
+            if observation_plan_id is not None:
+                try:
+                    observation_plan_id = int(observation_plan_id)
+                except ValueError:
+                    return self.error("Observation plan ID must be an integer.")
+                stmt = stmt.where(
+                    SurveyEfficiencyForObservationPlan.observation_plan_id
+                    == observation_plan_id
+                )
+            survey_efficiency_analyses = session.scalars(stmt).all()
+            return self.success(data=survey_efficiency_analyses)
 
 
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
@@ -141,37 +145,40 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
                   schema: Error
         """
 
-        # get owned efficiency analyses
-        survey_efficiency_analyses = (
-            SurveyEfficiencyForObservations.query_records_accessible_by(
-                self.current_user
-            )
-        )
-
-        if survey_efficiency_analysis_id is not None:
-            try:
-                survey_efficiency_analysis_id = int(survey_efficiency_analysis_id)
-            except ValueError:
-                return self.error(
-                    "SurveyEfficiencyForObservations ID must be an integer."
+        with self.Session() as session:
+            if survey_efficiency_analysis_id is not None:
+                try:
+                    survey_efficiency_analysis_id = int(survey_efficiency_analysis_id)
+                except ValueError:
+                    return self.error(
+                        "SurveyEfficiencyForObservations ID must be an integer."
+                    )
+                survey_efficiency_analyses = session.scalar(
+                    SurveyEfficiencyForObservations.select(
+                        self.associated_user_object
+                    ).where(
+                        SurveyEfficiencyForObservations.id
+                        == survey_efficiency_analysis_id
+                    )
                 )
-            survey_efficiency_analyses = survey_efficiency_analyses.filter(
-                SurveyEfficiencyForObservationPlan.id == survey_efficiency_analysis_id
-            ).all()
-            if len(survey_efficiency_analyses) == 0:
-                return self.error("Could not retrieve survey efficiency analyses.")
-            return self.success(data=survey_efficiency_analyses[0])
+                if survey_efficiency_analyses is None:
+                    return self.error(
+                        f"Could not retrieve survey efficiency analysis with id {survey_efficiency_analysis_id}."
+                    )
+                return self.success(data=survey_efficiency_analyses)
 
-        gcnevent_id = self.get_query_argument("gcnevent_id", None)
-        if gcnevent_id is not None:
-            survey_efficiency_analyses = survey_efficiency_analyses.filter(
-                SurveyEfficiencyForObservations.gcnevent_id == gcnevent_id
-            )
-
-        survey_efficiency_analyses = survey_efficiency_analyses.all()
-        self.verify_and_commit()
-
-        return self.success(data=survey_efficiency_analyses)
+            stmt = SurveyEfficiencyForObservations.select(self.associated_user_object)
+            gcnevent_id = self.get_query_argument("gcnevent_id", None)
+            if gcnevent_id is not None:
+                try:
+                    gcnevent_id = int(gcnevent_id)
+                except ValueError:
+                    return self.error("GcnEvent ID must be an integer.")
+                stmt = stmt.where(
+                    SurveyEfficiencyForObservations.gcnevent_id == gcnevent_id
+                )
+            survey_efficiency_analyses = session.scalars(stmt).all()
+            return self.success(data=survey_efficiency_analyses)
 
 
 class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
