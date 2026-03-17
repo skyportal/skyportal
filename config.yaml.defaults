@@ -481,6 +481,7 @@ app:
         sm: [0, 6, 6, 3]
         xs: [0, 10, 4, 4]
 
+    # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
         title: My Groups

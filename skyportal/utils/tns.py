@@ -14,14 +14,12 @@ from bs4 import BeautifulSoup
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
 
 from ..models import Instrument
 from .calculations import great_circle_distance
+from .parse import is_null
 
 env, cfg = load_env()
-
-app_url = get_app_base_url()
 
 TNS_URL = cfg.get("app.tns.endpoint")
 
@@ -41,15 +39,18 @@ log = make_log("tns_utils")
 TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
-    "atlas": [153, 159, 160, 255, 256, 167],
+    "atlas": [153, 159, 160, 255, 256, 167, 290],
     "decam": 172,
     "efosc2": 30,
     "gaia": 163,
     "goodman": 136,
     "goto": [218, 264, 265, 266],
+    "kast": 10,
+    "lsst": 287,
     "ps1": [98, 154, 155, 257],
     "sedm": [149, 225],
     "sprat": 156,
+    "wifes": 115,
     "ztf": 196,
 }
 
@@ -68,10 +69,10 @@ SNCOSMO_TO_TNSFILTER = {
     "desz": 24,
     "desy": 81,
     "gaia::g": 75,
-    "gotol": 121,
-    "gotor": 122,
-    "gotog": 123,
-    "gotob": 124,
+    "gotol": 120,
+    "gotor": 121,
+    "gotog": 122,
+    "gotob": 123,
     "ps1::g": 56,
     "ps1::r": 57,
     "ps1::i": 58,
@@ -80,6 +81,12 @@ SNCOSMO_TO_TNSFILTER = {
     "ztfg": 110,
     "ztfr": 111,
     "ztfi": 112,
+    "lsstu": 160,
+    "lsstg": 161,
+    "lsstr": 162,
+    "lssti": 163,
+    "lsstz": 164,
+    "lssty": 165,
 }
 
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
@@ -133,6 +140,51 @@ def get_tns_url(url_type):
     return urllib.parse.urljoin(TNS_URL, tns_url_dict[url_type])
 
 
+def _tns_request(
+    api_key, headers, req_data, url_type="search", max_retries=24, retry_delay=30
+):
+    """Post a request to TNS with retry logic for rate limiting.
+
+    Parameters
+    ----------
+    api_key : str
+        TNS api key
+    headers : dict
+        TNS query headers
+    req_data : dict
+        The request data
+    url_type : str
+        TNS URL type ("search" or "object")
+    max_retries : int
+        Maximum number of retries on rate limit (429)
+    retry_delay : int
+        Seconds to wait between retries
+
+    Returns
+    -------
+    requests.Response
+        The response from the TNS API
+    """
+    data = {"api_key": api_key, "data": json.dumps(req_data)}
+    kwargs = {}
+    if url_type == "object":
+        kwargs = {"allow_redirects": True, "stream": True, "timeout": 10}
+    r = None
+    for _ in range(max_retries):
+        r = requests.post(get_tns_url(url_type), headers=headers, data=data, **kwargs)
+        if r.status_code != 429:
+            break
+        try:
+            content = r.json()
+        except Exception:
+            content = r.text
+        log(
+            f"TNS request rate limited: {str(content)}.  Waiting {retry_delay} seconds to try again."
+        )
+        time.sleep(retry_delay)
+    return r
+
+
 def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     """Query the TNS for all public sources posted since a given timestamp.
     Optionally, retrieve full source data (RA/Dec) for each object by querying individual object entries.
@@ -164,22 +216,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
         "objid": "",
     }
 
-    data = {"api_key": api_key, "data": json.dumps(req_data)}
-    max_retries = 24
-    retry_delay = 30
-    r = None
-    for _ in range(max_retries):
-        r = requests.post(get_tns_url("search"), headers=headers, data=data)
-        if r.status_code != 429:
-            break
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        log(
-            f"TNS request rate limited: {str(content)}.  Waiting {retry_delay} seconds to try again."
-        )
-        time.sleep(retry_delay)
+    r = _tns_request(api_key, headers, req_data, retry_delay=30)
 
     if r.status_code != 200:
         try:
@@ -200,37 +237,15 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     log(f"Found {len(reply)} recent sources from TNS since {str(public_timestamp)}")
     for i, obj in enumerate(reply):
         if get_data:
-            data = {
-                "api_key": api_key,
-                "data": json.dumps(
-                    {
-                        "objname": obj["objname"],
-                    }
-                ),
-            }
-
-            max_retries = 5
-            retry_delay = 30
-            for _ in range(max_retries):
-                r = requests.post(
-                    get_tns_url("object"),
-                    headers=headers,
-                    data=data,
-                    allow_redirects=True,
-                    stream=True,
-                    timeout=10,
-                )
-                if r.status_code != 429:
-                    break
-                try:
-                    content = r.json()
-                except Exception:
-                    content = r.text
-                log(
-                    f"TNS request rate limited: {str(content)}.  Waiting {retry_delay} seconds to try again."
-                )
-                time.sleep(retry_delay)
-            else:
+            r = _tns_request(
+                api_key,
+                headers,
+                {"objname": obj["objname"]},
+                url_type="object",
+                max_retries=5,
+                retry_delay=30,
+            )
+            if r is None or r.status_code == 429:
                 raise ValueError("TNS request failed: request rate exceeded.")
 
             if r.status_code == 200:
@@ -267,8 +282,6 @@ def get_IAUname(
     ----------
     api_key : str
         TNS api key
-    objname : str
-        Name of the object to query TNS for
     headers : dict
         TNS query headers
     obj_id : str
@@ -315,24 +328,9 @@ def get_IAUname(
     else:
         raise ValueError("Must define obj_id or ra/dec.")
 
-    data = {"api_key": api_key, "data": json.dumps(req_data)}
+    r = _tns_request(api_key, headers, req_data, retry_delay=10)
 
-    # 24 * 10 seconds = 4 minutes of retries
-    max_retries = 24
-    retry_delay = 10
-    for _ in range(max_retries):
-        r = requests.post(get_tns_url("search"), headers=headers, data=data)
-        if r.status_code != 429:
-            break
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        log(
-            f"TNS request rate limited: {str(content)}.  Waiting {retry_delay} seconds to try again."
-        )
-        time.sleep(retry_delay)
-    else:  # This else block executes if the for loop completes without a break
+    if r is None or r.status_code == 429:
         raise ValueError("Request failed, request rate exceeded.")
 
     if r.status_code == 401:
@@ -356,29 +354,15 @@ def get_IAUname(
         if closest and len(reply) > 1:
             closest_separation = float(radius)
             for obj in reply:
-                data = {
-                    "api_key": api_key,
-                    "data": json.dumps(
-                        {
-                            "objname": obj["objname"],
-                        }
-                    ),
-                }
-                r = None
-                for _ in range(max_retries):
-                    r = requests.post(
-                        get_tns_url("object"),
-                        headers=headers,
-                        data=data,
-                        allow_redirects=True,
-                        stream=True,
-                        timeout=10,
-                    )
-                    if r.status_code != 429:
-                        break
-                    time.sleep(retry_delay)
+                r = _tns_request(
+                    api_key,
+                    headers,
+                    {"objname": obj["objname"]},
+                    url_type="object",
+                    retry_delay=10,
+                )
 
-                if r.status_code != 200:
+                if r is None or r.status_code != 200:
                     # ignore this object
                     continue
 
@@ -418,37 +402,15 @@ def get_internal_names(api_key, headers, tns_name=None):
     list
         Internal names of the object
     """
-    data = {
-        "api_key": api_key,
-        "data": json.dumps(
-            {
-                "objname": tns_name,
-            }
-        ),
-    }
+    r = _tns_request(
+        api_key,
+        headers,
+        {"objname": tns_name},
+        url_type="object",
+        retry_delay=10,
+    )
 
-    max_retries = 24
-    retry_delay = 10
-    for _ in range(max_retries):
-        r = requests.post(
-            get_tns_url("object"),
-            headers=headers,
-            data=data,
-            allow_redirects=True,
-            stream=True,
-            timeout=10,
-        )
-        if r.status_code != 429:
-            break
-        try:
-            content = r.json()
-        except Exception:
-            content = r.text
-        log(
-            f"TNS request rate limited: {str(content)}. Waiting {retry_delay} seconds to try again."
-        )
-        time.sleep(retry_delay)
-    else:
+    if r is None or r.status_code == 429:
         raise ValueError("TNS request failed: request rate exceeded.")
 
     if r.status_code == 401:
@@ -463,7 +425,7 @@ def get_internal_names(api_key, headers, tns_name=None):
     try:
         reply = json.loads(r.text)
         internal_names = reply["data"]["internal_names"]
-        # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
+        # comma separated list of internal names, starting with a comma (so we filter out the first empty string after splitting)
         internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
     except Exception as e:
         raise ValueError(
@@ -491,10 +453,6 @@ def get_tns(
         User ID, by default None
     timeout : int, optional
         Timeout for the request, by default 2
-    Returns
-    -------
-    dict
-        TNS data
     """
     if obj_id is None:
         raise ValueError("obj_id")
@@ -514,6 +472,42 @@ def get_tns(
         )
 
 
+def _resolve_tns_instrument(tns_instrument_id, session):
+    """Resolve a TNS instrument ID to a local Instrument object.
+
+    Parameters
+    ----------
+    tns_instrument_id : int
+        TNS instrument ID
+    session : sqlalchemy.orm.Session
+        Database session
+
+    Returns
+    -------
+    Instrument
+        The matching Instrument object
+    """
+    inst_name = None
+    for key, value in TNS_INSTRUMENT_IDS.items():
+        if isinstance(value, list):
+            if tns_instrument_id in value:
+                inst_name = key
+                break
+        else:
+            if tns_instrument_id == value:
+                inst_name = key
+                break
+    if inst_name is None:
+        raise ValueError(f"Cannot find TNS ID mapping for {tns_instrument_id}")
+
+    instrument = session.scalars(
+        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
+    ).first()
+    if instrument is None:
+        raise ValueError(f"Cannot find instrument with name {inst_name}")
+    return instrument
+
+
 def read_tns_photometry(photometry, session):
     """Read TNS photometry data
 
@@ -529,23 +523,7 @@ def read_tns_photometry(photometry, session):
     dict
         Formatted photometry data
     """
-    tns_instrument_id = photometry["instrument"]["id"]
-    inst_name = None
-    for key, value in TNS_INSTRUMENT_IDS.items():
-        if isinstance(value, list):
-            if tns_instrument_id in value:
-                inst_name = key
-        else:
-            if tns_instrument_id == value:
-                inst_name = key
-    if inst_name is None:
-        raise ValueError(f"Cannot find TNS ID mapping for {tns_instrument_id}")
-
-    instrument = session.scalars(
-        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
-    ).first()
-    if instrument is None:
-        raise ValueError(f"Cannot find instrument with name {inst_name}")
+    instrument = _resolve_tns_instrument(photometry["instrument"]["id"], session)
 
     flux_unit = photometry["flux_unit"]
     if not flux_unit["name"] == "ABMag":
@@ -559,13 +537,13 @@ def read_tns_photometry(photometry, session):
     if filter_name not in instrument.filters:
         raise ValueError(f"{filter_name} not in {instrument.name}")
 
-    if photometry["limflux"] == "":
+    if is_null(photometry["limflux"]):
         data_out = {
             "mjd": [Time(photometry["jd"], format="jd").mjd],
             "mag": [photometry["flux"]],
             "magerr": [photometry["fluxerr"]]
             if photometry["fluxerr"] not in ["", None]
-            else 0.0,
+            else [0.0],
             "limiting_mag": [photometry["flux"]],
             "filter": [filter_name],
             "magsys": ["ab"],
@@ -613,23 +591,7 @@ def read_tns_spectrum(spectrum, session):
     data["observed_at"] = Time(spectrum["jd"], format="jd").isot
     data["origin"] = "TNS"
 
-    tns_instrument_id = spectrum["instrument"]["id"]
-    inst_name = None
-    for key, value in TNS_INSTRUMENT_IDS.items():
-        if isinstance(value, list):
-            if tns_instrument_id in value:
-                inst_name = key
-        else:
-            if tns_instrument_id == value:
-                inst_name = key
-    if inst_name is None:
-        raise ValueError(f"Cannot find TNS ID mapping for {tns_instrument_id}")
-
-    instrument = session.scalars(
-        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
-    ).first()
-    if instrument is None:
-        raise ValueError(f"Cannot find instrument with name {inst_name}")
+    instrument = _resolve_tns_instrument(spectrum["instrument"]["id"], session)
     data["instrument_id"] = instrument.id
 
     return data
@@ -656,7 +618,7 @@ def get_objects_from_soup(soup):
         return objects  # no objects found in that soup
     for row in table_rows:
         try:
-            # if the row doesnt have the class class="row-odd public odd" then skip it
+            # if the row doesn't have the class="row-odd public odd" then skip it
             if not {"public", "odd"}.issubset(set(row.attrs.get("class", []))):
                 continue
             name = str(
@@ -700,7 +662,6 @@ def get_objects_from_page(
     n_retries = 0
     objects = []
     total_pages = page
-    next_page = True
     while n_retries < 6:
         try:
             response = requests.get(
@@ -729,36 +690,3 @@ def get_objects_from_page(
 
     next_page = page < int(total_pages)
     return objects, next_page
-
-
-def get_tns_objects(headers, discovered_period_value=5, discovered_period_units="days"):
-    """Get all objects from TNS
-
-    Parameters
-    ----------
-    headers : dict
-        Headers to use for the request
-    discovered_period_value : int, optional
-        Discovered period value, by default 5
-    discovered_period_units : str, optional
-        Discovered period units, by default 'days'
-
-    Returns
-    -------
-    list
-        A list of dictionaries with the keys 'name', 'ra', and 'dec'
-    """
-    all_objects = []
-    page = 0
-    next_page = True
-    while next_page:
-        try:
-            objects, next_page = get_objects_from_page(
-                headers, page, discovered_period_value, discovered_period_units
-            )
-            all_objects.extend(objects)
-            page += 1
-        except Exception:
-            pass
-        time.sleep(1)
-    return all_objects
