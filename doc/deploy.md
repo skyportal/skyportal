@@ -49,12 +49,12 @@ The key behavior to note when running production mode is that the application wi
 
 To initialize an empty database, run:
 ```
-docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--config=config.yaml" make db_create_tables'
+docker exec skyportal-web-1 bash -c 'source .venv/bin/activate && FLAGS="--config=config.yaml" make db_create_tables'
 ```
 
 To load an example database, run:
 ```
-docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
+docker exec skyportal-web-1 bash -c 'source .venv/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
 ```
 
 *Notes:*
