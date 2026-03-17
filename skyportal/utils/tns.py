@@ -218,7 +218,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
 
     r = _tns_request(api_key, headers, req_data, retry_delay=30)
 
-    if r is None or r.status_code != 200:
+    if r.status_code != 200:
         try:
             content = r.json()
         except Exception:
