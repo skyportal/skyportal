@@ -72,7 +72,7 @@ def update_summary_history_if_relevant(results_data, obj, user):
         summary_history = copy(obj.summary_history) if obj.summary_history else []
         summary_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.UTC).isoformat(),
             "summary": results_data["summary"],
             "is_bot": results_data.get("is_bot", False),
             "analysis_id": results_data.get("analysis_id"),
@@ -91,7 +91,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
         redshift_history = copy(obj.redshift_history) if obj.redshift_history else []
         history_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.UTC).isoformat(),
             "value": request_data["redshift"],
             "uncertainty": request_data.get("redshift_error"),
         }
