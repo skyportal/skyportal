@@ -5,7 +5,7 @@
 Install our pre-commit hook as follows:
 
 ```
-pip install pre-commit
+uv pip install pre-commit
 pre-commit install
 ```
 
