@@ -494,3 +494,46 @@
   type: imaging spectrograph
   api_classname: MMIRSAPI
   =id: MMIRS
+- name: TTT
+  type: imager
+  band: optical
+  telescope_id: =TTT
+  filters: [ "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+  api_classname: TTTAPI
+  =id: TTT
+- name: GOTO
+  type: imager
+  band: optical
+  telescope_id: =GOTO-N
+  filters: [ 'gotob', 'gotog', 'gotol', 'gotor' ]
+  =id: GOTO
+- name: LSST
+  type: imager
+  band: optical
+  telescope_id: =Simonyi
+  filters: ['lsstg', 'lssti', 'lsstr', 'lsstu', 'lssty', 'lsstz']
+  field_fov_type: rectangle
+  field_fov_attributes: [3.113, 3.113]
+  =id: LSST
+- name: ASAS-SN
+  type: imager
+  band: optical
+  telescope_id: =ASAS-SN
+  filters: ['sdssg']
+  =id: ASAS-SN
+- name: Gaia
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =Gaia
+  filters: ['gaia::g', 'gaia::gbp', 'gaia::grp', 'gaia::grvs']
+  =id: Gaia
+- name: Goodman
+  type: imaging spectrograph
+  band: optical
+  telescope_id: =SOAR
+  =id: Goodman
+- name: WIFES
+  type: spectrograph
+  band: optical
+  telescope_id: =SSO
+  =id: WIFES
