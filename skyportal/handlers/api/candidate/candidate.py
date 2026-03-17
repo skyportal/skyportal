@@ -1708,14 +1708,14 @@ def grab_query_results(
                 query_id = str(uuid.uuid4())
                 all_ids = session.scalars(ordered_ids).unique().all()
                 cache[query_id] = array_to_bytes(all_ids)
-            totalMatches = len(all_ids)
+            total_matches = len(all_ids)
             obj_ids_in_page = all_ids[
                 ((page - 1) * n_items_per_page) : (page * n_items_per_page)
             ]
             info["queryID"] = query_id
         else:
             count_stmt = sa.select(func.count()).select_from(ordered_ids)
-            totalMatches = session.execute(count_stmt).scalar()
+            total_matches = session.execute(count_stmt).scalar()
             obj_ids_in_page = (
                 session.scalars(
                     ordered_ids.limit(n_items_per_page).offset(
@@ -1729,10 +1729,10 @@ def grab_query_results(
         info["numPerPage"] = n_items_per_page
     else:
         count_stmt = sa.select(func.count()).select_from(ordered_ids)
-        totalMatches = session.execute(count_stmt).scalar()
+        total_matches = session.execute(count_stmt).scalar()
         obj_ids_in_page = session.execute(ordered_ids).unique().all()
 
-    info["totalMatches"] = totalMatches
+    info["totalMatches"] = total_matches
 
     if page:
         if (
@@ -1759,7 +1759,7 @@ def grab_query_results(
         options.append(joinedload(Obj.photstats))
 
     items = []
-    if obj_ids_in_page:
+    if len(obj_ids_in_page) > 0:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
