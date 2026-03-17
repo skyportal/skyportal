@@ -121,7 +121,7 @@ jobs:
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          uv sync --inexact --group test
+          uv sync --inexact --group dev
           make db_init
 
           npm ls --depth 0 || true

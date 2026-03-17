@@ -31,9 +31,14 @@ If you already cloned the repository without `--recurse-submodules`, you can ini
 git submodule update --init --recursive
 ```
 
-Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in once command:
+Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in one command:
 ```
 uv sync
+```
+
+If you intend to do development work (running tests, using pre-commit hooks, etc.), install the dev dependencies instead:
+```
+uv sync --group dev
 ```
 
 Thereafter, to enter the environment, simply run:
