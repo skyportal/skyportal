@@ -3,7 +3,11 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, CustomUserAccessControl, join_model
 from skyportal.models import User
-from skyportal.models.group import accessible_by_groups_members
+from skyportal.models.group import (
+    Group,
+    accessible_by_group_members,
+    accessible_by_groups_members,
+)
 from skyportal.models.obj import Obj
 
 
@@ -54,6 +58,11 @@ ObjTag.author_id = sa.Column(
 
 ObjTag.author = relationship(User, doc="The associated User")
 
+GroupObjTag = join_model("group_obj_tags", Group, ObjTag)
+GroupObjTag.__doc__ = "Join table mapping Groups to ObjTags."
+GroupObjTag.create = accessible_by_group_members
+GroupObjTag.delete = GroupObjTag.update = accessible_by_group_members
+
 ObjTag.groups = relationship(
     "Group",
     secondary="group_obj_tags",
@@ -61,6 +70,15 @@ ObjTag.groups = relationship(
     cascade="save-update, merge, refresh-expire, expunge",
     passive_deletes=True,
     doc="Groups that can access this object tag.",
+)
+
+Group.obj_tags = relationship(
+    ObjTag,
+    secondary="group_obj_tags",
+    back_populates="groups",
+    cascade="save-update, merge, refresh-expire, expunge",
+    passive_deletes=True,
+    doc="Object tags associated with this group.",
 )
 
 ObjTag.create = ObjTag.read = accessible_by_groups_members
