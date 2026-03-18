@@ -1,11 +1,17 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
 import * as groupsActions from "../../ducks/groups";
 
-const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
+const DynamicTagDisplay = ({ source, styles }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
@@ -35,7 +41,7 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
     });
   }, [source.tags, userGroupIds]);
 
-  const measureTextWidth = (text) => {
+  const measureTextWidth = useCallback((text) => {
     if (!measureRef.current) return 0;
 
     // Temporary element to calculate the space it takes
@@ -55,10 +61,10 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
     document.body.removeChild(tempElement);
 
     return width;
-  };
+  }, []);
 
   // Calculate how many tags we can put on the container
-  const calculateVisibleTags = () => {
+  const calculateVisibleTags = useCallback(() => {
     if (
       !accessibleTags ||
       accessibleTags.length === 0 ||
@@ -89,7 +95,7 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
     }
 
     return Math.max(1, Math.min(visibleCount, accessibleTags.length));
-  };
+  }, [accessibleTags, measureTextWidth]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -121,9 +127,9 @@ const DynamicTagDisplay = ({ source, styles, displayTags = true }) => {
     if (containerRef.current && containerWidth === 0) {
       setContainerWidth(containerRef.current.offsetWidth);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!displayTags || !accessibleTags || accessibleTags.length === 0) {
+  if (!accessibleTags || accessibleTags.length === 0) {
     return null;
   }
 
@@ -231,7 +237,6 @@ DynamicTagDisplay.propTypes = {
     tagsContainer: PropTypes.string.isRequired,
     tagChip: PropTypes.string.isRequired,
   }).isRequired,
-  displayTags: PropTypes.bool.isRequired,
 };
 
 export default DynamicTagDisplay;

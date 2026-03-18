@@ -321,7 +321,7 @@ const RecentSourcesList = ({
   return (
     <div className={styles.sourceListContainer}>
       <ul className={styles.sourceList}>
-        {sources.map((source) => {
+        {sources.map((source, idx) => {
           const recentSourceName = `${source.obj_id}`;
           let classification = null;
           if (source.classifications.length > 0) {
@@ -349,7 +349,7 @@ const RecentSourcesList = ({
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
-            <li key={`recentSources_${source.obj_id}_${source.created_at}`}>
+            <li key={`recentSources_${source.obj_id}_${idx}`}>
               <Paper
                 variant="outlined"
                 square={false}
