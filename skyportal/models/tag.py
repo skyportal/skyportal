@@ -3,12 +3,7 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, CustomUserAccessControl, join_model
 from skyportal.models import User
-from skyportal.models.group import (
-    Group,
-    accessible_by_group_admins,
-    accessible_by_group_members,
-    accessible_by_groups_members,
-)
+from skyportal.models.group import accessible_by_groups_members
 from skyportal.models.obj import Obj
 
 
@@ -59,12 +54,6 @@ ObjTag.author_id = sa.Column(
 
 ObjTag.author = relationship(User, doc="The associated User")
 
-# Define the join table for Group-ObjTag relationship
-GroupObjTag = join_model("group_obj_tags", Group, ObjTag)
-GroupObjTag.__doc__ = "Join table mapping Groups to ObjTags."
-GroupObjTag.create = accessible_by_group_members
-GroupObjTag.delete = GroupObjTag.update = accessible_by_group_members
-
 ObjTag.groups = relationship(
     "Group",
     secondary="group_obj_tags",
@@ -74,16 +63,27 @@ ObjTag.groups = relationship(
     doc="Groups that can access this object tag.",
 )
 
-Group.obj_tags = relationship(
-    ObjTag,
-    secondary="group_obj_tags",
-    back_populates="groups",
-    cascade="save-update, merge, refresh-expire, expunge",
-    passive_deletes=True,
-    doc="Object tags associated with this group.",
-)
-
 ObjTag.create = ObjTag.read = accessible_by_groups_members
 ObjTag.update = ObjTag.delete = accessible_by_groups_members & CustomUserAccessControl(
     objtag_access_logic
 )
+
+
+def serialize_obj_tag(tag, user_group_ids):
+    """Serialize an ObjTag, filtering groups to only those the user can see.
+
+    Parameters
+    ----------
+    tag : ObjTag
+    user_group_ids : set or None
+        Set of group IDs the user belongs to. None means system admin (all groups visible).
+    """
+    return {
+        **tag.to_dict(),
+        "name": tag.objtagoption.name,
+        "groups": [
+            g.to_dict()
+            for g in tag.groups
+            if user_group_ids is None or g.id in user_group_ids
+        ],
+    }

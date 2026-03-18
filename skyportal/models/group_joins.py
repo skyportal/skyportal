@@ -27,9 +27,11 @@ __all__ = [
     "GroupDefaultAnalysis",
     "GroupPublicRelease",
     "GroupScanReport",
+    "GroupObjTag",
 ]
 
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
     AccessibleIfUserMatches,
@@ -72,6 +74,7 @@ from .survey_efficiency import (
     SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
 )
+from .tag import ObjTag
 from .taxonomy import Taxonomy
 
 GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
@@ -333,3 +336,17 @@ GroupPublicRelease.update = GroupPublicRelease.delete = (
 
 GroupScanReport = join_model("group_scan_reports", Group, ScanReport)
 GroupScanReport.__doc__ = "Join table mapping Groups to Scan Reports."
+
+GroupObjTag = join_model("group_obj_tags", Group, ObjTag)
+GroupObjTag.__doc__ = "Join table mapping Groups to ObjTags."
+GroupObjTag.create = accessible_by_group_members
+GroupObjTag.delete = GroupObjTag.update = accessible_by_group_members
+
+Group.obj_tags = relationship(
+    ObjTag,
+    secondary="group_obj_tags",
+    back_populates="groups",
+    cascade="save-update, merge, refresh-expire, expunge",
+    passive_deletes=True,
+    doc="Object tags associated with this group.",
+)

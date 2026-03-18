@@ -375,13 +375,23 @@ class ObjTagHandler(BaseHandler):
         data = self.get_json()
         objtagoption_id = data.get("objtagoption_id")
         obj_id = data.get("obj_id")
-        group_ids = data.get("group_ids", [])
+        group_ids = data.get("group_ids")
 
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
 
+        if group_ids is not None and len(group_ids) > 0:
+            if not isinstance(group_ids, list):
+                return self.error("`group_ids` must be a list of integers")
+            try:
+                group_ids = [int(gid) for gid in group_ids]
+            except (ValueError, TypeError):
+                return self.error("`group_ids` must be a list of integers")
+        else:
+            group_ids = None
+
         with self.Session() as session:
-            if not group_ids or not isinstance(group_ids, list) or len(group_ids) == 0:
+            if group_ids is None:
                 public_group_id = session.scalar(
                     sa.select(Group.id).where(
                         Group.name == cfg["misc.public_group_name"]
@@ -449,10 +459,7 @@ class ObjTagHandler(BaseHandler):
                 groups_to_add = valid_group_ids - existing_group_ids
 
                 if not groups_to_add:
-                    return self.error(
-                        "This tag is already associated with all the selected groups",
-                        status=400,
-                    )
+                    return self.success()
 
                 for group_id in groups_to_add:
                     group_obj_tag = GroupObjTag(
@@ -552,63 +559,42 @@ class ObjTagHandler(BaseHandler):
             current_tag_group_ids = {g.id for g in obj_tag.groups}
 
             if is_system_admin:
+                groups_to_remove = (
+                    set(requested_group_ids)
+                    if requested_group_ids
+                    else current_tag_group_ids
+                )
+            else:
+                user_group_ids = {g.id for g in self.current_user.accessible_groups}
                 if requested_group_ids:
-                    groups_to_remove = set(requested_group_ids)
-                else:
-                    groups_to_remove = current_tag_group_ids
-
-                for group_id in groups_to_remove:
-                    group_obj_tag = session.scalars(
-                        sa.select(GroupObjTag).where(
-                            GroupObjTag.obj_tag_id == association_id,
-                            GroupObjTag.group_id == group_id,
+                    groups_to_remove = set(requested_group_ids) & user_group_ids
+                    if not groups_to_remove:
+                        return self.error(
+                            "You don't have access to any of the specified groups",
+                            status=403,
                         )
-                    ).first()
-                    if group_obj_tag:
-                        session.delete(group_obj_tag)
+                else:
+                    groups_to_remove = current_tag_group_ids & user_group_ids
 
-                remaining_count = len(current_tag_group_ids) - len(
-                    groups_to_remove & current_tag_group_ids
-                )
-
-                if remaining_count == 0:
-                    session.delete(obj_tag)
-
-                session.commit()
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj_key},
-                )
-                return self.success(f"Successfully deleted tag {association_id}")
-
-            # For non-admin users, only remove their group associations
-            user_group_ids = {g.id for g in self.current_user.accessible_groups}
-
-            if requested_group_ids:
-                groups_to_remove = set(requested_group_ids) & user_group_ids
                 if not groups_to_remove:
                     return self.error(
-                        "You don't have access to any of the specified groups",
+                        "You don't have any group associations with this tag to remove",
                         status=403,
                     )
-            else:
-                groups_to_remove = current_tag_group_ids & user_group_ids
 
-            if not groups_to_remove:
-                return self.error(
-                    "You don't have any group associations with this tag to remove",
-                    status=403,
+            stmt = (
+                sa.select(GroupObjTag)
+                if is_system_admin
+                else GroupObjTag.select(session.user_or_token, mode="delete")
+            )
+            group_obj_tags = session.scalars(
+                stmt.where(
+                    GroupObjTag.obj_tag_id == association_id,
+                    GroupObjTag.group_id.in_(groups_to_remove),
                 )
-
-            for group_id in groups_to_remove:
-                group_obj_tag = session.scalars(
-                    sa.select(GroupObjTag).where(
-                        GroupObjTag.obj_tag_id == association_id,
-                        GroupObjTag.group_id == group_id,
-                    )
-                ).first()
-                if group_obj_tag:
-                    session.delete(group_obj_tag)
+            ).all()
+            for group_obj_tag in group_obj_tags:
+                session.delete(group_obj_tag)
 
             remaining_count = len(current_tag_group_ids) - len(
                 groups_to_remove & current_tag_group_ids

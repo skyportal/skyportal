@@ -84,6 +84,10 @@ def upgrade():
         )
         return
 
+    tag_count = bind.execute(sa.text("SELECT COUNT(*) FROM obj_tags")).scalar()
+    if tag_count == 0:
+        return
+
     bind.execute(
         sa.text(
             "INSERT INTO group_obj_tags (group_id, obj_tag_id, created_at, modified) "
