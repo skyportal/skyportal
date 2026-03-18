@@ -689,11 +689,8 @@ const SharingServicesPage = () => {
   );
 
   useEffect(() => {
-    const fetchData = async () => {
-      dispatch(streamsActions.fetchStreams());
-      dispatch(sharingServicesActions.fetchSharingServices());
-    };
-    fetchData();
+    dispatch(streamsActions.fetchStreams());
+    dispatch(sharingServicesActions.fetchSharingServices());
   }, [dispatch]);
 
   const sharingServicesListLookup = {};
@@ -817,7 +814,7 @@ const SharingServicesPage = () => {
       Number.isNaN(Number(tns_source_group_id))
     ) {
       errors.tns_source_group_id.addError(
-        "TNS source group ID must be a number.",
+        "TNS reporting group ID must be a number.",
       );
     }
     return errors;
@@ -1041,7 +1038,7 @@ const SharingServicesPage = () => {
           tns_bot_id: { type: "number", title: "TNS Bot ID" },
           tns_source_group_id: {
             type: "integer",
-            title: "TNS Source Group ID",
+            title: "TNS Reporting Group ID",
           },
           tns_api_key: { type: "string", title: "TNS API Key" },
           publish_existing_tns_objects: {
@@ -1096,7 +1093,7 @@ const SharingServicesPage = () => {
                     <br />- Bot Name:{" "}
                     {sharingServicesList[dataIndex].tns_bot_name}
                     <br />- Bot ID: {sharingServicesList[dataIndex].tns_bot_id}
-                    <br />- Source Group ID:{" "}
+                    <br />- Reporting Group ID:{" "}
                     {sharingServicesList[dataIndex].tns_source_group_id}
                     <br />- Report existing TNS objects:{" "}
                     {sharingServicesList[dataIndex].publish_existing_tns_objects
