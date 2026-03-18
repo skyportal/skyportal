@@ -347,7 +347,7 @@ def submit_to_tns(
 
         # Normalize the object ID to TNS-friendly format if a normalizer exists
         tns_internal_name, tns_data_source_id = get_tns_object_id_and_data_source_id(
-            obj_id
+            obj_id, photometry
         )
         if tns_internal_name is None or tns_data_source_id is None:
             raise ValueError(

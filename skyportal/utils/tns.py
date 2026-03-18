@@ -97,20 +97,20 @@ TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 SURVEYS = {
     "ZTF": {
         "discovery_data_source_id": 48,
-        "regex": r"ZTF\d{2}[a-z]{7}",  # ZTF + 2 digits + 7 lowercase characters
+        "regex": r"ZTF\d{2}[a-z]{7}$",  # ZTF + 2 digits + 7 lowercase characters
     },
     "DECAM": {
         "discovery_data_source_id": 88,
-        "regex": r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+        "regex": r"[ACT]20\d{6}\d{7}[pm]\d{6}$",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
     },
     "LSST": {
         "discovery_data_source_id": 165,
-        "regex": r"LSST-P-DO-\d+",  # LSST-P-DO- + diaObjectId (int64)
+        "regex": r"LSST-P-DO-\d+$",  # LSST-P-DO- + diaObjectId (int64)
     },
 }
 
 
-def get_tns_object_id_and_data_source_id(obj_id):
+def get_tns_object_id_and_data_source_id(obj_id, photometry):
     """Determine the TNS object ID and discovery data source ID for a given input object ID,
     supporting multiple surveys and input formats.
 
@@ -121,8 +121,11 @@ def get_tns_object_id_and_data_source_id(obj_id):
         For Rubin/LSST, accepts various formats:
         - Already correct: LSST-P-DO-<int64>
         - Variant separators: lsst-p-do-<int64>
-        - With diaObject prefix: diaObject_<int64>, diaObject-<int64>
+        - With diaObject prefix: diaObject<int64>, diaObject_<int64>, diaObject-<int64>, diaObject <int64>
+        - With LSST prefix: LSST<int64>, LSST_<int64>, LSST-<int64>, LSST <int64>
         - Raw diaObjectId (int64): <digits>
+    photometry : list
+        The list of photometry entries to check for LSST filters when input is a raw diaObjectId.
 
     Returns
     -------
@@ -135,19 +138,32 @@ def get_tns_object_id_and_data_source_id(obj_id):
         survey = SURVEYS["DECAM"]
     else:  # Accept various input formats for Rubin/LSST object IDs and normalize to the TNS-friendly format
         survey = SURVEYS["LSST"]
-        if re.match(r"^\d+$", obj_id):  # Most common case in SkyPortal for LSST
-            obj_id = f"LSST-P-DO-{obj_id}"
-        # := is the walrus operator, which allows us to assign and check a regex match in one step
-        elif match := re.match(
-            r"^LSST[-_\s]?P[-_\s]?DO[-_\s]?(\d+)$", obj_id, re.IGNORECASE
-        ):
-            obj_id = f"LSST-P-DO-{match.group(1)}"
-        elif match := re.match(r"^diaObject[-_\s]?(\d+)$", obj_id, re.IGNORECASE):
-            obj_id = f"LSST-P-DO-{match.group(1)}"
-        elif re.match(SURVEYS["LSST"]["regex"], obj_id):
-            pass  # already in correct format
-        else:
-            return None, None
+
+        # When the input is just the raw diaObjectId (integer) we need to check the photometry to confirm it's an LSST object
+        # TODO: Remove this logic once LSST objects are not using raw diaObjectId as the object ID anymore.
+        if re.match(r"^\d+$", obj_id):
+            for phot in photometry:
+                if phot.filter in {
+                    "lsstu",
+                    "lsstg",
+                    "lsstr",
+                    "lssti",
+                    "lsstz",
+                    "lssty",
+                }:
+                    return f"LSST-P-DO-{obj_id}", survey["discovery_data_source_id"]
+
+        variants = [
+            r"^LSST[-_\s]?(\d+)$",  # LSST + diaObjectId with optional separators
+            r"^LSST[-_\s]?P[-_\s]?DO[-_\s]?(\d+)$",  # LSST-P-DO- + diaObjectId with optional separators
+            r"^diaObject[-_\s]?(\d+)$",  # diaObject + diaObjectId with optional separators
+        ]
+        for pattern in variants:
+            match = re.match(pattern, obj_id, re.IGNORECASE)
+            if match:
+                return f"LSST-P-DO-{match.group(1)}", survey["discovery_data_source_id"]
+
+        return None, None
     return obj_id, survey["discovery_data_source_id"]
 
 
