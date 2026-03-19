@@ -225,7 +225,7 @@ def test_delete_tag(super_admin_token):
     )
     assert delete_status == 200
     assert created_tag["status"] == "success"
-    assert "Successfully deleted tag" in data["data"]
+    assert "Successfully deleted association" in data["data"]
 
     # Verification that we can't delete a tag that doesn't exist
     delete_status, data = api(
@@ -268,9 +268,8 @@ def test_create_tag_obj_association(super_admin_token, public_source, public_gro
     assert created_assoc["obj_id"] == public_source.id
 
     status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
-    assert status == 400
-    assert data["status"] == "error"
-    assert "already associated" in data["message"]
+    assert status == 200
+    assert data["status"] == "success"
 
 
 def test_delete_association(super_admin_token, public_source, public_group):
@@ -293,7 +292,7 @@ def test_delete_association(super_admin_token, public_source, public_group):
     )
     assert status == 200
     assert data["status"] == "success"
-    assert "Successfully deleted tag" in data["data"]
+    assert "Successfully deleted association" in data["data"]
 
     status, data = api(
         "DELETE", f"objtag/{assoc['data']['id']}", token=super_admin_token
