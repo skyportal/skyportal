@@ -255,6 +255,13 @@ SkyPortal, you should enable multi-user login by adding Google
 credentials to the `server:auth` section of the configuration file and
 setting `debug_login` to `False`.
 
+### Username generation
+
+When `USERNAME_IS_FULL_EMAIL` is set to `True` in the `server:auth` configuration, the user's full email address is used as their username.
+When `USERNAME_IS_FULL_EMAIL` is `False` (the default), SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
+
+If the OAuth provider does not supply first and last name fields, the username falls back to the raw `username` field from the provider details.
+
 ### Creating an administrative user
 
 By default, no user has permission to perform system administration.
