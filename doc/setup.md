@@ -228,7 +228,7 @@ Failed to build `python-ligo-lw==1.8.4`
 ...
 error: incompatible pointer to integer conversion
 ```
-You may need to run `CFLAGS="-Wno-error=int-conversion" uv sync` instead to not treat this warning as an error.
+You may need to run `CFLAGS="-Wno-error=int-conversion" uv sync` instead to avoid treating this warning as an error.
 
 ---
 
