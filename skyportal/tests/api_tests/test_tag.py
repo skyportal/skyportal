@@ -225,7 +225,7 @@ def test_delete_tag(super_admin_token):
     )
     assert delete_status == 200
     assert created_tag["status"] == "success"
-    assert "Successfully deleted association" in data["data"]
+    assert "Successfully deleted tag" in data["data"]
 
     # Verification that we can't delete a tag that doesn't exist
     delete_status, data = api(
