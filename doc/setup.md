@@ -38,7 +38,7 @@ uv sync
 
 If you intend to do development work (running tests, using pre-commit hooks, etc.), install the dev dependencies instead:
 ```
-uv sync --group dev
+uv sync --inexact --group dev
 ```
 
 Thereafter, to enter the environment, simply run:

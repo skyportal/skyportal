@@ -5,7 +5,7 @@
 If you intend to do any development work on the application, first install the dev dependencies:
 
 ```
-uv sync --group dev
+uv sync --inexact --group dev
 ```
 
 This includes `pre-commit`, `pytest`, `selenium`, and other tools needed for development and testing.
