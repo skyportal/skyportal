@@ -15,7 +15,7 @@ This includes `pre-commit`, `pytest`, `selenium`, and other tools needed for dev
 Install our pre-commit hook:
 
 ```
-pre-commit install
+uv run pre-commit install
 ```
 
 This will check your changes before each commit to ensure that they
