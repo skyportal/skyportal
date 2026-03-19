@@ -48,6 +48,7 @@ from .sources_confirmed_in_gcn import *
 from .spatial_catalog import *
 from .spectrum import *
 from .stream import *
+from .super_obj import *
 from .survey_efficiency import *
 from .tag import *
 from .taxonomy import *

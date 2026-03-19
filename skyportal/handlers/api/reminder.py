@@ -474,7 +474,6 @@ class ReminderHandler(BaseHandler):
                 for reminder in reminders:
                     session.add(reminder)
 
-                action, payload = None, None
                 if associated_resource_type.lower() == "source":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on source *{resource_name}*"
                     url_endpoint = f"/source/{resource_name}"

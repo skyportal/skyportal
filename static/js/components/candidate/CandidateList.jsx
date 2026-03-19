@@ -489,6 +489,24 @@ const CandidateInfo = ({
               />
             </div>
           )}
+          {/* if we have associated_objs, show their IDs here (clickable, send to source page in another tab when clicked) */}
+          {candidateObj.associated_objs &&
+            candidateObj.associated_objs.length > 0 && (
+              <div className={classes.infoItem}>
+                <b>Matches with: </b>
+                {candidateObj.associated_objs.map((a) => (
+                  <span key={a.obj_id} className={classes.associatedObj}>
+                    <a
+                      href={`/source/${a.obj_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {a.obj_id}
+                    </a>
+                  </span>
+                ))}
+              </div>
+            )}
           {candidateObj.last_detected_at && (
             <div className={classes.infoItem}>
               <b>Last detected: </b>
@@ -536,7 +554,8 @@ const CandidateInfo = ({
             </div>
           )}
           <div className={classes.infoItemPadded}>
-            <b>Latest Classification(s): </b>
+            <b>Classification(s): </b>
+            <AddClassificationsScanningPage obj_id={candidateObj.id} />
             <div className={classes.classificationsList}>
               {recentHumanClassification && (
                 <span>
@@ -569,7 +588,6 @@ const CandidateInfo = ({
                   />
                 </span>
               )}
-              <AddClassificationsScanningPage obj_id={candidateObj.id} />
             </div>
           </div>
           {selectedAnnotationSortOptions !== null &&
@@ -601,6 +619,14 @@ CandidateInfo.propTypes = {
     photstats: PropTypes.arrayOf(PropTypes.shape({})),
     classifications: PropTypes.arrayOf(PropTypes.shape({})),
     annotations: PropTypes.arrayOf(PropTypes.shape({})),
+    associated_objs: PropTypes.arrayOf(
+      PropTypes.shape({
+        obj_id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        separation: PropTypes.number,
+      }),
+    ),
   }).isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   selectedAnnotationSortOptions: PropTypes.shape({
