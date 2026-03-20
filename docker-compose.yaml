@@ -1,18 +1,18 @@
 services:
   db:
-    container_name: postgres14.4
+    image: postgres17
+    container_name: postgres17
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_DB: skyportal
       POSTGRES_PASSWORD: password
       POSTGRES_USER: skyportal
-    image: postgres:14.4
     restart: on-failure:3
     volumes:
       - ./data/dbdata:/var/lib/postgresql/data:z
 
   web:
-    image: skyportal/web
+    build: .
     ports:
       - "9000:5000"
       - "9001:5001"

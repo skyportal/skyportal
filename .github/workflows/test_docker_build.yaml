@@ -16,10 +16,6 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -28,12 +24,21 @@ jobs:
 
       - name: Build Docker image
         run: |
-          make docker-local
+          docker compose build
 
       - name: Start containers
         run: |
           docker compose up -d
 
+      - name: Wait for web service to be healthy
+        run: |
+          sleep 30
+          if ! docker compose ps --services --filter "status=running" | grep -q "web"; then
+            echo "Web service is not running. Logs:"
+            docker compose logs web
+            exit 1
+          fi
+
       - name: Test loading demo data
         run: |
-          docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
+          docker exec skyportal-web-1 bash -c 'source .venv/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'

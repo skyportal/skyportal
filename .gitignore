@@ -57,6 +57,7 @@ persistentdata/
 skyportal_env/
 env/
 venv/
+.venv/
 
 # distribution files (for releases)
 dists/

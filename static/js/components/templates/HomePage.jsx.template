@@ -123,6 +123,8 @@ const HomePage = () => {
               {%- for key, value in widgetProps.props.items() -%}
               {%- if value is string %}
               {{ key }}={"{{ value }}"}
+              {%- elif value is boolean %}
+              {{ key }}={ {{ value | lower }} }
               {%- else -%}
               {{ key }}={ {{ value }} }
               {%- endif -%}
@@ -137,6 +139,8 @@ const HomePage = () => {
               {% for key, value in widgetProps.props.items() -%}
               {%- if value is string %}
               {{ key }}={"{{ value }}"}
+              {%- elif value is boolean %}
+              {{ key }}={ {{ value | lower }} }
               {%- else -%}
               {{ key }}={ {{ value }} }
               {%- endif -%}

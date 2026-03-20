@@ -105,11 +105,12 @@ app:
     topic: skyportal.skyportal
     test_topic: skyportal.skyportal_test
 
+  # Configuration for the WINTER and SPRING instruments.
   winter:
     protocol: http
     host: winter.caltech.edu
     port: 82
-    submit_trigger: False # if False, the API POST call will only validate the payload
+    submit_trigger: False # if False, the API POST call to WINTER and SPRING will only validate the payload
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
   # See https://computing.docs.ligo.org/guide/auth/x509/ for example
@@ -478,6 +479,7 @@ app:
         sm: [0, 6, 6, 3]
         xs: [0, 10, 4, 4]
 
+    # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
         title: My Groups
