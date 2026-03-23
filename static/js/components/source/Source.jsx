@@ -794,7 +794,12 @@ const SourceContent = ({ source }) => {
                   </div>
                 </div>
               )}
-            {source?.duplicates?.length > 0 && (
+            {source?.duplicates?.filter(
+              (d) =>
+                !(source.associated_objs || []).some(
+                  (a) => a.obj_id === d.obj_id,
+                ),
+            ).length > 0 && (
               <div className={classes.sourceInfo}>
                 <b className={classes.noWrapMargin}>
                   <font color="#457b9d">Possible duplicate of:</font>
@@ -808,38 +813,45 @@ const SourceContent = ({ source }) => {
                     columnGap: "0.25rem",
                   }}
                 >
-                  {source.duplicates.map((duplicate) => (
-                    <div key={duplicate.obj_id}>
-                      <Tooltip
-                        title={`${duplicate.separation.toFixed(2)} arcsec`}
-                      >
-                        <Link
-                          to={`/source/${duplicate.obj_id}`}
-                          role="link"
-                          key={duplicate.obj_id}
+                  {source.duplicates
+                    .filter(
+                      (d) =>
+                        !(source.associated_objs || []).some(
+                          (a) => a.obj_id === d.obj_id,
+                        ),
+                    )
+                    .map((duplicate) => (
+                      <div key={duplicate.obj_id}>
+                        <Tooltip
+                          title={`${duplicate.separation.toFixed(2)} arcsec`}
+                        >
+                          <Link
+                            to={`/source/${duplicate.obj_id}`}
+                            role="link"
+                            key={duplicate.obj_id}
+                            className={classes.noSpace}
+                          >
+                            <Button size="small" className={classes.noSpace}>
+                              {duplicate.obj_id}
+                            </Button>
+                          </Link>
+                        </Tooltip>
+                        <IconButton
+                          size="small"
+                          name={`copySourceButton${duplicate.obj_id}`}
+                          onClick={() => setCopyPhotometryDialogOpen(true)}
                           className={classes.noSpace}
                         >
-                          <Button size="small" className={classes.noSpace}>
-                            {duplicate.obj_id}
-                          </Button>
-                        </Link>
-                      </Tooltip>
-                      <IconButton
-                        size="small"
-                        name={`copySourceButton${duplicate.obj_id}`}
-                        onClick={() => setCopyPhotometryDialogOpen(true)}
-                        className={classes.noSpace}
-                      >
-                        <AddIcon style={{ fontSize: "1rem" }} />
-                      </IconButton>
-                      <CopyPhotometryDialog
-                        source={source}
-                        duplicate={duplicate}
-                        sendToDialogOpen={copyPhotometryDialogOpen}
-                        closeDialog={setCopyPhotometryDialogOpen}
-                      />
-                    </div>
-                  ))}
+                          <AddIcon style={{ fontSize: "1rem" }} />
+                        </IconButton>
+                        <CopyPhotometryDialog
+                          source={source}
+                          duplicate={duplicate}
+                          sendToDialogOpen={copyPhotometryDialogOpen}
+                          closeDialog={setCopyPhotometryDialogOpen}
+                        />
+                      </div>
+                    ))}
                 </div>
               </div>
             )}
