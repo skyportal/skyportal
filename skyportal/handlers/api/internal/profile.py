@@ -4,12 +4,14 @@ import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from slugify import slugify
 from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 
 from ....models import (
+    Group,
     GroupUser,
     SharingServiceCoauthor,
     SharingServiceGroup,
@@ -168,19 +170,36 @@ class ProfileHandler(BaseHandler):
         with self.Session() as session:
             if user_id is None:
                 user_id = self.associated_user_object.id
-            user = session.scalars(
+            user = session.scalar(
                 User.select(session.user_or_token, mode="update").where(
                     User.id == user_id
                 )
-            ).first()
+            )
             if user is None:
                 return self.error(f"Cannot find User with ID: {user_id}")
 
-            if data.get("username") is not None:
+            if (
+                data.get("username") is not None
+                and data.get("username") != user.username
+            ):
                 username = data.pop("username").strip()
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
+                single_user_group_id = session.scalar(
+                    sa.select(Group.id)
+                    .join(GroupUser, GroupUser.group_id == Group.id)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == user.id,
+                    )
+                )
+                if single_user_group_id is not None:
+                    session.execute(
+                        sa.update(Group)
+                        .where(Group.id == single_user_group_id)
+                        .values(name=slugify(username))
+                    )
 
             if data.get("first_name") is not None:
                 user.first_name = data.pop("first_name")

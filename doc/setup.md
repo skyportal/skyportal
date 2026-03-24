@@ -222,13 +222,38 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Troubleshooting
 
-If you have trouble getting the demo data try doing
+If you have trouble running `uv sync` and see an error link to `python-ligo-lw`:
+```
+Failed to build `python-ligo-lw==1.8.4`
+...
+error: incompatible pointer to integer conversion
+```
+You may need to run `CFLAGS="-Wno-error=int-conversion" uv sync` instead to avoid treating this warning as an error.
 
-```make db_clear && make db_init && make run```
+---
+
+If you have trouble running `make run` and see this error:
+```
+make[1]: *** [dependencies] Error 1
+make: *** [run] Error 2
+```
+You may need to run `npm install --legacy-peer-deps` and then try `make run` again.
+
+---
+
+If you have trouble getting the demo data try doing:
+
+```
+make db_clear && make db_init && make run
+```
 
 and then, from a different window, do `make load_demo_data`.
 
+---
+
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
+
+---
 
 Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
 
