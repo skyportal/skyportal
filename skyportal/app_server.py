@@ -637,7 +637,7 @@ skyportal_handlers = [
 ]
 
 
-def make_app(cfg, baselayer_handlers, baselayer_settings, env=None):
+def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
 
@@ -650,6 +650,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, env=None):
         Tornado handlers needed for baselayer to function.
     baselayer_settings : cfg
         Settings needed for baselayer to function.
+    process : int
+        When launching multiple app servers, which number is this?
     env : dict
         Environment in which the app was launched.  Currently only has
         one key, 'debug'---true if launched with `--debug`.
