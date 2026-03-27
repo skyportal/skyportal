@@ -79,11 +79,8 @@ db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
 db_migrate:
 	@$(PYTHON) -m alembic $(FLAGS) upgrade head
 
-clean:
-	rm -rf static/build
-
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
 
-.PHONY: Makefile force clean
+.PHONY: Makefile force
