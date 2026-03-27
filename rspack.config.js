@@ -4,7 +4,7 @@ const rspack = require("@rspack/core");
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 const config = (env, argv) => {
-  const isProduction = argv.mode === "production";
+  const isProduction = argv?.mode === "production";
   return {
     entry: {
       main: [

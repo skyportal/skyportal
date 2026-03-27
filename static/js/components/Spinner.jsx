@@ -5,11 +5,12 @@ const Spinner = () => (
   <div
     style={{
       position: "fixed",
-      inset: 0,
       display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 9999,
+      marginLeft: "auto",
+      marginRight: "auto",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
     }}
   >
     <CircularProgress />
