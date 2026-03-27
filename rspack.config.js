@@ -36,8 +36,20 @@ const config = (env, argv) => {
             priority: 20,
           },
           d3: {
-            test: /[\\/]node_modules[\\/]d3/,
+            test: /[\\/]node_modules[\\/]d3(?:-|[\\/])/,
             name: "d3",
+            chunks: "all",
+            priority: 20,
+          },
+          plotly: {
+            test: /[\\/]node_modules[\\/]plotly[\\.]/,
+            name: "plotly",
+            chunks: "all",
+            priority: 20,
+          },
+          vega: {
+            test: /[\\/]node_modules[\\/]vega(?:-|[\\/])/,
+            name: "vega",
             chunks: "all",
             priority: 20,
           },
