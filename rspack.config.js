@@ -108,7 +108,7 @@ const config = (env, argv) => {
       // Uncomment the following line to enable bundle size analysis
       // new BundleAnalyzerPlugin(),
       new rspack.HtmlRspackPlugin({
-        template: "./static/index.html",
+        template: "./static/index_base.html",
         filename: "../index.html",
         inject: "body",
       }),

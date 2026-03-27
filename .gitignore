@@ -35,6 +35,7 @@ static/js/components/templates/HomePage.jsx
 static/js/components/templates/HoursBelowAirmassPlot.jsx
 static/login.html
 static/loginerror.html
+static/index_base.html
 static/index.html
 .tokens.yaml
 # Auto-generated data files
