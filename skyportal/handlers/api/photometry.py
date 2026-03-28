@@ -1964,7 +1964,6 @@ class ObjPhotometryHandler(BaseHandler):
             obj: Obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
-            print(dir(obj))
             if obj is None:
                 return self.error(
                     f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",

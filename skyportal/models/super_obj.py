@@ -60,6 +60,7 @@ class SuperObj(Base):
     objs = relationship(
         "Obj",
         secondary=ObjToSuperObj.__table__,
+        back_populates="super_objs",
         cascade="delete",
         passive_deletes=True,
         doc="Obj entries associated with this SuperObj.",
@@ -69,6 +70,7 @@ class SuperObj(Base):
 Obj.super_objs = relationship(
     "SuperObj",
     secondary=ObjToSuperObj.__table__,
+    back_populates="objs",
     cascade="delete",
     passive_deletes=True,
     doc="SuperObj entries associated with this Obj.",
