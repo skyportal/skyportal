@@ -16,15 +16,7 @@ const FETCH_INSTRUMENT_OBSPLAN_FORMS =
 const FETCH_INSTRUMENT_OBSPLAN_FORMS_OK =
   "skyportal/FETCH_INSTRUMENT_OBSPLAN_FORMS_OK";
 
-const FETCH_GCNEVENT_INSTRUMENTS = "skyportal/FETCH_GCNEVENT_INSTRUMENTS";
 const FETCH_GCNEVENT_INSTRUMENTS_OK = "skyportal/FETCH_GCNEVENT_INSTRUMENTS_OK";
-
-export function fetchGcnEventInstruments(dateobs, filterParams = {}) {
-  filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeoJSONSummary = true;
-  filterParams.includeGeoJSON = false;
-  return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
-}
 
 export const fetchInstruments = (filterParams = {}) =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS, filterParams);
