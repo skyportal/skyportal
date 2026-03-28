@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
@@ -26,7 +27,6 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
-import { Link } from "react-router-dom";
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
@@ -233,6 +233,8 @@ const SourceContent = ({ source }) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [magsys, setMagsys] = useState("ab");
+  const [showExtinctionCorrection, setShowExtinctionCorrection] =
+    useState(false);
 
   const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
@@ -835,6 +837,41 @@ const SourceContent = ({ source }) => {
                 </div>
               </div>
             )}
+            {source?.associated_objs?.length > 0 && (
+              <div className={classes.sourceInfo}>
+                <b className={classes.noWrapMargin}>
+                  <font color="#457b9d">Associated with:</font>
+                </b>
+                <div
+                  className={classes.flexRow}
+                  style={{
+                    width: "auto",
+                    alignItems: "center",
+                    flexFlow: "wrap",
+                    columnGap: "0.25rem",
+                  }}
+                >
+                  {source.associated_objs.map((associatedObj) => (
+                    <div key={associatedObj.obj_id}>
+                      <Tooltip
+                        title={`${associatedObj.separation.toFixed(2)} arcsec`}
+                      >
+                        <Link
+                          to={`/source/${associatedObj.obj_id}`}
+                          role="link"
+                          key={associatedObj.obj_id}
+                          className={classes.noSpace}
+                        >
+                          <Button size="small" className={classes.noSpace}>
+                            {associatedObj.obj_id}
+                          </Button>
+                        </Link>
+                      </Tooltip>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.showSimilarSources === true ? (
               <SimilarSources source={source} min_score={0.9} k={3} />
@@ -1159,6 +1196,41 @@ const SourceContent = ({ source }) => {
                     display_header={false}
                   />
                   <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.25rem",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Tooltip
+                      title={`On click, correct photometry for extinction, using G23 extinction law with Rv=3.1 (currently ${
+                        showExtinctionCorrection ? "" : "NOT"
+                      } corrected)`}
+                    >
+                      <div className={classes.switchContainer}>
+                        <Button
+                          size="small"
+                          variant={
+                            showExtinctionCorrection ? "contained" : "outlined"
+                          }
+                          style={{
+                            height: "1.5rem",
+                            fontSize: "0.75rem",
+                            marginTop: "-0.2rem",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowExtinctionCorrection(
+                              !showExtinctionCorrection,
+                            );
+                          }}
+                        >
+                          Extinction
+                        </Button>
+                      </div>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             </AccordionSummary>
@@ -1179,12 +1251,14 @@ const SourceContent = ({ source }) => {
                       spectra={spectra || []}
                       gcn_events={source.gcn_crossmatch || []}
                       duplicates={source.duplicates || []}
+                      associated_objs={source.associated_objs || []}
                       magsys={magsys}
                       plotStyle={{
                         height: rightPanelVisible ? "65vh" : "75vh",
                       }}
                       mode={downMd ? "mobile" : "desktop"}
                       t0={source.t0}
+                      showExtinctionCorrection={showExtinctionCorrection}
                     />
                   )}
                 </div>
@@ -1390,6 +1464,7 @@ const SourceContent = ({ source }) => {
           onClose={() => setShowPhotometry(false)}
           magsys={magsys}
           setMagsys={setMagsys}
+          t0={source.t0}
         />
       </Grid>
     </Grid>
@@ -1493,6 +1568,14 @@ SourceContent.propTypes = {
       }),
     ),
     duplicates: PropTypes.arrayOf(
+      PropTypes.shape({
+        obj_id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        separation: PropTypes.number,
+      }),
+    ),
+    associated_objs: PropTypes.arrayOf(
       PropTypes.shape({
         obj_id: PropTypes.string,
         ra: PropTypes.number,

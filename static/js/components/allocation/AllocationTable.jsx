@@ -54,7 +54,7 @@ const AllocationTable = ({
   paginateCallback = null,
   totalMatches = 0,
   numPerPage = 10,
-  deletePermission = false,
+  managePermission = false,
   telescopeInfo = true,
   fixedHeader = false,
 }) => {
@@ -78,9 +78,7 @@ const AllocationTable = ({
   };
 
   const renderAllocationID = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    return <div>{allocation ? allocation.id : ""}</div>;
+    return allocations[dataIndex] ? allocations[dataIndex].id : "";
   };
 
   const renderInstrumentName = (dataIndex) => {
@@ -105,7 +103,7 @@ const AllocationTable = ({
     )[0];
 
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
+      <Link to={`/allocation/${allocation.id}`}>
         {telescope ? telescope.nickname : <CircularProgress size={20} />}
       </Link>
     );
@@ -114,8 +112,7 @@ const AllocationTable = ({
   const renderGroup = (dataIndex) => {
     const allocation = allocations[dataIndex];
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
-    return <div>{group ? group.name : ""}</div>;
+    return group?.name || "";
   };
 
   const renderShareGroups = (dataIndex) => {
@@ -130,7 +127,7 @@ const AllocationTable = ({
       });
     }
 
-    return <div>{share_groups.length > 0 ? share_groups.join("\n") : ""}</div>;
+    return share_groups.length ? share_groups.join("\n") : "";
   };
 
   const renderAllocationUsers = (dataIndex) => {
@@ -143,11 +140,7 @@ const AllocationTable = ({
       });
     }
 
-    return (
-      <div>
-        {allocation_users.length > 0 ? allocation_users.join("\n") : ""}
-      </div>
-    );
+    return allocation_users.length ? allocation_users.join("\n") : "";
   };
 
   const renderValidityRanges = (dataIndex) => {
@@ -206,33 +199,23 @@ const AllocationTable = ({
   };
 
   const renderPI = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    return <div>{allocation ? allocation.pi : ""}</div>;
+    return allocations[dataIndex]?.pi || "";
   };
 
   const renderTypes = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-    return <div>{allocation ? allocation.types.join(", ") : ""}</div>;
+    return allocations[dataIndex]?.types.join(", ") || "";
   };
 
   const renderManage = (dataIndex) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!managePermission) return null;
+
     const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
-        <IconButton
-          onClick={() => setAllocationToEdit(allocation.id)}
-          disabled={!deletePermission}
-        >
+        <IconButton onClick={() => setAllocationToEdit(allocation.id)}>
           <EditIcon />
         </IconButton>
-        <IconButton
-          onClick={() => setAllocationToDelete(allocation.id)}
-          disabled={!deletePermission}
-        >
+        <IconButton onClick={() => setAllocationToDelete(allocation.id)}>
           <DeleteIcon />
         </IconButton>
       </div>
@@ -352,7 +335,7 @@ const AllocationTable = ({
         customBodyRenderLite: renderValidityRanges,
       },
     },
-    deletePermission && {
+    managePermission && {
       name: "manage",
       label: " ",
       options: {
@@ -465,7 +448,7 @@ AllocationTable.propTypes = {
       name: PropTypes.string.isRequired,
     }),
   ),
-  deletePermission: PropTypes.bool,
+  managePermission: PropTypes.bool,
   paginateCallback: PropTypes.func,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
@@ -477,7 +460,7 @@ AllocationTable.propTypes = {
 AllocationTable.defaultProps = {
   title: "Allocations",
   groups: [],
-  deletePermission: false,
+  managePermission: false,
   paginateCallback: null,
   sortingCallback: null,
   totalMatches: 0,

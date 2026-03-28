@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import requests
 import sqlalchemy as sa
-import tornado.web
 from astropy.time import Time, TimeDelta
 from requests.auth import HTTPBasicAuth
 

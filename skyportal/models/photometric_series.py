@@ -23,7 +23,12 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import reconstructor, relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, accessible_by_owner
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    accessible_by_owner,
+    public,
+)
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
@@ -236,6 +241,26 @@ def verify_metadata(metadata):
     return verified_metadata
 
 
+def manage_photometric_series_access_logic(cls, user_or_token):
+    """
+    Users with 'Manage photometry' permission can modify photometric series
+    for objects accessible to their groups.
+    """
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+    elif "Manage photometry" in user_or_token.permissions:
+        return manage_photometric_series_access.query_accessible_rows(
+            cls, user_or_token
+        )
+    else:
+        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+
+
+manage_photometric_series_access = (
+    accessible_by_groups_members | accessible_by_streams_members | accessible_by_owner
+)
+
+
 class PhotometricSeries(conesearch_alchemy.Point, Base):
     """
     A series of photometric measurements taken
@@ -321,8 +346,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._data_bytes = None
 
         # these should be filled out by sqlalchemy when committing
-        self.group_ids = None
-        self.stream_ids = None
+        self.group_ids = []
+        self.stream_ids = []
 
         # when setting data into the the public "data"
         # attribute, we check the validity of the data
@@ -350,8 +375,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._data_bytes = None
 
         # these should be filled out by sqlalchemy when loading relationships
-        self.group_ids = None
-        self.stream_ids = None
+        # populate from relationships if already present, otherwise empty lists
+        try:
+            self.group_ids = [g.id for g in self.groups]
+            self.stream_ids = [s.id for s in self.streams]
+        except Exception:
+            self.group_ids = []
+            self.stream_ids = []
 
         try:
             self.load_data()
@@ -360,7 +390,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         except Exception:
             pass  # silently fail to load
 
-    def to_dict(self, data_format="json"):
+    def to_dict(self, data_format="json", include_groups=True, include_streams=True):
         """
         Convert the object into a dictionary.
 
@@ -369,6 +399,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         data_format : str
             The format of the data to return.
             Can be "json" or "hdf5' or 'none'.
+        include_groups : bool
+            Whether to include group information. Defaults to True.
+        include_streams : bool
+            Whether to include stream information. Defaults to True.
         """
         # use the baselayer base model's method
         d = super().to_dict()
@@ -387,6 +421,33 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             )
 
         d["data"] = output_data
+
+        # Always expose group_ids/stream_ids for API consumers
+        d["group_ids"] = [g.id for g in self.groups]
+        d["stream_ids"] = [s.id for s in self.streams]
+
+        # Add groups if requested
+        if include_groups:
+            d["groups"] = [
+                {
+                    "id": group.id,
+                    "name": group.name,
+                    "nickname": group.nickname,
+                    "single_user_group": group.single_user_group,
+                }
+                for group in self.groups
+            ]
+
+        # Add streams if requested
+        if include_streams:
+            d["streams"] = [
+                {
+                    "id": stream.id,
+                    "name": stream.name,
+                }
+                for stream in self.streams
+            ]
+
         return d
 
     @staticmethod
@@ -780,11 +841,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         That data is kept for later when
         it can be dumped to file.
         """
-
         # first make sure to order the lists
         # so that the hash is the same
-        self.group_ids = sorted(self.group_ids)
-        self.stream_ids = sorted(self.stream_ids)
+        self.group_ids = sorted(self.group_ids or [])
+        self.stream_ids = sorted(self.stream_ids or [])
 
         self.hash = hashlib.md5()
         self.hash.update(self.get_data_bytes())
@@ -898,7 +958,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         | accessible_by_streams_members
         | accessible_by_owner
     )
-    update = delete = accessible_by_owner
+    update = delete = CustomUserAccessControl(manage_photometric_series_access_logic)
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),

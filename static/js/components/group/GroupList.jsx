@@ -20,8 +20,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GroupList = ({ title, groups, classes }) => {
+const GroupList = ({ title, groups, classes, linkToGroupSources }) => {
   const styles = useStyles();
+
+  const getLink = (group) =>
+    linkToGroupSources ? `/group_sources/${group.id}` : `/group/${group.id}`;
 
   return (
     <Paper>
@@ -41,7 +44,7 @@ const GroupList = ({ title, groups, classes }) => {
               .map((group) => (
                 <ListItem key={group.id}>
                   <Link
-                    to={`/group/${group.id}`}
+                    to={getLink(group)}
                     data-testid={`${title}-${group.name}`}
                     color="textSecondary"
                   >
@@ -63,9 +66,11 @@ GroupList.propTypes = {
     widgetIcon: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
+  linkToGroupSources: PropTypes.bool,
 };
 GroupList.defaultProps = {
   groups: [],
+  linkToGroupSources: false,
 };
 
 export default GroupList;

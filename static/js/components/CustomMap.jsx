@@ -26,7 +26,11 @@ CustomZoomableGroup.propTypes = {
 
 export function CustomMap({ children }) {
   return (
-    <ComposableMap width={WIDTH} height={HEIGHT}>
+    <ComposableMap
+      width={WIDTH}
+      height={HEIGHT}
+      style={{ width: "100%", height: "auto" }}
+    >
       <CustomZoomableGroup center={[0, 0]}>
         {(position) => (
           <>

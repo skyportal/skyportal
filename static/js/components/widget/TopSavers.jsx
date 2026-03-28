@@ -95,9 +95,7 @@ const starColor = (rank) => {
 };
 
 const TopSaversSearch = ({ savers, setOptions }) => {
-  if (savers === undefined || savers.length === 0) {
-    return null;
-  }
+  if (!savers) return null;
 
   const handleChange = (event) => {
     let newValue = event.target.value;
@@ -168,7 +166,7 @@ const TopSaversList = ({ savers, styles }) => {
   const [options, setOptions] = useState(savers || []);
 
   useEffect(() => {
-    if (savers?.length > 0) {
+    if (savers?.length) {
       setOptions(savers);
     }
   }, [savers]);
@@ -178,16 +176,12 @@ const TopSaversList = ({ savers, styles }) => {
 
   const renderRank = (index) => {
     const { rank } = options[index];
-    return (
-      <div>
-        {rank < 4 ? (
-          <WorkspacePremiumIcon
-            sx={{ color: starColor(rank), marginTop: "0.3rem" }}
-          />
-        ) : (
-          rank
-        )}
-      </div>
+    return rank < 4 ? (
+      <WorkspacePremiumIcon
+        sx={{ color: starColor(rank), marginTop: "0.3rem" }}
+      />
+    ) : (
+      rank
     );
   };
 
@@ -217,14 +211,14 @@ const TopSaversList = ({ savers, styles }) => {
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver, index) => (
-          <div key={saver.author.username}>
+          <React.Fragment key={saver.author.username}>
             <ListItem className={styles.saverListItem}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
             </ListItem>
             {index < options.length - 1 && <Divider />}
-          </div>
+          </React.Fragment>
         ))}
       </List>
     </div>

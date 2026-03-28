@@ -1237,6 +1237,7 @@ const UserManagement = () => {
                   options={roles?.filter(
                     (role) => !clickedUser?.roles?.includes(role.id),
                   )}
+                  sx={{ mt: 1 }}
                   getOptionLabel={(role) => role.id}
                   filterSelectedOptions
                   data-testid="addUserRolesSelect"
@@ -1246,7 +1247,6 @@ const UserManagement = () => {
                       error={!!errors.roles}
                       variant="outlined"
                       label="Select Roles"
-                      data-testid="addUserRolesTextField"
                     />
                   )}
                 />

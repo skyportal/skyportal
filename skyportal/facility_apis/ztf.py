@@ -439,7 +439,11 @@ def commit_photometry(
 
         if len(df.index) > 0:
             ids, _ = add_external_photometry(
-                data_out, request.requester, duplicates=duplicates, refresh=True
+                data_out,
+                request.requester,
+                parent_session=session,
+                duplicates=duplicates,
+                refresh=True,
             )
             if ids is None:
                 raise ValueError("Failed to commit photometry")
@@ -753,12 +757,10 @@ class ZTFAPI(FollowUpAPI):
             "ipac_http_user": {
                 "type": "string",
                 "title": "IPAC HTTP User",
-                "default": "ztf",
             },
-            "ipac_http_pass": {
+            "ipac_http_password": {
                 "type": "string",
                 "title": "IPAC HTTP Password",
-                "default": "ztf",
             },
             "ipac_email": {
                 "type": "string",

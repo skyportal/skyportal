@@ -13,7 +13,7 @@ import AllocationTable from "./AllocationTable";
 import DefaultObservationPlanTable from "../observation_plan/DefaultObservationPlanTable";
 import DefaultSurveyEfficiencyTable from "../survey_efficiency/DefaultSurveyEfficiencyTable";
 
-const AllocationList = ({ deletePermission }) => {
+const AllocationList = ({ managePermission }) => {
   const dispatch = useDispatch();
 
   const allocationsState = useSelector((state) => state.allocations);
@@ -59,30 +59,28 @@ const AllocationList = ({ deletePermission }) => {
   if (!allocationsState.allocationList) return <Spinner />;
 
   return (
-    allocationsState.allocationList && (
-      <AllocationTable
-        instruments={instrumentsState.instrumentList}
-        telescopes={telescopesState.telescopeList}
-        groups={groups}
-        allocations={allocationsState.allocationList}
-        paginateCallback={handleAllocationTablePagination}
-        totalMatches={allocationsState.totalMatches}
-        pageNumber={allocationsState.pageNumber}
-        numPerPage={allocationsState.numPerPage}
-        sortingCallback={handleAllocationTableSorting}
-        deletePermission={deletePermission}
-        fixedHeader={true}
-      />
-    )
+    <AllocationTable
+      instruments={instrumentsState.instrumentList}
+      telescopes={telescopesState.telescopeList}
+      groups={groups}
+      allocations={allocationsState.allocationList}
+      paginateCallback={handleAllocationTablePagination}
+      totalMatches={allocationsState.totalMatches}
+      pageNumber={allocationsState.pageNumber}
+      numPerPage={allocationsState.numPerPage}
+      sortingCallback={handleAllocationTableSorting}
+      managePermission={managePermission}
+      fixedHeader={true}
+    />
   );
 };
 
 AllocationList.propTypes = {
-  deletePermission: PropTypes.bool,
+  managePermission: PropTypes.bool,
 };
 
 AllocationList.defaultProps = {
-  deletePermission: false,
+  managePermission: false,
 };
 
 const AllocationPage = () => {

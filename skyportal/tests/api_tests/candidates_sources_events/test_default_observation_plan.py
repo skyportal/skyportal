@@ -106,11 +106,8 @@ def test_default_observation_plan_tiling(super_admin_token, public_group):
         )
         assert status == 200
         assert data["status"] == "success"
-
-        gcnevent_id = data["data"]["gcnevent_id"]
     else:
         # we delete the event and re-add it
-        gcnevent_id = data["data"]["id"]
         status, data = api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
         assert status == 200
         assert data["status"] == "success"
@@ -121,7 +118,7 @@ def test_default_observation_plan_tiling(super_admin_token, public_group):
         assert status == 200
         assert data["status"] == "success"
 
-        gcnevent_id = data["data"]["gcnevent_id"]
+    gcnevent_id = data["data"]["gcnevent_id"]
 
     # wait for event to load
     for n_times in range(26):

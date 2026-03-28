@@ -1,8 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import { Marker } from "react-simple-maps";
 import { CustomMap } from "../CustomMap";
+
+// Labels are shown when zoom level exceeds this threshold
+const ZOOM_LABEL_THRESHOLD = 2.5;
+
+function telescopeLabel(nestedTelescope) {
+  return nestedTelescope.telescopes
+    .map((telescope) => telescope.nickname)
+    .join(" / ");
+}
 
 function normalizeLongitudeDiff(alpha, beta) {
   return 180 - Math.abs(Math.abs(alpha - beta) - 180);
@@ -14,6 +23,7 @@ function normalizeLatitudeDiff(alpha, beta) {
 
 const TelescopeMap = ({ telescopes }) => {
   const dispatch = useDispatch();
+  const [hoveredTelescope, setHoveredTelescope] = useState(null);
   const filteredTelescopes = telescopes.filter(
     (telescope) => telescope.fixed_location,
   );
@@ -82,11 +92,21 @@ const TelescopeMap = ({ telescopes }) => {
 
   return (
     <CustomMap>
-      {(position) =>
-        nestedTelescopes.map(
-          (nestedTelescope) =>
-            nestedTelescope.lon &&
-            nestedTelescope.lat && (
+      {(position) => (
+        <>
+          {nestedTelescopes.map((nestedTelescope) => {
+            if (!nestedTelescope.lon || !nestedTelescope.lat) return null;
+            const isHovered =
+              hoveredTelescope &&
+              hoveredTelescope.lon === nestedTelescope.lon &&
+              hoveredTelescope.lat === nestedTelescope.lat;
+            const showLabel = position.k >= ZOOM_LABEL_THRESHOLD;
+            const markerColor = nestedTelescope.fixed_location
+              ? nestedTelescope.is_night_astronomical_at_least_one
+                ? "#0c1445"
+                : "#f9d71c"
+              : "#5ca9d6";
+            return (
               <Marker
                 key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
                 id="telescope_marker"
@@ -98,38 +118,82 @@ const TelescopeMap = ({ telescopes }) => {
                   })
                 }
               >
-                {nestedTelescope.fixed_location ? (
-                  <circle
-                    r={6.5 / position.k}
-                    fill={
-                      nestedTelescope.is_night_astronomical_at_least_one
-                        ? "#0c1445"
-                        : "#f9d71c"
-                    }
-                  />
-                ) : (
-                  <rect
-                    x={-6.5 / position.k}
-                    y={-6.5 / position.k}
-                    width={13 / position.k}
-                    height={13 / position.k}
-                    fill="#5ca9d6"
-                  />
-                )}
+                <g
+                  onMouseEnter={() => setHoveredTelescope(nestedTelescope)}
+                  onMouseLeave={() => setHoveredTelescope(null)}
+                  style={{ cursor: "pointer" }}
+                >
+                  {isHovered && (
+                    <circle
+                      r={11 / position.k}
+                      fill={markerColor}
+                      opacity={0.3}
+                    />
+                  )}
+                  {nestedTelescope.fixed_location ? (
+                    <circle
+                      r={6.5 / position.k}
+                      fill={markerColor}
+                      stroke="white"
+                      strokeWidth={1.5 / position.k}
+                    />
+                  ) : (
+                    <rect
+                      x={-6.5 / position.k}
+                      y={-6.5 / position.k}
+                      width={13 / position.k}
+                      height={13 / position.k}
+                      fill={markerColor}
+                      stroke="white"
+                      strokeWidth={1.5 / position.k}
+                    />
+                  )}
+                  {showLabel && (
+                    <text
+                      id="telescopes_label"
+                      textAnchor="middle"
+                      fontSize={10 / position.k}
+                      y={-12 / position.k}
+                      fill="#1a1a2e"
+                      stroke="white"
+                      strokeWidth={3 / position.k}
+                      paintOrder="stroke"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {telescopeLabel(nestedTelescope)}
+                    </text>
+                  )}
+                </g>
+              </Marker>
+            );
+          })}
+          {hoveredTelescope &&
+            hoveredTelescope.lon &&
+            hoveredTelescope.lat &&
+            position.k < ZOOM_LABEL_THRESHOLD && (
+              <Marker
+                key="hovered-label"
+                coordinates={[hoveredTelescope.lon, hoveredTelescope.lat]}
+                style={{ pointerEvents: "none" }}
+              >
                 <text
-                  id="telescopes_label"
                   textAnchor="middle"
                   fontSize={10 / position.k}
-                  y={-10 / position.k}
+                  fontFamily="sans-serif"
+                  fontWeight="600"
+                  y={-12 / position.k}
+                  fill="#1a1a2e"
+                  stroke="white"
+                  strokeWidth={3 / position.k}
+                  paintOrder="stroke"
+                  style={{ pointerEvents: "none" }}
                 >
-                  {nestedTelescope.telescopes
-                    .map((telescope) => telescope.nickname)
-                    .join(" / ")}
+                  {telescopeLabel(hoveredTelescope)}
                 </text>
               </Marker>
-            ),
-        )
-      }
+            )}
+        </>
+      )}
     </CustomMap>
   );
 };
