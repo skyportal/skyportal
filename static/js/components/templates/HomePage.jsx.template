@@ -2,9 +2,7 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Responsive, WidthProvider } from "react-grid-layout";
-// eslint-disable-next-line import/no-extraneous-dependencies
 import "reactgridlayoutcss/styles.css";
-// eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
 import { useTheme } from "@mui/material/styles";
@@ -46,9 +44,9 @@ const useStyles = makeStyles(() => ({
     height: "100%",
   },
   resetButton: {
-    position: "relative",
-    float: "right",
-    margin: "0.5rem",
+    position: "fixed",
+    bottom: "1rem",
+    right: "1rem"
   },
 }));
 
@@ -65,102 +63,88 @@ const defaultLayouts = {
 
 const HomePage = () => {
   const classes = useStyles();
+  const dispatch = useDispatch();
 
   // Taken from configs
   const rem = "{{ app.homepage_grid.row_height|default("9.375rem")}}";
+
   const theme = useTheme();
   const rootFont = theme.typography.htmlFontSize;
   const convert = convertLength(rootFont);
   const gridRowHeight = parseFloat(convert(rem, "px"));
-
   const groups = useSelector((state) => state.groups.user);
-
   const profile = useSelector((state) => state.profile);
+  const currentLayouts = profile?.preferences?.layouts ?? defaultLayouts;
 
-  let currentLayouts =
-    profile?.preferences.layouts == null
-      ? defaultLayouts
-      : profile.preferences.layouts;
-
-  const dispatch = useDispatch();
-
-  const LayoutChangeHandler = (currentLayout, allLayouts) => {
-    const prefs = {
-      layouts: allLayouts,
-    };
+  const layoutChangeHandler = (_, allLayouts) => {
+    const prefs = { layouts: allLayouts };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
   const resetLayouts = () => {
-    currentLayouts = defaultLayouts;
-    const prefs = {
-      layouts: defaultLayouts,
-    };
+    const prefs = { layouts: defaultLayouts };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
-  return (
-    profile &&
-    profile.username !== "" &&  (
-      <div>
-        <ResponsiveGridLayout
-          className="layout"
-          layouts={currentLayouts}
-          breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
-          cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
-          margin={[10, 10]}
-          onLayoutChange={LayoutChangeHandler}
-          draggableHandle=".dragHandle"
-          rowHeight={gridRowHeight}
-        >
-          {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-            {%- if not (widgetProps.show is defined and not widgetProps.show) %}
-              {%- if widgetName == "GroupList" %}
-          <div key="{{ widgetName }}">
-            <{{ widgetName }}
-              groups={groups}
-              classes={classes}
-              {%- for key, value in widgetProps.props.items() -%}
-              {%- if value is string %}
-              {{ key }}={"{{ value }}"}
-              {%- elif value is boolean %}
-              {{ key }}={ {{ value | lower }} }
-              {%- else -%}
-              {{ key }}={ {{ value }} }
-              {%- endif -%}
-              {%- endfor %}
-            />
-          </div>
-              {%- else %}
-          <div key="{{ widgetName }}">
-            <{{ widgetName }}
-              classes={classes}
-              {%- if widgetProps.props is defined %}
-              {% for key, value in widgetProps.props.items() -%}
-              {%- if value is string %}
-              {{ key }}={"{{ value }}"}
-              {%- elif value is boolean %}
-              {{ key }}={ {{ value | lower }} }
-              {%- else -%}
-              {{ key }}={ {{ value }} }
-              {%- endif -%}
-              {%- endfor -%}
-              {%- endif %}
-            />
-          </div>
-              {%- endif -%}
+  return profile?.username && (
+    <div>
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={currentLayouts}
+        breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
+        cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
+        margin={[10, 10]}
+        onLayoutChange={layoutChangeHandler}
+        draggableHandle=".dragHandle"
+        rowHeight={gridRowHeight}
+      >
+        {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+          {%- if not (widgetProps.show is defined and not widgetProps.show) %}
+            {%- if widgetName == "GroupList" %}
+        <div key="{{ widgetName }}">
+          <{{ widgetName }}
+            groups={groups}
+            classes={classes}
+            {%- for key, value in widgetProps.props.items() -%}
+            {%- if value is string %}
+            {{ key }}={"{{ value }}"}
+            {%- elif value is boolean %}
+            {{ key }}={ {{ value | lower }} }
+            {%- else -%}
+            {{ key }}={ {{ value }} }
             {%- endif -%}
-          {%- endfor %}
-        </ResponsiveGridLayout>
-        <div className={classes.resetButton}>
-          <Tooltip title="Reset page layout">
-            <IconButton size="small" onClick={resetLayouts}>
-              <CachedIcon />
-            </IconButton>
-          </Tooltip>
+            {%- endfor %}
+          />
         </div>
+            {%- else %}
+        <div key="{{ widgetName }}">
+          <{{ widgetName }}
+            classes={classes}
+            {%- if widgetProps.props is defined %}
+            {% for key, value in widgetProps.props.items() -%}
+            {%- if value is string %}
+            {{ key }}={"{{ value }}"}
+            {%- elif value is boolean %}
+            {{ key }}={ {{ value | lower }} }
+            {%- else -%}
+            {{ key }}={ {{ value }} }
+            {%- endif -%}
+            {%- endfor -%}
+            {%- endif %}
+          />
+        </div>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor %}
+      </ResponsiveGridLayout>
+      <div className={classes.resetButton}>
+        <Tooltip title="Reset page layout" placement="left">
+          <IconButton onClick={resetLayouts}>
+            <CachedIcon />
+          </IconButton>
+        </Tooltip>
       </div>
-    )
+    </div>
   );
 };
 
