@@ -14,14 +14,15 @@ import convertLength from "convert-css-length";
 
 import * as profileActions from "../../ducks/profile";
 
-import RecentSources from "../widget/RecentSources";
-import GroupList from "../group/GroupList";
-import NewsFeed from "../widget/NewsFeed";
-import TopSavers from "../widget/TopSavers";
-import TopSources from "../widget/TopSources";
-import RecentGcnEvents from "../widget/RecentGcnEvents";
-import SourceCounts from "../widget/SourceCounts";
-import WeatherWidget from "../widget/WeatherWidget";
+{%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+{%- if widgetProps.show is not defined or widgetProps.show %}
+{%- if widgetName == "GroupList" %}
+import {{ widgetName }} from "../group/{{ widgetName }}";
+{%- else %}
+import {{ widgetName }} from "../widget/{{ widgetName }}";
+{%- endif %}
+{%- endif %}
+{%- endfor %}
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -99,7 +100,7 @@ const HomePage = () => {
         rowHeight={gridRowHeight}
       >
         {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-          {%- if not (widgetProps.show is defined and not widgetProps.show) %}
+          {%- if widgetProps.show is not defined or widgetProps.show %}
             {%- if widgetName == "GroupList" %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
