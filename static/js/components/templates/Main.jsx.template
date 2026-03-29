@@ -112,12 +112,14 @@ const MainContentInternal = ({ root }) => {
           style={{"{{marginLeft, padding: location.pathname === '/' ? 0 : '0.625rem'}}"}}
         >
           <Notifications />
-          <Routes>
-            {%- for route in app.routes %}
-            <Route path="{{ route.path }}" element={<LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
-            {%- endfor %}
-            <Route path="*" element={<NoMatchingRoute/>} />
-          </Routes>
+          <ErrorBoundary key={location.pathname}>
+            <Routes>
+              {%- for route in app.routes %}
+              <Route path="{{ route.path }}" element={<LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- endfor %}
+              <Route path="*" element={<NoMatchingRoute/>} />
+            </Routes>
+          </ErrorBoundary>
         </div>
       </LocalizationProvider>
     </>
@@ -135,7 +137,7 @@ root.render(
   <Provider store={store}>
     <StyledEngineProvider injectFirst>
       <Theme {% if testing %} disableTransitions {% endif %}>
-        <ErrorBoundary key={window.location.pathname}>
+        <ErrorBoundary>
           <BrowserRouter basename="/">
             <MainContentInternal root={`${window.location.host}/`} />
           </BrowserRouter>
