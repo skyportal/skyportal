@@ -1,24 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import Grid from "@mui/material/Grid";
-
-import InstrumentTable from "./InstrumentTable";
 import * as instrumentsActions from "../../ducks/instruments";
 import * as telescopeActions from "../../ducks/telescopes";
+import InstrumentTable from "./InstrumentTable";
 
 const InstrumentList = () => {
   const dispatch = useDispatch();
-
   const instrumentsState = useSelector((state) => state.instruments);
   const telescopesState = useSelector((state) => state.telescopes);
-
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-
   const currentUser = useSelector((state) => state.profile);
-
-  const delete_permission =
-    currentUser.permissions?.includes("Delete instrument") ||
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const managePermission =
+    currentUser.permissions?.includes("Manage instruments") ||
     currentUser.permissions?.includes("System admin");
 
   useEffect(() => {
@@ -37,11 +31,11 @@ const InstrumentList = () => {
       ...filterData,
       pageNumber,
       numPerPage,
+      ...(sortData?.name && {
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
+      }),
     };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
     dispatch(instrumentsActions.fetchInstruments(data));
   };
 
@@ -57,21 +51,17 @@ const InstrumentList = () => {
   };
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <InstrumentTable
-          instruments={instrumentsState.instrumentList || []}
-          telescopes={telescopesState.telescopeList || []}
-          deletePermission={delete_permission}
-          paginateCallback={handleInstrumentTablePagination}
-          totalMatches={instrumentsState.totalMatches}
-          pageNumber={instrumentsState.pageNumber}
-          numPerPage={instrumentsState.numPerPage}
-          sortingCallback={handleInstrumentTableSorting}
-          fixedHeader={true}
-        />
-      </Grid>
-    </Grid>
+    <InstrumentTable
+      instruments={instrumentsState.instrumentList || []}
+      telescopes={telescopesState.telescopeList || []}
+      managePermission={managePermission}
+      paginateCallback={handleInstrumentTablePagination}
+      totalMatches={instrumentsState.totalMatches}
+      pageNumber={instrumentsState.pageNumber}
+      numPerPage={instrumentsState.numPerPage}
+      sortingCallback={handleInstrumentTableSorting}
+      fixedHeader={true}
+    />
   );
 };
 

@@ -1,82 +1,30 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
 
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
+import * as instrumentActions from "../../ducks/instrument";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
-import * as instrumentActions from "../../ducks/instrument";
-
-const useStyles = makeStyles(() => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  instrumentManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
+import Button from "../Button";
 
 const InstrumentTable = ({
   title = "Instruments",
   instruments,
   telescopes,
-  deletePermission,
+  managePermission,
   sortingCallback = null,
   paginateCallback = null,
   totalMatches = 0,
@@ -84,34 +32,15 @@ const InstrumentTable = ({
   telescopeInfo = true,
   fixedHeader = false,
 }) => {
-  const classes = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [instrumentToEditDelete, setInstrumentToEditDelete] = useState(null);
 
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
-
-  const openEditDialog = (id) => {
-    setEditDialogOpen(true);
-    setInstrumentToEditDelete(id);
-  };
   const closeEditDialog = () => {
     setEditDialogOpen(false);
     setInstrumentToEditDelete(null);
-  };
-
-  const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(true);
-    setInstrumentToEditDelete(id);
   };
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
@@ -131,136 +60,85 @@ const InstrumentTable = ({
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
-  const renderInstrumentID = (dataIndex) => {
+  const renderInstrumentName = (dataIndex) => {
     const instrument = instruments[dataIndex];
+    return (
+      <Link to={`/instrument/${instrument.id}`}>{instrument?.name || ""}</Link>
+    );
+  };
+
+  const renderTelescopeNickname = (dataIndex) => {
+    const telescope_id = instruments[dataIndex]?.telescope_id;
+    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    return (
+      <Link to={`/telescope/${telescope_id}`}>{telescope?.nickname || ""}</Link>
+    );
+  };
+
+  const renderTelescopeLat = (dataIndex) => {
+    const telescope_id = instruments[dataIndex]?.telescope_id;
+    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    return telescope.lat;
+  };
+
+  const renderTelescopeLon = (dataIndex) => {
+    const telescope_id = instruments[dataIndex]?.telescope_id;
+    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    return telescope.lon;
+  };
+
+  const renderFilters = (dataIndex) => {
+    const filters = instruments[dataIndex]?.filters;
+    return filters?.map((filter) => <div key={filter}>{filter}</div>);
+  };
+
+  const renderAPIClassnames = (dataIndex) => {
+    const apiClassname = instruments[dataIndex]?.api_classname;
+    const apiClassnameObsPlan = instruments[dataIndex]?.api_classname_obsplan;
+    if (!apiClassname && !apiClassnameObsPlan) return null;
 
     return (
-      <div>
-        {instrument?.log_exists ? (
-          <>
-            <Link
-              to={`/instrument/${instrument.id}`}
-              role="link"
-              className={classes.hover}
-            >
-              {instrument ? instrument.id : ""}
-            </Link>
-          </>
-        ) : (
-          <>{instrument ? instrument.id : ""}</>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          alignItems: "start",
+        }}
+      >
+        {apiClassname && (
+          <Tooltip title="API for Follow-up Requests" placement="top">
+            <Chip label={apiClassname} />
+          </Tooltip>
+        )}
+        {apiClassnameObsPlan && (
+          <Tooltip title={"API for Observation Plan"} placement="bottom">
+            <Chip label={apiClassnameObsPlan} />
+          </Tooltip>
         )}
       </div>
     );
   };
 
-  const renderInstrumentName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.name : ""}</div>;
-  };
-
-  const renderTelescopeName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.nickname : ""}</div>;
-  };
-
-  const renderTelescopeLat = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.lat : ""}</div>;
-  };
-
-  const renderTelescopeLon = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.lon : ""}</div>;
-  };
-
-  const renderFilters = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.filters.join("\n") : ""}</div>;
-  };
-
-  const renderAPIClassname = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.api_classname : ""}</div>;
-  };
-
-  const renderAPIClassnameObsPlan = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.api_classname_obsplan : ""}</div>;
-  };
-
-  const renderBand = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.band : ""}</div>;
-  };
-
-  const renderType = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.type : ""}</div>;
-  };
-
-  const renderRegion = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.region_summary : ""}</div>;
-  };
-
-  const renderFields = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.number_of_fields : ""}</div>;
-  };
-
-  const renderLogs = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    return (
-      <div>
-        <Button
-          key={instrument.id}
-          id="logs_button"
-          component={Link}
-          to={`/instrument/${instrument.id}`}
-        >
-          Logs
-        </Button>
-      </div>
-    );
-  };
-
   const renderManage = (dataIndex) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!managePermission) return null;
+
     const instrument = instruments[dataIndex];
     return (
-      <div className={classes.instrumentManage}>
+      <div style={{ display: "flex" }}>
         <Button
-          key={`edit_${instrument.id}`}
-          id={`edit_button_${instrument.id}`}
-          onClick={() => openEditDialog(instrument.id)}
-          disabled={!deletePermission}
+          onClick={() => {
+            setEditDialogOpen(true);
+            setInstrumentToEditDelete(instrument.id);
+          }}
         >
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${instrument.id}`}
-          id={`delete_button_${instrument.id}`}
-          onClick={() => openDeleteDialog(instrument.id)}
-          disabled={!deletePermission}
+          onClick={() => {
+            setDeleteDialogOpen(true);
+            setInstrumentToEditDelete(instrument.id);
+          }}
         >
           <DeleteIcon />
         </Button>
@@ -304,7 +182,6 @@ const InstrumentTable = ({
       options: {
         filter: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentID,
       },
     },
     {
@@ -314,18 +191,20 @@ const InstrumentTable = ({
         filter: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentName,
+        setCellProps: () => ({ style: { textAlign: "center" } }),
       },
     },
   ];
   if (telescopeInfo === true) {
     columns.push({
-      name: "telescope_name",
-      label: "Telescope Name",
+      name: "telescope_nickname",
+      label: "Telescope Nickname",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeName,
+        customBodyRenderLite: renderTelescopeNickname,
+        setCellProps: () => ({ style: { textAlign: "center" } }),
       },
     });
     columns.push({
@@ -361,70 +240,49 @@ const InstrumentTable = ({
     },
   });
   columns.push({
-    name: "API_classname",
-    label: "API Classname",
+    name: "API_classnames",
+    label: "API Classnames",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderAPIClassname,
+      customBodyRenderLite: renderAPIClassnames,
     },
   });
   columns.push({
-    name: "API_classname_obsplan",
-    label: "API Observation Plan Classname",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAPIClassnameObsPlan,
-    },
-  });
-  columns.push({
-    name: "Band",
+    name: "band",
     label: "Band",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderBand,
     },
   });
   columns.push({
-    name: "Type",
+    name: "type",
     label: "Type",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderType,
     },
   });
   columns.push({
-    name: "FOV Region?",
+    name: "region_summary",
     label: "FOV Region?",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderRegion,
     },
   });
   columns.push({
-    name: "Fields",
+    name: "number_of_fields",
     label: "Fields",
     options: {
       filter: false,
       sort: true,
       sortThirdClickReset: true,
-      customBodyRenderLite: renderFields,
-    },
-  });
-  columns.push({
-    name: "logs",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderLogs,
     },
   });
   columns.push({
@@ -453,12 +311,7 @@ const InstrumentTable = ({
     filter: true,
     sort: true,
     customToolbar: () => (
-      <IconButton
-        name="new_instrument"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
+      <IconButton name="new_instrument" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
     ),
@@ -466,47 +319,44 @@ const InstrumentTable = ({
 
   return (
     <div>
-      <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={title}
-              data={instruments || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
-        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
-          <DialogTitle>New Instrument</DialogTitle>
-          <DialogContent dividers>
-            <InstrumentForm onClose={closeNewDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={editDialogOpen && instrumentToEditDelete !== null}
-          onClose={closeEditDialog}
-          maxWidth="md"
-        >
-          <DialogTitle>
-            {`Edit ${
-              instruments.find((i) => i.id === instrumentToEditDelete)?.name
-            } instrument`}
-          </DialogTitle>
-          <DialogContent dividers>
-            <InstrumentForm
-              onClose={closeEditDialog}
-              instrumentId={instrumentToEditDelete}
-            />
-          </DialogContent>
-        </Dialog>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteInstrument}
-          dialogOpen={deleteDialogOpen}
-          closeDialog={closeDeleteDialog}
-          resourceName="instrument"
-        />
-      </Paper>
+      <MUIDataTable
+        title={title}
+        data={instruments || []}
+        options={options}
+        columns={columns}
+      />
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => setNewDialogOpen(false)}
+        maxWidth="md"
+      >
+        <DialogTitle>New Instrument</DialogTitle>
+        <DialogContent dividers>
+          <InstrumentForm onClose={() => setNewDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editDialogOpen && instrumentToEditDelete !== null}
+        onClose={closeEditDialog}
+        maxWidth="md"
+      >
+        <DialogTitle>
+          Edit {instruments.find((i) => i.id === instrumentToEditDelete)?.name}{" "}
+          instrument
+        </DialogTitle>
+        <DialogContent dividers>
+          <InstrumentForm
+            onClose={closeEditDialog}
+            instrumentId={instrumentToEditDelete}
+          />
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteInstrument}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={closeDeleteDialog}
+        resourceName="instrument"
+      />
     </div>
   );
 };
@@ -520,7 +370,7 @@ InstrumentTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   telescopeInfo: PropTypes.bool,
-  deletePermission: PropTypes.bool,
+  managePermission: PropTypes.bool,
   fixedHeader: PropTypes.bool,
 };
 

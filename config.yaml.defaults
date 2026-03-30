@@ -192,7 +192,7 @@ app:
     - path: "/telescopes"
       component: telescope/TelescopePage
     - path: "/instruments"
-      component: instrument/InstrumentPage
+      component: instrument/InstrumentList
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
