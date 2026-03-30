@@ -136,13 +136,13 @@ const root = createRoot(container);
 root.render(
   <Provider store={store}>
     <StyledEngineProvider injectFirst>
-      <Theme {% if testing %} disableTransitions {% endif %}>
-        <ErrorBoundary>
+      <ErrorBoundary>
+        <Theme {% if testing %} disableTransitions {% endif %}>
           <BrowserRouter basename="/">
             <MainContentInternal root={`${window.location.host}/`} />
           </BrowserRouter>
-        </ErrorBoundary>
-      </Theme>
+        </Theme>
+      </ErrorBoundary>
     </StyledEngineProvider>
   </Provider>
 );
