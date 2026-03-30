@@ -298,7 +298,7 @@ class TelescopeHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()
 
-    @permissions(["Delete telescope"])
+    @permissions(["Manage telescopes"])
     def delete(self, telescope_id):
         """
         ---
