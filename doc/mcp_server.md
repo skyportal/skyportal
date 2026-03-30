@@ -8,7 +8,7 @@ SkyPortal includes an [MCP (Model Context Protocol)](https://modelcontextprotoco
 
 ### Getting Your API Token
 
-1. Log in to SkyPortal and click your username in the top-right corner to open your profile.
+1. Log in to SkyPortal/Fritz and click your username in the top-right corner to open your profile.
 2. Scroll down to the **API Token** section.
 3. If no token exists, click **Create New Token**, give it a name, and select the permissions you need.
 4. Copy the token — it is a UUID string (e.g. `a1b2c3d4-e5f6-7890-abcd-ef1234567890`).
@@ -25,7 +25,7 @@ The MCP server supports two transport modes:
 
 Choose the setup that matches your use case:
 
-#### Option 1: Remote Production Server (HTTP mode)
+#### Option 1: Remote Server (HTTP mode)
 
 **For Claude Desktop** - edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -92,7 +92,7 @@ Run the MCP server locally as a subprocess - perfect for testing new tools or co
 **For Claude Code** - use the CLI command:
 
 ```bash
-claude mcp add --transport stdio fritz-dev \
+claude mcp add --transport stdio skyportal_mcp \
   -e MCP_TRANSPORT=stdio \
   -e SKYPORTAL_URL=https://fritz.science \
   -e SKYPORTAL_TOKEN=your-api-token-here \
@@ -197,38 +197,29 @@ Generate a comprehensive summary for TNS (Transient Name Server) reports or Astr
 
 #### `analyze_light_curve`
 
-Analyze light curve evolution including rise/fade times, duration, and variability.
+Analyze multi-band light curve evolution including rise/fade times, duration, and variability.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `source_name` | `str` | Source identifier - SkyPortal obj_id, ZTF name, or TNS name |
-| `filter_name` | `str` | Photometric filter to analyze (default: "ztfr") |
+| `filter_names` | `str` | Comma-separated photometric filters (default: "ztfg,ztfr") |
 | `baseline_threshold` | `float` | Mag difference from peak to consider "baseline" (default: 0.3) |
-| `output_format` | `str` | `"text"` for chat summary or `"notebook"` for interactive plot (default: "text") |
+| `output_format` | `str` | `"notebook"` (default) or `"text"` for chat summary |
 
-**Dual output modes:**
-1. **Text mode** (`output_format="text"`): Returns formatted text summary directly in chat
-2. **Notebook mode** (`output_format="notebook"`): Returns Python code that Claude Code inserts into a notebook cell for the user to run
+**Output modes:**
+1. **Notebook mode** (`output_format="notebook"`, default): Generates CSV + Jupyter notebook
+   - CSV with all bands: `{source}_lightcurve_data.csv` (filter, mjd, mag, magerr)
+   - Jupyter notebook with:
+     - Editable analysis code cells (users can modify baseline threshold, add metrics)
+     - Interactive Plotly plots with all bands overlaid using SkyPortal colors
+     - Per-band metrics table (rise time, fade time, peak, duration)
+2. **Text mode** (`output_format="text"`): Returns per-band metrics summary in chat
 
-**Important:** Claude should ALWAYS prompt the user before calling: *"Would you like the analysis as (1) text summary in chat, or (2) interactive plot in a notebook?"*
-
-**Note:** Claude Code and Claude Desktop cannot display images in chat. When prompting, make this clear:
-- Text mode: Results shown directly in chat
-- Notebook mode: Code inserted into notebook cell for user to run and see plots
-
-**Returns (text mode):** Formatted summary with:
-- Peak magnitude and time
-- Rise time (first detection to peak) and rate (mag/day)
-- Fade time (peak to baseline or current) and rate
-- Total duration (rise + fade if light curve complete)
-- Pre-peak variability metrics and early flare detection
-- Status (still rising, still fading, or complete)
-
-**Returns (notebook mode):** Python code with:
-- Embedded photometry data (mjd, mag, magerr arrays)
-- Interactive matplotlib plot with peak marked
-- Printed analysis results (same as text mode)
-- Ready to run in a notebook cell
+**Multi-band support:**
+- Default pulls both g and r band (`"ztfg,ztfr"`)
+- Supports any comma-separated filter list: `"ztfg,ztfr,ztfi"`
+- Calculates metrics independently for each band
+- Skips filters with insufficient data (<2 points)
 
 **Handles incomplete light curves:**
 - Still rising: Reports time from first detection to current
@@ -237,47 +228,38 @@ Analyze light curve evolution including rise/fade times, duration, and variabili
 
 **Example prompts:**
 - *"Analyze the light curve for ZTF21aaaaaaa"*
-- *"Calculate rise and fade times for AT2024abc"*
+- *"Calculate rise and fade times for AT2024abc in g, r, and i bands"*
 - *"Check for early flares in the r-band light curve"*
-- *"Plot the light curve analysis for this source"*
 
 #### `analyze_color_evolution`
 
-Analyze color evolution and color at peak brightness using matched or interpolated methods.
+Analyze color evolution and color at peak brightness. Calculates BOTH matched and interpolated colors automatically, generating CSV data + Jupyter notebook with overlaid plots.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `source_name` | `str` | Source identifier - SkyPortal obj_id, ZTF name, or TNS name |
 | `band1` | `str` | First photometric filter (default: "ztfg") |
 | `band2` | `str` | Second photometric filter (default: "ztfr") |
-| `method` | `str` | "matched" (default) or "interpolated" |
 | `max_time_gap` | `float` | Max time difference to pair observations (default: 0.5 days) |
 | `max_data_gap` | `float` | Max gap to avoid spurious colors (default: 3.0 days) |
-| `output_format` | `str` | `"text"` for chat summary or `"notebook"` for interactive plots (default: "text") |
+| `output_format` | `str` | `"notebook"` (default) or `"text"` for chat summary |
 
-**Dual output modes:**
-1. **Text mode** (`output_format="text"`): Returns formatted text summary with CSV table
-2. **Notebook mode** (`output_format="notebook"`): Returns Python code with interactive plots (light curves + color evolution)
+**Default output** (`output_format="notebook"`):
+- **CSV file** (`{source}_color_data.csv`): Contains photometry + both color methods
+- **Jupyter notebook** (`{source}_color_analysis.ipynb`): Interactive plots with:
+  - Top panel: Light curves for both bands
+  - Bottom panel: BOTH color methods overlaid
+    - **Matched** (day-to-day): Darker, more opaque (alpha=0.8)
+    - **Interpolated** (rolling): Lighter, less opaque (alpha=0.4)
+- Files saved to `{source}_color_analysis/` directory
 
-**Important:** Claude should ALWAYS prompt the user TWO questions before calling:
-1. *"Would you like day-to-day colors (matched method) or rolling/continuous colors (interpolated method)?"*
-2. *"Would you like the analysis as text in chat or interactive plot in notebook?"*
+**Text output** (`output_format="text"`):
+- Formatted summary with color at peak, evolution statistics, and measurement table
+- First 20 matched color measurements shown
 
-**Returns (text mode):** Formatted summary with:
-- Color at peak brightness in each band
-- Color evolution statistics (mean, range, trend)
-- CSV table of color measurements with uncertainties
-- Method used and parameters
-
-**Returns (notebook mode):** Python code with:
-- Embedded photometry data for both bands
-- Two-panel interactive plot: light curves (top) + color evolution (bottom)
-- Color at peak and mean color marked on plot
-- Printed analysis results (same as text mode)
-
-**Two calculation methods:**
-1. **Matched** (`method="matched"`): Pairs observations from each band that are close in time, but avoids calculating colors across large gaps in the data. More conservative, respects observing gaps.
-2. **Interpolated** (`method="interpolated"`): Interpolates one band to match the other's observation times, creating continuous color measurements. More measurements but assumes smooth evolution.
+**Color calculation methods** (both computed automatically):
+1. **Matched**: Pairs observations from each band that are close in time, respects observing gaps. More conservative, best for sparse sampling.
+2. **Interpolated**: Interpolates one band to match the other's times, creating continuous color measurements. More measurements, best for well-sampled light curves.
 
 **Example prompts:**
 - *"Calculate g-r color evolution for ZTF21aaaaaaa"*
@@ -315,20 +297,25 @@ When a user asks for bulk analysis, Claude Code will:
 
 #### `generate_bulk_lightcurve_code`
 
-Generate Python code to bulk download ZTF forced photometry using ztfquery.
+Generate a Jupyter notebook to bulk download ZTF **alert photometry** from Fritz.
+
+> **Note:** This downloads alert photometry (detection epochs only), not forced
+> photometry. For forced photometry (including non-detections and upper limits),
+> use the [IRSA ZTF forced photometry service](https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `sources` | `str` | Comma-separated list of ZTF source names, or JSON array (e.g., `"ZTF24aaaaaaa,ZTF24aaaaaab"` or `'["ZTF24aaaaaaa", "ZTF24aaaaaab"]'`) |
 | `filters` | `str` | Comma-separated filter names (default: `"ztfg,ztfr,ztfi"`) |
-| `include_plots` | `bool` | Generate light curve plots (default: `True`) |
+| `include_plots` | `bool` | Generate interactive Plotly light curve plots (default: `True`) |
 
-**Returns:** Python code that:
-- Creates a `ztf_lightcurves/` directory with results
-- Saves individual light curves as CSV files
+**Requires:** `ztfquery` + Fritz API token (setup instructions included in notebook).
+
+**Returns:** A Jupyter notebook (`.ipynb`) saved to `ztf_lightcurves/` that:
+- Downloads alert photometry from Fritz using `fritz.bulk_download()` (multiprocessed)
+- Saves per-source light curves as CSV files
 - Creates `summary.csv` with statistics
-- Generates plots in `ztf_lightcurves/plots/` if requested
-- Includes progress tracking (tqdm) and error handling
+- Generates interactive Plotly plots (one per source)
 
 **Example prompts:**
 - *"Download photometry for 50 ZTF sources: [list of sources]"*
@@ -524,20 +511,6 @@ Get URLs to browse a sky position across common astronomical surveys (ZTF, Legac
 - *"Where can I look up ZTF21aaaaaaa in other surveys?"*
 - *"Show me PanSTARRS and Legacy Survey images for this source"*
 
-#### `get_ztf_cutout_urls`
-
-Query IRSA for ZTF science and reference image cutout URLs at a given position.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `ra` | `float` | Right ascension in decimal degrees (J2000) |
-| `dec` | `float` | Declination in decimal degrees (J2000) |
-| `size_arcmin` | `float` | Search region size in arcminutes (default: 1.0) |
-
-**Example prompts:**
-- *"Get ZTF images near RA=180.0, Dec=-5.0"*
-- *"Find ZTF reference images for this source's position"*
-
 #### `get_source_observability`
 
 Compute observing windows for a source from specified telescopes. Returns exact time windows (rise/set), transit time, peak altitude, and airmass — in both UTC and the telescope's local time. Accepts either a source ID (auto-resolves coordinates) or explicit RA/Dec.
@@ -633,16 +606,22 @@ Generate MongoDB aggregation pipeline JSON for a watchlist that monitors specifi
 - Ready to copy-paste into Fritz UI's filter creation page
 
 **What this tool CANNOT do:**
-- Create the filter directly via API (requires Fritz UI)
-- MCP cannot automate filter creation — you must paste JSON manually
+- Create the filter directly via API
+- Automate filter creation (manual import required)
 
-**Workflow:**
+**Recommended Workflow (MongoDB Compass):**
+Fritz now recommends using MongoDB Compass for filter development. See the [filter tutorial](https://github.com/fritz-marshal/fritz/blob/main/doc/filter_tutorial.md).
+
+1. Call this tool to generate a MongoDB pipeline template
+2. Install MongoDB Compass and connect to your alert cluster
+3. Import the generated pipeline to Compass for visual testing and refinement
+4. Export the final pipeline from Compass
+5. Import to Fritz
+
+**Alternative Workflow (Direct Import):**
 1. Call this tool with your target coordinates
 2. Copy the generated MongoDB pipeline JSON
-3. Go to Fritz UI → Filters page → Create Filter
-4. Paste the JSON into the "Pipeline" field
-5. Set Group and Stream for the filter
-6. Save to activate monitoring
+3. Import directly to Fritz or use as a starting point in MongoDB Compass
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

@@ -12,18 +12,12 @@ Some tools benefit from asking the user for preferences before execution. Below 
 
 1. **`get_tns_summary`** - After generating summary, ask what additional information they need (discovery context, follow-up plans, references, etc.). Display output in markdown text block (```text).
 
-2. **`analyze_light_curve`** and **`analyze_color_evolution`** - ALWAYS prompt before calling:
+2. **`analyze_light_curve`** and **`analyze_color_evolution`** - Generate Jupyter notebooks by default:
 
-   - **For analyze_color_evolution:** Ask TWO questions:
-     1. Method: "Would you like day-to-day colors (matched) or rolling/continuous colors (interpolated)?"
-     2. Output: "Would you like the analysis as text in chat or an interactive plot in a notebook?"
-   - **For analyze_light_curve:** Ask ONE question:
-     - Output: "Would you like the analysis as text in chat or an interactive plot in a notebook?"
-
-   **IMPORTANT:** Claude Code and Claude Desktop cannot display images in chat. Make this clear when prompting:
-
-   - Text mode: Results shown directly in chat
-   - Notebook mode: Python code inserted into notebook cell for user to run and see plots
+   - **analyze_color_evolution:** Generates CSV data + Jupyter notebook with BOTH matched (day-to-day) AND interpolated (rolling) colors overlaid
+   - **analyze_light_curve:** Generates CSV data + Jupyter notebook with light curve analysis
+   - Both support `output_format="text"` for quick summaries in chat
+   - **Default behavior:** Create interactive notebooks - no prompting needed unless user explicitly wants text-only
 
 3. **`get_source_observability`** - If multiple telescopes available and user doesn't specify, ask which telescope they want to use or offer to check all.
 
@@ -55,34 +49,39 @@ Some tools benefit from asking the user for preferences before execution. Below 
 
 ### Light Curve Analysis
 
-- **`analyze_light_curve(source_name, filter_name, baseline_threshold, output_format)`**
-  - Rise time, fade time, duration
+- **`analyze_light_curve(source_name, filter_names, baseline_threshold, output_format)`**
+  - Multi-band analysis: rise time, fade time, duration per filter
   - Rise/fade rates (mag/day)
   - Pre-peak variability and flare detection
   - Handles incomplete light curves (still rising/fading)
-  - Default filter: ztfr
-  - **Dual output modes:**
-    - `output_format="text"` (default): Text summary in chat
-    - `output_format="notebook"`: Python code with interactive plot for Jupyter notebook
-  - **ALWAYS prompt user** for output preference before calling
+  - Default filters: "ztfg,ztfr" (comma-separated, pulls both g and r band)
+  - **Output modes:**
+    - `output_format="notebook"` (default): Generates CSV file + Jupyter notebook
+      - CSV contains all requested bands (filter, mjd, mag, magerr)
+      - Notebook includes editable analysis code cells and interactive Plotly plots
+      - All bands overlaid on one plot with SkyPortal colors
+    - `output_format="text"`: Text summary with per-band metrics
 
 ### Color Analysis
 
-- **`analyze_color_evolution(source_name, band1, band2, method, max_time_gap, max_data_gap, output_format)`**
-  - Color at peak brightness
-  - Color evolution over time
-  - **Two calculation methods:**
-    - `"matched"` (default): Pairs close observations, respects data gaps. Best for sparse sampling.
-    - `"interpolated"`: Continuous/rolling color using interpolation. Best for well-sampled light curves.
-  - **Dual output modes:**
-    - `output_format="text"` (default): Text summary with CSV table in chat
-    - `output_format="notebook"`: Python code with interactive plots (light curves + color) for Jupyter notebook
-  - Default: g-r color using matched method
-  - **ALWAYS prompt user** for method AND output preference before calling
+- **`analyze_color_evolution(source_name, band1, band2, max_time_gap, max_data_gap, output_format)`**
+  - Color at peak brightness and evolution over time
+  - **Calculates BOTH methods automatically:**
+    - **Matched** (day-to-day): Pairs close observations, respects data gaps. Best for sparse sampling.
+    - **Interpolated** (rolling): Continuous color using interpolation. Best for well-sampled light curves.
+  - **Output modes:**
+    - `output_format="notebook"` (default): Generates CSV file + Jupyter notebook with overlaid plots
+      - CSV contains both matched and interpolated colors
+      - Notebook shows both methods overlaid (matched=darker, interpolated=lighter)
+    - `output_format="text"`: Text summary in chat
+  - Default: g-r color with both methods
+  - **Files generated:** `{source}_color_data.csv` and `{source}_color_analysis.ipynb` in `{source}_color_analysis/` directory
 
 ---
 
 ## Candidate Filtering & Scanning
+
+**Note on Alert-Time Filters**: Fritz now recommends using [MongoDB Compass](https://github.com/fritz-marshal/fritz/blob/main/doc/filter_tutorial.md) for developing alert-time filters. The MCP tools below can generate filter templates compatible with this workflow.
 
 ### Filtering Tools
 
@@ -94,9 +93,11 @@ Some tools benefit from asking the user for preferences before execution. Below 
   - See `candidate_filter_reference` resource for all parameters
 
 - **`generate_watchlist_filter(targets, max_distance_arcsec, filter_name)`**
-  - Creates MongoDB filter for TNS position monitoring
-  - Takes CSV of coordinates (name, RA, Dec)
-  - Returns JSON ready for Fritz UI
+  - Creates MongoDB aggregation pipeline for position monitoring
+  - Takes JSON list of coordinates (name, RA, Dec)
+  - Returns MongoDB pipeline compatible with Fritz filters
+  - **Recommended**: Use with [MongoDB Compass workflow](https://github.com/fritz-marshal/fritz/blob/main/doc/filter_tutorial.md)
+  - Can be used as starting point or imported directly
 
 ### Filter Documentation
 
@@ -121,11 +122,15 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 ### Bulk Photometry
 
 - **`generate_bulk_lightcurve_code(sources, filters, include_plots)`**
-  - Generate code to download ZTF forced photometry for multiple sources
+  - Generates a Jupyter notebook to bulk download ZTF **alert photometry** from Fritz
+  - Uses `ztfquery.fritz.bulk_download()` with multiprocessing
   - Sources: comma-separated or JSON array of ZTF names
   - Filters: ztfg, ztfr, ztfi (comma-separated)
-  - Creates CSV files + optional plots
-  - Example: `sources="ZTF21aaaaaaa,ZTF21aaaaaab"` → downloads g/r/i photometry
+  - Saves per-source CSVs + interactive Plotly plots
+  - Requires: ztfquery + Fritz API token. Setup: `from ztfquery.io import set_account; set_account('fritz', token_based=True)`
+  - **Note:** Downloads alert photometry (detection epochs only).
+    For forced photometry (non-detections/upper limits), use IRSA.
+  - Example: `sources="ZTF21aaaaaaa,ZTF21aaaaaab"` → notebook in `ztf_lightcurves/`
 
 ### Coordinate Searches
 
@@ -141,7 +146,7 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 - **`generate_fritz_bulk_query_code(sources, include_spectra)`**
   - Generate code to bulk download from Fritz API
   - Downloads photometry, spectra, metadata for multiple sources
-  - Requires Fritz token (set as FRITZ_TOKEN env var)
+  - Requires Fritz token. Setup: `from ztfquery.io import set_account; set_account('fritz', token_based=True)`
   - Faster than individual API calls
 
 ### Alert Packets
@@ -164,22 +169,12 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 
 ### Target Observability
 
-- **`get_source_observability(source_name, telescope_name)`**
-
-  - Tonight's observable windows
-  - Best observation time
-  - Alt/az at midnight
-  - Handles multiple telescopes
-
-- **`list_available_telescopes()`** - Show configured telescopes
-  - Name, location, elevation
-  - Available for observability queries
-
-### Follow-up Management
-
-- **`list_followup_requests(obj_id, status)`** - View follow-up requests
-- **`get_assigned_sources(run_id)`** - Sources in observing run
-- **`get_observation_plan(run_id)`** - Tonight's observing plan
+- **`get_source_observability(source_id, ra, dec, max_airmass, telescopes, date)`**
+  - Compute observing windows from specified telescopes
+  - Returns rise/set times, transit, peak altitude, airmass
+  - Accepts source_id (auto-resolves coords) or explicit ra/dec
+  - Built-in telescopes: Keck, Lick, Palomar, APO, CTIO, Gemini-N/S, VLT, Subaru, LDT, LCO sites
+  - Can query Fritz for all configured telescopes with `telescopes="fritz"`
 
 ---
 
@@ -187,36 +182,17 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 
 ### Time Conversion
 
-- **`convert_time(time_value, input_format, output_format)`**
-  - Formats: MJD, JD, ISO, Unix
+- **`convert_time(value, from_format, to_format)`**
+  - Convert between MJD, JD, ISO datetime, and Unix timestamps
+  - Formats: "mjd", "jd", "iso", "unix", or "auto" (detects automatically)
   - Example: MJD → ISO date
-
-### Coordinate Tools
-
-- **`calculate_sky_distance(ra1, dec1, ra2, dec2)`**
-  - Spherical distance between coordinates
-  - Returns arcseconds and degrees
 
 ### External Survey Links
 
 - **`get_survey_urls(ra, dec, obj_id)`**
   - 15+ survey links (SIMBAD, NED, VizieR, etc.)
   - Finding charts, catalogs, archives
-  - TNS, ALeRCE, ATLAS, etc.
-
-### ZTF Image Access
-
-- **`get_ztf_cutout_urls(ra, dec, size, filters, num_days)`**
-  - IRSA cutout service links
-  - Direct FITS download URLs
-  - Science, reference, difference images
-
----
-
-## Group & Permission Management
-
-- **`list_groups()`** - Show groups user can access
-- **`get_user_info()`** - Current user details and permissions
+  - TNS, ALeRCE, ATLAS, ZTF (IRSA), etc.
 
 ---
 
@@ -231,8 +207,6 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 **Follow-up Planning:**
 
 - `get_source_observability`
-- `list_available_telescopes`
-- `get_observation_plan`
 
 **Candidate Review:**
 
@@ -256,12 +230,11 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 **Context & Cross-matching:**
 
 - `get_survey_urls`
-- `get_ztf_cutout_urls`
-- `calculate_sky_distance`
+- `search_sources_near_position`
 
 **Bulk Operations (ztfquery code generation):**
 
-- `generate_bulk_lightcurve_code` ⭐ (photometry for many sources)
+- `generate_bulk_lightcurve_code` ⭐ (alert photometry for many sources via Fritz)
 - `generate_cone_search_code` (cross-match coordinates)
 - `generate_fritz_bulk_query_code` (bulk Fritz downloads)
 - `generate_alert_download_code` (alert packets)
@@ -291,17 +264,19 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 ### 3. Plan Tonight's Observations
 
 ```
-1. list_available_telescopes()
-2. get_source_observability(source_name="ZTF21...", telescope_name="P60")
-3. get_observation_plan(run_id=123)
+1. get_source_observability(source_id="ZTF21...", telescopes="Keck,Palomar")
+2. (Check multiple telescopes for best observing window)
+3. (Use Fritz UI for detailed observing run planning)
 ```
 
 ### 4. Monitor TNS Targets
 
 ```
-1. (Prepare CSV of coordinates from TNS)
-2. generate_watchlist_filter(targets="<CSV>", max_distance_arcsec=2.0)
-3. (Copy JSON into Fritz filter UI)
+1. (Prepare JSON list of coordinates from TNS)
+2. generate_watchlist_filter(targets="<JSON>", max_distance_arcsec=2.0)
+3. (Option A) Import JSON to MongoDB Compass for testing/refinement
+4. (Option B) Import JSON directly to Fritz
+5. See: https://github.com/fritz-marshal/fritz/blob/main/doc/filter_tutorial.md
 ```
 
 ### 5. Analyze Transient Evolution
@@ -316,9 +291,9 @@ They do NOT execute queries directly. The generated code uses `ztfquery` for eff
 
 ```
 1. generate_bulk_lightcurve_code(sources="ZTF21aaa,ZTF21aab,...", filters="ztfg,ztfr")
-2. (Claude inserts code into notebook)
-3. (User runs code locally - faster than individual queries)
-4. (Results saved to ztf_lightcurves/ directory)
+2. (Notebook saved to ztf_lightcurves/bulk_lightcurve_download.ipynb)
+3. (User opens notebook and runs cells — downloads from Fritz via ztfquery)
+4. (Per-source CSVs + interactive Plotly plots saved to ztf_lightcurves/)
 ```
 
 ### 7. Cross-Match Catalog with ZTF
