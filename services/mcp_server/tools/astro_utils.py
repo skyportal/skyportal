@@ -1,9 +1,7 @@
 # pyright: reportMissingTypeStubs=false, reportUnknownMemberType=false
 # pyright: reportUnknownVariableType=false, reportUnknownArgumentType=false
-"""Astronomical utility tools: time conversion, survey links, ZTF cutouts."""
+"""Astronomical utility tools: time conversion, survey links, cone searches."""
 
-import csv
-import io
 from urllib.parse import quote
 
 import httpx
@@ -196,103 +194,6 @@ async def get_survey_urls(
     return "\n".join(lines)
 
 
-# ─── ZTF cutout URLs ────────────────────────────────────────────────────────
-
-
-@mcp.tool()
-async def get_ztf_cutout_urls(
-    ra: float,
-    dec: float,
-    size_arcmin: float = 1.0,
-) -> str:
-    """Query IRSA for ZTF image cutout URLs at a given position.
-
-    Searches the IRSA ZTF archive for science and reference images covering
-    the position, and returns direct download URLs for the FITS files.
-
-    Args:
-        ra: Right ascension in decimal degrees (J2000)
-        dec: Declination in decimal degrees (J2000)
-        size_arcmin: Search region size in arcminutes (default 1.0)
-    """
-    size_deg = size_arcmin / 60.0
-    base_search = "https://irsa.ipac.caltech.edu/ibe/search/ztf/products"
-    base_data = "https://irsa.ipac.caltech.edu/ibe/data/ztf/products"
-
-    results = []
-
-    # Query for science images
-    sci_url = f"{base_search}/sci?POS={ra:.6f},{dec:.6f}&SIZE={size_deg:.6f}&ct=csv"
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(sci_url)
-        if resp.is_success and resp.text.strip():
-            reader = csv.DictReader(io.StringIO(resp.text))
-            rows = list(reader)
-            if rows:
-                results.append(f"Found {len(rows)} science image(s).\n")
-                for i, row in enumerate(rows[:5]):
-                    field = row.get("field", "").zfill(6)
-                    filt = row.get("filtercode", "")
-                    ccdid = row.get("ccdid", "").zfill(2)
-                    qid = row.get("qid", "")
-                    filefracday = row.get("filefracday", "")
-                    imgtypecode = row.get("imgtypecode", "o")
-                    fits_url = (
-                        f"{base_data}/sci/{filefracday[:4]}/{filefracday[4:8]}"
-                        f"/{filefracday}/ztf_{filefracday}_{field}_{filt}"
-                        f"_c{ccdid}_{imgtypecode}_q{qid}_sciimg.fits"
-                    )
-                    results.append(
-                        f"  Science #{i + 1}: filter={filt} field={field} "
-                        f"ccd={ccdid} quad={qid}\n    {fits_url}"
-                    )
-            else:
-                results.append("No science images found at this position.")
-    except Exception as e:
-        results.append(f"Science image search error: {e}")
-
-    # Query for reference images
-    ref_url = f"{base_search}/ref?POS={ra:.6f},{dec:.6f}&SIZE={size_deg:.6f}&ct=csv"
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(ref_url)
-        if resp.is_success and resp.text.strip():
-            reader = csv.DictReader(io.StringIO(resp.text))
-            rows = list(reader)
-            if rows:
-                results.append(f"\nFound {len(rows)} reference image(s).\n")
-                for i, row in enumerate(rows[:5]):
-                    field = row.get("field", "").zfill(6)
-                    filt = row.get("filtercode", "")
-                    ccdid = row.get("ccdid", "").zfill(2)
-                    qid = row.get("qid", "")
-                    fits_url = (
-                        f"{base_data}/ref/{field[:3]}/field{field}/{filt}"
-                        f"/ccd{ccdid}/q{qid}"
-                        f"/ztf_{field}_{filt}_c{ccdid}_q{qid}_refimg.fits"
-                    )
-                    results.append(
-                        f"  Reference #{i + 1}: filter={filt} field={field} "
-                        f"ccd={ccdid} quad={qid}\n    {fits_url}"
-                    )
-            else:
-                results.append("\nNo reference images found at this position.")
-    except Exception as e:
-        results.append(f"\nReference image search error: {e}")
-
-    viewer_url = (
-        f"https://irsa.ipac.caltech.edu/applications/ztf/"
-        f"#id=Hydra_ztf_ztf_image_pos&RequestClass=ServerRequest"
-        f"&DoSearch=true&intersect=CENTER&subsize=0.139"
-        f"&mcenter=all&dpLevel=sci,ref,diff"
-        f"&UserTargetWorldPt={ra};{dec};EQ_J2000"
-    )
-    results.append(f"\nInteractive IRSA ZTF viewer: {viewer_url}")
-
-    return "\n".join(results)
-
-
 # ─── SkyPortal cone search ──────────────────────────────────────────────────
 
 
@@ -350,15 +251,22 @@ async def search_sources_near_position(
     if ra is None or dec is None:
         return "Provide either source_id or both ra and dec."
 
-    # Query SkyPortal for all sources (will filter client-side)
-    # Note: SkyPortal's /api/sources doesn't have built-in spatial filtering,
-    # so we fetch sources and compute separations client-side
+    # Convert radius from arcseconds to degrees for API
+    radius_deg = radius_arcsec / 3600.0
+
+    # Query SkyPortal using built-in spatial filtering
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(
                 f"{SKYPORTAL_URL}/api/sources",
                 headers={"Authorization": f"token {token}"},
-                params={"numPerPage": num_per_page * 10, "includeComments": False},
+                params={
+                    "ra": ra,
+                    "dec": dec,
+                    "radius": radius_deg,
+                    "numPerPage": num_per_page,
+                    "includeComments": False,
+                },
             )
         resp.raise_for_status()
     except httpx.HTTPStatusError as e:
@@ -368,9 +276,12 @@ async def search_sources_near_position(
 
     sources = resp.json().get("data", {}).get("sources", [])
     if not sources:
-        return "No sources found in SkyPortal (or no access to any groups)."
+        return (
+            f"No sources found within {radius_arcsec:.1f} arcsec of "
+            f"RA={ra:.6f}, Dec={dec:+.6f}"
+        )
 
-    # Compute separations using simple angular distance
+    # Compute separations for sorting
     import math
 
     def angular_separation(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
@@ -390,7 +301,7 @@ async def search_sources_near_position(
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return math.degrees(c) * 3600  # Convert to arcseconds
 
-    # Filter sources by separation
+    # Add separation info to sources
     nearby_sources = []
     for src in sources:
         src_ra = src.get("ra")
@@ -399,22 +310,18 @@ async def search_sources_near_position(
             continue
 
         sep = angular_separation(ra, dec, src_ra, src_dec)
-        if sep <= radius_arcsec:
-            nearby_sources.append(
-                {
-                    "id": src.get("id", ""),
-                    "ra": src_ra,
-                    "dec": src_dec,
-                    "separation_arcsec": sep,
-                    "groups": [g.get("name", "") for g in src.get("groups", [])],
-                }
-            )
+        nearby_sources.append(
+            {
+                "id": src.get("id", ""),
+                "ra": src_ra,
+                "dec": src_dec,
+                "separation_arcsec": sep,
+                "groups": [g.get("name", "") for g in src.get("groups", [])],
+            }
+        )
 
     # Sort by separation
     nearby_sources.sort(key=lambda x: x["separation_arcsec"])
-
-    # Limit to num_per_page
-    nearby_sources = nearby_sources[:num_per_page]
 
     if not nearby_sources:
         return (
