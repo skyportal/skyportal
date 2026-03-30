@@ -49,7 +49,7 @@ class ErrorBoundary extends React.Component {
         >
           <div style={{ textAlign: "center", paddingBottom: "1em" }}>
             <img
-              src="/static/images/car_over_cliff.svg"
+              src="/static/images/something_wrong.svg"
               style={{ maxWidth: "250px", width: "80%" }}
               alt="Car over cliff: something went wrong"
             />
