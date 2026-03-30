@@ -414,16 +414,16 @@ class InstrumentHandler(BaseHandler):
             if localization_dateobs is not None:
                 try:
                     airmass_time = Time(arrow.get(localization_dateobs).datetime)
-                except Exception as e:
+                except Exception:
                     return self.error(
                         f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                     )
         else:
             try:
                 airmass_time = Time(arrow.get(airmass_time).datetime)
-            except Exception as e:
+            except Exception:
                 return self.error(
-                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                    f"Invalid date format for airmass_time: '{airmass_time}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                 )
 
         if includeGeoJSON:
@@ -902,7 +902,7 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(["Delete instrument"])
+    @permissions(["Manage instruments"])
     def delete(self, instrument_id):
         """
         ---
@@ -1426,7 +1426,7 @@ def add_tiles(
 
 
 class InstrumentFieldHandler(BaseHandler):
-    @permissions(["Delete instrument"])
+    @permissions(["Manage instruments"])
     def delete(self, instrument_id):
         """
         ---
