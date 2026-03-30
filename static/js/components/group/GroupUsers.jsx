@@ -75,22 +75,17 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   // MUI DataTable functions
   const renderUsername = (dataIndex) => {
     const user = group?.users[dataIndex];
-    return (
-      <Link to={`/user/${user.id}`} className={classes.filterLink}>
-        {user.username}
-      </Link>
-    );
+    return <Link to={`/user/${user.id}`}>{user.username}</Link>;
   };
 
   const renderAdmin = (dataIndex) => {
     const user = group?.users[dataIndex];
+    if (!user?.admin) return null;
+
     return (
-      user &&
-      user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
-        </div>
-      )
+      <div id={`${user.id}-admin-chip`}>
+        <Chip label="Admin" size="small" color="primary" />
+      </div>
     );
   };
 

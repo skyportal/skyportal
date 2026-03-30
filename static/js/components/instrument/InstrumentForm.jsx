@@ -81,11 +81,7 @@ const InstrumentForm = ({ onClose, instrumentId = null }) => {
   if (instrumentList.length === 0 || telescopeList.length === 0) {
     return <h3>No instruments available...</h3>;
   } else if (enum_types.length === 0) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress color="secondary" />;
   }
 
   const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
@@ -233,22 +229,30 @@ const InstrumentForm = ({ onClose, instrumentId = null }) => {
         type: "string",
         oneOf: [
           {
-            enum: ["rectangle"],
-            title: "rectangle",
+            enum: ["Rectangle"],
+            title: "Rectangle",
           },
           {
-            enum: ["circle"],
-            title: "circle",
+            enum: ["Circle"],
+            title: "Circle",
           },
         ],
         uniqueItems: true,
         title: "FOV Type",
         description: "Rectangle or Circle",
+        default: instrumentToEdit?.region_summary
+          ? instrumentToEdit?.region_summary.includes("Rectangle")
+            ? "Rectangle"
+            : "Circle"
+          : undefined,
       },
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
+        default: instrumentToEdit?.region_summary
+          ? instrumentToEdit?.region_summary.split("(")[1].split(")")[0]
+          : undefined,
       },
       sensitivity_data: {
         type: "string",
@@ -313,10 +317,6 @@ const InstrumentForm = ({ onClose, instrumentId = null }) => {
 InstrumentForm.propTypes = {
   onClose: PropTypes.func.isRequired,
   instrumentId: PropTypes.number,
-};
-
-InstrumentForm.defaultProps = {
-  instrumentId: null,
 };
 
 export default InstrumentForm;

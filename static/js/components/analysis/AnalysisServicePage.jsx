@@ -163,11 +163,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const renderDetails = (dataIndex) => {
     const analysis_service = analysisServices[dataIndex];
     return (
-      <IconButton
-        key={`details_${analysis_service.id}`}
-        id={`details_button_${analysis_service.id}`}
-        onClick={() => openDetailsDialog(analysis_service.id)}
-      >
+      <IconButton onClick={() => openDetailsDialog(analysis_service.id)}>
         <HistoryEduIcon />
       </IconButton>
     );
@@ -181,8 +177,6 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     return (
       <div className={classes.analysisServiceManage}>
         <Button
-          key={`delete_${analysis_service.id}`}
-          id={`delete_button_${analysis_service.id}`}
           onClick={() => openDeleteDialog(analysis_service.id)}
           disabled={!deletePermission}
         >

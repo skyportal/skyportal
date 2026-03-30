@@ -14,18 +14,17 @@ const MODIFY_TAXONOMY = "skyportal/MODIFY_TAXONOMY";
 
 const DELETE_TAXONOMY = "skyportal/DELETE_TAXONOMY";
 
+export const fetchTaxonomies = () => API.GET("/api/taxonomy", FETCH_TAXONOMIES);
+
+export const submitTaxonomy = (params = {}) =>
+  API.POST(`/api/taxonomy`, SUBMIT_TAXONOMY, params);
+
 export const modifyTaxonomy = (id, params) =>
   API.PUT(`/api/taxonomy/${id}`, MODIFY_TAXONOMY, params);
 
 export function deleteTaxonomy(id) {
   return API.DELETE(`/api/taxonomy/${id}`, DELETE_TAXONOMY);
 }
-
-// eslint-disable-next-line import/prefer-default-export
-export const fetchTaxonomies = () => API.GET("/api/taxonomy", FETCH_TAXONOMIES);
-
-export const submitTaxonomy = (params = {}) =>
-  API.POST(`/api/taxonomy`, SUBMIT_TAXONOMY, params);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {

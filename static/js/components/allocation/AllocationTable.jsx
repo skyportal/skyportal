@@ -261,18 +261,10 @@ const AllocationTable = ({
     const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
-        <IconButton
-          key={`edit_${allocation.id}`}
-          id={`edit_button_${allocation.id}`}
-          onClick={() => setAllocationToEdit(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToEdit(allocation.id)}>
           <EditIcon />
         </IconButton>
-        <IconButton
-          key={`delete_${allocation.id}`}
-          id={`delete_button_${allocation.id}`}
-          onClick={() => setAllocationToDelete(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToDelete(allocation.id)}>
           <DeleteIcon />
         </IconButton>
       </div>

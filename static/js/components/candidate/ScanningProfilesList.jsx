@@ -160,20 +160,15 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked, dataIndex) => {
-    if (checked) {
-      // If setting new default, unset the old default first
-      profiles.forEach((profile) => {
-        profile.default = false;
-      });
-      profiles[dataIndex].default = true;
-    } else {
-      // If unchecking, just set default to false
-      profiles[dataIndex].default = false;
-    }
-    const prefs = {
-      scanningProfiles: profiles,
-    };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    const updatedProfiles = profiles.map((profile, index) => ({
+      ...profile,
+      default: checked && index === dataIndex,
+    }));
+    dispatch(
+      profileActions.updateUserPreferences({
+        scanningProfiles: updatedProfiles,
+      }),
+    );
   };
 
   const renderDefault = (dataIndex) => {
@@ -290,15 +285,10 @@ const ScanningProfilesList = ({
   const renderActions = (dataIndex) => {
     return (
       <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
+        <IconButton onClick={() => editProfile(profiles[dataIndex])}>
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${dataIndex}`}
           id={`delete_button_${dataIndex}`}
           onClick={() => deleteProfile(dataIndex)}
         >

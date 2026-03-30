@@ -56,9 +56,6 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     marginTop: theme.spacing(2),
   },
-  filterLink: {
-    marginRight: theme.spacing(1),
-  },
   manageUserPopover: {
     display: "flex",
     flexDirection: "column",
