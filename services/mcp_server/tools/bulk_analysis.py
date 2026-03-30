@@ -13,35 +13,36 @@ async def generate_bulk_lightcurve_code(
     filters: str = "ztfg,ztfr,ztfi",
     include_plots: bool = True,
 ) -> str:
-    """Generate code to bulk download ZTF forced photometry using ztfquery.
+    """Generate a Jupyter notebook to bulk download ZTF light curves from Fritz.
 
-    This tool generates ready-to-run Python code for Jupyter notebooks that:
-    - Downloads forced photometry for multiple sources
-    - Saves results to CSV files
-    - Optionally creates light curve plots
-    - Includes progress tracking and error handling
+    Creates a ready-to-run .ipynb notebook that uses ztfquery's Fritz
+    integration to download **alert photometry** (detection epochs) for
+    multiple sources with multiprocessing, save results to CSV, and create
+    interactive Plotly plots.
 
-    **Use Case:** When you need photometry for many sources (>5) and want to
-    run the query locally for better performance and control.
+    **Note:** This downloads alert photometry, not forced photometry.
+    For forced photometry (including non-detections/upper limits), use the
+    IRSA ZTF forced photometry service.
+
+    **Requires:** ztfquery + Fritz API token.
+    Setup: `from ztfquery.io import set_account; set_account('fritz', token_based=True)`
 
     Args:
         sources: Comma-separated list of ZTF source names, or JSON array.
                 Example: "ZTF24aaaaaaa,ZTF24aaaaaab,ZTF24aaaaaac"
                 Or: '["ZTF24aaaaaaa", "ZTF24aaaaaab"]'
         filters: Comma-separated filter names (default: "ztfg,ztfr,ztfi")
-        include_plots: Generate light curve plots (default: True)
+        include_plots: Generate interactive Plotly light curve plots (default: True)
 
     Returns:
-        Python code ready to run in a Jupyter notebook. The code will:
-        - Create a 'ztf_lightcurves' directory with results
-        - Save individual light curves as CSV files
-        - Create a summary.csv with statistics
-        - Generate plots in 'ztf_lightcurves/plots/' if requested
+        Path to the generated Jupyter notebook in ztf_lightcurves/ directory.
+        The notebook downloads data from Fritz, saves per-source CSVs,
+        and plots interactive light curves with Plotly.
 
     Example:
         sources = "ZTF21aaaaaaa,ZTF21aaaaaab,ZTF21aaaaaac"
         filters = "ztfg,ztfr"
-        → Generates code to download g/r photometry for 3 sources
+        → Generates notebook to download g/r photometry for 3 sources
     """
     # Parse sources (handle both comma-separated and JSON)
     if sources.strip().startswith("["):
@@ -132,8 +133,8 @@ async def generate_fritz_bulk_query_code(
     **Use Case:** When you need to download data products from Fritz for
     many sources at once (faster than individual API calls).
 
-    **Note:** Requires Fritz API token. Set as FRITZ_TOKEN environment variable
-    or edit the generated code.
+    **Note:** Requires Fritz API token.
+    Setup: `from ztfquery.io import set_account; set_account('fritz', token_based=True)`
 
     Args:
         sources: Comma-separated source names or JSON array

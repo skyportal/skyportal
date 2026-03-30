@@ -2,18 +2,31 @@
 """Code generation templates for bulk analysis using ztfquery."""
 
 import json
-from typing import Any
 
 
-def generate_ztfquery_setup() -> str:
-    """Generate setup code for ztfquery authentication."""
-    return """# ztfquery Setup and Authentication
-# Run this once to configure IRSA credentials:
-# from ztfquery import io
-# io.set_account('your_irsa_username', 'your_irsa_password')
-# Get IRSA account at: https://irsa.ipac.caltech.edu/account/signon/login.do
+def _make_code_cell(source: str) -> dict:
+    """Create a Jupyter notebook code cell."""
+    return {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": source.splitlines(keepends=True),
+    }
 
-import warnings
+
+def _make_markdown_cell(source: str) -> dict:
+    """Create a Jupyter notebook markdown cell."""
+    return {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": source.splitlines(keepends=True),
+    }
+
+
+def _common_imports() -> str:
+    """Common imports shared by all code templates."""
+    return """import warnings
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -24,146 +37,266 @@ from pathlib import Path
 """
 
 
+def generate_fritz_setup() -> str:
+    """Generate setup code for Fritz/SkyPortal via ztfquery."""
+    return (
+        """# ============================================================
+# Fritz/SkyPortal Setup (via ztfquery)
+# ============================================================
+# Prerequisites (run these in your terminal ONCE before using):
+#
+# 1. Install ztfquery:
+#      pip install ztfquery
+#
+# 2. Get your Fritz API token:
+#      Go to https://fritz.science/profile and copy your token.
+#
+# 3. Configure ztfquery with your Fritz token:
+#      python -c "from ztfquery.io import set_account; set_account('fritz', token_based=True)"
+#      (It will prompt you for your token and save it to ~/.ztfquery)
+#
+# Troubleshooting:
+#   - If you get 401 errors, re-run step 3 with a fresh token
+#   - Token expires? Generate a new one from your Fritz profile
+# ============================================================
+
+"""
+        + _common_imports()
+        + """
+from ztfquery import fritz
+"""
+    )
+
+
+def generate_irsa_setup() -> str:
+    """Generate setup code for IRSA access via ztfquery."""
+    return """# ============================================================
+# IRSA / ZTF Archive Setup (via ztfquery)
+# ============================================================
+# Prerequisites (run these in your terminal ONCE before using):
+#
+# 1. Install ztfquery:
+#      pip install ztfquery
+#
+# 2. Create a free IRSA account (needed for ZTF data access):
+#      https://irsa.ipac.caltech.edu/account/signon/login.do
+#
+# 3. Configure your IRSA credentials:
+#      python -c "from ztfquery import io; io.set_account('YOUR_IRSA_USERNAME', 'YOUR_IRSA_PASSWORD')"
+#
+#    This saves credentials to ~/.ztfquery/config.ini so you
+#    only need to do it once.
+#
+# Troubleshooting:
+#   - If you get authentication errors, re-run step 3
+#   - If ztfquery is slow, it's downloading from IRSA — be patient
+#   - For large queries (>50 sources), consider running overnight
+# ============================================================
+
+""" + _common_imports()
+
+
 def generate_bulk_lightcurve_query(
     source_list: list[str], filters: list[str], include_plots: bool = True
 ) -> str:
-    """Generate code to query forced photometry for multiple sources.
+    """Generate a Jupyter notebook to bulk download light curves from Fritz.
 
     Args:
         source_list: List of ZTF source names
         filters: List of filter names (e.g., ['ztfg', 'ztfr', 'ztfi'])
-        include_plots: Include plotting code
+        include_plots: Include Plotly plotting cells
 
     Returns:
-        Python code string for notebook
+        JSON string of a Jupyter notebook, to be saved as .ipynb
     """
+    from pathlib import Path
+
     source_json = json.dumps(source_list, indent=4)
     filter_json = json.dumps(filters)
 
-    code = generate_ztfquery_setup()
+    output_dir = Path("ztf_lightcurves")
+    output_dir.mkdir(exist_ok=True)
+    notebook_path = output_dir / "bulk_lightcurve_download.ipynb"
 
-    code += f"""
-from ztfquery import lightcurve
+    cells = []
 
-# Configuration
-sources = {source_json}
+    # Cell 0: Info markdown
+    cells.append(
+        _make_markdown_cell(
+            "# Bulk ZTF Light Curve Download\n"
+            "\n"
+            "Downloads **alert photometry** (detection-epoch data) from Fritz/SkyPortal.\n"
+            "\n"
+            "> **Need forced photometry?** (includes non-detections & upper limits)\n"
+            "> Use the [IRSA ZTF forced photometry service]"
+            "(https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves) instead.\n"
+            "> Forced photometry requires a free IRSA account."
+        )
+    )
 
-filters = {filter_json}
+    # Cell 1: Setup & imports
+    cells.append(
+        _make_code_cell(
+            "# Fritz/SkyPortal Setup (via ztfquery)\n"
+            "# Prerequisites (run ONCE in your terminal before using):\n"
+            "#   1. pip install ztfquery\n"
+            "#   2. Get your Fritz API token from https://fritz.science/profile\n"
+            "#   3. python -c \"from ztfquery.io import set_account; set_account('fritz', token_based=True)\"\n"
+            "#      (saves token to ~/.ztfquery)\n"
+            "\n"
+            "import warnings\n"
+            "warnings.filterwarnings('ignore')\n"
+            "\n"
+            "import numpy as np\n"
+            "import pandas as pd\n"
+            "from pathlib import Path\n"
+            "from ztfquery import fritz\n"
+            "\n"
+            "import plotly.graph_objects as go\n"
+            "from plotly.offline import init_notebook_mode, iplot\n"
+            "init_notebook_mode(connected=True)"
+        )
+    )
 
-# Results storage
-output_dir = Path('ztf_lightcurves')
-output_dir.mkdir(exist_ok=True)
+    # Cell 2: Configuration
+    cells.append(
+        _make_code_cell(
+            f"# Configuration — edit these as needed\n"
+            f"sources = {source_json}\n"
+            f"\n"
+            f"filters = {filter_json}\n"
+            f"\n"
+            f"output_dir = Path('ztf_lightcurves')\n"
+            f"output_dir.mkdir(exist_ok=True)"
+        )
+    )
 
-results = {{}}
-errors = []
+    # Cell 3: Download
+    cells.append(
+        _make_code_cell(
+            "# Download light curves from Fritz (multiprocessed)\n"
+            "print(f'Downloading light curves for {len(sources)} sources from Fritz...')\n"
+            "print(f'Filters: {filters}')\n"
+            "print()\n"
+            "\n"
+            "fritz.bulk_download('lightcurve', sources, nprocess=4, store=True)\n"
+            "print('\\nBulk download complete.')"
+        )
+    )
 
-print(f"Querying forced photometry for {{len(sources)}} sources...")
-print(f"Filters: {{', '.join(filters)}}")
-print()
+    # Cell 4: Load, filter, save CSVs
+    cells.append(
+        _make_code_cell(
+            "# Load downloaded data, filter by band, save CSVs\n"
+            "results = {}\n"
+            "errors = []\n"
+            "\n"
+            "for source in sources:\n"
+            "    try:\n"
+            "        # download_lightcurve returns a DataFrame directly\n"
+            "        # Data is already cached locally from bulk_download above\n"
+            "        lc_data = fritz.download_lightcurve(source, store=True)\n"
+            "\n"
+            "        if lc_data is not None and len(lc_data) > 0:\n"
+            "            lc_filtered = lc_data[lc_data['filter'].isin(filters)].copy()\n"
+            "\n"
+            "            output_file = output_dir / f'{source}_lc.csv'\n"
+            "            lc_filtered.to_csv(output_file, index=False)\n"
+            "\n"
+            "            results[source] = {\n"
+            "                'data': lc_filtered,\n"
+            "                'n_points': len(lc_filtered),\n"
+            "                'filters': lc_filtered['filter'].unique().tolist(),\n"
+            "                'file': str(output_file)\n"
+            "            }\n"
+            "            print(f'✓ {source}: {len(lc_filtered)} points')\n"
+            "        else:\n"
+            "            print(f'✗ {source}: No data')\n"
+            "            errors.append({'source': source, 'error': 'No data'})\n"
+            "    except Exception as e:\n"
+            "        print(f'✗ {source}: {e}')\n"
+            "        errors.append({'source': source, 'error': str(e)})\n"
+            "\n"
+            "print(f'\\nLoaded: {len(results)}/{len(sources)}')\n"
+            "\n"
+            "# Save summary\n"
+            "summary = pd.DataFrame([\n"
+            "    {'source': src, 'n_points': info['n_points'],\n"
+            "     'filters': ','.join(info['filters']), 'file': info['file']}\n"
+            "    for src, info in results.items()\n"
+            "])\n"
+            "summary.to_csv(output_dir / 'summary.csv', index=False)\n"
+            "print(f'Summary saved to: {output_dir / \"summary.csv\"}')"
+        )
+    )
 
-# Query each source
-for source in tqdm(sources, desc="Downloading light curves"):
-    try:
-        # Download forced photometry
-        lcq = lightcurve.LCQuery.from_name(source)
-
-        # Get data as DataFrame
-        lc_data = lcq.data
-
-        if lc_data is not None and len(lc_data) > 0:
-            # Filter by requested bands
-            lc_filtered = lc_data[lc_data['filter'].isin(filters)]
-
-            # Save to CSV
-            output_file = output_dir / f"{{source}}_lc.csv"
-            lc_filtered.to_csv(output_file, index=False)
-
-            results[source] = {{
-                'data': lc_filtered,
-                'n_points': len(lc_filtered),
-                'filters': lc_filtered['filter'].unique().tolist(),
-                'file': str(output_file)
-            }}
-
-            print(f"✓ {{source}}: {{len(lc_filtered)}} points")
-        else:
-            print(f"✗ {{source}}: No data")
-            errors.append({{'source': source, 'error': 'No data returned'}})
-
-    except Exception as e:
-        print(f"✗ {{source}}: {{str(e)}}")
-        errors.append({{'source': source, 'error': str(e)}})
-
-print()
-print(f"Successfully downloaded: {{len(results)}}/{{len(sources)}}")
-print(f"Failed: {{len(errors)}}")
-
-# Save summary
-summary = pd.DataFrame([
-    {{'source': src, 'n_points': info['n_points'],
-      'filters': ','.join(info['filters']), 'file': info['file']}}
-    for src, info in results.items()
-])
-summary.to_csv(output_dir / 'summary.csv', index=False)
-print(f"\\nSummary saved to: {{output_dir / 'summary.csv'}}")
-
-if errors:
-    error_df = pd.DataFrame(errors)
-    error_df.to_csv(output_dir / 'errors.csv', index=False)
-    print(f"Errors saved to: {{output_dir / 'errors.csv'}}")
-"""
-
+    # Cell 5: Plotly interactive plots (one per source)
     if include_plots:
-        code += """
-# Plot light curves
-print("\\nGenerating plots...")
-
-fig_dir = output_dir / 'plots'
-fig_dir.mkdir(exist_ok=True)
-
-for source, info in tqdm(results.items(), desc="Creating plots"):
-    lc_data = info['data']
-
-    # Create figure
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Plot each filter
-    colors = {'ztfg': 'green', 'ztfr': 'red', 'ztfi': 'orange'}
-
-    for filt in info['filters']:
-        mask = lc_data['filter'] == filt
-        filt_data = lc_data[mask]
-
-        # Only plot detections (mag is not null)
-        detections = filt_data[filt_data['mag'].notna()]
-
-        if len(detections) > 0:
-            ax.errorbar(
-                detections['mjd'],
-                detections['mag'],
-                yerr=detections['magerr'],
-                fmt='o',
-                label=filt,
-                color=colors.get(filt, 'gray'),
-                alpha=0.7,
-                capsize=3
+        cells.append(
+            _make_code_cell(
+                "# Interactive Plotly light curve plots\n"
+                "filter_colors = {\n"
+                "    'ztfg': '#28a745', 'ztfr': '#dc3545', 'ztfi': '#8b0000',\n"
+                "    'sdssg': '#28a745', 'sdssr': '#dc3545', 'sdssi': '#8b0000',\n"
+                "}\n"
+                "\n"
+                "def hex_to_rgba(hex_color, alpha):\n"
+                "    h = hex_color.lstrip('#')\n"
+                "    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)\n"
+                "    return f'rgba({r},{g},{b},{alpha})'\n"
+                "\n"
+                "for source, info in results.items():\n"
+                "    df = info['data'].copy()\n"
+                "    fig = go.Figure()\n"
+                "\n"
+                "    for filt in info['filters']:\n"
+                "        df_f = df[(df['filter'] == filt) & df['mag'].notna()].sort_values('mjd')\n"
+                "        if len(df_f) == 0:\n"
+                "            continue\n"
+                "        color = filter_colors.get(filt, '#1f77b4')\n"
+                "        fig.add_trace(go.Scatter(\n"
+                "            x=df_f['mjd'], y=df_f['mag'],\n"
+                "            error_y=dict(type='data', array=df_f['magerr'], visible=True, thickness=1.5),\n"
+                "            mode='markers',\n"
+                "            marker=dict(size=6, color=hex_to_rgba(color, 0.6),\n"
+                "                        line=dict(color=color, width=1.5)),\n"
+                "            name=filt,\n"
+                "            hovertemplate='MJD: %{x:.2f}<br>Mag: %{y:.3f}<extra></extra>'\n"
+                "        ))\n"
+                "\n"
+                "    fig.update_layout(\n"
+                "        title=f'{source} Light Curve',\n"
+                "        xaxis_title='MJD', yaxis_title='AB Magnitude',\n"
+                "        yaxis=dict(autorange='reversed'),\n"
+                "        template='plotly_white', width=900, height=500\n"
+                "    )\n"
+                "    iplot(fig)"
             )
+        )
 
-    ax.invert_yaxis()
-    ax.set_xlabel('MJD', fontsize=12)
-    ax.set_ylabel('AB Magnitude', fontsize=12)
-    ax.set_title(f'{source} Light Curve', fontsize=14, fontweight='bold')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+    # Build notebook JSON
+    notebook = {
+        "nbformat": 4,
+        "nbformat_minor": 5,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {"name": "python", "version": "3.11.0"},
+        },
+        "cells": cells,
+    }
 
-    plt.tight_layout()
-    plt.savefig(fig_dir / f'{source}_lc.png', dpi=150, bbox_inches='tight')
-    plt.close()
+    with open(notebook_path, "w") as f:
+        json.dump(notebook, f, indent=1)
 
-print(f"Plots saved to: {fig_dir}")
-"""
-
-    return code
+    return (
+        f"Notebook saved to: {notebook_path}\n"
+        f"Open it in VS Code or Jupyter and run the cells to download "
+        f"light curves for {len(source_list)} sources from Fritz."
+    )
 
 
 def generate_cone_search_query(
@@ -180,7 +313,7 @@ def generate_cone_search_query(
     """
     coords_json = json.dumps(ra_dec_list, indent=4)
 
-    code = generate_ztfquery_setup()
+    code = generate_irsa_setup()
 
     code += f"""
 from ztfquery import query
@@ -274,94 +407,77 @@ def generate_fritz_bulk_query(
     """
     source_json = json.dumps(source_list, indent=4)
 
-    code = generate_ztfquery_setup()
+    code = generate_fritz_setup()
 
     code += f"""
-from ztfquery import fritz
-import os
-
 # Configuration
 sources = {source_json}
-
-# Fritz API token (set as environment variable or hardcode)
-FRITZ_TOKEN = os.getenv('FRITZ_TOKEN', 'YOUR_TOKEN_HERE')
 
 # Results storage
 output_dir = Path('fritz_data')
 output_dir.mkdir(exist_ok=True)
 
-# Initialize Fritz connection
-fq = fritz.FritzAPI(token=FRITZ_TOKEN)
-
 results = {{}}
 errors = []
 
-print(f"Querying Fritz for {{len(sources)}} sources...")
+# ---- Bulk download photometry ----
+print(f"Downloading photometry + spectra for {{len(sources)}} sources from Fritz...")
 print()
 
-# Query each source
-for source in tqdm(sources, desc="Querying sources"):
-    try:
-        # Get source data
-        source_data = fq.get_source(source)
-
-        if source_data:
-            results[source] = {{}}
-
-            # Save basic source info
-            results[source]['info'] = {{
-                'id': source_data.get('id'),
-                'ra': source_data.get('ra'),
-                'dec': source_data.get('dec'),
-                'redshift': source_data.get('redshift'),
-                'classifications': source_data.get('classifications', []),
-            }}
-
-            # Get photometry
-            photometry = source_data.get('photometry', [])
-            if photometry:
-                phot_df = pd.DataFrame(photometry)
-                phot_file = output_dir / f"{{source}}_photometry.csv"
-                phot_df.to_csv(phot_file, index=False)
-                results[source]['photometry_file'] = str(phot_file)
-                results[source]['n_phot'] = len(phot_df)
+fritz.bulk_download("lightcurve", sources, nprocess=4, store=True)
 """
 
     if include_spectra:
         code += """
-            # Get spectra
-            spectra = source_data.get('spectra', [])
-            if spectra:
-                spec_df = pd.DataFrame(spectra)
+fritz.bulk_download("spectra", sources, nprocess=4, store=True)
+"""
+
+    code += f"""
+# ---- Load and save results ----
+for source in sources:
+    try:
+        results[source] = {{}}
+
+        # download_lightcurve returns a DataFrame directly
+        # Data is already cached locally from bulk_download above
+        lc_data = fritz.download_lightcurve(source, store=True)
+        if lc_data is not None and len(lc_data) > 0:
+            phot_file = output_dir / f"{{source}}_photometry.csv"
+            lc_data.to_csv(phot_file, index=False)
+            results[source]['n_phot'] = len(lc_data)
+"""
+
+    if include_spectra:
+        code += """
+        # download_spectra returns spectral data
+        try:
+            spec_data = fritz.download_spectra(source, store=True)
+            if spec_data is not None and len(spec_data) > 0:
                 spec_file = output_dir / f"{source}_spectra.csv"
-                spec_df.to_csv(spec_file, index=False)
-                results[source]['spectra_file'] = str(spec_file)
-                results[source]['n_spectra'] = len(spec_df)
+                if hasattr(spec_data, 'to_csv'):
+                    spec_data.to_csv(spec_file, index=False)
+                results[source]['n_spectra'] = len(spec_data)
+        except Exception:
+            pass  # spectra not available for all sources
 """
 
     code += """
-            print(f"✓ {source}: {results[source].get('n_phot', 0)} phot, "
-                  f"{results[source].get('n_spectra', 0)} spectra")
-        else:
-            print(f"✗ {source}: Not found")
-            errors.append({'source': source, 'error': 'Source not found'})
+        n_phot = results[source].get('n_phot', 0)
+        n_spec = results[source].get('n_spectra', 0)
+        print(f"✓ {source}: {n_phot} phot, {n_spec} spectra")
 
     except Exception as e:
         print(f"✗ {source}: {str(e)}")
-        errors.append({'source': source, 'error': str(e)}})
+        errors.append({'source': source, 'error': str(e)})
 
 print()
-print(f"Successfully queried: {len(results)}/{len(sources)}")
+print(f"Successfully loaded: {len(results)}/{len(sources)}")
 
 # Save summary
 summary_data = []
 for src, data in results.items():
-    info = data.get('info', {})
     summary_data.append({
         'source': src,
-        'ra': info.get('ra'),
-        'dec': info.get('dec'),
-        'redshift': info.get('redshift'),
         'n_photometry': data.get('n_phot', 0),
         'n_spectra': data.get('n_spectra', 0),
     })
@@ -390,7 +506,7 @@ def generate_alert_query(source_list: list[str], with_cutouts: bool = True) -> s
     """
     source_json = json.dumps(source_list, indent=4)
 
-    code = generate_ztfquery_setup()
+    code = generate_irsa_setup()
 
     code += f"""
 from ztfquery import alert
@@ -460,7 +576,7 @@ for source in tqdm(sources, desc="Downloading alerts"):
 
     except Exception as e:
         print(f"✗ {source}: {str(e)}")
-        errors.append({'source': source, 'error': str(e)}})
+        errors.append({'source': source, 'error': str(e)})
 
 print()
 print(f"Successfully downloaded: {len(results)}/{len(sources)}")
@@ -492,7 +608,7 @@ def generate_field_visualization(field_id: int, ccd_id: int | None = None) -> st
     Returns:
         Python code string for notebook
     """
-    code = generate_ztfquery_setup()
+    code = generate_irsa_setup()
 
     code += f"""
 from ztfquery import skyvision
