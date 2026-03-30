@@ -481,16 +481,6 @@ app:
         sm: [0, 6, 6, 3]
         xs: [0, 10, 4, 4]
 
-    TelescopeMapWidget:
-      resizeable: true
-      minW: 3
-      layouts:
-        xlg: [0, 3, 7, 3]
-        lg: [0, 3, 5, 2]
-        md: [4, 3, 6, 3]
-        sm: [0, 6, 6, 3]
-        xs: [0, 10, 4, 4]
-
     # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
@@ -503,6 +493,16 @@ app:
         md: [8, 1, 2, 2]
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 17, 4, 2]
+
+    TelescopeMapWidget:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [ 0, 6, 7, 3 ]
+        lg: [ 0, 5, 5, 2 ]
+        md: [ 4, 6, 6, 3 ]
+        sm: [ 0, 9, 6, 3 ]
+        xs: [ 0, 14, 4, 4 ]
 
 database:
   database: skyportal
