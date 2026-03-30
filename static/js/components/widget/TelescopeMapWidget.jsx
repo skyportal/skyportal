@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
