@@ -53,7 +53,7 @@ const getMuiTheme = (theme) =>
 
 const TelescopeTable = ({
   telescopes,
-  deletePermission,
+  managePermission,
   hideTitle = false,
 }) => {
   const classes = useStyles();
@@ -185,18 +185,12 @@ const TelescopeTable = ({
   };
 
   const renderManage = (dataIndex) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!managePermission) return null;
+
     const telescope = telescopes[dataIndex];
     return (
       <div className={classes.telescopeManage}>
-        <Button
-          key={`delete_${telescope.id}`}
-          id={`delete_button_${telescope.id}`}
-          onClick={() => openDeleteDialog(telescope.id)}
-          disabled={!deletePermission}
-        >
+        <Button onClick={() => openDeleteDialog(telescope.id)}>
           <DeleteIcon />
         </Button>
       </div>
@@ -367,12 +361,12 @@ TelescopeTable.propTypes = {
     }),
   ).isRequired,
   hideTitle: PropTypes.bool,
-  deletePermission: PropTypes.bool,
+  managePermission: PropTypes.bool,
 };
 
 TelescopeTable.defaultProps = {
   hideTitle: false,
-  deletePermission: false,
+  managePermission: false,
 };
 
 export default TelescopeTable;

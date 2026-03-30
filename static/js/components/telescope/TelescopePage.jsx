@@ -136,8 +136,8 @@ const TelescopePage = () => {
     }
   }, [currentTelescopes]);
 
-  const permission =
-    currentUser.permissions?.includes("Delete telescope") ||
+  const managePermission =
+    currentUser.permissions?.includes("Manage telescopes") ||
     currentUser.permissions?.includes("System admin");
 
   const deleteTelescope = () => {
@@ -309,7 +309,7 @@ const TelescopePage = () => {
           {displayTelescopeTable || isMobile ? (
             <TelescopeTable
               telescopes={telescopeList}
-              deletePermission={permission}
+              managePermission={managePermission}
             />
           ) : (
             <Paper
@@ -345,7 +345,7 @@ const TelescopePage = () => {
                             {telescope.name} ({telescope.nickname})
                           </Typography>
                         </Link>
-                        {permission && (
+                        {managePermission && (
                           <div style={{ minWidth: "2.5rem" }}>
                             <Button
                               id="delete_button"
