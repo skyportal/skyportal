@@ -422,19 +422,25 @@ def generate_watchlist_filter(
     Watchlists are alert-time filters that flag new detections near specified
     sky positions. They run on the Kowalski backend as part of Fritz's alert
     stream processing. This tool generates the MongoDB aggregation pipeline JSON
-    that you can copy-paste into Fritz's filter creation UI.
+    compatible with Fritz's filter system.
 
     IMPORTANT - This is an ALERT-TIME filter:
-    - Cannot be created directly via API (requires Fritz UI)
     - Runs automatically on every incoming alert from the telescope
     - Different from query-time filtering (filter_candidates tool)
+    - Uses MongoDB aggregation pipeline syntax
 
-    IMPORTANT - After Generation:
+    RECOMMENDED WORKFLOW (MongoDB Compass):
+    Fritz now recommends using MongoDB Compass for filter development:
+    1. Follow the tutorial: https://github.com/fritz-marshal/fritz/blob/main/doc/filter_tutorial.md
+    2. Use MongoDB Compass to build and test filters visually
+    3. Export the pipeline from Compass
+    4. Import to Fritz
+
+    ALTERNATIVE - Direct Use:
+    You can also use the generated JSON directly:
     1. Copy the generated JSON
-    2. Go to Fritz UI → Filters page
-    3. Create new filter and paste the JSON
-    4. Set the filter's group and stream
-    5. Save to activate monitoring
+    2. Import to Fritz or use in MongoDB Compass as a starting point
+    3. Refine and test as needed
 
     Args:
         targets: JSON-encoded list of target objects. Each target must have:

@@ -173,21 +173,25 @@ async def get_source_photometry(
 @mcp.tool()
 async def get_source_spectra(
     source_name: str,
-    format: str = "csv",
+    format: str = "summary",
+    verbose: bool = False,
 ) -> str:
     """Retrieve spectra for a source.
 
-    Returns all spectra for the source. For CSV format, returns one spectrum
-    per output block with wavelength and flux columns.
+    By default returns a summary to avoid token overflow. Use verbose=True or
+    format="csv" to get full spectral data.
 
     Args:
         source_name: Source identifier - can be SkyPortal obj_id, ZTF name, or TNS name (e.g., "ZTF21aaaaaaa")
-        format: Output format — "csv" (default) or "json"
+        format: Output format — "summary" (default), "csv", or "json"
+        verbose: If True with format="summary", includes full CSV data (use with caution for sources with many spectra)
 
     Returns:
-        For CSV: Each spectrum as a separate CSV block with wavelength, flux,
-        (and error if available), preceded by a header with metadata.
-        For JSON: Raw API response as formatted JSON.
+        - Summary (default): List of spectra with metadata and Fritz link
+        - CSV: Each spectrum as a separate CSV block with wavelength, flux columns
+        - JSON: Raw API response as formatted JSON
+
+    Note: For bulk spectral data downloads, use generate_fritz_bulk_query_code tool.
     """
     token = get_skyportal_token()
     if not token:
@@ -210,16 +214,45 @@ async def get_source_spectra(
     except Exception as e:
         return f"Error fetching spectra: {e}"
 
-    data = resp.json().get("data", [])
+    response_data = resp.json().get("data", {})
+    data = response_data.get("spectra", [])
     if not data:
         return f"No spectra found for source {source_id}"
 
+    # JSON format: return raw data
     if format == "json":
         import json
 
         return json.dumps(data, indent=2)
 
-    # CSV format: one spectrum per block
+    # Summary format (default): metadata only
+    if format == "summary" and not verbose:
+        fritz_url = f"{SKYPORTAL_URL}/source/{source_id}"
+        results = [
+            f"# {source_id}: {len(data)} spectrum/spectra",
+            f"# View on Fritz: {fritz_url}\n",
+        ]
+
+        for i, spec in enumerate(data, 1):
+            wavelengths = spec.get("wavelengths", [])
+            fluxes = spec.get("fluxes", [])
+            observed_at = spec.get("observed_at", "unknown")
+            instrument = spec.get("instrument_name", "unknown")
+            origin = spec.get("origin", "") or "none"
+
+            num_points = len(wavelengths) if wavelengths else 0
+            has_errors = "yes" if spec.get("errors") else "no"
+
+            results.append(
+                f"{i}. {observed_at} | {instrument} | {num_points} points | errors: {has_errors} | origin: {origin}"
+            )
+
+        results.append(
+            f"\nTo download full spectral data, use: generate_fritz_bulk_query_code"
+        )
+        return "\n".join(results)
+
+    # CSV format or verbose summary: full wavelength/flux data
     results = [f"Found {len(data)} spectrum/spectra for {source_id}\n"]
 
     for i, spec in enumerate(data, 1):
