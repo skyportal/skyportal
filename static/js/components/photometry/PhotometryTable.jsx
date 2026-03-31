@@ -310,11 +310,9 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
       const renderStreams = (dataIndex) => {
         const phot = data[dataIndex];
         return (
-          <div>
-            <div className={classes.actionButtons}>
-              <div>
-                {(phot.streams || []).map((stream) => stream.name).join(", ")}
-              </div>
+          <div className={classes.actionButtons}>
+            <div>
+              {(phot.streams || []).map((stream) => stream.name).join(", ")}
             </div>
           </div>
         );
@@ -332,15 +330,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
       if (usePhotometryValidation) {
         const renderValidationStatus = (dataIndex) => {
           const phot = data[dataIndex];
-          let statusIcon = null;
-          if (phot?.validations.length === 0) {
+          const validation = phot?.validations?.[0];
+          let statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+          if (!validation) {
             statusIcon = <PriorityHigh size="small" color="primary" />;
-          } else if (phot?.validations[0]?.validated === true) {
+          } else if (validation.validated === true) {
             statusIcon = <CheckIcon size="small" color="green" />;
-          } else if (phot?.validations[0]?.validated === false) {
+          } else if (validation.validated === false) {
             statusIcon = <ClearIcon size="small" color="secondary" />;
-          } else {
-            statusIcon = <QuestionMarkIcon size="small" color="primary" />;
           }
 
           return (
@@ -351,7 +348,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
                 alignItems: "center",
                 justifyContent: "center",
               }}
-              name={`${phot.id}_validation_status`}
             >
               {statusIcon}
               <PhotometryValidation phot={phot} magsys={magsys} />
@@ -368,34 +364,12 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
           },
         });
 
-        const renderValidationExplanation = (dataIndex) => {
-          const phot = data[dataIndex];
-          let validationExplanation = null;
-          if (phot?.validations.length === 0) {
-            validationExplanation = "";
-          } else {
-            validationExplanation = phot?.validations[0]?.explanation;
-          }
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              name={`${phot.id}_validation_explanation`}
-            >
-              {validationExplanation}
-            </div>
-          );
-        };
-
         columns.push({
           name: "validation_explanation",
           label: "Explanation",
           options: {
-            customBodyRenderLite: renderValidationExplanation,
+            customBodyRenderLite: (dataIndex) =>
+              data[dataIndex]?.validations?.[0]?.explanation,
             display:
               openColumns.validation_explanation === false ? "false" : "true",
           },
