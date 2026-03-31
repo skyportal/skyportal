@@ -2,12 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -312,16 +307,14 @@ const DefaultFollowupRequestList = ({
   return (
     <div>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="Default Follow-up Requests"
-              data={default_followup_requests || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Default Follow-up Requests"
+            data={default_followup_requests || []}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Paper>
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Default Follow-up Request</DialogTitle>

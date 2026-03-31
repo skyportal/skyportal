@@ -13,7 +13,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 // MUI
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers';
-import { StyledEngineProvider, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
@@ -135,14 +135,12 @@ const root = createRoot(container);
 
 root.render(
   <Provider store={store}>
-    <StyledEngineProvider injectFirst>
-      <ErrorBoundary>
-        <Theme {% if testing %} disableTransitions {% endif %}>
-          <BrowserRouter basename="/">
-            <MainContentInternal root={`${window.location.host}/`} />
-          </BrowserRouter>
-        </Theme>
-      </ErrorBoundary>
-    </StyledEngineProvider>
+    <ErrorBoundary>
+      <Theme {% if testing %} disableTransitions {% endif %}>
+        <BrowserRouter basename="/">
+          <MainContentInternal root={`${window.location.host}/`} />
+        </BrowserRouter>
+      </Theme>
+    </ErrorBoundary>
   </Provider>
 );

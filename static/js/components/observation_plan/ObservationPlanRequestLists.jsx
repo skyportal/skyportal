@@ -12,12 +12,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import {
-  createTheme,
-  ThemeProvider,
-  StyledEngineProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
@@ -631,15 +626,13 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       <AccordionDetails
         data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
       >
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={requestsGroupedByInstId[instrument_id]}
-              options={options}
-              columns={getDataTableColumns(instrument_id)}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={requestsGroupedByInstId[instrument_id]}
+            options={options}
+            columns={getDataTableColumns(instrument_id)}
+          />
+        </ThemeProvider>
       </AccordionDetails>
     </Accordion>
   ));
