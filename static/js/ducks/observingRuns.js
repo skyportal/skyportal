@@ -6,7 +6,6 @@ import store from "../store";
 const FETCH_OBSERVING_RUNS = "skyportal/FETCH_OBSERVING_RUNS";
 const FETCH_OBSERVING_RUNS_OK = "skyportal/FETCH_OBSERVING_RUNS_OK";
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchObservingRuns = () =>
   API.GET("/api/observing_run", FETCH_OBSERVING_RUNS);
 

@@ -1,53 +1,21 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
-
-import world_map from "../../../images/maps/world-110m.json";
-
-let dispatch;
-const width = 700;
-const height = 475;
-
-function CustomZoomableGroup({ children, ...restProps }) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
-
-function mmadetectorlabel(nestedMMADetector) {
-  return nestedMMADetector.mmadetectors
-    .map((mmadetector) => mmadetector.nickname)
-    .join(" / ");
-}
-
-function mmadetectorCanObserve(nestedMMADetector) {
-  let color = "#f9d71c";
-  if (nestedMMADetector.is_night_astronomical_at_least_one) {
-    color = "#0c1445";
-  }
-  return color;
-}
+import { Marker } from "react-simple-maps";
+import { CustomMap } from "../CustomMap";
 
 function MMADetectorMarker({ nestedMMADetector, position }) {
   return (
     <Marker coordinates={[nestedMMADetector.lon, nestedMMADetector.lat]}>
       <circle
         r={6.5 / position.k}
-        fill={mmadetectorCanObserve(nestedMMADetector)}
+        fill={
+          nestedMMADetector.is_night_astronomical_at_least_one
+            ? "#0c1445"
+            : "#f9d71c"
+        }
       />
       <text textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
-        {mmadetectorlabel(nestedMMADetector)}
+        {nestedMMADetector.mmadetectors.map((m) => m.nickname).join(" / ")}
       </text>
     </Marker>
   );
@@ -100,39 +68,22 @@ const MMADetectorMap = ({ mmadetectors }) => {
     }
   }
 
-  dispatch = useDispatch();
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedMMADetectors.map(
-              (nestedMMADetector) =>
-                nestedMMADetector.lon &&
-                nestedMMADetector.lat && (
-                  <MMADetectorMarker
-                    key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
-                    nestedMMADetector={nestedMMADetector}
-                    position={position}
-                  />
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+    <CustomMap>
+      {(position) =>
+        nestedMMADetectors.map(
+          (nestedMMADetector) =>
+            nestedMMADetector.lon &&
+            nestedMMADetector.lat && (
+              <MMADetectorMarker
+                key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
+                nestedMMADetector={nestedMMADetector}
+                position={position}
+              />
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 
@@ -161,14 +112,11 @@ MMADetectorMarker.propTypes = {
         lon: PropTypes.number.isRequired,
       }),
     ),
+    is_night_astronomical_at_least_one: PropTypes.bool.isRequired,
   }).isRequired,
   position: PropTypes.shape({
     k: PropTypes.number,
   }).isRequired,
-};
-
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.node.isRequired,
 };
 
 export default MMADetectorMap;

@@ -151,7 +151,6 @@ const GroupFiltersStreams = ({
                             className={classes.filterLink}
                           >
                             <ListItemText
-                              key={filter.id}
                               className={classes.nested}
                               primary={filter.name}
                             />
@@ -244,6 +243,7 @@ const GroupFiltersStreams = ({
                 render={({ field: { onChange, value } }) => (
                   <Select
                     labelId="alert-stream-select-required-label"
+                    label="Alert stream"
                     onChange={onChange}
                     value={value}
                   >
@@ -259,7 +259,6 @@ const GroupFiltersStreams = ({
                   </Select>
                 )}
               />
-              <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>
           <DialogActions>
@@ -338,6 +337,7 @@ const GroupFiltersStreams = ({
                 render={({ field: { onChange, value } }) => (
                   <Select
                     labelId="alert-stream-select-required-label"
+                    label="Alert stream"
                     onChange={onChange}
                     value={value}
                   >

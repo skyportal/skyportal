@@ -23,14 +23,12 @@ import WatcherButton from "./WatcherButton";
 import * as Actions from "../../ducks/source";
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
+import { renderStatus } from "../../utils/displaySummary";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
-  },
-  accordion: {
-    width: "100%",
   },
   container: {
     margin: "0 1px 1px 1px",
@@ -113,7 +111,6 @@ const FollowupRequestLists = ({
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
@@ -205,12 +202,10 @@ const FollowupRequestLists = ({
   }
 
   if (
-    (instrumentList.length === 0 ||
-      followupRequests.length === 0 ||
-      Object.keys(instrumentFormParams).length === 0) &&
+    (!instrumentList.length || !Object.keys(instrumentFormParams).length) &&
     !serverSide
   ) {
-    return <p>No robotic followup requests found...</p>;
+    return null;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
@@ -219,9 +214,8 @@ const FollowupRequestLists = ({
   }, {});
 
   if (!Array.isArray(followupRequests)) {
-    return <p>Waiting for followup requests to load...</p>;
+    return <CircularProgress />;
   }
-
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
       ...(r[a.allocation.instrument.id] || []),
@@ -229,6 +223,13 @@ const FollowupRequestLists = ({
     ];
     return r;
   }, {});
+  if (!Object.keys(requestsGroupedByInstId).length) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No follow-up request found...
+      </Typography>
+    );
+  }
 
   const getDataTableColumns = (keys, instrument_id) => {
     const columns = [
@@ -327,6 +328,8 @@ const FollowupRequestLists = ({
             minWidth: "250px",
           },
         }),
+        customBodyRenderLite: (dataIndex) =>
+          renderStatus(requestsGroupedByInstId[instrument_id][dataIndex]),
       },
     });
 
@@ -384,7 +387,6 @@ const FollowupRequestLists = ({
                   }}
                   size="small"
                   type="submit"
-                  data-testid={`deleteRequest_${followupRequest.id}`}
                 >
                   Delete
                 </Button>
@@ -616,113 +618,61 @@ const FollowupRequestLists = ({
   }
 
   const keyOrder = (a, b) => {
-    // End date comes after start date
-    if (a === "end_date" && b === "start_date") {
-      return 1;
-    }
-    if (b === "end_date" && a === "start_date") {
-      return -1;
-    }
+    const order = [
+      "start_date",
+      "end_date",
+      "observation_type",
+      "priority",
+      "status",
+    ];
 
-    // Dates come before anything else
-    if (a === "end_date" || a === "start_date") {
-      return -1;
-    }
-    if (b === "end_date" || b === "start_date") {
-      return 1;
-    }
+    const getIndex = (key) => {
+      const idx = order.indexOf(key);
+      return idx === -1 ? order.length : idx;
+    };
 
-    // if there is an observation_type, it comes before anything else except dates and priority
-    if (
-      a === "observation_type" &&
-      b !== "end_date" &&
-      b !== "start_date" &&
-      b !== "priority"
-    ) {
-      return -1;
-    }
-    if (
-      b === "observation_type" &&
-      a !== "end_date" &&
-      a !== "start_date" &&
-      a !== "priority"
-    ) {
-      return 1;
-    }
-
-    // priority comes before status
-    if (a === "priority" && b === "status") {
-      return -1;
-    }
-    if (b === "priority" && a === "status") {
-      return 1;
-    }
-
-    // priority and status go at the end, so anything else comes before them
-    if (a === "priority" || a === "status") {
-      return 1;
-    }
-    if (b === "priority" || b === "status") {
-      return -1;
-    }
-
-    // Regular string comparison
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    // a must be equal to b
-    return 0;
+    const diff = getIndex(a) - getIndex(b);
+    return diff !== 0 ? diff : a.localeCompare(b);
   };
 
   return (
     <div className={classes.container}>
-      {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
-        // get the flat, unique list of all keys across all requests
-        const keys = requestsGroupedByInstId[instrument_id].reduce((r, a) => {
-          Object.keys(a.payload).forEach((key) => {
-            if (!r.includes(key)) {
-              r = [...r, key];
-            }
-          });
-          return r;
-        }, []);
+      {Object.entries(requestsGroupedByInstId).map(
+        ([instrument_id, requests]) => {
+          const keys = [
+            ...new Set(requests.flatMap((req) => Object.keys(req.payload))),
+          ].sort(keyOrder);
+          const instrumentName = instLookUp[instrument_id].name;
 
-        keys.sort(keyOrder);
-
-        return (
-          <Accordion
-            className={classes.accordion}
-            key={`instrument_${instrument_id}_table_div`}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`${instLookUp[instrument_id].name}-requests`}
-              data-testid={`${instLookUp[instrument_id].name}-requests-header`}
-            >
-              <Typography variant="subtitle1">
-                {instLookUp[instrument_id].name} Requests
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails
-              data-testid={`${instLookUp[instrument_id].name}_followupRequestsTable`}
-              style={{ padding: 0, margin: 0 }}
-            >
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={getMuiTheme(theme)}>
-                  <MUIDataTable
-                    data={requestsGroupedByInstId[instrument_id]}
-                    options={options}
-                    columns={getDataTableColumns(keys, instrument_id)}
-                  />
-                </ThemeProvider>
-              </StyledEngineProvider>
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
+          return (
+            <Accordion key={`instrument_${instrument_id}_requests`}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`${instrumentName}-requests`}
+                data-testid={`${instrumentName}-requests-header`}
+              >
+                <Typography variant="subtitle1">
+                  {instrumentName} Requests
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails
+                data-testid={`${instrumentName}_followupRequestsTable`}
+                style={{ padding: 0, margin: 0 }}
+              >
+                <StyledEngineProvider injectFirst>
+                  <ThemeProvider theme={getMuiTheme(theme)}>
+                    <MUIDataTable
+                      data={requests}
+                      options={options}
+                      columns={getDataTableColumns(keys, instrument_id)}
+                    />
+                  </ThemeProvider>
+                </StyledEngineProvider>
+              </AccordionDetails>
+            </Accordion>
+          );
+        },
+      )}
     </div>
   );
 };
@@ -757,13 +707,10 @@ FollowupRequestLists.propTypes = {
     }),
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-
-    methodsImplemented: PropTypes.objectOf(PropTypes.any),
-
-    aliasLookup: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.shape({})),
+    uiSchema: PropTypes.objectOf(PropTypes.shape({})),
+    methodsImplemented: PropTypes.objectOf(PropTypes.shape({})),
+    aliasLookup: PropTypes.objectOf(PropTypes.shape({})),
   }).isRequired,
   handleTableChange: PropTypes.func,
   pageNumber: PropTypes.number,

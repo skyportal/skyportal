@@ -12,173 +12,59 @@ import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import TextField from "@mui/material/TextField";
 
-import Link from "@mui/material/Link";
 import SaveIcon from "@mui/icons-material/Save";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-
-import makeStyles from "@mui/styles/makeStyles";
 import { JSONTree } from "react-json-tree";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
-import ThumbnailList from "../thumbnail/ThumbnailList";
-import { allocationTitle } from "./AllocationPage";
-import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
 import * as Action from "../../ducks/allocation";
 import * as ObservationPlansAction from "../../ducks/observationPlans";
-import { dec_to_dms, ra_to_hours } from "../../units";
 
+import ThumbnailList from "../thumbnail/ThumbnailList";
+import withRouter from "../withRouter";
 import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPlanSummaryStatistics";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
+import {
+  renderTargetName,
+  renderStatus,
+  renderRA,
+  renderDec,
+  renderRise,
+  renderSet,
+  renderFinderButton,
+  ActionsMenu,
+} from "../../utils/displaySummary";
+import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
-const useStyles = makeStyles((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-  editIcon: {
-    cursor: "pointer",
-    marginLeft: "0.2rem",
-  },
-}));
+const DEFAULT_NUM_PER_PAGE = 10;
 
-const SimpleMenu = ({ request }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const dispatch = useDispatch();
-
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const updateRequestStatus = async (status) => {
-    handleClose();
-    const result = await dispatch(
-      SourceAction.editFollowupRequest({ status }, request.id),
-    );
-    if (result.status === "success") {
-      dispatch(
-        showNotification("Follow-up request status successfully updated"),
-      );
-    }
-  };
+function allocationTitle(allocation, instrumentList, telescopeList) {
+  const instrument = instrumentList?.filter(
+    (i) => i.id === allocation?.instrument_id,
+  )[0];
+  const telescope = telescopeList?.filter(
+    (t) => t.id === instrument?.telescope_id,
+  )[0];
 
   return (
-    <div>
-      <IconButton
-        aria-controls="simple-menu"
-        aria-haspopup="true"
-        onClick={handleClick}
-        variant="contained"
-        size="large"
-      >
-        <BuildIcon />
-      </IconButton>
-      <Menu
-        id="simple-menu"
-        anchorEl={anchorEl}
-        keepMounted
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
-        {(request.status.startsWith("submitted") ||
-          request.status.startsWith("not observed") ||
-          request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("complete")}
-            variant="contained"
-            key={`${request.id}_done`}
-          >
-            Mark Observed
-          </MenuItem>
-        )}
-        {(request.status.startsWith("submitted") ||
-          request.status.startsWith("complete") ||
-          request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("not observed")}
-            variant="contained"
-            key={`${request.id}_notdone`}
-          >
-            Mark Not Observed
-          </MenuItem>
-        )}
-        {(request.status === "complete" ||
-          request.status === "not observed") && (
-          <MenuItem
-            onClick={() => updateRequestStatus("pending")}
-            variant="contained"
-            key={`${request.id}_pending`}
-          >
-            Mark Pending
-          </MenuItem>
-        )}
-        {request.status === "complete" && (
-          <MenuItem key={`${request.id}_upload_spec`} onClick={handleClose}>
-            <Link
-              href={`/upload_spectrum/${request.obj.id}`}
-              underline="none"
-              color="textPrimary"
-            >
-              Upload Spectrum
-            </Link>
-          </MenuItem>
-        )}
-        {request.status === "complete" && (
-          <MenuItem
-            key={`${request.id}_upload_phot`}
-            variant="contained"
-            onClick={handleClose}
-          >
-            <Link
-              href={`/upload_photometry/${request.obj.id}`}
-              underline="none"
-              color="textPrimary"
-            >
-              Upload Photometry
-            </Link>
-          </MenuItem>
-        )}
-      </Menu>
-    </div>
+    <b>
+      {instrument?.name || <CircularProgress size={25} />}/
+      {telescope?.nickname || <CircularProgress size={25} />}
+    </b>
   );
-};
-
-SimpleMenu.propTypes = {
-  request: PropTypes.shape({
-    status: PropTypes.string,
-    id: PropTypes.number,
-    obj: PropTypes.shape({
-      id: PropTypes.string,
-    }).isRequired,
-  }).isRequired,
-};
-
-const defaultNumPerPage = 10;
+}
 
 const AllocationSummary = ({ route }) => {
   const dispatch = useDispatch();
@@ -195,7 +81,7 @@ const AllocationSummary = ({ route }) => {
 
   const [fetchAllocationParams, setFetchAllocationParams] = useState({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
+    numPerPage: DEFAULT_NUM_PER_PAGE,
     sortBy: "created_at",
     sortOrder: "desc",
   });
@@ -203,7 +89,7 @@ const AllocationSummary = ({ route }) => {
   const [fetchObservationPlansParams, setFetchObservationPlansParams] =
     useState({
       pageNumber: 1,
-      numPerPage: defaultNumPerPage,
+      numPerPage: DEFAULT_NUM_PER_PAGE,
       sortBy: "created_at",
       sortOrder: "desc",
     });
@@ -223,48 +109,29 @@ const AllocationSummary = ({ route }) => {
     );
   }, [route.id, dispatch]);
 
-  if (
-    !(
-      allocation &&
-      "id" in allocation &&
-      allocation.id === parseInt(route.id, 10)
-    )
-  ) {
-    // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (allocation?.id !== parseInt(route.id, 10)) return <Spinner />;
 
   return (
-    <div>
-      <div>
-        <Typography variant="h4" gutterBottom color="textSecondary">
-          Plan for:{" "}
-          <b>
-            {allocationTitle(allocation, instrumentList, telescopeList, groups)}
-          </b>
-        </Typography>
-      </div>
-      <div>
-        <AllocationSummaryTable
-          allocation={allocation}
-          totalMatches={totalMatchesAllocations}
-          fetchParams={fetchAllocationParams}
-          setFetchParams={setFetchAllocationParams}
-        />
-      </div>
-      <div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <Typography variant="h1" gutterBottom color="textSecondary">
+        Plan for:{" "}
+        {allocationTitle(allocation, instrumentList, telescopeList, groups)}
+      </Typography>
+      <AllocationSummaryTable
+        allocation={allocation}
+        totalMatches={totalMatchesAllocations}
+        fetchParams={fetchAllocationParams}
+        setFetchParams={setFetchAllocationParams}
+      />
+      {observation_plan_requests && (
         <AllocationObservationPlansTable
           observation_plan_requests={observation_plan_requests}
           totalMatches={totalMatchesObservationPlans}
           fetchParams={fetchObservationPlansParams}
           setFetchParams={setFetchObservationPlansParams}
         />
-      </div>
-    </div>
+      )}
+    </Box>
   );
 };
 
@@ -281,9 +148,6 @@ const AllocationObservationPlansTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
-  const styles = useStyles();
-
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -307,84 +171,54 @@ const AllocationObservationPlansTable = ({
     return null;
   };
 
+  const renderPayload = (dataIndex) => {
+    const request = observation_plan_requests[dataIndex];
+    if (!request?.payload) return null;
+
+    return (
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={request.payload} hideRoot />
+      </Box>
+    );
+  };
+
+  const renderSummaryStatistics = (dataIndex) => {
+    const request = observation_plan_requests[dataIndex];
+    if (request.status === "running") return <CircularProgress />;
+
+    return (
+      <ObservationPlanSummaryStatistics observationPlanRequest={request} />
+    );
+  };
+
   const columns = [
     { name: "localization.dateobs", label: "GCN Event" },
     { name: "localization.localization_name", label: "Localization" },
     { name: "created_at", label: "Created at" },
     { name: "status", label: "Status" },
+    {
+      name: "payload",
+      label: "Payload",
+      options: { customBodyRenderLite: renderPayload },
+    },
+    {
+      name: "statistics",
+      label: "Summary Statistics",
+      options: { customBodyRenderLite: renderSummaryStatistics },
+    },
+    {
+      name: "skymap",
+      label: "Skymap",
+      options: {
+        customBodyRenderLite: (dataIndex) => (
+          <ObservationPlanGlobe
+            observationplanRequest={observation_plan_requests[dataIndex]}
+            retrieveLocalization
+          />
+        ),
+      },
+    },
   ];
-
-  const renderPayload = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {observationplanRequest ? (
-          <JSONTree data={observationplanRequest.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "payload",
-    label: "Payload",
-    options: {
-      customBodyRenderLite: renderPayload,
-    },
-  });
-
-  const renderSummaryStatistics = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div>
-        {observationplanRequest.status === "running" ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <ObservationPlanSummaryStatistics
-              observationplanRequest={observationplanRequest}
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "summarystatistics",
-    label: "Summary Statistics",
-    options: {
-      customBodyRenderLite: renderSummaryStatistics,
-    },
-  });
-
-  const renderLocalization = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div className={classes.localization}>
-        <ObservationPlanGlobe
-          observationplanRequest={observationplanRequest}
-          retrieveLocalization
-        />
-      </div>
-    );
-  };
-  columns.push({
-    name: "skymap",
-    label: "Skymap",
-    options: {
-      customBodyRenderLite: renderLocalization,
-    },
-  });
 
   const options = {
     draggableColumns: { enabled: true },
@@ -401,14 +235,12 @@ const AllocationObservationPlansTable = ({
   };
 
   return (
-    <div className={styles.center}>
-      <MUIDataTable
-        title="Observation Plans"
-        columns={columns}
-        data={observation_plan_requests}
-        options={options}
-      />
-    </div>
+    <MUIDataTable
+      title="Observation Plans"
+      columns={columns}
+      data={observation_plan_requests}
+      options={options}
+    />
   );
 };
 
@@ -431,7 +263,7 @@ AllocationObservationPlansTable.propTypes = {
         }),
       }),
       allocation_id: PropTypes.number,
-      payload: PropTypes.arrayOf(PropTypes.any),
+      payload: PropTypes.arrayOf(PropTypes.shape({})),
     }),
   ).isRequired,
   totalMatches: PropTypes.number.isRequired,
@@ -451,7 +283,6 @@ const AllocationSummaryTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
   const { requests } = allocation;
 
   const [dialogOpen, setDialogOpen] = useState(null);
@@ -476,32 +307,18 @@ const AllocationSummaryTable = ({
     return null;
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (allocation === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
+    if (!allocation) return <CircularProgress />;
 
     const colSpan = rowData.length + 1;
     const request = requests[rowMeta.dataIndex];
-
     return (
       <TableRow>
         <TableCell
           style={{ paddingBottom: 0, paddingTop: 0 }}
           colSpan={colSpan}
         >
-          <Grid
-            container
-            direction="row"
-            spacing={3}
-            justifyContent="center"
-            alignItems="center"
-          >
+          <Grid container direction="row" spacing={3} alignItems="center">
             <ThumbnailList
               thumbnails={request.obj.thumbnails}
               ra={request.obj.ra}
@@ -527,76 +344,9 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = requests[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderRA = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div key={`${request.id}_ra`}>
-        {request.obj.ra}
-        <br />
-        {ra_to_hours(request.obj.ra)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div key={`${request.id}_dec`}>
-        {request.obj.dec}
-        <br />
-        {dec_to_dms(request.obj.dec)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderFinderButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <>
-        <IconButton size="small" key={`${request.id}_actions`}>
-          <Link href={`/api/sources/${request.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small" key={`${request.id}_actions_int`}>
-          <Link
-            href={`/source/${request.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return <SimpleMenu request={request} key={`${request.id}_menu`} />;
-  };
-
   const handleOpenDialog = (id, comment) => {
     setCommentContent(comment);
     setDialogOpen(id);
-  };
-
-  const handleChange = (e) => {
-    setCommentContent(e.target.value);
   };
 
   const handleSubmit = async () => {
@@ -611,24 +361,31 @@ const AllocationSummaryTable = ({
 
   const renderComment = (dataIndex) => {
     const request = requests[dataIndex];
-
     return (
       <div>
         {request.comment}
         <Tooltip title="Update comment">
-          <span>
-            <EditIcon
-              data-testid="updateCommentIconButton"
-              fontSize="small"
-              className={styles.editIcon}
-              onClick={() => {
-                handleOpenDialog(request.id, request.comment);
-              }}
-            />
-          </span>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={() => handleOpenDialog(request.id, request.comment)}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
       </div>
     );
+  };
+
+  const updateRequestStatus = async (request, status) => {
+    const result = await dispatch(
+      SourceAction.editFollowupRequest({ status }, request.id),
+    );
+    if (result.status === "success") {
+      dispatch(
+        showNotification("Follow-up request status updated successfully"),
+      );
+    }
   };
 
   const columns = [
@@ -636,7 +393,8 @@ const AllocationSummaryTable = ({
       name: "Target Name",
       options: {
         filter: true,
-        customBodyRenderLite: renderObjId,
+        customBodyRenderLite: (dataIndex) =>
+          renderTargetName(requests[dataIndex]),
       },
     },
     {
@@ -661,20 +419,26 @@ const AllocationSummaryTable = ({
       name: "Status",
       options: {
         filter: true,
+        setCellProps: () => ({
+          style: {
+            minWidth: "250px",
+          },
+        }),
+        customBodyRenderLite: (dataIndex) => renderStatus(requests[dataIndex]),
       },
     },
     {
       name: "RA",
       options: {
         filter: false,
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => renderRA(requests[dataIndex]),
       },
     },
     {
       name: "Dec",
       options: {
         filter: false,
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => renderDec(requests[dataIndex]),
       },
     },
     {
@@ -699,16 +463,14 @@ const AllocationSummaryTable = ({
       name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].rise_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: (dataIndex) => renderRise(requests[dataIndex]),
       },
     },
     {
       name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].set_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: (dataIndex) => renderSet(requests[dataIndex]),
       },
     },
     {
@@ -722,14 +484,20 @@ const AllocationSummaryTable = ({
       name: "Finder",
       options: {
         filter: false,
-        customBodyRenderLite: renderFinderButton,
+        customBodyRenderLite: (dataIndex) =>
+          renderFinderButton(requests[dataIndex]),
       },
     },
     {
       name: "Actions",
       options: {
         filter: false,
-        customBodyRenderLite: renderActionsButton,
+        customBodyRenderLite: (dataIndex) => (
+          <ActionsMenu
+            item={requests[dataIndex]}
+            updateFunction={updateRequestStatus}
+          />
+        ),
       },
     },
   ];
@@ -768,7 +536,7 @@ const AllocationSummaryTable = ({
   ]);
 
   return (
-    <div className={styles.center}>
+    <>
       <MUIDataTable
         title="Targets"
         columns={columns}
@@ -783,36 +551,32 @@ const AllocationSummaryTable = ({
       >
         <DialogTitle>Update comment</DialogTitle>
         <DialogContent>
-          <div>
-            <TextField
-              data-testid="updateCommentTextfield"
-              size="small"
-              label="comment"
-              value={commentContent || ""}
-              name="comment"
-              minRows={2}
-              fullWidth
-              multiline
-              onChange={(e) => handleChange(e)}
-              variant="outlined"
-            />
-          </div>
-          <p />
-          <div className={styles.saveButton}>
-            <Button
-              secondary
-              onClick={handleSubmit}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateCommentSubmitButton"
-              disabled={isSubmitting}
-            >
-              Save
-            </Button>
-          </div>
+          <TextField
+            data-testid="updateCommentTextfield"
+            size="small"
+            label="comment"
+            value={commentContent || ""}
+            name="comment"
+            minRows={2}
+            fullWidth
+            multiline
+            onChange={(e) => setCommentContent(e.target.value)}
+            variant="outlined"
+            sx={{ mt: 1, mb: 2 }}
+          />
+          <Button
+            secondary
+            onClick={handleSubmit}
+            endIcon={<SaveIcon />}
+            size="large"
+            data-testid="updateCommentSubmitButton"
+            disabled={isSubmitting}
+          >
+            Save
+          </Button>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
@@ -831,7 +595,7 @@ AllocationSummaryTable.propTypes = {
     telescope: PropTypes.shape({
       id: PropTypes.number,
     }),
-    ephemeris: PropTypes.string,
+    ephemeris: PropTypes.shape({}),
     requests: PropTypes.arrayOf(
       PropTypes.shape({
         obj: PropTypes.shape({
@@ -840,13 +604,13 @@ AllocationSummaryTable.propTypes = {
           dec: PropTypes.number,
           redshift: PropTypes.number,
         }),
-        status: PropTypes.bool,
+        status: PropTypes.string,
         created_at: PropTypes.string,
         id: PropTypes.number,
         comment: PropTypes.string,
         payload: PropTypes.shape({
           start_date: PropTypes.string,
-          end_date: PropTypes.number,
+          end_date: PropTypes.string,
           priority: PropTypes.number,
         }),
         rise_time_utc: PropTypes.string,

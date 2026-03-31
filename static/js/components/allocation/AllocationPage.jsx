@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Grid from "@mui/material/Grid";
-import CircularProgress from "@mui/material/CircularProgress";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
@@ -14,21 +13,9 @@ import AllocationTable from "./AllocationTable";
 import DefaultObservationPlanTable from "../observation_plan/DefaultObservationPlanTable";
 import DefaultSurveyEfficiencyTable from "../survey_efficiency/DefaultSurveyEfficiencyTable";
 
-export function allocationTitle(allocation, instrumentList, telescopeList) {
-  const { instrument_id } = allocation;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-  const telescope = telescopeList?.filter(
-    (t) => t.id === instrument?.telescope_id,
-  )[0];
-
-  if (!instrument?.name || !telescope?.name) {
-    return <CircularProgress color="secondary" />;
-  }
-  return `${instrument?.name}/${telescope?.nickname}`;
-}
-
 const AllocationList = ({ managePermission }) => {
   const dispatch = useDispatch();
+
   const allocationsState = useSelector((state) => state.allocations);
   const instrumentsState = useSelector((state) => state.instruments);
   const telescopesState = useSelector((state) => state.telescopes);
@@ -98,6 +85,7 @@ AllocationList.defaultProps = {
 
 const AllocationPage = () => {
   const dispatch = useDispatch();
+
   const { defaultObservationPlanList } = useSelector(
     (state) => state.default_observation_plans,
   );
@@ -202,7 +190,7 @@ const AllocationPage = () => {
       </Grid>
       {tabIndex === 0 && (
         <Grid item xs={12} style={{ paddingTop: 0 }}>
-          <AllocationList managePermission={permissionAllocation} />
+          <AllocationList deletePermission={permissionAllocation} />
         </Grid>
       )}
       {tabIndex === 1 && (

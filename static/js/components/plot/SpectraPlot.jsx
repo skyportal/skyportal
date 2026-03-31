@@ -976,7 +976,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               style={{ backgroundColor: line.color }}
             />
             <Button
-              key={line.wavelength}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();

@@ -1,37 +1,11 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
-
-import world_map from "../../../images/maps/world-110m.json";
-
-const width = 700;
-const height = 475;
+import { Marker } from "react-simple-maps";
+import { CustomMap } from "../CustomMap";
 
 // Labels are shown when zoom level exceeds this threshold
 const ZOOM_LABEL_THRESHOLD = 2.5;
-
-function CustomZoomableGroup({ children, ...restProps }) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
-function setCurrentTelescopes(dispatch, currentTelescopes) {
-  dispatch({
-    type: "skyportal/CURRENT_TELESCOPES",
-    data: { currentTelescopes },
-  });
-}
 
 function telescopeLabel(nestedTelescope) {
   return nestedTelescope.telescopes
@@ -50,7 +24,6 @@ function normalizeLatitudeDiff(alpha, beta) {
 const TelescopeMap = ({ telescopes }) => {
   const dispatch = useDispatch();
   const [hoveredTelescope, setHoveredTelescope] = useState(null);
-
   const filteredTelescopes = telescopes.filter(
     (telescope) => telescope.fixed_location,
   );
@@ -118,126 +91,110 @@ const TelescopeMap = ({ telescopes }) => {
   }
 
   return (
-    <ComposableMap
-      width={width}
-      height={height}
-      style={{ width: "100%", height: "auto" }}
-    >
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedTelescopes.map((nestedTelescope) => {
-              if (!nestedTelescope.lon || !nestedTelescope.lat) return null;
-              const key = `${nestedTelescope.lon},${nestedTelescope.lat}`;
-              const isHovered =
-                hoveredTelescope &&
-                hoveredTelescope.lon === nestedTelescope.lon &&
-                hoveredTelescope.lat === nestedTelescope.lat;
-              const showLabel = position.k >= ZOOM_LABEL_THRESHOLD;
-              const markerColor = nestedTelescope.fixed_location
-                ? nestedTelescope.is_night_astronomical_at_least_one
-                  ? "#0c1445"
-                  : "#f9d71c"
-                : "#5ca9d6";
-              return (
-                <Marker
-                  key={key}
-                  id="telescope_marker"
-                  coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
-                  onClick={() =>
-                    setCurrentTelescopes(dispatch, nestedTelescope.telescopes)
-                  }
+    <CustomMap>
+      {(position) => (
+        <>
+          {nestedTelescopes.map((nestedTelescope) => {
+            if (!nestedTelescope.lon || !nestedTelescope.lat) return null;
+            const isHovered =
+              hoveredTelescope &&
+              hoveredTelescope.lon === nestedTelescope.lon &&
+              hoveredTelescope.lat === nestedTelescope.lat;
+            const showLabel = position.k >= ZOOM_LABEL_THRESHOLD;
+            const markerColor = nestedTelescope.fixed_location
+              ? nestedTelescope.is_night_astronomical_at_least_one
+                ? "#0c1445"
+                : "#f9d71c"
+              : "#5ca9d6";
+            return (
+              <Marker
+                key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
+                id="telescope_marker"
+                coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
+                onClick={() =>
+                  dispatch({
+                    type: "skyportal/CURRENT_TELESCOPES",
+                    data: { currentTelescopes: nestedTelescope.telescopes },
+                  })
+                }
+              >
+                <g
+                  onMouseEnter={() => setHoveredTelescope(nestedTelescope)}
+                  onMouseLeave={() => setHoveredTelescope(null)}
+                  style={{ cursor: "pointer" }}
                 >
-                  <g
-                    onMouseEnter={() => setHoveredTelescope(nestedTelescope)}
-                    onMouseLeave={() => setHoveredTelescope(null)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {isHovered && (
-                      <circle
-                        r={11 / position.k}
-                        fill={markerColor}
-                        opacity={0.3}
-                      />
-                    )}
-                    {nestedTelescope.fixed_location ? (
-                      <circle
-                        r={6.5 / position.k}
-                        fill={markerColor}
-                        stroke="white"
-                        strokeWidth={1.5 / position.k}
-                      />
-                    ) : (
-                      <rect
-                        x={-6.5 / position.k}
-                        y={-6.5 / position.k}
-                        width={13 / position.k}
-                        height={13 / position.k}
-                        fill={markerColor}
-                        stroke="white"
-                        strokeWidth={1.5 / position.k}
-                      />
-                    )}
-                    {showLabel && (
-                      <text
-                        id="telescopes_label"
-                        textAnchor="middle"
-                        fontSize={10 / position.k}
-                        y={-12 / position.k}
-                        fill="#1a1a2e"
-                        stroke="white"
-                        strokeWidth={3 / position.k}
-                        paintOrder="stroke"
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {telescopeLabel(nestedTelescope)}
-                      </text>
-                    )}
-                  </g>
-                </Marker>
-              );
-            })}
-            {hoveredTelescope &&
-              hoveredTelescope.lon &&
-              hoveredTelescope.lat &&
-              position.k < ZOOM_LABEL_THRESHOLD && (
-                <Marker
-                  key="hovered-label"
-                  coordinates={[hoveredTelescope.lon, hoveredTelescope.lat]}
+                  {isHovered && (
+                    <circle
+                      r={11 / position.k}
+                      fill={markerColor}
+                      opacity={0.3}
+                    />
+                  )}
+                  {nestedTelescope.fixed_location ? (
+                    <circle
+                      r={6.5 / position.k}
+                      fill={markerColor}
+                      stroke="white"
+                      strokeWidth={1.5 / position.k}
+                    />
+                  ) : (
+                    <rect
+                      x={-6.5 / position.k}
+                      y={-6.5 / position.k}
+                      width={13 / position.k}
+                      height={13 / position.k}
+                      fill={markerColor}
+                      stroke="white"
+                      strokeWidth={1.5 / position.k}
+                    />
+                  )}
+                  {showLabel && (
+                    <text
+                      id="telescopes_label"
+                      textAnchor="middle"
+                      fontSize={10 / position.k}
+                      y={-12 / position.k}
+                      fill="#1a1a2e"
+                      stroke="white"
+                      strokeWidth={3 / position.k}
+                      paintOrder="stroke"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {telescopeLabel(nestedTelescope)}
+                    </text>
+                  )}
+                </g>
+              </Marker>
+            );
+          })}
+          {hoveredTelescope &&
+            hoveredTelescope.lon &&
+            hoveredTelescope.lat &&
+            position.k < ZOOM_LABEL_THRESHOLD && (
+              <Marker
+                key="hovered-label"
+                coordinates={[hoveredTelescope.lon, hoveredTelescope.lat]}
+                style={{ pointerEvents: "none" }}
+              >
+                <text
+                  textAnchor="middle"
+                  fontSize={10 / position.k}
+                  fontFamily="sans-serif"
+                  fontWeight="600"
+                  y={-12 / position.k}
+                  fill="#1a1a2e"
+                  stroke="white"
+                  strokeWidth={3 / position.k}
+                  paintOrder="stroke"
                   style={{ pointerEvents: "none" }}
                 >
-                  <text
-                    textAnchor="middle"
-                    fontSize={10 / position.k}
-                    fontFamily="sans-serif"
-                    fontWeight="600"
-                    y={-12 / position.k}
-                    fill="#1a1a2e"
-                    stroke="white"
-                    strokeWidth={3 / position.k}
-                    paintOrder="stroke"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {telescopeLabel(hoveredTelescope)}
-                  </text>
-                </Marker>
-              )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+                  {telescopeLabel(hoveredTelescope)}
+                </text>
+              </Marker>
+            )}
+        </>
+      )}
+    </CustomMap>
   );
 };
 
@@ -252,10 +209,6 @@ TelescopeMap.propTypes = {
       fixed_location: PropTypes.bool,
     }),
   ).isRequired,
-};
-
-CustomZoomableGroup.propTypes = {
-  children: PropTypes.func.isRequired,
 };
 
 export default TelescopeMap;

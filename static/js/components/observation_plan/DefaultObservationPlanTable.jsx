@@ -15,6 +15,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Chip from "@mui/material/Chip";
+import Box from "@mui/material/Box";
 import MUIDataTable from "mui-datatables";
 import { JSONTree } from "react-json-tree";
 
@@ -109,24 +110,24 @@ const DefaultObservationPlanTable = ({
   };
 
   const renderGcnEventFilters = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-    if (!default_observation_plan?.filters) return null;
+    const plan = default_observation_plans[dataIndex];
+    if (!plan?.filters) return null;
 
     return (
-      <div style={{ whiteSpace: "nowrap" }}>
-        <JSONTree data={default_observation_plan.filters} hideRoot />
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={plan?.filters} hideRoot />
+      </Box>
     );
   };
 
   const renderPayload = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-    if (!default_observation_plan?.payload) return null;
+    const plan = default_observation_plans[dataIndex];
+    if (!plan?.payload) return null;
 
     return (
-      <div style={{ whiteSpace: "nowrap" }}>
-        <JSONTree data={default_observation_plan.payload} hideRoot />
-      </div>
+      <Box sx={{ whiteSpace: "nowrap" }}>
+        <JSONTree data={plan.payload} hideRoot />
+      </Box>
     );
   };
 

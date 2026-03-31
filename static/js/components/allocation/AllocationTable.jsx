@@ -2,12 +2,6 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
@@ -27,6 +21,7 @@ import * as allocationActions from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export const isSomeActiveRangeOrNoRange = (ranges, date = new Date()) => {
   return !ranges?.length || ranges.some((range) => rangeIsActive(range, date));
@@ -49,39 +44,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const AllocationTable = ({
   title = "Allocations",
   groups = [],
@@ -97,10 +59,7 @@ const AllocationTable = ({
   fixedHeader = false,
 }) => {
   const classes = useStyles();
-  const theme = useTheme();
-
   const dispatch = useDispatch();
-
   const [setRowsPerPage] = useState(numPerPage);
 
   const [newAllocationDialog, setNewAllocationDialog] = useState(false);
@@ -124,28 +83,28 @@ const AllocationTable = ({
 
   const renderInstrumentName = (dataIndex) => {
     const allocation = allocations[dataIndex];
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
+    const instrument = instruments?.filter(
+      (i) => i.id === allocation?.instrument_id,
+    )[0];
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {instrument ? instrument.name : ""}
+      <Link to={`/allocation/${allocation.id}`}>
+        {instrument ? instrument.name : <CircularProgress size={20} />}
       </Link>
     );
   };
 
   const renderTelescopeName = (dataIndex) => {
     const allocation = allocations[dataIndex];
-
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const instrument = instruments?.filter(
+      (i) => i.id === allocation?.instrument_id,
+    )[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
 
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {telescope ? telescope.nickname : ""}
+      <Link to={`/allocation/${allocation.id}`}>
+        {telescope ? telescope.nickname : <CircularProgress size={20} />}
       </Link>
     );
   };
@@ -153,8 +112,7 @@ const AllocationTable = ({
   const renderGroup = (dataIndex) => {
     const allocation = allocations[dataIndex];
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
-    return group ? group.name : "";
+    return group?.name || "";
   };
 
   const renderShareGroups = (dataIndex) => {
@@ -169,7 +127,7 @@ const AllocationTable = ({
       });
     }
 
-    return share_groups.length > 0 ? share_groups.join("\n") : "";
+    return share_groups.length ? share_groups.join("\n") : "";
   };
 
   const renderAllocationUsers = (dataIndex) => {
@@ -182,7 +140,7 @@ const AllocationTable = ({
       });
     }
 
-    return allocation_users.length > 0 ? allocation_users.join("\n") : "";
+    return allocation_users.length ? allocation_users.join("\n") : "";
   };
 
   const renderValidityRanges = (dataIndex) => {
@@ -234,23 +192,18 @@ const AllocationTable = ({
             color="success"
           />
         ) : (
-          <Chip
-            label="Inactive"
-            sx={{ color: theme.palette.action.disabled }}
-          />
+          <Chip label="Inactive" />
         )}
       </Tooltip>
     );
   };
 
   const renderPI = (dataIndex) => {
-    return allocations[dataIndex] ? allocations[dataIndex].pi : "";
+    return allocations[dataIndex]?.pi || "";
   };
 
   const renderTypes = (dataIndex) => {
-    return allocations[dataIndex]
-      ? allocations[dataIndex].types.join(", ")
-      : "";
+    return allocations[dataIndex]?.types.join(", ") || "";
   };
 
   const renderManage = (dataIndex) => {
@@ -259,18 +212,10 @@ const AllocationTable = ({
     const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
-        <IconButton
-          key={`edit_${allocation.id}`}
-          id={`edit_button_${allocation.id}`}
-          onClick={() => setAllocationToEdit(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToEdit(allocation.id)}>
           <EditIcon />
         </IconButton>
-        <IconButton
-          key={`delete_${allocation.id}`}
-          id={`delete_button_${allocation.id}`}
-          onClick={() => setAllocationToDelete(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToDelete(allocation.id)}>
           <DeleteIcon />
         </IconButton>
       </div>
@@ -425,19 +370,13 @@ const AllocationTable = ({
   };
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={title}
-              data={allocations || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
-      </Paper>
+    <Paper>
+      <MUIDataTable
+        title={title}
+        data={allocations || []}
+        options={options}
+        columns={columns}
+      />
       <Dialog
         open={newAllocationDialog}
         onClose={() => setNewAllocationDialog(false)}
@@ -456,8 +395,8 @@ const AllocationTable = ({
         <DialogTitle>Edit Allocation</DialogTitle>
         <DialogContent dividers>
           <AllocationForm
-            onClose={() => setAllocationToEdit(null)}
             allocationId={allocationToEdit}
+            onClose={() => setAllocationToEdit(null)}
           />
         </DialogContent>
       </Dialog>
@@ -467,7 +406,7 @@ const AllocationTable = ({
         closeDialog={() => setAllocationToDelete(null)}
         resourceName="allocation"
       />
-    </div>
+    </Paper>
   );
 };
 

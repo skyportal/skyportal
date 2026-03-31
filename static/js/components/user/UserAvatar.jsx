@@ -10,10 +10,10 @@ const useStyles = makeStyles((theme) => ({
   avatar: (props) => ({
     width: props.size,
     height: props.size,
-    backgroundColor: props.usercolor,
+    backgroundColor: props.userColor,
     "&:after": {
       content: `"${props.backUpLetters}"`,
-      color: theme.palette.getContrastText(props.usercolor),
+      color: theme.palette.getContrastText(props.userColor),
       fontWeight: "bold",
       fontSize: `${Math.max(parseInt(parseFloat(props.size) / 3, 10), 10)}px`,
       position: "absolute",
@@ -44,6 +44,18 @@ const getInitials = (firstName, lastName) => {
   return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 };
 
+// use the hash of the username (which is in the gravatarUrl) to
+// select a unique color for this user
+function bgColor(gravatarUrl) {
+  let hash = gravatarUrl.split("/");
+  hash = hash[hash.length - 1];
+  if (hash.length >= 6) {
+    // make the color string with a slight transparency
+    return `#${hash.slice(0, 6)}aa`;
+  }
+  return "#aaaaaaaa";
+}
+
 const UserAvatar = ({
   size,
   firstName,
@@ -52,28 +64,15 @@ const UserAvatar = ({
   gravatarUrl,
   isBot,
 }) => {
-  // use the hash of the username (which is in the gravatarUrl) to
-  // select a unique color for this user
-  function bgcolor() {
-    let hash = gravatarUrl.split("/");
-    hash = hash[hash.length - 1];
-    if (hash.length >= 6) {
-      // make the color string with a slight transparency
-      return `#${hash.slice(0, 6)}aa`;
-    }
-    return "#aaaaaaaa";
-  }
-
-  const usercolor = bgcolor();
-
   const backUpLetters =
     firstName === null
       ? username.slice(0, 2)
       : getInitials(firstName, lastName);
-
-  const props = { size, usercolor, backUpLetters };
-  const classes = useStyles(props);
-
+  const classes = useStyles({
+    size,
+    userColor: bgColor(gravatarUrl),
+    backUpLetters,
+  });
   let tooltipText = username;
   if (firstName && lastName) {
     tooltipText += ` (${firstName} ${lastName})`;
@@ -82,9 +81,23 @@ const UserAvatar = ({
     tooltipText = `[Bot] ${tooltipText}`;
   }
 
-  if (isBot) {
-    return (
-      <Tooltip title={tooltipText} arrow placement="top-start">
+  const avatar = (
+    <Avatar
+      alt={backUpLetters}
+      src={`${gravatarUrl}&s=${size}`}
+      size={size}
+      classes={{
+        root: classes.avatar,
+        img: classes.avatarImg,
+      }}
+    />
+  );
+
+  return (
+    <Tooltip title={tooltipText} arrow placement="top-start">
+      {!isBot ? (
+        avatar
+      ) : (
         <Badge
           overlap="circular"
           anchorOrigin={{ vertical: "top", horizontal: "right" }}
@@ -92,31 +105,9 @@ const UserAvatar = ({
             <SmartToyIcon fontSize="small" className={classes.badge} />
           }
         >
-          <Avatar
-            alt={backUpLetters}
-            src={`${gravatarUrl}&s=${size}`}
-            size={size}
-            classes={{
-              root: classes.avatar,
-              img: classes.avatarImg,
-            }}
-          />
+          {avatar}
         </Badge>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Tooltip title={tooltipText} arrow placement="top-start">
-      <Avatar
-        alt={backUpLetters}
-        src={`${gravatarUrl}&s=${size}`}
-        size={size}
-        classes={{
-          root: classes.avatar,
-          img: classes.avatarImg,
-        }}
-      />
+      )}
     </Tooltip>
   );
 };

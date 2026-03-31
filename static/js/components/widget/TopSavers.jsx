@@ -25,7 +25,6 @@ import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 const useStyles = makeStyles(() => ({
-  header: {},
   timespanSelect: {
     display: "inline",
     "& > button": {
@@ -172,13 +171,8 @@ const TopSaversList = ({ savers, styles }) => {
     }
   }, [savers]);
 
-  if (savers === undefined) {
-    return <div>Loading top savers...</div>;
-  }
-
-  if (savers.length === 0) {
-    return <div>No top savers available.</div>;
-  }
+  if (savers === undefined) return <div>Loading top savers...</div>;
+  if (savers.length === 0) return <div>No top savers available.</div>;
 
   const renderRank = (index) => {
     const { rank } = options[index];
@@ -258,10 +252,10 @@ const TopSavers = ({ classes }) => {
   const styles = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
 
-  const storedPrefs = useSelector(
-    (state) => state.profile.preferences.topSavers,
-  );
-  const topSaversPrefs = { ...defaultPrefs, ...storedPrefs };
+  const topSaversPrefs = {
+    ...defaultPrefs,
+    ...(useSelector((state) => state.profile.preferences.topSavers) || {}),
+  };
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
@@ -273,19 +267,20 @@ const TopSavers = ({ classes }) => {
   const open = Boolean(anchorEl);
 
   const switchTimespan = (selectedTimespan) => {
-    const newTimespan = timespans.find(
-      (timespan) => timespan.label === selectedTimespan.label,
-    );
-    setCurrentTimespan(newTimespan);
-    topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
-
+    setCurrentTimespan(selectedTimespan);
     dispatch(
-      profileActions.updateUserPreferences({ topSavers: topSaversPrefs }),
+      profileActions.updateUserPreferences({
+        topSavers: {
+          ...topSaversPrefs,
+          sinceDaysAgo: selectedTimespan.sinceDaysAgo,
+        },
+      }),
     );
+    setAnchorEl(null);
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+    <Paper className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
           <Typography
@@ -305,7 +300,6 @@ const TopSavers = ({ classes }) => {
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 size="small"
                 endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                data-testid="topSavers_timespanButton"
               >
                 {currentTimespan.label}
               </Button>
@@ -315,19 +309,13 @@ const TopSavers = ({ classes }) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
-                }}
+                MenuListProps={{ "aria-labelledby": "basic-button" }}
               >
                 {timespans.map((timespan) => (
                   <MenuItem
                     className={styles.timespanMenuItem}
                     key={timespan.label}
-                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
-                    onClick={() => {
-                      switchTimespan(timespan);
-                      setAnchorEl(null);
-                    }}
+                    onClick={() => switchTimespan(timespan)}
                   >
                     {timespan.label}
                   </MenuItem>

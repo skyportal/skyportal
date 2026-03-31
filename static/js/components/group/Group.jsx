@@ -172,7 +172,7 @@ const Group = () => {
           <Typography className={classes.heading}>Sources</Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.accordion_details}>
-          <Link to={`/group_sources/${group.id}`} key={group.id}>
+          <Link to={`/group_sources/${group.id}`}>
             <Button secondary>Group sources</Button>
           </Link>
         </AccordionDetails>

@@ -455,7 +455,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
                     }}
                     size="small"
                     type="submit"
-                    data-testid={`deleteRequest_${photometry.id}`}
                   >
                     <DeleteIcon />
                   </IconButton>

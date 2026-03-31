@@ -267,19 +267,21 @@ const ShiftManagement = ({ shiftToManage }) => {
         },
       }}
     >
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
           width: "100%",
           marginBottom: "1rem",
+          gap: "1rem",
         }}
       >
-        <h2 style={{ margin: "0" }}>
+        <Typography variant="h2">
           {shiftToManage.name}
           {isAdmin && <UpdateShift shift={shiftToManage} />}
-        </h2>
-        <div style={{ display: "flex", gap: "0.3rem" }}>
+        </Typography>
+        <Box sx={{ display: "flex", gap: "0.3rem" }}>
           {!participating ? (
             <Button
               variant="outlined"
@@ -306,8 +308,8 @@ const ShiftManagement = ({ shiftToManage }) => {
               Delete
             </Button>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
       {shiftToManage.description && (
         <div>
           <b>Description: </b>
