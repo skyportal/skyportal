@@ -101,7 +101,8 @@ dependencies = [
 ]
 
 [dependency-groups]
-test = [
+dev = [
+    "pre-commit",
     "pytest>=8.3.2, <9.0.0",
     "pytest-randomly==4.0.1",
     "pytest-rerunfailures>=14.0",
