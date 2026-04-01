@@ -139,16 +139,16 @@ wheels = [
 
 [[package]]
 name = "alembic"
-version = "1.18.3"
+version = "1.18.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mako" },
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/79/41/ab8f624929847b49f84955c594b165855efd829b0c271e1a8cac694138e5/alembic-1.18.3.tar.gz", hash = "sha256:1212aa3778626f2b0f0aa6dd4e99a5f99b94bd25a0c1ac0bba3be65e081e50b0", size = 2052564, upload-time = "2026-01-29T20:24:15.124Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/13/8b084e0f2efb0275a1d534838844926f798bd766566b1375174e2448cd31/alembic-1.18.4.tar.gz", hash = "sha256:cb6e1fd84b6174ab8dbb2329f86d631ba9559dd78df550b57804d607672cedbc", size = 2056725, upload-time = "2026-02-10T16:00:47.195Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/8e/d79281f323e7469b060f15bd229e48d7cdd219559e67e71c013720a88340/alembic-1.18.3-py3-none-any.whl", hash = "sha256:12a0359bfc068a4ecbb9b3b02cf77856033abfdb59e4a5aca08b7eacd7b74ddd", size = 262282, upload-time = "2026-01-29T20:24:17.488Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/29/6533c317b74f707ea28f8d633734dbda2119bbadfc61b2f3640ba835d0f7/alembic-1.18.4-py3-none-any.whl", hash = "sha256:a5ed4adcf6d8a4cb575f3d759f071b03cd6e5c7618eb796cb52497be25bfe19a", size = 263893, upload-time = "2026-02-10T16:00:49.997Z" },
 ]
 
 [[package]]
@@ -1404,7 +1404,7 @@ wheels = [
 
 [[package]]
 name = "geopandas"
-version = "1.1.1"
+version = "1.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -1414,9 +1414,9 @@ dependencies = [
     { name = "pyproj" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/76/e1960ba846f153ab109575242abf89dc98f8e057faa32f3decf4cce9247a/geopandas-1.1.1.tar.gz", hash = "sha256:1745713f64d095c43e72e08e753dbd271678254b24f2e01db8cdb8debe1d293d", size = 332655, upload-time = "2025-06-26T21:04:56.57Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/ba/8e6b2091878e99e86a36a814dcaeff652ed48bdb03d53e78e15aaa63a914/geopandas-1.1.3.tar.gz", hash = "sha256:91a31989b6f566012838d21d5f8033f37dce882079ccb7cfdc40d5ccce7f284f", size = 336718, upload-time = "2026-03-09T21:49:09.545Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/70/d5cd0696eff08e62fdbdebe5b46527facb4e7220eabe0ac6225efab50168/geopandas-1.1.1-py3-none-any.whl", hash = "sha256:589e61aaf39b19828843df16cb90234e72897e2579be236f10eee0d052ad98e8", size = 338365, upload-time = "2025-06-26T21:04:55.139Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl", hash = "sha256:90d62a64f95eaa3be2ccc115c5f3d6e24208bb11983b390fdc0621a3eccd0230", size = 342514, upload-time = "2026-03-09T21:49:07.973Z" },
 ]
 
 [[package]]
@@ -1741,22 +1741,22 @@ wheels = [
 
 [[package]]
 name = "iminuit"
-version = "2.31.3"
+version = "2.32.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/41/d1b2fa8022811cc54bbf363948f58756f88e4e5891a38cbe43824432fd27/iminuit-2.31.3.tar.gz", hash = "sha256:ffb3aeb2de26c400d0aff7e2b7457f64cd609a494c45ee579effee81b1bc5d78", size = 1841427, upload-time = "2025-10-26T13:21:27.514Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/0d/48a09d00769634930b1bdbf1ea057a2747a81d07825cd6940784d8b6599f/iminuit-2.32.0.tar.gz", hash = "sha256:a32b34d18665959be75ad6bdb1dd80459bb94466c62b455631c00568accdf7d2", size = 1873843, upload-time = "2025-11-09T17:25:18.477Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/e5/0c22fd646273e280d73b484d9d8323cf36c3c733b4a49cc0cf7702d9e443/iminuit-2.31.3-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:e21a64a355d4a2ff3f8812ec92f4652ce43f09cc3d23e8f2ae7e6fab77bb82eb", size = 430126, upload-time = "2025-10-26T13:20:11.216Z" },
-    { url = "https://files.pythonhosted.org/packages/2d/3e/e522d2b4f039910f1ad686a100573bcbaf5a2de28731eab4adc23b35ca9f/iminuit-2.31.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c754e1af7712ae40a49521fdb716bc19b29894f611b3eb7f8b2c213c5ccee710", size = 375888, upload-time = "2025-10-26T13:20:12.788Z" },
-    { url = "https://files.pythonhosted.org/packages/53/f0/52456c409509ce94dff290187f779e44683ff5d39e75bf27e3c02251bb80/iminuit-2.31.3-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ad929ff1961e2b83d4c30df74e5b3cf48543c8bb88b3b9cb1a6c8c1e99cfd76b", size = 399319, upload-time = "2025-10-26T13:20:14.011Z" },
-    { url = "https://files.pythonhosted.org/packages/ee/2e/bfc47ea724a88bc7e281f584bd1cf1179269fdf123b460f5a41ccfc59bc3/iminuit-2.31.3-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0c16616e7092d9c09e380510e3acc11550171b4ab991be98d3761b57aff1d896", size = 433953, upload-time = "2025-10-26T13:20:15.264Z" },
-    { url = "https://files.pythonhosted.org/packages/e3/fc/5dfe9a809cc7c444d3f242cb9237722a08b10fd20c8ca98862f0276516a3/iminuit-2.31.3-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:02d4fb5e1b292c5e17996ed35a1511a829353168c2060382930230827bbf757e", size = 1402655, upload-time = "2025-10-26T13:20:16.505Z" },
-    { url = "https://files.pythonhosted.org/packages/2c/04/7b1f31e98f3e201dacc82cb65c3a1b4a59aa2c71dcbd1dce4129f7632ae4/iminuit-2.31.3-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:22d19be419d9bb23072508728ec516609943cc87e8a90bf3d11512a702470626", size = 1474665, upload-time = "2025-10-26T13:20:18.203Z" },
-    { url = "https://files.pythonhosted.org/packages/59/89/c781be56fa08ea559056bbc05829e33d16500cea32311e4a3fe87da5ba7f/iminuit-2.31.3-cp312-cp312-win32.whl", hash = "sha256:63dc2722adc280e23dffa47fc65df19ebe431b10fc4eadf4f58f696c15fec146", size = 336846, upload-time = "2025-10-26T13:20:19.683Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/7a/bcf3068f9741abc3e690b31e1b27b7e840fdc67f6f81985cbd9374f2cdfa/iminuit-2.31.3-cp312-cp312-win_amd64.whl", hash = "sha256:43e9eab128c29e3aa92b15be7b6acd24b2b447ec1f9d6dcacaea77e6727d99e1", size = 390822, upload-time = "2025-10-26T13:20:21.336Z" },
-    { url = "https://files.pythonhosted.org/packages/2f/dd/0d480b5170320212d58d5eaf179a49561d46b5a8229b78ca6d9e191b1d11/iminuit-2.31.3-cp312-cp312-win_arm64.whl", hash = "sha256:a0ad66227a7547b62614191a3fc772975c5ff06965ae3720eedf10176e846525", size = 375953, upload-time = "2025-10-26T13:20:22.998Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/c9/2d937a776e81930172694ccf9c1a7e0637e47384dcd3496940cae1e1a44b/iminuit-2.32.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:38b8baa9cc35d62aa2d7e3ec676423e4fd5120b0e178095a0f3d73d6d36e9e6b", size = 440476, upload-time = "2025-11-09T17:23:45.004Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/76/2b3281b4988e5d47534fc0bece70f3b9e31d8e943fe1b5f4a5831962c5cd/iminuit-2.32.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b4c818abeb0ad1677a336f8caaa5faf9545cfef14be4a9be7cd08c9036e2924b", size = 386749, upload-time = "2025-11-09T17:23:46.473Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/86/0aa16e7a5d8968e5d616fee577b7c188098d61925ccf899cc4423e91fd50/iminuit-2.32.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b6bd0bd6f2c9e79675e84036e8305823e1bea8ad9f58cf8588f174be55eefa1b", size = 411064, upload-time = "2025-11-09T17:23:48.667Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/de/2bd147bb17df581b642d02a0360bf30c2263d60f8717dd81809726b746e9/iminuit-2.32.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:91e8a206d82bef31d2ed2b1420a85f8d604c8b03ad1edf2d47d87984bf3d7817", size = 448197, upload-time = "2025-11-09T17:23:50.224Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/cd/25449c3ae41e66aef33d8347075c5f12a30ce71254a86fd99a333be892ae/iminuit-2.32.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:6b9702617d9c6024ec0f3833ceeb031cddce5c7ec4d4982ad7e7d60c6954abab", size = 1413913, upload-time = "2025-11-09T17:23:51.965Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/fd/42b36fc73dbbad436c64791735c78e7502364ea2991ac46ead03c6e32ad7/iminuit-2.32.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:101f21e26d90b766f89f64a1497d70157bb5d5b969a1176fabec3ee8b38a4d56", size = 1489599, upload-time = "2025-11-09T17:23:54.092Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/ce/96f473ae657ef9e5acc0770e8ab48ed4fcd51da10d15bba56d0150c4eb5c/iminuit-2.32.0-cp312-cp312-win32.whl", hash = "sha256:9110b2190557e7f4cbae0eaf79f7b6e69aed68a8c80d0132868a27f0f3846598", size = 343887, upload-time = "2025-11-09T17:23:55.918Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/ab/bcf61e7466cb61310569c9ffe426bc9462fb7a5f9a04272f368389959260/iminuit-2.32.0-cp312-cp312-win_amd64.whl", hash = "sha256:b996f8f8ae186b761f16b3d163536728de92a451fce8ffb26acede7a23bd0af6", size = 393427, upload-time = "2025-11-09T17:23:57.773Z" },
+    { url = "https://files.pythonhosted.org/packages/81/a6/7cafadc7037bf5efb0e80040652824002a562858e40b9e41e2cdc09318a1/iminuit-2.32.0-cp312-cp312-win_arm64.whl", hash = "sha256:3620b39572a3b66aeaf703729905d67b43adfb4051fb174331d090fa97914a6a", size = 386047, upload-time = "2025-11-09T17:23:59.321Z" },
 ]
 
 [[package]]
@@ -1945,7 +1945,7 @@ wheels = [
 
 [[package]]
 name = "jsonschema"
-version = "4.23.0"
+version = "4.26.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -1953,9 +1953,9 @@ dependencies = [
     { name = "referencing" },
     { name = "rpds-py" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/38/2e/03362ee4034a4c917f697890ccd4aec0800ccf9ded7f511971c75451deec/jsonschema-4.23.0.tar.gz", hash = "sha256:d71497fef26351a33265337fa77ffeb82423f3ea21283cd9467bb03999266bc4", size = 325778, upload-time = "2024-07-08T18:40:05.546Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/fc/e067678238fa451312d4c62bf6e6cf5ec56375422aee02f9cb5f909b3047/jsonschema-4.26.0.tar.gz", hash = "sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326", size = 366583, upload-time = "2026-01-07T13:41:07.246Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/4a/4f9dbeb84e8850557c02365a0eee0649abe5eb1d84af92a25731c6c0f922/jsonschema-4.23.0-py3-none-any.whl", hash = "sha256:fbadb6f8b144a8f8cf9f0b89ba94501d143e50411a1278633f56a7acf7fd5566", size = 88462, upload-time = "2024-07-08T18:40:00.165Z" },
+    { url = "https://files.pythonhosted.org/packages/69/90/f63fb5873511e014207a475e2bb4e8b2e570d655b00ac19a9a0ca0a385ee/jsonschema-4.26.0-py3-none-any.whl", hash = "sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce", size = 90630, upload-time = "2026-01-07T13:41:05.306Z" },
 ]
 
 [[package]]
@@ -4458,7 +4458,7 @@ docs = [
 requires-dist = [
     { name = "afterglowpy", specifier = "==0.8.1" },
     { name = "aiosmtpd", specifier = "==1.4.6" },
-    { name = "alembic", specifier = "==1.18.3" },
+    { name = "alembic", specifier = "==1.18.4" },
     { name = "apispec", specifier = ">=6.3.0,<7.0.0" },
     { name = "arviz", specifier = "==0.19.0" },
     { name = "astroplan", specifier = "==0.10.1" },
@@ -4483,16 +4483,16 @@ requires-dist = [
     { name = "fiona", specifier = "==1.10.1" },
     { name = "gcn-kafka", specifier = "==0.3.3" },
     { name = "geojson", specifier = "==3.2.0" },
-    { name = "geopandas", specifier = "==1.1.1" },
+    { name = "geopandas", specifier = "==1.1.3" },
     { name = "gwemopt", specifier = "==0.3.6" },
     { name = "healpix-alchemy", specifier = "==1.1.0" },
     { name = "healpy", specifier = "==1.18.1" },
     { name = "humanize", specifier = "==4.14.0" },
-    { name = "iminuit", specifier = "==2.31.3" },
+    { name = "iminuit", specifier = "==2.32.0" },
     { name = "intervals", specifier = "==0.9.2" },
     { name = "joblib", specifier = ">=1.5.0,<2.0.0" },
     { name = "jsonpath-ng", specifier = "==1.7.0" },
-    { name = "jsonschema", specifier = "==4.23.0" },
+    { name = "jsonschema", specifier = "==4.26.0" },
     { name = "lalsuite", specifier = "<7.27" },
     { name = "langchain", specifier = "==0.3.27" },
     { name = "langchain-openai", specifier = "==0.3.28" },
@@ -4532,7 +4532,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2,<1.0.0" },
     { name = "sendgrid", specifier = "==6.12.5" },
     { name = "sentry-sdk", specifier = "==2.34.1" },
-    { name = "setuptools", specifier = "<76.1.0" },
+    { name = "setuptools", specifier = "<82.1.0" },
     { name = "shapely", specifier = "==2.1.2" },
     { name = "simplejson", specifier = "==3.20.1" },
     { name = "simsurvey", specifier = "==0.7.5" },
@@ -4544,7 +4544,7 @@ requires-dist = [
     { name = "tiktoken", specifier = "==0.12.0" },
     { name = "timezonefinder", specifier = "==8.2.0" },
     { name = "tqdm", specifier = ">=4.27,<4.68" },
-    { name = "twilio", specifier = "==9.10.0" },
+    { name = "twilio", specifier = "==9.10.4" },
     { name = "typing-extensions", specifier = "==4.15.0" },
     { name = "typing-inspect", specifier = "==0.9.0" },
     { name = "vcrpy", specifier = "==8.1.1" },
@@ -5070,7 +5070,7 @@ wheels = [
 
 [[package]]
 name = "twilio"
-version = "9.10.0"
+version = "9.10.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -5078,9 +5078,9 @@ dependencies = [
     { name = "pyjwt" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/7d/8de4d637513f2b1e9731876947dbfe2915248890c95a06ed08e2f3404a40/twilio-9.10.0.tar.gz", hash = "sha256:140d23fb4e74b3915c1af7847f862e02310866ec14247a9074cd37a9e5ccbdf1", size = 1617551, upload-time = "2026-01-22T11:22:20.286Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/28/9ffb8f01fc014bf634f0731bd562fed6209bc54d4249c69acfe68cf70302/twilio-9.10.4.tar.gz", hash = "sha256:2125e0027288903e7e8954ae6d5b1b593a205c28b3d72fa3fdd0b5f25825de04", size = 1637481, upload-time = "2026-03-24T13:04:11.822Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/3c/517ab07155ac098137923dccdde6a6ac651279d51e24a82f37cfc31f406d/twilio-9.10.0-py2.py3-none-any.whl", hash = "sha256:4de70b1437b21912737b6ce2727b71c1512d16d4155d35cefe31a4b515dbf70d", size = 2253261, upload-time = "2026-01-22T11:22:18.712Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/3c/3296ee9f141b83623ff2c6c4d22093f7d2a8ea7455f98f705ee5f969bcd7/twilio-9.10.4-py2.py3-none-any.whl", hash = "sha256:5e8414a88c009f40b2ab2a1f00232f5f459f724c7b4bdf25a935c7d7b297a8a3", size = 2279546, upload-time = "2026-03-24T13:04:10.383Z" },
 ]
 
 [[package]]
