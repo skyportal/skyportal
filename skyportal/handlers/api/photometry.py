@@ -2000,11 +2000,15 @@ class ObjPhotometryHandler(BaseHandler):
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
-                    super_objs = session.scalars(
-                        sa.select(SuperObj).where(
-                            ObjToSuperObj.obj_id == obj_id,
+                    super_objs = (
+                        session.scalars(
+                            sa.select(SuperObj).where(
+                                SuperObj.objs.any(Obj.id == obj_id)
+                            )
                         )
-                    ).all()
+                        .unique()
+                        .all()
+                    )
                     for super_obj in super_objs:
                         obj_ids.update({o.id for o in super_obj.objs})
 
