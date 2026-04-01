@@ -238,11 +238,13 @@ def include_requested_obj_data(
     if get_query_argument("includeAssociatedObjs", True):
         # For each associated obj, we include the same info as for duplicates (obj_id, ra, dec, separation),
         # but we also include the super_obj_id (and name) through which it is associated to the current obj
-        super_objs = session.scalars(
-            sa.select(SuperObj).where(
-                ObjToSuperObj.obj_id == obj_id,
+        super_objs = (
+            session.scalars(
+                sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
             )
-        ).all()
+            .unique()
+            .all()
+        )
         associated_objs = []
         for super_obj in super_objs:
             super_obj_id = super_obj.id
