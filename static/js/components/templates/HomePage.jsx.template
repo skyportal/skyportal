@@ -14,13 +14,18 @@ import convertLength from "convert-css-length";
 
 import * as profileActions from "../../ducks/profile";
 
-{%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-{%- if widgetProps.show is not defined or widgetProps.show %}
+{# Only process widgets that are set to show on the homepage, or those that don't have a show property #}
+{%- set visible_widgets = {} -%}
+{%- for name, props in app.homepage_widgets.items() if props.show | default(true) -%}
+{%- set _ = visible_widgets.update({name: props}) -%}
+{%- endfor -%}
+
+
+{%- for widgetName, widgetProps in visible_widgets.items() %}
 {%- if widgetName == "GroupList" %}
 import {{ widgetName }} from "../group/{{ widgetName }}";
 {%- else %}
 import {{ widgetName }} from "../widget/{{ widgetName }}";
-{%- endif %}
 {%- endif %}
 {%- endfor %}
 
@@ -54,7 +59,7 @@ const useStyles = makeStyles(() => ({
 const defaultLayouts = {
   {%- for breakpoint in app.homepage_grid.breakpoints.keys() %}
   {{ breakpoint }}: [
-    {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+    {%- for widgetName, widgetProps in visible_widgets.items() %}
     { i: "{{ widgetName }}", x: {{ widgetProps.layouts[breakpoint][0] }}, y: {{ widgetProps.layouts[breakpoint][1] }}, w: {{ widgetProps.layouts[breakpoint][2] }}, h: {{ widgetProps.layouts[breakpoint][3] }}, isResizable: {{ widgetProps.resizeable | lower }},
     {%- if widgetProps.minW is defined -%} minW: {{ widgetProps.minW }} {%- endif -%}},
     {%- endfor %}
@@ -99,9 +104,8 @@ const HomePage = () => {
         draggableHandle=".dragHandle"
         rowHeight={gridRowHeight}
       >
-        {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-          {%- if widgetProps.show is not defined or widgetProps.show %}
-            {%- if widgetName == "GroupList" %}
+        {%- for widgetName, widgetProps in visible_widgets.items() %}
+          {%- if widgetName == "GroupList" %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
             groups={groups}
@@ -134,7 +138,6 @@ const HomePage = () => {
             {%- endif %}
           />
         </div>
-            {%- endif -%}
           {%- endif -%}
         {%- endfor %}
       </ResponsiveGridLayout>
