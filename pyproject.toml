@@ -82,7 +82,7 @@ dependencies = [
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
     "confluent_kafka==2.13.0",
-    "iminuit==2.31.3",
+    "iminuit==2.32.0",
     "watchdog==6.0.0",
     "PyAstronomy==0.24.0",
     "shapely==2.1.2",
