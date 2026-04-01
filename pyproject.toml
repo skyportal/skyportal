@@ -58,7 +58,7 @@ dependencies = [
     "suds-py3==1.4.5.0",
     "vcrpy==8.1.1",
     "aiosmtpd==1.4.6",
-    "ligo.skymap==2.0.1",
+    "ligo.skymap==2.5.3",
     "python-ligo-lw==1.8.4",
     "lalsuite<7.27",
     "healpy==1.18.1",
