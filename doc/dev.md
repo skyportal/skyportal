@@ -1,17 +1,26 @@
 # Developer notes
 
-## Pre-commit hook
+## Development setup
 
-Install our pre-commit hook as follows:
+If you intend to do any development work on the application, first install the dev dependencies:
 
 ```
-pip install pre-commit
-pre-commit install
+uv sync --inexact --group dev
+```
+
+This includes `pre-commit`, `pytest`, `selenium`, and other tools needed for development and testing.
+
+## Pre-commit hook
+
+Install our pre-commit hook:
+
+```
+uv run pre-commit install
 ```
 
 This will check your changes before each commit to ensure that they
-conform with our code style standards. We use black to reformat Python
-code, and PrettierJS for JavaScript. We also run ESLint to catch
+conform with our code style standards. We use ruff to lint and reformat Python
+code, and Prettier for JavaScript. We also run ESLint to catch
 several common Redux usage bugs.
 
 ## Testing
