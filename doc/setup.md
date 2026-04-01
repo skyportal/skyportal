@@ -257,8 +257,9 @@ setting `debug_login` to `False`.
 
 ### Username generation
 
-When `USERNAME_IS_FULL_EMAIL` is set to `True` in the `server:auth` configuration, the user's full email address is used as their username.
-When `USERNAME_IS_FULL_EMAIL` is `False` (the default), SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
+When `server.auth.username_is_email` is set to `True` (the default), the user's email address is used as their username.
+
+When `server.auth.username_is_email` is set to `False`, SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
 
 If the OAuth provider does not supply first and last name fields, the username falls back to the raw `username` field from the provider details.
 
