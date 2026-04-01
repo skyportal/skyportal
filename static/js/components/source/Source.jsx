@@ -291,11 +291,14 @@ const SourceContent = ({ source }) => {
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
 
-  const sourceDuplicatesWithoutAssociatedObjs = useMemo(() => {
-    return source.duplicates?.filter(
-      (d) => !(source.associated_objs || []).some((a) => a.obj_id === d.obj_id),
-    );
-  }, [source.duplicates, source.associated_objs]);
+  const sourceDuplicatesWithoutAssociatedObjs = useMemo(
+    () =>
+      (source.duplicates?.filter(
+        (d) =>
+          !(source.associated_objs || []).some((a) => a.obj_id === d.obj_id),
+      )) ?? [],
+    [source.duplicates, source.associated_objs],
+  );
 
   const getZRound = (redshift_error) =>
     redshift_error ? ceil(abs(log10(redshift_error))) : 4;
