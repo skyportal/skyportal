@@ -293,10 +293,10 @@ const SourceContent = ({ source }) => {
 
   const sourceDuplicatesWithoutAssociatedObjs = useMemo(
     () =>
-      (source.duplicates?.filter(
+      source.duplicates?.filter(
         (d) =>
           !(source.associated_objs || []).some((a) => a.obj_id === d.obj_id),
-      )) ?? [],
+      ) ?? [],
     [source.duplicates, source.associated_objs],
   );
 
