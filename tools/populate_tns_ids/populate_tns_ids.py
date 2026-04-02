@@ -7,7 +7,7 @@ based on the data from https://www.wis-tns.org/api/get/values
 The TNS instrument mappings are stored in tns_instruments.json.
 
 Usage:
-    PYTHONPATH=. python3 tools/populate_tns_ids/populate_tns_ids.py [--dry-run --config config.yaml]
+    PYTHONPATH=. python3 tools/populate_tns_ids/populate_tns_ids.py [--dry-run]
 """
 
 import argparse
@@ -57,14 +57,19 @@ def find_tns_id_for_instrument(instrument_name, tns_instruments, common_mappings
     name_lower = instrument_name.lower().strip()
     if name_lower in common_mappings:
         return common_mappings[name_lower]
+    possible_matches = {}
     for tns_id, tns_name in tns_instruments.items():
         if " - " in tns_name:
             _, inst_part = tns_name.split(" - ", 1)
             if inst_part.lower() == name_lower:
                 return tns_id
             if name_lower in inst_part.lower() or inst_part.lower() in name_lower:
-                return tns_id
+                possible_matches[tns_id] = tns_name
 
+    if possible_matches:
+        print(
+            f"Possible instruments to match for '{instrument_name}': {possible_matches}"
+        )
     return None
 
 
@@ -148,12 +153,6 @@ def main():
         "--dry-run",
         action="store_true",
         help="Show what would be done without making changes",
-    )
-    parser.add_argument(
-        "--config",
-        dest="config",
-        default="config.yaml.defaults",
-        help="Path to config file (default: config.yaml.defaults)",
     )
     args = parser.parse_args()
 
