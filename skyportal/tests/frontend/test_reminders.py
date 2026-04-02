@@ -1,15 +1,13 @@
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from skyportal.tests import api
 
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-        seconds=2
-    )
+    next_reminder = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=2)
     next_reminder = next_reminder.replace(microsecond=0)
     reminder_delay = 1
     number_of_reminders = 1
@@ -118,12 +116,8 @@ def test_reminder_on_shift(
     super_admin_token,
 ):
     shift_name = str(uuid.uuid4())
-    start_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
-    end_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    start_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
     request_data = {
         "name": shift_name,
         "group_id": public_group.id,
@@ -143,10 +137,11 @@ def test_reminder_on_shift(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{shift_id}")
     # check that the shift has been created and is visible in the calendar and click on it
-    driver.wait_for_xpath(
+    shift_event = driver.wait_for_xpath(
         f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..',
         timeout=30,
-    ).click()
+    )
+    driver.scroll_to_element_and_click(shift_event)
 
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
     driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')
