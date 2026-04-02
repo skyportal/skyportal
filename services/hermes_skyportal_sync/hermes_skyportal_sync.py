@@ -10,7 +10,7 @@ import time
 import traceback
 import uuid
 from collections import Counter, defaultdict
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import numpy as np
