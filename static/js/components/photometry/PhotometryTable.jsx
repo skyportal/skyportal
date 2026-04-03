@@ -13,12 +13,7 @@ import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import Typography from "@mui/material/Typography";
@@ -501,36 +496,34 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
 
       bodyContent = (
         <div>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      flexDirection: "row",
-                      gap: "1rem",
-                    }}
-                  >
-                    <Typography variant="h6" noWrap>
-                      {`Photometry of ${obj_id}`}
-                    </Typography>
-                    {magsys && typeof setMagsys === "function" && (
-                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
-                    )}
-                    <PhotometryExtinction
-                      showExtinction={showExtinction}
-                      setShowExtinction={setShowExtinction}
-                    />
-                  </div>
-                }
-                columns={columns}
-                data={data}
-                options={options}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexDirection: "row",
+                    gap: "1rem",
+                  }}
+                >
+                  <Typography variant="h6" noWrap>
+                    {`Photometry of ${obj_id}`}
+                  </Typography>
+                  {magsys && typeof setMagsys === "function" && (
+                    <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                  )}
+                  <PhotometryExtinction
+                    showExtinction={showExtinction}
+                    setShowExtinction={setShowExtinction}
+                  />
+                </div>
+              }
+              columns={columns}
+              data={data}
+              options={options}
+            />
+          </ThemeProvider>
           <ConfirmDeletionDialog
             deleteFunction={handleDelete}
             dialogOpen={deleteDialogOpen}

@@ -15,12 +15,12 @@ const logError = (errorInfo) => POST(`/api/internal/log`, LOG_ERROR, errorInfo);
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(error) {
     // Update state so the next render will show the fallback UI.
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -35,24 +35,23 @@ class ErrorBoundary extends React.Component {
   }
 
   render() {
-    const { hasError } = this.state;
+    const { hasError, error } = this.state;
     const { version, children } = this.props;
     if (hasError) {
       return (
         <div
           style={{
-            padding: "5em",
-            width: "50%",
+            padding: "clamp(1em, 5vw, 5em)",
+            width: "min(90%, 1000px)",
             marginLeft: "auto",
             marginRight: "auto",
           }}
         >
           <div style={{ textAlign: "center", paddingBottom: "1em" }}>
             <img
-              src="/static/images/car_over_cliff.svg"
-              width="300em"
-              style={{ textAlign: "center" }}
-              alt="Car over cliff: something went wrong"
+              src="/static/images/something_wrong.svg"
+              style={{ maxWidth: "250px", width: "80%" }}
+              alt="Something went wrong"
             />
             <h1>Oh dear! Something went wrong.</h1>
           </div>
@@ -60,11 +59,18 @@ class ErrorBoundary extends React.Component {
           <p>
             We logged the error and will take a look. Please let us know if this
             issue is preventing you from doing your work.
-          </p>
-
-          <p>
-            If you want to help us debug the issue, please send us the following
-            debugging information:
+            <br />
+            If you want to help us debug the issue, please send us the
+            information below or{" "}
+            <a
+              href="https://github.com/skyportal/skyportal/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#1976d2" }}
+            >
+              open an issue on GitHub
+            </a>
+            .
           </p>
 
           <pre
@@ -73,14 +79,16 @@ class ErrorBoundary extends React.Component {
               background: "#eee",
               padding: "1em",
               borderRadius: "0.5em",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
             }}
           >
-            An error occurred at {dayjs.utc().format()}(
-            {dayjs().utcOffset(-7).format("HH:mm:ss")} PST).
-            {version && (
+            {dayjs.utc().format()} - This is SkyPortal {version || "N/A"}
+            {error && (
               <>
                 <br />
-                This is SkyPortal {version}.
+                <br />
+                {error.toString()}
               </>
             )}
           </pre>

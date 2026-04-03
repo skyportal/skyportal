@@ -2,11 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
 import MUIDataTable from "mui-datatables";
@@ -226,15 +222,13 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         <Typography className={classes.heading}>Members</Typography>
       </AccordionSummary>
       <AccordionDetails className={classes.accordion_details}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              columns={columns}
-              data={group?.users ? groupUsers : []}
-              options={options}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            columns={columns}
+            data={group?.users ? groupUsers : []}
+            options={options}
+          />
+        </ThemeProvider>
         <Divider />
         <div className={classes.paper}>
           {isAdmin(currentUser) && (
