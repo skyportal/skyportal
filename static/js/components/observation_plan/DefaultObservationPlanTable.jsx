@@ -3,12 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
@@ -244,16 +239,14 @@ const DefaultObservationPlanTable = ({
   return (
     <div>
       <Paper>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="Default Observation Plans"
-              data={default_observation_plans || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Default Observation Plans"
+            data={default_observation_plans || []}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Paper>
       {newDialogOpen && (
         <Dialog
