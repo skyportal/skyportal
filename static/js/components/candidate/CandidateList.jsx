@@ -22,10 +22,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
-import ScanningPageCandidateAnnotations, {
-  getAnnotationValueString,
-} from "./ScanningPageCandidateAnnotations";
+import ScanningPageCandidateAnnotations, { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "../source/EditSourceGroups";
+import { useProfileGlobal } from "../utils/useProfileGlobal";
+import { getMockScore } from "../utils/mockProfiles";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
@@ -344,6 +344,8 @@ const CandidateInfo = ({
   selectedAnnotationSortOptions,
 }) => {
   const classes = useStyles();
+  const { profileKey, profileData } = useProfileGlobal();
+  const anomalyScore = getMockScore(candidateObj.id, profileKey);
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group,
@@ -525,6 +527,18 @@ const CandidateInfo = ({
               </span>
             </div>
           )}
+          <div className={classes.infoItem}>
+            <b>Anomaly Score ({profileData.name}): </b>
+            <span>
+              <Chip
+                size="small"
+                label={anomalyScore}
+                color={parseFloat(anomalyScore) > 0.5 ? "secondary" : "default"}
+                style={{ fontWeight: 'bold' }}
+                className={classes.chip}
+              />
+            </span>
+          </div>
           <div className={classes.infoItem}>
             <b>Coordinates: </b>
             <div>

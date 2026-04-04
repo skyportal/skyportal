@@ -81,6 +81,7 @@ import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
+import LLMAccordion from "../LLMAccordion";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -317,6 +318,10 @@ const SourceContent = ({ source }) => {
 
   const rightPanelContent = (downLarge, isRightPanelVisible) => (
     <>
+      <LLMAccordion 
+        sourceId={source.id} 
+        orderClass={{ xs: 5, md: 3, lg: 2 }} 
+      />
       <Grid item xs={12} lg={6} order={{ xs: 6, md: 4, lg: 3 }}>
         <Accordion
           defaultExpanded
