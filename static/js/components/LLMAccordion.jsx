@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 import makeStyles from '@mui/styles/makeStyles';
 import Grid from '@mui/material/Grid';
@@ -86,6 +87,12 @@ const LLMAccordion = ({ sourceId, gridStyle, orderClass }) => {
       </Accordion>
     </Grid>
   );
+};
+
+LLMAccordion.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+  gridStyle: PropTypes.shape({}),
+  orderClass: PropTypes.number,
 };
 
 export default LLMAccordion;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import makeStyles from '@mui/styles/makeStyles';
 import Box from '@mui/material/Box';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -41,7 +42,7 @@ const FeedbackButtons = ({ sourceId }) => {
     <Box className={classes.container}>
       {submitted ? (
         <span className={classes.successMsg}>
-          Feedback for "{profileData.name}" recorded! Retraining model...
+          Feedback for &quot;{profileData.name}&quot; recorded! Retraining model...
         </span>
       ) : (
         <>
@@ -65,6 +66,10 @@ const FeedbackButtons = ({ sourceId }) => {
       )}
     </Box>
   );
+};
+
+FeedbackButtons.propTypes = {
+  sourceId: PropTypes.string.isRequired,
 };
 
 export default FeedbackButtons;
