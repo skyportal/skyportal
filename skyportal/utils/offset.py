@@ -1559,7 +1559,7 @@ def get_finding_chart(
             vmin = percents[0]
             vmax = percents[1]
             interval = ZScaleInterval(
-                nsamples=int(0.1 * (im.shape[0] * im.shape[1])),
+                n_samples=int(0.1 * (im.shape[0] * im.shape[1])),
                 contrast=zscale_contrast,
                 krej=zscale_krej,
             )
