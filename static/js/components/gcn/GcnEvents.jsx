@@ -3,12 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles, withStyles } from "@mui/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
@@ -551,16 +546,14 @@ const GcnEvents = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             {gcnEvents ? (
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={getMuiTheme(theme)}>
-                  <MUIDataTable
-                    title="GCN Events"
-                    data={gcnEvents.events}
-                    options={options}
-                    columns={columns}
-                  />
-                </ThemeProvider>
-              </StyledEngineProvider>
+              <ThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  title="GCN Events"
+                  data={gcnEvents.events}
+                  options={options}
+                  columns={columns}
+                />
+              </ThemeProvider>
             ) : (
               <Spinner />
             )}

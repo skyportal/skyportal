@@ -7,12 +7,7 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
@@ -489,15 +484,13 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
               data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
               style={{ padding: 0 }}
             >
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={getMuiTheme(theme)}>
-                  <MUIDataTable
-                    data={analysesGroupedByInstId[instrument_id]}
-                    options={options}
-                    columns={getDataTableColumns(keys, instrument_id)}
-                  />
-                </ThemeProvider>
-              </StyledEngineProvider>
+              <ThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  data={analysesGroupedByInstId[instrument_id]}
+                  options={options}
+                  columns={getDataTableColumns(keys, instrument_id)}
+                />
+              </ThemeProvider>
             </AccordionDetails>
           </Accordion>
         );
