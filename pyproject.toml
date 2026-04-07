@@ -123,7 +123,7 @@ docs = [
 [tool.uv]
 package = false
 workspace = { members = ["baselayer"] }
-no-binary-package = ["sncosmo"]
+no-binary-package = ["sncosmo"]  # no arm64 macOS wheel on PyPI for Python 3.10+
 
 [tool.uv.sources]
 baselayer = { workspace = true }
