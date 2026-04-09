@@ -7,12 +7,7 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
@@ -294,15 +289,13 @@ const SurveyEfficiencyObservationPlanLists = ({
           <Typography variant="subtitle1">Survey Analysis Requests</Typography>
         </AccordionSummary>
         <AccordionDetails data-testid="survey-requests_observationplanRequestsTable">
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={survey_efficiency_analyses}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              data={survey_efficiency_analyses}
+              options={options}
+              columns={getDataTableColumns()}
+            />
+          </ThemeProvider>
         </AccordionDetails>
       </Accordion>
     </div>

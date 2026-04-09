@@ -9,12 +9,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -398,16 +393,14 @@ const ScanningProfilesList = ({
   return (
     <div>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={profiles}
-              options={options}
-              columns={columns}
-              title="Scanning Profiles"
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={profiles}
+            options={options}
+            columns={columns}
+            title="Scanning Profiles"
+          />
+        </ThemeProvider>
       </Paper>
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
         <DialogContent className={classes.dialogContent}>

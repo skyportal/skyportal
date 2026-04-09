@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { withStyles } from "@mui/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -308,16 +303,14 @@ const Reminders = ({ resourceId, resourceType }) => {
 
   return (
     <div data-testid="reminders-table">
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Reminders"
-            data={remindersList}
-            options={options}
-            columns={columns}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          title="Reminders"
+          data={remindersList}
+          options={options}
+          columns={columns}
+        />
+      </ThemeProvider>
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle onClose={() => setOpen(false)}>
           New Reminder on {resourceType}

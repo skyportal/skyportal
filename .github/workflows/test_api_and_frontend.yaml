@@ -99,8 +99,6 @@ jobs:
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          npm -g install npm@latest
-
           which python; python --version
           echo npm $(npm --version)
           echo node $(node --version)
@@ -125,7 +123,7 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
 
           # Install dependencies, and initialize the database
-          uv sync --inexact --group test
+          uv sync --inexact --group dev
           make db_init
 
           npm ls --depth 0 || true

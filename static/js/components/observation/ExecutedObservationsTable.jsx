@@ -3,12 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -504,19 +499,17 @@ const ExecutedObservationsTable = ({
   return (
     <div>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="Executed Observations"
-              data={observations}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Executed Observations"
+            data={observations}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
         <Popper
           open={open}
-          anchorEl={anchorRef.current}
+          anchorEl={() => anchorRef.current}
           role={undefined}
           transition
           disablePortal

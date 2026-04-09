@@ -117,6 +117,6 @@ Development:
 
 ## Code formatting / linters
 
-To set up `pre-commit` for automatically reformatting Python and JavaScript changes, run `pip install pre-commit && pre-commit install`.
+To set up `pre-commit` for automatically reformatting Python and JavaScript changes, make sure you have installed the dev dependencies (`uv sync --inexact --group dev`, see [Developer notes](dev)) and then run `uv run pre-commit install`.
 
 `pre-commit` is run each time a new change is committed. If an error can be fixed automatically (such as a spacing issue), the tool does that automatically, and you can re-attempt the commit. Otherwise, you may have to make the change manually.
