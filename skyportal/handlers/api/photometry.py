@@ -62,6 +62,43 @@ log = make_log("api/photometry")
 
 MAX_NUMBER_ROWS = 10000
 
+
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy scalar types.
+
+    In numpy 2.x, numpy scalars (e.g., np.float64, np.int64) are no longer
+    subclasses of Python float/int, so the default JSON encoder cannot
+    serialize them. This encoder converts them to native Python types.
+    """
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return super().default(obj)
+
+
+def numpy_to_native(value):
+    """Convert a numpy scalar to a native Python type.
+
+    In numpy 2.x, numpy scalars are no longer subclasses of Python
+    built-in types, which can cause issues with JSON serialization
+    and database adapters (e.g., psycopg2).
+    """
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    return value
+
+
 cmap_ir = cm.get_cmap("autumn")
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
@@ -893,12 +930,12 @@ def insert_new_photometry_data(
         utcnow = datetime.datetime.utcnow().isoformat()
         phot = {
             "id": packet["id"],
-            "original_user_data": json.dumps(original_user_data),
+            "original_user_data": json.dumps(original_user_data, cls=NumpyEncoder),
             "upload_id": upload_id,
             "flux": flux,
             "fluxerr": fluxerr,
             "obj_id": packet["obj_id"],
-            "altdata": json.dumps(packet.get("altdata")),
+            "altdata": json.dumps(packet.get("altdata"), cls=NumpyEncoder),
             "instrument_id": packet["instrument_id"],
             "ra_unc": packet["ra_unc"],
             "dec_unc": packet["dec_unc"],
@@ -1616,18 +1653,30 @@ class PhotometryHandler(BaseHandler):
                         duplicate_value = f"{duplicate.jd}_{duplicate.instrument_id}_{duplicate.filter}_{duplicate.origin}".encode()
                         if duplicate_value in updated_duplicate_values:
                             continue
-                        duplicate.flux = df.loc[df_index]["standardized_flux"]
-                        duplicate.fluxerr = df.loc[df_index]["standardized_fluxerr"]
+                        # Convert numpy scalars to native Python types
+                        # to ensure compatibility with psycopg2 and json
+                        # (numpy 2.x scalars are no longer subclasses of
+                        # Python float/int)
+                        duplicate.flux = numpy_to_native(
+                            df.loc[df_index]["standardized_flux"]
+                        )
+                        duplicate.fluxerr = numpy_to_native(
+                            df.loc[df_index]["standardized_fluxerr"]
+                        )
                         duplicate.filter = df.loc[df_index]["filter"]
-                        duplicate.ra = df.loc[df_index]["ra"]
-                        duplicate.dec = df.loc[df_index]["dec"]
-                        duplicate.ra_unc = df.loc[df_index]["ra_unc"]
-                        duplicate.dec_unc = df.loc[df_index]["dec_unc"]
-                        duplicate.ref_flux = df.loc[df_index]["ref_standardized_flux"]
-                        duplicate.ref_fluxerr = df.loc[df_index][
-                            "ref_standardized_fluxerr"
-                        ]
-                        duplicate.altdata = json.dumps(df.loc[df_index]["altdata"])
+                        duplicate.ra = numpy_to_native(df.loc[df_index]["ra"])
+                        duplicate.dec = numpy_to_native(df.loc[df_index]["dec"])
+                        duplicate.ra_unc = numpy_to_native(df.loc[df_index]["ra_unc"])
+                        duplicate.dec_unc = numpy_to_native(df.loc[df_index]["dec_unc"])
+                        duplicate.ref_flux = numpy_to_native(
+                            df.loc[df_index]["ref_standardized_flux"]
+                        )
+                        duplicate.ref_fluxerr = numpy_to_native(
+                            df.loc[df_index]["ref_standardized_fluxerr"]
+                        )
+                        duplicate.altdata = json.dumps(
+                            df.loc[df_index]["altdata"], cls=NumpyEncoder
+                        )
                         duplicate.modified = datetime.datetime.utcnow().isoformat()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
