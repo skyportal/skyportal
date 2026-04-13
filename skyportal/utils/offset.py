@@ -412,7 +412,7 @@ def get_astrometry_backup_from_ztf(
     """
     # get the ZTF catalog data and make it look like a Gaia Query result
     ztf_astrometry = get_ztfcatalog(ra, dec, as_astropy_table=True)
-    if len(ztf_astrometry) == 0:
+    if ztf_astrometry is None or not len(ztf_astrometry):
         return ztf_astrometry
 
     ztf_astrometry.rename_column("sourceid", "source_id")
