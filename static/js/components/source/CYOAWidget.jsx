@@ -80,13 +80,13 @@ const CYOAWidget = ({ sourceId }) => {
       const annotations = result?.data || [];
 
       const cyoaAnnotation = annotations.find(
-        (a) => a.origin === "CYOA-Llama-3.3"
+        (a) => a.origin === "CYOA-Llama-3.3",
       );
 
       const userFeedback = annotations.find(
         (a) =>
           a.origin === `CYOA-Human-${currentUser?.id}` ||
-          a.origin?.startsWith("CYOA-Human-")
+          a.origin?.startsWith("CYOA-Human-"),
       );
 
       if (cyoaAnnotation) {
@@ -201,12 +201,7 @@ const CYOAWidget = ({ sourceId }) => {
             />
           )}
           {verdict.cyoa_flags?.map((flag) => (
-            <Chip
-              key={flag}
-              label={flag}
-              size="small"
-              variant="outlined"
-            />
+            <Chip key={flag} label={flag} size="small" variant="outlined" />
           ))}
         </div>
       )}
@@ -254,4 +249,3 @@ CYOAWidget.propTypes = {
 };
 
 export default CYOAWidget;
-
