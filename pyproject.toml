@@ -102,7 +102,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit",
-    "pytest>=8.3.2, <9.0.0",
+    "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.0.1",
     "pytest-rerunfailures>=14.0",
     "selenium==4.38.0",
