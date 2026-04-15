@@ -485,7 +485,6 @@ async def get_sources(
     include_tags=True,
     exclude_forced_photometry=False,
     require_detections=False,
-    is_token_request=False,
     include_requested=False,
     requested_only=False,
     include_color_mag=False,

@@ -1961,7 +1961,6 @@ class SourceHandler(BaseHandler):
                     include_hosts=include_hosts,
                     exclude_forced_photometry=exclude_forced_photometry,
                     require_detections=require_detections,
-                    is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
                     include_color_mag=include_color_mag,
