@@ -86,7 +86,7 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
-from ...utils.parse import get_list_typed
+from ...utils.parse import get_list_typed, get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
@@ -1692,9 +1692,11 @@ class SourceHandler(BaseHandler):
         start = time.time()
 
         page_number = self.get_query_argument("pageNumber", 1)
-        num_per_page = min(
-            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-            MAX_SOURCES_PER_PAGE,
+        num_per_page = (
+            self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE),
+        )
+        page_number, num_per_page = get_page_and_n_per_page(
+            page_number, num_per_page, MAX_SOURCES_PER_PAGE
         )
         ra = self.get_query_argument("ra", None)
         dec = self.get_query_argument("dec", None)

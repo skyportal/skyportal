@@ -23,7 +23,6 @@ from skyportal.models import (
     Localization,
     LocalizationTile,
     Obj,
-    ObjTag,
     PhotStat,
     Source,
     SourceLabel,
