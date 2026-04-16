@@ -18,7 +18,18 @@ def format_doc(**kwargs):
 
     def wrap(func):
         if func.__doc__:
-            func.__doc__ = func.__doc__.format(**kwargs)
+            try:
+                func.__doc__ = func.__doc__.format(**kwargs)
+            except KeyError as e:
+                raise KeyError(
+                    f"format_doc on {func.__qualname__}: missing placeholder {e} — "
+                    f"add it to the decorator kwargs or fix the typo in the docstring"
+                ) from e
+            except (ValueError, IndexError) as e:
+                raise type(e)(
+                    f"format_doc on {func.__qualname__}: {e} — "
+                    f"escape literal braces as {{{{ and }}}}"
+                ) from e
         return func
 
     return wrap
