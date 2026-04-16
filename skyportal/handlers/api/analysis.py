@@ -570,7 +570,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {AUTHENTICATION_TYPES}.
+                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   _authinfo:
                     type: object
@@ -865,7 +865,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {AUTHENTICATION_TYPES}.
+                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   authinfo:
                     type: object
