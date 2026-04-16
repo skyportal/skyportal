@@ -100,7 +100,7 @@ from ...utils.gcn import (
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
 from .observation import MAX_OBSERVATIONS, get_observations
@@ -1356,8 +1356,9 @@ class GcnEventHandler(BaseHandler):
             )
 
     @auth_or_token
+    @format_doc(MAX_GCNEVENTS=MAX_GCNEVENTS)
     async def get(self, dateobs=None):
-        f"""
+        """
         ---
         single:
           summary: Get a GCN Event

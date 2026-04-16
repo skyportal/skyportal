@@ -64,7 +64,7 @@ from ...models import (
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
 from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 log = make_log("api/followup_request")
 
@@ -803,8 +803,9 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
+    @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
     def get(self, followup_request_id=None):
-        f"""
+        """
         ---
         single:
           summary: Get a followup request

@@ -52,7 +52,7 @@ from ...models.schema import (
 )
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.parse import str_to_bool
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
 _, cfg = load_env()
@@ -1334,8 +1334,9 @@ def add_external_photometry(
 
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
+    @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
     def post(self):
-        f"""
+        """
         ---
         summary: Upload photometry
         description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.

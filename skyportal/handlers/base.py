@@ -8,6 +8,22 @@ from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
 from .. import __version__
 
 
+def format_doc(**kwargs):
+    """Inject values into a handler method's docstring placeholders.
+
+    Use as a decorator on a handler method whose OpenAPI docstring contains
+    `{name}` placeholders that should be filled with module-level constants
+    (e.g. pagination limits) at import time.
+    """
+
+    def wrap(func):
+        if func.__doc__:
+            func.__doc__ = func.__doc__.format(**kwargs)
+        return func
+
+    return wrap
+
+
 class BaseHandler(BaselayerHandler):
     @property
     def associated_user_object(self):

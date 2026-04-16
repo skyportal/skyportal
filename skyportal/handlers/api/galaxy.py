@@ -32,7 +32,7 @@ from ...models import (
     Obj,
 )
 from ...utils.asynchronous import run_async
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 log = make_log("api/galaxy")
 env, cfg = load_env()
@@ -558,6 +558,7 @@ class GalaxyCatalogHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
+    @format_doc(MAX_GALAXIES=MAX_GALAXIES)
     async def get(self, catalog_name=None):
         """
         ---
