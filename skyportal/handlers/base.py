@@ -11,9 +11,12 @@ from .. import __version__
 def format_doc(**kwargs):
     """Inject values into a handler method's docstring placeholders.
 
-    Use as a decorator on a handler method whose OpenAPI docstring contains
-    `{name}` placeholders that should be filled with module-level constants
-    (e.g. pagination limits) at import time.
+    The purpose of this wrapper is to avoid using an f-string for the
+    docstring, because an f-string in the docstring position is not treated
+    as a docstring by Python: `__doc__` stays `None`, and apispec silently
+    drops the endpoint from the OpenAPI schema. Instead, the docstring is
+    written as a plain string with `{name}` placeholders, and this decorator
+    fills them in with the given kwargs after the function is defined.
     """
 
     def wrap(func):
