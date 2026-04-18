@@ -45,6 +45,7 @@ from baselayer.app.models import (
     safe_aliased,
 )
 
+from ..utils.app import get_app_base_url
 from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
 from .group import accessible_by_group_members
@@ -52,15 +53,13 @@ from .localization import Localization
 
 env, cfg = load_env()
 
-host = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
-    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
-)
-
 cache_dir = "cache/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
 )
+
+HOST = get_app_base_url()
 
 # max error radius of a sky localization to automatically
 # create an associated source. It should be specified in arcminutes
@@ -299,7 +298,7 @@ class GcnReport(Base):
 
         template = env.get_template("gcn_report_template.html")
         html = template.render(
-            host=host,
+            host=HOST,
             dateobs=str(self.dateobs).replace(" ", "T"),
             report_id=self.id,
             report_name=self.report_name,
