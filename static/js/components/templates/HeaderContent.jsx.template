@@ -12,6 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 import ProfileDropdown from "../ProfileDropdown";
+import ProfileSelector from "../ProfileSelector";
 import Logo from "../Logo";
 import Notifications from "../Notifications";
 import Notes from "../Notes";
@@ -163,6 +164,7 @@ const HeaderContent = () => {
         </Box>
         <Notifications />
         <Notes />
+        <ProfileSelector />
         <ProfileDropdown />
       </div>
       <Box display={{"{{ xs: openSearch ? 'flex' : 'none', md: 'none' }}"}} style={{"{{paddingRight: '0.5rem', flexDirection: 'row', alignItems: 'center'}}"}}>
