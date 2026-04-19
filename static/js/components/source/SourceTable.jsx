@@ -1085,10 +1085,7 @@ const SourceTable = ({
         <Button
           secondary
           size="small"
-          onClick={() => {
-            handleIgnoreSource(source.id);
-          }}
-          data-testid={`declineRequestButton_${source.id}`}
+          onClick={() => handleIgnoreSource(source.id)}
         >
           Ignore
         </Button>
@@ -1097,17 +1094,12 @@ const SourceTable = ({
   };
 
   const renderPeakMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    const photstats = source.photstats[0];
-    if (!photstats) {
-      return <div>No photometry</div>;
-    }
-    return photstats.peak_mag_global ? (
+    const photstats = sources[dataIndex].photstats[0];
+    if (!photstats?.peak_mag_global) return "No photometry";
+    return (
       <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
-        <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+        {photstats.peak_mag_global.toFixed(4)}
       </Tooltip>
-    ) : (
-      <div>No photometry</div>
     );
   };
 

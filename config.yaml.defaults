@@ -123,46 +123,56 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+    - path: "/sources"
+      component: source/SourceList
     - path: "/source/:id"
       component: source/Source
+    - path: "/source/:id/finder"
+      component: FindingChart
+    - path: "/source/:id/periodogram"
+      component: Periodogram
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: source/SourceAnalysisPage
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
-    - path: "/profile"
-      component: user/Profile
+    - path: "/group_sources/:id"
+      component: group/GroupSources
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/candidates/scan_reports"
       component: candidate/scan_reports/ReportsList
-    - path: "/sources"
-      component: source/SourceList
+    - path: "/profile"
+      component: user/Profile
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
-    - path: "/about"
-      component: About
-    - path: "/run/:id"
-      component: observing_run/RunSummary
-    - path: "/source/:obj_id/analysis/:analysis_id"
-      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: source/ShareDataForm
     - path: "/filter/:fid"
       component: filter/Filter
+    - path: "/about"
+      component: About
     - path: "/runs"
       component: observing_run/ObservingRunPage
+    - path: "/run/:id"
+      component: observing_run/RunSummary
     - path: "/allocations"
-      component: allocation/AllocationPage
+      component: allocation/AllocationList
     - path: "/allocation/:id"
-      component: allocation/AllocationSummary
+      component: allocation/Allocation
+    - path: "/instruments"
+      component: instrument/InstrumentList
     - path: "/instrument/:id"
-      component: instrument/InstrumentSummary
+      component: instrument/Instrument
+    - path: "/telescopes"
+      component: telescope/TelescopeList
     - path: "/telescope/:id"
-      component: telescope/TelescopeSummary
+      component: telescope/Telescope
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
@@ -171,28 +181,18 @@ app:
       component: spatial_catalog/SpatialCatalogPage
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
-    - path: "/group_sources/:id"
-      component: group/GroupSources
     - path: "/user_management"
       component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
-    - path: "/source/:id/finder"
-      component: FindingChart
-    - path: "/source/:id/periodogram"
-      component: Periodogram
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
       component: gcn/GcnEvents
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
-    - path: "/telescopes"
-      component: telescope/TelescopePage
-    - path: "/instruments"
-      component: instrument/InstrumentList
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"

@@ -28,7 +28,6 @@ const TaxonomyTable = ({
   sortingCallback,
 }) => {
   const dispatch = useDispatch();
-  const [setRowsPerPage] = useState(100);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [showHierarchy, setShowHierarchy] = useState(null);
   const [editTaxonomy, setEditTaxonomy] = useState(null);
@@ -97,7 +96,6 @@ const TaxonomyTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,

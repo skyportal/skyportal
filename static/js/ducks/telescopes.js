@@ -8,6 +8,7 @@ const FETCH_TELESCOPES = "skyportal/FETCH_TELESCOPES";
 const FETCH_TELESCOPES_OK = "skyportal/FETCH_TELESCOPES_OK";
 
 const SUBMIT_TELESCOPE = "skyportal/SUBMIT_TELESCOPE";
+const EDIT_TELESCOPE = "skyportal/EDIT_TELESCOPE";
 const DELETE_TELESCOPE = "skyportal/DELETE_TELESCOPE";
 
 const CURRENT_TELESCOPES = "skyportal/CURRENT_TELESCOPES";
@@ -23,6 +24,9 @@ export const fetchTelescopes = () =>
 
 export const submitTelescope = (tele) =>
   API.POST(`/api/telescope`, SUBMIT_TELESCOPE, tele);
+
+export const editTelescope = (tele) =>
+  API.PUT(`/api/telescope/${tele.id}`, EDIT_TELESCOPE, tele);
 
 export function deleteTelescope(id) {
   return API.DELETE(`/api/telescope/${id}`, DELETE_TELESCOPE);

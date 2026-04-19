@@ -250,7 +250,7 @@ const InstrumentForm = ({ onClose, instrumentId = null }) => {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
-        default: instrumentToEdit?.region_summary
+        default: instrumentToEdit?.region_summary?.includes("(")
           ? instrumentToEdit?.region_summary.split("(")[1].split(")")[0]
           : undefined,
       },

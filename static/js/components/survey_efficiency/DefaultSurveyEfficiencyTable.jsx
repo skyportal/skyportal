@@ -77,9 +77,6 @@ const DefaultSurveyEfficiencyTable = ({
   const theme = useTheme();
 
   const dispatch = useDispatch();
-
-  const [setRowsPerPage] = useState(100);
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultSurveyEfficiencyToDelete, setDefaultSurveyEfficiencyToDelete] =
@@ -229,20 +226,15 @@ const DefaultSurveyEfficiencyTable = ({
       return null;
     }
     return (
-      <div>
-        <Button
-          key={default_survey_efficiency.id}
-          id="delete_button"
-          classes={{
-            root: classes.defaultSurveyEfficiencyDelete,
-            disabled: classes.defaultSurveyEfficiencyDeleteDisabled,
-          }}
-          onClick={() => openDeleteDialog(default_survey_efficiency.id)}
-          disabled={!deletePermission}
-        >
-          <DeleteIcon />
-        </Button>
-      </div>
+      <Button
+        classes={{
+          root: classes.defaultSurveyEfficiencyDelete,
+          disabled: classes.defaultSurveyEfficiencyDeleteDisabled,
+        }}
+        onClick={() => openDeleteDialog(default_survey_efficiency.id)}
+      >
+        <DeleteIcon />
+      </Button>
     );
   };
 
@@ -250,7 +242,6 @@ const DefaultSurveyEfficiencyTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,

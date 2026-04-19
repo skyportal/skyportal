@@ -78,13 +78,13 @@ const InstrumentTable = ({
   const renderTelescopeLat = (dataIndex) => {
     const telescope_id = instruments[dataIndex]?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-    return telescope.lat;
+    return telescope?.lat;
   };
 
   const renderTelescopeLon = (dataIndex) => {
     const telescope_id = instruments[dataIndex]?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-    return telescope.lon;
+    return telescope?.lon;
   };
 
   const renderFilters = (dataIndex) => {

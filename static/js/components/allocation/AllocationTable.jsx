@@ -143,7 +143,9 @@ const AllocationTable = ({
     )[0];
 
     return (
-      <Link to={`/telescope/${telescope.id}`}>{telescope?.nickname || ""}</Link>
+      <Link to={`/telescope/${telescope?.id}`}>
+        {telescope?.nickname || ""}
+      </Link>
     );
   };
 

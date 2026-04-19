@@ -113,11 +113,7 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
     return (
       <div>
         <Button
-          key={default_gcn_tag.id}
-          id="delete_button"
-          classes={{
-            root: classes.defaultGcnTagDelete,
-          }}
+          classes={{ root: classes.defaultGcnTagDelete }}
           onClick={() => openDialog(default_gcn_tag.id)}
         >
           <DeleteIcon />
