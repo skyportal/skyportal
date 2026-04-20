@@ -8,6 +8,36 @@ from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
 from .. import __version__
 
 
+def format_doc(**kwargs):
+    """Inject values into a handler method's docstring placeholders.
+
+    The purpose of this wrapper is to avoid using an f-string for the
+    docstring, because an f-string in the docstring position is not treated
+    as a docstring by Python: `__doc__` stays `None`, and apispec silently
+    drops the endpoint from the OpenAPI schema. Instead, the docstring is
+    written as a plain string with `{name}` placeholders, and this decorator
+    fills them in with the given kwargs after the function is defined.
+    """
+
+    def wrap(func):
+        if func.__doc__:
+            try:
+                func.__doc__ = func.__doc__.format(**kwargs)
+            except KeyError as e:
+                raise KeyError(
+                    f"format_doc on {func.__qualname__}: missing placeholder {e} — "
+                    f"add it to the decorator kwargs or fix the typo in the docstring"
+                ) from e
+            except (ValueError, IndexError) as e:
+                raise type(e)(
+                    f"format_doc on {func.__qualname__}: {e} — "
+                    f"escape literal braces as {{{{ and }}}}"
+                ) from e
+        return func
+
+    return wrap
+
+
 class BaseHandler(BaselayerHandler):
     @property
     def associated_user_object(self):
