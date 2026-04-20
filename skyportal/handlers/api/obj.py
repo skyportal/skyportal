@@ -282,6 +282,7 @@ class ObjPositionHandler(BaseHandler):
                     for p in photometry
                     if not np.isnan(p.flux)
                     and not np.isnan(p.fluxerr)
+                    and p.fluxerr != 0
                     and p.ra is not None
                     and not np.isnan(p.ra)
                     and p.dec is not None
