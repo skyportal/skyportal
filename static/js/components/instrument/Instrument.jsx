@@ -6,7 +6,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
+import IconButton from "@mui/material/IconButton";
 import PropTypes from "prop-types";
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -18,41 +18,23 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import Paper from "@mui/material/Paper";
-import IconButton from "@mui/material/IconButton";
 import JsonDashboard from "react-json-dashboard";
+import { Link } from "react-router-dom";
 import withRouter from "../withRouter";
 import * as Action from "../../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
 import InstrumentLogsPlot from "./InstrumentLogsPlot";
+import Paper from "../Paper";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-  columnItem: {
-    marginBottom: theme.spacing(1),
-  },
-  accordionHeading: {
-    fontSize: "1.25rem",
-    fontWeight: theme.typography.fontWeightRegular,
-  },
-}));
-
-const InstrumentSummary = ({ route }) => {
+const Instrument = ({ route }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
   const instrument = useSelector((state) => state.instrument);
-
+  const { telescopeList } = useSelector((state) => state.telescopes);
+  const telescope = telescopeList.find(
+    (t) => t.id === instrument?.telescope_id,
+  );
   const [loading, setLoading] = useState(false);
 
   const defaultStartDate = dayjs
@@ -81,11 +63,7 @@ const InstrumentSummary = ({ route }) => {
 
   if (!("id" in instrument && instrument.id === parseInt(route.id, 10))) {
     // Don't need to do this for instruments -- we can just let the page be blank for a short time
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress />;
   }
 
   const handleSubmit = async ({ formData }) => {
@@ -141,83 +119,73 @@ const InstrumentSummary = ({ route }) => {
   );
 
   return (
-    <div>
-      <Grid container spacing={2} className={styles.source}>
-        <Grid item xs={12}>
-          <div>
-            <Accordion defaultExpanded>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="instrument-log-content"
-                id="instrument-log-header"
-              >
-                <Typography className={styles.accordionHeading}>
-                  Instrument Log Display
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={styles.columnItem}>
-                  {loading && <CircularProgress color="secondary" />}
-                  {!loading && !instrument.log_exists && (
-                    <div> No logs exist </div>
-                  )}
-                  {!loading &&
-                    instrument.log_exists &&
-                    instrument?.logs?.length === 0 && (
-                      <div> No logs exist in the specified time range </div>
-                    )}
-                  {!loading &&
-                    instrument.log_exists &&
-                    instrument?.logs?.length > 0 && (
-                      <InstrumentLogsPlot
-                        instrument_logs={instrument?.logs || []}
-                      />
-                    )}
-                </div>
-                <div>
-                  <Form
-                    schema={InstrumentSummaryFormSchema}
-                    validator={validator}
-                    onSubmit={handleSubmit}
-                  />
-                </div>
-              </AccordionDetails>
-            </Accordion>
-          </div>
-          <div>
-            <Accordion defaultExpanded>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="instrument-log-query"
-                id="instrument-log-query"
-              >
-                <Typography className={styles.accordionHeading}>
-                  Instrument Log Query
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <InstrumentLogForm instrument={instrument} />
-              </AccordionDetails>
-            </Accordion>
-          </div>
-          <Paper elevation={3} style={{ marginTop: "1rem", padding: "1rem" }}>
-            <JsonDashboard
-              title={`${instrument?.name || "Instrument"} Status`}
-              data={instrument?.status || {}}
-              lastUpdated={instrument?.last_status_update}
-              refreshButton={refreshButton}
-            />
-          </Paper>
-        </Grid>
+    <Grid container spacing={2}>
+      <Grid item xs={12}>
+        <Typography variant="h5">{instrument.name}</Typography>
+        {telescope ? (
+          <Link to={`/telescope/${instrument.telescope_id}`}>
+            {telescope.name} ({telescope.nickname})
+          </Link>
+        ) : (
+          <CircularProgress size={20} />
+        )}
       </Grid>
-    </div>
+      <Grid item xs={12}>
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="h5">Instrument Log Display</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div>
+              {loading && <CircularProgress />}
+              {!loading && !instrument.log_exists && <div> No logs exist </div>}
+              {!loading &&
+                instrument.log_exists &&
+                instrument?.logs?.length === 0 && (
+                  <div> No logs exist in the specified time range </div>
+                )}
+              {!loading &&
+                instrument.log_exists &&
+                instrument?.logs?.length > 0 && (
+                  <InstrumentLogsPlot
+                    instrument_logs={instrument?.logs || []}
+                  />
+                )}
+            </div>
+            <div>
+              <Form
+                schema={InstrumentSummaryFormSchema}
+                validator={validator}
+                onSubmit={handleSubmit}
+              />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="h5">Instrument Log Query</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <InstrumentLogForm instrument={instrument} />
+          </AccordionDetails>
+        </Accordion>
+        <Paper>
+          <JsonDashboard
+            title={`${instrument?.name || "Instrument"} Status`}
+            data={instrument?.status || {}}
+            lastUpdated={instrument?.last_status_update}
+            refreshButton={refreshButton}
+          />
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 
-InstrumentSummary.propTypes = {
+Instrument.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.number,
   }).isRequired,
 };
 
-export default withRouter(InstrumentSummary);
+export default withRouter(Instrument);
