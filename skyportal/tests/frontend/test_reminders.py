@@ -2,6 +2,9 @@ import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from selenium.webdriver.common.by import By
+
 from skyportal.tests import api
 
 
@@ -136,12 +139,16 @@ def test_reminder_on_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/shifts/{shift_id}")
-    # check that the shift has been created and is visible in the calendar and click on it
-    shift_event = driver.wait_for_xpath(
+    # check that the shift has been created and is visible in the calendar
+    shift_events = driver.find_elements(
+        By.XPATH,
         f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..',
-        timeout=30,
     )
-    driver.scroll_to_element_and_click(shift_event)
+    # Since one event can be rendered on multiple days, we need to find one that is well displayed and click on it
+    for shift_event in shift_events:
+        if shift_event.is_displayed():
+            driver.scroll_to_element_and_click(shift_event)
+            break
 
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
     driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')

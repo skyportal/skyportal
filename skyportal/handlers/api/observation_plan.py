@@ -89,7 +89,7 @@ from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 env, cfg = load_env()
 log = make_log("api/observation_plan")
@@ -854,8 +854,9 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"ids": plan_ids})
 
     @auth_or_token
+    @format_doc(MAX_OBSERVATION_PLAN_REQUESTS=MAX_OBSERVATION_PLAN_REQUESTS)
     def get(self, observation_plan_request_id=None):
-        f"""
+        """
         ---
         single:
           summary: Get an observation plan.
