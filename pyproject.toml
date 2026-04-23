@@ -54,7 +54,7 @@ dependencies = [
     "twilio==9.10.4",
     "numba>=0.59.0",
     "pyvo==1.8",
-    "lxml==6.0.2",
+    "lxml==6.1.0",
     "suds-py3==1.4.5.0",
     "vcrpy==8.1.1",
     "aiosmtpd==1.4.6",
