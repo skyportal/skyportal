@@ -2,89 +2,70 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
-
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import MUIDataTable from "mui-datatables";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as telescopesActions from "../../ducks/telescopes";
-import Chip from "@mui/material/Chip";
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
-import { fetchTelescopes, submitTelescope } from "../../ducks/telescopes";
-
-const useStyles = makeStyles(() => ({
-  telescopeManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          left: {
-            paddingLeft: "0.5rem",
-          },
-        },
-      },
-    },
-  });
+import {
+  submitTelescope,
+  editTelescope,
+  deleteTelescope as deleteTelescopeAction,
+} from "../../ducks/telescopes";
+import { Link } from "react-router-dom";
 
 const TelescopeTable = ({
   telescopes,
-  managePermission,
+  managePermission = false,
   hideTitle = false,
 }) => {
-  const classes = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [telescopeToEditDelete, setTelescopeToEditDelete] = useState(null);
+  const [telescopeToEdit, setTelescopeToEdit] = useState(null);
+  const [telescopeToDelete, setTelescopeToDelete] = useState(null);
+  const [formData, setFormData] = useState({});
 
-  const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(true);
-    setTelescopeToEditDelete(id);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setTelescopeToEditDelete(null);
-  };
+  const cleanNulls = (data) =>
+    Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null));
 
   const deleteTelescope = () => {
-    dispatch(telescopesActions.deleteTelescope(telescopeToEditDelete)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Telescope deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+    dispatch(deleteTelescopeAction(telescopeToDelete.id)).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Telescope deleted"));
+        setTelescopeToDelete(null);
+      }
+    });
   };
 
-  const handleSubmit = async ({ formData }) => {
-    const result = await dispatch(submitTelescope(formData));
+  const closeDialog = () => {
+    setNewDialogOpen(false);
+    setTelescopeToEdit(null);
+    setFormData({});
+  };
+
+  const handleSubmit = async () => {
+    const action = telescopeToEdit
+      ? editTelescope(formData)
+      : submitTelescope(formData);
+    const result = await dispatch(action);
     if (result.status === "success") {
-      dispatch(showNotification("Telescope saved"));
-      dispatch(fetchTelescopes());
-      setNewDialogOpen(false);
+      dispatch(
+        showNotification(
+          telescopeToEdit ? "Telescope edited" : "Telescope created",
+        ),
+      );
+      closeDialog();
     }
   };
 
@@ -99,32 +80,20 @@ const TelescopeTable = ({
     },
   };
 
-  function validate(formData, errors) {
+  function validate(data, errors) {
     telescopes?.forEach((telescope) => {
-      if (formData.name === telescope.name) {
+      if (data.id !== telescope.id && data.name === telescope.name) {
         errors.name.addError("Telescope name matches another, please change.");
       }
     });
-    if (formData.fixed_location === true) {
-      if (formData.lon === undefined) {
-        errors.lon.addError(
-          "Longitude must be specified if telescope is fixed.",
-        );
-      } else if (formData.lon < -180 || formData.lon > 180) {
+    if (data.fixed_location) {
+      if (data.lon < -180 || data.lon > 180) {
         errors.lon.addError("Longitude must be between -180 and 180.");
       }
-      if (formData.lat === undefined) {
-        errors.lat.addError(
-          "Latitude must be specified if telescope is fixed.",
-        );
-      } else if (formData.lat < -90 || formData.lat > 90) {
+      if (data.lat < -90 || data.lat > 90) {
         errors.lat.addError("Latitude must be between -90 and 90.");
       }
-      if (formData.elevation === undefined) {
-        errors.elevation.addError(
-          "Elevation must be specified if telescope is fixed.",
-        );
-      } else if (formData.elevation < 0) {
+      if (data.elevation < 0) {
         errors.elevation.addError("Elevation must be positive.");
       }
     }
@@ -176,7 +145,13 @@ const TelescopeTable = ({
         title: "Does this telescope have a fixed location (lon, lat, elev)?",
       },
     },
-    required: ["name", "nickname", "diameter", "robotic", "fixed_location"],
+    required: [
+      "name",
+      "nickname",
+      "diameter",
+      "robotic",
+      "fixed_location",
+    ].concat(formData.fixed_location ? ["lon", "lat", "elevation"] : []),
   };
 
   const renderManage = (dataIndex) => {
@@ -184,11 +159,19 @@ const TelescopeTable = ({
 
     const telescope = telescopes[dataIndex];
     return (
-      <div className={classes.telescopeManage}>
-        <Button onClick={() => openDeleteDialog(telescope.id)}>
+      <Box sx={{ display: "flex" }}>
+        <Button
+          onClick={() => {
+            setTelescopeToEdit(telescope);
+            setFormData(cleanNulls(telescope));
+          }}
+        >
+          <EditIcon />
+        </Button>
+        <Button onClick={() => setTelescopeToDelete(telescope)} color="error">
           <DeleteIcon />
         </Button>
-      </div>
+      </Box>
     );
   };
 
@@ -196,6 +179,13 @@ const TelescopeTable = ({
     {
       name: "name",
       label: "Name",
+      options: {
+        customBodyRenderLite: (dataIndex) => (
+          <Link to={`/telescope/${telescopes[dataIndex].id}`}>
+            {telescopes[dataIndex].name}
+          </Link>
+        ),
+      },
     },
     {
       name: "nickname",
@@ -205,28 +195,28 @@ const TelescopeTable = ({
       name: "lat",
       label: "Latitude",
       options: {
-        customBodyRender: (value) => value?.toFixed(4) ?? "—",
+        customBodyRender: (value) => value?.toFixed(4),
       },
     },
     {
       name: "lon",
       label: "Longitude",
       options: {
-        customBodyRender: (value) => value?.toFixed(4) ?? "—",
+        customBodyRender: (value) => value?.toFixed(4),
       },
     },
     {
       name: "elevation",
       label: "Elevation",
       options: {
-        customBodyRender: (value) => value?.toFixed(1) ?? "—",
+        customBodyRender: (value) => value?.toFixed(1),
       },
     },
     {
       name: "diameter",
       label: "Diameter",
       options: {
-        customBodyRender: (value) => value?.toFixed(1) ?? "—",
+        customBodyRender: (value) => value?.toFixed(1),
       },
     },
     {
@@ -258,12 +248,10 @@ const TelescopeTable = ({
       label: "Skycam",
       options: {
         customBodyRender: (value) =>
-          value ? (
+          value && (
             <a href={value} target="_blank" rel="noopener noreferrer">
               View
             </a>
-          ) : (
-            "—"
           ),
       },
     },
@@ -291,12 +279,7 @@ const TelescopeTable = ({
     filter: true,
     sort: true,
     customToolbar: () => (
-      <IconButton
-        name="new_telescope"
-        onClick={() => {
-          setNewDialogOpen(true);
-        }}
-      >
+      <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
     ),
@@ -304,23 +287,27 @@ const TelescopeTable = ({
 
   return (
     <Paper>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          title={hideTitle === true ? "" : "Telescopes"}
-          data={telescopes || []}
-          options={options}
-          columns={columns}
-        />
-      </ThemeProvider>
+      <MUIDataTable
+        title={!hideTitle ? "Telescopes" : ""}
+        data={telescopes || []}
+        options={options}
+        columns={columns}
+      />
       <Dialog
-        open={newDialogOpen}
-        onClose={() => setNewDialogOpen(false)}
+        open={newDialogOpen || telescopeToEdit !== null}
+        onClose={closeDialog}
         maxWidth="md"
       >
-        <DialogTitle>New Telescope</DialogTitle>
+        <DialogTitle>
+          {telescopeToEdit
+            ? `Edit Telescope: ${telescopeToEdit.name}`
+            : "New Telescope"}
+        </DialogTitle>
         <DialogContent dividers>
           <Form
             schema={telescopeFormSchema}
+            formData={formData}
+            onChange={(e) => setFormData(e.formData)}
             validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}
@@ -330,8 +317,8 @@ const TelescopeTable = ({
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteTelescope}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={() => setDeleteDialogOpen(false)}
+        dialogOpen={telescopeToDelete !== null}
+        closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
     </Paper>
@@ -341,7 +328,7 @@ const TelescopeTable = ({
 TelescopeTable.propTypes = {
   telescopes: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
       nickname: PropTypes.string,
       lat: PropTypes.number,
@@ -355,11 +342,6 @@ TelescopeTable.propTypes = {
   ).isRequired,
   hideTitle: PropTypes.bool,
   managePermission: PropTypes.bool,
-};
-
-TelescopeTable.defaultProps = {
-  hideTitle: false,
-  managePermission: false,
 };
 
 export default TelescopeTable;
