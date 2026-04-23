@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { JSONTree } from "react-json-tree";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -182,15 +177,13 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
   return (
     <div className={classes.container}>
       {default_gcn_tags ? (
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={default_gcn_tags}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={default_gcn_tags}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       ) : (
         <CircularProgress />
       )}

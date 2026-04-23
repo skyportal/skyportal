@@ -23,12 +23,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 
 import Form from "@rjsf/mui";
@@ -673,15 +668,13 @@ const UserInvitations = () => {
         className={classes.section}
         data-testid="pendingInvitations"
       >
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={dataTableStyles(theme)}>
-            <MUIDataTable
-              columns={columns}
-              data={invitations}
-              options={options}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={dataTableStyles(theme)}>
+          <MUIDataTable
+            columns={columns}
+            data={invitations}
+            options={options}
+          />
+        </ThemeProvider>
       </Paper>
       <Typography variant="h5">Bulk Invite New Users</Typography>
       <Paper variant="outlined" className={classes.section}>

@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 
 import Dialog from "@mui/material/Dialog";
@@ -315,16 +310,14 @@ const TelescopeTable = ({
 
   return (
     <Paper>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title={hideTitle === true ? "" : "Telescopes"}
-            data={telescopes || []}
-            options={options}
-            columns={columns}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          title={hideTitle === true ? "" : "Telescopes"}
+          data={telescopes || []}
+          options={options}
+          columns={columns}
+        />
+      </ThemeProvider>
       <Dialog
         open={newDialogOpen}
         onClose={() => setNewDialogOpen(false)}

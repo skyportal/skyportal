@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -97,20 +97,13 @@ const TelescopeToolTip = ({ classes }) => (
 
 TelescopeToolTip.propTypes = { classes: classesPropType.isRequired };
 
-const TelescopeMapDashboard = ({ classes: parentClasses }) => {
-  const dispatch = useDispatch();
+const TelescopeMapWidget = ({ classes: parentClasses }) => {
   const classes = useStyles();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const [mapKey, setMapKey] = useState(0);
 
   return (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
+    <Suspense fallback={<CircularProgress color="secondary" />}>
       <Paper elevation={1} className={parentClasses.widgetPaperFillSpace}>
         <div className={parentClasses.widgetPaperDiv}>
           <div className={classes.mapContainer}>
@@ -133,11 +126,11 @@ const TelescopeMapDashboard = ({ classes: parentClasses }) => {
   );
 };
 
-TelescopeMapDashboard.propTypes = {
+TelescopeMapWidget.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 
-export default TelescopeMapDashboard;
+export default TelescopeMapWidget;

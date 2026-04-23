@@ -66,8 +66,8 @@ def str_to_bool(value, default=None):
     Convert a string to a boolean value.
 
     Accepts various string representations:
-        - "yes", "y", "true", "t", "1" => True
-        - "no", "n", "false", "f", "0" => False
+        - "yes", "y", "TRUE", "True", "true", "t", "1" => True
+        - "no", "n", "FALSE", "False", "false", "f", "0" => False
 
     If the value is None, empty, or invalid:
         - returns the default if provided

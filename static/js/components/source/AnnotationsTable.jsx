@@ -3,12 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "@mui/styles";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
@@ -287,15 +282,9 @@ const AnnotationsTable = ({
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <div className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              columns={columns}
-              data={tableData}
-              options={options}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable columns={columns} data={tableData} options={options} />
+        </ThemeProvider>
       </div>
       <div>
         {openAnnotations && (
