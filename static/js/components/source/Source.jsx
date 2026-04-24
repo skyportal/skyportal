@@ -57,6 +57,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import CYOAWidget from "./CYOAWidget";
 import GcnNotesTable from "../gcn/GcnNotesTable";
 import AnalysisList from "../analysis/AnalysisList";
 import AnalysisForm from "../analysis/AnalysisForm";
@@ -448,6 +449,26 @@ const SourceContent = ({ source }) => {
                 taxonomyList={taxonomyList}
               />
             </div>
+          </AccordionDetails>
+        </Accordion>
+      </Grid>
+      <Grid item xs={12} lg={12} order={{ xs: 14, md: 11, lg: 9 }}>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="cyoa-widget-content"
+            id="cyoa-widget-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              CYOA Analysis
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <CYOAWidget sourceId={source.id} />
           </AccordionDetails>
         </Accordion>
       </Grid>
