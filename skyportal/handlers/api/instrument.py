@@ -273,78 +273,6 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated DS9 region. Defaults to
                 false.
             - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Include fields within a given localization.
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: SingleInstrument
-            400:
-              content:
-                application/json:
-                  schema: Error
-        multiple:
-          summary: Get all instruments
-          description: Retrieve all instruments
-          tags:
-            - instruments
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: includeGeoJSONSummary
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                false.
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
-            - in: query
               name: ignoreCache
               nullable: true
               schema:
@@ -392,23 +320,48 @@ class InstrumentHandler(BaseHandler):
             200:
               content:
                 application/json:
+                  schema: SingleInstrument
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          summary: Get all instruments
+          description: Retrieve all instruments
+          tags:
+            - instruments
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Filter by name (exact match)
+            - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+          responses:
+            200:
+              content:
+                application/json:
                   schema: ArrayOfInstruments
             400:
               content:
                 application/json:
                   schema: Error
         """
-
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
         includeRegion = self.get_query_argument("includeRegion", False)
-
-        airmass_time = self.get_query_argument("airmassTime", None)
         ignore_cache = self.get_query_argument("ignoreCache", False)
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        airmass_time = self.get_query_argument("airmassTime", None)
 
         if airmass_time is None:
             if localization_dateobs is not None:
@@ -425,15 +378,13 @@ class InstrumentHandler(BaseHandler):
                 return self.error(
                     f"Invalid date format for airmass_time: '{airmass_time}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                 )
-
+        options = []
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         elif includeGeoJSONSummary:
             options = [
                 joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
             ]
-        else:
-            options = []
         if includeRegion:
             options.append(undefer(Instrument.region))
 

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import Paper from "@mui/material/Paper";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -59,14 +58,7 @@ const TelescopeTable = ({
       ? editTelescope(formData)
       : submitTelescope(formData);
     const result = await dispatch(action);
-    if (result.status === "success") {
-      dispatch(
-        showNotification(
-          telescopeToEdit ? "Telescope edited" : "Telescope created",
-        ),
-      );
-      closeDialog();
-    }
+    if (result.status === "success") closeDialog();
   };
 
   const uiSchema = {
@@ -286,7 +278,7 @@ const TelescopeTable = ({
   };
 
   return (
-    <Paper>
+    <div>
       <MUIDataTable
         title={!hideTitle ? "Telescopes" : ""}
         data={telescopes || []}
@@ -321,7 +313,7 @@ const TelescopeTable = ({
         closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
-    </Paper>
+    </div>
   );
 };
 
