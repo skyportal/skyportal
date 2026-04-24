@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
@@ -24,11 +24,7 @@ const InstrumentTable = ({
   title = "Instruments",
   instruments,
   telescopes,
-  managePermission,
-  sortingCallback = null,
-  paginateCallback = null,
-  totalMatches = 0,
-  numPerPage = 10,
+  managePermission = false,
   telescopeInfo = true,
   fixedHeader = false,
 }) => {
@@ -36,19 +32,19 @@ const InstrumentTable = ({
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [instrumentToEditDelete, setInstrumentToEditDelete] = useState(null);
+  const [instrumentToManage, setInstrumentToManage] = useState(null);
 
   const closeEditDialog = () => {
     setEditDialogOpen(false);
-    setInstrumentToEditDelete(null);
+    setInstrumentToManage(null);
   };
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
-    setInstrumentToEditDelete(null);
+    setInstrumentToManage(null);
   };
 
   const deleteInstrument = () => {
-    dispatch(instrumentActions.deleteInstrument(instrumentToEditDelete)).then(
+    dispatch(instrumentActions.deleteInstrument(instrumentToManage)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Instrument deleted"));
@@ -58,43 +54,51 @@ const InstrumentTable = ({
     );
   };
 
-  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  // Enrich instruments with telescope info and combined API classnames for search/sort/filter in the table
+  const enrichedInstruments = useMemo(() => {
+    const telescopeById = new Map(telescopes?.map((t) => [t.id, t]) || []);
+    return (instruments || []).map((instrument) => {
+      const telescope = telescopeById.get(instrument.telescope_id);
+      return {
+        ...instrument,
+        telescope_nickname: telescope?.nickname || "",
+        lat: telescope?.lat,
+        lon: telescope?.lon,
+        api_classnames: [
+          instrument.api_classname,
+          instrument.api_classname_obsplan,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      };
+    });
+  }, [instruments, telescopes]);
 
   const renderInstrumentName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+    const instrument = enrichedInstruments[dataIndex];
     return (
       <Link to={`/instrument/${instrument.id}`}>{instrument?.name || ""}</Link>
     );
   };
 
   const renderTelescopeNickname = (dataIndex) => {
-    const telescope_id = instruments[dataIndex]?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const instrument = enrichedInstruments[dataIndex];
     return (
-      <Link to={`/telescope/${telescope_id}`}>{telescope?.nickname || ""}</Link>
+      <Link to={`/telescope/${instrument?.telescope_id}`}>
+        {instrument?.telescope_nickname || ""}
+      </Link>
     );
   };
 
-  const renderTelescopeLat = (dataIndex) => {
-    const telescope_id = instruments[dataIndex]?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-    return telescope?.lat;
-  };
-
-  const renderTelescopeLon = (dataIndex) => {
-    const telescope_id = instruments[dataIndex]?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-    return telescope?.lon;
-  };
-
   const renderFilters = (dataIndex) => {
-    const filters = instruments[dataIndex]?.filters;
+    const filters = enrichedInstruments[dataIndex]?.filters;
     return filters?.map((filter) => <div key={filter}>{filter}</div>);
   };
 
   const renderAPIClassnames = (dataIndex) => {
-    const apiClassname = instruments[dataIndex]?.api_classname;
-    const apiClassnameObsPlan = instruments[dataIndex]?.api_classname_obsplan;
+    const apiClassname = enrichedInstruments[dataIndex]?.api_classname;
+    const apiClassnameObsPlan =
+      enrichedInstruments[dataIndex]?.api_classname_obsplan;
     if (!apiClassname && !apiClassnameObsPlan) return null;
 
     return (
@@ -123,21 +127,22 @@ const InstrumentTable = ({
   const renderManage = (dataIndex) => {
     if (!managePermission) return null;
 
-    const instrument = instruments[dataIndex];
+    const instrument = enrichedInstruments[dataIndex];
     return (
       <div style={{ display: "flex" }}>
         <Button
           onClick={() => {
             setEditDialogOpen(true);
-            setInstrumentToEditDelete(instrument.id);
+            setInstrumentToManage(instrument.id);
           }}
         >
           <EditIcon />
         </Button>
         <Button
+          color="error"
           onClick={() => {
             setDeleteDialogOpen(true);
-            setInstrumentToEditDelete(instrument.id);
+            setInstrumentToManage(instrument.id);
           }}
         >
           <DeleteIcon />
@@ -146,168 +151,88 @@ const InstrumentTable = ({
     );
   };
 
-  const handleSearchChange = (searchText) => {
-    if (!paginateCallback) return;
-    const data = { name: searchText };
-    paginateCallback(1, rowsPerPage, {}, data);
-  };
-
-  const handleTableChange = (action, tableState) => {
-    if (!paginateCallback || !sortingCallback) return;
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
-        }
-        break;
-      default:
-    }
-  };
-
   const columns = [
     {
       name: "id",
       label: "ID",
+      options: { display: false },
+    },
+    {
+      name: "name",
+      label: "Name",
       options: {
-        filter: true,
-        sortThirdClickReset: true,
+        customBodyRenderLite: renderInstrumentName,
+      },
+    },
+    ...(telescopeInfo
+      ? [
+          {
+            name: "telescope_nickname",
+            label: "Telescope",
+            options: {
+              customBodyRenderLite: renderTelescopeNickname,
+            },
+          },
+          {
+            name: "lat",
+            label: "Latitude",
+          },
+          {
+            name: "lon",
+            label: "Longitude",
+          },
+        ]
+      : []),
+    {
+      name: "filters",
+      label: "Filters",
+      options: {
+        customBodyRenderLite: renderFilters,
       },
     },
     {
-      name: "instrument_name",
-      label: "Instrument Name",
+      name: "api_classnames",
+      label: "API Classnames",
       options: {
-        filter: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentName,
-        setCellProps: () => ({ style: { textAlign: "center" } }),
+        customBodyRenderLite: renderAPIClassnames,
+      },
+    },
+    {
+      name: "band",
+      label: "Band",
+    },
+    {
+      name: "type",
+      label: "Type",
+    },
+    {
+      name: "region_summary",
+      label: "FOV Region?",
+    },
+    {
+      name: "number_of_fields",
+      label: "Fields",
+    },
+    {
+      name: "manage",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderManage,
       },
     },
   ];
-  if (telescopeInfo === true) {
-    columns.push({
-      name: "telescope_nickname",
-      label: "Telescope Nickname",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeNickname,
-        setCellProps: () => ({ style: { textAlign: "center" } }),
-      },
-    });
-    columns.push({
-      name: "Latitude",
-      label: "Latitude",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLat,
-      },
-    });
-    columns.push({
-      name: "Longitude",
-      label: "Longitude",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLon,
-      },
-    });
-  }
-
-  columns.push({
-    name: "filters",
-    label: "Filters",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderFilters,
-    },
-  });
-  columns.push({
-    name: "API_classnames",
-    label: "API Classnames",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAPIClassnames,
-    },
-  });
-  columns.push({
-    name: "band",
-    label: "Band",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-    },
-  });
-  columns.push({
-    name: "type",
-    label: "Type",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-    },
-  });
-  columns.push({
-    name: "region_summary",
-    label: "FOV Region?",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-    },
-  });
-  columns.push({
-    name: "number_of_fields",
-    label: "Fields",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-    },
-  });
-  columns.push({
-    name: "manage",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderManage,
-    },
-  });
 
   const options = {
     ...(fixedHeader
       ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 148px)" }
       : {}),
     search: true,
-    onSearchChange: handleSearchChange,
     selectableRows: "none",
     rowHover: false,
     print: false,
     elevation: 1,
-    onTableChange: handleTableChange,
     jumpToPage: true,
-    serverSide: true,
     pagination: false,
-    count: totalMatches,
     filter: true,
     sort: true,
     customToolbar: () => (
@@ -321,7 +246,7 @@ const InstrumentTable = ({
     <div>
       <MUIDataTable
         title={title}
-        data={instruments || []}
+        data={enrichedInstruments}
         options={options}
         columns={columns}
       />
@@ -336,18 +261,19 @@ const InstrumentTable = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={editDialogOpen && instrumentToEditDelete !== null}
+        open={editDialogOpen && instrumentToManage !== null}
         onClose={closeEditDialog}
         maxWidth="md"
       >
         <DialogTitle>
-          Edit {instruments.find((i) => i.id === instrumentToEditDelete)?.name}{" "}
+          Edit{" "}
+          {enrichedInstruments.find((i) => i.id === instrumentToManage)?.name}{" "}
           instrument
         </DialogTitle>
         <DialogContent dividers>
           <InstrumentForm
             onClose={closeEditDialog}
-            instrumentId={instrumentToEditDelete}
+            instrumentId={instrumentToManage}
           />
         </DialogContent>
       </Dialog>
@@ -365,23 +291,9 @@ InstrumentTable.propTypes = {
   title: PropTypes.string,
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
   telescopes: PropTypes.arrayOf(PropTypes.any),
-  sortingCallback: PropTypes.func,
-  paginateCallback: PropTypes.func,
-  totalMatches: PropTypes.number,
-  numPerPage: PropTypes.number,
   telescopeInfo: PropTypes.bool,
   managePermission: PropTypes.bool,
   fixedHeader: PropTypes.bool,
-};
-
-InstrumentTable.defaultProps = {
-  title: "Instruments",
-  totalMatches: 0,
-  numPerPage: 10,
-  sortingCallback: null,
-  paginateCallback: null,
-  telescopeInfo: true,
-  fixedHeader: false,
 };
 
 export default InstrumentTable;
