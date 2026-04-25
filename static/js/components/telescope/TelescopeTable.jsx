@@ -73,7 +73,7 @@ const TelescopeTable = ({
   };
 
   function validate(data, errors) {
-    telescopes?.forEach((telescope) => {
+    telescopes.forEach((telescope) => {
       if (data.id !== telescope.id && data.name === telescope.name) {
         errors.name.addError("Telescope name matches another, please change.");
       }
@@ -281,7 +281,7 @@ const TelescopeTable = ({
     <div>
       <MUIDataTable
         title={!hideTitle ? "Telescopes" : ""}
-        data={telescopes || []}
+        data={telescopes}
         options={options}
         columns={columns}
       />
