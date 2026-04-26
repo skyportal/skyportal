@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
+import Skeleton from "@mui/material/Skeleton";
 
 const useStyles = makeStyles((theme) => ({
   root: ({ size, minSize, maxSize, noMargin }) => ({
@@ -30,6 +31,7 @@ const useStyles = makeStyles((theme) => ({
   },
   mediaDiv: {
     position: "relative",
+    aspectRatio: "1 / 1",
   },
   media: ({ size }) => ({
     height: size,
@@ -103,10 +105,10 @@ const Thumbnail = ({
   grayscale,
   noMargin = false,
 }) => {
+  const [status, setStatus] = useState("loading");
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
-
   const classes = useStyles({
     size,
     minSize,
@@ -115,6 +117,10 @@ const Thumbnail = ({
     invertThumbnails,
     noMargin,
   });
+
+  useEffect(() => {
+    setStatus("loading");
+  }, [url]);
 
   const { alt, link } = getThumbnailAltAndLink(name, ra, dec);
   const imgClasses = grayscale
@@ -138,7 +144,10 @@ const Thumbnail = ({
             className={imgClasses}
             title={alt}
             loading="lazy"
+            style={{ opacity: status === "loading" ? 0 : 1 }}
+            onLoad={() => setStatus("loaded")}
             onError={(e) => {
+              setStatus("error");
               if (url !== "#") {
                 e.target.onerror = null;
                 if (name === "ls") {
@@ -149,12 +158,26 @@ const Thumbnail = ({
               }
             }}
           />
-          {name !== "sdss" && (
-            <img
-              className={classes.crosshair}
-              src="/static/images/crosshairs.png"
-              alt=""
+          {status === "loading" ? (
+            <Skeleton
+              className={classes.media}
+              variant="rectangular"
+              animation="wave"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+              }}
             />
+          ) : (
+            status !== "error" &&
+            name !== "sdss" && (
+              <img
+                className={classes.crosshair}
+                src="/static/images/crosshairs.png"
+                alt=""
+              />
+            )
           )}
         </a>
       </div>
