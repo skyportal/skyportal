@@ -1021,7 +1021,7 @@ const SourceContent = ({ source }) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.hideSourceSummary !== true && (
+              !currentUser?.preferences?.hideSourceSummary && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1165,8 +1165,8 @@ const SourceContent = ({ source }) => {
                 dec={source.dec}
                 thumbnails={source.thumbnails}
                 size="100%"
-                minSize="6rem"
-                maxSize="13rem"
+                minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
+                maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
                 titleSize={
                   rightPanelVisible || downLg
                     ? downSm
@@ -1532,7 +1532,11 @@ SourceContent.propTypes = {
     dm: PropTypes.number,
     ebv: PropTypes.number,
     tns_name: PropTypes.string,
-    tns_info: PropTypes.arrayOf(PropTypes.shape(Object)),
+    tns_info: PropTypes.shape({
+      internal_name: PropTypes.string,
+      name: PropTypes.string,
+      classification: PropTypes.string,
+    }),
     mpc_name: PropTypes.string,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(

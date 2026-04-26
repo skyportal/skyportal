@@ -10,10 +10,9 @@ import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { GET } from "../API";
-import Paper from "./Paper";
-import CircularProgress from "@mui/material/CircularProgress";
 
 const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   const handleChange = (event) => {
@@ -24,7 +23,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   return (
     <div style={{ marginTop: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <FormControl>
+        <FormControl size="small">
           <InputLabel id="StarListSelect">Facility</InputLabel>
           <Select
             label="Facility"
@@ -32,7 +31,6 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
             value={facility}
             onChange={handleChange}
             name="StarListSelectElement"
-            size="small"
           >
             <MenuItem value="Keck">Keck</MenuItem>
             <MenuItem value="P200">P200</MenuItem>
