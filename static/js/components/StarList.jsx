@@ -22,7 +22,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   };
 
   return (
-    <Paper>
+    <div style={{ marginTop: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <InputLabel id="StarListSelect">Facility</InputLabel>
@@ -44,7 +44,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           <Tooltip title="Copy to clipboard">
             <span>
               <IconButton
-                disabled={starList?.[0]?.str?.startsWith("Loading") !== false}
+                disabled={!starList?.length}
                 onClick={() => {
                   navigator.clipboard.writeText(
                     starList.map((item) => item.str).join("\n"),
@@ -58,7 +58,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           <Tooltip title="Download">
             <span>
               <IconButton
-                disabled={starList?.[0]?.str?.startsWith("Loading") !== false}
+                disabled={!starList?.length}
                 onClick={() => {
                   const element = document.createElement("a");
                   const file = new Blob(
@@ -79,16 +79,23 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           </Tooltip>
         </div>
       </div>
-      <code style={{ fontSize: "0.75rem" }}>
-        <div style={{ overflow: "scroll" }}>
-          <pre>
-            {starList?.map((item) => item.str).join("\n") || (
-              <CircularProgress size={32} />
-            )}
-          </pre>
-        </div>
-      </code>
-    </Paper>
+      {starList === null ? (
+        <CircularProgress sx={{ mt: 1 }} size={32} />
+      ) : (
+        <pre
+          style={{
+            fontSize: "0.75rem",
+            border: "solid lightgray 1px",
+            background: "#eee",
+            padding: "1em",
+            borderRadius: "0.5em",
+            overflowX: "scroll",
+          }}
+        >
+          {starList.map((item) => item.str).join("\n")}
+        </pre>
+      )}
+    </div>
   );
 };
 
