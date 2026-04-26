@@ -562,7 +562,7 @@ def test_show_starlist(driver, user, public_source):
     driver.get(f"/source/{public_source.id}")
     button = driver.wait_for_xpath('//button[text()="Show Starlist"]')
     button.click()
-    driver.wait_for_xpath("//code/div/pre[text()[contains(., '_k1')]]", timeout=45)
+    driver.wait_for_xpath("//pre[text()[contains(., '_k1')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -612,10 +612,10 @@ def test_dropdown_facility_change(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath('//*[text()="Show Starlist"]')
-    driver.wait_for_xpath("//code/div/pre[text()[contains(., 'raoffset')]]", timeout=45)
+    driver.wait_for_xpath("//pre[text()[contains(., 'raoffset')]]", timeout=45)
     driver.click_xpath('//*[@id="mui-component-select-StarListSelectElement"]')
     driver.click_xpath('//li[@data-value="P200"]')
-    driver.wait_for_xpath("//code/div/pre[text()[contains(., 'dist')]]", timeout=45)
+    driver.wait_for_xpath("//pre[text()[contains(., 'dist')]]", timeout=45)
 
 
 def test_source_notification(driver, user, public_group, public_source):
