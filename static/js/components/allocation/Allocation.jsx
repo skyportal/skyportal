@@ -485,14 +485,9 @@ const AllocationRequestsTable = ({
     return null;
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     if (allocation === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
+      return <CircularProgress color="secondary" />;
     }
 
     const colSpan = rowData.length + 1;
@@ -536,7 +531,6 @@ const AllocationRequestsTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
     const objid = requests[dataIndex].obj.id;
     return (
@@ -546,7 +540,6 @@ const AllocationRequestsTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderRA = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -558,7 +551,6 @@ const AllocationRequestsTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -570,7 +562,6 @@ const AllocationRequestsTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -593,7 +584,6 @@ const AllocationRequestsTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderActionsButton = (dataIndex) => {
     const request = requests[dataIndex];
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
