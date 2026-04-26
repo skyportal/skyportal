@@ -77,7 +77,7 @@ const AllocationList = () => {
       </Grid>
       {tabIndex === 0 && (
         <Grid item xs={12} style={{ paddingTop: 0 }}>
-          {!allocationsState.allocationList ? (
+          {allocationsState.allocationList ? (
             <AllocationTable
               instruments={instrumentsState.instrumentList}
               telescopes={telescopesState.telescopeList}
