@@ -1172,7 +1172,7 @@ const SourceContent = ({ source }) => {
                     ? downSm
                       ? "0.55rem"
                       : "0.8rem"
-                    : null
+                    : undefined
                 }
                 useGrid={false}
                 noMargin

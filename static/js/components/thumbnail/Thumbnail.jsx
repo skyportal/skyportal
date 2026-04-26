@@ -101,11 +101,8 @@ const Thumbnail = ({
   maxSize,
   titleSize,
   grayscale,
-  noMargin,
+  noMargin = false,
 }) => {
-  // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
-  // unix timestamp epoch (1970-01-01).
-
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
@@ -176,10 +173,6 @@ Thumbnail.propTypes = {
   titleSize: PropTypes.string.isRequired,
   grayscale: PropTypes.bool.isRequired,
   noMargin: PropTypes.bool,
-};
-
-Thumbnail.defaultProps = {
-  noMargin: false,
 };
 
 export default Thumbnail;

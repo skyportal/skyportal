@@ -86,7 +86,6 @@ const ThumbnailList = ({
             maxSize={maxSize ?? size}
             noMargin={!useGrid && noMargin}
             grayscale={false}
-            header="PanSTARRS DR2"
             titleSize={titleSize}
           />
         </Grid>
