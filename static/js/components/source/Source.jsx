@@ -27,7 +27,6 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
-import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
@@ -81,6 +80,7 @@ import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
+import ThumbnailList from "../thumbnail/ThumbnailList";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -1001,15 +1001,13 @@ const SourceContent = ({ source }) => {
                   setDialogOpen={setSendToDialogOpen}
                 />
               </div>
-              {currentUser?.preferences?.hideSourceSummary === true ? (
-                <div>
-                  <ShowSummaryHistory
-                    summaries={source.summary_history || []}
-                    obj_id={source.id}
-                    button
-                  />
-                </div>
-              ) : null}
+              {currentUser?.preferences?.hideSourceSummary && (
+                <ShowSummaryHistory
+                  summaries={source.summary_history || []}
+                  obj_id={source.id}
+                  button
+                />
+              )}
               <SourcePublish
                 sourceId={source.id}
                 isElements={{
@@ -1020,6 +1018,7 @@ const SourceContent = ({ source }) => {
                 }}
               />
             </div>
+            {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               currentUser?.preferences?.hideSourceSummary !== true && (
@@ -1145,19 +1144,38 @@ const SourceContent = ({ source }) => {
                 />
               </div>
             </div>
-            {showStarList && (
-              <div style={{ paddingTop: "0.5rem" }}>
-                <StarList sourceId={source.id} />
-              </div>
-            )}
-            <div style={{ paddingTop: "0.25rem" }}>
-              <ThumbnailsOnPage
+            <div
+              style={{
+                display: "grid",
+                gap: "0.5rem",
+                gridAutoFlow: "row",
+                ...(rightPanelVisible || downLg
+                  ? {
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      alignItems: "center",
+                      maxWidth: "fit-content",
+                    }
+                  : {
+                      gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                    }),
+              }}
+            >
+              <ThumbnailList
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}
-                rightPanelVisible={rightPanelVisible}
-                downSmall={downSm}
-                downLarge={downLg}
+                size="100%"
+                minSize="6rem"
+                maxSize="13rem"
+                titleSize={
+                  rightPanelVisible || downLg
+                    ? downSm
+                      ? "0.55rem"
+                      : "0.8rem"
+                    : null
+                }
+                useGrid={false}
+                noMargin
               />
             </div>
           </Paper>
