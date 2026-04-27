@@ -115,61 +115,69 @@ const Thumbnail = ({
             fontWeight: "bold",
           },
         }}
-        sx={{ padding: "0.5rem 0.75rem" }}
+        sx={{ padding: "0.4rem 0.6rem" }}
         title={thumbnailName}
       />
-      {status === "loading" || status === "loaded" ? (
-        <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
-          <CardMedia
-            component="img"
-            src={src}
-            alt={alt}
-            className={imgClasses}
-            title={alt}
-            loading="lazy"
-            style={{ opacity: status === "loaded" ? 1 : 0 }}
-            onLoad={() => setStatus("loaded")}
-            onError={(e) => {
-              e.target.onerror = null;
-              if (src === "#") return;
-              setStatus(
-                name === "ls" ? "Outside Survey Area" : "Currently Unavailable",
-              );
-            }}
-          />
-          {status === "loading" ? (
-            <Skeleton
-              className={`${classes.media} ${classes.overlay}`}
-              variant="rectangular"
+      <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
+        {status === "loading" || status === "loaded" ? (
+          <>
+            <CardMedia
+              component="img"
+              src={src}
+              alt={alt}
+              className={imgClasses}
+              title={alt}
+              loading="lazy"
+              style={{ opacity: status === "loaded" ? 1 : 0 }}
+              onLoad={() => setStatus("loaded")}
+              onError={(e) => {
+                e.target.onerror = null;
+                if (src === "#") return;
+                setStatus(
+                  name === "ls"
+                    ? "Outside Survey Area"
+                    : "Currently Unavailable",
+                );
+              }}
             />
-          ) : (
-            name !== "sdss" && (
-              <img
+            {status === "loading" ? (
+              <Skeleton
                 className={`${classes.media} ${classes.overlay}`}
-                src="/static/images/crosshairs.png"
-                alt="crosshairs"
+                variant="rectangular"
               />
-            )
-          )}
-        </Box>
-      ) : (
-        <div
-          className={`${classes.media}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            background: "#eee",
-            aspectRatio: "1 / 1",
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-            color: "rgba(0,0,0,0.75)",
-          }}
-        >
-          {status}
-        </div>
-      )}
+            ) : (
+              name !== "sdss" && (
+                <img
+                  className={`${classes.media} ${classes.overlay}`}
+                  src="/static/images/crosshairs.png"
+                  alt="crosshairs"
+                />
+              )
+            )}
+          </>
+        ) : (
+          <Box
+            className={`${classes.media}`}
+            sx={{ background: "#eee", containerType: "inline-size" }}
+          >
+            <Box
+              sx={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                fontSize: "12cqi",
+                fontWeight: "bold",
+                color: "rgba(0,0,0,0.75)",
+              }}
+            >
+              {status}
+            </Box>
+          </Box>
+        )}
+      </Box>
     </>
   );
 

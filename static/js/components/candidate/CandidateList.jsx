@@ -299,10 +299,10 @@ const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
               ra={ra}
               dec={dec}
               thumbnails={thumbnails}
-              minSize="6rem"
               size="100%"
+              minSize="6rem"
               maxSize="8.8rem"
-              titleSize="0.8rem"
+              titleSize="0.7rem"
               displayTypes={displayTypes}
               useGrid={false}
               noMargin

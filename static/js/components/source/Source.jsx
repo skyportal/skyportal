@@ -1167,13 +1167,7 @@ const SourceContent = ({ source }) => {
                 size="100%"
                 minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
                 maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
-                titleSize={
-                  rightPanelVisible || downLg
-                    ? downSm
-                      ? "0.55rem"
-                      : "0.8rem"
-                    : undefined
-                }
+                titleSize={downSm ? "0.55rem" : undefined}
                 useGrid={false}
                 noMargin
               />
