@@ -199,11 +199,12 @@ const TaxonomyTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
-    customToolbar: () => (
-      <IconButton name="new_taxonomy" onClick={() => setFormDialogOpen(true)}>
-        <AddIcon />
-      </IconButton>
-    ),
+    customToolbar: () =>
+      managePermission && (
+        <IconButton name="new_taxonomy" onClick={() => setFormDialogOpen(true)}>
+          <AddIcon />
+        </IconButton>
+      ),
   };
 
   return (
