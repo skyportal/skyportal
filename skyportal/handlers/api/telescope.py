@@ -250,7 +250,6 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
         keys_to_update = [
             "name",
             "nickname",
@@ -263,6 +262,7 @@ class TelescopeHandler(BaseHandler):
             "robotic",
             "fixed_location",
         ]
+        data = {k: v for k, v in self.get_json().items() if k in keys_to_update}
 
         with self.Session() as session:
             telescope = session.scalars(
@@ -273,10 +273,18 @@ class TelescopeHandler(BaseHandler):
             if telescope is None:
                 return self.error("Invalid telescope ID.")
 
+            schema = Telescope.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    f"Invalid/missing parameters: {e.normalized_messages()}"
+                )
+
             changed = []
-            for key in keys_to_update:
-                if key in data and getattr(telescope, key) != data[key]:
-                    setattr(telescope, key, data[key])
+            for key, value in data.items():
+                if getattr(telescope, key) != value:
+                    setattr(telescope, key, value)
                     changed.append(key)
 
             if not changed:
