@@ -73,6 +73,7 @@ from ...models import (
     Thumbnail,
     Token,
     User,
+    serialize_obj_tag,
 )
 from ...utils.asynchronous import run_async
 from ...utils.calculations import great_circle_distance
@@ -598,8 +599,14 @@ async def get_source(
                 ]
             )
     if include_tags:
-        tags = session.scalars(ObjTag.select(user).where(ObjTag.obj_id == obj_id)).all()
-        tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+        tags = session.scalars(
+            ObjTag.select(user).where(ObjTag.obj_id == obj_id).distinct()
+        ).all()
+
+        user_group_ids = (
+            None if user.is_system_admin else {g.id for g in user.accessible_groups}
+        )
+        tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
         source_info["tags"] = tags
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(

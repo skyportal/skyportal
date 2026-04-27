@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import Obj, ObjTag, SourceView
+from ....models import Obj, ObjTag, SourceView, serialize_obj_tag
 from ...base import BaseHandler
 
 default_prefs = {
@@ -54,11 +54,17 @@ class SourceViewsHandler(BaseHandler):
                 self.current_user, session
             )
             tags = session.scalars(
-                ObjTag.select(session.user_or_token).where(
-                    ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results}))
-                )
+                ObjTag.select(session.user_or_token)
+                .where(ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results})))
+                .distinct()
             ).all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+
+            user_group_ids = (
+                None
+                if session.user_or_token.is_system_admin
+                else {g.id for g in session.user_or_token.accessible_groups}
+            )
+            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:

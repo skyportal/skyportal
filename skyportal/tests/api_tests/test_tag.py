@@ -149,9 +149,9 @@ def test_modify_tag(super_admin_token):
     assert "Please ensure posted data is of type application/json" in data["message"]
 
     # Testing to rename a non existing tag
-    data = {"name": f"tag_not_found_{uuid.uuid4().hex}"}
+    data = {"name": f"TagNotFound{uuid.uuid4().hex}"}
     status, data = api(
-        "PATCH", f"objtagoption/9999999", data=data, token=super_admin_token
+        "PATCH", "objtagoption/9999999", data=data, token=super_admin_token
     )
     assert status == 404
     assert data["status"] == "error"
@@ -237,14 +237,18 @@ def test_delete_tag(super_admin_token):
 
 
 # --- Testing ObjTag API
-def test_create_tag_obj_association(super_admin_token, public_source):
+def test_create_tag_obj_association(super_admin_token, public_source, public_group):
     # Create a tag option
     tag_data = {"name": f"Tag{uuid.uuid4().hex}"}
     status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
     assert status == 200
     assert tag["status"] == "success"
 
-    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": public_source.id}
+    assoc_data = {
+        "objtagoption_id": tag["data"]["id"],
+        "obj_id": public_source.id,
+        "group_ids": [public_group.id],
+    }
 
     status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
     assert status == 200
@@ -264,18 +268,21 @@ def test_create_tag_obj_association(super_admin_token, public_source):
     assert created_assoc["obj_id"] == public_source.id
 
     status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
-    assert status == 400
-    assert data["status"] == "error"
-    assert "already exists" in data["message"]
+    assert status == 200
+    assert data["status"] == "success"
 
 
-def test_delete_association(super_admin_token, public_source):
+def test_delete_association(super_admin_token, public_source, public_group):
     tag_data = {"name": f"TagDeleteAssociation{uuid.uuid4().hex}"}
     status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
     assert status == 200
     assert tag["status"] == "success"
 
-    assoc_data = {"objtagoption_id": tag["data"]["id"], "obj_id": public_source.id}
+    assoc_data = {
+        "objtagoption_id": tag["data"]["id"],
+        "obj_id": public_source.id,
+        "group_ids": [public_group.id],
+    }
     status, assoc = api("POST", "objtag", data=assoc_data, token=super_admin_token)
     assert status == 200
     assert assoc["status"] == "success"
