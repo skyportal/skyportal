@@ -8,7 +8,7 @@ from ..base import BaseHandler
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(["Manage telescopes"])
+    @auth_or_token
     def post(self):
         """
         ---
