@@ -64,7 +64,7 @@ const ThumbnailList = ({
             ra={ra}
             dec={dec}
             name={t.type}
-            url={t.public_url}
+            src={t.public_url}
             size={size}
             minSize={minSize ?? size}
             maxSize={maxSize ?? size}
@@ -75,12 +75,12 @@ const ThumbnailList = ({
         </Grid>
       ))}
       {ps1Loading && (
-        <Grid item key="thumb_placeholder">
+        <Grid item>
           <Thumbnail
             ra={ra}
             dec={dec}
-            name="PanSTARRS DR2: Loading..."
-            url="#"
+            name="ps1"
+            src="#"
             size={size}
             minSize={minSize ?? size}
             maxSize={maxSize ?? size}
