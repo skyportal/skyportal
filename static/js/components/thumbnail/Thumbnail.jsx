@@ -33,6 +33,8 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const MAXIMUM_NB_OF_RETRIES = 3;
+
 export const getThumbnailAltAndLink = (name, ra, dec) => {
   let alt = "";
   let link = "";
@@ -84,6 +86,7 @@ const Thumbnail = ({
   noMargin = false,
 }) => {
   const [status, setStatus] = useState(defaultState(src));
+  const [retry, setRetry] = useState(0);
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
@@ -97,7 +100,49 @@ const Thumbnail = ({
 
   useEffect(() => {
     setStatus(defaultState(src));
+    setRetry(0);
   }, [src]);
+
+  useEffect(() => {
+    if ((name !== "ls" && name !== "sdss") || src === "#") return undefined;
+
+    let cancelled = false;
+    fetch(src)
+      .then((r) => {
+        if (r.status === 429) {
+          if (retry < MAXIMUM_NB_OF_RETRIES) {
+            // If the request fail due to too many requests, retry after 2 seconds.
+            setTimeout(() => {
+              if (!cancelled) setRetry((prev) => prev + 1);
+            }, 2000);
+            return;
+          } else {
+            setStatus("Too Many Requests");
+            return;
+          }
+        } else if (
+          r.status === 404 &&
+          r.statusText.includes("(ra, dec) is outside")
+        ) {
+          setStatus("Outside Survey Area");
+          return;
+        }
+        return r.blob();
+      })
+      .then((blob) => {
+        if (cancelled || !blob) return;
+        // If the request succeed but the image is too small for Legacy Survey,
+        // It means the image is a grey placeholder for "outside survey area".
+        if (name === "ls" && blob.size < 1500) setStatus("Outside Survey Area");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("Currently Unavailable");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src, name, retry]);
 
   const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
   const imgClasses = grayscale
@@ -132,12 +177,8 @@ const Thumbnail = ({
               onLoad={() => setStatus("loaded")}
               onError={(e) => {
                 e.target.onerror = null;
-                if (src === "#") return;
-                setStatus(
-                  name === "ls"
-                    ? "Outside Survey Area"
-                    : "Currently Unavailable",
-                );
+                if (src === "#" || name === "ls" || name === "sdss") return;
+                setStatus("Currently Unavailable");
               }}
             />
             {status === "loading" ? (
