@@ -85,8 +85,10 @@ const Thumbnail = ({
   grayscale,
   noMargin = false,
 }) => {
+  const isFetched = name === "ls" || name === "sdss";
   const [status, setStatus] = useState(defaultState(src));
   const [retry, setRetry] = useState(0);
+  const [imgSrc, setImgSrc] = useState(isFetched ? null : src);
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
@@ -101,12 +103,14 @@ const Thumbnail = ({
   useEffect(() => {
     setStatus(defaultState(src));
     setRetry(0);
-  }, [src]);
+    setImgSrc(isFetched ? null : src);
+  }, [src, isFetched]);
 
   useEffect(() => {
-    if ((name !== "ls" && name !== "sdss") || src === "#") return undefined;
+    if (!isFetched || src === "#") return undefined;
 
     let cancelled = false;
+    let objectUrl = null;
     fetch(src)
       .then((r) => {
         if (r.status === 429) {
@@ -115,17 +119,18 @@ const Thumbnail = ({
             setTimeout(() => {
               if (!cancelled) setRetry((prev) => prev + 1);
             }, 2000);
-            return;
-          } else {
-            setStatus("Too Many Requests");
-            return;
+            return null;
           }
-        } else if (
-          r.status === 404 &&
-          r.statusText.includes("(ra, dec) is outside")
-        ) {
+          setStatus("Too Many Requests");
+          return null;
+        }
+        if (r.status === 404 && r.statusText.includes("(ra, dec) is outside")) {
           setStatus("Outside Survey Area");
-          return;
+          return null;
+        }
+        if (!r.ok) {
+          setStatus("Currently Unavailable");
+          return null;
         }
         return r.blob();
       })
@@ -133,7 +138,12 @@ const Thumbnail = ({
         if (cancelled || !blob) return;
         // If the request succeed but the image is too small for Legacy Survey,
         // It means the image is a grey placeholder for "outside survey area".
-        if (name === "ls" && blob.size < 1500) setStatus("Outside Survey Area");
+        if (name === "ls" && blob.size < 1500) {
+          setStatus("Outside Survey Area");
+          return;
+        }
+        objectUrl = URL.createObjectURL(blob);
+        setImgSrc(objectUrl);
       })
       .catch(() => {
         if (!cancelled) setStatus("Currently Unavailable");
@@ -141,8 +151,9 @@ const Thumbnail = ({
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [src, name, retry]);
+  }, [src, name, isFetched, retry]);
 
   const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
   const imgClasses = grayscale
@@ -166,21 +177,23 @@ const Thumbnail = ({
       <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
         {status === "loading" || status === "loaded" ? (
           <>
-            <CardMedia
-              component="img"
-              src={src}
-              alt={alt}
-              className={imgClasses}
-              title={alt}
-              loading="lazy"
-              style={{ opacity: status === "loaded" ? 1 : 0 }}
-              onLoad={() => setStatus("loaded")}
-              onError={(e) => {
-                e.target.onerror = null;
-                if (src === "#" || name === "ls" || name === "sdss") return;
-                setStatus("Currently Unavailable");
-              }}
-            />
+            {imgSrc && (
+              <CardMedia
+                component="img"
+                src={imgSrc}
+                alt={alt}
+                className={imgClasses}
+                title={alt}
+                loading="lazy"
+                style={{ opacity: status === "loaded" ? 1 : 0 }}
+                onLoad={() => setStatus("loaded")}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  if (src === "#" || isFetched) return;
+                  setStatus("Currently Unavailable");
+                }}
+              />
+            )}
             {status === "loading" ? (
               <Skeleton
                 className={`${classes.media} ${classes.overlay}`}
