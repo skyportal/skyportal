@@ -8,7 +8,7 @@ from ..base import BaseHandler
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(["Manage telescopes"])
+    @auth_or_token
     def post(self):
         """
         ---
@@ -83,6 +83,7 @@ class TelescopeHandler(BaseHandler):
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
+            self.push_notification("Telescope created successfully")
             return self.success(data={"id": telescope.id})
 
     @auth_or_token
@@ -249,17 +250,28 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        keys_to_update = [
+            "name",
+            "nickname",
+            "lat",
+            "lon",
+            "elevation",
+            "diameter",
+            "skycam_link",
+            "weather_link",
+            "robotic",
+            "fixed_location",
+        ]
+        data = {k: v for k, v in self.get_json().items() if k in keys_to_update}
 
         with self.Session() as session:
-            t = session.scalars(
+            telescope = session.scalars(
                 Telescope.select(session.user_or_token, mode="update").where(
                     Telescope.id == int(telescope_id)
                 )
             ).first()
-            if t is None:
+            if telescope is None:
                 return self.error("Invalid telescope ID.")
-            data = self.get_json()
-            data["id"] = int(telescope_id)
 
             schema = Telescope.__schema__()
             try:
@@ -269,36 +281,26 @@ class TelescopeHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            if "name" in data:
-                t.name = data["name"]
-            if "nickname" in data:
-                t.nickname = data["nickname"]
-            if "elevation" in data:
-                t.elevation = data["elevation"]
-            if "lat" in data:
-                t.lat = data["lat"]
-            if "lon" in data:
-                t.lon = data["lon"]
-            if "diameter" in data:
-                t.diameter = data["diameter"]
-            if "robotic" in data:
-                t.robotic = data["robotic"]
-            if "fixed_location" in data:
-                t.fixed_location = data["fixed_location"]
-            if "skycam_link" in data:
-                t.skycam_link = data["skycam_link"]
-            if "weather_link" in data:
-                t.weather_link = data["weather_link"]
+            changed = []
+            for key, value in data.items():
+                if getattr(telescope, key) != value:
+                    setattr(telescope, key, value)
+                    changed.append(key)
+
+            if not changed:
+                self.push_notification("Nothing to update")
+                return self.success()
 
             session.commit()
 
-            if any(k in data for k in ["lat", "lon", "elevation"]):
-                t.current_time(refresh=True)
+            if any(k in changed for k in ("lat", "lon", "elevation")):
+                telescope.current_time(refresh=True)
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
+            self.push_notification("Telescope updated successfully")
             return self.success()
 
-    @permissions(["Delete telescope"])
+    @permissions(["Manage telescopes"])
     def delete(self, telescope_id):
         """
         ---

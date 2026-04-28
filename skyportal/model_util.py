@@ -28,8 +28,6 @@ all_acl_ids = [
     "System admin",
     "Post taxonomy",
     "Delete taxonomy",
-    "Delete instrument",
-    "Delete telescope",
     "Delete bulk photometry",
     "Classify",
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]

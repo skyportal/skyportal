@@ -4,21 +4,19 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 
 import CircularProgress from "@mui/material/CircularProgress";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
+import withRouter from "../withRouter";
+import * as telescopesAction from "../../ducks/telescopes";
+import * as weatherActions from "../../ducks/weather";
+import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 import AllocationTable from "../allocation/AllocationTable";
 import InstrumentTable from "../instrument/InstrumentTable";
 import SkyCam from "../SkyCam";
 import { WeatherView } from "../widget/WeatherWidget";
 import Spinner from "../Spinner";
-
-import withRouter from "../withRouter";
-
-import * as telescopesAction from "../../ducks/telescopes";
-import * as weatherActions from "../../ducks/weather";
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import Paper from "../Paper";
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -27,12 +25,9 @@ const useStyles = makeStyles((theme) => ({
   displayInlineBlock: {
     display: "inline-block",
   },
-  paper: {
-    padding: theme.spacing(2),
-  },
 }));
 
-const TelescopeSummary = ({ route }) => {
+const Telescope = ({ route }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const instrumentsState = useSelector((state) => state.instruments);
@@ -60,13 +55,7 @@ const TelescopeSummary = ({ route }) => {
     }
   }, [weather, telescope, dispatch]);
 
-  if (!telescope) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (!telescope) return <CircularProgress color="secondary" />;
 
   return (
     <div>
@@ -96,7 +85,7 @@ const TelescopeSummary = ({ route }) => {
           xl={6}
           className={classes.displayInlineBlock}
         >
-          <Paper elevation={1} className={classes.paper}>
+          <Paper>
             <Typography className={classes.title} color="textSecondary">
               Weather
             </Typography>
@@ -114,7 +103,7 @@ const TelescopeSummary = ({ route }) => {
               telescopeInfo={false}
             />
           ) : (
-            <Paper className={classes.paper}>
+            <Paper>
               <Typography className={classes.title} color="textSecondary">
                 No instruments available
               </Typography>
@@ -130,7 +119,7 @@ const TelescopeSummary = ({ route }) => {
               telescopeInfo={false}
             />
           ) : (
-            <Paper className={classes.paper}>
+            <Paper>
               <Typography className={classes.title} color="textSecondary">
                 No allocations available
               </Typography>
@@ -142,10 +131,10 @@ const TelescopeSummary = ({ route }) => {
   );
 };
 
-TelescopeSummary.propTypes = {
+Telescope.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default withRouter(TelescopeSummary);
+export default withRouter(Telescope);

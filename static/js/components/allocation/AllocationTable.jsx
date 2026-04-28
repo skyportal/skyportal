@@ -114,33 +114,37 @@ const AllocationTable = ({
   };
 
   const renderAllocationID = (dataIndex) => {
-    return allocations[dataIndex] ? allocations[dataIndex].id : "";
-  };
-
-  const renderInstrumentName = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
+    const allocation_id = allocations[dataIndex]?.id;
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {instrument ? instrument.name : ""}
-      </Link>
+      <Chip
+        label={allocation_id}
+        component={Link}
+        to={`/allocation/${allocation_id}`}
+        clickable
+        size="small"
+      />
     );
   };
 
-  const renderTelescopeName = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    const { instrument_id } = allocation;
+  const renderInstrumentName = (dataIndex) => {
+    const instrument_id = allocations[dataIndex]?.instrument_id;
     const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
 
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    return (
+      <Link to={`/instrument/${instrument_id}`}>{instrument?.name || ""}</Link>
+    );
+  };
+
+  const renderTelescopeNickname = (dataIndex) => {
+    const instrument_id = allocations[dataIndex]?.instrument_id;
+    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
 
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {telescope ? telescope.nickname : ""}
+      <Link to={`/telescope/${telescope?.id}`}>
+        {telescope?.nickname || ""}
       </Link>
     );
   };
@@ -254,18 +258,10 @@ const AllocationTable = ({
     const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
-        <IconButton
-          key={`edit_${allocation.id}`}
-          id={`edit_button_${allocation.id}`}
-          onClick={() => setAllocationToEdit(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToEdit(allocation.id)}>
           <EditIcon />
         </IconButton>
-        <IconButton
-          key={`delete_${allocation.id}`}
-          id={`delete_button_${allocation.id}`}
-          onClick={() => setAllocationToDelete(allocation.id)}
-        >
+        <IconButton onClick={() => setAllocationToDelete(allocation.id)}>
           <DeleteIcon />
         </IconButton>
       </div>
@@ -313,16 +309,18 @@ const AllocationTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentName,
+        setCellProps: () => ({ style: { textAlign: "center" } }),
       },
     },
     telescopeInfo && {
-      name: "telescope_name",
-      label: "Telescope Name",
+      name: "telescope_nickname",
+      label: "Telescope Nickname",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeName,
+        customBodyRenderLite: renderTelescopeNickname,
+        setCellProps: () => ({ style: { textAlign: "center" } }),
       },
     },
     {

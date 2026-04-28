@@ -31,7 +31,6 @@ import { JSONTree } from "react-json-tree";
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
 
 import * as SourceAction from "../../ducks/source";
@@ -178,13 +177,25 @@ SimpleMenu.propTypes = {
   }).isRequired,
 };
 
+function allocationTitle(allocation, instrumentList, telescopeList) {
+  const { instrument_id } = allocation;
+  const instrument = instrumentList?.find((i) => i.id === instrument_id);
+  const telescope = telescopeList?.find(
+    (t) => t.id === instrument?.telescope_id,
+  );
+
+  if (!instrument?.name || !telescope?.name) {
+    return <CircularProgress color="secondary" />;
+  }
+  return `${instrument?.name}/${telescope?.nickname}`;
+}
+
 const defaultNumPerPage = 10;
 
-const AllocationSummary = ({ route }) => {
+const Allocation = ({ route }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const groups = useSelector((state) => state.groups.all);
   const { allocation, totalMatches: totalMatchesAllocations } = useSelector(
     (state) => state.allocation,
   );
@@ -243,13 +254,11 @@ const AllocationSummary = ({ route }) => {
       <div>
         <Typography variant="h4" gutterBottom color="textSecondary">
           Plan for:{" "}
-          <b>
-            {allocationTitle(allocation, instrumentList, telescopeList, groups)}
-          </b>
+          <b>{allocationTitle(allocation, instrumentList, telescopeList)}</b>
         </Typography>
       </div>
       <div>
-        <AllocationSummaryTable
+        <AllocationRequestsTable
           allocation={allocation}
           totalMatches={totalMatchesAllocations}
           fetchParams={fetchAllocationParams}
@@ -268,7 +277,7 @@ const AllocationSummary = ({ route }) => {
   );
 };
 
-AllocationSummary.propTypes = {
+Allocation.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
@@ -444,7 +453,7 @@ AllocationObservationPlansTable.propTypes = {
   setFetchParams: PropTypes.func.isRequired,
 };
 
-const AllocationSummaryTable = ({
+const AllocationRequestsTable = ({
   allocation,
   totalMatches,
   fetchParams,
@@ -476,14 +485,9 @@ const AllocationSummaryTable = ({
     return null;
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     if (allocation === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
+      return <CircularProgress color="secondary" />;
     }
 
     const colSpan = rowData.length + 1;
@@ -527,7 +531,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
     const objid = requests[dataIndex].obj.id;
     return (
@@ -537,7 +540,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderRA = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -549,7 +551,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -561,7 +562,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const request = requests[dataIndex];
     return (
@@ -584,7 +584,6 @@ const AllocationSummaryTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderActionsButton = (dataIndex) => {
     const request = requests[dataIndex];
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
@@ -816,7 +815,7 @@ const AllocationSummaryTable = ({
   );
 };
 
-AllocationSummaryTable.propTypes = {
+AllocationRequestsTable.propTypes = {
   allocation: PropTypes.shape({
     id: PropTypes.number,
     requester: PropTypes.shape({
@@ -867,4 +866,4 @@ AllocationSummaryTable.propTypes = {
   setFetchParams: PropTypes.func.isRequired,
 };
 
-export default withRouter(AllocationSummary);
+export default withRouter(Allocation);

@@ -155,9 +155,9 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked, dataIndex) => {
-    const updatedProfiles = profiles.map((profile, i) => ({
+    const updatedProfiles = profiles.map((profile, index) => ({
       ...profile,
-      default: checked && i === dataIndex,
+      default: checked && index === dataIndex,
     }));
     dispatch(
       profileActions.updateUserPreferences({
@@ -280,15 +280,10 @@ const ScanningProfilesList = ({
   const renderActions = (dataIndex) => {
     return (
       <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
+        <IconButton onClick={() => editProfile(profiles[dataIndex])}>
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${dataIndex}`}
           id={`delete_button_${dataIndex}`}
           onClick={() => deleteProfile(dataIndex)}
         >

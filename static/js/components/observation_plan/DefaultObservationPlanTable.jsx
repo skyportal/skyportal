@@ -63,7 +63,6 @@ const DefaultObservationPlanTable = ({
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [setRowsPerPage] = useState(100);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
@@ -136,7 +135,6 @@ const DefaultObservationPlanTable = ({
     if (!deletePermission) return null;
     return (
       <Button
-        id="delete_button"
         onClick={() =>
           openDeleteDialog(default_observation_plans[dataIndex].id)
         }
@@ -150,7 +148,6 @@ const DefaultObservationPlanTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,

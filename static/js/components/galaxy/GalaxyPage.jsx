@@ -175,19 +175,18 @@ const GalaxyList = ({ catalogs, setCatalogs }) => {
       </div>
       <List component="nav" className={classes.galaxyList}>
         {catalogs?.map((catalog) => (
-          <ListItem button key={catalog} className={classes.galaxyListItem}>
+          <ListItem
+            button
+            key={catalog.catalog_name}
+            className={classes.galaxyListItem}
+          >
             <ListItemText
               primary={catalog.catalog_name}
               secondary={`${catalog.catalog_count} galaxies`}
               classes={textClasses}
             />
             {permission && (
-              <IconButton
-                key={catalog}
-                id="delete_button"
-                onClick={() => openDialog(catalog.catalog_name)}
-                disabled={!permission}
-              >
+              <IconButton onClick={() => openDialog(catalog.catalog_name)}>
                 <DeleteIcon />
               </IconButton>
             )}

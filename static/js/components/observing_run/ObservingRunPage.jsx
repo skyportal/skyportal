@@ -181,8 +181,6 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
   return (
     <div>
       <Button
-        key={`${run.id}-delete_button`}
-        id="delete_button"
         classes={{
           root: classes.observingRunDelete,
           disabled: classes.observingRunDeleteDisabled,

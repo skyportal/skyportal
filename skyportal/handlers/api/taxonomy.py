@@ -166,7 +166,10 @@ class TaxonomyHandler(BaseHandler):
 
         hierarchy_file = data.get("hierarchy_file", None)
         if hierarchy_file is not None:
-            data["hierarchy"] = yaml.safe_load(hierarchy_file)[0]
+            hierarchy_json = yaml.safe_load(hierarchy_file)
+            if isinstance(hierarchy_json, list):
+                hierarchy_json = hierarchy_json[0]
+            data["hierarchy"] = hierarchy_json
             del data["hierarchy_file"]
 
         with self.Session() as session:
@@ -249,7 +252,6 @@ class TaxonomyHandler(BaseHandler):
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
-
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
@@ -366,5 +368,4 @@ class TaxonomyHandler(BaseHandler):
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
-
             return self.success()

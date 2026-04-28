@@ -36,7 +36,7 @@ from ...models import (
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 log = make_log("api/instrument")
 env, cfg = load_env()
@@ -53,11 +53,127 @@ Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(["Manage instruments"])
+    @auth_or_token
+    @format_doc(ALLOWED_BANDPASSES=list(ALLOWED_BANDPASSES))
     def post(self):
-        # See bottom of this file for redoc docstring -- moved it there so that
-        # it could be made an f-string.
-
+        """
+        ---
+        summary: Add an instrument
+        description: Add a new instrument
+        tags:
+          - instruments
+        requestBody:
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: "#/components/schemas/InstrumentNoID"
+                - type: object
+                  properties:
+                    filters:
+                      type: array
+                      items:
+                        type: string
+                        enum: {ALLOWED_BANDPASSES}
+                      description: >-
+                        List of filters on the instrument. If the instrument
+                        has no filters (e.g., because it is a spectrograph),
+                        leave blank or pass the empty list.
+                      default: []
+                    sensitivity_data:
+                      type: object
+                      properties:
+                        filter_name:
+                          type: object
+                          enum: {ALLOWED_BANDPASSES}
+                          properties:
+                            limiting_magnitude:
+                              type: float
+                            magsys:
+                              type: string
+                            exposure_time:
+                              type: float
+                              description: |
+                                Exposure time in seconds.
+                      description: |
+                        List of filters and associated limiting magnitude and exposure time.
+                        Sensitivity_data filters must be a subset of the instrument filters.
+                        Limiting magnitude assumed to be AB magnitude.
+                    configuration_data:
+                      type: object
+                      properties:
+                        filter_name:
+                          type: object
+                          properties:
+                            filt_change_time:
+                              type: float
+                              description: |
+                                Time in seconds to change filters
+                            readout:
+                              type: float
+                              description: |
+                                Time in seconds to readout camera
+                            overhead_per_exposure:
+                              type: float
+                              description: |
+                                Non-readout overheads, e.g. instrument settling times, in seconds.
+                            slew_rate:
+                              type: float
+                              description: |
+                                Slew rate for the telescope in deg/s.
+                      description: |
+                        Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
+                    field_data:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, RA, and Dec for each field.
+                    field_region:
+                      type: str
+                      description: |
+                        Serialized version of a regions.Region describing
+                        the shape of the instrument field. Note: should
+                        only include field_region or field_fov_type.
+                    references:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of filter, and limiting magnitude for each reference.
+                    field_fov_type:
+                      type: str
+                      description: |
+                        Option for instrument field shape. Must be either
+                        circle or rectangle. Note: should only
+                        include field_region or field_fov_type.
+                    field_fov_attributes:
+                      type: list
+                      description: |
+                        Option for instrument field shape parameters.
+                        Single float radius in degrees in case of circle or
+                        list of two floats (height and width) in case of
+                        a rectangle.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New instrument ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         telescope_id = data.get("telescope_id")
         with self.Session() as session:
@@ -273,78 +389,6 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated DS9 region. Defaults to
                 false.
             - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Include fields within a given localization.
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: SingleInstrument
-            400:
-              content:
-                application/json:
-                  schema: Error
-        multiple:
-          summary: Get all instruments
-          description: Retrieve all instruments
-          tags:
-            - instruments
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: includeGeoJSONSummary
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                false.
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
-            - in: query
               name: ignoreCache
               nullable: true
               schema:
@@ -392,48 +436,71 @@ class InstrumentHandler(BaseHandler):
             200:
               content:
                 application/json:
+                  schema: SingleInstrument
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          summary: Get all instruments
+          description: Retrieve all instruments
+          tags:
+            - instruments
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Filter by name (exact match)
+            - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+          responses:
+            200:
+              content:
+                application/json:
                   schema: ArrayOfInstruments
             400:
               content:
                 application/json:
                   schema: Error
         """
-
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
         includeRegion = self.get_query_argument("includeRegion", False)
-
-        airmass_time = self.get_query_argument("airmassTime", None)
         ignore_cache = self.get_query_argument("ignoreCache", False)
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        airmass_time = self.get_query_argument("airmassTime", None)
 
         if airmass_time is None:
             if localization_dateobs is not None:
                 try:
                     airmass_time = Time(arrow.get(localization_dateobs).datetime)
-                except Exception as e:
+                except Exception:
                     return self.error(
                         f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                     )
         else:
             try:
                 airmass_time = Time(arrow.get(airmass_time).datetime)
-            except Exception as e:
+            except Exception:
                 return self.error(
-                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                    f"Invalid date format for airmass_time: '{airmass_time}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                 )
-
+        options = []
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         elif includeGeoJSONSummary:
             options = [
                 joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
             ]
-        else:
-            options = []
         if includeRegion:
             options.append(undefer(Instrument.region))
 
@@ -902,7 +969,7 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(["Delete instrument"])
+    @permissions(["Manage instruments"])
     def delete(self, instrument_id):
         """
         ---
@@ -948,126 +1015,6 @@ class InstrumentHandler(BaseHandler):
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
-
-
-InstrumentHandler.post.__doc__ = f"""
-        ---
-        summary: Add an instrument
-        description: Add a new instrument
-        tags:
-          - instruments
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                - $ref: "#/components/schemas/InstrumentNoID"
-                - type: object
-                  properties:
-                    filters:
-                      type: array
-                      items:
-                        type: string
-                        enum: {list(ALLOWED_BANDPASSES)}
-                      description: >-
-                        List of filters on the instrument. If the instrument
-                        has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list.
-                      default: []
-                    sensitivity_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          enum: {list(ALLOWED_BANDPASSES)}
-                          properties:
-                            limiting_magnitude:
-                              type: float
-                            magsys:
-                              type: string
-                            exposure_time:
-                              type: float
-                              description: |
-                                Exposure time in seconds.
-                      description: |
-                        List of filters and associated limiting magnitude and exposure time.
-                        Sensitivity_data filters must be a subset of the instrument filters.
-                        Limiting magnitude assumed to be AB magnitude.
-                    configuration_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          properties:
-                            filt_change_time:
-                              type: float
-                              description: |
-                                Time in seconds to change filters
-                            readout:
-                              type: float
-                              description: |
-                                Time in seconds to readout camera
-                            overhead_per_exposure:
-                              type: float
-                              description: |
-                                Non-readout overheads, e.g. instrument settling times, in seconds.
-                            slew_rate:
-                              type: float
-                              description: |
-                                Slew rate for the telescope in deg/s.
-                      description: |
-                        Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
-                    field_data:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of ID, RA, and Dec for each field.
-                    field_region:
-                      type: str
-                      description: |
-                        Serialized version of a regions.Region describing
-                        the shape of the instrument field. Note: should
-                        only include field_region or field_fov_type.
-                    references:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of filter, and limiting magnitude for each reference.
-                    field_fov_type:
-                      type: str
-                      description: |
-                        Option for instrument field shape. Must be either
-                        circle or rectangle. Note: should only
-                        include field_region or field_fov_type.
-                    field_fov_attributes:
-                      type: list
-                      description: |
-                        Option for instrument field shape parameters.
-                        Single float radius in degrees in case of circle or
-                        list of two floats (height and width) in case of
-                        a rectangle.
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New instrument ID
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
 
 
 def load_field_data(field_data):
@@ -1426,7 +1373,7 @@ def add_tiles(
 
 
 class InstrumentFieldHandler(BaseHandler):
-    @permissions(["Delete instrument"])
+    @permissions(["Manage instruments"])
     def delete(self, instrument_id):
         """
         ---

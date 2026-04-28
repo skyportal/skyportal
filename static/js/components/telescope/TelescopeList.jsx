@@ -1,6 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -27,14 +26,12 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 import TelescopeTable from "./TelescopeTable";
 import Button from "../Button";
+import Paper from "../Paper";
 
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
 const useStyles = makeStyles((theme) => ({
-  paperContent: {
-    padding: "0.5rem",
-  },
   mapContainer: {
     position: "relative",
     width: "100%",
@@ -83,7 +80,7 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
     gap: "0.5rem",
     borderBottom: `1px solid ${theme.palette.divider}`,
-    padding: "0.8rem 0",
+    padding: "1rem 0",
   },
   header: {
     display: "flex",
@@ -92,26 +89,15 @@ const useStyles = makeStyles((theme) => ({
     gap: "0.5rem",
     textAlign: "center",
   },
-  info: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5rem",
-    alignItems: "center",
-  },
   date: {
     fontSize: "1rem",
     color: "#666",
     display: "flex",
     flexDirection: "column",
   },
-  telescopeDelete: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-  },
 }));
 
-const TelescopePage = () => {
+const TelescopeList = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const classes = useStyles();
@@ -136,8 +122,8 @@ const TelescopePage = () => {
     }
   }, [currentTelescopes]);
 
-  const permission =
-    currentUser.permissions?.includes("Delete telescope") ||
+  const managePermission =
+    currentUser.permissions?.includes("Manage telescopes") ||
     currentUser.permissions?.includes("System admin");
 
   const deleteTelescope = () => {
@@ -192,14 +178,22 @@ const TelescopePage = () => {
   const SearchBar = () => (
     <Autocomplete
       color="primary"
-      id="telescopes-search-bar"
-      classes={{ root: classes.root, paper: classes.paper }}
-      onChange={(event, option) => {
-        handleChange(option);
-      }}
+      onChange={(event, option) => handleChange(option)}
       value={selectedTelescope}
       options={telescopeList}
-      getOptionLabel={(option) => option.name || ""}
+      getOptionLabel={(option) => `${option.name} (${option.nickname})`}
+      renderOption={(props, option) => {
+        return (
+          <div {...props}>
+            {option.name}
+            {option.nickname && (
+              <i style={{ color: "grey", marginLeft: "0.5rem" }}>
+                ({option.nickname})
+              </i>
+            )}
+          </div>
+        );
+      }}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -226,10 +220,9 @@ const TelescopePage = () => {
       sx={{ transform: "translateX(-50%)", zIndex: 10 }}
     >
       <Paper
-        elevation={3}
+        noPadding
         sx={{
           borderRadius: "999px",
-          px: 0,
           backgroundColor: "rgba(240,242,245,0.7)",
         }}
       >
@@ -250,21 +243,15 @@ const TelescopePage = () => {
             },
           }}
         >
-          <ToggleButton value={false}>Map</ToggleButton>
           <ToggleButton value={true}>Table</ToggleButton>
+          <ToggleButton value={false}>Map</ToggleButton>
         </ToggleButtonGroup>
       </Paper>
     </Box>
   );
 
   return (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
+    <Suspense fallback={<CircularProgress color="secondary" />}>
       <Grid container spacing={5} style={{ position: "relative" }}>
         {!isMobile && <DisplayMode />}
         <Grid
@@ -277,7 +264,7 @@ const TelescopePage = () => {
             },
           }}
         >
-          <Paper className={classes.paperContent}>
+          <Paper>
             <div className={classes.mapContainer}>
               <TelescopeMap key={mapKey} telescopes={telescopeList} />
               <div className={classes.overlayButtons}>
@@ -309,105 +296,108 @@ const TelescopePage = () => {
           {displayTelescopeTable || isMobile ? (
             <TelescopeTable
               telescopes={telescopeList}
-              deletePermission={permission}
+              managePermission={managePermission}
             />
           ) : (
             <Paper
-              className={classes.paperContent}
               style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
             >
               <SearchBar />
               <List>
-                {displayedTelescopes &&
-                  displayedTelescopes.map((telescope) => (
-                    <ListItem
-                      id={`${telescope.name}_info`}
-                      className={classes.listItem}
-                      key={`${telescope.id}_list_item`}
-                    >
-                      <div className={classes.header}>
-                        <span
-                          className={`${
-                            classes.baseIcon
-                          } ${getSpecificIconClasses(telescope)}`}
-                        />
-                        <Link to={`/telescope/${telescope.id}`} role="link">
-                          <Typography
-                            variant="h2"
-                            sx={{
-                              fontWeight: 400,
-                              fontSize: {
-                                xs: "1.2rem",
-                                sm: "1.5rem",
-                              },
-                            }}
-                          >
-                            {telescope.name} ({telescope.nickname})
-                          </Typography>
-                        </Link>
-                        {permission && (
-                          <div style={{ minWidth: "2.5rem" }}>
-                            <Button
-                              id="delete_button"
-                              classes={{ root: classes.telescopeDelete }}
-                              onClick={() => setTelescopeToDelete(telescope.id)}
-                            >
-                              <DeleteIcon />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                      {telescope.fixed_location && (
-                        <>
-                          <div className={classes.date}>
-                            {telescope.morning && (
-                              <i>
-                                Next Sunrise (Astronomical):{" "}
-                                {telescope.morning.slice(8, -4)} UTC
-                              </i>
-                            )}
-                            {telescope.evening && (
-                              <i>
-                                Next Sunset (Astronomical):{" "}
-                                {telescope.evening.slice(8, -4)} UTC
-                              </i>
-                            )}
-                          </div>
-                          <div>
-                            <b>Location:</b> {telescope.lat?.toFixed(4)},{" "}
-                            {telescope.lon?.toFixed(4)}
-                          </div>
-                          <div>
-                            <b>Elevation:</b> {telescope.elevation?.toFixed(1)}
-                          </div>
-                        </>
+                {displayedTelescopes?.map((telescope) => (
+                  <ListItem
+                    id={`${telescope.name}_info`}
+                    className={classes.listItem}
+                    key={`${telescope.id}_list_item`}
+                  >
+                    <div className={classes.header}>
+                      <Box
+                        sx={{ position: "absolute", left: 0, top: "1rem" }}
+                        className={`${
+                          classes.baseIcon
+                        } ${getSpecificIconClasses(telescope)}`}
+                      />
+                      <Link to={`/telescope/${telescope.id}`} role="link">
+                        <Typography
+                          variant="h2"
+                          sx={{
+                            fontWeight: 400,
+                            fontSize: {
+                              xs: "1.2rem",
+                              sm: "1.5rem",
+                            },
+                          }}
+                        >
+                          {telescope.name}
+                        </Typography>
+                        <Typography
+                          variant="subtitle1"
+                          sx={{ fontStyle: "italic", fontSize: "1.1rem" }}
+                        >
+                          {telescope.nickname}
+                        </Typography>
+                      </Link>
+                      {managePermission && (
+                        <Button
+                          color="error"
+                          style={{ minWidth: "2.5rem" }}
+                          sx={{ position: "absolute", right: 0, top: "0.7rem" }}
+                          classes={{ root: classes.telescopeDelete }}
+                          onClick={() => setTelescopeToDelete(telescope.id)}
+                        >
+                          <DeleteIcon />
+                        </Button>
                       )}
-                      <div>
-                        <b>Diameter:</b> {telescope.diameter?.toFixed(1)}
-                      </div>
-                      <div>
-                        <b>Robotic:</b>{" "}
-                        <Chip
-                          label={telescope.robotic ? "Yes" : "No"}
-                          size="small"
-                          color={telescope.robotic ? "primary" : "default"}
-                        />
-                      </div>
-                      <div>
-                        <b>Fixed Location:</b>{" "}
-                        <Chip
-                          label={telescope.fixed_location ? "Yes" : "No"}
-                          size="small"
-                          color={
-                            telescope.fixed_location ? "primary" : "default"
-                          }
-                        />
-                      </div>
-                      {telescope.skycam_link && (
-                        <a href={telescope.skycam_link}>skycam link</a>
-                      )}
-                    </ListItem>
-                  ))}
+                    </div>
+                    {telescope.fixed_location && (
+                      <>
+                        <div className={classes.date}>
+                          {telescope.morning && (
+                            <i>
+                              Next Sunrise (Astronomical):{" "}
+                              {telescope.morning.slice(8, -4)} UTC
+                            </i>
+                          )}
+                          {telescope.evening && (
+                            <i>
+                              Next Sunset (Astronomical):{" "}
+                              {telescope.evening.slice(8, -4)} UTC
+                            </i>
+                          )}
+                        </div>
+                        <div>
+                          <b>Location:</b> {telescope.lat?.toFixed(4)},{" "}
+                          {telescope.lon?.toFixed(4)}
+                        </div>
+                        <div>
+                          <b>Elevation:</b> {telescope.elevation?.toFixed(1)}
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <b>Diameter:</b> {telescope.diameter?.toFixed(1)}
+                    </div>
+                    <div>
+                      <b>Robotic:</b>{" "}
+                      <Chip
+                        label={telescope.robotic ? "Yes" : "No"}
+                        size="small"
+                        color={telescope.robotic ? "primary" : "default"}
+                      />
+                    </div>
+                    <div>
+                      <b>Fixed Location:</b>{" "}
+                      <Chip
+                        label={telescope.fixed_location ? "Yes" : "No"}
+                        size="small"
+                        color={telescope.fixed_location ? "primary" : "default"}
+                      />
+                    </div>
+                    {telescope.skycam_link && (
+                      <a href={telescope.skycam_link}>skycam link</a>
+                    )}
+                  </ListItem>
+                ))}
                 {loading && (
                   <div style={{ textAlign: "center", paddingTop: "1rem" }}>
                     <CircularProgress size={30} />
@@ -428,4 +418,4 @@ const TelescopePage = () => {
   );
 };
 
-export default TelescopePage;
+export default TelescopeList;

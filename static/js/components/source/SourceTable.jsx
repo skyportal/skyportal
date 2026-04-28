@@ -70,15 +70,6 @@ const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
-  tableGrid: {
-    width: "100%",
-  },
-  objId: {
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
-  },
   filterAlert: {
     marginTop: "1rem",
     display: "flex",
@@ -518,7 +509,6 @@ const RenderShowLabelling = ({ source }) => {
                   labelledSource(event.target.checked);
                 }}
                 checked={checked}
-                data-testid={`labellingCheckBox${source.id}`}
               />
             )}
             name={`labellingCheckBox${source.id}`}
@@ -690,6 +680,8 @@ const SourceTable = ({
     }
   }, [searchBy]);
 
+  const renderDateSaved = (source) => getDate(source)?.substring(0, 19);
+
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
@@ -760,7 +752,6 @@ const SourceTable = ({
 
   const [openedOrigins, setOpenedOrigins] = useState({});
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
@@ -939,18 +930,16 @@ const SourceTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
-    const objid = sources[dataIndex].id;
+    const objId = sources[dataIndex].id;
     return (
       <Link
-        to={`/source/${objid}`}
-        key={`${objid}_objid`}
-        data-testid={`${objid}`}
+        to={`/source/${objId}`}
+        data-testid={`${objId}`}
         target="_blank"
-        rel="noopener noreferrer"
+        style={{ color: theme.palette.primary.main }}
       >
-        <span className={classes.objId}>{objid}</span>
+        {objId}
       </Link>
     );
   };
@@ -970,81 +959,29 @@ const SourceTable = ({
           rel="noopener noreferrer"
           style={{ whiteSpace: "nowrap" }}
         >
-          {`${source.tns_name} `}
+          {source.tns_name}
         </a>
       );
     }
     return null;
   };
 
-  const renderFavoritesStar = (dataIndex) => {
-    const objid = sources[dataIndex].id;
-    return <FavoritesButton sourceID={objid} />;
-  };
-
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
-
-    if (alias) {
-      const alias_str = Array.isArray(alias)
-        ? alias.map((name) => <div key={name}> {name} </div>)
-        : alias;
-
-      return (
-        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-          {alias_str}
-        </Link>
-      );
-    }
-    return null;
-  };
-
-  const renderOrigin = (dataIndex) => {
-    const { id: objid, origin } = sources[dataIndex];
+    if (!alias) return null;
 
     return (
-      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
-        {origin}
+      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
+        {Array.isArray(alias)
+          ? alias.map((name) => <div key={name}>{name}</div>)
+          : alias}
       </Link>
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-
-  const renderRA = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
-  };
-
-  const renderRASex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
-  };
-
-  const renderDecSex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
-  };
-
-  const renderGalLon = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
-  };
-
-  const renderGalLat = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
-  };
-
-  const renderHost = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_host`}>{source.host?.name}</div>;
+  const renderOrigin = (dataIndex) => {
+    const { id: objId, origin } = sources[dataIndex];
+    return <Link to={`/source/${objId}`}>{origin}</Link>;
   };
 
   const renderHostOffset = (dataIndex) => {
@@ -1058,57 +995,30 @@ const SourceTable = ({
 
   const renderClassification = (dataIndex) => {
     const source = sources[dataIndex];
-
     return (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <RenderShowClassification source={source} />
-        </div>
+      <Suspense fallback={<CircularProgress color="secondary" />}>
+        <RenderShowClassification source={source} />
       </Suspense>
     );
   };
 
   const renderPhotStats = (dataIndex) => {
     const source = sources[dataIndex];
-
     return (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <DisplayPhotStats
-            photstats={source.photstats[0]}
-            display_header={false}
-          />
-        </div>
+      <Suspense fallback={<CircularProgress color="secondary" />}>
+        <DisplayPhotStats
+          photstats={source.photstats[0]}
+          display_header={false}
+        />
       </Suspense>
     );
   };
 
   const renderLabelling = (dataIndex) => {
     const source = sources[dataIndex];
-
     return (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <RenderShowLabelling source={source} />
-        </div>
+      <Suspense fallback={<CircularProgress color="secondary" />}>
+        <RenderShowLabelling source={source} />
       </Suspense>
     );
   };
@@ -1117,7 +1027,6 @@ const SourceTable = ({
   const getGroups = (source) => source.groups?.filter((group) => group.active);
   const navigate = useNavigate();
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -1147,17 +1056,6 @@ const SourceTable = ({
     return dates[dates.length - 1];
   };
 
-  const renderDateSaved = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
-      <div key={`${source.id}_date_saved`}>
-        {getDate(source)?.substring(0, 19)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -1169,7 +1067,6 @@ const SourceTable = ({
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderSaveIgnore = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -1188,10 +1085,7 @@ const SourceTable = ({
         <Button
           secondary
           size="small"
-          onClick={() => {
-            handleIgnoreSource(source.id);
-          }}
-          data-testid={`declineRequestButton_${source.id}`}
+          onClick={() => handleIgnoreSource(source.id)}
         >
           Ignore
         </Button>
@@ -1200,47 +1094,29 @@ const SourceTable = ({
   };
 
   const renderPeakMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    const photstats = source.photstats[0];
-    if (!photstats) {
-      return <div>No photometry</div>;
-    }
-    return photstats.peak_mag_global ? (
+    const photstats = sources[dataIndex].photstats[0];
+    if (!photstats?.peak_mag_global) return "No photometry";
+    return (
       <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
-        <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+        {photstats.peak_mag_global.toFixed(4)}
       </Tooltip>
-    ) : (
-      <div>No photometry</div>
     );
   };
 
   const renderLatestMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    const photstats = source.photstats[0];
-    if (!photstats) {
-      return <div>No photometry</div>;
-    }
-    return photstats.last_detected_mag ? (
-      <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
-        <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
+    const photstat = sources[dataIndex]?.photstats?.[0];
+    if (!photstat?.last_detected_mag) return "No photometry";
+    return (
+      <Tooltip title={mjd_to_utc(photstat.last_detected_mjd)}>
+        {photstat.last_detected_mag.toFixed(4)}
       </Tooltip>
-    ) : (
-      <div>No photometry</div>
     );
-  };
-
-  const renderMPCName = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
   };
 
   const renderTags = (dataIndex) => {
     const source = sources[dataIndex];
     const tags = source.tags || [];
-
-    if (tags.length === 0) {
-      return null;
-    }
+    if (!tags.length) return null;
 
     const tagsWithColors = tags.map((tag) => {
       const tagOption = tagOptions.find(
@@ -1253,7 +1129,7 @@ const SourceTable = ({
     });
 
     return (
-      <div key={`${source.id}_tags`} className={classes.groupChips}>
+      <div className={classes.groupChips}>
         {tagsWithColors.map((tag) => (
           <Chip
             key={tag.id}
@@ -1282,26 +1158,16 @@ const SourceTable = ({
     return usernames[usernames.length - 1];
   };
 
-  const renderSavedBy = (dataIndex) => {
-    const source = sources[dataIndex];
-    return getSavedBy(source);
-  };
-
   const renderGcnStatus = (dataIndex) => {
     const source = sources[dataIndex];
-    let statusIcon = null;
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+    const sourceGcns = sourcesingcn.filter((s) => s.obj_id === source.id);
+    let statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+    if (!sourceGcns.length) {
       statusIcon = <PriorityHigh size="small" color="primary" />;
-    } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
-    ) {
+    } else if (sourceGcns[0].confirmed) {
       statusIcon = <CheckIcon size="small" color="green" />;
-    } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === false
-    ) {
+    } else if (sourceGcns[0].confirmed === false) {
       statusIcon = <ClearIcon size="small" color="secondary" />;
-    } else {
-      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
     }
 
     return (
@@ -1312,7 +1178,6 @@ const SourceTable = ({
           alignItems: "center",
           justifyContent: "center",
         }}
-        name={`${source.id}_gcn_status`}
       >
         {statusIcon}
         <ConfirmSourceInGCN
@@ -1330,46 +1195,14 @@ const SourceTable = ({
 
   const renderGcnStatusExplanation = (dataIndex) => {
     const source = sources[dataIndex];
-    let statusExplanation = null;
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusExplanation = "";
-    } else {
-      statusExplanation = sourcesingcn.filter((s) => s.obj_id === source.id)[0]
-        .explanation;
-    }
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        name={`${source.id}_gcn_status_explanation`}
-      >
-        {statusExplanation}
-      </div>
-    );
+    const gcn = sourcesingcn.find((s) => s.obj_id === source.id);
+    return gcn?.explanation;
   };
 
   const renderGcnNotes = (dataIndex) => {
     const source = sources[dataIndex];
-    let notes = "";
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length) {
-      notes = sourcesingcn.filter((s) => s.obj_id === source.id)[0].notes;
-    }
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {notes}
-      </div>
-    );
+    const gcn = sourcesingcn.find((s) => s.obj_id === source.id);
+    return gcn?.notes;
   };
 
   const handleSearchChange = (searchText) => {
@@ -1460,10 +1293,6 @@ const SourceTable = ({
     }
   };
 
-  const handleClose = () => {
-    setOpenNew(false);
-  };
-
   const customFilterDisplay = () =>
     filterFormSubmitted ? (
       <div className={classes.filterAlert}>
@@ -1481,9 +1310,7 @@ const SourceTable = ({
         filter: true,
         filterType: "custom",
         filterList: tableFilterList,
-        filterOptions: {
-          display: () => <></>,
-        },
+        filterOptions: { display: () => <></> },
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
@@ -1528,7 +1355,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("RA (deg)"),
-        customBodyRenderLite: renderRA,
+        customBodyRenderLite: (dataIndex) => sources[dataIndex]?.ra.toFixed(6),
       },
     },
     {
@@ -1539,7 +1366,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (deg)"),
-        customBodyRenderLite: renderDec,
+        customBodyRenderLite: (dataIndex) => sources[dataIndex]?.dec.toFixed(6),
       },
     },
     {
@@ -1550,7 +1377,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("RA (hh:mm:ss)"),
-        customBodyRenderLite: renderRASex,
+        customBodyRenderLite: (dataIndex) =>
+          ra_to_hours(sources[dataIndex]?.ra),
       },
     },
     {
@@ -1561,7 +1389,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (dd:mm:ss)"),
-        customBodyRenderLite: renderDecSex,
+        customBodyRenderLite: (dataIndex) =>
+          dec_to_dms(sources[dataIndex]?.dec),
       },
     },
     {
@@ -1572,7 +1401,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("l (deg)"),
-        customBodyRenderLite: renderGalLon,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex]?.gal_lon.toFixed(6),
       },
     },
     {
@@ -1583,7 +1413,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("b (deg)"),
-        customBodyRenderLite: renderGalLat,
+        customBodyRenderLite: (dataIndex) =>
+          sources[dataIndex]?.gal_lat.toFixed(6),
       },
     },
     {
@@ -1627,7 +1458,7 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Host"),
-        customBodyRenderLite: renderHost,
+        customBodyRenderLite: (dataIndex) => sources[dataIndex]?.host?.name,
       },
     },
     {
@@ -1682,7 +1513,8 @@ const SourceTable = ({
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Saved at"),
-        customBodyRenderLite: renderDateSaved,
+        customBodyRenderLite: (dataIndex) =>
+          renderDateSaved(sources[dataIndex]),
       },
     },
     {
@@ -1694,7 +1526,7 @@ const SourceTable = ({
         display: displayedColumns.includes(
           groupID ? "Saved To Group By" : "Last Saved By",
         ),
-        customBodyRenderLite: renderSavedBy,
+        customBodyRenderLite: (dataIndex) => getSavedBy(sources[dataIndex]),
       },
     },
     {
@@ -1716,11 +1548,11 @@ const SourceTable = ({
       },
     },
     {
-      name: "MPC Name",
+      name: "mpc_name",
+      label: "MPC Name",
       options: {
         filter: false,
         sort: false,
-        customBodyRenderLite: renderMPCName,
         display: displayedColumns.includes("MPC Name"),
       },
     },
@@ -1729,7 +1561,9 @@ const SourceTable = ({
       label: " ",
       options: {
         display: displayedColumns.includes("Favorites"),
-        customBodyRenderLite: renderFavoritesStar,
+        customBodyRenderLite: (dataIndex) => (
+          <FavoritesButton sourceID={sources[dataIndex].id} />
+        ),
         setCellProps: () => ({ style: { maxWidth: "5rem" } }),
       },
     },
@@ -1787,6 +1621,7 @@ const SourceTable = ({
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
     sort: true,
+    elevation: 1,
     onTableChange: handleTableChange,
     serverSide: true,
     rowsPerPage: numPerPage,
@@ -1808,21 +1643,14 @@ const SourceTable = ({
           label="Search by"
           variant="standard"
           value={searchBy}
-          onChange={(event) => {
-            setSearchBy(event.target.value);
-          }}
+          onChange={(e) => setSearchBy(e.target.value)}
           style={{ marginLeft: "10px" }}
           size="small"
         >
           <MenuItem value="name">ID/IAU</MenuItem>
           <MenuItem value="comment">Comment</MenuItem>
         </Select>
-        <IconButton
-          name="new_source"
-          onClick={() => {
-            setOpenNew(true);
-          }}
-        >
+        <IconButton name="new_source" onClick={() => setOpenNew(true)}>
           <AddIcon />
         </IconButton>
       </>
@@ -1887,9 +1715,6 @@ const SourceTable = ({
         });
         return groups.join(";");
       };
-
-      const renderDownloadDateSaved = (source) =>
-        getDate(source)?.substring(0, 19);
 
       const renderDownloadAlias = (source) => {
         const alias = source?.alias;
@@ -1995,7 +1820,7 @@ const SourceTable = ({
               renderDownloadAnnotationKey(x),
               renderDownloadAnnotationValue(x),
               renderDownloadGroups(x),
-              renderDownloadDateSaved(x),
+              renderDateSaved(x),
               renderDownloadAlias(x),
               x.origin,
               renderDownloadTNSName(x),
@@ -2044,41 +1869,23 @@ const SourceTable = ({
 
   return (
     <div className={classes.source} data-testid={`source_table_${title}`}>
-      <div>
-        <Grid
-          container
-          direction="column"
-          alignItems="flex-start"
-          justifyContent="flex-start"
-          spacing={3}
-        >
-          {queryInProgress ? (
-            <Grid item>
-              <CircularProgress />
-            </Grid>
-          ) : (
-            <Grid item className={classes.tableGrid}>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title={title}
-                  columns={columns}
-                  data={sources}
-                  options={options}
-                />
-              </ThemeProvider>
-            </Grid>
-          )}
-        </Grid>
-      </div>
-      <div>
-        {openNew && (
-          <Dialog open={openNew} onClose={handleClose} maxWidth="md">
-            <DialogContent dividers>
-              <NewSource classes={classes} />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
+      {queryInProgress ? (
+        <CircularProgress />
+      ) : (
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title={title}
+            columns={columns}
+            data={sources}
+            options={options}
+          />
+        </ThemeProvider>
+      )}
+      <Dialog open={openNew} onClose={() => setOpenNew(false)} maxWidth="md">
+        <DialogContent dividers>
+          <NewSource />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
