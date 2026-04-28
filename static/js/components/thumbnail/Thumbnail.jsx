@@ -71,7 +71,7 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
 
 // This function is used when the "outside_survey.png" is store in the DB.
 const defaultState = (src) =>
-  src.includes("outside_survey") ? "Outside Survey Area" : "loading";
+  src?.includes("outside_survey") ? "Outside Survey Area" : "loading";
 
 const Thumbnail = ({
   ra,
