@@ -1021,7 +1021,7 @@ const SourceContent = ({ source }) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              !currentUser?.preferences?.hideSourceSummary && (
+              currentUser?.preferences?.hideSourceSummary !== true && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
