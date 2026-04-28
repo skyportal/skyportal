@@ -83,10 +83,10 @@ const useStyles = makeStyles((theme) => ({
     gridAutoFlow: "row",
   },
   backToTop: {
-    marginTop: "1rem",
+    position: "absolute",
+    bottom: 0,
+    right: 0,
     display: "flex",
-    justifyContent: "flex-end",
-    minWidth: "100%",
     gap: "1rem",
   },
   groupsList: {
@@ -855,7 +855,7 @@ const CandidateList = () => {
   };
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
@@ -926,9 +926,7 @@ const CandidateList = () => {
       <div className={classes.backToTop}>
         <Button
           primary
-          onClick={() => {
-            fetchPage(-1);
-          }}
+          onClick={() => fetchPage(-1)}
           size="small"
           disabled={pageNumber === 1 || queryInProgress}
         >
@@ -937,9 +935,7 @@ const CandidateList = () => {
         </Button>
         <Button
           primary
-          onClick={() => {
-            fetchPage(1);
-          }}
+          onClick={() => fetchPage(1)}
           size="small"
           disabled={pageNumber * numPerPage >= totalMatches || queryInProgress}
         >
@@ -948,9 +944,7 @@ const CandidateList = () => {
         </Button>
         <Button
           primary
-          onClick={() => {
-            window.scrollTo({ top: 0 });
-          }}
+          onClick={() => window.scrollTo({ top: 0 })}
           size="small"
         >
           Back to top <ArrowUpward />
