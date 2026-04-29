@@ -248,7 +248,6 @@ const SpatialCatalogList = ({ catalogs, deletePermission }) => {
               classes={textClasses}
             />
             <Button
-              key={catalog}
               id="delete_button"
               classes={{
                 root: classes.catalogDelete,

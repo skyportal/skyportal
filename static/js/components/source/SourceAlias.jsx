@@ -127,7 +127,6 @@ const SourceAlias = ({ source }) => {
                 size="small"
                 onClick={() => handleDelete(a)}
                 className={classes.deleteButton}
-                data-testid={`deleteAlias-${a}`}
               >
                 <DeleteIcon fontSize="small" />
               </IconButton>

@@ -216,7 +216,6 @@ const TaxonomyTable = ({
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${taxonomy.id}`}
           id={`delete_button_${taxonomy.id}`}
           onClick={() => openDeleteDialog(taxonomy.id)}
           disabled={!deletePermission}

@@ -183,7 +183,6 @@ const GalaxyList = ({ catalogs, setCatalogs }) => {
             />
             {permission && (
               <IconButton
-                key={catalog}
                 id="delete_button"
                 onClick={() => openDialog(catalog.catalog_name)}
                 disabled={!permission}
