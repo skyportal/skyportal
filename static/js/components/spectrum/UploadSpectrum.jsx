@@ -750,7 +750,7 @@ const UploadSpectrumForm = ({ route }) => {
       </Grid>
       {parsed && (
         <Grid item md={8} sm={12}>
-          <Paper>
+          <Paper sx={{ position: "sticky", top: 74 }}>
             <Box
               sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
             >
