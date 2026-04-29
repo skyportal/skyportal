@@ -62,7 +62,9 @@ class SharingHandler(BaseHandler):
 
         with self.Session() as session:
             valid_groups = session.scalars(
-                Group.select(self.associated_user_object).where(Group.id.in_(group_ids))
+                Group.select(session.user_or_token)
+                .where(Group.id.in_(group_ids))
+                .distinct()
             ).all()
             valid_group_ids = [g.id for g in valid_groups]
             invalid_group_ids = [gid for gid in group_ids if gid not in valid_group_ids]
@@ -75,9 +77,8 @@ class SharingHandler(BaseHandler):
             spec_obj_internal_keys = []
 
             if phot_ids:
-                # valid_phot = Photometry.query.filter(Photometry.id.in_(phot_ids))
                 valid_phot = session.scalars(
-                    Photometry.select(self.associated_user_object).where(
+                    Photometry.select(session.user_or_token).where(
                         Photometry.id.in_(phot_ids)
                     )
                 ).all()
@@ -90,7 +91,6 @@ class SharingHandler(BaseHandler):
                     return self.error(f"Invalid photometry IDs: {invalid_phot_ids}.")
 
                 for phot in valid_phot:
-                    # Ensure user has access to data being shared
                     if (
                         phot.owner_id != self.associated_user_object.id
                         and "System admin"
@@ -99,14 +99,15 @@ class SharingHandler(BaseHandler):
                         return self.error(
                             f"Cannot share photometry id {phot.id}: you are not the owner of this point."
                         )
+                    existing_group_ids = {g.id for g in phot.groups}
                     for group in groups:
-                        phot.groups.append(group)
-                    # Grab obj_id for use in websocket message below
+                        if group.id not in existing_group_ids:
+                            phot.groups.append(group)
                     phot_obj_ids.append(phot.obj_id)
 
             if spec_ids:
                 valid_spec = session.scalars(
-                    Spectrum.select(self.associated_user_object).where(
+                    Spectrum.select(session.user_or_token, mode="update").where(
                         Spectrum.id.in_(spec_ids)
                     )
                 ).all()
@@ -116,21 +117,15 @@ class SharingHandler(BaseHandler):
                 ]
 
                 if len(invalid_spec_ids) > 0:
-                    return self.error(f"Invalid spectrum IDs: {invalid_spec_ids}.")
+                    return self.error(
+                        f"Cannot share spectrum IDs {invalid_spec_ids}: not found or you are not the owner."
+                    )
 
                 for spec in valid_spec:
-                    # Ensure user has access to data being shared
-                    if (
-                        spec.owner_id != self.associated_user_object.id
-                        and "System admin"
-                        not in self.associated_user_object.permissions
-                    ):
-                        return self.error(
-                            f"Cannot share spectrum id {spec.id}: you are not the owner of this spectrum."
-                        )
+                    existing_group_ids = {g.id for g in spec.groups}
                     for group in groups:
-                        spec.groups.append(group)
-                    # Grab obj_id for use in websocket message below
+                        if group.id not in existing_group_ids:
+                            spec.groups.append(group)
                     spec_obj_internal_keys.append(spec.obj.internal_key)
 
             session.commit()
@@ -138,15 +133,16 @@ class SharingHandler(BaseHandler):
             phot_obj_ids = set(phot_obj_ids)
             spec_obj_internal_keys = set(spec_obj_internal_keys)
 
-        for obj_id in phot_obj_ids:
-            self.push(
-                action="skyportal/REFRESH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
-            )
+            for obj_id in phot_obj_ids:
+                self.push(
+                    action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                    payload={"obj_id": obj_id},
+                )
 
-        for obj_internal_key in spec_obj_internal_keys:
-            self.push(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": obj_internal_key},
-            )
+            for obj_internal_key in spec_obj_internal_keys:
+                self.push(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj_internal_key},
+                )
 
-        return self.success()
+            return self.success()

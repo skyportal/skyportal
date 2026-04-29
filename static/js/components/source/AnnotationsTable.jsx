@@ -193,7 +193,6 @@ const AnnotationsTable = ({
               }}
               size="small"
               type="submit"
-              data-testid={`deleteAllocation_${annotation.id}`}
             >
               <DeleteIcon />
             </IconButton>

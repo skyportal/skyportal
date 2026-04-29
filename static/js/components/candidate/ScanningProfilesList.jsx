@@ -288,7 +288,6 @@ const ScanningProfilesList = ({
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${dataIndex}`}
           id={`delete_button_${dataIndex}`}
           onClick={() => deleteProfile(dataIndex)}
         >

@@ -244,7 +244,6 @@ const InstrumentTable = ({
     return (
       <div className={classes.instrumentManage}>
         <Button
-          key={`edit_${instrument.id}`}
           id={`edit_button_${instrument.id}`}
           onClick={() => openEditDialog(instrument.id)}
           disabled={!deletePermission}
@@ -252,7 +251,6 @@ const InstrumentTable = ({
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${instrument.id}`}
           id={`delete_button_${instrument.id}`}
           onClick={() => openDeleteDialog(instrument.id)}
           disabled={!deletePermission}

@@ -549,7 +549,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     )
 
                 if groups:
-                    spectrum.groups = spectrum.groups + groups
+                    existing_group_ids = {g.id for g in spectrum.groups}
+                    new_groups = [g for g in groups if g.id not in existing_group_ids]
+                    if new_groups:
+                        spectrum.groups = spectrum.groups + new_groups
 
             for k in data:
                 setattr(spectrum, k, data[k])

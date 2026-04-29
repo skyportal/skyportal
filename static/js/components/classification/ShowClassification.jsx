@@ -163,7 +163,6 @@ const ClassificationRow = ({ classifications, fontSize }) => {
             </div>
             <div>
               <Button
-                key={classification.id}
                 id="delete_classification"
                 classes={{
                   root: classes.classificationDelete,

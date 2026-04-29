@@ -12,6 +12,7 @@ import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
@@ -119,7 +120,7 @@ const UploadPhotometryForm = () => {
     if (!dataRows.every((row) => row.length === headerLength)) {
       return "Invalid input: All data rows must have the same number of columns as header row";
     }
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const col of ["mjd", "filter", "magsys"]) {
       if (!header.includes(col)) {
         return `Invalid input: Missing required column: ${col}`;
@@ -252,6 +253,17 @@ const UploadPhotometryForm = () => {
 
   return (
     <div>
+      <Link
+        to={`/source/${id}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          marginBottom: "0.5rem",
+        }}
+      >
+        <ArrowBackIcon fontSize="small" /> Back to source
+      </Link>
       <Typography variant="h5">
         Upload photometry for source&nbsp;
         <Link to={`/source/${id}`} role="link">

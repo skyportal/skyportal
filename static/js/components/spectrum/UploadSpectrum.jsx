@@ -11,6 +11,7 @@ import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
 import dayjs from "dayjs";
@@ -668,6 +669,17 @@ const UploadSpectrumForm = ({ route }) => {
     <Grid container spacing={3}>
       <Grid item md={4} sm={12}>
         <Paper sx={{ position: "relative" }}>
+          <Link
+            to={`/source/${route.id}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <ArrowBackIcon fontSize="small" /> Back to source
+          </Link>
           <Typography variant="h6">
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
@@ -738,7 +750,7 @@ const UploadSpectrumForm = ({ route }) => {
       </Grid>
       {parsed && (
         <Grid item md={8} sm={12}>
-          <Paper>
+          <Paper sx={{ position: "sticky", top: 74 }}>
             <Box
               sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
             >

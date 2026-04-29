@@ -231,7 +231,6 @@ const DefaultSurveyEfficiencyTable = ({
     return (
       <div>
         <Button
-          key={default_survey_efficiency.id}
           id="delete_button"
           classes={{
             root: classes.defaultSurveyEfficiencyDelete,

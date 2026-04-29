@@ -126,18 +126,10 @@ const ReleasesList = () => {
                   </Button>
                   {manageSourcesAccess && release.group_ids.length > 0 && (
                     <>
-                      <Button
-                        onClick={() => {
-                          handleViewEdit(release);
-                        }}
-                      >
+                      <Button onClick={() => handleViewEdit(release)}>
                         <EditIcon />
                       </Button>
-                      <Button
-                        onClick={() => {
-                          deleteRelease(release.id);
-                        }}
-                      >
+                      <Button onClick={() => deleteRelease(release.id)}>
                         <DeleteIcon />
                       </Button>
                     </>
