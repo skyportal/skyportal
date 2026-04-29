@@ -2,11 +2,11 @@ import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { Controller, useForm } from "react-hook-form";
 import MUIDataTable from "mui-datatables";
 import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
-import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -21,6 +21,7 @@ import Papa from "papaparse";
 import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -34,8 +35,8 @@ import withRouter from "../withRouter";
 
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
-import { deleteSpectrum } from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
+import { deleteSpectrum } from "../../ducks/spectra";
 import { useSourceStyles } from "./Source";
 
 import SpectraPlot from "../plot/SpectraPlot";
@@ -329,40 +330,28 @@ const ShareDataForm = ({ route }) => {
       )
     : [];
 
-  const makeRenderSingleUser = (key) => {
-    const RenderSingleUser = (dataIndex) => {
-      const user = specRows[dataIndex][key];
-      if (user) {
-        return <UserContactLink user={user} />;
-      }
-      return <div />;
-    };
-    return RenderSingleUser;
+  const makeRenderSingleUser = (dataIndex, key) => {
+    const user = specRows[dataIndex][key];
+    return user && <UserContactLink user={user} />;
   };
 
   const renderMultipleUsers = (users) => {
-    if (users) {
-      return users.map((user) => <UserContactLink user={user} key={user.id} />);
-    }
-    return <div />;
+    return (
+      users &&
+      users.map((user) => <UserContactLink user={user} key={user.id} />)
+    );
   };
 
   const renderPIs = (dataIndex) => {
     const externalPI = specRows[dataIndex]?.external_pi;
     const users = specRows[dataIndex]?.pis;
-    if (externalPI) {
-      return <div>{externalPI}</div>;
-    }
-    return renderMultipleUsers(users);
+    return externalPI || renderMultipleUsers(users);
   };
 
   const renderReducers = (dataIndex) => {
     const externalReducer = specRows[dataIndex]?.external_reducer;
     const users = specRows[dataIndex]?.reducers;
-    if (externalReducer) {
-      return <div>{externalReducer}</div>;
-    }
-    return renderMultipleUsers(users);
+    return externalReducer || renderMultipleUsers(users);
   };
 
   const renderReducerContacts = (dataIndex) => {
@@ -376,10 +365,7 @@ const ShareDataForm = ({ route }) => {
   const renderObservers = (dataIndex) => {
     const externalObserver = specRows[dataIndex]?.external_observer;
     const users = specRows[dataIndex]?.observers;
-    if (externalObserver) {
-      return <div>{externalObserver}</div>;
-    }
-    return renderMultipleUsers(users);
+    return externalObserver || renderMultipleUsers(users);
   };
 
   const renderObserverContacts = (dataIndex) => {
@@ -413,11 +399,7 @@ const ShareDataForm = ({ route }) => {
               spectrum again from scratch.
             </div>
             <div>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                }}
-              >
+              <Button onClick={() => setOpen(false)}>
                 No, do not delete the spectrum.
               </Button>
               <Button
@@ -435,13 +417,7 @@ const ShareDataForm = ({ route }) => {
             </div>
           </DialogContent>
         </Dialog>
-        <IconButton
-          onClick={() => {
-            setOpen(true);
-          }}
-          data-testid={`delete-spectrum-button-${specid}`}
-          size="large"
-        >
+        <IconButton onClick={() => setOpen(true)} size="large">
           <DeleteForeverIcon />
         </IconButton>
       </div>
@@ -476,7 +452,8 @@ const ShareDataForm = ({ route }) => {
     const specid = specRows[dataIndex].id;
     const spectrum = sourceSpectra.find((spec) => spec.id === specid);
     const [open, setOpen] = useState(false);
-    return spectrum.altdata ? (
+    if (!spectrum.altdata) return null;
+    return (
       <>
         <Dialog
           open={open}
@@ -494,19 +471,10 @@ const ShareDataForm = ({ route }) => {
             </div>
           </DialogContent>
         </Dialog>
-        <Button
-          secondary
-          onClick={() => {
-            setOpen(true);
-          }}
-          data-testid={`altdata-spectrum-button-${specid}`}
-          size="small"
-        >
+        <Button secondary onClick={() => setOpen(true)} size="small">
           Show altdata
         </Button>
       </>
-    ) : (
-      <div />
     );
   };
 
@@ -519,7 +487,8 @@ const ShareDataForm = ({ route }) => {
       name: "owner",
       label: "Uploaded by",
       options: {
-        customBodyRenderLite: makeRenderSingleUser("owner"),
+        customBodyRenderLite: (dataIndex) =>
+          makeRenderSingleUser(dataIndex, "owner"),
         filter: false,
       },
     },
@@ -617,7 +586,18 @@ const ShareDataForm = ({ route }) => {
 
   return (
     <>
-      <div data-testid="photometry-div">
+      <div>
+        <Link
+          to={`/source/${route.id}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            marginBottom: "0.5rem",
+          }}
+        >
+          <ArrowBackIcon fontSize="small" /> Back to source
+        </Link>
         <Typography variant="h5">
           Share Source Data -&nbsp;
           <Link to={`/source/${route.id}`} role="link">
