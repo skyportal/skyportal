@@ -78,7 +78,7 @@ class SharingHandler(BaseHandler):
 
             if phot_ids:
                 valid_phot = session.scalars(
-                    Photometry.select(session.user_or_token, mode="update").where(
+                    Photometry.select(session.user_or_token).where(
                         Photometry.id.in_(phot_ids)
                     )
                 ).all()
@@ -88,11 +88,17 @@ class SharingHandler(BaseHandler):
                 ]
 
                 if len(invalid_phot_ids) > 0:
-                    return self.error(
-                        f"Cannot share photometry IDs {invalid_phot_ids}: not found or you are not the owner."
-                    )
+                    return self.error(f"Invalid photometry IDs: {invalid_phot_ids}.")
 
                 for phot in valid_phot:
+                    if (
+                        phot.owner_id != self.associated_user_object.id
+                        and "System admin"
+                        not in self.associated_user_object.permissions
+                    ):
+                        return self.error(
+                            f"Cannot share photometry id {phot.id}: you are not the owner of this point."
+                        )
                     existing_group_ids = {g.id for g in phot.groups}
                     for group in groups:
                         if group.id not in existing_group_ids:
