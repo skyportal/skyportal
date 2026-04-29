@@ -10,7 +10,7 @@ import Typography from "@mui/material/Typography";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
-import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import DeleteIcon from "@mui/icons-material/Delete";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import Dialog from "@mui/material/Dialog";
 import Grid from "@mui/material/Grid";
@@ -330,10 +330,11 @@ const ShareDataForm = ({ route }) => {
       )
     : [];
 
-  const makeRenderSingleUser = (dataIndex, key) => {
-    const user = specRows[dataIndex][key];
-    return user && <UserContactLink user={user} />;
-  };
+  const makeRenderSingleUser = (key) =>
+    function RenderSingleUser(dataIndex) {
+      const user = specRows[dataIndex][key];
+      return user && <UserContactLink user={user} />;
+    };
 
   const renderMultipleUsers = (users) => {
     return (
@@ -399,9 +400,7 @@ const ShareDataForm = ({ route }) => {
               spectrum again from scratch.
             </div>
             <div>
-              <Button onClick={() => setOpen(false)}>
-                No, do not delete the spectrum.
-              </Button>
+              <Button onClick={() => setOpen(false)}>Cancel</Button>
               <Button
                 onClick={async () => {
                   setOpen(false);
@@ -412,13 +411,13 @@ const ShareDataForm = ({ route }) => {
                 }}
                 data-testid="yes-delete"
               >
-                Yes, delete the spectrum.
+                Confirm
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-        <IconButton onClick={() => setOpen(true)} size="large">
-          <DeleteForeverIcon />
+        <IconButton onClick={() => setOpen(true)} size="large" color="error">
+          <DeleteIcon />
         </IconButton>
       </div>
     );
@@ -487,8 +486,7 @@ const ShareDataForm = ({ route }) => {
       name: "owner",
       label: "Uploaded by",
       options: {
-        customBodyRenderLite: (dataIndex) =>
-          makeRenderSingleUser(dataIndex, "owner"),
+        customBodyRenderLite: makeRenderSingleUser("owner"),
         filter: false,
       },
     },
