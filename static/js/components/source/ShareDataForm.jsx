@@ -416,7 +416,12 @@ const ShareDataForm = ({ route }) => {
             </div>
           </DialogContent>
         </Dialog>
-        <IconButton onClick={() => setOpen(true)} size="large" color="error">
+        <IconButton
+          onClick={() => setOpen(true)}
+          size="large"
+          color="error"
+          data-testid={`delete-spectrum-button-${specid}`}
+        >
           <DeleteIcon />
         </IconButton>
       </div>

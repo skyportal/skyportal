@@ -45,9 +45,7 @@ def test_delete_spectrum(driver, public_source):
     driver.get(f"/become_user/{spectrum.owner_id}")
     driver.get(f"/share_data/{public_source.id}")
 
-    delete_button_xpath = (
-        "//*[@data-testid='spectrum-table']//button[.//*[@data-testid='DeleteIcon']]"
-    )
+    delete_button_xpath = f"//*[@data-testid='delete-spectrum-button-{spectrum.id}']"
     delete = driver.wait_for_xpath(delete_button_xpath)
     x = delete.location["x"]
     y = delete.location["y"]
