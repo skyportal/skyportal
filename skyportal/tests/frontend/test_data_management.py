@@ -45,9 +45,10 @@ def test_delete_spectrum(driver, public_source):
     driver.get(f"/become_user/{spectrum.owner_id}")
     driver.get(f"/share_data/{public_source.id}")
 
-    delete = driver.wait_for_xpath(
-        "//*[contains(@data-testid, 'delete-spectrum-button')]",
+    delete_button_xpath = (
+        "//*[@data-testid='spectrum-table']//button[.//*[@data-testid='DeleteIcon']]"
     )
+    delete = driver.wait_for_xpath(delete_button_xpath)
     x = delete.location["x"]
     y = delete.location["y"]
     scroll_by_coord = f"window.scrollTo({x},{y});"
@@ -56,9 +57,7 @@ def test_delete_spectrum(driver, public_source):
     driver.execute_script(scroll_nav_out_of_way)
 
     driver.scroll_to_element_and_click(delete)
-    driver.click_xpath(
-        "//*[contains(@data-testid, 'delete-spectrum-button')]", scroll_parent=True
-    )
+    driver.click_xpath(delete_button_xpath, scroll_parent=True)
     driver.click_xpath("//*[@data-testid='yes-delete']", scroll_parent=True)
 
     driver.wait_for_xpath_to_disappear(
