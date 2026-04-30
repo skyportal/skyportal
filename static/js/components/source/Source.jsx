@@ -199,10 +199,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  tooltipLink: {
-    textDecoration: "none",
-    color: theme.palette.secondary.dark,
-  },
 }));
 
 const SourceContent = ({ source }) => {
@@ -844,7 +840,7 @@ const SourceContent = ({ source }) => {
                       <CopyPhotometryDialog
                         source={source}
                         duplicate={duplicate}
-                        sendToDialogOpen={copyPhotometryDialogOpen}
+                        dialogOpen={copyPhotometryDialogOpen}
                         closeDialog={setCopyPhotometryDialogOpen}
                       />
                     </div>

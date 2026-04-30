@@ -10,9 +10,9 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
 import * as sourceActions from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
+import Button from "../Button";
 
 const CopyPhotometryDialog = ({
   source,
@@ -47,9 +47,9 @@ const CopyPhotometryDialog = ({
 
   const onSubmit = async (data) => {
     data.origin_id = duplicate.obj_id;
-    const savedGroupIds = savedGroups?.map((g) => g.id);
-    const groupIds = savedGroupIds?.filter((ID, idx) => data.groupIds[idx]);
-    data.group_ids = groupIds;
+    data.group_ids = savedGroups
+      ?.filter((_, idx) => data.groupIds[idx])
+      .map((g) => g.id);
     const result = await dispatch(
       sourceActions.copySourcePhotometry(source.id, data),
     );
@@ -62,44 +62,35 @@ const CopyPhotometryDialog = ({
     closeDialog();
   };
 
-  const handleClose = () => {
-    closeDialog();
-  };
-
   return (
     <>
-      <Dialog open={dialogOpen} onClose={handleClose}>
+      <Dialog open={dialogOpen} onClose={() => closeDialog()}>
         <DialogTitle>Copy photometry to selected groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
             )}
-            {!!savedGroups.length && (
-              <>
-                {savedGroups.map((savedGroup, idx) => (
-                  <FormControlLabel
-                    key={savedGroup.id}
-                    control={
-                      <Controller
-                        render={({ field: { onChange, value } }) => (
-                          <Checkbox
-                            onChange={(event) => onChange(event.target.checked)}
-                            checked={value}
-                            data-testid={`copyGroupCheckbox_${savedGroup.id}`}
-                          />
-                        )}
-                        name={`groupIds[${idx}]`}
-                        control={control}
-                        rules={{ validate: validateGroups }}
-                        defaultValue={false}
+            {savedGroups.map((savedGroup, idx) => (
+              <FormControlLabel
+                key={savedGroup.id}
+                control={
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <Checkbox
+                        onChange={(event) => onChange(event.target.checked)}
+                        checked={value}
                       />
-                    }
-                    label={savedGroup.name}
+                    )}
+                    name={`groupIds[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    defaultValue={false}
                   />
-                ))}
-              </>
-            )}
+                }
+                label={savedGroup.name}
+              />
+            ))}
             <div style={{ textAlign: "center" }}>
               <Button
                 secondary
