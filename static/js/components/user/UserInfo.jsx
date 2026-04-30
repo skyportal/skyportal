@@ -12,8 +12,8 @@ const UserInfo = ({ route }) => {
   useEffect(() => {
     dispatch(Action.fetchUser(route.id));
   }, [route.id, dispatch]);
-  const { users } = useSelector((state) => state.users);
-  const userInfo = users[route.id];
+  const { user } = useSelector((state) => state.users);
+  const userInfo = user[route.id];
   if (userInfo === undefined) {
     return (
       <div>
