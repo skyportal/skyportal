@@ -445,9 +445,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
                 <div>
                   <IconButton
                     primary
-                    onClick={() => {
-                      setDeleteDialogOpen(phot.id);
-                    }}
+                    onClick={() => setDeleteDialogOpen(phot.id)}
                     size="small"
                     type="submit"
                     data-testid={`deleteRequest_${photometry.id}`}
