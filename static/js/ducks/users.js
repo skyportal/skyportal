@@ -33,12 +33,9 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { users: [], totalMatches: 0, user: {} }, action) => {
   switch (action.type) {
     case FETCH_USER_OK: {
-      const { id, ...userInfo } = action.data;
       return {
         ...state,
-        user: {
-          [id]: userInfo,
-        },
+        user: action.data,
       };
     }
     case FETCH_USERS_OK: {

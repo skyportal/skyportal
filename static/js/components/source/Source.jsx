@@ -841,7 +841,7 @@ const SourceContent = ({ source }) => {
                         source={source}
                         duplicate={duplicate}
                         dialogOpen={copyPhotometryDialogOpen}
-                        closeDialog={setCopyPhotometryDialogOpen}
+                        closeDialog={() => setCopyPhotometryDialogOpen(false)}
                       />
                     </div>
                   ))}
