@@ -105,7 +105,7 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.0.1",
     "pytest-rerunfailures>=14.0",
-    "selenium==4.38.0",
+    "selenium==4.43.0",
     "selenium-requests==2.0.4",
     "webdriver-manager>=4.0.1",
 ]
