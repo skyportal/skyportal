@@ -378,17 +378,19 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
               )
             }
           >
-            <Chip
-              label="TNS"
-              clickable
-              onClick={() => setSendToTNS(!sendToTNS)}
-              color={sendToTNS ? "primary" : "default"}
-              variant={sendToTNS ? "filled" : "outlined"}
-              disabled={
-                isNoAffiliation ||
-                !selectedSharingService?.enable_sharing_with_tns
-              }
-            />
+            <div>
+              <Chip
+                label="TNS"
+                clickable
+                onClick={() => setSendToTNS(!sendToTNS)}
+                color={sendToTNS ? "primary" : "default"}
+                variant={sendToTNS ? "filled" : "outlined"}
+                disabled={
+                  isNoAffiliation ||
+                  !selectedSharingService?.enable_sharing_with_tns
+                }
+              />
+            </div>
           </Tooltip>
           <Tooltip
             title={

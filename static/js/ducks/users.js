@@ -37,7 +37,6 @@ const reducer = (state = { users: [], totalMatches: 0, user: {} }, action) => {
       return {
         ...state,
         user: {
-          ...state.user,
           [id]: userInfo,
         },
       };
