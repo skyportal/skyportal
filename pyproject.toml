@@ -67,7 +67,7 @@ dependencies = [
     "requests>=2.30.0, <3.0.0",
     "geojson==3.2.0",
     "typing-extensions==4.15.0",
-    "swifttools==3.0.23",
+    "swifttools==4.0.2",
     "gwemopt==0.3.6",
     "humanize==4.14.0",
     "xarray>=21.1",
