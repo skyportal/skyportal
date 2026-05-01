@@ -83,7 +83,7 @@ dependencies = [
     "confluent_kafka==2.13.0",
     "iminuit==2.32.0",
     "watchdog==6.0.0",
-    "PyAstronomy==0.24.0",
+    "PyAstronomy==0.25.0",
     "shapely==2.1.2",
     "openai==1.109.1",
     "tiktoken==0.12.0",
