@@ -61,16 +61,16 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     (b) => b.id === selectedSharingServiceId,
   );
   const allowedInstruments = selectedSharingService?.instruments
-    ? instrumentList.filter((instrument) =>
-        selectedSharingService.instruments.some((i) => i.id === instrument.id),
+    ? instrumentList.filter(
+        (instrument) =>
+          selectedSharingService.instruments.some(
+            (i) => i.id === instrument.id,
+          ) &&
+          (allowedInstrumentsForSharing || []).includes(
+            instrument.name?.toLowerCase(),
+          ),
       )
     : [];
-
-  instrumentList.filter((instrument) =>
-    (allowedInstrumentsForSharing || []).includes(
-      instrument.name?.toLowerCase(),
-    ),
-  );
 
   useEffect(() => {
     const getSharingServices = async () => {

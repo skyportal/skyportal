@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
 
   static getDerivedStateFromError(error) {
     // Update state so the next render will show the fallback UI.
-    return { hasError: true, error };
+    return { hasError: true, error, errorTime: dayjs.utc().format() };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -39,7 +39,6 @@ class ErrorBoundary extends React.Component {
     const { dispatch } = this.props;
     this.setState({
       stack: errorInfo.componentStack,
-      errorTime: dayjs.utc().format(),
     });
     dispatch(
       logError({
