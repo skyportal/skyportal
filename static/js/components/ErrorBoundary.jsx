@@ -48,17 +48,21 @@ class ErrorBoundary extends React.Component {
     );
   }
 
+  errorReport(returnStack) {
+    const { error, stack, errorTime } = this.state;
+    const { version } = this.props;
+    return [
+      `${errorTime} - This is SkyPortal ${version || "N/A"}`,
+      error && error.toString(),
+      returnStack && stack,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
   render() {
-    const { hasError, error, stack, errorTime, displayStack } = this.state;
-    const { version, children } = this.props;
-    const errorReport = (returnStack) =>
-      [
-        `${errorTime} - This is SkyPortal ${version || "N/A"}`,
-        error && error.toString(),
-        returnStack && stack,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+    const { hasError, stack, displayStack } = this.state;
+    const { children } = this.props;
     if (hasError) {
       return (
         <div
@@ -111,12 +115,14 @@ class ErrorBoundary extends React.Component {
               <IconButton
                 sx={{ position: "absolute", top: "0.5rem", right: "0.5rem" }}
                 size="small"
-                onClick={() => navigator.clipboard.writeText(errorReport(true))}
+                onClick={() =>
+                  navigator.clipboard.writeText(this.errorReport(true))
+                }
               >
                 <ContentCopyIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            {errorReport(displayStack)}
+            {this.errorReport(displayStack)}
           </pre>
           {stack && (
             <Button
