@@ -11,14 +11,27 @@ try:
     # Register numpy types with psycopg2 for numpy 2.x compatibility
     # numpy 2 scalars no longer inherit from Python builtins, so psycopg2
     # needs explicit adapters to serialize them in SQL parameters
+    import math
+
     import numpy as np
     from psycopg2.extensions import AsIs, register_adapter
 
-    def _adapt_numpy_scalar(val):
-        return AsIs(repr(float(val)))
+    def _adapt_numpy_float(val):
+        f = float(val)
+        if math.isnan(f):
+            return AsIs("'NaN'::float")
+        if math.isinf(f):
+            return AsIs("'%s'::float" % ("Infinity" if f > 0 else "-Infinity"))
+        return AsIs(repr(f))
 
-    for _np_type in [np.float64, np.float32, np.int64, np.int32, np.bool_]:
-        register_adapter(_np_type, _adapt_numpy_scalar)
+    def _adapt_numpy_int(val):
+        return AsIs(int(val))
+
+    for _np_type in [np.float64, np.float32]:
+        register_adapter(_np_type, _adapt_numpy_float)
+    for _np_type in [np.int64, np.int32]:
+        register_adapter(_np_type, _adapt_numpy_int)
+    register_adapter(np.bool_, lambda val: AsIs("true" if val else "false"))
 except ImportError:
     # if the packages to monkey-patch are not available, just skip the patching
     pass
