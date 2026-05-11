@@ -78,8 +78,10 @@ After installing each package, Homebrew will print out the installation paths. Y
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+  - To start automatically at login: `brew services start postgresql@<version>`
+  - To start manually: `pg_ctl -D $(brew --prefix)/var/postgresql@<version> start`
+
+  Replace `<version>` with your installed PostgreSQL version (e.g., `14`). You can check with `brew list | grep postgresql`.
 
   You may also need to run the following command to create the proper admin user:
 
