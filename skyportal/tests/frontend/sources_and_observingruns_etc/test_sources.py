@@ -520,8 +520,9 @@ def test_regular_user_cannot_delete_unowned_comment(
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_div.find_element(
-        By.XPATH, f".//*[@name='deleteCommentButton{comment_id}']"
+    delete_button = comment_text_p.find_element(
+        By.XPATH,
+        f"ancestor::span[@id='comment']//*[@name='deleteCommentButton{comment_id}']",
     )
     driver.scroll_to_element(comment_text_p)
     ActionChains(driver).move_to_element(comment_text_p).pause(0.1).perform()
@@ -543,8 +544,9 @@ def test_super_user_can_delete_unowned_comment(
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_div.find_element(
-        By.XPATH, f".//*[@name='deleteCommentButton{comment_id}']"
+    delete_button = comment_text_p.find_element(
+        By.XPATH,
+        f"ancestor::span[@id='comment']//*[@name='deleteCommentButton{comment_id}']",
     )
 
     driver.scroll_to_element(comment_text_p)
