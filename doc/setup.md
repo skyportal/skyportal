@@ -84,8 +84,10 @@ After installing each package, Homebrew will print out the installation paths. Y
   You may also need to run the following command to create the proper admin user:
 
   ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
+  createuser -s postgres
   ```
+
+  If `createuser` is not found in your `PATH`, locate it via `brew info postgresql` (typically `/opt/homebrew/opt/postgresql@<version>/bin/` on Apple Silicon, or `/usr/local/opt/postgresql@<version>/bin/` on Intel Macs) and invoke it with its full path.
 
 3. To run the test suite, you'll need Geckodriver:
 
