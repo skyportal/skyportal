@@ -91,7 +91,7 @@ def get_color_mag(annotations, **kwargs):
 
 class ObjColorMagHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         """
         ---
         summary: Get color and absolute magnitude of a source
@@ -226,22 +226,19 @@ class ObjColorMagHandler(BaseHandler):
         red_mag_key = self.get_query_argument("redMagKey", None)  # "Mag_Rp"
         color_key = self.get_query_argument("colorKey", None)  # None
 
-        with self.Session() as session:
-            obj = session.scalar(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.associated_user_object).where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error("Invalid object id.")
 
-            annotations = (
-                session.scalars(
-                    Annotation.select(self.associated_user_object).where(
-                        Annotation.obj_id == obj_id
-                    )
+            ann_result = await session.scalars(
+                Annotation.select(self.associated_user_object).where(
+                    Annotation.obj_id == obj_id
                 )
-                .unique()
-                .all()
             )
+            annotations = ann_result.unique().all()
 
             output = get_color_mag(
                 annotations,

@@ -2,14 +2,12 @@ import traceback
 
 import arrow
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...models import (
-    DBSession,
-    Instrument,
-)
+from ...models import Instrument
 from ...utils.moving_objects import (
     add_instrument_fields,
     find_observable_sequence,
@@ -23,7 +21,7 @@ _, cfg = load_env()
 
 class MovingObjectFollowupHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_name):
+    async def post(self, obj_name):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object
@@ -132,12 +130,12 @@ class MovingObjectFollowupHandler(BaseHandler):
             return self.error("Exposure time must be a number")
 
         try:
-            start_time = arrow.get(start_time).datetime
+            start_time = arrow.get(start_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid start time")
 
         try:
-            end_time = arrow.get(end_time).datetime
+            end_time = arrow.get(end_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 
@@ -150,10 +148,12 @@ class MovingObjectFollowupHandler(BaseHandler):
         else:
             references_only = False
 
-        with DBSession() as session:
+        async with self.AsyncSession() as session:
             try:
-                instrument = session.scalar(
-                    sa.select(Instrument).where(Instrument.id == instrument_id)
+                instrument = await session.scalar(
+                    sa.select(Instrument)
+                    .where(Instrument.id == instrument_id)
+                    .options(joinedload(Instrument.telescope))
                 )
                 if instrument is None:
                     return self.error(f"Instrument {instrument_id} not found")
@@ -172,16 +172,19 @@ class MovingObjectFollowupHandler(BaseHandler):
                     sun_altitude_limit=sun_altitude_limit,
                 )
 
-                dfs, field_id_to_radec = add_instrument_fields(
-                    df,
-                    instrument_id,
-                    instrument_name,
-                    session,
-                    observer,
-                    primary_only=primary_only,
-                    airmass_limit=airmass_limit,
-                    moon_distance_limit=moon_distance_limit,
-                    references_only=references_only,
+                # `add_instrument_fields` does sync DB work — bridge via greenlet
+                dfs, field_id_to_radec = await session.run_sync(
+                    lambda sync_session: add_instrument_fields(
+                        df,
+                        instrument_id,
+                        instrument_name,
+                        sync_session,
+                        observer,
+                        primary_only=primary_only,
+                        airmass_limit=airmass_limit,
+                        moon_distance_limit=moon_distance_limit,
+                        references_only=references_only,
+                    )
                 )
 
                 observations = find_observable_sequence(

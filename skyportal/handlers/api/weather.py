@@ -18,7 +18,7 @@ default_prefs = {"telescopeID": 1}
 
 class WeatherHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get weather info at telescope site
@@ -67,7 +67,7 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             user_prefs = getattr(self.associated_user_object, "preferences", None) or {}
             weather_prefs = user_prefs.get("weather", {})
             weather_prefs = {**default_prefs, **weather_prefs}
@@ -81,19 +81,21 @@ class WeatherHandler(BaseHandler):
                 )
 
             # use the query telescope ID otherwise fall back to preferences id
-            telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
+            telescope_id = self.get_query_argument(
+                "telescope_id", default_telescope_id, type=int
+            )
 
-            telescope = session.scalars(
+            telescope = await session.scalar(
                 Telescope.select(self.current_user).where(Telescope.id == telescope_id)
-            ).first()
+            )
             if telescope is None:
                 return self.error(
                     f"Could not load telescope with ID {weather_prefs['telescopeID']}"
                 )
 
-            weather = session.scalars(
+            weather = await session.scalar(
                 sa.select(Weather).where(Weather.telescope_id == telescope_id)
-            ).first()
+            )
             if weather is None:
                 weather = Weather(telescope=telescope)
                 session.add(weather)
@@ -121,11 +123,11 @@ class WeatherHandler(BaseHandler):
                         data = response.json()
                         weather.weather_info = data
                         weather.retrieved_at = datetime.datetime.utcnow()
-                        session.commit()
+                        await session.commit()
                     else:
                         message = response.text
 
-                session.commit()
+                await session.commit()
 
             return self.success(
                 data={

@@ -1,7 +1,7 @@
 import arrow
 import sqlalchemy as sa
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -21,7 +21,7 @@ MAX_SOURCES_PER_PAGE = 500
 
 class PhotStatHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         summary: Get photometry stats for a source
@@ -47,15 +47,16 @@ class PhotStatHandler(BaseHandler):
 
         """
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f'Cannot find source with id "{obj_id}". ')
 
-            stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-            phot_stat = session.scalars(stmt).first()
+            phot_stat = await session.scalar(
+                sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+            )
 
             if phot_stat is None:
                 return self.error(
@@ -65,12 +66,11 @@ class PhotStatHandler(BaseHandler):
             # this is a non-permissioned query:
             # it will get the time of the latest photometry
             # regardless of the user's permissions to view it.
-            stmt = (
+            last_photometry = await session.scalar(
                 sa.select(Photometry)
                 .where(Photometry.obj_id == obj_id)
                 .order_by(Photometry.created_at.desc())
             )
-            last_photometry = session.scalars(stmt).first()
             if last_photometry:
                 phot_stat.last_phot_add_time = last_photometry.created_at
             else:
@@ -79,7 +79,7 @@ class PhotStatHandler(BaseHandler):
         return self.success(data=phot_stat)
 
     @permissions(["system admin"])
-    def post(self, obj_id=None):
+    async def post(self, obj_id=None):
         """
         ---
         summary: Create new phot stats for a source
@@ -105,32 +105,35 @@ class PhotStatHandler(BaseHandler):
                   schema: Error
 
         """
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f'Cannot find source with id "{obj_id}". ')
 
-            stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-            phot_stat = session.scalars(stmt).first()
+            phot_stat = await session.scalar(
+                sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+            )
             if phot_stat is not None:
                 return self.error(
                     f'PhotStat for object with id "{obj_id}" already exists. '
                 )
 
-            stmt = sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            photometry = session.scalars(stmt).all()
+            photometry_result = await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            )
+            photometry = photometry_result.all()
 
             phot_stat = PhotStat(obj_id=obj_id)
             phot_stat.full_update(photometry)
             session.add(phot_stat)
-            session.commit()
+            await session.commit()
 
         return self.success()
 
     @permissions(["system admin"])
-    def put(self, obj_id=None):
+    async def put(self, obj_id=None):
         """
         ---
         summary: Update phot stats for a source
@@ -157,28 +160,31 @@ class PhotStatHandler(BaseHandler):
 
         """
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f'Cannot find source with id "{obj_id}". ')
 
-            stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-            phot_stat = session.scalars(stmt).first()
+            phot_stat = await session.scalar(
+                sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+            )
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=obj_id)
 
-            stmt = sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            photometry = session.scalars(stmt).all()
+            photometry_result = await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            )
+            photometry = photometry_result.all()
             phot_stat.full_update(photometry)
             session.add(phot_stat)
-            session.commit()
+            await session.commit()
 
         return self.success()
 
     @permissions(["system admin"])
-    def delete(self, obj_id=None):
+    async def delete(self, obj_id=None):
         """
         ---
         summary: Delete phot stats of a source
@@ -203,30 +209,32 @@ class PhotStatHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f'Cannot find source with id "{obj_id}". ')
 
-            stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-            phot_stats = session.scalars(stmt).all()
-            if phot_stats is None:
+            phot_stats_result = await session.scalars(
+                sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+            )
+            phot_stats = phot_stats_result.all()
+            if not phot_stats:
                 return self.error(
                     f'Could not find a PhotStat for object with id "{obj_id}". '
                 )
             for p in phot_stats:
-                session.delete(p)
+                await session.delete(p)
 
-            session.commit()
+            await session.commit()
 
         return self.success()
 
 
 class PhotStatUpdateHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get counts of sources w/ and w/o PhotStats
@@ -320,19 +328,17 @@ class PhotStatUpdateHandler(BaseHandler):
         full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
         full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 # start with Objs that have created_at within range
-                stmt = sa.select(Obj).options(joinedload(Obj.photstats))
+                stmt = sa.select(Obj).options(selectinload(Obj.photstats))
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -342,8 +348,8 @@ class PhotStatUpdateHandler(BaseHandler):
 
             # select only objects that don't have a PhotStats object
             stmt_without = stmt.where(~Obj.photstats.any())
-            count_stmt = sa.select(func.count()).select_from(stmt_without)
-            total_missing = session.execute(count_stmt).scalar()
+            count_stmt = sa.select(func.count()).select_from(stmt_without.subquery())
+            total_missing = await session.scalar(count_stmt)
 
             # get the number of Objs with PhotStats
             # (that have created_at within range,
@@ -351,34 +357,32 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt_with = stmt.where(Obj.photstats.any())
             try:
                 if quick_update_start_time:
-                    quick_update_start_time = str(
-                        arrow.get(quick_update_start_time.strip()).datetime
-                    )
+                    quick_update_start_time = arrow.get(
+                        quick_update_start_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_update >= quick_update_start_time
                         )
                     )
                 if quick_update_end_time:
-                    quick_update_end_time = str(
-                        arrow.get(quick_update_end_time.strip()).datetime
-                    )
+                    quick_update_end_time = arrow.get(
+                        quick_update_end_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
-                    full_update_start_time = str(
-                        arrow.get(full_update_start_time.strip()).datetime
-                    )
+                    full_update_start_time = arrow.get(
+                        full_update_start_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update >= full_update_start_time
                         )
                     )
                 if full_update_end_time:
-                    full_update_end_time = str(
-                        arrow.get(full_update_end_time.strip()).datetime
-                    )
+                    full_update_end_time = arrow.get(full_update_end_time.strip()).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update <= full_update_end_time
@@ -392,8 +396,10 @@ class PhotStatUpdateHandler(BaseHandler):
                     f"or fullUpdateEndTime ({full_update_end_time}) "
                     "as arrow parseable strings."
                 )
-            count_stmt = sa.select(func.count()).select_from(stmt_with.distinct())
-            total_phot_stats = session.execute(count_stmt).scalar()
+            count_stmt = sa.select(func.count()).select_from(
+                stmt_with.distinct().subquery()
+            )
+            total_phot_stats = await session.scalar(count_stmt)
 
         results = {
             "totalWithoutPhotStats": total_missing,
@@ -402,7 +408,7 @@ class PhotStatUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Calculate phot stats for a batch of sources
@@ -465,33 +471,29 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-                MAX_SOURCES_PER_PAGE,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument(
+            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
+        )
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
 
         created_at_start_time = self.get_query_argument("createdAtStartTime", None)
         created_at_end_time = self.get_query_argument("createdAtEndTime", None)
 
-        with self.Session() as session:
-            stmt = sa.select(Obj).options(joinedload(Obj.photstats))
+        async with self.AsyncSession() as session:
+            stmt = sa.select(Obj).options(selectinload(Obj.photstats))
             try:
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -502,25 +504,30 @@ class PhotStatUpdateHandler(BaseHandler):
             # select only objects that don't have a PhotStats object
             stmt = stmt.where(~Obj.photstats.any())
 
-            count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
+            count_stmt = sa.select(func.count()).select_from(stmt.subquery())
+            total_matches = await session.scalar(count_stmt)
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            objects = session.execute(stmt).scalars().unique().all()
+            result = await session.scalars(stmt)
+            objects = result.unique().all()
 
+            current_obj_id = None
             try:
-                for i, obj in enumerate(objects):
-                    stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
-                    photometry = session.scalars(stmt).all()
+                for obj in objects:
+                    current_obj_id = obj.id
+                    photometry_result = await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj.id)
+                    )
+                    photometry = photometry_result.all()
                     phot_stat = PhotStat(obj_id=obj.id)
                     phot_stat.full_update(photometry)
                     session.add(phot_stat)
             except Exception as e:
                 return self.error(
-                    f"Error calculating photometry stats: {e} for object {obj.id}"
+                    f"Error calculating photometry stats: {e} for object {current_obj_id}"
                 )
 
-            session.commit()
+            await session.commit()
 
         results = {
             "totalMatches": total_matches,
@@ -530,7 +537,7 @@ class PhotStatUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    def patch(self):
+    async def patch(self):
         """
         ---
         summary: Recalculate phot stats for a batch of sources
@@ -631,17 +638,15 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-                MAX_SOURCES_PER_PAGE,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument(
+            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
+        )
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
 
         created_at_start_time = self.get_query_argument("createdAtStartTime", None)
         created_at_end_time = self.get_query_argument("createdAtEndTime", None)
@@ -650,18 +655,16 @@ class PhotStatUpdateHandler(BaseHandler):
         full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
         full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
 
-        with self.Session() as session:
-            stmt = sa.select(Obj).options(joinedload(Obj.photstats))
+        async with self.AsyncSession() as session:
+            stmt = sa.select(Obj).options(selectinload(Obj.photstats))
             try:
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -673,34 +676,32 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = stmt.where(Obj.photstats.any())
             try:
                 if quick_update_start_time:
-                    quick_update_start_time = str(
-                        arrow.get(quick_update_start_time.strip()).datetime
-                    )
+                    quick_update_start_time = arrow.get(
+                        quick_update_start_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_update >= quick_update_start_time
                         )
                     )
                 if quick_update_end_time:
-                    quick_update_end_time = str(
-                        arrow.get(quick_update_end_time.strip()).datetime
-                    )
+                    quick_update_end_time = arrow.get(
+                        quick_update_end_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
-                    full_update_start_time = str(
-                        arrow.get(full_update_start_time.strip()).datetime
-                    )
+                    full_update_start_time = arrow.get(
+                        full_update_start_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update >= full_update_start_time
                         )
                     )
                 if full_update_end_time:
-                    full_update_end_time = str(
-                        arrow.get(full_update_end_time.strip()).datetime
-                    )
+                    full_update_end_time = arrow.get(full_update_end_time.strip()).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update <= full_update_end_time
@@ -715,26 +716,31 @@ class PhotStatUpdateHandler(BaseHandler):
                     "as arrow parseable strings."
                 )
 
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_matches = session.execute(count_stmt).scalar()
+            count_stmt = sa.select(func.count()).select_from(stmt.distinct().subquery())
+            total_matches = await session.scalar(count_stmt)
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            objects = session.scalars(stmt).unique().all()
+            result = await session.scalars(stmt)
+            objects = result.unique().all()
 
+            current_obj_id = None
             try:
-                for i, obj in enumerate(objects):
-                    stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
-                    photometry = session.scalars(stmt).all()
+                for obj in objects:
+                    current_obj_id = obj.id
+                    photometry_result = await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj.id)
+                    )
+                    photometry = photometry_result.all()
                     obj.photstats[0].full_update(photometry)
                     # make sure only one photstats per object
                     for j in range(1, len(obj.photstats)):
-                        session.delete(obj.photstats[j])
+                        await session.delete(obj.photstats[j])
             except Exception as e:
                 return self.error(
-                    f"Error calculating photometry stats: {e} for object {obj.id}"
+                    f"Error calculating photometry stats: {e} for object {current_obj_id}"
                 )
 
-            session.commit()
+            await session.commit()
 
         results = {
             "totalMatches": total_matches,

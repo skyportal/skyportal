@@ -16,7 +16,13 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
 from regions import Regions
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import (
+    joinedload,
+    scoped_session,
+    selectinload,
+    sessionmaker,
+    undefer,
+)
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -266,7 +272,7 @@ def add_observations(instrument_id, obstable):
 
 
 @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
-def get_observations(
+async def get_observations(
     session,
     start_date,
     end_date,
@@ -348,6 +354,18 @@ def get_observations(
             "localization_dateobs must be specified if return_statistics=True"
         )
 
+    # cast numeric/boolean query-arg values that may arrive as strings
+    try:
+        localization_cumprob = float(localization_cumprob)
+    except (TypeError, ValueError):
+        localization_cumprob = 0.95
+    if isinstance(return_statistics, str):
+        return_statistics = return_statistics.lower() in ("true", "1", "yes", "t")
+    if isinstance(stats_logging, str):
+        stats_logging = stats_logging.lower() in ("true", "1", "yes", "t")
+    if isinstance(includeGeoJSON, str):
+        includeGeoJSON = includeGeoJSON.lower() in ("true", "1", "yes", "t")
+
     if observation_status == "executed":
         Observation = ExecutedObservation
     elif observation_status == "queued":
@@ -365,31 +383,31 @@ def get_observations(
 
     # optional: slice by Instrument
     if telescope_name is not None and instrument_name is not None:
-        telescope = session.scalars(
+        telescope = await session.scalar(
             Telescope.select(session.user_or_token).where(
                 Telescope.name == telescope_name
             )
-        ).first()
+        )
         if telescope is None:
             raise ValueError(f"Missing telescope {telescope_name}")
 
-        instrument = session.scalars(
+        instrument = await session.scalar(
             Instrument.select(
-                session.user_or_token, options=[joinedload(Instrument.fields)]
+                session.user_or_token, options=[selectinload(Instrument.fields)]
             ).where(
                 Instrument.telescope == telescope, Instrument.name == instrument_name
             )
-        ).first()
+        )
         if instrument is None:
             return ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
     elif instrument_name is not None:
-        instrument = session.scalars(
+        instrument = await session.scalar(
             Instrument.select(
-                session.user_or_token, options=[joinedload(Instrument.fields)]
+                session.user_or_token, options=[selectinload(Instrument.fields)]
             ).where(Instrument.name == instrument_name)
-        ).first()
+        )
         if instrument is None:
             return ValueError(f"Missing instrument {instrument_name}")
 
@@ -397,21 +415,26 @@ def get_observations(
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
+        if isinstance(localization_dateobs, str):
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = localization_dateobs
         if localization_name is not None:
-            localization = session.scalars(
+            localization = await session.scalar(
                 Localization.select(session.user_or_token).where(
-                    Localization.dateobs == localization_dateobs,
+                    Localization.dateobs == localization_dateobs_parsed,
                     Localization.localization_name == localization_name,
                 )
-            ).first()
+            )
             if localization is None:
                 raise ValueError("Localization not found")
         else:
-            event = session.scalars(
+            event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.localizations)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
-            ).first()
+                    session.user_or_token,
+                    options=[selectinload(GcnEvent.localizations)],
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
+            )
             if event is None:
                 raise ValueError("GCN event not found")
             localization = event.localizations[-1]
@@ -431,11 +454,11 @@ def get_observations(
             # check that there is actually a localizationTile with the given localization_id in the partition
             # if not, use the default partition
             if not (
-                session.scalars(
+                await session.scalar(
                     localizationtilescls.select(session.user_or_token).where(
                         localizationtilescls.localization_id == localization.id
                     )
-                ).first()
+                )
             ):
                 localizationtilescls = LocalizationTile.partitions.get(
                     "def", LocalizationTile
@@ -476,7 +499,8 @@ def get_observations(
                     InstrumentField.instrument_id == instrument.id
                 )
 
-            field_tiles = session.scalars(field_tiles_query).all()
+            field_tiles_result = await session.scalars(field_tiles_query)
+            field_tiles = field_tiles_result.all()
             field_tiles_subquery = (
                 sa.select(InstrumentField.id)
                 .where(InstrumentField.id.in_(field_tiles))
@@ -523,7 +547,7 @@ def get_observations(
         if return_statistics:
             if stats_method == "python":
                 t0 = time.time()
-                localization_tiles = session.scalars(
+                localization_tiles_result = await session.scalars(
                     sa.select(localizationtilescls)
                     .where(
                         localizationtilescls.localization_id == localization.id,
@@ -531,7 +555,8 @@ def get_observations(
                     )
                     .order_by(localizationtilescls.probdensity.desc())
                     .distinct()
-                ).all()
+                )
+                localization_tiles = localization_tiles_result.all()
                 if stats_logging:
                     log(
                         "STATS: ",
@@ -540,7 +565,7 @@ def get_observations(
                     )
 
                 t0 = time.time()
-                instrument_field_tuples = session.execute(
+                instrument_field_tuples_result = await session.execute(
                     sa.select(
                         InstrumentFieldTile.healpix.lower,
                         InstrumentFieldTile.healpix.upper,
@@ -552,7 +577,8 @@ def get_observations(
                     )
                     .order_by(InstrumentFieldTile.healpix.lower)
                     .distinct()
-                ).all()
+                )
+                instrument_field_tuples = instrument_field_tuples_result.all()
 
                 field_lower_bounds = np.array([f[0] for f in instrument_field_tuples])
                 field_upper_bounds = np.array([f[1] for f in instrument_field_tuples])
@@ -633,7 +659,8 @@ def get_observations(
                     obs_subquery,
                     InstrumentField.id == obs_subquery.c.instrument_field_id,
                 )
-                field_ids = session.scalars(fields_query).unique().all()
+                fields_result = await session.scalars(fields_query)
+                field_ids = fields_result.unique().all()
 
                 union = (
                     sa.select(
@@ -659,8 +686,10 @@ def get_observations(
                     localizationtilescls.probdensity >= min_probdensity,
                     union.columns.healpix.overlaps(localizationtilescls.healpix),
                 )
-                intprob = session.execute(query_prob).scalar_one()
-                intarea = session.execute(query_area).scalar_one()
+                intprob_result = await session.execute(query_prob)
+                intprob = intprob_result.scalar_one()
+                intarea_result = await session.execute(query_area)
+                intarea = intarea_result.scalar_one()
 
                 if intprob is None:
                     intprob = 0.0
@@ -677,7 +706,9 @@ def get_observations(
                 )
 
     t0 = time.time()
-    total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
+    total_matches = await session.scalar(
+        sa.select(sa.func.count()).select_from(obs_query)
+    )
 
     order_by = None
     if sort_by is not None:
@@ -758,7 +789,14 @@ def get_observations(
         obs_query = obs_query.limit(n_per_page).offset((page_number - 1) * n_per_page)
 
     t0 = time.time()
-    observations = session.scalars(obs_query).all()
+    # eager-load `field` relationship for serialization below.
+    # also undefer `contour_summary` when GeoJSON is requested.
+    field_load = joinedload(Observation.field)
+    if includeGeoJSON:
+        field_load = field_load.undefer(InstrumentField.contour_summary)
+    obs_query = obs_query.options(field_load)
+    observations_result = await session.scalars(obs_query)
+    observations = observations_result.unique().all()
 
     observations_list = []
     for o in observations:
@@ -817,7 +855,7 @@ def get_observations(
 
 class ObservationHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Ingest a set of ExecutedObservations
@@ -847,95 +885,98 @@ class ObservationHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
-        telescope = (
-            Telescope.query_records_accessible_by(
-                self.current_user,
+        async with self.AsyncSession() as session:
+            telescope = await session.scalar(
+                Telescope.select(self.current_user).where(
+                    Telescope.name == telescope_name
+                )
             )
-            .filter(
-                Telescope.name == telescope_name,
-            )
-            .first()
-        )
-        if telescope is None:
-            return self.error(message=f"Missing telescope {telescope_name}")
+            if telescope is None:
+                return self.error(message=f"Missing telescope {telescope_name}")
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.fields, InstrumentField.tiles),
-                ],
+            instrument = await session.scalar(
+                Instrument.select(
+                    self.current_user,
+                    options=[
+                        selectinload(Instrument.fields).selectinload(
+                            InstrumentField.tiles
+                        ),
+                        undefer(Instrument.region),
+                    ],
+                ).where(
+                    Instrument.telescope == telescope,
+                    Instrument.name == instrument_name,
+                )
             )
-            .filter(
-                Instrument.telescope == telescope,
-                Instrument.name == instrument_name,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument {instrument_name}")
+            if instrument is None:
+                return self.error(message=f"Missing instrument {instrument_name}")
 
-        unique_keys = set(observation_data.keys())
-        field_id_keys = {
-            "observation_id",
-            "field_id",
-            "obstime",
-            "filter",
-            "exposure_time",
-        }
-        radec_keys = {
-            "observation_id",
-            "RA",
-            "Dec",
-            "obstime",
-            "filter",
-            "exposure_time",
-        }
-        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-            unique_keys
-        ):
-            return self.error(
-                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-            )
-
-        if (
-            ("RA" in observation_data)
-            and ("Dec" in observation_data)
-            and not ("field_id" in observation_data)
-        ):
-            if instrument.region is None:
+            unique_keys = set(observation_data.keys())
+            field_id_keys = {
+                "observation_id",
+                "field_id",
+                "obstime",
+                "filter",
+                "exposure_time",
+            }
+            radec_keys = {
+                "observation_id",
+                "RA",
+                "Dec",
+                "obstime",
+                "filter",
+                "exposure_time",
+            }
+            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+                unique_keys
+            ):
                 return self.error(
-                    "instrument.region must not be None if providing only RA and Dec."
+                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
                 )
 
-        for filt in observation_data["filter"]:
-            if filt not in instrument.filters:
-                return self.error(f"Filter {filt} not present in {instrument.filters}")
+            if (
+                ("RA" in observation_data)
+                and ("Dec" in observation_data)
+                and not ("field_id" in observation_data)
+            ):
+                if instrument.region is None:
+                    return self.error(
+                        "instrument.region must not be None if providing only RA and Dec."
+                    )
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            "airmass",
-            "seeing",
-            "limmag",
-            "target_name",
-        ]
-        for key in optional_parameters:
-            if key not in observation_data:
-                observation_data[key] = [None] * len(observation_data["observation_id"])
+            for filt in observation_data["filter"]:
+                if filt not in instrument.filters:
+                    return self.error(
+                        f"Filter {filt} not present in {instrument.filters}"
+                    )
 
-        if "processed_fraction" not in observation_data:
-            observation_data["processed_fraction"] = [1] * len(
-                observation_data["observation_id"]
+            # fill in any missing optional parameters
+            optional_parameters = [
+                "airmass",
+                "seeing",
+                "limmag",
+                "target_name",
+            ]
+            for key in optional_parameters:
+                if key not in observation_data:
+                    observation_data[key] = [None] * len(
+                        observation_data["observation_id"]
+                    )
+
+            if "processed_fraction" not in observation_data:
+                observation_data["processed_fraction"] = [1] * len(
+                    observation_data["observation_id"]
+                )
+
+            obstable = pd.DataFrame.from_dict(observation_data)
+            instrument_id = instrument.id
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_observations(instrument_id, obstable),
             )
 
-        obstable = pd.DataFrame.from_dict(observation_data)
-        # run async
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_observations(instrument.id, obstable),
-        )
-
-        return self.success()
+            return self.success()
 
     @auth_or_token
     @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
@@ -1139,8 +1180,8 @@ class ObservationHandler(BaseHandler):
         except arrow.ParserError as e:
             return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
-        with self.Session() as session:
-            data = get_observations(
+        async with self.AsyncSession() as session:
+            data = await get_observations(
                 session,
                 start_date,
                 end_date,
@@ -1164,7 +1205,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, observation_id):
+    async def delete(self, observation_id):
         """
         ---
         summary: Delete an observation
@@ -1188,12 +1229,17 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            observation = session.scalars(
+        try:
+            observation_id_int = int(observation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid observation_id: {observation_id}")
+
+        async with self.AsyncSession() as session:
+            observation = await session.scalar(
                 ExecutedObservation.select(self.current_user).where(
-                    ExecutedObservation.id == observation_id
+                    ExecutedObservation.id == observation_id_int
                 )
-            ).first()
+            )
             if observation is None:
                 return self.error("ExecutedObservation not found", status=404)
 
@@ -1202,15 +1248,15 @@ class ObservationHandler(BaseHandler):
                     "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
                 )
 
-            session.delete(observation)
-            session.commit()
+            await session.delete(observation)
+            await session.commit()
 
             return self.success()
 
 
 class ObservationASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload observation from ASCII file
@@ -1239,93 +1285,103 @@ class ObservationASCIIFileHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.fields, InstrumentField.tiles),
-                ],
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument with ID {instrument_id}")
         try:
-            observation_data = pd.read_table(
-                StringIO(observation_data), sep=","
-            ).to_dict(orient="list")
-        except Exception as e:
-            return self.error(f"Unable to read in observation file: {e}")
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        unique_keys = set(observation_data.keys())
-        field_id_keys = {
-            "observation_id",
-            "field_id",
-            "obstime",
-            "filter",
-            "exposure_time",
-        }
-        radec_keys = {
-            "observation_id",
-            "RA",
-            "Dec",
-            "obstime",
-            "filter",
-            "exposure_time",
-        }
-        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-            unique_keys
-        ):
-            return self.error(
-                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(
+                    self.current_user,
+                    options=[
+                        selectinload(Instrument.fields).selectinload(
+                            InstrumentField.tiles
+                        ),
+                        undefer(Instrument.region),
+                    ],
+                ).where(Instrument.id == instrument_id_int)
             )
+            if instrument is None:
+                return self.error(message=f"Missing instrument with ID {instrument_id}")
+            try:
+                observation_data = pd.read_table(
+                    StringIO(observation_data), sep=","
+                ).to_dict(orient="list")
+            except Exception as e:
+                return self.error(f"Unable to read in observation file: {e}")
 
-        if (
-            ("RA" in observation_data)
-            and ("Dec" in observation_data)
-            and not ("field_id" in observation_data)
-        ):
-            if instrument.region is None:
+            unique_keys = set(observation_data.keys())
+            field_id_keys = {
+                "observation_id",
+                "field_id",
+                "obstime",
+                "filter",
+                "exposure_time",
+            }
+            radec_keys = {
+                "observation_id",
+                "RA",
+                "Dec",
+                "obstime",
+                "filter",
+                "exposure_time",
+            }
+            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+                unique_keys
+            ):
                 return self.error(
-                    "instrument.region must not be None if providing only RA and Dec."
+                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
                 )
 
-        for filt in observation_data["filter"]:
-            if filt not in instrument.filters:
-                return self.error(f"Filter {filt} not present in {instrument.filters}")
+            if (
+                ("RA" in observation_data)
+                and ("Dec" in observation_data)
+                and not ("field_id" in observation_data)
+            ):
+                if instrument.region is None:
+                    return self.error(
+                        "instrument.region must not be None if providing only RA and Dec."
+                    )
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            "airmass",
-            "seeing",
-            "limmag",
-            "target_name",
-        ]
-        for key in optional_parameters:
-            if key not in observation_data:
-                observation_data[key] = [None] * len(observation_data["observation_id"])
+            for filt in observation_data["filter"]:
+                if filt not in instrument.filters:
+                    return self.error(
+                        f"Filter {filt} not present in {instrument.filters}"
+                    )
 
-        if "processed_fraction" not in observation_data:
-            observation_data["processed_fraction"] = [1] * len(
-                observation_data["observation_id"]
+            # fill in any missing optional parameters
+            optional_parameters = [
+                "airmass",
+                "seeing",
+                "limmag",
+                "target_name",
+            ]
+            for key in optional_parameters:
+                if key not in observation_data:
+                    observation_data[key] = [None] * len(
+                        observation_data["observation_id"]
+                    )
+
+            if "processed_fraction" not in observation_data:
+                observation_data["processed_fraction"] = [1] * len(
+                    observation_data["observation_id"]
+                )
+
+            obstable = pd.DataFrame.from_dict(observation_data)
+            instrument_id_final = instrument.id
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_observations(instrument_id_final, obstable),
             )
 
-        obstable = pd.DataFrame.from_dict(observation_data)
-        # run async
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_observations(instrument.id, obstable),
-        )
-
-        return self.success()
+            return self.success()
 
 
 class ObservationExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Retrieve observations from external API
@@ -1368,12 +1424,13 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data["allocation_id"] = int(data["allocation_id"])
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(
+                    session.user_or_token,
+                    options=[joinedload(Allocation.instrument)],
+                ).where(Allocation.id == data["allocation_id"])
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -1402,7 +1459,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    async def get(self, allocation_id):
         """
         ---
         summary: Retrieve queued observations from external API
@@ -1467,12 +1524,13 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["start_date"] = start_date
         data["end_date"] = end_date
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(
+                    session.user_or_token,
+                    options=[joinedload(Allocation.instrument)],
+                ).where(Allocation.id == data["allocation_id"])
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -1506,7 +1564,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def delete(self, allocation_id):
+    async def delete(self, allocation_id):
         """
         ---
         summary: Delete queued observations from external API
@@ -1546,14 +1604,18 @@ class ObservationExternalAPIHandler(BaseHandler):
 
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id
+        try:
+            data["allocation_id"] = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(
+                    session.user_or_token,
+                    options=[joinedload(Allocation.instrument)],
+                ).where(Allocation.id == data["allocation_id"])
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -1578,7 +1640,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id):
+    async def post(self, instrument_id):
         """
         ---
         summary: Submit observations to TreasureMap
@@ -1677,12 +1739,17 @@ class ObservationTreasureMapHandler(BaseHandler):
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
-        with self.Session() as session:
-            instrument = session.scalars(
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
                 Instrument.select(
                     session.user_or_token, options=[joinedload(Instrument.telescope)]
-                ).where(Instrument.id == instrument_id)
-            ).first()
+                ).where(Instrument.id == instrument_id_int)
+            )
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
 
@@ -1697,7 +1764,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             else:
                 treasuremap_id = instrument.treasuremap_id
 
-            data = get_observations(
+            data = await get_observations(
                 session,
                 start_date,
                 end_date,
@@ -1718,11 +1785,13 @@ class ObservationTreasureMapHandler(BaseHandler):
                     "Need at least one observation to send to Treasure Map"
                 )
 
-            event = session.scalars(
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+            event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
-            ).first()
+                    session.user_or_token,
+                    options=[selectinload(GcnEvent.gcn_notices)],
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
+            )
             if event is None:
                 return self.error(
                     message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
@@ -1731,7 +1800,8 @@ class ObservationTreasureMapHandler(BaseHandler):
             stmt = Allocation.select(session.user_or_token).where(
                 Allocation.instrument_id == instrument.id
             )
-            allocations = session.scalars(stmt).all()
+            allocations_result = await session.scalars(stmt)
+            allocations = allocations_result.all()
 
             api_token = None
             for allocation in allocations:
@@ -1818,7 +1888,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, instrument_id):
+    async def delete(self, instrument_id):
         """
         ---
         summary: Remove observations from TreasureMap
@@ -1854,77 +1924,79 @@ class ObservationTreasureMapHandler(BaseHandler):
         data = self.get_json()
         localization_dateobs = data.get("localizationDateobs", None)
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Invalid instrument ID {instrument_id}")
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        treasuremap_id = None
-        if instrument.treasuremap_id is None:
-            if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
-                treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(
+                    self.current_user,
+                    options=[joinedload(Instrument.telescope)],
+                ).where(Instrument.id == instrument_id_int)
+            )
+            if instrument is None:
+                return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
             else:
+                treasuremap_id = instrument.treasuremap_id
+
+            if localization_dateobs is not None:
+                localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+            else:
+                localization_dateobs_parsed = None
+
+            event = await session.scalar(
+                GcnEvent.select(
+                    self.current_user,
+                    options=[selectinload(GcnEvent.gcn_notices)],
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
+            )
+            if event is None:
                 return self.error(
-                    message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
                 )
-        else:
-            treasuremap_id = instrument.treasuremap_id
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            allocations_result = await session.scalars(
+                Allocation.select(self.current_user).where(
+                    Allocation.instrument_id == instrument.id
+                )
             )
-            .filter(GcnEvent.dateobs == localization_dateobs)
-            .first()
-        )
-        if event is None:
-            return self.error(
-                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
-            )
+            allocations = allocations_result.all()
 
-        allocations = (
-            Allocation.query_records_accessible_by(self.current_user)
-            .filter(Allocation.instrument_id == instrument.id)
-            .all()
-        )
+            api_token = None
+            for allocation in allocations:
+                altdata = allocation.altdata
+                if altdata and "TREASUREMAP_API_TOKEN" in altdata:
+                    api_token = altdata["TREASUREMAP_API_TOKEN"]
+            if not api_token:
+                return self.error("Missing allocation information.")
 
-        api_token = None
-        for allocation in allocations:
-            altdata = allocation.altdata
-            if altdata and "TREASUREMAP_API_TOKEN" in altdata:
-                api_token = altdata["TREASUREMAP_API_TOKEN"]
-        if not api_token:
-            return self.error("Missing allocation information.")
+            graceid = event.graceid
+            payload = {
+                "api_token": api_token,
+                "graceid": graceid,
+                "instrumentid": str(treasuremap_id),
+            }
 
-        graceid = event.graceid
-        payload = {
-            "api_token": api_token,
-            "graceid": graceid,
-            "instrumentid": str(treasuremap_id),
-        }
-
-        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, "api/v1/cancel_all")
-        url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
-        r = requests.post(url=url)
-        r.raise_for_status()
-        request_text = r.text
-        if "successfully" not in request_text:
-            return self.error(f"TreasureMap delete failed: {request_text}")
-        self.push_notification(f"TreasureMap delete succeeded: {request_text}.")
-        return self.success()
+            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, "api/v1/cancel_all")
+            url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
+            r = requests.post(url=url)
+            r.raise_for_status()
+            request_text = r.text
+            if "successfully" not in request_text:
+                return self.error(f"TreasureMap delete failed: {request_text}")
+            self.push_notification(f"TreasureMap delete succeeded: {request_text}.")
+            return self.success()
 
 
 def retrieve_observations_and_simsurvey(
@@ -1994,16 +2066,33 @@ def retrieve_observations_and_simsurvey(
         sa.select(Localization).where(Localization.id == localization_id)
     ).first()
 
-    data = get_observations(
-        session,
-        start_date,
-        end_date,
-        telescope_name=instrument.telescope.name,
-        instrument_name=instrument.name,
-        localization_dateobs=localization.dateobs,
-        localization_name=localization.localization_name,
-        localization_cumprob=payload["localization_cumprob"],
-    )
+    # get_observations is async; bridge from this sync executor thread by
+    # opening an AsyncVerifiedSession on a temporary event loop.
+    import asyncio
+
+    from baselayer.app.models import AsyncVerifiedSession
+
+    user = session.user_or_token
+
+    async def _fetch_observations():
+        async with AsyncVerifiedSession(user) as asession:
+            return await get_observations(
+                asession,
+                start_date,
+                end_date,
+                telescope_name=instrument.telescope.name,
+                instrument_name=instrument.name,
+                localization_dateobs=localization.dateobs,
+                localization_name=localization.localization_name,
+                localization_cumprob=payload["localization_cumprob"],
+            )
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        data = loop.run_until_complete(_fetch_observations())
+    finally:
+        loop.close()
 
     observations = data["observations"]
 
@@ -2233,15 +2322,21 @@ class ObservationSimSurveyHandler(BaseHandler):
 
         group_ids = self.get_query_argument("group_ids", None)
 
-        with self.Session() as session:
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
             if not group_ids:
-                group_ids = [
-                    g.id for g in self.associated_user_object.accessible_groups
-                ]
+                group_ids = await accessible_group_ids_async(self.current_user, session)
 
             try:
                 stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
-                groups = session.scalars(stmt).all()
+                groups_result = await session.scalars(stmt)
+                groups = groups_result.all()
             except AccessError:
                 return self.error("Could not find any accessible groups.", status=403)
 
@@ -2256,17 +2351,18 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             start_date = arrow.get(start_date.strip()).datetime
             end_date = arrow.get(end_date.strip()).datetime
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
 
-            instrument = session.scalars(
+            instrument = await session.scalar(
                 Instrument.select(
                     self.current_user,
                     options=[
                         joinedload(Instrument.telescope),
                     ],
                 ).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == instrument_id_int,
                 )
-            ).first()
+            )
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
 
@@ -2274,27 +2370,27 @@ class ObservationSimSurveyHandler(BaseHandler):
                 return self.error("Need sensitivity_data to evaluate efficiency")
 
             if localization_name is None:
-                localization = session.scalars(
+                localization = await session.scalar(
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .order_by(Localization.created_at.desc())
-                ).first()
+                )
             else:
-                localization = session.scalars(
+                localization = await session.scalar(
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .where(Localization.localization_name == localization_name)
-                ).first()
+                )
 
-            event = session.scalars(
+            event = await session.scalar(
                 GcnEvent.select(
                     self.current_user,
-                ).where(GcnEvent.dateobs == localization_dateobs)
-            ).first()
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
+            )
             if event is None:
                 return self.error("GCN event not found")
 
@@ -2317,7 +2413,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             survey_efficiency_analysis = SurveyEfficiencyForObservations(
                 requester_id=self.associated_user_object.id,
-                instrument_id=instrument_id,
+                instrument_id=instrument_id_int,
                 gcnevent_id=event.id,
                 localization_id=localization.id,
                 groups=groups,
@@ -2326,7 +2422,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             )
 
             session.add(survey_efficiency_analysis)
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY",
@@ -2337,21 +2433,35 @@ class ObservationSimSurveyHandler(BaseHandler):
                 "Simsurvey analysis in progress. Should be available soon."
             )
 
-            simsurvey_analysis = functools.partial(
-                retrieve_observations_and_simsurvey,
-                session,
-                start_date,
-                end_date,
-                localization.id,
-                instrument.id,
-                survey_efficiency_analysis.id,
-                "SurveyEfficiencyForObservations",
-            )
-            IOLoop.current().run_in_executor(None, simsurvey_analysis)
+            # retrieve_observations_and_simsurvey is sync and runs in an executor
+            # thread. Open a fresh sync Session inside that helper rather than
+            # passing the async session through.
+            sea_id = survey_efficiency_analysis.id
+            localization_id_final = localization.id
+            instrument_id_final = instrument.id
 
-            return self.success(data={"id": survey_efficiency_analysis.id})
+            def _run_simsurvey():
+                sync_session = Session(bind=DBSession.session_factory.kw["bind"])
+                try:
+                    sync_session.user_or_token = self.current_user
+                    retrieve_observations_and_simsurvey(
+                        sync_session,
+                        start_date,
+                        end_date,
+                        localization_id_final,
+                        instrument_id_final,
+                        sea_id,
+                        "SurveyEfficiencyForObservations",
+                    )
+                finally:
+                    sync_session.close()
+                    Session.remove()
 
-    def delete(self, survey_efficiency_analysis_id):
+            IOLoop.current().run_in_executor(None, _run_simsurvey)
+
+            return self.success(data={"id": sea_id})
+
+    async def delete(self, survey_efficiency_analysis_id):
         """
         ---
         summary: Delete a SimSurvey efficiency calculation
@@ -2371,21 +2481,28 @@ class ObservationSimSurveyHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            survey_efficiency_analysis = session.scalars(
+        try:
+            sea_id = int(survey_efficiency_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
+            )
+
+        async with self.AsyncSession() as session:
+            survey_efficiency_analysis = await session.scalar(
                 SurveyEfficiencyForObservations.select(
                     session.user_or_token, mode="delete"
-                ).where(
-                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
                 )
-            ).first()
+                .where(SurveyEfficiencyForObservations.id == sea_id)
+                .options(joinedload(SurveyEfficiencyForObservations.localization))
+            )
             if survey_efficiency_analysis is None:
                 return self.error(
                     f"Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}"
                 )
             dateobs = survey_efficiency_analysis.localization.dateobs
-            session.delete(survey_efficiency_analysis)
-            session.commit()
+            await session.delete(survey_efficiency_analysis)
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY",
@@ -2417,12 +2534,19 @@ class ObservationSimSurveyPlotHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            survey_efficiency_analysis = session.scalars(
+        try:
+            sea_id = int(survey_efficiency_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
+            )
+
+        async with self.AsyncSession() as session:
+            survey_efficiency_analysis = await session.scalar(
                 SurveyEfficiencyForObservations.select(session.user_or_token).where(
-                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                    SurveyEfficiencyForObservations.id == sea_id
                 )
-            ).first()
+            )
             if survey_efficiency_analysis is None:
                 return self.error(
                     f"Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}"

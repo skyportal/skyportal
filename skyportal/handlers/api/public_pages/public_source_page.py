@@ -346,7 +346,7 @@ class PublicSourcePageHandler(BaseHandler):
                 return self.error(str(e))
 
     @auth_or_token
-    def get(self, source_id):
+    async def get(self, source_id):
         """
         ---
           summary: Retrieve all public pages for a source
@@ -377,18 +377,18 @@ class PublicSourcePageHandler(BaseHandler):
         """
         if source_id is None:
             return self.error("Source ID is required")
-        with self.Session() as session:
-            public_source_pages = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
                 )
                 .order_by(PublicSourcePage.created_at.desc())
-            ).all()
-            return self.success(data=public_source_pages)
+            )
+            return self.success(data=result.all())
 
     @permissions(["Manage sources"])
-    def delete(self, page_id):
+    async def delete(self, page_id):
         """
         ---
         summary: Delete a public source page
@@ -415,9 +415,13 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
+        try:
+            page_id = int(page_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid page_id: {page_id}")
 
-        with self.Session() as session:
-            public_source_page = session.scalar(
+        async with self.AsyncSession() as session:
+            public_source_page = await session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(
                     PublicSourcePage.id == page_id
                 )
@@ -425,13 +429,14 @@ class PublicSourcePageHandler(BaseHandler):
 
             if public_source_page is None:
                 return self.error("Public source page not found", status=404)
+            source_id = public_source_page.source_id
             public_source_page.remove_from_cache()
 
-            session.delete(public_source_page)
-            session.commit()
+            await session.delete(public_source_page)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-                payload={"source_id": public_source_page.source_id},
+                payload={"source_id": source_id},
             )
             return self.success()

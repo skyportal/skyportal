@@ -10,7 +10,7 @@ from arrow import ParserError
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -39,11 +39,38 @@ from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
 )
+from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 from .photometry import add_external_photometry
 
 _, cfg = load_env()
 log = make_log("api/spectrum")
+
+
+async def parse_id_list_async(id_list, model_class, session):
+    """Async equivalent of ``parse_id_list``."""
+    if id_list is None:
+        return
+
+    try:
+        result = await session.scalars(model_class.select(session.user_or_token))
+        accessible_rows = result.unique().all()
+        validated_ids = []
+        for id in id_list.split(","):
+            id = int(id)
+            if id not in [row.id for row in accessible_rows]:
+                raise AccessError(
+                    f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
+                    f"Not all {model_class.__name__} IDs are valid/accessible"
+                )
+            validated_ids.append(id)
+    except ValueError:
+        raise ValueError(
+            f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
+            f"Could not parse all elements to integers"
+        )
+
+    return validated_ids
 
 
 def parse_id_list(id_list, model_class, session):
@@ -102,6 +129,116 @@ def parse_string_list(str_list):
             return [c.strip() for c in str_list.split(",")]
     else:
         raise TypeError("Must input a string!")
+
+
+async def post_spectrum_async(data, user_id, session):
+    """Async equivalent of ``post_spectrum``."""
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
+
+    instrument = await session.scalar(
+        Instrument.select(user).where(Instrument.id == data["instrument_id"])
+    )
+    if instrument is None:
+        raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
+
+    if "units" in data:
+        if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
+            raise ValueError("units must be Jy, AB, or erg/s/cm/cm/AA")
+
+    pis = []
+    external_pi = data.pop("external_pi", None)
+    pi_ids = data.pop("pi", [])
+    if external_pi is not None and len(pi_ids) == 0:
+        raise ValueError(
+            "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
+        )
+    for pi_id in pi_ids:
+        pi = await session.scalar(User.select(user).where(User.id == pi_id))
+        if pi is None:
+            raise ValueError(f"Invalid pi ID: {pi_id}.")
+        pi_association = SpectrumPI(external_pi=external_pi, user_id=pi.id)
+        pis.append(pi_association)
+
+    reducers = []
+    external_reducer = data.pop("external_reducer", None)
+    reducer_ids = data.pop("reduced_by", [])
+    if external_reducer is not None and len(reducer_ids) == 0:
+        raise ValueError(
+            "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+        )
+    for reducer_id in reducer_ids:
+        reducer = await session.scalar(User.select(user).where(User.id == reducer_id))
+        if reducer is None:
+            raise ValueError(f"Invalid reducer ID: {reducer_id}.")
+        reducer_association = SpectrumReducer(
+            external_reducer=external_reducer, user_id=reducer.id
+        )
+        reducers.append(reducer_association)
+
+    observers = []
+    external_observer = data.pop("external_observer", None)
+    observer_ids = data.pop("observed_by", [])
+    if external_observer is not None and len(observer_ids) == 0:
+        raise ValueError(
+            "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+        )
+    for observer_id in observer_ids:
+        observer = await session.scalar(User.select(user).where(User.id == observer_id))
+        if observer is None:
+            raise ValueError(f"Invalid observer ID: {observer_id}.")
+        observer_association = SpectrumObserver(
+            external_observer=external_observer, user_id=observer.id
+        )
+        observers.append(observer_association)
+
+    group_ids = data.pop("group_ids", None)
+    groups_result = await session.scalars(
+        Group.select(user).where(Group.id.in_(group_ids))
+    )
+    groups = list(groups_result.unique().all())
+    if {g.id for g in groups} != set(group_ids):
+        raise ValueError(f"Cannot find one or more groups with IDs: {group_ids}.")
+
+    spec = Spectrum(**data)
+    spec.instrument_id = instrument.id
+
+    spec.groups = groups
+    spec.owner_id = user_id
+    if spec.type is None:
+        spec.type = default_spectrum_type
+    session.add(spec)
+    await session.flush()  # populate spec.id
+
+    for pi in pis:
+        pi.spectr_id = spec.id
+        session.add(pi)
+    for reducer in reducers:
+        reducer.spectr_id = spec.id
+        session.add(reducer)
+    for observer in observers:
+        observer.spectr_id = spec.id
+        session.add(observer)
+
+    await session.commit()
+
+    # Re-fetch obj.internal_key for the refresh push (avoid lazy load).
+    obj = await session.scalar(sa.select(Obj).where(Obj.id == spec.obj_id))
+
+    if obj is not None:
+        flow = Flow()
+        flow.push(
+            "*",
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
+        )
+
+        flow.push(
+            "*",
+            "skyportal/REFRESH_SOURCE_SPECTRA",
+            payload={"obj_internal_key": obj.internal_key},
+        )
+
+    return spec.id
 
 
 def post_spectrum(data, user_id, session):
@@ -221,7 +358,7 @@ def post_spectrum(data, user_id, session):
 
 class SpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload spectrum
@@ -261,23 +398,26 @@ class SpectrumHandler(BaseHandler):
                 f"Invalid / missing parameters; {e.normalized_messages()}"
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                # always append the single user group
+                # always append the single user group (sync property reading
+                # DBSession() — safe to call from async handler).
                 single_user_group = self.associated_user_object.single_user_group
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
                     group_ids = [single_user_group.id]
                 elif group_ids == "all":
-                    group_ids = [g.id for g in self.current_user.accessible_groups]
+                    group_ids = await accessible_group_ids_async(
+                        self.current_user, session
+                    )
 
                 if single_user_group.id not in group_ids:
                     group_ids.append(single_user_group.id)
 
                 data["group_ids"] = group_ids
 
-                spectrum_id = post_spectrum(
+                spectrum_id = await post_spectrum_async(
                     data,
                     self.associated_user_object.id,
                     session,
@@ -287,7 +427,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    async def get(self, spectrum_id=None):
         """
         ---
         single:
@@ -474,35 +614,46 @@ class SpectrumHandler(BaseHandler):
         """
 
         if spectrum_id is not None:
-            with self.Session() as session:
-                spectrum = session.scalars(
-                    Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == spectrum_id
+            try:
+                spectrum_id = int(spectrum_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
+            async with self.AsyncSession() as session:
+                spectrum = await session.scalar(
+                    Spectrum.select(session.user_or_token)
+                    .options(
+                        selectinload(Spectrum.instrument).selectinload(
+                            Instrument.telescope
+                        ),
+                        selectinload(Spectrum.groups),
+                        selectinload(Spectrum.reducers),
+                        selectinload(Spectrum.observers),
+                        selectinload(Spectrum.pis),
+                        selectinload(Spectrum.owner),
                     )
-                ).first()
+                    .where(Spectrum.id == spectrum_id)
+                )
                 if spectrum is None:
                     return self.error(
                         f"Could not access spectrum {spectrum_id}.", status=403
                     )
-                comments = (
-                    session.scalars(
-                        CommentOnSpectrum.select(
-                            session.user_or_token,
-                            options=[joinedload(CommentOnSpectrum.groups)],
-                        ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
-                    )
-                    .unique()
-                    .all()
+                comments_result = await session.scalars(
+                    CommentOnSpectrum.select(
+                        session.user_or_token,
+                        options=[
+                            selectinload(CommentOnSpectrum.groups),
+                            selectinload(CommentOnSpectrum.author),
+                        ],
+                    ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
                 )
-                annotations = (
-                    session.scalars(
-                        AnnotationOnSpectrum.select(session.user_or_token).where(
-                            AnnotationOnSpectrum.spectrum_id == spectrum_id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments = comments_result.unique().all()
+                annotations_result = await session.scalars(
+                    AnnotationOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(AnnotationOnSpectrum.author))
+                    .where(AnnotationOnSpectrum.spectrum_id == spectrum_id)
                 )
+                annotations = annotations_result.unique().all()
 
                 spec_dict = recursive_to_dict(spectrum)
                 spec_dict["instrument_name"] = spectrum.instrument.name
@@ -516,27 +667,27 @@ class SpectrumHandler(BaseHandler):
                 spec_dict["comments"] = comments
                 spec_dict["annotations"] = annotations
 
-                external_pi = session.scalars(
+                external_pi = await session.scalar(
                     SpectrumPI.select(session.user_or_token).where(
                         SpectrumPI.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_pi is not None:
                     spec_dict["external_pi"] = external_pi.external_pi
 
-                external_reducer = session.scalars(
+                external_reducer = await session.scalar(
                     SpectrumReducer.select(session.user_or_token).where(
                         SpectrumReducer.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_reducer is not None:
                     spec_dict["external_reducer"] = external_reducer.external_reducer
 
-                external_observer = session.scalars(
+                external_observer = await session.scalar(
                     SpectrumObserver.select(session.user_or_token).where(
                         SpectrumObserver.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_observer is not None:
                     spec_dict["external_observer"] = external_observer.external_observer
 
@@ -588,12 +739,16 @@ class SpectrumHandler(BaseHandler):
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{modified_after}".')
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                instrument_ids = parse_id_list(instrument_ids, Instrument, session)
-                group_ids = parse_id_list(group_ids, Group, session)
-                followup_ids = parse_id_list(followup_ids, FollowupRequest, session)
-                assignment_ids = parse_id_list(
+                instrument_ids = await parse_id_list_async(
+                    instrument_ids, Instrument, session
+                )
+                group_ids = await parse_id_list_async(group_ids, Group, session)
+                followup_ids = await parse_id_list_async(
+                    followup_ids, FollowupRequest, session
+                )
+                assignment_ids = await parse_id_list_async(
                     assignment_ids, ClassicalAssignment, session
                 )
             except (ValueError, AccessError) as e:
@@ -707,7 +862,18 @@ class SpectrumHandler(BaseHandler):
             if spec_type:
                 spec_query = spec_query.where(Spectrum.type.in_(spec_type))
 
-            spectra = session.scalars(spec_query).unique().all()
+            # Eager-load instrument/telescope/groups/owner/pi/reducer/observer
+            # for the per-spectrum dict construction below.
+            spec_query = spec_query.options(
+                selectinload(Spectrum.instrument).selectinload(Instrument.telescope),
+                selectinload(Spectrum.groups),
+                selectinload(Spectrum.owner),
+                selectinload(Spectrum.pis),
+                selectinload(Spectrum.reducers),
+                selectinload(Spectrum.observers),
+            )
+            spectra_result = await session.scalars(spec_query)
+            spectra = spectra_result.unique().all()
 
             result_spectra = recursive_to_dict(spectra)
 
@@ -745,13 +911,15 @@ class SpectrumHandler(BaseHandler):
                 for spec_dict in result_spectra:
                     comments_query = CommentOnSpectrum.select(
                         session.user_or_token,
-                        options=[joinedload(CommentOnSpectrum.groups)],
+                        options=[
+                            selectinload(CommentOnSpectrum.groups),
+                            selectinload(CommentOnSpectrum.author),
+                        ],
                     ).where(CommentOnSpectrum.spectrum_id == spec_dict["id"])
 
                     if not minimal_payload:  # grab these before further filtering
-                        spec_dict["comments"] = recursive_to_dict(
-                            session.scalars(comments_query).unique().all()
-                        )
+                        result = await session.scalars(comments_query)
+                        spec_dict["comments"] = recursive_to_dict(result.unique().all())
 
                     if (
                         (comments_filter is not None)
@@ -768,7 +936,8 @@ class SpectrumHandler(BaseHandler):
                                 CommentOnSpectrum.created_at >= comments_filter_after
                             )
 
-                        comments = session.scalars(comments_query).unique().all()
+                        result = await session.scalars(comments_query)
+                        comments = result.unique().all()
                         if not comments:  # if nothing passed, this spectrum is rejected
                             continue
 
@@ -799,32 +968,29 @@ class SpectrumHandler(BaseHandler):
 
             if not minimal_payload:  # add other data to each spectrum
                 for spec, spec_dict in zip(spectra, result_spectra):
-                    annotations = (
-                        session.scalars(
-                            AnnotationOnSpectrum.select(session.user_or_token).where(
-                                AnnotationOnSpectrum.spectrum_id == spec.id
-                            )
-                        )
-                        .unique()
-                        .all()
+                    annotations_result = await session.scalars(
+                        AnnotationOnSpectrum.select(session.user_or_token)
+                        .options(selectinload(AnnotationOnSpectrum.author))
+                        .where(AnnotationOnSpectrum.spectrum_id == spec.id)
                     )
+                    annotations = annotations_result.unique().all()
                     spec_dict["annotations"] = recursive_to_dict(annotations)
 
-                    external_pi = session.scalars(
+                    external_pi = await session.scalar(
                         SpectrumPI.select(session.user_or_token).where(
                             SpectrumPI.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_pi is not None:
                         spec_dict["external_pi"] = external_pi.external_pi
 
                     spec_dict["pis"] = recursive_to_dict(spec.pis)
 
-                    external_reducer = session.scalars(
+                    external_reducer = await session.scalar(
                         SpectrumReducer.select(session.user_or_token).where(
                             SpectrumReducer.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_reducer is not None:
                         spec_dict["external_reducer"] = (
                             external_reducer.external_reducer
@@ -832,11 +998,11 @@ class SpectrumHandler(BaseHandler):
 
                     spec_dict["reducers"] = recursive_to_dict(spec.reducers)
 
-                    external_observer = session.scalars(
+                    external_observer = await session.scalar(
                         SpectrumObserver.select(session.user_or_token).where(
                             SpectrumObserver.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_observer is not None:
                         spec_dict["external_observer"] = (
                             external_observer.external_observer
@@ -856,7 +1022,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    def put(self, spectrum_id):
+    async def put(self, spectrum_id):
         """
         ---
         summary: Update a spectrum
@@ -895,9 +1061,12 @@ class SpectrumHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
         group_ids = data.pop("group_ids", None)
-        if group_ids == "all":
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         pi = data.pop("pi", None)
         reduced_by = data.pop("reduced_by", None)
@@ -907,18 +1076,26 @@ class SpectrumHandler(BaseHandler):
         external_reducer = data.pop("external_reducer", None)
         external_observer = data.pop("external_observer", None)
 
-        with self.Session() as session:
-            stmt = Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
-            spectrum = session.scalars(stmt).first()
+        async with self.AsyncSession() as session:
+            if group_ids == "all":
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            spectrum = await session.scalar(
+                Spectrum.select(self.current_user)
+                .options(
+                    selectinload(Spectrum.groups),
+                    selectinload(Spectrum.pis),
+                    selectinload(Spectrum.reducers),
+                    selectinload(Spectrum.observers),
+                )
+                .where(Spectrum.id == spectrum_id)
+            )
 
             if group_ids:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
+                groups = list(groups_result.unique().all())
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
@@ -931,109 +1108,106 @@ class SpectrumHandler(BaseHandler):
                         spectrum.groups = spectrum.groups + new_groups
 
             if pi:
-                existing_pis = spectrum.pis
+                existing_pis = list(spectrum.pis)
                 pis = []
                 for pi_id in reduced_by:
-                    stmt = User.select(session.user_or_token).where(User.id == pi_id)
-                    pi = session.scalars(stmt).first()
-                    if pi is None:
-                        raise ValueError(f"Invalid pi ID: {pi_id}.")
-                    pi_association = SpectrumReducer(external_pi=external_pi)
-                    pi_association.user = pi
+                    pi_user = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == pi_id)
+                    )
+                    if pi_user is None:
+                        return self.error(f"Invalid pi ID: {pi_id}.")
+                    pi_association = SpectrumReducer(
+                        external_pi=external_pi, user_id=pi_user.id
+                    )
                     pis.append(pi_association)
 
                 if len(pis) == 0 and external_pi is not None:
-                    raise ValueError(
+                    return self.error(
                         "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
                     )
 
-                # remove any existing pis that are not in the new list
-                for pi in existing_pis:
-                    if pi.user_id not in [r.user_id for r in pis]:
-                        session.delete(pi)
+                for pi_assoc in existing_pis:
+                    if pi_assoc.user_id not in [r.user_id for r in pis]:
+                        await session.delete(pi_assoc)
 
-                for pi in pis:
-                    pi.spectr_id = spectrum.id
-                    session.add(pi)
+                for pi_assoc in pis:
+                    pi_assoc.spectr_id = spectrum.id
+                    session.add(pi_assoc)
 
             if reduced_by:
-                existing_reducers = spectrum.reducers
+                existing_reducers = list(spectrum.reducers)
                 reducers = []
                 for reducer_id in reduced_by:
-                    stmt = User.select(session.user_or_token).where(
-                        User.id == reducer_id
+                    reducer = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == reducer_id)
                     )
-                    reducer = session.scalars(stmt).first()
                     if reducer is None:
-                        raise ValueError(f"Invalid reducer ID: {reducer_id}.")
+                        return self.error(f"Invalid reducer ID: {reducer_id}.")
                     reducer_association = SpectrumReducer(
-                        external_reducer=external_reducer
+                        external_reducer=external_reducer, user_id=reducer.id
                     )
-                    reducer_association.user = reducer
                     reducers.append(reducer_association)
 
                 if len(reducers) == 0 and external_reducer is not None:
-                    raise ValueError(
+                    return self.error(
                         "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
                     )
 
-                # remove any existing reducers that are not in the new list
-                for reducer in existing_reducers:
-                    if reducer.user_id not in [r.user_id for r in reducers]:
-                        session.delete(reducer)
+                for reducer_assoc in existing_reducers:
+                    if reducer_assoc.user_id not in [r.user_id for r in reducers]:
+                        await session.delete(reducer_assoc)
 
-                for reducer in reducers:
-                    reducer.spectr_id = spectrum.id
-                    session.add(reducer)
+                for reducer_assoc in reducers:
+                    reducer_assoc.spectr_id = spectrum.id
+                    session.add(reducer_assoc)
 
             if observed_by:
-                existing_observers = spectrum.observers
+                existing_observers = list(spectrum.observers)
                 observers = []
                 for observer_id in observed_by:
-                    stmt = User.select(session.user_or_token).where(
-                        User.id == observer_id
+                    observer = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == observer_id)
                     )
-                    observer = session.scalars(stmt).first()
                     if observer is None:
-                        raise ValueError(f"Invalid observer ID: {observer_id}.")
+                        return self.error(f"Invalid observer ID: {observer_id}.")
                     observer_association = SpectrumObserver(
-                        external_observer=external_observer
+                        external_observer=external_observer, user_id=observer.id
                     )
-                    observer_association.user = observer
                     observers.append(observer_association)
 
                 if len(observers) == 0 and external_observer is not None:
-                    raise ValueError(
+                    return self.error(
                         "At least one valid user must be provided as an "
                         "observer point of contact via the 'observed_by' parameter."
                     )
 
-                # remove any existing observers that are not in the new list
-                for observer in existing_observers:
-                    if observer.user_id not in [o.user_id for o in observers]:
-                        session.delete(observer)
+                for observer_assoc in existing_observers:
+                    if observer_assoc.user_id not in [o.user_id for o in observers]:
+                        await session.delete(observer_assoc)
 
-                for observer in observers:
-                    observer.spectr_id = spectrum.id
-                    session.add(observer)
+                for observer_assoc in observers:
+                    observer_assoc.spectr_id = spectrum.id
+                    session.add(observer_assoc)
 
             for k in data:
                 setattr(spectrum, k, data[k])
 
-            session.commit()
+            await session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": spectrum.obj.internal_key},
-            )
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spectrum.obj.internal_key},
-            )
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            if obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj.internal_key},
+                )
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id):
+    async def delete(self, spectrum_id):
         """
         ---
         summary: Delete a spectrum
@@ -1056,23 +1230,33 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            spectrum = session.scalars(
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
+        async with self.AsyncSession() as session:
+            spectrum = await session.scalar(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
-            ).first()
-            obj_key = spectrum.obj.internal_key
-            session.delete(spectrum)
-            session.commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_key},
             )
+            if spectrum is None:
+                return self.error("Could not find spectrum.", status=403)
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            obj_key = obj.internal_key if obj is not None else None
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spectrum.obj.internal_key},
-            )
+            await session.delete(spectrum)
+            await session.commit()
+
+            if obj_key is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_key},
+                )
+
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj_key},
+                )
 
             return self.success()
 
@@ -1118,7 +1302,9 @@ class ASCIIHandler:
             fluxerr_column=json.get("fluxerr_column", None),
         )
         spec.original_file_string = ascii
-        spec.owner = self.associated_user_object
+        # Set FK rather than the relationship to avoid the cascade-conflict
+        # gotcha when this Spectrum is later added to an async session.
+        spec.owner_id = self.associated_user_object.id
         if return_json:
             return spec, json
         return spec
@@ -1126,7 +1312,7 @@ class ASCIIHandler:
 
 class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload spectrum from ASCII
@@ -1165,26 +1351,25 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop("filename")
 
-        with self.Session() as session:
-            obj_check = session.scalars(
+        async with self.AsyncSession() as session:
+            obj_check = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == json["obj_id"])
-            ).first()
+            )
 
             if obj_check is None:
                 return self.error(f"Cannot find object with ID: {json['obj_id']}")
 
-            inst_check = session.scalars(
+            inst_check = await session.scalar(
                 Instrument.select(session.user_or_token).where(
                     Instrument.id == json["instrument_id"]
                 )
-            ).first()
+            )
 
             if inst_check is None:
                 return self.error(
                     f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
-            # always add the single user group
             single_user_group = self.associated_user_object.single_user_group
 
             group_ids = json.pop("group_ids", [])
@@ -1192,20 +1377,19 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 group_ids = [single_user_group.id]
             elif group_ids == "all":
                 public_name = cfg["misc.public_group_name"]
-                stmt = Group.select(self.current_user).where(Group.name == public_name)
-                public_groups = session.scalars(stmt).unique().all()
+                public_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.name == public_name)
+                )
+                public_groups = public_result.unique().all()
                 group_ids = [g.id for g in public_groups]
 
             if single_user_group.id not in group_ids:
                 group_ids.append(single_user_group.id)
 
-            groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                )
-                .unique()
-                .all()
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
             )
+            groups = list(groups_result.unique().all())
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f"Cannot find one or more groups with IDs: {group_ids}."
@@ -1215,106 +1399,118 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             external_pi = json.pop("external_pi", None)
             pi_ids = json.pop("pi", [])
             if external_pi is not None and len(pi_ids) == 0:
-                raise ValueError(
+                return self.error(
                     "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
                 )
             for pi_id in pi_ids:
-                stmt = User.select(self.current_user).where(User.id == pi_id)
-                pi = session.scalars(stmt).first()
+                pi = await session.scalar(
+                    User.select(self.current_user).where(User.id == pi_id)
+                )
                 if pi is None:
                     return self.error(f"Invalid pi ID: {pi_id}.")
-                pi_association = SpectrumPI(external_pi=external_pi)
-                pi_association.user = pi
+                pi_association = SpectrumPI(external_pi=external_pi, user_id=pi.id)
                 pis.append(pi_association)
 
             reducers = []
             external_reducer = json.pop("external_reducer", None)
             reducer_ids = json.pop("reduced_by", [])
             if external_reducer is not None and len(reducer_ids) == 0:
-                self.error(
+                return self.error(
                     "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
                 )
             for reducer_id in reducer_ids:
-                stmt = User.select(self.current_user).where(User.id == reducer_id)
-                reducer = session.scalars(stmt).first()
+                reducer = await session.scalar(
+                    User.select(self.current_user).where(User.id == reducer_id)
+                )
                 if reducer is None:
                     return self.error(f"Invalid reducer ID: {reducer_id}.")
-                reducer_association = SpectrumReducer(external_reducer=external_reducer)
-                reducer_association.user = reducer
+                reducer_association = SpectrumReducer(
+                    external_reducer=external_reducer, user_id=reducer.id
+                )
                 reducers.append(reducer_association)
 
             observers = []
             external_observer = json.pop("external_observer", None)
             observer_ids = json.pop("observed_by", [])
             if external_observer is not None and len(observer_ids) == 0:
-                self.error(
+                return self.error(
                     "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
                 )
             for observer_id in observer_ids:
-                stmt = User.select(self.current_user).where(User.id == observer_id)
-                observer = session.scalars(stmt).first()
+                observer = await session.scalar(
+                    User.select(self.current_user).where(User.id == observer_id)
+                )
                 if observer is None:
                     return self.error(f"Invalid observer ID: {observer_id}.")
                 observer_association = SpectrumObserver(
-                    external_observer=external_observer
+                    external_observer=external_observer, user_id=observer.id
                 )
-                observer_association.user = observer
                 observers.append(observer_association)
 
-            # will never KeyError as missing value is imputed
             followup_request_id = json.pop("followup_request_id", None)
             if followup_request_id is not None:
-                stmt = FollowupRequest.select(self.current_user)
-                stmt = stmt.where(FollowupRequest.id == followup_request_id)
-                followup_request = session.scalars(stmt).first()
-                spec.followup_request = followup_request
-                for group in followup_request.target_groups:
-                    if group not in groups:
-                        groups.append(group)
+                followup_request = await session.scalar(
+                    FollowupRequest.select(self.current_user)
+                    .options(selectinload(FollowupRequest.target_groups))
+                    .where(FollowupRequest.id == followup_request_id)
+                )
+                if followup_request is not None:
+                    spec.followup_request_id = followup_request.id
+                    for group in followup_request.target_groups:
+                        if group not in groups:
+                            groups.append(group)
 
             assignment_id = json.pop("assignment_id", None)
             if assignment_id is not None:
-                stmt = ClassicalAssignment.select(self.current_user)
-                stmt = stmt.where(ClassicalAssignment.id == assignment_id)
-                assignment = session.scalars(stmt).first()
+                assignment = await session.scalar(
+                    ClassicalAssignment.select(self.current_user)
+                    .options(selectinload(ClassicalAssignment.run))
+                    .where(ClassicalAssignment.id == assignment_id)
+                )
                 if assignment is None:
                     return self.error("Invalid assignment.")
-                spec.assignment = assignment
-                if assignment.run.group is not None:
-                    groups.append(assignment.run.group)
+                spec.assignment_id = assignment.id
+                if assignment.run.group_id is not None:
+                    run_group = await session.scalar(
+                        sa.select(Group).where(Group.id == assignment.run.group_id)
+                    )
+                    if run_group is not None and run_group not in groups:
+                        groups.append(run_group)
 
             spec.original_file_filename = Path(filename).name
             spec.groups = groups
 
             session.add(spec)
-            for pi in pis:
-                pi.spectrum = spec
-                session.add(pi)
-            for reducer in reducers:
-                reducer.spectrum = spec
-                session.add(reducer)
-            for observer in observers:
-                observer.spectrum = spec
-                session.add(observer)
+            await session.flush()  # populate spec.id
+            for pi_assoc in pis:
+                pi_assoc.spectr_id = spec.id
+                session.add(pi_assoc)
+            for reducer_assoc in reducers:
+                reducer_assoc.spectr_id = spec.id
+                session.add(reducer_assoc)
+            for observer_assoc in observers:
+                observer_assoc.spectr_id = spec.id
+                session.add(observer_assoc)
 
-            session.commit()
+            await session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": spec.obj.internal_key},
-            )
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spec.obj.internal_key},
-            )
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spec.obj_id))
+            if obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj.internal_key},
+                )
 
             return self.success(data={"id": spec.id})
 
 
 class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Parse spectrum from ASCII file
@@ -1345,7 +1541,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
 
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         """
         ---
         summary: Get spectra for an object
@@ -1422,15 +1618,26 @@ class ObjSpectraHandler(BaseHandler):
         if sortOrder not in ["asc", "desc"]:
             return self.error("Invalid sortOrder, must be one of: asc, desc.")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error("Invalid object ID.")
 
-            stmt = Spectrum.select(session.user_or_token).where(
-                Spectrum.obj_id == obj_id
+            stmt = (
+                Spectrum.select(session.user_or_token)
+                .options(
+                    selectinload(Spectrum.instrument).selectinload(
+                        Instrument.telescope
+                    ),
+                    selectinload(Spectrum.groups),
+                    selectinload(Spectrum.owner),
+                    selectinload(Spectrum.pis),
+                    selectinload(Spectrum.reducers),
+                    selectinload(Spectrum.observers),
+                )
+                .where(Spectrum.obj_id == obj_id)
             )
 
             if sortBy == "observed_at":
@@ -1446,29 +1653,24 @@ class ObjSpectraHandler(BaseHandler):
                     else Spectrum.created_at.desc()
                 )
 
-            spectra = session.scalars(stmt).unique().all()
+            spectra_result = await session.scalars(stmt)
+            spectra = spectra_result.unique().all()
 
             return_values = []
             for spec in spectra:
                 spec_dict = recursive_to_dict(spec)
-                comments = (
-                    session.scalars(
-                        CommentOnSpectrum.select(session.user_or_token).where(
-                            CommentOnSpectrum.spectrum_id == spec.id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments_result = await session.scalars(
+                    CommentOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(CommentOnSpectrum.author))
+                    .where(CommentOnSpectrum.spectrum_id == spec.id)
                 )
-                annotations = (
-                    session.scalars(
-                        AnnotationOnSpectrum.select(session.user_or_token).where(
-                            AnnotationOnSpectrum.spectrum_id == spec.id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments = comments_result.unique().all()
+                annotations_result = await session.scalars(
+                    AnnotationOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(AnnotationOnSpectrum.author))
+                    .where(AnnotationOnSpectrum.spectrum_id == spec.id)
                 )
+                annotations = annotations_result.unique().all()
 
                 spec_dict["comments"] = sorted(
                     (
@@ -1502,27 +1704,27 @@ class ObjSpectraHandler(BaseHandler):
                 spec_dict["observers"] = spec.observers
                 spec_dict["observed_at_mjd"] = Time(spec.observed_at).mjd
 
-                external_pi = session.scalars(
+                external_pi = await session.scalar(
                     SpectrumPI.select(session.user_or_token).where(
                         SpectrumPI.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_pi is not None:
                     spec_dict["external_pi"] = external_pi.external_pi
 
-                external_reducer = session.scalars(
+                external_reducer = await session.scalar(
                     SpectrumReducer.select(session.user_or_token).where(
                         SpectrumReducer.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_reducer is not None:
                     spec_dict["external_reducer"] = external_reducer.external_reducer
 
-                external_observer = session.scalars(
+                external_observer = await session.scalar(
                     SpectrumObserver.select(session.user_or_token).where(
                         SpectrumObserver.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_observer is not None:
                     spec_dict["external_observer"] = external_observer.external_observer
 
@@ -1556,7 +1758,7 @@ class ObjSpectraHandler(BaseHandler):
 
 class SpectrumRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get spectra within a date range
@@ -1618,7 +1820,12 @@ class SpectrumRangeHandler(BaseHandler):
         min_date = self.get_query_argument("min_date", None)
         max_date = self.get_query_argument("max_date", None)
 
-        with self.Session() as session:
+        try:
+            instrument_ids = [int(i) for i in instrument_ids]
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_ids: {instrument_ids}")
+
+        async with self.AsyncSession() as session:
             if len(instrument_ids) > 0:
                 query = Spectrum.select(session.user_or_token).where(
                     Spectrum.instrument_id.in_(instrument_ids)
@@ -1628,17 +1835,18 @@ class SpectrumRangeHandler(BaseHandler):
 
             if min_date is not None:
                 utc = Time(min_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at >= utc.isot)
+                query = query.where(Spectrum.observed_at >= utc.datetime)
             if max_date is not None:
                 utc = Time(max_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at <= utc.isot)
+                query = query.where(Spectrum.observed_at <= utc.datetime)
 
-            return self.success(data=session.scalars(query).unique().all())
+            result = await session.scalars(query)
+            return self.success(data=result.unique().all())
 
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    def post(self, spectrum_id):
+    async def post(self, spectrum_id):
         """
         ---
         summary: Create synthetic photometry from a spectrum
@@ -1672,10 +1880,17 @@ class SyntheticPhotometryHandler(BaseHandler):
         data = self.get_json()
         filters = data.get("filters")
 
-        with self.Session() as session:
-            spectrum = session.scalars(
-                Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
-            ).first()
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
+        async with self.AsyncSession() as session:
+            spectrum = await session.scalar(
+                Spectrum.select(session.user_or_token)
+                .options(selectinload(Spectrum.instrument))
+                .where(Spectrum.id == spectrum_id)
+            )
             if spectrum is None:
                 return self.error(f"No spectrum with id {spectrum_id}")
 
@@ -1697,6 +1912,12 @@ class SyntheticPhotometryHandler(BaseHandler):
             except TypeError:
                 spec = sncosmo.Spectrum(wav, flux * spectrum.astropy_units)
 
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            if obj is None:
+                return self.error(
+                    f"Cannot find Obj associated with spectrum {spectrum_id}"
+                )
+
             data_list = []
             for filt in filters:
                 try:
@@ -1710,8 +1931,8 @@ class SyntheticPhotometryHandler(BaseHandler):
                 data_list.append(
                     {
                         "mjd": Time(obstime, format="datetime").mjd,
-                        "ra": spectrum.obj.ra,
-                        "dec": spectrum.obj.dec,
+                        "ra": obj.ra,
+                        "dec": obj.dec,
                         "mag": mag,
                         "magerr": magerr,
                         "filter": filt,
@@ -1722,14 +1943,17 @@ class SyntheticPhotometryHandler(BaseHandler):
             if len(data_list) > 0:
                 df = pd.DataFrame.from_dict(data_list)
                 df["magsys"] = "ab"
+                group_ids = await accessible_group_ids_async(self.current_user, session)
                 data_out = {
-                    "obj_id": spectrum.obj.id,
+                    "obj_id": obj.id,
                     "instrument_id": spectrum.instrument.id,
-                    "group_ids": [g.id for g in self.current_user.accessible_groups],
+                    "group_ids": group_ids,
                     **df.to_dict(orient="list"),
                 }
+                # add_external_photometry is sync and uses its own scoped
+                # session — calling it from async is acceptable but blocks.
                 add_external_photometry(
-                    data_out, self.associated_user_object, parent_session=session
+                    data_out, self.associated_user_object, parent_session=None
                 )
 
                 return self.success()

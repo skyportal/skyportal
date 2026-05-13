@@ -1,7 +1,9 @@
 import operator  # noqa: F401
 import re
 
+import sqlalchemy as sa
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -12,9 +14,9 @@ from ...base import BaseHandler
 log = make_log("api/public_release")
 
 
-def process_link_name_validation(session, link_name, release_id):
+async def process_link_name_validation(session, link_name, release_id):
     is_unique = (
-        session.scalar(
+        await session.scalar(
             PublicRelease.select(session.user_or_token, mode="read").where(
                 PublicRelease.link_name == link_name,
                 PublicRelease.id != release_id if release_id is not None else True,
@@ -88,8 +90,10 @@ class PublicReleaseHandler(BaseHandler):
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
-        with self.Session() as session:
-            is_valid, message = process_link_name_validation(session, link_name, None)
+        async with self.AsyncSession() as session:
+            is_valid, message = await process_link_name_validation(
+                session, link_name, None
+            )
             if not is_valid:
                 return self.error(message)
 
@@ -98,9 +102,10 @@ class PublicReleaseHandler(BaseHandler):
             ):
                 return self.error("Invalid groups")
 
-            groups = session.scalars(
+            groups_result = await session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = groups_result.all()
 
             if not groups:
                 return self.error("Invalid groups")
@@ -115,12 +120,12 @@ class PublicReleaseHandler(BaseHandler):
                 groups=groups,
             )
             session.add(public_release)
-            session.commit()
+            await session.commit()
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    def patch(self, release_id):
+    async def patch(self, release_id):
         """
         ---
         summary: Update a public release
@@ -171,11 +176,15 @@ class PublicReleaseHandler(BaseHandler):
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
-        with self.Session() as session:
-            public_release = session.scalar(
-                PublicRelease.select(session.user_or_token, mode="update").where(
-                    PublicRelease.id == release_id
-                )
+        try:
+            release_id = int(release_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid release_id: {release_id}")
+        async with self.AsyncSession() as session:
+            public_release = await session.scalar(
+                PublicRelease.select(session.user_or_token, mode="update")
+                .options(selectinload(PublicRelease.source_pages))
+                .where(PublicRelease.id == release_id)
             )
 
             if public_release is None:
@@ -186,9 +195,10 @@ class PublicReleaseHandler(BaseHandler):
             ):
                 return self.error("Invalid groups")
 
-            groups = session.scalars(
+            groups_result = await session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = groups_result.all()
 
             if not groups:
                 return self.error("Invalid groups")
@@ -208,13 +218,13 @@ class PublicReleaseHandler(BaseHandler):
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})
             public_release.groups = groups
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
             return self.success()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
           summary: Get all public releases
@@ -236,28 +246,25 @@ class PublicReleaseHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
-            public_releases = (
-                session.scalars(
-                    PublicRelease.select(session.user_or_token, mode="read").order_by(
-                        PublicRelease.name.asc()
-                    )
+        async with self.AsyncSession() as session:
+            list_result = await session.scalars(
+                PublicRelease.select(session.user_or_token, mode="read").order_by(
+                    PublicRelease.name.asc()
                 )
-                .unique()
-                .all()
             )
+            public_releases = list_result.unique().all()
 
             # Retrieve group ids associated with each release that the user has access to
             accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-            group_releases = (
-                session.query(
+            gr_result = await session.execute(
+                sa.select(
                     GroupPublicRelease.publicrelease_id,
                     func.array_agg(GroupPublicRelease.group_id).label("group_ids"),
                 )
                 .where(GroupPublicRelease.group_id.in_(accessible_group_ids))
                 .group_by(GroupPublicRelease.publicrelease_id)
-                .all()
             )
+            group_releases = gr_result.all()
             group_releases_dict = {
                 r.publicrelease_id: r.group_ids for r in group_releases
             }
@@ -268,7 +275,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
-    def delete(self, release_id):
+    async def delete(self, release_id):
         """
         ---
         summary: Delete a public release
@@ -293,9 +300,13 @@ class PublicReleaseHandler(BaseHandler):
         """
         if release_id is None:
             return self.error("Missing release id")
+        try:
+            release_id = int(release_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid release_id: {release_id}")
 
-        with self.Session() as session:
-            public_release = session.scalar(
+        async with self.AsyncSession() as session:
+            public_release = await session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(
                     PublicRelease.id == release_id
                 )
@@ -304,18 +315,19 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            if session.scalar(
+            existing_page = await session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="read").where(
                     PublicSourcePage.release_id == release_id
                 )
-            ):
+            )
+            if existing_page:
                 return self.error(
                     "Delete all sources associated before deleting this release",
                     status=400,
                 )
 
-            session.delete(public_release)
-            session.commit()
+            await session.delete(public_release)
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
             return self.success()

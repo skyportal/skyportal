@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from tdtax import __version__, taxonomy
@@ -27,7 +27,7 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # make a new object/source and save the time when it was posted
     obj_id = str(uuid.uuid4())
-    t0 = datetime.now(timezone.utc)
+    t0 = datetime.now(UTC)
 
     # upload a new source, saved to the public group
     status, data = api(

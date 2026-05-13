@@ -706,7 +706,7 @@ class PhotometricSeriesHandler(BaseHandler):
             body_schema_docstring.strip("\n"), " " * 10
         ).lstrip()
     )
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload a photometric series.
@@ -781,7 +781,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    def patch(self, photometric_series_id):
+    async def patch(self, photometric_series_id):
         """
         ---
         summary: Update a photometric series.
@@ -821,6 +821,10 @@ class PhotometricSeriesHandler(BaseHandler):
                               type: integer
                               description: New photometric series ID
         """
+        try:
+            photometric_series_id = int(photometric_series_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -865,7 +869,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id=None):
+    async def get(self, photometric_series_id=None):
         """
         ---
         single:
@@ -1341,6 +1345,12 @@ class PhotometricSeriesHandler(BaseHandler):
                                 type: integer
         """
         if photometric_series_id is not None:
+            try:
+                photometric_series_id = int(photometric_series_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid photometric_series_id: {photometric_series_id}"
+                )
             with self.Session() as session:
                 ps = session.scalars(
                     PhotometricSeries.select(self.current_user).where(
@@ -1451,7 +1461,9 @@ class PhotometricSeriesHandler(BaseHandler):
         if series_obj_id:
             stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
         if filter:
-            stmt = stmt.where(PhotometricSeries.filter == filter)
+            # psycopg3 strict-binds the string against the enum column; cast
+            # explicitly so the comparison binds as the enum type.
+            stmt = stmt.where(sa.cast(PhotometricSeries.filter, sa.String) == filter)
         if channel:
             stmt = stmt.where(PhotometricSeries.channel == channel)
         if origin:
@@ -1808,11 +1820,16 @@ class PhotometricSeriesHandler(BaseHandler):
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
+                # Cast the enum column to String for the case() value mapping
+                # — psycopg3 won't implicitly compare bandpasses to varchar.
                 whens = {
                     name: name
                     for name in getattr(PhotometricSeries, sort_by).type.enums
                 }
-                order_by_column = case(whens, value=getattr(PhotometricSeries, sort_by))
+                order_by_column = case(
+                    whens,
+                    value=sa.cast(getattr(PhotometricSeries, sort_by), sa.String),
+                )
             else:
                 order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
@@ -1866,7 +1883,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id):
+    async def delete(self, photometric_series_id):
         """
         ---
         summary: Delete a photometric series
@@ -1890,12 +1907,17 @@ class PhotometricSeriesHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            ps = session.scalars(
+        try:
+            photometric_series_id = int(photometric_series_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
+
+        async with self.AsyncSession() as session:
+            ps = await session.scalar(
                 PhotometricSeries.select(session.user_or_token, mode="delete").where(
                     PhotometricSeries.id == photometric_series_id
                 )
-            ).first()
+            )
 
             if ps is None:
                 return self.error(
@@ -1904,8 +1926,8 @@ class PhotometricSeriesHandler(BaseHandler):
 
             obj_id = ps.obj_id
 
-            session.delete(ps)
-            session.commit()
+            await session.delete(ps)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",

@@ -1,7 +1,7 @@
 import csv
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from os.path import join
 
 import pytest
@@ -169,7 +169,7 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
         phot_utc = Time(phot["mjd"], format="mjd")
         assert datetime.fromisoformat(
             csv_data[0]["utc"][:-1] + "+00:00"
-        ) == phot_utc.datetime.replace(microsecond=0, tzinfo=timezone.utc)
+        ) == phot_utc.datetime.replace(microsecond=0, tzinfo=UTC)
 
     finally:
         os.remove(file_path)

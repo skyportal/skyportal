@@ -1,3 +1,5 @@
+from sqlalchemy.orm import selectinload
+
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import ACL, User, UserACL
@@ -6,7 +8,7 @@ from ..base import BaseHandler
 
 class ACLHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         summary: Get all ACL IDs
         description: Retrieve list of all ACL IDs (strings)
@@ -27,16 +29,17 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
-        with self.Session() as session:
-            acls = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 ACL.select(session.user_or_token, columns=[ACL.id])
-            ).all()
+            )
+            acls = result.all()
             return self.success(data=acls)
 
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self, user_id, *ignored_args):
+    async def post(self, user_id, *ignored_args):
         """
         ---
         summary: Grant ACLs to a user
@@ -68,41 +71,50 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_acl_ids = data.get("aclIds")
         if new_acl_ids is None:
             return self.error("Missing required parameter aclIds")
-        with self.Session() as session:
-            if not isinstance(new_acl_ids, list | tuple) or (
-                not all(
-                    session.scalars(
-                        ACL.select(session.user_or_token).where(ACL.id == acl_id)
-                    ).first()
-                    is not None
-                    for acl_id in new_acl_ids
+        if not isinstance(new_acl_ids, list | tuple):
+            return self.error(
+                "Improperly formatted parameter aclIds; must be an array of strings."
+            )
+        async with self.AsyncSession() as session:
+            # Validate every supplied ACL id exists/is accessible in a single
+            # round trip rather than one query per id.
+            existing_result = await session.scalars(
+                ACL.select(session.user_or_token, columns=[ACL.id]).where(
+                    ACL.id.in_(new_acl_ids)
                 )
-            ):
+            )
+            existing_ids = set(existing_result.all())
+            if existing_ids != set(new_acl_ids):
                 return self.error(
                     "Improperly formatted parameter aclIds; must be an array of strings."
                 )
-            user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
-            ).first()
+            user_result = await session.scalars(
+                User.select(session.user_or_token)
+                .options(selectinload(User.acls))
+                .where(User.id == user_id)
+            )
+            user = user_result.first()
             if user is None:
                 return self.error("Invalid user_id parameter.")
-            new_acls = (
-                session.scalars(
-                    ACL.select(session.user_or_token).where(ACL.id.in_(new_acl_ids))
-                )
-                .unique()
-                .all()
+            new_acls_result = await session.scalars(
+                ACL.select(session.user_or_token).where(ACL.id.in_(new_acl_ids))
             )
+            new_acls = new_acls_result.unique().all()
             user.acls = list(set(user.acls).union(set(new_acls)))
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id, acl_id):
+    async def delete(self, user_id, acl_id):
+        # Path arg comes in as a string; the column is integer.
         """
         ---
         summary: Remove ACL from a user
@@ -126,22 +138,29 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        with self.Session() as session:
-            user = session.scalars(
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid user_id: {user_id}")
+        async with self.AsyncSession() as session:
+            user_result = await session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)
-            ).first()
+            )
+            user = user_result.first()
             if user is None:
                 return self.error("Invalid user_id")
-            acl = session.scalars(
+            acl_result = await session.scalars(
                 ACL.select(session.user_or_token).where(ACL.id == acl_id)
-            ).first()
+            )
+            acl = acl_result.first()
             if acl is None:
                 return self.error("Invalid acl_id")
-            user_acl = session.scalars(
+            user_acl_result = await session.scalars(
                 UserACL.select(session.user_or_token, mode="delete")
                 .where(UserACL.user_id == user_id)
                 .where(UserACL.acl_id == acl_id)
-            ).first()
-            session.delete(user_acl)
-            session.commit()
+            )
+            user_acl = user_acl_result.first()
+            await session.delete(user_acl)
+            await session.commit()
             return self.success()

@@ -475,24 +475,57 @@ class Obj(Base, conesearch_alchemy.Point):
         if session is None:
             session = DBSession()
 
-        # first we create and commit the thumbnails that don't require any request
-        # to external services to get their URLs
-        # that way we don't end up committing nothing if one of the external requests
-        # fails for some reason, and we provide the user with as many thumbnails as
-        # possible, as quickly as possible
+        # first we create and commit the thumbnails that don't require any
+        # request to external services to get their URLs. That way we don't
+        # end up committing nothing if one of the external requests fails,
+        # and we provide the user with as many thumbnails as possible, as
+        # quickly as possible.
+        # Pass obj_id (FK) instead of obj (relationship) so we don't trigger
+        # back-population of self.thumbnails (lazy load — fine under sync,
+        # fires MissingGreenlet under async).
         if "sdss" in thumbnails:
-            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type="sdss"))
+            session.add(
+                Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
+            )
         if "ls" in thumbnails:
             session.add(
-                Thumbnail(obj=self, public_url=self.legacysurvey_dr10_url, type="ls")
+                Thumbnail(
+                    obj_id=self.id,
+                    public_url=self.legacysurvey_dr10_url,
+                    type="ls",
+                )
             )
         session.commit()
 
         # now we create the thumbnails that require external requests
         if "ps1" in thumbnails:
             url = self.panstarrs_url
-            session.add(Thumbnail(obj=self, public_url=url, type="ps1"))
+            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
             session.commit()
+
+    async def add_linked_thumbnails_async(self, thumbnails, session):
+        """Async variant of ``add_linked_thumbnails``. Same behaviour, but
+        awaits the commits and avoids touching the back-populated
+        ``self.thumbnails`` collection.
+        """
+        if "sdss" in thumbnails:
+            session.add(
+                Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
+            )
+        if "ls" in thumbnails:
+            session.add(
+                Thumbnail(
+                    obj_id=self.id,
+                    public_url=self.legacysurvey_dr10_url,
+                    type="ls",
+                )
+            )
+        await session.commit()
+
+        if "ps1" in thumbnails:
+            url = self.panstarrs_url
+            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
+            await session.commit()
 
     @property
     def sdss_url(self):

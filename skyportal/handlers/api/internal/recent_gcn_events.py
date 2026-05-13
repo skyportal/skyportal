@@ -1,8 +1,8 @@
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import GcnEvent
+from ....models import GcnEvent, Localization
 from ...base import BaseHandler
 
 default_prefs = {"maxNumGcnEvents": 10}
@@ -10,7 +10,7 @@ default_prefs = {"maxNumGcnEvents": 10}
 
 class RecentGcnEventsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Retrieve recent GCN events
@@ -35,22 +35,24 @@ class RecentGcnEventsHandler(BaseHandler):
             if "maxNumEvents" in recent_events_prefs
             else 5
         )
-        with self.Session() as session:
-            q = (
-                session.scalars(
-                    GcnEvent.select(
-                        session.user_or_token,
-                        options=[
-                            joinedload(GcnEvent.localizations),
-                            joinedload(GcnEvent.gcn_triggers),
-                        ],
-                    )
-                    .order_by(GcnEvent.dateobs.desc())
-                    .limit(max_num_events)
+        async with self.AsyncSession() as session:
+            # event.localizations.tags is traversed below, so chain
+            # selectinload to that depth. joinedload would also work but
+            # selectinload composes more cleanly with `.unique().all()`.
+            result = await session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[
+                        selectinload(GcnEvent.localizations).selectinload(
+                            Localization.tags
+                        ),
+                        selectinload(GcnEvent.gcn_triggers),
+                    ],
                 )
-                .unique()
-                .all()
+                .order_by(GcnEvent.dateobs.desc())
+                .limit(max_num_events)
             )
+            q = result.unique().all()
             events = []
             for event in q:
                 event_info = {**event.to_dict(), "tags": list(set(event.tags))}

@@ -115,7 +115,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
 
 class GcnGraceDBHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    def post(self, dateobs):
+    async def post(self, dateobs):
         """
         ---
         summary: Retrieve GW Event data from GraceDB
@@ -154,11 +154,11 @@ class GcnGraceDBHandler(BaseHandler):
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
-            with self.Session() as session:
+            async with self.AsyncSession() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
                     GcnEvent.dateobs == dateobs
                 )
-                gcn_event = session.scalars(stmt).first()
+                gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
                     return self.error(f"No GCN event found for {dateobs}")
 

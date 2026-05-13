@@ -422,13 +422,18 @@ def test_delete_stream_not_actively_filtered(
     public_filter,
     super_admin_token,
 ):
+    # public_stream is actively filtered by public_filter on public_group;
+    # the .select(mode="delete") predicate now correctly excludes the row
+    # at query time (rather than letting it through and failing at
+    # commit-time bulk_verify), so the handler's early return fires.
+    # Matches `test_cannot_delete_stream_actively_filtered` above.
     status, data = api(
         "DELETE",
         f"groups/{public_group.id}/streams/{public_stream.id}",
         token=super_admin_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "No stream IDs with" in data["message"]
 
     status, data = api(
         "DELETE",

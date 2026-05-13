@@ -36,7 +36,7 @@ cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 class ConfigHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve instance config

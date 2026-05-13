@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
@@ -278,7 +278,7 @@ def test_spectra_on_favorite_source_triggers_notification(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.now(timezone.utc)),
+            "observed_at": str(datetime.now(UTC)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -404,7 +404,7 @@ def test_new_spectra_on_source_triggers_notification(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.now(timezone.utc)),
+            "observed_at": str(datetime.now(UTC)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
