@@ -9,19 +9,14 @@ import * as Action from "../../ducks/users";
 
 const UserInfo = ({ route }) => {
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.users.user);
   useEffect(() => {
     dispatch(Action.fetchUser(route.id));
   }, [route.id, dispatch]);
-  const { users } = useSelector((state) => state.users);
-  const userInfo = users[route.id];
-  if (userInfo === undefined) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (user?.id !== Number(route.id)) {
+    return <CircularProgress color="secondary" />;
   }
-  const { created_at, username, permissions } = userInfo;
+  const { username, created_at, permissions } = user;
   return (
     <div>
       <b>{username}</b>

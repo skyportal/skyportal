@@ -1,11 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
@@ -135,15 +130,13 @@ const GcnProperties = ({ properties }) => {
 
   return (
     <div className={classes.container}>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={propertiesWithUniqueKeys}
-            options={options}
-            columns={getDataTableColumns()}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          data={propertiesWithUniqueKeys}
+          options={options}
+          columns={getDataTableColumns()}
+        />
+      </ThemeProvider>
     </div>
   );
 };

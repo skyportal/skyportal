@@ -25,7 +25,7 @@ from ...models import (
     User,
 )
 from ...utils.parse import get_page_and_n_per_page
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .followup_request import MAX_FOLLOWUP_REQUESTS
 
 MAX_OBSERVATION_PLANS = 1000
@@ -33,6 +33,7 @@ MAX_OBSERVATION_PLANS = 1000
 
 class AllocationObservationPlanHandler(BaseHandler):
     @auth_or_token
+    @format_doc(MAX_OBSERVATION_PLANS=MAX_OBSERVATION_PLANS)
     def get(self, allocation_id):
         """
         ---
@@ -188,6 +189,7 @@ class AllocationObservationPlanHandler(BaseHandler):
 
 class AllocationHandler(BaseHandler):
     @auth_or_token
+    @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
     def get(self, allocation_id=None):
         """
         ---

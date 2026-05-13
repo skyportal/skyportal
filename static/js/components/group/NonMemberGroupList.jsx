@@ -15,11 +15,7 @@ const NonMemberGroupList = ({ groups }) => {
     (state) => state.profile,
   );
   if (currentUserID === null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress color="secondary" />;
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
     ?.filter((request) => request.status === "pending")

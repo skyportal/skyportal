@@ -525,7 +525,9 @@ def from_cone(ra, dec, error, n_sigma=4):
     ipix = hpx.cone_search_skycoord(center, n_sigma * radius)
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -566,7 +568,9 @@ def from_polygon(localization_name, polygon):
         raise ValueError("No pixels found in polygon.")
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -598,7 +602,9 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
     ).flatten()
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(NSIDE), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(NSIDE)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]

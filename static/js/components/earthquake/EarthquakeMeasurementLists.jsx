@@ -6,12 +6,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
@@ -143,15 +138,13 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
           <AccordionDetails
             data-testid={`${mmadetectorLookUp[mmadetector_id].name}_measurementsTable`}
           >
-            <StyledEngineProvider injectFirst>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  data={analysesGroupedByMMADetectorId[mmadetector_id]}
-                  options={options}
-                  columns={columns}
-                />
-              </ThemeProvider>
-            </StyledEngineProvider>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={analysesGroupedByMMADetectorId[mmadetector_id]}
+                options={options}
+                columns={columns}
+              />
+            </ThemeProvider>
           </AccordionDetails>
         </Accordion>
       ))}

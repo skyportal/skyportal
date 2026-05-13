@@ -100,7 +100,7 @@ from ...utils.gcn import (
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
 from .observation import MAX_OBSERVATIONS, get_observations
@@ -381,7 +381,7 @@ def post_gcnevent_from_xml(
         if gcn_tags is not None and len(gcn_tags) > 0:
             session.add_all(gcn_tags)
         try:
-            loop = asyncio.get_event_loop()
+            asyncio.get_event_loop()
         except Exception:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -447,7 +447,7 @@ def post_skymap_from_notice(
         log(f"Generating tiles/properties/contours for localization {localization.id}")
         if asynchronous:
             try:
-                loop = asyncio.get_event_loop()
+                asyncio.get_event_loop()
             except Exception:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -1356,8 +1356,9 @@ class GcnEventHandler(BaseHandler):
             )
 
     @auth_or_token
+    @format_doc(MAX_GCNEVENTS=MAX_GCNEVENTS)
     async def get(self, dateobs=None):
-        f"""
+        """
         ---
         single:
           summary: Get a GCN Event
@@ -1370,6 +1371,27 @@ class GcnEventHandler(BaseHandler):
               required: false
               schema:
                 type: string
+            - in: query
+              name: excludeNoticeContent
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                If true, do not include the notice content in the response.
+                Defaults to false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: GcnEventHandlerGet
+            404:
+              content:
+                application/json:
+                  schema: Error
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           summary: Get multiple GCN Events
           description: Retrieve multiple GCN events
@@ -1392,6 +1414,14 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
                 dateobs <= endDate
+            - in: query
+              name: partialdateobs
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Partial dateobs string (or alias substring) to filter events whose
+                dateobs starts with the given value or whose aliases contain it.
             - in: query
               name: gcnTagKeep
               nullable: true
@@ -1459,22 +1489,28 @@ class GcnEventHandler(BaseHandler):
                 type: integer
               description: Page number for paginated query results. Defaults to 1.
             - in: query
-              name: excludeNoticeContent
+              name: sortBy
               nullable: true
               schema:
-                type: boolean
+                type: string
               description: |
-                If true, do not include the notice content in the response.
-                Defaults to false.
-        responses:
-          200:
-            content:
-              application/json:
-                schema: GcnEventHandlerGet
-          400:
-            content:
-              application/json:
-                schema: Error
+                Field to sort by. Currently only "dateobs" is supported.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Sort order, "asc" or "desc". Defaults to "asc".
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: GcnEventHandlerGet
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         partialdateobs = self.get_query_argument("partialdateobs", None)

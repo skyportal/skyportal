@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, {useEffect, useRef} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
 
@@ -14,10 +14,11 @@ import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
 import makeStyles from '@mui/styles/makeStyles';
 import Collapse from '@mui/material/Collapse';
-import ExpandMore from '@mui/icons-material/ExpandMore';
-import ExpandLess from '@mui/icons-material/ExpandLess';
 import Divider from "@mui/material/Divider";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import MenuIcon from "@mui/icons-material/Menu";
 
 {% for group in app.sidebar -%}
   {% if not group.name.startswith('main') and group.icon %}
@@ -27,10 +28,10 @@ import useMediaQuery from "@mui/material/useMediaQuery";
     import {{ subitem.icon }}Icon from "@mui/icons-material/{{ subitem.icon }}";
   {%- endfor %}
 {%- endfor %}
-import MenuIcon from "@mui/icons-material/Menu";
+
+import * as Actions from "../../ducks/sidebar";
 
 import HeaderContent from "./HeaderContent";
-import * as Actions from "../../ducks/sidebar";
 import hydrate from "../../actions";
 
 const drawerWidth = 170;
@@ -135,36 +136,32 @@ const SidebarLinkText = ({ route, title, open }) => {
 
 
 const SidebarAndHeader = () => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
   const open = useSelector((state) => state.sidebar.open);
   const currentUser = useSelector((state) => state.profile);
-
-  const dispatch = useDispatch();
-  const classes = useStyles();
-
   const isSmall = useMediaQuery(theme => theme.breakpoints.down("md"));
-
   {% for group in app.sidebar -%}
     {% if not group.name.startswith('main') %}
       const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
     {% endif %}
   {%- endfor %}
-
   const [temporaryOpen, setTemporaryOpen] = React.useState(false);
 
-  let timer = 0;
+  const timerRef = useRef(null);
   const TIMEOUT = 700;
 
   function mouseEnter() {
     if (!temporaryOpen && !open && !isSmall) {
-      timer = setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         setTemporaryOpen(true);
       }, TIMEOUT);
     }
   }
 
   function mouseLeave() {
+    clearTimeout(timerRef.current);
     setTemporaryOpen(false);
-    clearTimeout(timer);
     {% for group in app.sidebar -%}
       {% if not group.name.startswith('main') %}
         set{{ group.name }}Open(false);
@@ -193,7 +190,7 @@ const SidebarAndHeader = () => {
   const drawerType = (temporaryOpen || isSmall) ? "temporary" : "permanent";
 
   const hydrateIfDashboardClicked = (url) => {
-    clearTimeout(timer);
+    clearTimeout(timerRef.current);
     if (url === "/") {
       dispatch(hydrate(true));
     }

@@ -1,4 +1,5 @@
 import os
+import textwrap
 import traceback
 
 import arrow
@@ -28,7 +29,7 @@ from ...models.photometric_series import (
 )
 from ...models.stream import Stream
 from ...utils.hdf5_files import load_dataframe_from_bytestream
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 _, cfg = load_env()
 
@@ -700,8 +701,13 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
 
 class PhotometricSeriesHandler(BaseHandler):
     @permissions(["Upload data"])
+    @format_doc(
+        body_schema_docstring=textwrap.indent(
+            body_schema_docstring.strip("\n"), " " * 10
+        ).lstrip()
+    )
     def post(self):
-        f"""
+        """
         ---
         summary: Upload a photometric series.
         description: Upload a photometric series.
@@ -767,8 +773,16 @@ class PhotometricSeriesHandler(BaseHandler):
         return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
+    @format_doc(
+        body_schema_docstring=textwrap.indent(
+            body_schema_docstring.replace("required: true", "required: false").strip(
+                "\n"
+            ),
+            " " * 10,
+        ).lstrip()
+    )
     def patch(self, photometric_series_id):
-        f"""
+        """
         ---
         summary: Update a photometric series.
         description: |
@@ -790,7 +804,7 @@ class PhotometricSeriesHandler(BaseHandler):
             schema:
               type: integer
         requestBody:
-          {body_schema_docstring.replace("required: true", "required: false")}
+          {body_schema_docstring}
         responses:
           200:
             content:

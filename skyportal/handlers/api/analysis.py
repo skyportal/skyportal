@@ -45,7 +45,7 @@ from ...models import (
     User,
     UserNotification,
 )
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .photometry import serialize
 
 log = make_log("app/analysis")
@@ -515,8 +515,13 @@ class AnalysisServiceHandler(BaseHandler):
     """Handler for analysis services."""
 
     @permissions(["Manage Analysis Services"])
+    @format_doc(
+        AUTHENTICATION_TYPES=", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES),
+        ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
+        ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
+    )
     def post(self):
-        f"""
+        """
         ---
         summary: Create an Analysis Service.
         description: POST a new Analysis Service.
@@ -565,7 +570,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   _authinfo:
                     type: object
@@ -579,14 +584,15 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: |
+                        Type of analysis. One of: {ANALYSIS_TYPES}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {ANALYSIS_INPUT_TYPES}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
@@ -798,8 +804,13 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Analysis Services"])
+    @format_doc(
+        AUTHENTICATION_TYPES=", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES),
+        ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
+        ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
+    )
     def patch(self, analysis_service_id):
-        f"""
+        """
         ---
         summary: Update an Analysis Service.
         description: Update an Analysis Service.
@@ -854,7 +865,7 @@ class AnalysisServiceHandler(BaseHandler):
                   authentication_type:
                     type: string
                     description: |
-                        Service authentiction method. One of: {", ".join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
+                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
                         See https://docs.python-requests.org/en/master/user/authentication/
                   authinfo:
                     type: object
@@ -864,14 +875,15 @@ class AnalysisServiceHandler(BaseHandler):
                     description: Whether the service is enabled or not.
                   analysis_type:
                     type: string
-                    description: Type of analysis. One of: {", ".join(f"'{t}'" for t in ANALYSIS_TYPES)}
+                    description: |
+                        Type of analysis. One of: {ANALYSIS_TYPES}
                   input_data_types:
                     type: array
                     items:
                         type: string
                     description: |
                         List of input data types that the service requires. Zero to many of:
-                        {", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
+                        {ANALYSIS_INPUT_TYPES}
                   timeout:
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.

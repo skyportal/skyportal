@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
@@ -260,14 +255,12 @@ const AllocationTable = ({
     return (
       <div className={classes.allocationManage}>
         <IconButton
-          key={`edit_${allocation.id}`}
           id={`edit_button_${allocation.id}`}
           onClick={() => setAllocationToEdit(allocation.id)}
         >
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${allocation.id}`}
           id={`delete_button_${allocation.id}`}
           onClick={() => setAllocationToDelete(allocation.id)}
         >
@@ -427,16 +420,14 @@ const AllocationTable = ({
   return (
     <div>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={title}
-              data={allocations || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title={title}
+            data={allocations || []}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Paper>
       <Dialog
         open={newAllocationDialog}

@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -192,14 +187,12 @@ const AssignmentList = ({ assignments }) => {
     return (
       <div className={classes.assignmentManage}>
         <IconButton
-          key={`edit_assignment_${assignment.id}`}
           id={`edit_button_assignment_${assignment.id}`}
           onClick={() => openEditDialog(assignment.id)}
         >
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_assignment_${assignment.id}`}
           id={`delete_button_assignment_${assignment.id}`}
           onClick={() => openDeleteDialog(assignment.id)}
         >
@@ -270,15 +263,9 @@ const AssignmentList = ({ assignments }) => {
 
   return (
     <div>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={assignments}
-            options={options}
-            columns={columns}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable data={assignments} options={options} columns={columns} />
+      </ThemeProvider>
       <Dialog
         open={editDialogOpen && assignmentToEditDelete !== null}
         onClose={closeEditDialog}

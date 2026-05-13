@@ -3,12 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
@@ -233,15 +228,13 @@ const Earthquake = () => {
     <Grid container spacing={3}>
       <Grid item md={12} sm={12}>
         <Typography variant="h5">Earthquake Events</Typography>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={earthquakes.events}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={earthquakes.events}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Grid>
     </Grid>
   );

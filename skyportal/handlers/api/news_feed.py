@@ -11,7 +11,7 @@ from ...models import (
     Spectrum,
     basic_user_display_info,
 )
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 MAX_NEWSFEED_ITEMS = 1000
 DEFAULT_NEWSFEED_ITEMS = 50
@@ -19,8 +19,12 @@ DEFAULT_NEWSFEED_ITEMS = 50
 
 class NewsFeedHandler(BaseHandler):
     @auth_or_token
+    @format_doc(
+        DEFAULT_NEWSFEED_ITEMS=DEFAULT_NEWSFEED_ITEMS,
+        MAX_NEWSFEED_ITEMS=MAX_NEWSFEED_ITEMS,
+    )
     def get(self):
-        f"""
+        """
         ---
         description: Retrieve summary of recent activity
         tags:
@@ -31,8 +35,9 @@ class NewsFeedHandler(BaseHandler):
             nullable: true
             schema:
               type: integer
-            description: Number of newsfeed items to return.
-            Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}.
+            description: |
+              Number of newsfeed items to return.
+              Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}.
         responses:
           200:
             content:

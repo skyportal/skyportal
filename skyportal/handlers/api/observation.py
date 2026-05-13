@@ -47,7 +47,7 @@ from ...utils.observation_plan import combine_healpix_tuples
 from ...utils.simsurvey import (
     get_simsurvey_parameters,
 )
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .instrument import add_tiles
 from .observation_plan import (
     TREASUREMAP_FILTERS,
@@ -265,6 +265,7 @@ def add_observations(instrument_id, obstable):
         Session.remove()
 
 
+@format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
 def get_observations(
     session,
     start_date,
@@ -285,7 +286,7 @@ def get_observations(
     sort_order=None,
     sort_by=None,
 ):
-    f"""Query for list of observations
+    """Query for list of observations
 
     Parameters
     ----------
@@ -937,6 +938,7 @@ class ObservationHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
+    @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
     async def get(self):
         """
         ---

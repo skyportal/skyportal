@@ -21,12 +21,7 @@ import Switch from "@mui/material/Switch";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 
 import Form from "@rjsf/mui";
@@ -962,16 +957,14 @@ const UserManagement = () => {
   return (
     <>
       <Paper>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={dataTableStyles(theme)}>
-            <MUIDataTable
-              title="Manage Users"
-              data={users}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={dataTableStyles(theme)}>
+          <MUIDataTable
+            title="Manage Users"
+            data={users}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Paper>
       {invitationsEnabled && (
         <div style={{ marginTop: "1rem" }}>

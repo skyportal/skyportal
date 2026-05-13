@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Chip from "@mui/material/Chip";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -286,7 +281,6 @@ const GcnLocalizationsTable = ({ localizations }) => {
       return (
         <div>
           <Button
-            key={localization.id}
             id="delete_button"
             classes={{
               root: classes.localizationDelete,
@@ -332,15 +326,13 @@ const GcnLocalizationsTable = ({ localizations }) => {
 
   return (
     <div className={classes.container}>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={propertiesWithUniqueKeys}
-            options={options}
-            columns={getDataTableColumns()}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          data={propertiesWithUniqueKeys}
+          options={options}
+          columns={getDataTableColumns()}
+        />
+      </ThemeProvider>
     </div>
   );
 };

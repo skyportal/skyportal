@@ -18,12 +18,7 @@ import calendar from "dayjs/plugin/calendar";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
@@ -403,15 +398,13 @@ const AnalysisList = ({ obj_id }) => {
             <Typography variant="subtitle1">Analysis Requests</Typography>
           </AccordionSummary>
           <AccordionDetails data-testid="analysisTable">
-            <StyledEngineProvider injectFirst>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  data={analysesList || []}
-                  options={options}
-                  columns={getDataTableColumns()}
-                />
-              </ThemeProvider>
-            </StyledEngineProvider>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={analysesList || []}
+                options={options}
+                columns={getDataTableColumns()}
+              />
+            </ThemeProvider>
           </AccordionDetails>
         </Accordion>
       </div>

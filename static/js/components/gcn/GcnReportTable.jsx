@@ -1,12 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -179,16 +174,14 @@ const GcnReportTable = ({
     <div>
       {reports ? (
         <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title="GCN Reports"
-                data={reports}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title="GCN Reports"
+              data={reports}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
         </Paper>
       ) : (
         <CircularProgress />

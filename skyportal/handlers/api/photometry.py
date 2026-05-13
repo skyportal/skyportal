@@ -52,7 +52,7 @@ from ...models.schema import (
 )
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.parse import str_to_bool
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
 _, cfg = load_env()
@@ -61,6 +61,43 @@ _, cfg = load_env()
 log = make_log("api/photometry")
 
 MAX_NUMBER_ROWS = 10000
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy scalar types.
+
+    In numpy 2.x, numpy scalars (e.g., np.float64, np.int64) are no longer
+    subclasses of Python float/int, so the default JSON encoder cannot
+    serialize them. This encoder converts them to native Python types.
+    """
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return super().default(obj)
+
+
+def numpy_to_native(value):
+    """Convert a numpy scalar to a native Python type.
+
+    In numpy 2.x, numpy scalars are no longer subclasses of Python
+    built-in types, which can cause issues with JSON serialization
+    and database adapters (e.g., psycopg2).
+    """
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    return value
+
 
 cmap_ir = cm.get_cmap("autumn")
 cmap_deep_ir = LinearSegmentedColormap.from_list(
@@ -893,12 +930,12 @@ def insert_new_photometry_data(
         utcnow = datetime.datetime.utcnow().isoformat()
         phot = {
             "id": packet["id"],
-            "original_user_data": json.dumps(original_user_data),
+            "original_user_data": json.dumps(original_user_data, cls=NumpyEncoder),
             "upload_id": upload_id,
             "flux": flux,
             "fluxerr": fluxerr,
             "obj_id": packet["obj_id"],
-            "altdata": json.dumps(packet.get("altdata")),
+            "altdata": json.dumps(packet.get("altdata"), cls=NumpyEncoder),
             "instrument_id": packet["instrument_id"],
             "ra_unc": packet["ra_unc"],
             "dec_unc": packet["dec_unc"],
@@ -1297,8 +1334,9 @@ def add_external_photometry(
 
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
+    @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
     def post(self):
-        f"""
+        """
         ---
         summary: Upload photometry
         description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
@@ -1616,18 +1654,30 @@ class PhotometryHandler(BaseHandler):
                         duplicate_value = f"{duplicate.jd}_{duplicate.instrument_id}_{duplicate.filter}_{duplicate.origin}".encode()
                         if duplicate_value in updated_duplicate_values:
                             continue
-                        duplicate.flux = df.loc[df_index]["standardized_flux"]
-                        duplicate.fluxerr = df.loc[df_index]["standardized_fluxerr"]
+                        # Convert numpy scalars to native Python types
+                        # to ensure compatibility with psycopg2 and json
+                        # (numpy 2.x scalars are no longer subclasses of
+                        # Python float/int)
+                        duplicate.flux = numpy_to_native(
+                            df.loc[df_index]["standardized_flux"]
+                        )
+                        duplicate.fluxerr = numpy_to_native(
+                            df.loc[df_index]["standardized_fluxerr"]
+                        )
                         duplicate.filter = df.loc[df_index]["filter"]
-                        duplicate.ra = df.loc[df_index]["ra"]
-                        duplicate.dec = df.loc[df_index]["dec"]
-                        duplicate.ra_unc = df.loc[df_index]["ra_unc"]
-                        duplicate.dec_unc = df.loc[df_index]["dec_unc"]
-                        duplicate.ref_flux = df.loc[df_index]["ref_standardized_flux"]
-                        duplicate.ref_fluxerr = df.loc[df_index][
-                            "ref_standardized_fluxerr"
-                        ]
-                        duplicate.altdata = json.dumps(df.loc[df_index]["altdata"])
+                        duplicate.ra = numpy_to_native(df.loc[df_index]["ra"])
+                        duplicate.dec = numpy_to_native(df.loc[df_index]["dec"])
+                        duplicate.ra_unc = numpy_to_native(df.loc[df_index]["ra_unc"])
+                        duplicate.dec_unc = numpy_to_native(df.loc[df_index]["dec_unc"])
+                        duplicate.ref_flux = numpy_to_native(
+                            df.loc[df_index]["ref_standardized_flux"]
+                        )
+                        duplicate.ref_fluxerr = numpy_to_native(
+                            df.loc[df_index]["ref_standardized_fluxerr"]
+                        )
+                        duplicate.altdata = json.dumps(
+                            df.loc[df_index]["altdata"], cls=NumpyEncoder
+                        )
                         duplicate.modified = datetime.datetime.utcnow().isoformat()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
@@ -2000,11 +2050,15 @@ class ObjPhotometryHandler(BaseHandler):
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
-                    super_objs = session.scalars(
-                        sa.select(SuperObj).where(
-                            ObjToSuperObj.obj_id == obj_id,
+                    super_objs = (
+                        session.scalars(
+                            sa.select(SuperObj).where(
+                                SuperObj.objs.any(Obj.id == obj_id)
+                            )
                         )
-                    ).all()
+                        .unique()
+                        .all()
+                    )
                     for super_obj in super_objs:
                         obj_ids.update({o.id for o in super_obj.objs})
 

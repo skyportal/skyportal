@@ -494,6 +494,9 @@ app:
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 17, 4, 2]
 
+    TelescopeMapWidget:
+      show: False
+
 database:
   database: skyportal
   host: localhost

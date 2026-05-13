@@ -1,12 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -236,7 +231,6 @@ const DefaultSurveyEfficiencyTable = ({
     return (
       <div>
         <Button
-          key={default_survey_efficiency.id}
           id="delete_button"
           classes={{
             root: classes.defaultSurveyEfficiencyDelete,
@@ -399,16 +393,14 @@ const DefaultSurveyEfficiencyTable = ({
   return (
     <div>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="Default Survey Efficiencies"
-              data={default_survey_efficiencies}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            title="Default Survey Efficiencies"
+            data={default_survey_efficiencies}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
       </Paper>
       {newDialogOpen && (
         <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">

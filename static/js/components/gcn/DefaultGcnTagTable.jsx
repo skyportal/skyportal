@@ -2,13 +2,7 @@ import React, { useState } from "react";
 import { JSONTree } from "react-json-tree";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
@@ -19,22 +13,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    minWidth: "40vw",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -70,7 +48,6 @@ const getMuiTheme = (theme) =>
   });
 
 const DefaultGcnTagTable = ({ default_gcn_tags }) => {
-  const classes = useStyles();
   const theme = useTheme();
 
   const dispatch = useDispatch();
@@ -116,13 +93,9 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
   const renderDelete = (dataIndex) => {
     const default_gcn_tag = default_gcn_tags[dataIndex];
     return (
-      <div>
+      <>
         <Button
-          key={default_gcn_tag.id}
           id="delete_button"
-          classes={{
-            root: classes.defaultGcnTagDelete,
-          }}
           onClick={() => openDialog(default_gcn_tag.id)}
         >
           <DeleteIcon />
@@ -133,7 +106,7 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
           closeDialog={closeDialog}
           resourceName="defaultGcnTag"
         />
-      </div>
+      </>
     );
   };
 
@@ -179,21 +152,17 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
     sort: true,
   };
 
+  if (!default_gcn_tags) return <CircularProgress />;
+
   return (
-    <div className={classes.container}>
-      {default_gcn_tags ? (
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={default_gcn_tags}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
-      ) : (
-        <CircularProgress />
-      )}
+    <div style={{ width: "100%", minWidth: "40vw", overflow: "scroll" }}>
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          data={default_gcn_tags}
+          options={options}
+          columns={columns}
+        />
+      </ThemeProvider>
     </div>
   );
 };

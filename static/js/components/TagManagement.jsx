@@ -13,12 +13,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import makeStyles from "@mui/styles/makeStyles";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import MUIDataTable from "mui-datatables";
 
 import Button from "./Button";
@@ -377,17 +372,14 @@ const TagManagement = () => {
 
   return (
     <div className={classes.root} data-testid="tag-management-page">
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Source Tags Management"
-            data={tagOptions}
-            columns={columns}
-            options={options}
-          />
-        </ThemeProvider>
-      </StyledEngineProvider>
-
+      <ThemeProvider theme={getMuiTheme(theme)}>
+        <MUIDataTable
+          title="Source Tags Management"
+          data={tagOptions}
+          columns={columns}
+          options={options}
+        />
+      </ThemeProvider>
       <Dialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}

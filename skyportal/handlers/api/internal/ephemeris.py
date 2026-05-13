@@ -4,7 +4,7 @@ from baselayer.app.access import auth_or_token
 
 from ....models import Telescope
 from ....utils.parse import get_list_typed
-from ...base import BaseHandler
+from ...base import BaseHandler, format_doc
 
 MAX_TELESCOPES_TO_DISPLAY = 16
 
@@ -12,8 +12,9 @@ MAX_TELESCOPES_TO_DISPLAY = 16
 class EphemerisHandler(BaseHandler):
     @auth_or_token
     # TODO: add pagination to this endpoint
+    @format_doc(MAX_TELESCOPES_TO_DISPLAY=MAX_TELESCOPES_TO_DISPLAY)
     def get(self, telescope_id=None):
-        f"""
+        """
         ---
         single:
           description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to {MAX_TELESCOPES_TO_DISPLAY} telescopes.

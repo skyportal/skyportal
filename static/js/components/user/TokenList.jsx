@@ -5,12 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -171,11 +166,9 @@ const TokenList = ({ tokens }) => {
     <div>
       <Typography variant="h5">My Tokens</Typography>
       <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable data={tokens} options={options} columns={columns} />
-          </ThemeProvider>
-        </StyledEngineProvider>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable data={tokens} options={options} columns={columns} />
+        </ThemeProvider>
       </Paper>
     </div>
   );
