@@ -22,10 +22,8 @@ const DynamicTagDisplay = ({ source, styles }) => {
   const userGroups = useSelector((state) => state.groups.userAccessible);
 
   useEffect(() => {
-    if (!userGroups || userGroups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
-    }
-  }, [dispatch, userGroups]);
+    dispatch(groupsActions.fetchGroups());
+  }, [dispatch]);
 
   // Filter tags to only show those the user has access to (via group membership)
   const userGroupIds = useMemo(
@@ -36,7 +34,7 @@ const DynamicTagDisplay = ({ source, styles }) => {
   const accessibleTags = useMemo(() => {
     if (!source.tags) return [];
     return source.tags.filter((tag) => {
-      if (!tag.groups || tag.groups.length === 0) return false;
+      if (!tag.groups?.length) return true;
       return tag.groups.some((group) => userGroupIds.has(group.id));
     });
   }, [source.tags, userGroupIds]);
@@ -65,11 +63,7 @@ const DynamicTagDisplay = ({ source, styles }) => {
 
   // Calculate how many tags we can put on the container
   const calculateVisibleTags = useCallback(() => {
-    if (
-      !accessibleTags ||
-      accessibleTags.length === 0 ||
-      !containerRef.current
-    ) {
+    if (!accessibleTags?.length || !containerRef.current) {
       return accessibleTags?.length || 0;
     }
 
@@ -129,7 +123,7 @@ const DynamicTagDisplay = ({ source, styles }) => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!accessibleTags || accessibleTags.length === 0) {
+  if (!accessibleTags?.length) {
     return null;
   }
 

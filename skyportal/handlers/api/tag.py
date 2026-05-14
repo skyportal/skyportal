@@ -380,15 +380,16 @@ class ObjTagHandler(BaseHandler):
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
 
-        if group_ids is not None and len(group_ids) > 0:
+        if group_ids is not None:
             if not isinstance(group_ids, list):
                 return self.error("`group_ids` must be a list of integers")
-            try:
-                group_ids = [int(gid) for gid in group_ids]
-            except (ValueError, TypeError):
-                return self.error("`group_ids` must be a list of integers")
-        else:
-            group_ids = None
+            if len(group_ids) > 0:
+                try:
+                    group_ids = [int(gid) for gid in group_ids]
+                except (ValueError, TypeError):
+                    return self.error("`group_ids` must be a list of integers")
+            else:
+                group_ids = None
 
         with self.Session() as session:
             if group_ids is None:
@@ -546,6 +547,9 @@ class ObjTagHandler(BaseHandler):
         data = self.get_json() or {}
         requested_group_ids = data.get("group_ids")
 
+        if requested_group_ids is not None and len(requested_group_ids) == 0:
+            return self.error("`group_ids` cannot be an empty list", status=400)
+
         with self.Session() as session:
             obj_tag = session.scalars(
                 sa.select(ObjTag).where(ObjTag.id == association_id)
@@ -582,11 +586,7 @@ class ObjTagHandler(BaseHandler):
                         status=403,
                     )
 
-            stmt = (
-                sa.select(GroupObjTag)
-                if is_system_admin
-                else GroupObjTag.select(session.user_or_token, mode="delete")
-            )
+            stmt = GroupObjTag.select(session.user_or_token, mode="delete")
             group_obj_tags = session.scalars(
                 stmt.where(
                     GroupObjTag.obj_tag_id == association_id,

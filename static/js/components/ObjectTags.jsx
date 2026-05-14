@@ -100,10 +100,8 @@ const ObjectTags = ({ source }) => {
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
-    if (!groups || groups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
-    }
-  }, [dispatch, groups]);
+    dispatch(groupsActions.fetchGroups());
+  }, [dispatch]);
 
   const handleOpenDialog = () => {
     setOpen(true);
@@ -200,10 +198,9 @@ const ObjectTags = ({ source }) => {
   );
 
   const sourceGroupIds = source.groups?.map((g) => g.id) || [];
-  const availableGroups =
-    sourceGroupIds.length > 0
-      ? groups?.filter((g) => sourceGroupIds.includes(g.id)) || []
-      : groups || [];
+  const availableGroups = (groups || []).filter(
+    (g) => sourceGroupIds.length === 0 || sourceGroupIds.includes(g.id),
+  );
 
   const sourceTagsWithColors = (source.tags || []).map((tag) => {
     const tagOption = tagOptions.find(

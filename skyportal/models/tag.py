@@ -104,4 +104,5 @@ def serialize_obj_tag(tag, user_group_ids):
             for g in tag.groups
             if user_group_ids is None or g.id in user_group_ids
         ],
+        "total_group_count": len(tag.groups),
     }

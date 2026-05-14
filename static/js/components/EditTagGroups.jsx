@@ -9,25 +9,11 @@ import DialogActions from "@mui/material/DialogActions";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import * as objectTagsActions from "../ducks/objectTags";
 
-const useStyles = makeStyles(() => ({
-  groupList: {
-    display: "flex",
-    flexDirection: "column",
-    marginTop: "0.5rem",
-  },
-  dialogActions: {
-    justifyContent: "space-between",
-  },
-}));
-
 const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -50,6 +36,10 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
     () => new Set(source.groups?.map((g) => g.id) || []),
     [source.groups],
   );
+
+  // Groups associated with this tag that the user cannot see
+  const inaccessibleTagGroupCount =
+    (tag?.total_group_count ?? 0) - (tag?.groups?.length ?? 0);
 
   // Groups available for selection: user has access AND source is saved there
   const availableGroups = useMemo(
@@ -108,20 +98,6 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
     const groupsToAdd = selectedGroupIds.filter((id) => !tagGroupIds.has(id));
 
     try {
-      // Remove groups if needed
-      if (groupsToRemove.length > 0) {
-        const deleteResult = await dispatch(
-          objectTagsActions.deleteObjectTag({
-            id: tag.id,
-            group_ids: groupsToRemove,
-          }),
-        );
-        if (deleteResult.status !== "success") {
-          throw new Error(deleteResult.message || "Failed to remove groups");
-        }
-      }
-
-      // Add groups if needed
       if (groupsToAdd.length > 0) {
         const addResult = await dispatch(
           objectTagsActions.addObjectTag({
@@ -132,6 +108,18 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
         );
         if (addResult.status !== "success") {
           throw new Error(addResult.message || "Failed to add groups");
+        }
+      }
+
+      if (groupsToRemove.length > 0) {
+        const deleteResult = await dispatch(
+          objectTagsActions.deleteObjectTag({
+            id: tag.id,
+            group_ids: groupsToRemove,
+          }),
+        );
+        if (deleteResult.status !== "success") {
+          throw new Error(deleteResult.message || "Failed to remove groups");
         }
       }
 
@@ -174,7 +162,13 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
         </Typography>
 
         {availableGroups.length > 0 ? (
-          <div className={classes.groupList}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              marginTop: "0.5rem",
+            }}
+          >
             {availableGroups.map((group) => (
               <FormControlLabel
                 key={group.id}
@@ -182,7 +176,6 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
                   <Checkbox
                     checked={selectedGroupIds.includes(group.id)}
                     onChange={() => handleGroupToggle(group.id)}
-                    data-testid={`tag-group-checkbox-${group.id}`}
                   />
                 }
                 label={group.name}
@@ -194,8 +187,15 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
             No groups available for this tag.
           </Typography>
         )}
+        {inaccessibleTagGroupCount > 0 && (
+          <Typography variant="caption" color="textSecondary">
+            This tag is also shared with {inaccessibleTagGroupCount} group
+            {inaccessibleTagGroupCount > 1 ? "s" : ""} you don&apos;t have
+            access to.
+          </Typography>
+        )}
       </DialogContent>
-      <DialogActions className={classes.dialogActions}>
+      <DialogActions sx={{ justifyContent: "space-between" }}>
         <Button
           onClick={handleDelete}
           variant="outlined"
@@ -219,7 +219,6 @@ const EditTagGroups = ({ tag, source, groups, open, onClose }) => {
             disabled={
               isSubmitting || isDeleting || selectedGroupIds.length === 0
             }
-            data-testid="save-tag-groups-button"
           >
             {isSubmitting ? "Saving..." : "Save"}
           </Button>
@@ -239,6 +238,7 @@ EditTagGroups.propTypes = {
         id: PropTypes.number.isRequired,
       }),
     ),
+    total_group_count: PropTypes.number,
   }),
   source: PropTypes.shape({
     id: PropTypes.string.isRequired,
