@@ -1020,12 +1020,12 @@ class FollowupRequestHandler(BaseHandler):
                 return self.success(data=followup_request)
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 followup_requests = followup_requests.where(
                     FollowupRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 followup_requests = followup_requests.where(
                     FollowupRequest.created_at <= end_date
                 )
@@ -1038,7 +1038,7 @@ class FollowupRequestHandler(BaseHandler):
                     >= observation_start_date
                 )
             if observation_end_date:
-                observation_end_date = arrow.get(observation_end_date.strip()).datetime
+                observation_end_date = arrow.get(observation_end_date.strip()).naive
                 followup_requests = followup_requests.where(
                     FollowupRequest.payload["end_date"].astext.cast(sa.DateTime)
                     <= observation_end_date
@@ -1430,6 +1430,11 @@ class FollowupRequestHandler(BaseHandler):
             "refreshRequests", data.pop("refreshRequests", False)
         )
 
+        try:
+            request_id = int(request_id)
+        except (TypeError, ValueError):
+            return self.error("Request id must be an int.")
+
         with self.Session() as session:
             followup_request = session.scalars(
                 FollowupRequest.select(session.user_or_token, mode="delete").where(
@@ -1492,6 +1497,11 @@ class FollowupRequestCommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        try:
+            followup_request_id = int(followup_request_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid followup_request_id: {followup_request_id}")
 
         data = self.get_json()
         comment = str(data.get("comment")).strip()
@@ -2057,6 +2067,11 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            instrument_id = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(
@@ -2100,12 +2115,12 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 observation_start = Time.now()
             else:
                 observation_start = Time(
-                    arrow.get(observation_start_date.strip()).datetime
+                    arrow.get(observation_start_date.strip()).naive
                 )
             if not observation_end_date:
                 observation_end = Time.now() + TimeDelta(12 * u.hour)
             else:
-                observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
+                observation_end = Time(arrow.get(observation_end_date.strip()).naive)
 
             if not standards_only:
                 allocation_query = Allocation.select(session.user_or_token).where(
@@ -2120,12 +2135,12 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 )
 
                 if start_date:
-                    start_date = arrow.get(start_date.strip()).datetime
+                    start_date = arrow.get(start_date.strip()).naive
                     followup_requests = followup_requests.where(
                         FollowupRequest.created_at >= start_date
                     )
                 if end_date:
-                    end_date = arrow.get(end_date.strip()).datetime
+                    end_date = arrow.get(end_date.strip()).naive
                     followup_requests = followup_requests.where(
                         FollowupRequest.created_at <= end_date
                     )
@@ -2275,11 +2290,15 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         with self.Session() as session:
             followup_requests = []
             for request_id in request_ids:
+                try:
+                    request_id_int = int(request_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid request id: {request_id}")
                 # get owned assignments
                 followup_request = session.scalars(
                     FollowupRequest.select(session.user_or_token, mode="update")
                     .options(joinedload(FollowupRequest.obj).joinedload(Obj.photstats))
-                    .where(FollowupRequest.id == request_id)
+                    .where(FollowupRequest.id == request_id_int)
                 ).first()
                 if followup_request is None:
                     return self.error(
@@ -2554,6 +2573,13 @@ class DefaultFollowupRequestHandler(BaseHandler):
                   schema: Error
         """
 
+        if default_followup_request_id is not None:
+            try:
+                default_followup_request_id = int(default_followup_request_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid default_followup_request_id: {default_followup_request_id}"
+                )
         with self.Session() as session:
             if default_followup_request_id is not None:
                 default_followup_request = session.scalars(
@@ -2613,6 +2639,12 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            default_followup_request_id = int(default_followup_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid default_followup_request_id: {default_followup_request_id}"
+            )
         with self.Session() as session:
             stmt = DefaultFollowupRequest.select(
                 session.user_or_token, mode="delete"

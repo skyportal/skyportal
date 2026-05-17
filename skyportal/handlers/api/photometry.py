@@ -262,19 +262,21 @@ def save_data_using_copy(rows, table, columns, session):
     )
     output.seek(0)
 
-    # Insert data
+    # Insert data via psycopg v3's COPY API. psycopg2 had
+    # `cursor.copy_from(file, table, sep, null, columns)`; psycopg3 expects a
+    # full `COPY ... FROM STDIN` statement and a context-managed copy object
+    # that you write rows (or raw bytes) into.
     # Use the provided session's connection so that the COPY runs within the
     # same database connection/transaction that holds any table-level locks.
     connection = session.connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep="\t",
-        null="",
-        columns=columns,
+    quoted_columns = ", ".join(f'"{c}"' for c in columns)
+    copy_sql = (
+        f"COPY {table} ({quoted_columns}) FROM STDIN "
+        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
     )
-    cursor.close()
+    with connection.cursor() as cursor:
+        with cursor.copy(copy_sql) as copy:
+            copy.write(output.getvalue())
     output.close()
 
 
@@ -1732,6 +1734,10 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -1942,6 +1948,10 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(

@@ -81,7 +81,9 @@ class WeatherHandler(BaseHandler):
                 )
 
             # use the query telescope ID otherwise fall back to preferences id
-            telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
+            telescope_id = self.get_query_argument(
+                "telescope_id", default_telescope_id, type=int
+            )
 
             telescope = session.scalars(
                 Telescope.select(self.current_user).where(Telescope.id == telescope_id)

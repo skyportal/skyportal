@@ -267,9 +267,14 @@ class SkymapTriggerAPIHandler(BaseHandler):
             return self.error("Missing trigger_name parameter.")
         trigger_name = data["trigger_name"]
 
+        try:
+            allocation_id_int = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
+
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id
+        data["allocation_id"] = allocation_id_int
 
         with self.Session() as session:
             allocation = session.scalars(

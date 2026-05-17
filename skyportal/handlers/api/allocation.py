@@ -374,7 +374,7 @@ class AllocationHandler(BaseHandler):
                 )
 
             allocations = Allocation.select(self.current_user)
-            instrument_id = self.get_query_argument("instrument_id", None)
+            instrument_id = self.get_query_argument("instrument_id", None, type=int)
             if instrument_id is not None:
                 allocations = allocations.where(
                     Allocation.instrument_id == instrument_id
@@ -620,10 +620,15 @@ class AllocationHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            allocation_id = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
+
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token, mode="update").where(
-                    Allocation.id == int(allocation_id)
+                    Allocation.id == allocation_id
                 )
             ).first()
             if allocation is None:
@@ -711,10 +716,15 @@ class AllocationHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            allocation_id = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
+
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token, mode="delete").where(
-                    Allocation.id == int(allocation_id)
+                    Allocation.id == allocation_id
                 )
             ).first()
             if allocation is None:
@@ -762,6 +772,11 @@ class AllocationReportHandler(BaseHandler):
         output_format = self.get_query_argument("output_format", "pdf")
         if output_format not in ["pdf", "png"]:
             return self.error("output_format must be png or pdf")
+
+        try:
+            instrument_id = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         with self.Session() as session:
             # get owned allocations

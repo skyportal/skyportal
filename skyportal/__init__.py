@@ -8,30 +8,33 @@ try:
     if not hasattr(matplotlib, "docstring"):
         matplotlib.docstring = matplotlib._docstring
 
-    # Register numpy types with psycopg2 for numpy 2.x compatibility
-    # numpy 2 scalars no longer inherit from Python builtins, so psycopg2
-    # needs explicit adapters to serialize them in SQL parameters
-    import math
-
+    # Register numpy types with psycopg (v3) for numpy 2.x compatibility.
+    # numpy 2 scalars no longer inherit from Python builtins, so psycopg's
+    # default lookup misses them. Each dumper coerces the numpy scalar to
+    # its native Python type and delegates to psycopg's built-in dumper,
+    # which already handles NaN/Inf correctly.
     import numpy as np
-    from psycopg2.extensions import AsIs, register_adapter
+    import psycopg
+    from psycopg.types.bool import BoolDumper
+    from psycopg.types.numeric import FloatDumper, Int8Dumper
 
-    def _adapt_numpy_float(val):
-        f = float(val)
-        if math.isnan(f):
-            return AsIs("'NaN'::float")
-        if math.isinf(f):
-            return AsIs("'%s'::float" % ("Infinity" if f > 0 else "-Infinity"))
-        return AsIs(repr(f))
+    class _NumpyFloatDumper(FloatDumper):
+        def dump(self, obj):
+            return super().dump(float(obj))
 
-    def _adapt_numpy_int(val):
-        return AsIs(int(val))
+    class _NumpyIntDumper(Int8Dumper):
+        def dump(self, obj):
+            return super().dump(int(obj))
+
+    class _NumpyBoolDumper(BoolDumper):
+        def dump(self, obj):
+            return super().dump(bool(obj))
 
     for _np_type in [np.float64, np.float32]:
-        register_adapter(_np_type, _adapt_numpy_float)
+        psycopg.adapters.register_dumper(_np_type, _NumpyFloatDumper)
     for _np_type in [np.int64, np.int32]:
-        register_adapter(_np_type, _adapt_numpy_int)
-    register_adapter(np.bool_, lambda val: AsIs("true" if val else "false"))
+        psycopg.adapters.register_dumper(_np_type, _NumpyIntDumper)
+    psycopg.adapters.register_dumper(np.bool_, _NumpyBoolDumper)
 except ImportError:
     # if the packages to monkey-patch are not available, just skip the patching
     pass

@@ -434,15 +434,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
         # validate inputs
         try:
             observed_before = (
-                arrow.get(observed_before).datetime if observed_before else None
+                arrow.get(observed_before).naive if observed_before else None
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_before}".')
 
         try:
-            observed_after = (
-                arrow.get(observed_after).datetime if observed_after else None
-            )
+            observed_after = arrow.get(observed_after).naive if observed_after else None
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
@@ -826,15 +824,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         # validate inputs
         try:
             observed_before = (
-                arrow.get(observed_before).datetime if observed_before else None
+                arrow.get(observed_before).naive if observed_before else None
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_before}".')
 
         try:
-            observed_after = (
-                arrow.get(observed_after).datetime if observed_after else None
-            )
+            observed_after = arrow.get(observed_after).naive if observed_after else None
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 

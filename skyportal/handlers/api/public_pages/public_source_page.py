@@ -415,6 +415,10 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
+        try:
+            page_id = int(page_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid page_id: {page_id}")
 
         with self.Session() as session:
             public_source_page = session.scalar(

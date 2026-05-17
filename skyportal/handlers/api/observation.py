@@ -397,10 +397,14 @@ def get_observations(
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
+        if isinstance(localization_dateobs, str):
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = localization_dateobs
         if localization_name is not None:
             localization = session.scalars(
                 Localization.select(session.user_or_token).where(
-                    Localization.dateobs == localization_dateobs,
+                    Localization.dateobs == localization_dateobs_parsed,
                     Localization.localization_name == localization_name,
                 )
             ).first()
@@ -410,7 +414,7 @@ def get_observations(
             event = session.scalars(
                 GcnEvent.select(
                     session.user_or_token, options=[joinedload(GcnEvent.localizations)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 raise ValueError("GCN event not found")
@@ -1188,6 +1192,11 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            observation_id = int(observation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid observation_id: {observation_id}")
+
         with self.Session() as session:
             observation = session.scalars(
                 ExecutedObservation.select(self.current_user).where(
@@ -1239,6 +1248,11 @@ class ObservationASCIIFileHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
         instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
@@ -1247,7 +1261,7 @@ class ObservationASCIIFileHandler(BaseHandler):
                 ],
             )
             .filter(
-                Instrument.id == instrument_id,
+                Instrument.id == instrument_id_int,
             )
             .first()
         )
@@ -1676,6 +1690,10 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
+        if localization_dateobs is not None:
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = None
 
         with self.Session() as session:
             instrument = session.scalars(
@@ -1721,7 +1739,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             event = session.scalars(
                 GcnEvent.select(
                     session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 return self.error(
@@ -1853,6 +1871,10 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         data = self.get_json()
         localization_dateobs = data.get("localizationDateobs", None)
+        if localization_dateobs is not None:
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = None
 
         instrument = (
             Instrument.query_records_accessible_by(
@@ -1887,7 +1909,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                     joinedload(GcnEvent.gcn_notices),
                 ],
             )
-            .filter(GcnEvent.dateobs == localization_dateobs)
+            .filter(GcnEvent.dateobs == localization_dateobs_parsed)
             .first()
         )
         if event is None:
@@ -2256,6 +2278,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             start_date = arrow.get(start_date.strip()).datetime
             end_date = arrow.get(end_date.strip()).datetime
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
 
             instrument = session.scalars(
                 Instrument.select(
@@ -2278,7 +2301,7 @@ class ObservationSimSurveyHandler(BaseHandler):
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .order_by(Localization.created_at.desc())
                 ).first()
             else:
@@ -2286,14 +2309,14 @@ class ObservationSimSurveyHandler(BaseHandler):
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .where(Localization.localization_name == localization_name)
                 ).first()
 
             event = session.scalars(
                 GcnEvent.select(
                     self.current_user,
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 return self.error("GCN event not found")
@@ -2371,13 +2394,17 @@ class ObservationSimSurveyHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            sea_id = int(survey_efficiency_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
+            )
         with self.Session() as session:
             survey_efficiency_analysis = session.scalars(
                 SurveyEfficiencyForObservations.select(
                     session.user_or_token, mode="delete"
-                ).where(
-                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
-                )
+                ).where(SurveyEfficiencyForObservations.id == sea_id)
             ).first()
             if survey_efficiency_analysis is None:
                 return self.error(
