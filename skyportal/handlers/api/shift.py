@@ -784,7 +784,7 @@ class ShiftSummary(BaseHandler):
                 return self.error("Please provide valid start_date and end_date")
             if start_date > end_date:
                 return self.error("Please provide start_date < end_date")
-            if start_date > arrow.utcnow():
+            if start_date > arrow.utcnow().naive:
                 return self.error("Please provide start_date < today")
             # if there is more than 4 weeks, we return an error
             if (end_date - start_date).days > 28:
@@ -809,6 +809,10 @@ class ShiftSummary(BaseHandler):
                     .all()
                 )
             else:
+                try:
+                    shift_id = int(shift_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid shift_id {shift_id}")
                 s = (
                     session.scalars(
                         Shift.select(

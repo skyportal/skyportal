@@ -1090,8 +1090,12 @@ class ObservationHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        min_observations_per_field = self.get_query_argument("numberObservations", 1)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
+        min_observations_per_field = self.get_query_argument(
+            "numberObservations", 1, type=int
+        )
         return_statistics = self.get_query_argument("returnStatistics", False)
         stats_method = self.get_query_argument("statsMethod", "python")
         stats_logging = self.get_query_argument("statsLogging", False)
@@ -2232,7 +2236,9 @@ class ObservationSimSurveyHandler(BaseHandler):
         end_date = self.get_query_argument("endDate")
         localization_dateobs = self.get_query_argument("localizationDateobs")
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
 
         number_of_injections = int(self.get_query_argument("numberInjections", 1000))
         number_of_detections = int(self.get_query_argument("numberDetections", 1))
@@ -2280,6 +2286,11 @@ class ObservationSimSurveyHandler(BaseHandler):
             end_date = arrow.get(end_date.strip()).datetime
             localization_dateobs_parsed = arrow.get(localization_dateobs).naive
 
+            try:
+                instrument_id_int = int(instrument_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid instrument_id {instrument_id}")
+
             instrument = session.scalars(
                 Instrument.select(
                     self.current_user,
@@ -2287,7 +2298,7 @@ class ObservationSimSurveyHandler(BaseHandler):
                         joinedload(Instrument.telescope),
                     ],
                 ).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == instrument_id_int,
                 )
             ).first()
             if instrument is None:
@@ -2340,7 +2351,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             survey_efficiency_analysis = SurveyEfficiencyForObservations(
                 requester_id=self.associated_user_object.id,
-                instrument_id=instrument_id,
+                instrument_id=instrument_id_int,
                 gcnevent_id=event.id,
                 localization_id=localization.id,
                 groups=groups,

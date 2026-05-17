@@ -416,7 +416,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             with self.Session() as session:
                 spectrum = session.scalars(
                     MMADetectorSpectrum.select(session.user_or_token).where(
-                        MMADetectorSpectrum.id == spectrum_id
+                        MMADetectorSpectrum.id == int(spectrum_id)
                     )
                 ).first()
                 if spectrum is None:
@@ -596,7 +596,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
         with self.Session() as session:
             spectrum = session.scalars(
                 MMADetectorSpectrum.select(self.current_user, mode="delete").where(
-                    MMADetectorSpectrum.id == spectrum_id
+                    MMADetectorSpectrum.id == int(spectrum_id)
                 )
             ).first()
             if spectrum is None:
@@ -797,7 +797,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             with self.Session() as session:
                 time_interval = session.scalars(
                     MMADetectorTimeInterval.select(session.user_or_token).where(
-                        MMADetectorTimeInterval.id == time_interval_id
+                        MMADetectorTimeInterval.id == int(time_interval_id)
                     )
                 ).first()
                 if time_interval is None:
@@ -988,7 +988,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         with self.Session() as session:
             time_interval = session.scalars(
                 MMADetectorTimeInterval.select(self.current_user, mode="delete").where(
-                    MMADetectorTimeInterval.id == time_interval_id
+                    MMADetectorTimeInterval.id == int(time_interval_id)
                 )
             ).first()
             if time_interval is None:

@@ -3647,6 +3647,12 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
 
         with self.Session() as session:
             if default_observation_plan_id is not None:
+                try:
+                    default_observation_plan_id = int(default_observation_plan_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid default_observation_plan_id {default_observation_plan_id}"
+                    )
                 default_observation_plan_request = session.scalars(
                     DefaultObservationPlanRequest.select(
                         session.user_or_token,
@@ -3703,6 +3709,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            default_observation_plan_id = int(default_observation_plan_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid default_observation_plan_id {default_observation_plan_id}"
+            )
 
         with self.Session() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
