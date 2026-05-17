@@ -3037,6 +3037,9 @@ def add_gcn_summary(
         user = session.query(User).get(user_id)
         session.user_or_token = user
 
+        if isinstance(dateobs, str):
+            dateobs = arrow.get(dateobs).naive
+
         gcn_summary = session.query(GcnSummary).get(summary_id)
         group = session.query(Group).get(group_id)
         event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
@@ -3731,7 +3734,7 @@ class GcnSummaryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         number_of_observations = data.get("numberObservations", 1)
         show_sources = data.get("showSources", False)
@@ -3937,10 +3940,20 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid summary_id {summary_id}")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="read").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -4000,10 +4013,15 @@ class GcnSummaryHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid summary_id value.")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -4052,10 +4070,20 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid summary_id {summary_id}")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="delete").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -4110,6 +4138,9 @@ def add_gcn_report(
         gcn_report = session.query(GcnReport).get(report_id)
 
         try:
+            if isinstance(dateobs, str):
+                dateobs = arrow.get(dateobs).naive
+
             group = session.query(Group).get(group_id)
             event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
             localization = (
@@ -4433,7 +4464,7 @@ class GcnReportHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         show_sources = data.get("showSources", False)
         show_observations = data.get("showObservations", False)
@@ -4590,10 +4621,15 @@ class GcnReportHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         if report_id is None:
             with self.Session() as session:
                 stmt = GcnReport.select(session.user_or_token, mode="read").where(
-                    GcnReport.dateobs == dateobs
+                    GcnReport.dateobs == dateobs_parsed
                 )
                 reports = session.scalars(stmt).all()
                 reports = sorted(
@@ -4610,10 +4646,15 @@ class GcnReportHandler(BaseHandler):
                 )
                 return self.success(data=reports)
 
+        try:
+            report_id = int(report_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid report_id {report_id}")
+
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="read").where(
                 GcnReport.id == report_id,
-                GcnReport.dateobs == dateobs,
+                GcnReport.dateobs == dateobs_parsed,
             )
             report = session.scalars(stmt).first()
             if report is None:
@@ -5061,7 +5102,9 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
             return self.error(f"Failed to parse dateobs: str({e})")
 
         localization_name = self.get_query_argument("localization_name", None)
-        integrated_probability = self.get_query_argument("integrated_probability", 0.95)
+        integrated_probability = self.get_query_argument(
+            "integrated_probability", 0.95, type=float
+        )
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive

@@ -1680,7 +1680,7 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(
                             df.loc[df_index]["altdata"], cls=NumpyEncoder
                         )
-                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        duplicate.modified = datetime.datetime.utcnow()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 

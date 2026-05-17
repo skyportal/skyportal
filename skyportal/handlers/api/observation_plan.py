@@ -1106,12 +1106,12 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at <= end_date
                 )
