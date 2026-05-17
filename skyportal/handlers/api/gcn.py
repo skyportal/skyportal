@@ -5175,7 +5175,7 @@ class GcnEventTriggerHandler(BaseHandler):
     def get(self, dateobs, allocation_id=None):
         dateobs = dateobs.strip()
         try:
-            arrow.get(dateobs)
+            dateobs_parsed = arrow.get(dateobs).naive
         except arrow.parser.ParserError as e:
             return self.error(f"Failed to parse dateobs: str({e})")
 
@@ -5188,7 +5188,7 @@ class GcnEventTriggerHandler(BaseHandler):
                 try:
                     gcn_triggered = session.scalars(
                         GcnTrigger.select(session.user_or_token).where(
-                            GcnTrigger.dateobs == dateobs,
+                            GcnTrigger.dateobs == dateobs_parsed,
                             GcnTrigger.allocation_id == allocation_id,
                         )
                     ).all()
@@ -5202,7 +5202,7 @@ class GcnEventTriggerHandler(BaseHandler):
                 try:
                     gcn_triggered = session.scalars(
                         GcnTrigger.select(session.user_or_token).where(
-                            GcnTrigger.dateobs == dateobs
+                            GcnTrigger.dateobs == dateobs_parsed
                         )
                     ).all()
                     return self.success(data=gcn_triggered)
