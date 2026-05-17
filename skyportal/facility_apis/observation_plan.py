@@ -451,7 +451,8 @@ class MMAAPI(FollowUpAPI):
             .query(InstrumentField)
             .filter(
                 InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters != "{}",
+                InstrumentField.reference_filters.isnot(None),
+                sa.func.cardinality(InstrumentField.reference_filters) > 0,
             )
             .count()
             > 0

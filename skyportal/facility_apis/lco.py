@@ -2,7 +2,7 @@ import base64
 import functools
 import json
 import urllib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import arrow
 import requests
@@ -28,8 +28,7 @@ log = make_log("facility_apis/lco")
 def format_date(date_str: str) -> str:
     """Format date string to LCO API expected format."""
     return (
-        arrow.get(date_str, tzinfo=timezone.utc).format("YYYY-MM-DDTHH:mm:ss.SSSSSS")
-        + "+00:00"
+        arrow.get(date_str, tzinfo=UTC).format("YYYY-MM-DDTHH:mm:ss.SSSSSS") + "+00:00"
     )
 
 

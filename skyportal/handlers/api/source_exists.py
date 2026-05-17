@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         single:
@@ -51,20 +51,24 @@ class SourceExistsHandler(BaseHandler):
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
         """
 
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
+        # ra/dec/radius are explicitly converted to float below, so opting
+        # into type=float here keeps the query-arg surface uniform but
+        # isn't strictly required for the comparison.
+        ra = self.get_query_argument("ra", None, type=float)
+        dec = self.get_query_argument("dec", None, type=float)
+        radius = self.get_query_argument("radius", None, type=float)
 
         if not (all([ra, dec, radius]) or obj_id):
             return self.error(
                 "Provide an obj_id, or either ra, dec, and radius for spatial filtering."
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if obj_id:
-                s = session.scalars(
+                obj_result = await session.scalars(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
-                ).first()
+                )
+                s = obj_result.first()
                 if s is not None:
                     return self.success(
                         {
@@ -81,11 +85,7 @@ class SourceExistsHandler(BaseHandler):
                     )
 
             source_query = Source.select(session.user_or_token)
-            try:
-                ra = float(ra)
-                dec = float(dec)
-                radius = float(radius)
-            except ValueError:
+            if ra is None or dec is None or radius is None:
                 return self.error(
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
@@ -94,15 +94,12 @@ class SourceExistsHandler(BaseHandler):
                 Obj.within(other, radius)
             )
             obj_subquery = obj_query.subquery()
-            sources = (
-                session.scalars(
-                    source_query.join(
-                        obj_subquery, Source.obj_id == obj_subquery.c.id
-                    ).distinct()
-                )
-                .unique()
-                .all()
+            sources_result = await session.scalars(
+                source_query.join(
+                    obj_subquery, Source.obj_id == obj_subquery.c.id
+                ).distinct()
             )
+            sources = sources_result.unique().all()
             source_names = list({source.obj_id for source in sources})
             if len(source_names) == 1:
                 return self.success(

@@ -13,7 +13,7 @@ class EphemerisHandler(BaseHandler):
     @auth_or_token
     # TODO: add pagination to this endpoint
     @format_doc(MAX_TELESCOPES_TO_DISPLAY=MAX_TELESCOPES_TO_DISPLAY)
-    def get(self, telescope_id=None):
+    async def get(self, telescope_id=None):
         """
         ---
         single:
@@ -70,17 +70,17 @@ class EphemerisHandler(BaseHandler):
         else:
             time = ap_time.Time.now()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if telescope_id is not None:
                 try:
                     telescope_id = int(telescope_id)
                 except ValueError as e:
                     return self.error(f"Invalid value for Telescope id: {e.args[0]}")
-                telescope = session.scalars(
+                telescope = await session.scalar(
                     Telescope.select(session.user_or_token).where(
                         Telescope.id == telescope_id
                     )
-                ).first()
+                )
                 if telescope is None:
                     return self.error("No Telescope with this id")
                 else:
@@ -90,6 +90,7 @@ class EphemerisHandler(BaseHandler):
                         ephemerides = telescope.ephemeris(time)
             else:
                 telescope_ids = self.get_query_argument("telescopeIds", None)
+                tel_stmt = Telescope.select(session.user_or_token)
                 if telescope_ids is not None:
                     telescope_ids = get_list_typed(
                         telescope_ids, int, "Invalid telescopeIds format"
@@ -98,15 +99,11 @@ class EphemerisHandler(BaseHandler):
                     if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
                         telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]
 
-                    telescopes = session.scalars(
-                        Telescope.select(session.user_or_token).where(
-                            Telescope.id.in_(telescope_ids)
-                        )
-                    ).all()
+                    tel_stmt = tel_stmt.where(Telescope.id.in_(telescope_ids))
                 else:
-                    telescopes = Telescope.query.all()
-                    if len(telescopes) > MAX_TELESCOPES_TO_DISPLAY:
-                        telescopes = telescopes[:MAX_TELESCOPES_TO_DISPLAY]
+                    tel_stmt = tel_stmt.limit(MAX_TELESCOPES_TO_DISPLAY)
+                tel_result = await session.scalars(tel_stmt)
+                telescopes = tel_result.all()
 
                 ephemerides = {
                     telescope.id: telescope.ephemeris(time) for telescope in telescopes

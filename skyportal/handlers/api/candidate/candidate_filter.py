@@ -9,47 +9,23 @@ from baselayer.log import make_log
 
 from ....models import (
     Candidate,
-    Filter,
+    Filter,  # noqa: F401  (kept for star-imports back-compat)
     Obj,
     Source,
 )
-from ....utils.parse import get_list_typed, get_page_and_n_per_page
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_and_filter_ids_async,
+)
+from ....utils.parse import get_page_and_n_per_page
 from ...base import BaseHandler
 
 log = make_log("api/candidate_filter")
 
-
-def get_user_accessible_group_and_filter_ids(session, user, group_ids, filter_ids):
-    user_accessible_group_ids = [g.id for g in user.accessible_groups]
-    user_accessible_filter_ids = [
-        filtr.id for g in user.accessible_groups for filtr in g.filters if g.filters
-    ]
-
-    if isinstance(group_ids, str):
-        group_ids = get_list_typed(
-            group_ids,
-            int,
-            error_msg="Invalid groupIDs value -- select at least one group",
-        )
-        filters = session.scalars(
-            Filter.select(user).where(Filter.group_id.in_(group_ids))
-        ).all()
-        filter_ids = [f.id for f in filters]
-    elif isinstance(filter_ids, str):
-        filter_ids = get_list_typed(
-            filter_ids,
-            int,
-            error_msg="Invalid filterIDs value -- select at least one filter",
-        )
-        filters = session.scalars(
-            Filter.select(user).where(Filter.id.in_(filter_ids))
-        ).all()
-        group_ids = [f.group_id for f in filters]
-    else:
-        # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-        group_ids = user_accessible_group_ids
-        filter_ids = user_accessible_filter_ids
-    return group_ids, filter_ids
+# Back-compat aliases (the *_sync/no-suffix names were used by call sites
+# before the helpers moved to skyportal.utils.data_access).
+get_user_accessible_group_and_filter_ids_sync = accessible_group_and_filter_ids
+get_user_accessible_group_and_filter_ids = accessible_group_and_filter_ids_async
 
 
 def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
@@ -115,7 +91,7 @@ def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
 
 class CandidateFilterHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         # here we want a lighter version of the CandidateHandler, that applies
         # only the startDate, endDate, groupIDs, filterIDs, and savedStatus
         # and returns the Candidates themselves including the candidate's alert id (candid)
@@ -132,17 +108,16 @@ class CandidateFilterHandler(BaseHandler):
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
 
-        with self.Session() as session:
-            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+        async with self.AsyncSession() as session:
+            group_ids, filter_ids = await get_user_accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,
                 filter_ids,
             )
 
-        page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
+            page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
 
-        with self.Session() as session:
             stmt = Candidate.select(session.user_or_token).where(
                 Candidate.filter_id.in_(filter_ids)
             )
@@ -172,11 +147,12 @@ class CandidateFilterHandler(BaseHandler):
                     f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
                 )
 
-            candidates = session.scalars(
+            result = await session.scalars(
                 stmt.order_by(Candidate.passed_at.asc())
                 .limit(n_per_page)
                 .offset((page_number - 1) * n_per_page)
-            ).all()
+            )
+            candidates = result.all()
 
             # in this handler we take a different approach. We don't require the user to pass the totalMatches
             # parameter. But, we only calculate and return the totalMatches when getting the first page.
@@ -185,7 +161,7 @@ class CandidateFilterHandler(BaseHandler):
             # so that even if more candidates are added while the user is paginating, they will be added at the end
             # and it shouldn't break the pagination and keep the results consistent
             if page_number == 1:
-                total_matches = session.scalar(
+                total_matches = await session.scalar(
                     sa.select(func.count()).select_from(stmt.alias())
                 )
             else:

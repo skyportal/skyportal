@@ -17,7 +17,7 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy import and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import Values, column
 
 from baselayer.app.access import auth_or_token, permissions
@@ -262,19 +262,53 @@ def save_data_using_copy(rows, table, columns, session):
     )
     output.seek(0)
 
-    # Insert data
+    # Insert data via psycopg v3's COPY API. psycopg2 had
+    # `cursor.copy_from(file, table, sep, null, columns)`; psycopg3 expects a
+    # full `COPY ... FROM STDIN` statement and a context-managed copy object
+    # that you write rows (or raw bytes) into.
     # Use the provided session's connection so that the COPY runs within the
     # same database connection/transaction that holds any table-level locks.
     connection = session.connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep="\t",
-        null="",
-        columns=columns,
+    quoted_columns = ", ".join(f'"{c}"' for c in columns)
+    copy_sql = (
+        f"COPY {table} ({quoted_columns}) FROM STDIN "
+        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
     )
-    cursor.close()
+    with connection.cursor() as cursor:
+        with cursor.copy(copy_sql) as copy:
+            copy.write(output.getvalue())
+    output.close()
+
+
+async def save_data_using_copy_async(rows, table, columns, session):
+    """Async equivalent of ``save_data_using_copy``. Uses psycopg v3's async
+    COPY API on the AsyncSession's underlying raw async connection."""
+    output = StringIO()
+    df = pd.DataFrame.from_records(rows)
+    df.replace("NaN", "null", inplace=True)
+    df.replace(np.nan, "NaN", inplace=True)
+
+    df.to_csv(
+        output,
+        index=False,
+        sep="\t",
+        header=False,
+        encoding="utf8",
+        quotechar="'",
+    )
+    output.seek(0)
+
+    sa_conn = await session.connection()
+    raw_async_conn = await sa_conn.get_raw_connection()
+    psycopg_conn = raw_async_conn.driver_connection
+    quoted_columns = ", ".join(f'"{c}"' for c in columns)
+    copy_sql = (
+        f"COPY {table} ({quoted_columns}) FROM STDIN "
+        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
+    )
+    async with psycopg_conn.cursor() as cursor:
+        async with cursor.copy(copy_sql) as copy:
+            await copy.write(output.getvalue())
     output.close()
 
 
@@ -783,6 +817,254 @@ def standardize_photometry_data(data, session):
     return df, instrument_cache
 
 
+async def standardize_photometry_data_async(data, session):
+    """Async equivalent of ``standardize_photometry_data``. Does the same
+    pure-Python normalization, then validates instruments/objs via async
+    session queries."""
+    if not isinstance(data, dict):
+        raise ValidationError(
+            f"Top level JSON must be an instance of `dict`, got {type(data)}."
+        )
+
+    max_num_elements = max(
+        [
+            len(data[key])
+            for key in data
+            if isinstance(data[key], list | tuple)
+            and key not in ["group_ids", "stream_ids"]
+        ]
+        + [1]
+    )
+
+    if "altdata" in data and not data["altdata"]:
+        del data["altdata"]
+    if "altdata" in data:
+        if isinstance(data["altdata"], dict):
+            for key in data["altdata"]:
+                if isinstance(data["altdata"][key], list):
+                    if len(data["altdata"][key]) != max_num_elements:
+                        if len(data["altdata"][key]) == 1:
+                            data["altdata"][key] = (
+                                data["altdata"][key] * max_num_elements
+                            )
+                        else:
+                            raise ValueError(f"{key} in altdata incorrect length")
+                elif max_num_elements > 1:
+                    data["altdata"][key] = [data["altdata"][key]] * max_num_elements
+
+            altdata = data.pop("altdata")
+            try:
+                df = pd.DataFrame(altdata)
+            except ValueError:
+                df = pd.DataFrame(altdata, index=[0])
+            altdata = df.to_dict(orient="records")
+        else:
+            altdata = data.pop("altdata")
+    else:
+        altdata = None
+
+    try:
+        data = PhotMagFlexible.load(data)
+    except ValidationError as e1:
+        try:
+            data = PhotFluxFlexible.load(data)
+        except ValidationError as e2:
+            raise ValidationError(
+                "Invalid input format: Tried to parse data "
+                f"in mag space, got: "
+                f'"{e1.normalized_messages()}." Tried '
+                f"to parse data in flux space, got:"
+                f' "{e2.normalized_messages()}."'
+            )
+        else:
+            kind = "flux"
+    else:
+        kind = "mag"
+
+    data.pop("group_ids", None)
+    data.pop("stream_ids", None)
+
+    if allscalar(data):
+        data = [data]
+
+    try:
+        if max_num_elements == 1:
+            df = pd.DataFrame(data, index=[0])
+        else:
+            df = pd.DataFrame(data)
+    except ValueError as e:
+        raise ValidationError(
+            f'Unable to coerce passed JSON to a series of packets. Error was: "{e}"'
+        )
+
+    if altdata is not None and len(altdata) > 0:
+        for index, e in enumerate(altdata):
+            altdata[index] = (
+                {k: v for k, v in e.items() if v not in [None, ""]}
+                if not all(v in [None, ""] for v in e.values())
+                else None
+            )
+        df["altdata"] = altdata
+
+    df = df.apply(to_numeric)
+
+    if "origin" in df.columns:
+        df["origin"] = df["origin"].astype(object)
+        df.loc[df["origin"].isna(), "origin"] = "None"
+    ref_phot_table = None
+
+    if kind == "mag":
+        magnull = df["mag"].isna()
+        magerrnull = df["magerr"].isna()
+        magdet = ~magnull
+
+        bad = (magerrnull ^ magnull).values
+
+        if any(bad):
+            first_offender = np.argwhere(bad)[0, 0]
+            packet = df.iloc[first_offender].to_dict()
+            for key in packet:
+                if key != "standardized_flux":
+                    packet[key] = nan_to_none(packet[key])
+            raise ValidationError(
+                f'Error parsing packet "{packet}": mag '
+                f"and magerr must both be null, or both be "
+                f"not null."
+            )
+
+        for field in ["mag", "magerr", "limiting_mag"]:
+            try:
+                infinite = np.isinf(df[field].values)
+            except TypeError:
+                raise ValidationError(
+                    f"Some values in the {field} field are not numeric."
+                )
+            if any(infinite):
+                first_offender = np.argwhere(infinite)[0, 0]
+                packet = df.iloc[first_offender].to_dict()
+                for key in packet:
+                    packet[key] = nan_to_none(packet[key])
+                raise ValidationError(
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
+                )
+
+        for field in PhotMagFlexible.required_keys:
+            missing = df[field].isna()
+            if any(missing):
+                first_offender = np.argwhere(missing.values)[0, 0]
+                packet = df.iloc[first_offender].to_dict()
+                for key in packet:
+                    packet[key] = nan_to_none(packet[key])
+                raise ValidationError(
+                    f'Error parsing packet "{packet}": missing required field {field}.'
+                )
+
+        detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))
+        detfluxerr = df[magdet]["magerr"] / (2.5 / np.log(10)) * detflux
+
+        limmag_flux = 10 ** (-0.4 * (df[magnull]["limiting_mag"] - PHOT_ZP))
+        ndetfluxerr = limmag_flux / df[magnull]["limiting_mag_nsigma"]
+
+        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
+
+        phot_table["zp"] = PHOT_ZP
+        phot_table["flux"] = np.nan
+        phot_table["fluxerr"] = np.nan
+        phot_table["flux"][magdet] = detflux
+        phot_table["fluxerr"][magdet] = detfluxerr
+        phot_table["fluxerr"][magnull] = ndetfluxerr
+
+        if "magref" in df.columns and "e_magref" in df.columns:
+            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
+            magref = df["magref"].fillna(np.nan)
+            ref_phot_table["flux"] = 10 ** (-0.4 * (magref - PHOT_ZP))
+            ref_phot_table["fluxerr"] = (
+                df["e_magref"] / (2.5 / np.log(10)) * ref_phot_table["flux"]
+            )
+            ref_phot_table["zp"] = PHOT_ZP
+
+    else:
+        for field in PhotFluxFlexible.required_keys:
+            missing = df[field].isna().values
+            if any(missing):
+                first_offender = np.argwhere(missing)[0, 0]
+                packet = df.iloc[first_offender].to_dict()
+                for key in packet:
+                    packet[key] = nan_to_none(packet[key])
+                raise ValidationError(
+                    f'Error parsing packet "{packet}": missing required field {field}.'
+                )
+
+        for field in ["flux", "fluxerr"]:
+            infinite = np.isinf(df[field].values)
+            if any(infinite):
+                first_offender = np.argwhere(infinite)[0, 0]
+                packet = df.iloc[first_offender].to_dict()
+                for key in packet:
+                    packet[key] = nan_to_none(packet[key])
+                raise ValidationError(
+                    f'Error parsing packet "{packet}": field {field} must be finite.'
+                )
+
+        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter", "zp"]])
+        phot_table["flux"] = df["flux"].fillna(np.nan)
+        phot_table["fluxerr"] = df["fluxerr"].fillna(np.nan)
+
+        if "ref_flux" in df.columns and "ref_fluxerr" in df.columns:
+            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
+            ref_phot_table["flux"] = df["ref_flux"].fillna(np.nan)
+            ref_phot_table["fluxerr"] = df["ref_fluxerr"].fillna(np.nan)
+            if "ref_zp" in df.columns:
+                ref_phot_table["zp"] = df["ref_zp"].fillna(np.nan)
+            else:
+                ref_phot_table["zp"] = PHOT_ZP
+
+    unknown_filters = set(phot_table["filter"]).difference(ALLOWED_BANDPASSES)
+    if len(unknown_filters) > 0:
+        raise ValidationError(
+            f"Filter(s) {unknown_filters} is not allowed. "
+            f"Allowed filters are: {ALLOWED_BANDPASSES}"
+        )
+
+    pdata = PhotometricData(phot_table)
+    try:
+        standardized = pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+    except Exception as e:
+        raise ValidationError(f"Error standardizing photometry data: {e}.")
+
+    df["standardized_flux"] = standardized.flux
+    df["standardized_fluxerr"] = standardized.fluxerr
+
+    if ref_phot_table:
+        ref_pdata = PhotometricData(ref_phot_table)
+        try:
+            ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys="ab")
+        except Exception as e:
+            raise ValidationError(
+                f"Error standardizing reference photometry data: {e}."
+            )
+        df["ref_standardized_flux"] = ref_standardized.flux
+        df["ref_standardized_fluxerr"] = ref_standardized.fluxerr
+
+    instrument_cache = {}
+    for iid in df["instrument_id"].unique():
+        instrument = await session.scalar(
+            sa.select(Instrument).where(Instrument.id == int(iid))
+        )
+        if not instrument:
+            raise ValidationError(f"Invalid instrument ID: {iid}")
+        instrument_cache[iid] = instrument
+
+    df["obj_id"] = df["obj_id"].astype(str)
+
+    for oid in df["obj_id"].unique():
+        obj = await session.scalar(sa.select(Obj).where(Obj.id == str(oid)))
+        if not obj:
+            raise ValidationError(f"Invalid object ID: {oid}")
+
+    return df, instrument_cache
+
+
 def get_values_table_and_condition(df, ignore_flux=False):
     """Return a postgres VALUES representation of the indexed columns of
     a photometry dataframe returned by `standardize_photometry_data`.
@@ -1073,6 +1355,208 @@ def insert_new_photometry_data(
     return ids, upload_id
 
 
+async def insert_new_photometry_data_async(
+    df,
+    instrument_cache,
+    group_ids,
+    stream_ids,
+    user,
+    session,
+    validate=True,
+    refresh=False,
+):
+    """Async equivalent of ``insert_new_photometry_data``."""
+    if validate:
+        values_table, condition = get_values_table_and_condition(df)
+
+        result = await session.execute(
+            sa.select(Photometry).join(values_table, condition)
+        )
+        duplicated_photometry = result.scalars().all()
+
+        dict_rep = [d.to_dict() for d in duplicated_photometry]
+
+        if len(dict_rep) > 0:
+            raise ValidationError(
+                f"The following photometry already exists in the database: {dict_rep}."
+            )
+
+    pkq = sa.text(
+        f"SELECT nextval('photometry_id_seq') FROM generate_series(1, {len(df)})"
+    )
+
+    proxy = await session.execute(pkq)
+
+    ids = [i[0] for i in proxy]
+    df["id"] = ids
+
+    df = df.where(pd.notnull(df), None)
+    df.loc[df["standardized_flux"].isna(), "standardized_flux"] = np.nan
+
+    rows = df.to_dict("records")
+    upload_id = str(uuid.uuid4())
+
+    params = []
+    group_photometry_params = []
+    stream_photometry_params = []
+    for packet in rows:
+        if (
+            instrument_cache[packet["instrument_id"]].type == "imager"
+            and packet["filter"]
+            not in instrument_cache[packet["instrument_id"]].filters
+        ):
+            instrument = instrument_cache[packet["instrument_id"]]
+            raise ValidationError(
+                f"Instrument {instrument.name} has no filter {packet['filter']}."
+            )
+
+        flux = packet.pop("standardized_flux")
+        fluxerr = packet.pop("standardized_fluxerr")
+
+        keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
+        original_user_data = {key: packet[key] for key in keys if key in packet}
+        if original_user_data == {}:
+            original_user_data = None
+
+        utcnow = datetime.datetime.utcnow().isoformat()
+        phot = {
+            "id": packet["id"],
+            "original_user_data": json.dumps(original_user_data, cls=NumpyEncoder),
+            "upload_id": upload_id,
+            "flux": flux,
+            "fluxerr": fluxerr,
+            "obj_id": packet["obj_id"],
+            "altdata": json.dumps(packet.get("altdata"), cls=NumpyEncoder),
+            "instrument_id": packet["instrument_id"],
+            "ra_unc": packet["ra_unc"],
+            "dec_unc": packet["dec_unc"],
+            "mjd": packet["mjd"],
+            "filter": packet["filter"],
+            "ra": packet["ra"],
+            "dec": packet["dec"],
+            "origin": packet["origin"],
+            "owner_id": user.id,
+            "created_at": utcnow,
+            "modified": utcnow,
+        }
+
+        if "ref_standardized_flux" in packet:
+            phot["ref_flux"] = packet.pop("ref_standardized_flux")
+            phot["ref_fluxerr"] = packet.pop("ref_standardized_fluxerr")
+        else:
+            phot["ref_flux"] = None
+            phot["ref_fluxerr"] = None
+
+        params.append(phot)
+
+        for group_id in group_ids:
+            group_photometry_params.append(
+                {
+                    "photometr_id": packet["id"],
+                    "group_id": group_id,
+                    "created_at": utcnow,
+                    "modified": utcnow,
+                }
+            )
+
+        for stream_id in stream_ids:
+            stream_photometry_params.append(
+                {
+                    "photometr_id": packet["id"],
+                    "stream_id": stream_id,
+                    "created_at": utcnow,
+                    "modified": utcnow,
+                }
+            )
+
+    if len(params) > 0:
+        await save_data_using_copy_async(
+            params,
+            "photometry",
+            (
+                "id",
+                "original_user_data",
+                "upload_id",
+                "flux",
+                "fluxerr",
+                "obj_id",
+                "altdata",
+                "instrument_id",
+                "ra_unc",
+                "dec_unc",
+                "mjd",
+                "filter",
+                "ra",
+                "dec",
+                "origin",
+                "owner_id",
+                "created_at",
+                "modified",
+                "ref_flux",
+                "ref_fluxerr",
+            ),
+            session=session,
+        )
+
+    if len(group_photometry_params) > 0:
+        await save_data_using_copy_async(
+            group_photometry_params,
+            "group_photometry",
+            ("photometr_id", "group_id", "created_at", "modified"),
+            session=session,
+        )
+
+    if len(stream_photometry_params) > 0:
+        await save_data_using_copy_async(
+            stream_photometry_params,
+            "stream_photometry",
+            ("photometr_id", "stream_id", "created_at", "modified"),
+            session=session,
+        )
+
+    obj_id = phot["obj_id"]
+    phot_stat = await session.scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+    )
+    if phot_stat is None or len(params) > 50:
+        all_phot_result = await session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        )
+        all_phot = all_phot_result.all()
+
+        if phot_stat is None:
+            phot_stat = PhotStat(obj_id=obj_id)
+
+        phot_stat.full_update(all_phot)
+    else:
+        for phot in params:
+            phot_stat.add_photometry_point(phot)
+
+    session.add(phot_stat)
+    await session.commit()
+
+    if refresh:
+        flow = Flow()
+        obj_ids = df["obj_id"].unique()
+        for obj_id in obj_ids:
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
+            )
+
+    return ids, upload_id
+
+
 def get_group_ids(data, user, parent_session=None):
     if parent_session is None:
         session = DBSession()
@@ -1121,6 +1605,54 @@ def get_group_ids(data, user, parent_session=None):
     return group_ids
 
 
+async def get_group_ids_async(data, user, session):
+    """Async equivalent of ``get_group_ids``. ``session`` is an AsyncSession."""
+    group_ids = data.pop("group_ids", [])
+    if isinstance(group_ids, list | tuple):
+        try:
+            group_ids = {int(group_id) for group_id in group_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for group_ids parameter. Must be a list of integers."
+            )
+        groups_result = await session.scalars(
+            sa.select(Group).where(Group.id.in_(list(group_ids)))
+        )
+        groups = groups_result.unique().all()
+        available_group_ids = {group.id for group in groups}
+        diff_group_ids = group_ids - available_group_ids
+        if diff_group_ids:
+            raise ValidationError(
+                f"Invalid group IDs: {diff_group_ids}. Available group IDs: {available_group_ids}"
+            )
+    elif group_ids == "all":
+        public_group = await session.scalar(
+            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+        )
+        if public_group is None:
+            raise ValidationError(
+                f"Public group {cfg['misc.public_group_name']} not found."
+            )
+        group_ids = {public_group.id}
+    else:
+        raise ValidationError(
+            "Invalid group_ids parameter value. Must be a list of IDs "
+            "(integers) or the string 'all'."
+        )
+
+    group_ids = list(group_ids)
+    # always add the single user group — re-fetch via async session
+    single_user_group_id = await session.scalar(
+        sa.select(Group.id).where(
+            Group.single_user_group.is_(True), Group.users.any(id=user.id)
+        )
+    )
+    if single_user_group_id is not None and single_user_group_id not in group_ids:
+        group_ids.append(single_user_group_id)
+
+    return group_ids
+
+
 def get_stream_ids(data, user, parent_session=None):
     if parent_session is None:
         session = DBSession()
@@ -1139,6 +1671,34 @@ def get_stream_ids(data, user, parent_session=None):
             .unique()
             .all()
         )
+        available_stream_ids = {stream.id for stream in streams}
+        diff_stream_ids = stream_ids - available_stream_ids
+        if diff_stream_ids:
+            raise ValidationError(
+                f"Invalid stream IDs: {diff_stream_ids}. Available stream IDs: {available_stream_ids}"
+            )
+    else:
+        raise ValidationError(
+            "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
+        )
+
+    return list(stream_ids)
+
+
+async def get_stream_ids_async(data, user, session):
+    """Async equivalent of ``get_stream_ids``. ``session`` is an AsyncSession."""
+    stream_ids = data.pop("stream_ids", [])
+    if isinstance(stream_ids, list | tuple):
+        try:
+            stream_ids = {int(stream_id) for stream_id in stream_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for stream_ids parameter. Must be a list of integers."
+            )
+        streams_result = await session.scalars(
+            Stream.select(user).where(Stream.id.in_(list(stream_ids)))
+        )
+        streams = streams_result.unique().all()
         available_stream_ids = {stream.id for stream in streams}
         diff_stream_ids = stream_ids - available_stream_ids
         if diff_stream_ids:
@@ -1335,7 +1895,7 @@ def add_external_photometry(
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
     @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload photometry
@@ -1376,22 +1936,22 @@ class PhotometryHandler(BaseHandler):
         refresh = self.get_query_argument("refresh", default=False)
         refresh = str_to_bool(refresh, default=False)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                group_ids = get_group_ids(
-                    self.get_json(), self.associated_user_object, parent_session=session
+                group_ids = await get_group_ids_async(
+                    self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                stream_ids = get_stream_ids(
-                    self.get_json(), self.associated_user_object, parent_session=session
+                stream_ids = await get_stream_ids_async(
+                    self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
 
             try:
-                df, instrument_cache = standardize_photometry_data(
+                df, instrument_cache = await standardize_photometry_data_async(
                     self.get_json(), session
                 )
             except (ValidationError, RuntimeError) as e:
@@ -1409,19 +1969,13 @@ class PhotometryHandler(BaseHandler):
                 f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
             )
 
-            # This lock ensures that the Photometry table data are not modified in any way
-            # between when the query for duplicate photometry is first executed and
-            # when the insert statement with the new photometry is performed.
-            # From the psql docs: This mode protects a table against concurrent
-            # data changes, and is self-exclusive so that only one session can
-            # hold it at a time.
             try:
-                session.execute(
+                await session.execute(
                     sa.text(
                         f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
                     )
                 )
-                ids, upload_id = insert_new_photometry_data(
+                ids, upload_id = await insert_new_photometry_data_async(
                     df,
                     instrument_cache,
                     group_ids,
@@ -1431,7 +1985,7 @@ class PhotometryHandler(BaseHandler):
                     refresh=refresh,
                 )
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 if "The following photometry already exists in the database:" in str(e):
                     return self.error(str(e))
 
@@ -1444,7 +1998,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @permissions(["Upload data"])
-    def put(self):
+    async def put(self):
         """
         ---
         summary: Update and/or upload photometry
@@ -1525,21 +2079,21 @@ class PhotometryHandler(BaseHandler):
                 "Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only"
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                group_ids = get_group_ids(
-                    self.get_json(), self.associated_user_object, parent_session=session
+                group_ids = await get_group_ids_async(
+                    self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                stream_ids = get_stream_ids(
-                    self.get_json(), self.associated_user_object, parent_session=session
+                stream_ids = await get_stream_ids_async(
+                    self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                df, instrument_cache = standardize_photometry_data(
+                df, instrument_cache = await standardize_photometry_data_async(
                     self.get_json(), session
                 )
             except ValidationError as e:
@@ -1559,29 +2113,20 @@ class PhotometryHandler(BaseHandler):
 
             values_table, condition = get_values_table_and_condition(df, ignore_flux)
 
-            # This lock ensures that the Photometry table data are not modified
-            # in any way between when the query for duplicate photometry is first
-            # executed and when the insert statement with the new photometry is
-            # performed. From the psql docs: This mode protects a table against
-            # concurrent data changes, and is self-exclusive so that only one
-            # session can hold it at a time.
             try:
-                session.execute(
+                await session.execute(
                     sa.text(
                         f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
                     )
                 )
 
-                duplicated_photometry = (
-                    session.execute(
-                        sa.select(values_table.c.pdidx, Photometry)
-                        .join(Photometry, condition)
-                        .options(joinedload(Photometry.groups))
-                        .options(joinedload(Photometry.streams))
-                    )
-                    .unique()
-                    .all()
+                dup_result = await session.execute(
+                    sa.select(values_table.c.pdidx, Photometry)
+                    .join(Photometry, condition)
+                    .options(selectinload(Photometry.groups))
+                    .options(selectinload(Photometry.streams))
                 )
+                duplicated_photometry = dup_result.unique().all()
 
                 duplicated_photometry_pdidx = {g[0] for g in duplicated_photometry}
                 if len(duplicated_photometry_pdidx) > 0:
@@ -1604,16 +2149,11 @@ class PhotometryHandler(BaseHandler):
 
                     # posting to new groups?
                     if len(set(group_ids) - duplicate_group_ids) > 0:
-                        # select old + new groups
                         group_ids_update = set(group_ids).union(duplicate_group_ids)
-                        groups = (
-                            session.execute(
-                                sa.select(Group).filter(Group.id.in_(group_ids_update))
-                            )
-                            .scalars()
-                            .all()
+                        groups_result = await session.execute(
+                            sa.select(Group).filter(Group.id.in_(group_ids_update))
                         )
-                        # update the corresponding photometry entry in the db
+                        groups = groups_result.scalars().all()
                         duplicate.groups = groups
                         log(
                             f"Adding groups {group_ids_update} to photometry {duplicate.id}"
@@ -1621,7 +2161,6 @@ class PhotometryHandler(BaseHandler):
 
                     # posting to new streams?
                     if stream_ids:
-                        # Add new stream_photometry rows if not already present
                         stream_ids_update = set(stream_ids) - duplicate_stream_ids
                         if len(stream_ids_update) > 0:
                             for id in stream_ids_update:
@@ -1694,7 +2233,7 @@ class PhotometryHandler(BaseHandler):
                     )
 
                 if len(new_photometry) > 0:
-                    ids, upload_id = insert_new_photometry_data(
+                    ids, upload_id = await insert_new_photometry_data_async(
                         new_photometry,
                         instrument_cache,
                         group_ids,
@@ -1709,7 +2248,7 @@ class PhotometryHandler(BaseHandler):
                         id_map[df_index] = id
 
                 # release the lock
-                session.commit()
+                await session.commit()
 
                 # get ids in the correct order
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -1727,17 +2266,28 @@ class PhotometryHandler(BaseHandler):
                 return self.success(data={"ids": ids})
 
             except Exception:
-                session.rollback()
+                await session.rollback()
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id):
-        with self.Session() as session:
-            phot = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.id == photometry_id
+    async def get(self, photometry_id):
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
+        async with self.AsyncSession() as session:
+            phot = await session.scalar(
+                Photometry.select(session.user_or_token)
+                .where(Photometry.id == photometry_id)
+                .options(
+                    selectinload(Photometry.instrument),
+                    selectinload(Photometry.groups),
+                    selectinload(Photometry.annotations),
+                    selectinload(Photometry.owner),
+                    selectinload(Photometry.streams),
+                    selectinload(Photometry.validations),
                 )
-            ).first()
+            )
 
             if phot is None:
                 return self.error(
@@ -1751,7 +2301,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    def patch(self, photometry_id):
+    async def patch(self, photometry_id):
         """
         ---
         summary: Update photometry
@@ -1793,12 +2343,12 @@ class PhotometryHandler(BaseHandler):
 
         refresh = self.get_query_argument("refresh", default=False)
 
-        with self.Session() as session:
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token, mode="update").where(
-                    Photometry.id == photometry_id
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            photometry = await session.scalar(
+                Photometry.select(session.user_or_token, mode="update")
+                .where(Photometry.id == photometry_id)
+                .options(selectinload(Photometry.groups))
+            )
 
             if photometry is None:
                 return self.error(
@@ -1834,33 +2384,44 @@ class PhotometryHandler(BaseHandler):
             phot.original_user_data = original_user_data
             phot.id = photometry_id
 
-            session.merge(phot)
+            await session.merge(phot)
+            await session.flush()
 
             # Update groups, if relevant
             if group_ids is not None:
-                groups = session.scalars(
+                from ...utils.data_access import accessible_group_ids_async
+
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
                 if not groups:
                     return self.error(
                         "Invalid group_ids field. Specify at least one valid group ID."
                     )
-                accessible_group_ids = [
-                    g.id for g in self.current_user.accessible_groups
-                ]
+                accessible_group_ids = await accessible_group_ids_async(
+                    self.current_user, session
+                )
                 if not all(g.id in accessible_group_ids for g in groups):
                     return self.error(
                         "Cannot upload photometry to groups you are not a member of."
                     )
+                photometry = await session.scalar(
+                    sa.select(Photometry)
+                    .where(Photometry.id == photometry_id)
+                    .options(selectinload(Photometry.groups))
+                )
                 photometry.groups = groups
+                await session.flush()
 
             # Update streams, if relevant
             if stream_ids is not None:
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(session.user_or_token).where(
                         Stream.id.in_(stream_ids)
                     )
-                ).all()
+                )
+                streams = streams_result.all()
 
                 if not streams:
                     return self.error(
@@ -1869,12 +2430,12 @@ class PhotometryHandler(BaseHandler):
 
                 # Add new stream_photometry rows if not already present
                 for stream in streams:
-                    stream_photometry = session.scalars(
+                    stream_photometry = await session.scalar(
                         StreamPhotometry.select(session.user_or_token).where(
                             StreamPhotometry.stream_id == stream.id,
                             StreamPhotometry.photometr_id == photometry_id,
                         )
-                    ).first()
+                    )
                     if stream_photometry is None:
                         session.add(
                             StreamPhotometry(
@@ -1882,26 +2443,27 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
-            phot_stat = session.scalars(
+            phot_stat = await session.scalar(
                 PhotStat.select(session.user_or_token, mode="update").where(
                     PhotStat.obj_id == photometry.obj_id
                 )
-            ).first()
+            )
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
 
-            all_phot = session.scalars(
+            all_phot_result = await session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
-            ).all()
+            )
+            all_phot = all_phot_result.all()
             phot_stat.full_update(all_phot)
             for phot in all_phot:
                 session.expunge(phot)
 
-            session.commit()
+            await session.commit()
 
             if refresh:
                 flow = Flow()
-                internal_key = session.scalar(
+                internal_key = await session.scalar(
                     sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
                 )
                 flow.push(
@@ -1919,7 +2481,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, photometry_id):
+    async def delete(self, photometry_id):
         """
         ---
         summary: Delete photometry
@@ -1942,12 +2504,16 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            photometry = session.scalars(
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
+        async with self.AsyncSession() as session:
+            photometry = await session.scalar(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.id == photometry_id
                 )
-            ).first()
+            )
 
             if photometry is None:
                 return self.error(
@@ -1956,20 +2522,20 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = photometry.obj_id
 
-            session.delete(photometry)
+            await session.delete(photometry)
 
-            phot_stat = session.scalars(
+            phot_stat = await session.scalar(
                 PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == photometry.obj_id
+                    PhotStat.obj_id == obj_id
                 )
-            ).first()
+            )
             if phot_stat is not None:
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
-                ).all()
-                phot_stat.full_update(all_phot)
+                all_phot_result = await session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                )
+                phot_stat.full_update(all_phot_result.all())
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
@@ -1981,7 +2547,7 @@ class PhotometryHandler(BaseHandler):
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")
@@ -2010,10 +2576,10 @@ class ObjPhotometryHandler(BaseHandler):
 
         include_extinction = str_to_bool(include_extinction, default=False)
 
-        with self.Session() as session:
-            obj: Obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj: Obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(
                     f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
@@ -2024,16 +2590,16 @@ class ObjPhotometryHandler(BaseHandler):
             series_data = []
             if individual_or_series in ["individual", "both"]:
                 options = [
-                    joinedload(Photometry.instrument).load_only(Instrument.name),
-                    joinedload(Photometry.groups).load_only(
+                    selectinload(Photometry.instrument).load_only(Instrument.name),
+                    selectinload(Photometry.groups).load_only(
                         Group.id, Group.name, Group.nickname, Group.single_user_group
                     ),
                 ]
                 if include_annotation_info:
-                    options.append(joinedload(Photometry.annotations))
+                    options.append(selectinload(Photometry.annotations))
                 if include_owner_info:
                     options.append(
-                        joinedload(Photometry.owner).load_only(
+                        selectinload(Photometry.owner).load_only(
                             User.id,
                             User.username,
                             User.first_name,
@@ -2042,23 +2608,22 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                 if include_stream_info:
                     options.append(
-                        joinedload(Photometry.streams).load_only(
+                        selectinload(Photometry.streams).load_only(
                             Stream.id,
                             Stream.name,
                         )
                     )
+                if include_validation_info:
+                    options.append(selectinload(Photometry.validations))
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
-                    super_objs = (
-                        session.scalars(
-                            sa.select(SuperObj).where(
-                                SuperObj.objs.any(Obj.id == obj_id)
-                            )
-                        )
-                        .unique()
-                        .all()
+                    super_objs_result = await session.scalars(
+                        sa.select(SuperObj)
+                        .where(SuperObj.objs.any(Obj.id == obj_id))
+                        .options(selectinload(SuperObj.objs))
                     )
+                    super_objs = super_objs_result.unique().all()
                     for super_obj in super_objs:
                         obj_ids.update({o.id for o in super_obj.objs})
 
@@ -2074,7 +2639,8 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     .distinct()
                 )
-                photometry = session.scalars(stmt).unique().all()
+                photometry_result = await session.scalars(stmt)
+                photometry = photometry_result.unique().all()
 
                 # Compute extinction for all filters
                 extinction_dict = None
@@ -2115,15 +2681,12 @@ class ObjPhotometryHandler(BaseHandler):
                     )
 
             if individual_or_series in ["series", "both"]:
-                series = (
-                    session.scalars(
-                        PhotometricSeries.select(session.user_or_token).where(
-                            PhotometricSeries.obj_id == obj_id
-                        )
+                series_result = await session.scalars(
+                    PhotometricSeries.select(session.user_or_token).where(
+                        PhotometricSeries.obj_id == obj_id
                     )
-                    .unique()
-                    .all()
                 )
+                series = series_result.unique().all()
                 series_data = []
                 for s in series:
                     series_data += s.get_data_with_extra_columns().to_dict(
@@ -2137,11 +2700,12 @@ class ObjPhotometryHandler(BaseHandler):
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
 
-                annotations = session.scalars(
+                annotations_result = await session.scalars(
                     Annotation.select(session.user_or_token).where(
                         Annotation.obj_id == obj_id
                     )
-                ).all()
+                )
+                annotations = annotations_result.all()
                 period_str_options = ["period", "Period", "PERIOD"]
                 for an in annotations:
                     if not isinstance(an.data, dict):
@@ -2158,7 +2722,7 @@ class ObjPhotometryHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Delete bulk photometry"])
-    def delete(self, obj_id):
+    async def delete(self, obj_id):
         """
         ---
         summary: Delete all photometry for an object
@@ -2182,37 +2746,39 @@ class ObjPhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.obj_id == obj_id
                 )
-            ).all()
+            )
+            photometry_to_delete = result.all()
 
             n = len(photometry_to_delete)
             if n == 0:
                 return self.error("Invalid object id.")
 
             for phot in photometry_to_delete:
-                session.delete(phot)
+                await session.delete(phot)
 
-            stat = session.scalars(
+            stat = await session.scalar(
                 PhotStat.select(session.user_or_token, mode="update").where(
                     PhotStat.obj_id == obj_id
                 )
-            ).first()
-            all_phot = session.scalars(
+            )
+            all_phot_result = await session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            ).all()
-            stat.full_update(all_phot)
+            )
+            if stat is not None:
+                stat.full_update(all_phot_result.all())
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    def delete(self, upload_id):
+    async def delete(self, upload_id):
         """
         ---
         summary: Delete bulk-uploaded photometry
@@ -2236,39 +2802,41 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.upload_id == upload_id
                 )
-            ).all()
+            )
+            photometry_to_delete = result.all()
 
             n = len(photometry_to_delete)
             if n == 0:
                 return self.error("Invalid bulk upload id.")
 
-            for phot in photometry_to_delete:
-                session.delete(phot)
-
             obj_ids = {phot.obj_id for phot in photometry_to_delete}
+
+            for phot in photometry_to_delete:
+                await session.delete(phot)
+
             for oid in obj_ids:
-                stat = session.scalars(
+                stat = await session.scalar(
                     PhotStat.select(session.user_or_token, mode="update").where(
                         PhotStat.obj_id == oid
                     )
-                ).first()
-                all_phot = session.scalars(
+                )
+                all_phot_result = await session.scalars(
                     sa.select(Photometry).where(Photometry.obj_id == oid)
-                ).all()
-                stat.full_update(all_phot)
+                )
+                stat.full_update(all_phot_result.all())
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s).")
 
 
 class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """Docstring appears below as an f-string."""
 
         json = self.get_json()
@@ -2281,7 +2849,7 @@ class PhotometryRangeHandler(BaseHandler):
         if format not in ["mag", "flux"]:
             return self.error("Invalid output format.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 standardized = PhotometryRangeQuery.load(json)
             except ValidationError as e:
@@ -2291,7 +2859,9 @@ class PhotometryRangeHandler(BaseHandler):
             min_date = standardized["min_date"]
             max_date = standardized["max_date"]
 
-            gids = [g.id for g in self.current_user.accessible_groups]
+            from ...utils.data_access import accessible_group_ids_async
+
+            gids = await accessible_group_ids_async(self.current_user, session)
 
             group_phot_subquery = (
                 GroupPhotometry.select(session.user_or_token)
@@ -2311,18 +2881,20 @@ class PhotometryRangeHandler(BaseHandler):
 
             query = query.join(
                 group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
+            ).options(
+                selectinload(Photometry.instrument),
+                selectinload(Photometry.groups),
+                selectinload(Photometry.annotations),
             )
 
-            output = [
-                serialize(p, magsys, format)
-                for p in session.scalars(query.distinct()).unique().all()
-            ]
+            result = await session.scalars(query.distinct())
+            output = [serialize(p, magsys, format) for p in result.unique().all()]
             return self.success(data=output)
 
 
 class PhotometryOriginHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         return self.error("This feature is deprecated")
 
 

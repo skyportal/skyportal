@@ -14,14 +14,14 @@ log = make_log("js")
 
 class LogHandler(BaseHandler):
     @tornado.web.authenticated
-    def post(self, *ignored_args):
+    async def post(self, *ignored_args):
         """Log a frontend error to the server logs, tracking user crash reports."""
         data = self.get_json()
         log(f"{data['error']}{data['stack']}")
         return self.success()
 
     @permissions(["System admin"])
-    def get(self, file_name=None):
+    async def get(self, file_name=None):
         """Retrieve the contents of a log file, or list all log files (with human readable size and last_modified) if no file name is provided."""
         if file_name is None:
             # 1. grab the list of file names from the log directory, found in skyportal/log

@@ -8,41 +8,52 @@ from ...base import BaseHandler
 
 class NotificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, notification_id=None):
+    async def get(self, notification_id=None):
         """Fetch notification(s)"""
 
-        with self.Session() as session:
+        if notification_id is not None:
+            try:
+                notification_id = int(notification_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid notification_id: {notification_id}")
+
+        async with self.AsyncSession() as session:
             if notification_id is not None:
-                notification = session.scalars(
+                notification = await session.scalar(
                     UserNotification.select(session.user_or_token).where(
-                        UserNotification == notification_id
+                        UserNotification.id == notification_id
                     )
-                ).first()
+                )
                 if notification is None:
                     return self.error(
                         f"Cannot find UserNotification with ID: {notification_id}"
                     )
                 return self.success(data=notification)
-            notifications = session.scalars(
+            result = await session.scalars(
                 UserNotification.select(session.user_or_token)
                 .where(UserNotification.user_id == self.associated_user_object.id)
                 .order_by(UserNotification.created_at.desc())
-            ).all()
-            return self.success(data=notifications)
+            )
+            return self.success(data=result.all())
 
     @auth_or_token
-    def patch(self, notification_id):
+    async def patch(self, notification_id):
         """Update a notification"""
+
+        try:
+            notification_id = int(notification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid notification_id: {notification_id}")
 
         data = self.get_json()
         data["id"] = notification_id
 
-        with self.Session() as session:
-            notification = session.scalars(
+        async with self.AsyncSession() as session:
+            notification = await session.scalar(
                 UserNotification.select(session.user_or_token, mode="update").where(
                     UserNotification.id == notification_id
                 )
-            ).first()
+            )
             if notification is None:
                 return self.error(
                     f"Cannot find UserNotification with ID: {notification_id}"
@@ -57,29 +68,34 @@ class NotificationHandler(BaseHandler):
 
             for k in data:
                 setattr(notification, k, data[k])
-            session.commit()
+            await session.commit()
 
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     @auth_or_token
-    def delete(self, notification_id):
+    async def delete(self, notification_id):
         """Delete a notification"""
         if notification_id is None:
             return self.error("Missing required notification_id")
 
-        with self.Session() as session:
-            notification = session.scalars(
+        try:
+            notification_id = int(notification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid notification_id: {notification_id}")
+
+        async with self.AsyncSession() as session:
+            notification = await session.scalar(
                 UserNotification.select(session.user_or_token, mode="delete").where(
                     UserNotification.id == notification_id
                 )
-            ).first()
+            )
             if notification is None:
                 return self.error(
                     f"Cannot find UserNotification with ID: {notification_id}"
                 )
 
-            session.delete(notification)
-            session.commit()
+            await session.delete(notification)
+            await session.commit()
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
 
@@ -88,32 +104,31 @@ class BulkNotificationHandler(BaseHandler):
     deleting all notifications or marking all notifications as read."""
 
     @auth_or_token
-    def patch(self):
+    async def patch(self):
         """Update all notifications associated with requesting user."""
         data = self.get_json()
-        with self.Session() as session:
-            notifications = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 UserNotification.select(session.user_or_token, mode="update").where(
                     UserNotification.user_id == self.associated_user_object.id
                 )
-            ).all()
-            for notification in notifications:
+            )
+            for notification in result.all():
                 for key in data:
                     setattr(notification, key, data[key])
-            session.commit()
+            await session.commit()
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     @auth_or_token
-    def delete(self):
+    async def delete(self):
         """Delete all notifications associated with requesting user"""
-        with self.Session() as session:
-            notifications = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 UserNotification.select(session.user_or_token, mode="delete").where(
                     UserNotification.user_id == self.associated_user_object.id
                 )
-            ).all()
-
-            for notification in notifications:
-                session.delete(notification)
-            session.commit()
+            )
+            for notification in result.all():
+                await session.delete(notification)
+            await session.commit()
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")

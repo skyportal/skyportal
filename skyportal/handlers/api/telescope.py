@@ -1,15 +1,16 @@
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Telescope
+from ...models import Allocation, AllocationUser, Instrument, Telescope
 from ..base import BaseHandler
 
 
 class TelescopeHandler(BaseHandler):
     @permissions(["Manage telescopes"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create a telescope
@@ -42,7 +43,7 @@ class TelescopeHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = Telescope.__schema__()
             # check if the telescope has a fixed location
             if "fixed_location" in data:
@@ -80,13 +81,13 @@ class TelescopeHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(telescope)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    def get(self, telescope_id=None):
+    async def get(self, telescope_id=None):
         """
         ---
         single:
@@ -152,18 +153,23 @@ class TelescopeHandler(BaseHandler):
         """
 
         tel_name = self.get_query_argument("name", None)
-        latitude_min = self.get_query_argument("latitudeMin", None)
-        latitude_max = self.get_query_argument("latitudeMax", None)
-        longitude_min = self.get_query_argument("longitudeMin", None)
-        longitude_max = self.get_query_argument("longitudeMax", None)
+        latitude_min = self.get_query_argument("latitudeMin", None, type=float)
+        latitude_max = self.get_query_argument("latitudeMax", None, type=float)
+        longitude_min = self.get_query_argument("longitudeMin", None, type=float)
+        longitude_max = self.get_query_argument("longitudeMax", None, type=float)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if telescope_id is not None:
-                t = session.scalars(
-                    Telescope.select(session.user_or_token).where(
-                        Telescope.id == int(telescope_id)
+                single_result = await session.scalars(
+                    Telescope.select(session.user_or_token)
+                    .options(
+                        selectinload(Telescope.instruments).selectinload(
+                            Instrument.allocations
+                        )
                     )
-                ).first()
+                    .where(Telescope.id == int(telescope_id))
+                )
+                t = single_result.first()
                 if t is None:
                     return self.error(
                         f"Could not load telescope with ID {telescope_id}"
@@ -182,7 +188,12 @@ class TelescopeHandler(BaseHandler):
                 }
                 return self.success(data=data)
 
-            stmt = Telescope.select(session.user_or_token)
+            stmt = Telescope.select(session.user_or_token).options(
+                selectinload(Telescope.instruments)
+                .selectinload(Instrument.allocations)
+                .selectinload(Allocation.allocation_users)
+                .selectinload(AllocationUser.user)
+            )
             if tel_name is not None:
                 stmt = stmt.where(Telescope.name == tel_name)
             if latitude_min is not None:
@@ -194,7 +205,8 @@ class TelescopeHandler(BaseHandler):
             if longitude_max is not None:
                 stmt = stmt.where(Telescope.lon <= longitude_max)
 
-            data = session.scalars(stmt).all()
+            list_result = await session.scalars(stmt)
+            data = list_result.all()
             telescopes = []
             for telescope in data:
                 if telescope is None:
@@ -222,7 +234,7 @@ class TelescopeHandler(BaseHandler):
             return self.success(data=telescopes)
 
     @permissions(["Manage telescopes"])
-    def put(self, telescope_id):
+    async def put(self, telescope_id):
         """
         ---
         summary: Update a telescope
@@ -250,12 +262,13 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            put_result = await session.scalars(
                 Telescope.select(session.user_or_token, mode="update").where(
                     Telescope.id == int(telescope_id)
                 )
-            ).first()
+            )
+            t = put_result.first()
             if t is None:
                 return self.error("Invalid telescope ID.")
             data = self.get_json()
@@ -290,7 +303,7 @@ class TelescopeHandler(BaseHandler):
             if "weather_link" in data:
                 t.weather_link = data["weather_link"]
 
-            session.commit()
+            await session.commit()
 
             if any(k in data for k in ["lat", "lon", "elevation"]):
                 t.current_time(refresh=True)
@@ -299,7 +312,7 @@ class TelescopeHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete telescope"])
-    def delete(self, telescope_id):
+    async def delete(self, telescope_id):
         """
         ---
         summary: Delete a telescope
@@ -323,15 +336,16 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            del_result = await session.scalars(
                 Telescope.select(session.user_or_token, mode="delete").where(
                     Telescope.id == int(telescope_id)
                 )
-            ).first()
+            )
+            t = del_result.first()
             if t is None:
                 return self.error("Invalid telescope ID.")
-            session.delete(t)
-            session.commit()
+            await session.delete(t)
+            await session.commit()
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()

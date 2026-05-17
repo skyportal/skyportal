@@ -8,6 +8,7 @@ This module provides REST API endpoints for:
 import re
 
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
@@ -23,7 +24,7 @@ class ObjTagOptionHandler(BaseHandler):
     """
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve all tag options
@@ -44,12 +45,12 @@ class ObjTagOptionHandler(BaseHandler):
                           items:
                             $ref: '#/components/schemas/ObjTagOption'
         """
-        with self.Session() as session:
-            tags = session.scalars(ObjTagOption.select(session.user_or_token)).all()
-            return self.success(data=tags)
+        async with self.AsyncSession() as session:
+            result = await session.scalars(ObjTagOption.select(session.user_or_token))
+            return self.success(data=result.all())
 
     @permissions(["Manage sources"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create a new tag option
@@ -109,12 +110,12 @@ class ObjTagOptionHandler(BaseHandler):
                 status=400,
             )
 
-        with self.Session() as session:
-            existing_tag = session.scalars(
+        async with self.AsyncSession() as session:
+            existing_tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     func.lower(ObjTagOption.name) == name.lower()
                 )
-            ).first()
+            )
 
             if existing_tag:
                 return self.error(
@@ -124,12 +125,12 @@ class ObjTagOptionHandler(BaseHandler):
 
             new_tag = ObjTagOption(name=name, color=color)
             session.add(new_tag)
-            session.commit()
+            await session.commit()
 
             return self.success(new_tag)
 
     @auth_or_token
-    def patch(self, tag_id):
+    async def patch(self, tag_id):
         """
         ---
         summary: Update a tag option
@@ -188,32 +189,33 @@ class ObjTagOptionHandler(BaseHandler):
                 status=400,
             )
 
-        with self.Session() as session:
-            tag = session.scalars(
+        async with self.AsyncSession() as session:
+            tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     ObjTagOption.id == tag_id
                 )
-            ).first()
+            )
 
             if not tag:
                 return self.error("Tag not found", status=404)
 
-            if session.scalars(
+            conflict = await session.scalar(
                 ObjTagOption.select(session.user_or_token)
                 .where(ObjTagOption.name == new_name)
                 .where(ObjTagOption.id != tag_id)
-            ).first():
+            )
+            if conflict:
                 return self.error("This tag name already exists for another tag")
 
             tag.name = new_name
             if new_color:
                 tag.color = new_color
-            session.commit()
+            await session.commit()
 
             return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, tag_id):
+    async def delete(self, tag_id):
         """
         ---
         summary: Delete a tag option
@@ -241,18 +243,18 @@ class ObjTagOptionHandler(BaseHandler):
         except Exception:
             raise ValueError("Invalid tag ID")
 
-        with self.Session() as session:
-            tag = session.scalars(
+        async with self.AsyncSession() as session:
+            tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     ObjTagOption.id == tag_id
                 )
-            ).first()
+            )
 
             if not tag:
                 return self.error("Tag not found", status=404)
 
-            session.delete(tag)
-            session.commit()
+            await session.delete(tag)
+            await session.commit()
 
             return self.success(f"Successfully deleted tag {tag}")
 
@@ -265,7 +267,7 @@ class ObjTagHandler(BaseHandler):
     """
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve object-tag associations
@@ -300,9 +302,9 @@ class ObjTagHandler(BaseHandler):
                             $ref: '#/components/schemas/ObjTag'
         """
         obj_id = self.get_query_argument("obj_id", None)
-        objtagoption_id = self.get_query_argument("objtagoption_id", None)
+        objtagoption_id = self.get_query_argument("objtagoption_id", None, type=int)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query = ObjTag.select(session.user_or_token)
 
             if obj_id:
@@ -310,11 +312,11 @@ class ObjTagHandler(BaseHandler):
             if objtagoption_id:
                 query = query.where(ObjTag.objtagoption_id == objtagoption_id)
 
-            associations = session.scalars(query).all()
-            return self.success(associations)
+            result = await session.scalars(query)
+            return self.success(result.all())
 
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create object-tag association
@@ -363,27 +365,30 @@ class ObjTagHandler(BaseHandler):
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # Check if association already exists
-            if session.scalars(
+            existing = await session.scalar(
                 ObjTag.select(session.user_or_token)
                 .where(ObjTag.objtagoption_id == objtagoption_id)
                 .where(ObjTag.obj_id == obj_id)
-            ).first():
+            )
+            if existing:
                 return self.error("This tag-obj association already exists")
 
             # Verify tag exists
-            if not session.scalars(
+            tag_check = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     ObjTagOption.id == objtagoption_id
                 )
-            ).first():
+            )
+            if not tag_check:
                 return self.error("Specified tag does not exist", status=404)
 
-            # Verify obj exists
-            if not session.scalars(
+            # Verify obj exists; reuse it for the push_all internal_key below.
+            obj_check = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first():
+            )
+            if not obj_check:
                 return self.error("Specified obj does not exist", status=404)
 
             author_id = self.associated_user_object.id
@@ -392,15 +397,15 @@ class ObjTagHandler(BaseHandler):
                 objtagoption_id=objtagoption_id, obj_id=obj_id, author_id=author_id
             )
             session.add(new_assoc)
-            session.commit()
+            await session.commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": new_assoc.obj.internal_key},
+                payload={"obj_key": obj_check.internal_key},
             )
             return self.success(new_assoc)
 
     @auth_or_token
-    def delete(self, association_id):
+    async def delete(self, association_id):
         """
         ---
         summary: Delete object-tag association
@@ -429,16 +434,18 @@ class ObjTagHandler(BaseHandler):
         except Exception:
             raise ValueError("Invalid association ID")
 
-        with self.Session() as session:
-            assoc = session.scalars(
-                ObjTag.select(session.user_or_token).where(ObjTag.id == association_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            assoc = await session.scalar(
+                ObjTag.select(session.user_or_token)
+                .options(selectinload(ObjTag.obj))
+                .where(ObjTag.id == association_id)
+            )
 
             if not assoc:
                 return self.error("Association not found", status=404)
             obj_key = assoc.obj.internal_key
-            session.delete(assoc)
-            session.commit()
+            await session.delete(assoc)
+            await session.commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": obj_key},

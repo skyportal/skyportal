@@ -11,7 +11,7 @@ _, cfg = load_env()
 
 class StandardsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get standard stars with specified formatting
