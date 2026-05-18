@@ -326,7 +326,9 @@ const TopSources = ({ classes }) => {
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
-  const { classes: sourceListStyles } = useSourceListStyles({ invertThumbnails });
+  const { classes: sourceListStyles } = useSourceListStyles({
+    invertThumbnails,
+  });
 
   const { sourceViews } = useSelector((state) => state.topSources);
   const prefs =
