@@ -3,7 +3,6 @@ import datetime
 import json
 import traceback
 import uuid
-import zlib
 from io import StringIO
 
 import arrow
@@ -1120,51 +1119,59 @@ def insert_new_photometry_data(
         )
         session.execute(sp_stmt)
 
-    # PhotStat update. We serialize the read-modify-write per-obj via an
-    # advisory transactional lock — PhotStat.obj_id has no unique constraint,
-    # so without serialization concurrent workers would each insert their
-    # own PhotStat row for the same obj. Lock scope: per-obj_id,
-    # transactional, released on commit. We hash the string obj_id into the
-    # 32-bit space pg_advisory_xact_lock expects.
+    # PhotStat update. PhotStat.obj_id has a UNIQUE constraint, so we can
+    # atomically ensure-then-lock a single row per obj:
+    #   1. INSERT … ON CONFLICT DO NOTHING — creates the row if missing, no-op
+    #      if a concurrent worker already inserted it.
+    #   2. SELECT … FOR UPDATE — row-level lock for the read-modify-write below.
     #
     # Branch on `duplicates`:
     # - "error": every row in params was freshly inserted (any pre-existing
     #   row would have raised), so the cheap per-point add is correct and
-    #   safe under the advisory lock.
+    #   safe under the row lock.
     # - "ignore"/"update": params may include rows that already existed
     #   pre-call; the per-point path would double-count or miss updates,
     #   so we full_update from the photometry table.
     #
     # The full_update path is also taken for large batches (>50 rows) where
-    # the per-point path is slower than a single recompute. The
-    # `with_for_update=False` SELECT into all_phot does NOT trigger the
-    # _VerifiedSession's RLS check on read — that check only fires for rows
-    # currently in the session's identity_map, and we discard the objects
-    # immediately after computing stats by expiring them.
+    # the per-point path is slower than a single recompute. The loaded
+    # `all_phot` rows are expunged from the session immediately afterward so
+    # the _VerifiedSession RLS read-check doesn't iterate them at commit time.
     obj_id = params[0]["obj_id"]
+    # Initial values mirror PhotStat.__init__ — needed because raw pg_insert
+    # bypasses the ORM-side __init__ that initializes the nullable JSONB
+    # dict/list columns (add_photometry_point indexes into them and would
+    # blow up on NULL otherwise).
     session.execute(
-        sa.func.pg_advisory_xact_lock(
-            sa.literal(zlib.crc32(f"phot_stat:{obj_id}".encode())).cast(sa.BigInteger)
+        pg_insert(PhotStat)
+        .values(
+            obj_id=obj_id,
+            num_obs_per_filter={},
+            num_det_per_filter={},
+            predetection_mjds=[],
+            mean_mag_per_filter={},
+            mean_color={},
+            peak_mjd_per_filter={},
+            peak_mag_per_filter={},
+            faintest_mag_per_filter={},
+            deepest_limit_per_filter={},
+            mag_rms_per_filter={},
         )
+        .on_conflict_do_nothing(index_elements=["obj_id"])
     )
     phot_stat = session.scalars(
-        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id).with_for_update()
     ).first()
-    if duplicates == "error" and phot_stat is not None and len(params) <= 50:
+    if duplicates == "error" and len(params) <= 50:
         for packet in params:
             phot_stat.add_photometry_point(packet)
     else:
         all_phot = session.scalars(
             sa.select(Photometry).where(Photometry.obj_id == obj_id)
         ).all()
-        if phot_stat is None:
-            phot_stat = PhotStat(obj_id=obj_id)
         phot_stat.full_update(all_phot)
-        # Detach the photometry rows so the RLS read check at commit time
-        # doesn't iterate them — we only loaded them to compute stats.
         for p in all_phot:
             session.expunge(p)
-    session.add(phot_stat)
     session.commit()
 
     if refresh:
@@ -1541,7 +1548,6 @@ class PhotometryHandler(BaseHandler):
                 session.rollback()
                 if "The following photometry already exists in the database:" in str(e):
                     return self.error(str(e))
-
                 return self.error(traceback.format_exc())
 
             log(
