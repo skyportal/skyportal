@@ -1,0 +1,52 @@
+name: Delete superseded cancelled runs
+
+# When a CI run is cancelled because a newer commit superseded it (via the
+# `concurrency` settings on the test workflows), GitHub keeps the cancelled
+# run around and shows it as a red cross on the commit. This workflow deletes
+# such runs so the commit status is only red if one of the tests actually failed.
+#
+# It runs via `workflow_run`, which always executes in the base repo with the
+# base-repo GITHUB_TOKEN, so it has `actions: write` even for fork PRs (unlike
+# a step inside the PR workflow itself, which gets a read-only token on forks).
+
+on:
+  workflow_run:
+    workflows:
+      - "API & frontend"
+      - "Model Logic"
+      - "Test Skyportal Migrations"
+    types:
+      - completed
+
+permissions:
+  actions: write
+
+jobs:
+  delete-superseded:
+    if: github.event.workflow_run.conclusion == 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the run only if it was superseded by a newer run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+        run: |
+          set -euo pipefail
+
+          # Most recent run for the same workflow + same head branch.
+          # The list endpoint returns runs sorted by created_at descending,
+          # so per_page=1 gives us the latest one.
+          latest_run_number=$(gh api \
+            "/repos/$REPO/actions/workflows/$WORKFLOW_ID/runs?branch=$BRANCH&per_page=1" \
+            --jq '.workflow_runs[0].run_number')
+
+          if [ "$latest_run_number" -gt "$RUN_NUMBER" ]; then
+            echo "Run $RUN_ID (#$RUN_NUMBER) on '$BRANCH' was superseded by run #$latest_run_number. Deleting it."
+            gh api -X DELETE "/repos/$REPO/actions/runs/$RUN_ID"
+          else
+            echo "Run $RUN_ID (#$RUN_NUMBER) is the latest for '$BRANCH' — likely cancelled manually. Keeping it."
+          fi
