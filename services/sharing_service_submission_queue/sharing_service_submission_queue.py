@@ -284,29 +284,55 @@ def process_submission_requests():
     """
     session_context_id.set(uuid.uuid4().hex)
 
+    # Rows stuck in 'processing' longer than this are re-claimable -- the
+    # owning replica is assumed dead. Tuned to be longer than any realistic
+    # successful processing run.
+    PROCESSING_RECLAIM_AFTER = timedelta(minutes=10)
+
     while True:
         with DBSession() as session:
             try:
+                stale_cutoff = datetime.now(UTC) - PROCESSING_RECLAIM_AFTER
+                # FOR UPDATE SKIP LOCKED: concurrent replicas naturally split
+                # rows. Pending rows are always eligible; 'processing' rows are
+                # re-claimable only if they look abandoned (modified is older
+                # than the stale cutoff). The commit below releases the lock,
+                # but the status='processing' transition is the long-term
+                # claim signal for the rest of the pipeline.
                 submission_request = session.scalar(
                     sa.select(SharingServiceSubmission)
                     .where(
                         or_(
                             and_(
                                 SharingServiceSubmission.publish_to_tns == True,
-                                SharingServiceSubmission.tns_status.in_(
-                                    ["pending", "processing"]
+                                or_(
+                                    SharingServiceSubmission.tns_status == "pending",
+                                    and_(
+                                        SharingServiceSubmission.tns_status
+                                        == "processing",
+                                        SharingServiceSubmission.modified
+                                        < stale_cutoff,
+                                    ),
                                 ),
                                 SharingServiceSubmission.tns_submission_id.is_(None),
                             ),
                             and_(
                                 SharingServiceSubmission.publish_to_hermes == True,
-                                SharingServiceSubmission.hermes_status.in_(
-                                    ["pending", "processing"]
+                                or_(
+                                    SharingServiceSubmission.hermes_status == "pending",
+                                    and_(
+                                        SharingServiceSubmission.hermes_status
+                                        == "processing",
+                                        SharingServiceSubmission.modified
+                                        < stale_cutoff,
+                                    ),
                                 ),
                             ),
                         )
                     )
                     .order_by(SharingServiceSubmission.created_at.asc())
+                    .with_for_update(skip_locked=True)
+                    .limit(1)
                 )
                 if submission_request is None:
                     time.sleep(5)
@@ -369,14 +395,20 @@ def validate_submission_requests():
             # Reprocess TNS submissions with status 504. Reset to pending if older than 5 min
             # Confirm if reported. Label them appropriately if a newer one succeeded (same object/service)
             try:
+                # FOR UPDATE SKIP LOCKED so concurrent replicas split the
+                # re-set work; without it, both replicas would walk the same
+                # set and race on the per-row UPDATEs. The locks are held
+                # until session.commit() at the end of this try block.
                 failed_submission_requests = session.scalars(
-                    sa.select(SharingServiceSubmission).where(
+                    sa.select(SharingServiceSubmission)
+                    .where(
                         SharingServiceSubmission.tns_status.ilike(
                             "%504 - Gateway Time-out%"
                         ),
                         SharingServiceSubmission.modified
                         < datetime.now(UTC) - timedelta(minutes=5),
                     )
+                    .with_for_update(skip_locked=True)
                 ).all()
                 log(
                     f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
@@ -454,7 +486,9 @@ def validate_submission_requests():
                 session.rollback()
 
             try:
-                # grab the first TNS sharing submission request that has a submission ID that's not null
+                # FOR UPDATE SKIP LOCKED: only one replica calls check_at_report
+                # for any given submission per tick; the lock auto-releases on
+                # the various session.commit()s in the branches below.
                 submission_request = session.scalar(
                     sa.select(SharingServiceSubmission)
                     .where(
@@ -467,6 +501,8 @@ def validate_submission_requests():
                         ),
                     )
                     .order_by(SharingServiceSubmission.created_at.asc())
+                    .with_for_update(skip_locked=True)
+                    .limit(1)
                 )
                 if submission_request is None:
                     # here we add an extra sleep to avoid hammering the TNS API

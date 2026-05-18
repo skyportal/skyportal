@@ -9,7 +9,9 @@ import gcn
 import requests
 import sqlalchemy as sa
 import tornado.escape
+import tornado.httpserver
 import tornado.ioloop
+import tornado.netutil
 import tornado.web
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.voice_response import Say, VoiceResponse
@@ -319,13 +321,14 @@ def send_sms_notification(target):
 
     if sending:
         try:
+            phone = target["user"]["contact_phone"]
             client.messages.create(
                 body=f"{cfg['app.title']} - {target['text']}",
                 from_=from_number,
-                to=target["user"]["contact_phone"].e164,
+                to=phone,
             )
             log(
-                f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
+                f"Sent SMS notification to user {target['user']['id']} at phone number: {phone}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
@@ -362,14 +365,15 @@ def send_phone_notification(target):
 
     if sending:
         try:
+            phone = target["user"]["contact_phone"]
             message = f"Greetings. This is the SkyPortal robot. {target['text']}"
             client.calls.create(
                 twiml=VoiceResponse().append(Say(message=message)),
                 from_=from_number,
-                to=target["user"]["contact_phone"].e164,
+                to=phone,
             )
             log(
-                f"Sent Phone Call notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, message: {message}, resource_type: {resource_type}"
+                f"Sent Phone Call notification to user {target['user']['id']} at phone number: {phone}, message: {message}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending phone call notification: {e}")
@@ -405,13 +409,14 @@ def send_whatsapp_notification(target):
 
     if sending:
         try:
+            phone = target["user"]["contact_phone"]
             client.messages.create(
                 body=f"{cfg['app.title']} - {target['text']}",
                 from_="whatsapp:" + str(from_number),
-                to="whatsapp" + str(target["user"]["contact_phone"].e164),
+                to="whatsapp" + str(phone),
             )
             log(
-                f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
+                f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {phone}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending WhatsApp notification: {e}")
@@ -450,34 +455,113 @@ def users_on_shift(session):
     return [user.user_id for user in users]
 
 
-queue = []
+def _build_dispatch_payload(notification, content=None):
+    """Snapshot the minimal user/notification context for out-of-process delivery.
+
+    Stored on UserNotification.delivery_payload (JSONB) at enqueue time and
+    consumed by the dispatch loop. Keeping it minimal and JSON-safe -- the
+    PhoneNumber object on User.contact_phone is flattened to its .e164 string
+    here so the row can round-trip through JSONB.
+    """
+    user = notification.user
+    contact_phone = getattr(user, "contact_phone", None)
+    return {
+        "id": notification.id,
+        "user_id": user.id,
+        "text": notification.text,
+        "url": notification.url,
+        "notification_type": notification.notification_type,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "contact_email": user.contact_email,
+            "contact_phone": contact_phone.e164 if contact_phone else None,
+            "preferences": user.preferences,
+        },
+        "content": content,
+    }
 
 
-def service(queue):
+def enqueue_notification(session, notification, content=None):
+    """Persist a UserNotification and mark it for out-of-process delivery.
+
+    Flushes to assign an ID, builds a JSON-safe payload, stores it on the
+    row with delivery_status='pending', and commits. The dispatch loop picks
+    pending rows up via FOR UPDATE SKIP LOCKED.
+    """
+    session.add(notification)
+    session.flush()
+    notification.delivery_status = "pending"
+    notification.delivery_payload = _build_dispatch_payload(notification, content)
+    session.commit()
+
+
+def _pending_count(session):
+    return session.scalar(
+        sa.select(sa.func.count(UserNotification.id)).where(
+            UserNotification.delivery_status == "pending"
+        )
+    )
+
+
+def service():
+    """Drain pending UserNotifications from the DB queue.
+
+    Each iteration claims one row via FOR UPDATE SKIP LOCKED so multiple
+    replicas of this service split work. On success the row is marked 'sent';
+    on exception 'failed' (we don't retry yet -- mirrors prior in-memory
+    behavior, which also dropped failed items, just without persistence).
+    """
     while True:
-        if len(queue) == 0:
-            time.sleep(1)
-            continue
-        notification = queue.pop(0)
-        if notification is None:
-            continue
-
         try:
-            push_frontend_notification(notification)
-            send_phone_notification(notification)
-            send_sms_notification(notification)
-            send_whatsapp_notification(notification)
-            send_email_notification(notification)
-            send_slack_notification(notification)
+            with DBSession() as session:
+                notification = session.scalars(
+                    sa.select(UserNotification)
+                    .where(UserNotification.delivery_status == "pending")
+                    .with_for_update(skip_locked=True)
+                    .limit(1)
+                ).first()
+                if notification is None:
+                    time.sleep(1)
+                    continue
+
+                target = notification.delivery_payload
+                notification_id = notification.id
+                if target is None:
+                    log(
+                        f"Notification {notification_id} has delivery_status="
+                        "'pending' but no delivery_payload; marking failed."
+                    )
+                    notification.delivery_status = "failed"
+                    session.commit()
+                    continue
+
+                try:
+                    push_frontend_notification(target)
+                    send_phone_notification(target)
+                    send_sms_notification(target)
+                    send_whatsapp_notification(target)
+                    send_email_notification(target)
+                    send_slack_notification(target)
+                    notification.delivery_status = "sent"
+                except Exception as e:
+                    log(f"Error processing notification ID {notification_id}: {e}")
+                    notification.delivery_status = "failed"
+                session.commit()
         except Exception as e:
-            log(f"Error processing notification ID {notification['id']}: {str(e)}")
+            # DB-level failure (connection drop, etc.). Sleep briefly and retry
+            # so a transient outage doesn't hot-spin or kill the thread.
+            log(f"notification_queue dispatch loop error: {e}")
+            time.sleep(5)
 
 
-def api(queue):
+def api():
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
-            self.write({"status": "success", "data": {"queue_length": len(queue)}})
+            with DBSession() as session:
+                pending = _pending_count(session)
+            self.write({"status": "success", "data": {"queue_length": pending}})
 
         async def post(self):
             try:
@@ -945,17 +1029,11 @@ def api(queue):
                                             else "gcn_events",
                                             url=f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                            "content": target_content,
-                                        }
-                                        queue.append(target)
+                                        enqueue_notification(
+                                            session,
+                                            notification,
+                                            content=target_content,
+                                        )
 
                                 elif is_facility_transaction:
                                     if "observation_plan_request" in target_data:
@@ -992,16 +1070,7 @@ def api(queue):
                                                 notification_type="facility_transactions",
                                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
+                                            enqueue_notification(session, notification)
                                     elif "followup_request" in target_data:
                                         allocation_id = target_data["followup_request"][
                                             "allocation_id"
@@ -1048,9 +1117,7 @@ def api(queue):
                                                 notification_type="facility_transactions",
                                                 url=f"/source/{target_data['followup_request']['obj_id']}",
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            queue.append(notification.id)
+                                            enqueue_notification(session, notification)
                                 elif is_followup_request:
                                     if target_data["status"].startswith("submitted"):
                                         continue
@@ -1107,17 +1174,7 @@ def api(queue):
                                             notification_type="facility_transactions",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = notification.to_dict()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
+                                        enqueue_notification(session, notification)
                                 elif is_analysis_service:
                                     if target_data["status"] == "completed":
                                         analysis_service_id = target_data[
@@ -1135,16 +1192,7 @@ def api(queue):
                                             notification_type="analysis_services",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
+                                        enqueue_notification(session, notification)
                                 elif is_observation_plan:
                                     observation_plan_request_id = target_data[
                                         "observation_plan_request_id"
@@ -1184,16 +1232,7 @@ def api(queue):
                                             notification_type="observation_plans",
                                             url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
+                                        enqueue_notification(session, notification)
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
@@ -1211,16 +1250,7 @@ def api(queue):
                                         notification_type="group_admission_request",
                                         url=f"/group/{group_from_request.id}",
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                    }
-                                    queue.append(target)
+                                    enqueue_notification(session, notification)
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)
@@ -1256,16 +1286,7 @@ def api(queue):
                                                 notification_type="favorite_sources_new_classification",
                                                 url=f"/source/{target_data['obj_id']}",
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
+                                            enqueue_notification(session, notification)
                                             continue
                                         if (pref is not None) and "sources" in pref:
                                             if "classifications" in pref["sources"]:
@@ -1326,17 +1347,11 @@ def api(queue):
                                                         notification_type="sources_new_classification",
                                                         url=f"/source/{target_data['obj_id']}",
                                                     )
-                                                    session.add(notification)
-                                                    session.commit()
-                                                    target = {
-                                                        **notification.to_dict(),
-                                                        "user": {
-                                                            **notification.user.to_dict(),
-                                                            "preferences": notification.user.preferences,
-                                                        },
-                                                        "content": target_content,
-                                                    }
-                                                    queue.append(target)
+                                                    enqueue_notification(
+                                                        session,
+                                                        notification,
+                                                        content=target_content,
+                                                    )
                                     elif is_spectra:
                                         if (
                                             len(favorite_sources) > 0
@@ -1352,16 +1367,7 @@ def api(queue):
                                                 notification_type="favorite_sources_new_spectrum",
                                                 url=f"/source/{target_data['obj_id']}",
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
+                                            enqueue_notification(session, notification)
                                             continue
                                         if (
                                             (pref is not None)
@@ -1434,17 +1440,11 @@ def api(queue):
                                                 notification_type="sources_new_spectrum",
                                                 url=f"/source/{target_data['obj_id']}",
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                                "content": target_content,
-                                            }
-                                            queue.append(target)
+                                            enqueue_notification(
+                                                session,
+                                                notification,
+                                                content=target_content,
+                                            )
 
                                     elif is_comment:
                                         if (
@@ -1467,16 +1467,9 @@ def api(queue):
                                                     notification_type="favorite_sources_new_comment",
                                                     url=f"/source/{target_data['obj_id']}",
                                                 )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
+                                                enqueue_notification(
+                                                    session, notification
+                                                )
                                     elif is_listing:
                                         if (
                                             len(favorite_sources) > 0
@@ -1492,16 +1485,9 @@ def api(queue):
                                                     notification_type="favorite_sources_new_activity",
                                                     url=f"/source/{target_data['obj_id']}",
                                                 )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
+                                                enqueue_notification(
+                                                    session, notification
+                                                )
                         except Exception as e:
                             failure_count += 1
                             log(
@@ -1513,12 +1499,13 @@ def api(queue):
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")
                         raise Exception("Failed to notify all users")
+                    queue_length = _pending_count(session)
                     self.set_status(200)
                     return self.write(
                         {
                             "status": "success",
                             "message": f"Notification accepted into queue for {nb_users - failure_count} out of {nb_users} users",
-                            "data": {"queue_length": len(queue)},
+                            "data": {"queue_length": queue_length},
                         }
                     )
                 except Exception as e:
@@ -1535,27 +1522,45 @@ def api(queue):
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    app.listen(cfg["ports.notification_queue"])
+    # SO_REUSEPORT lets N replicas of this service share the same port; the
+    # kernel load-balances incoming connections across them. Falls back to the
+    # plain bind if the platform doesn't support it (Tornado raises ValueError).
+    port = cfg["ports.notification_queue"]
+    try:
+        sockets = tornado.netutil.bind_sockets(port, reuse_port=True)
+        http_server = tornado.httpserver.HTTPServer(app)
+        http_server.add_sockets(sockets)
+    except ValueError as e:
+        log(
+            f"SO_REUSEPORT unavailable ({e}); falling back to single-replica "
+            f"bind on port {port}"
+        )
+        app.listen(port)
     loop.run_forever()
 
 
 if __name__ == "__main__":
     try:
-        t = Thread(target=service, args=(queue,))
-        t2 = Thread(target=api, args=(queue,))
+        t = Thread(target=service)
+        t2 = Thread(target=api)
         t.start()
         t2.start()
 
         while True:
-            log(f"Current notification queue length: {len(queue)}")
+            try:
+                with DBSession() as session:
+                    pending = _pending_count(session)
+                log(f"Current notification queue length: {pending}")
+            except Exception as e:
+                log(f"Failed to read pending notification count: {e}")
             time.sleep(60)
             if not t.is_alive():
                 log("Notification queue service thread died, restarting")
-                t = Thread(target=service, args=(queue,))
+                t = Thread(target=service)
                 t.start()
             if not t2.is_alive():
                 log("Notification queue API thread died, restarting")
-                t2 = Thread(target=api, args=(queue,))
+                t2 = Thread(target=api)
                 t2.start()
     except Exception as e:
         log(f"Error starting notification queue: {str(e)}")

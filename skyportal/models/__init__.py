@@ -54,6 +54,7 @@ from .tag import *
 from .taxonomy import *
 from .telescope import *
 from .thumbnail import *
+from .tns_retrieval_task import *
 from .user_notification import *
 from .user_token import *
 from .weather import *

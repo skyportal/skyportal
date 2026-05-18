@@ -99,13 +99,17 @@ def service():
             time.sleep(5)
             with DBSession() as session:
                 try:
+                    # FOR UPDATE SKIP LOCKED: concurrent replicas of this
+                    # service see locked rows as missing and skip them, so each
+                    # request is processed by exactly one replica.
                     req = session.scalars(
-                        sa.select(FacilityTransactionRequest).where(
-                            FacilityTransactionRequest.id == req_id
-                        )
+                        sa.select(FacilityTransactionRequest)
+                        .where(FacilityTransactionRequest.id == req_id)
+                        .with_for_update(skip_locked=True)
                     ).first()
                     if req is None:
-                        log(f"Facility transaction request {req_id} not found.")
+                        # Either the request was deleted or another replica is
+                        # currently processing it. Either way, move on.
                         continue
 
                     log(f"Executing request {req.id}")

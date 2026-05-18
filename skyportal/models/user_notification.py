@@ -4,6 +4,7 @@ import asyncio
 
 import sqlalchemy as sa
 from sqlalchemy import event, inspect
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from tornado.ioloop import IOLoop
 
@@ -56,6 +57,31 @@ class UserNotification(Base):
         sa.String(),
         nullable=True,
         doc="URL to which to direct upon click, if relevant",
+    )
+
+    # Out-of-process delivery (SMS/email/Slack/etc.) is dispatched by the
+    # notification_queue service via a DB-backed work queue. Notifications that
+    # do not need external delivery (e.g., reminders that just push the
+    # frontend) leave delivery_status NULL so the dispatcher ignores them.
+    delivery_status = sa.Column(
+        sa.Enum("pending", "sent", "failed", name="notification_delivery_status"),
+        nullable=True,
+        index=True,
+        doc=(
+            "Out-of-process delivery state. NULL means no external delivery "
+            "is requested (frontend-only). 'pending' rows are claimed by the "
+            "notification_queue dispatcher via FOR UPDATE SKIP LOCKED."
+        ),
+    )
+
+    delivery_payload = sa.Column(
+        JSONB,
+        nullable=True,
+        doc=(
+            "Snapshot of the dispatch context (user preferences + rendered "
+            "content) captured when the notification was enqueued. Consumed "
+            "by the notification_queue dispatcher; opaque elsewhere."
+        ),
     )
 
 

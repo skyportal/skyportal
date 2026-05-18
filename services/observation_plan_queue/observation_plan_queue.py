@@ -19,6 +19,7 @@ from skyportal.models import (
     EventObservationPlan,
     ObservationPlanRequest,
 )
+from skyportal.utils.coordination import service_leader_session_lock
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -150,215 +151,225 @@ def prioritize_requests(requests):
 @check_loaded(logger=log)
 def service(*args, **kwargs):
     log("Starting observation plan queue.")
+    # Session-level advisory lock keeps the tick serialized across replicas
+    # even though the body commits multiple times (which would release a
+    # transactional xact-lock). The lock lives on a dedicated DB connection
+    # held for the duration of the tick.
+    engine = DBSession.session_factory.kw["bind"]
     while True:
-        with DBSession() as session:
-            try:
-                stmt = sa.select(ObservationPlanRequest).where(
-                    # we only want to process plans that have been created in the last 72 hours
-                    sa.or_(
-                        sa.and_(
-                            ObservationPlanRequest.status == "pending submission",
-                            ObservationPlanRequest.created_at
-                            > arrow.utcnow().shift(days=-3).datetime,
-                        ),
-                        # or plans that have been "running" for more than 5 minutes but less than 1 hours
-                        # this is a way to grab plans that have been stuck in the running state
-                        # and have not been processed
-                        sa.and_(
-                            ObservationPlanRequest.status == "running",
-                            ObservationPlanRequest.created_at
-                            < arrow.utcnow().shift(minutes=-5).datetime,
-                            ObservationPlanRequest.created_at
-                            > arrow.utcnow().shift(hours=-1).datetime,
-                        ),
+        with service_leader_session_lock(engine, "observation_plan_queue") as got_lock:
+            if not got_lock:
+                # Another replica is processing this tick. Sleep and retry --
+                # the `continue` here jumps to the outer while, which exits
+                # this with-block first, releasing the (un-acquired) lock.
+                time.sleep(5)
+                continue
+            with DBSession() as session:
+                try:
+                    stmt = sa.select(ObservationPlanRequest).where(
+                        # we only want to process plans that have been created in the last 72 hours
+                        sa.or_(
+                            sa.and_(
+                                ObservationPlanRequest.status == "pending submission",
+                                ObservationPlanRequest.created_at
+                                > arrow.utcnow().shift(days=-3).datetime,
+                            ),
+                            # or plans that have been "running" for more than 5 minutes but less than 1 hours
+                            # this is a way to grab plans that have been stuck in the running state
+                            # and have not been processed
+                            sa.and_(
+                                ObservationPlanRequest.status == "running",
+                                ObservationPlanRequest.created_at
+                                < arrow.utcnow().shift(minutes=-5).datetime,
+                                ObservationPlanRequest.created_at
+                                > arrow.utcnow().shift(hours=-1).datetime,
+                            ),
+                        )
                     )
-                )
-                single_requests = session.scalars(stmt).unique().all()
+                    single_requests = session.scalars(stmt).unique().all()
 
-                # reprocessing plans that were marked as running before (and probably stuck in that state)
-                # is lower priority, so if we have any pending submission plans, we prioritize those
-                # and remove the running plans from the list
-                if any(
-                    request.status == "pending submission"
-                    for request in single_requests
-                ):
-                    single_requests = [
+                    # reprocessing plans that were marked as running before (and probably stuck in that state)
+                    # is lower priority, so if we have any pending submission plans, we prioritize those
+                    # and remove the running plans from the list
+                    if any(
+                        request.status == "pending submission"
+                        for request in single_requests
+                    ):
+                        single_requests = [
+                            request
+                            for request in single_requests
+                            if request.status == "pending submission"
+                        ]
+
+                    # requests is a list. We want to group that list of plans to be a list of list,
+                    # we group based on the plans 'combined_id' which is a unique uuid for a group of plans
+                    # plans that are not grouped simply don't have one
+                    combined_requests = [
                         request
                         for request in single_requests
-                        if request.status == "pending submission"
+                        if request.combined_id is not None
+                    ]
+                    requests = [
+                        list(group)
+                        for _, group in itertools.groupby(
+                            combined_requests, lambda x: x.combined_id
+                        )
+                    ] + [
+                        [request]
+                        for request in single_requests
+                        if request.combined_id is None
                     ]
 
-                # requests is a list. We want to group that list of plans to be a list of list,
-                # we group based on the plans 'combined_id' which is a unique uuid for a group of plans
-                # plans that are not grouped simply don't have one
-                combined_requests = [
-                    request
-                    for request in single_requests
-                    if request.combined_id is not None
-                ]
-                requests = [
-                    list(group)
-                    for _, group in itertools.groupby(
-                        combined_requests, lambda x: x.combined_id
-                    )
-                ] + [
-                    [request]
-                    for request in single_requests
-                    if request.combined_id is None
-                ]
+                    if len(requests) == 0:
+                        time.sleep(5)
+                        continue
 
-                if len(requests) == 0:
-                    time.sleep(5)
-                    continue
+                    log(f"Prioritizing {len(requests)} observation plan requests...")
 
-                log(f"Prioritizing {len(requests)} observation plan requests...")
+                    index = prioritize_requests(requests)
 
-                index = prioritize_requests(requests)
-
-                plan_requests = requests[index]
-                plan_ids = []
-                if len(plan_requests) == 1:
-                    plan_request = plan_requests[0]
-                    try:
-                        plan_id = (
-                            plan_request.allocation.instrument.api_class_obsplan.submit(
+                    plan_requests = requests[index]
+                    plan_ids = []
+                    if len(plan_requests) == 1:
+                        plan_request = plan_requests[0]
+                        try:
+                            plan_id = plan_request.allocation.instrument.api_class_obsplan.submit(
                                 plan_request.id, asynchronous=False
                             )
-                        )
-                        plan_ids.append(plan_id)
-                    except Exception as e:
-                        traceback.print_exc()
-                        plan_request.status = "failed to process"
-                        log(f"Error processing observation plan: {e.args[0]}")
-                        session.commit()
-                        time.sleep(2)
-                        continue
-                    plan_request = session.scalar(
-                        sa.select(ObservationPlanRequest).where(
-                            ObservationPlanRequest.id == plan_request.id
-                        )
-                    )
-                    log(f"Plan {plan_id} status: {plan_request.status}")
-                    if plan_request.status == "running":
-                        plan_request.status = "complete"
-                        session.merge(plan_request)
-                        session.commit()
-
-                    try:
-                        flow = Flow()
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                            payload={"gcnEvent_dateobs": plan_request.gcnevent.dateobs},
-                        )
-                    except Exception as e:
-                        log(
-                            f"Error refreshing observation plan requests on the frontend: {e.args[0]}"
-                        )
-
-                else:
-                    try:
-                        plan_ids = plan_requests[
-                            0
-                        ].allocation.instrument.api_class_obsplan.submit_multiple(
-                            plan_requests, asynchronous=False
-                        )
-                    except Exception as e:
-                        for plan_request in plan_requests:
+                            plan_ids.append(plan_id)
+                        except Exception as e:
+                            traceback.print_exc()
                             plan_request.status = "failed to process"
-                        log(
-                            f"Error processing combined plans: {[plan_request.id for plan_request in plan_requests]}: {str(e)}"
-                        )
-                        session.commit()
-                        time.sleep(2)
-                        continue
-
-                    for plan_request in plan_requests:
+                            log(f"Error processing observation plan: {e.args[0]}")
+                            session.commit()
+                            time.sleep(2)
+                            continue
                         plan_request = session.scalar(
                             sa.select(ObservationPlanRequest).where(
                                 ObservationPlanRequest.id == plan_request.id
                             )
                         )
-                        log(f"Plan {plan_request.id} status: {plan_request.status}")
+                        log(f"Plan {plan_id} status: {plan_request.status}")
                         if plan_request.status == "running":
                             plan_request.status = "complete"
                             session.merge(plan_request)
                             session.commit()
 
-                    try:
-                        unique_dateobs = {
-                            plan.gcnevent.dateobs for plan in plan_requests
-                        }
-                        flow = Flow()
-                        for dateobs in unique_dateobs:
+                        try:
+                            flow = Flow()
                             flow.push(
                                 "*",
                                 "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                                payload={"gcnEvent_dateobs": dateobs},
+                                payload={
+                                    "gcnEvent_dateobs": plan_request.gcnevent.dateobs
+                                },
                             )
-                    except Exception as e:
-                        log(
-                            f"Error refreshing observation plan requests on the frontend: {e}"
-                        )
+                        except Exception as e:
+                            log(
+                                f"Error refreshing observation plan requests on the frontend: {e.args[0]}"
+                            )
 
-                log(f"Generated plans: {plan_ids}")
-                for id in plan_ids:
-                    try:
-                        plan = session.scalars(
-                            sa.select(EventObservationPlan).where(
-                                EventObservationPlan.id == int(id)
+                    else:
+                        try:
+                            plan_ids = plan_requests[
+                                0
+                            ].allocation.instrument.api_class_obsplan.submit_multiple(
+                                plan_requests, asynchronous=False
                             )
-                        ).first()
-                        default = plan.observation_plan_request.payload.get(
-                            "default", None
-                        )
-                        if default is not None:
-                            defaultobsplanrequest = session.scalars(
-                                sa.select(DefaultObservationPlanRequest).where(
-                                    DefaultObservationPlanRequest.id == int(default)
+                        except Exception as e:
+                            for plan_request in plan_requests:
+                                plan_request.status = "failed to process"
+                            log(
+                                f"Error processing combined plans: {[plan_request.id for plan_request in plan_requests]}: {str(e)}"
+                            )
+                            session.commit()
+                            time.sleep(2)
+                            continue
+
+                        for plan_request in plan_requests:
+                            plan_request = session.scalar(
+                                sa.select(ObservationPlanRequest).where(
+                                    ObservationPlanRequest.id == plan_request.id
+                                )
+                            )
+                            log(f"Plan {plan_request.id} status: {plan_request.status}")
+                            if plan_request.status == "running":
+                                plan_request.status = "complete"
+                                session.merge(plan_request)
+                                session.commit()
+
+                        try:
+                            unique_dateobs = {
+                                plan.gcnevent.dateobs for plan in plan_requests
+                            }
+                            flow = Flow()
+                            for dateobs in unique_dateobs:
+                                flow.push(
+                                    "*",
+                                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                                    payload={"gcnEvent_dateobs": dateobs},
+                                )
+                        except Exception as e:
+                            log(
+                                f"Error refreshing observation plan requests on the frontend: {e}"
+                            )
+
+                    log(f"Generated plans: {plan_ids}")
+                    for id in plan_ids:
+                        try:
+                            plan = session.scalars(
+                                sa.select(EventObservationPlan).where(
+                                    EventObservationPlan.id == int(id)
                                 )
                             ).first()
-                            if defaultobsplanrequest is not None:
-                                if defaultobsplanrequest.auto_send:
-                                    send_observation_plan(
-                                        plan.observation_plan_request.id,
-                                        session=session,
-                                        auto_send=True,
-                                        default_obsplan_id=default,
+                            default = plan.observation_plan_request.payload.get(
+                                "default", None
+                            )
+                            if default is not None:
+                                defaultobsplanrequest = session.scalars(
+                                    sa.select(DefaultObservationPlanRequest).where(
+                                        DefaultObservationPlanRequest.id == int(default)
                                     )
-                                for (
-                                    default_survey_efficiency
-                                ) in defaultobsplanrequest.default_survey_efficiencies:
-                                    try:
-                                        post_survey_efficiency_analysis(
-                                            default_survey_efficiency.to_dict(),
+                                ).first()
+                                if defaultobsplanrequest is not None:
+                                    if defaultobsplanrequest.auto_send:
+                                        send_observation_plan(
                                             plan.observation_plan_request.id,
-                                            1,
-                                            session,
-                                            asynchronous=False,
+                                            session=session,
+                                            auto_send=True,
+                                            default_obsplan_id=default,
                                         )
-                                    except Exception as e:
-                                        if (
-                                            "Need at least one observation to evaluate efficiency"
-                                            in str(e)
-                                        ):
-                                            log(
-                                                f"Error processing default survey efficiency for plan {id}: {e}"
+                                    for default_survey_efficiency in defaultobsplanrequest.default_survey_efficiencies:
+                                        try:
+                                            post_survey_efficiency_analysis(
+                                                default_survey_efficiency.to_dict(),
+                                                plan.observation_plan_request.id,
+                                                1,
+                                                session,
+                                                asynchronous=False,
                                             )
-                                        else:
-                                            raise e
-                    except Exception as e:
-                        traceback.print_exc()
-                        log(
-                            f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
-                        )
-                        session.rollback()
-                        time.sleep(2)
+                                        except Exception as e:
+                                            if (
+                                                "Need at least one observation to evaluate efficiency"
+                                                in str(e)
+                                            ):
+                                                log(
+                                                    f"Error processing default survey efficiency for plan {id}: {e}"
+                                                )
+                                            else:
+                                                raise e
+                        except Exception as e:
+                            traceback.print_exc()
+                            log(
+                                f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
+                            )
+                            session.rollback()
+                            time.sleep(2)
 
-            except Exception as e:
-                log(f"Error occured processing the observation plan queue: {e}")
-                session.rollback()
-                time.sleep(2)
+                except Exception as e:
+                    log(f"Error occured processing the observation plan queue: {e}")
+                    session.rollback()
+                    time.sleep(2)
 
 
 if __name__ == "__main__":

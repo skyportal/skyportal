@@ -61,7 +61,18 @@ def check_watch_list(time_info):
         )  # in seconds, defaults to 60 seconds if no cadences are found
         for listing_id in listing_ids:
             try:
-                listing = session.query(Listing).where(Listing.id == listing_id).first()
+                # Claim the listing for processing. Concurrent replicas calling
+                # this on the same row will see it locked and SKIP LOCKED back
+                # to None -- we continue past it. The lock is held until the
+                # next commit/rollback on this session.
+                listing = (
+                    session.query(Listing)
+                    .where(Listing.id == listing_id)
+                    .with_for_update(skip_locked=True)
+                    .first()
+                )
+                if listing is None:
+                    continue
                 owner_id = listing.user_id
                 owner = session.query(User).where(User.id == owner_id).first()
                 obj = listing.obj
@@ -99,6 +110,9 @@ def check_watch_list(time_info):
 
                 if params["after_night"] and time_info["is_night_astronomical"]:
                     # if the user requests for update after night has ended and its still night, skip
+                    # Rollback so the SELECT FOR UPDATE lock on this listing is
+                    # released; otherwise locks accumulate across iterations.
+                    session.rollback()
                     continue
                 if (
                     Time(
@@ -107,6 +121,7 @@ def check_watch_list(time_info):
                     + timedelta(minutes=params["cadence"])
                     > datetime.utcnow()
                 ):
+                    session.rollback()
                     continue
 
                 # we will also update it once we get the alerts, but we update it here in case we get any errors below
