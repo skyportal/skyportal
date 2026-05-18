@@ -52,12 +52,14 @@ const SpectroscopyButtonsForm = () => {
   } = useForm();
 
   const onSubmit = (formValues) => {
-    const currSpectroscopyButtons = spectroscopyButtons || {};
-    currSpectroscopyButtons[formValues.spectroscopyButtonName] = {
-      color: formValues.spectroscopyColorSelect,
-      wavelengths: formValues.spectroscopyButtonWavelengths
-        .split(",")
-        .map(Number),
+    const currSpectroscopyButtons = {
+      ...(spectroscopyButtons || {}),
+      [formValues.spectroscopyButtonName]: {
+        color: formValues.spectroscopyColorSelect,
+        wavelengths: formValues.spectroscopyButtonWavelengths
+          .split(",")
+          .map(Number),
+      },
     };
     const prefs = {
       spectroscopyButtons: currSpectroscopyButtons,
@@ -70,8 +72,8 @@ const SpectroscopyButtonsForm = () => {
   };
 
   const onDelete = (buttonName) => {
-    const currSpectroscopyButtons = spectroscopyButtons;
-    delete currSpectroscopyButtons[buttonName];
+    const { [buttonName]: _removed, ...currSpectroscopyButtons } =
+      spectroscopyButtons || {};
     const prefs = {
       spectroscopyButtons: currSpectroscopyButtons,
     };

@@ -51,10 +51,12 @@ const PhotometryButtonsForm = () => {
   };
 
   const onSubmit = (formValues) => {
-    const currPhotButtons = photometryButtons || {};
-    currPhotButtons[formValues.photometryButtonName] = {
-      filters: selectedFilters,
-      origins: selectedOrigins,
+    const currPhotButtons = {
+      ...(photometryButtons || {}),
+      [formValues.photometryButtonName]: {
+        filters: selectedFilters,
+        origins: selectedOrigins,
+      },
     };
     const prefs = {
       photometryButtons: currPhotButtons,
@@ -68,8 +70,8 @@ const PhotometryButtonsForm = () => {
   };
 
   const onDelete = (buttonName) => {
-    const currPhotButtons = photometryButtons;
-    delete currPhotButtons[buttonName];
+    const { [buttonName]: _removed, ...currPhotButtons } =
+      photometryButtons || {};
     const prefs = {
       photometryButtons: currPhotButtons,
     };
