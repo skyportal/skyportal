@@ -1142,7 +1142,12 @@ def insert_new_photometry_data(
     # bypasses the ORM-side __init__ that initializes the nullable JSONB
     # dict/list columns (add_photometry_point indexes into them and would
     # blow up on NULL otherwise).
-    session.execute(
+    #
+    # RETURNING id tells us whether the row was actually inserted (vs the
+    # on_conflict_do_nothing branch). A freshly-inserted row has never been
+    # full_update'd, so it must take the full_update path below to populate
+    # last_full_update etc. — matches the old "if phot_stat is None" branch.
+    inserted_id = session.scalar(
         pg_insert(PhotStat)
         .values(
             obj_id=obj_id,
@@ -1158,11 +1163,14 @@ def insert_new_photometry_data(
             mag_rms_per_filter={},
         )
         .on_conflict_do_nothing(index_elements=["obj_id"])
+        .returning(PhotStat.id)
     )
+    newly_created = inserted_id is not None
     phot_stat = session.scalars(
         sa.select(PhotStat).where(PhotStat.obj_id == obj_id).with_for_update()
     ).first()
-    if duplicates == "error" and len(params) <= 50:
+    use_fast_path = not newly_created and duplicates == "error" and len(params) <= 50
+    if use_fast_path:
         for packet in params:
             phot_stat.add_photometry_point(packet)
     else:
