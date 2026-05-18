@@ -15,7 +15,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
@@ -43,7 +43,7 @@ dayjs.extend(utc);
 const projectionOptions = ["orthographic", "mollweide"];
 const gridOptions = ["primary & secondary", "primary", "secondary"];
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -93,7 +93,7 @@ const FieldSelect = ({
   selectedFields,
   setSelectedFields,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const fields = [];
   skymapInstrument?.fields?.forEach((field) => {
@@ -292,7 +292,7 @@ MyObjectFieldTemplate.propTypes = {
 };
 
 const ObservationPlanRequestForm = ({ dateobs }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const gcnEvent = useSelector((state) => state.gcnEvent);

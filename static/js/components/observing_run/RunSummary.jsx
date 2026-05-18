@@ -26,8 +26,7 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -48,7 +47,7 @@ import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -217,7 +216,7 @@ SimpleMenu.propTypes = {
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -410,7 +409,7 @@ const RunSummary = ({ route }) => {
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const RenderGroups = (dataIndex) => {
-    const classes = useStyles();
+    const { classes } = useStyles();
     const assignment = assignments[dataIndex];
     return (
       <div key={`${assignment.obj.id}_groups`}>

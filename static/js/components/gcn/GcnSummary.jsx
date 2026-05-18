@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { makeStyles, withStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
@@ -38,7 +38,7 @@ import GcnSummaryTable from "./GcnSummaryTable";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   shortcutButtons: {
     margin: "1rem 0",
   },
@@ -117,7 +117,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle disableTypography className={classes.root}>
       <Typography variant="h6" className={classes.title}>
@@ -134,10 +134,11 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const GcnSummary = ({ dateobs }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const users = useSelector((state) => state.group?.users);
   const { instrumentList } = useSelector((state) => state.instruments);

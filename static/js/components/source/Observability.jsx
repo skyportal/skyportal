@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
 import Pagination from "@mui/material/Pagination";
@@ -18,7 +18,7 @@ import AirmassPlot from "../plot/AirmassPlot";
 import withRouter from "../withRouter";
 import * as ephemerisActions from "../../ducks/ephemeris";
 
-const useStyles = makeStyles({
+const useStyles = makeStyles()({
   inner: {
     margin: "1rem",
     padding: "1rem",
@@ -44,7 +44,7 @@ const ObservabilityPage = ({ route }) => {
     (state) => state.profile.preferences.observabilityTelescopes,
   );
   const [ephemerides, setEphemerides] = useState({});
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);

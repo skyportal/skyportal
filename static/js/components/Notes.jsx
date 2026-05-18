@@ -4,7 +4,7 @@ import Badge from "@mui/material/Badge";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
@@ -12,7 +12,7 @@ import CancelIcon from "@mui/icons-material/Close";
 import Button from "./Button";
 import { useSelector } from "react-redux";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: 480,
@@ -58,7 +58,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const Notes = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [notes, setNotes] = useState([]);
   const NotesState = useSelector((state) => state.notifications.notes);
   const [anchorEl, setAnchorEl] = useState(null);

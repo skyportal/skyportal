@@ -1,6 +1,6 @@
 import React from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography"; // eslint-disable-line no-unused-vars
 
 // import * as archiveActions from "../ducks/archive";
@@ -19,7 +19,7 @@ const crossMatchesLabels = {}; // eslint-disable-line no-unused-vars
 // max radius in arcseconds to use for cross-matching
 const radius = 10.0; // eslint-disable-line no-unused-vars
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   pluginContainer: {
     paddingTop: "0.5em",
     width: "100%",
@@ -42,7 +42,7 @@ function getCrossMatchesTraces(crossMatches, refRA, refDec) {
 }
 
 const CentroidPlotPlugins = ({ crossMatches, refRA, refDec }) => {
-  const classes = useStyles(); // eslint-disable-line no-unused-vars
+  const { classes } = useStyles(); // eslint-disable-line no-unused-vars
   if (
     !crossMatches ||
     Object.keys(crossMatches).length === 0 ||

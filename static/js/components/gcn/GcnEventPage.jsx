@@ -17,8 +17,7 @@ import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -50,7 +49,7 @@ import Paper from "../Paper";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   sidePanel: {
     width: "100%",
     height: "100%",
@@ -151,7 +150,7 @@ DownloadNoticeButton.propTypes = {
 
 const GcnEventPage = ({ route }) => {
   const theme = useTheme();
-  const styles = useStyles(theme);
+  const { classes: styles } = useStyles(theme);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -26,7 +26,7 @@ const defaultPrefs = {
   telescopeID: 1,
 };
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   weatherInfo: {
     display: "flex",
     flexDirection: "row",
@@ -72,7 +72,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const WeatherView = ({ weather }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const url = `/static/images/weather/${weather?.weather?.current?.weather[0].icon}.png`;
   let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
   let sunset = dayjs.unix(weather?.weather?.current.sunset);
@@ -143,7 +143,7 @@ const WeatherView = ({ weather }) => {
 };
 
 const WeatherWidget = ({ classes }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const dispatch = useDispatch();
   const weather = useSelector((state) => state.weather);

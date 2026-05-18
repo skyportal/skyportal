@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import PropTypes from "prop-types";
 import Typography from "@mui/material/Typography";
@@ -14,7 +14,7 @@ import clsx from "clsx";
 import dayjs from "dayjs";
 import Button from "./Button";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   bibcard: {
     marginTop: "5rem",
     "& .MuiTypography-body1": {
@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const BibLink = ({ bibtex, children }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [folded, setFolded] = useState(true);
 
   return (
@@ -77,7 +77,7 @@ BibLink.propTypes = {
 };
 
 const AboutPlugins = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const version = useSelector((state) => state.sysInfo.version);
   const gitlog = useSelector((state) => state.sysInfo.gitlog);
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
@@ -17,7 +17,7 @@ import * as groupActions from "../../ducks/group";
 import * as filterActions from "../../ducks/filter";
 import * as streamActions from "../../ducks/stream";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paper: {
     width: "100%",
     padding: theme.spacing(1),
@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const Filter = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [filterLoadError, setFilterLoadError] = useState("");

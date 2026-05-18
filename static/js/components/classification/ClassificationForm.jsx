@@ -7,7 +7,7 @@ import Select from "@mui/material/Select";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
 import Form from "@rjsf/mui";
@@ -16,7 +16,7 @@ import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../../ducks/source";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -91,7 +91,7 @@ CustomProbabilityWidget.defaultProps = {
 };
 
 const CustomGroupsWidget = ({ value, onChange, options }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
 
   const groupIDToName = {};

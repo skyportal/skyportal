@@ -9,7 +9,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
@@ -28,11 +28,11 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-export const useSourceListStyles = makeStyles((theme) => ({
+export const useSourceListStyles = makeStyles()((theme, { invertThumbnails }) => ({
   stampContainer: {
     display: "contents",
   },
-  stamp: () => ({
+  stamp: {
     transition: "transform 0.1s",
     width: "6.6em",
     height: "6.6em",
@@ -42,11 +42,11 @@ export const useSourceListStyles = makeStyles((theme) => ({
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
     borderRadius: "4px",
-  }),
-  inverted: ({ invertThumbnails }) => ({
+  },
+  inverted: {
     filter: invertThumbnails ? "invert(1)" : "unset",
     WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
-  }),
+  },
   sourceListContainer: {
     height: "calc(100% - 2.5rem)",
     overflowY: "auto",
@@ -536,7 +536,7 @@ const RecentSources = ({ classes }) => {
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
-  const styles = useSourceListStyles({ invertThumbnails });
+  const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
   const { recentSources } = useSelector((state) => state.recentSources);
   const prefs =

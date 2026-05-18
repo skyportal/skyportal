@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 import { IconButton } from "@mui/material";
@@ -21,7 +21,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/styles";
+import { useTheme } from "@mui/material/styles";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
@@ -31,7 +31,7 @@ import Button from "../Button";
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperContent: {
     padding: "0.5rem",
   },
@@ -114,7 +114,7 @@ const useStyles = makeStyles((theme) => ({
 const TelescopePage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const loading = useSelector((state) => state.telescopes.loading);

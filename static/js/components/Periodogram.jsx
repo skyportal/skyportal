@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
@@ -25,7 +24,7 @@ import Button from "./Button";
 
 import * as photometryActions from "../ducks/photometry";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   copyb: {
     display: "block",
     border: "1px solid blue",
@@ -228,7 +227,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 }
 
 const Periodogram = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useDispatch();

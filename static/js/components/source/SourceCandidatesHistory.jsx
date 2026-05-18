@@ -5,7 +5,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -16,7 +16,7 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Search from "@mui/icons-material/Search";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   historyIcon: {
     height: "1.4rem",
     cursor: "pointer",
@@ -30,7 +30,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourceCandidatesHistory = ({ candidates }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const streams = useSelector((state) => state.streams);
   const { userAccessible } = useSelector((state) => state.groups);
 

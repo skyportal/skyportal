@@ -9,8 +9,7 @@ import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -35,7 +34,7 @@ const defaultPrefs = {
   },
 };
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   newsFeed: {
     display: "flex",
     flexDirection: "column",
@@ -91,7 +90,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const NewsFeedItem = ({ item }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
@@ -197,7 +196,7 @@ const NewsFeedItem = ({ item }) => {
 };
 
 const NewsFeed = ({ classes }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;

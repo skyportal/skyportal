@@ -3,13 +3,12 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   SurveyLinkList: {
     display: "inline-block",
   },
@@ -35,7 +34,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SurveyLink = ({ name, url }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   return (
     <a href={url} target="_blank" rel="noreferrer">
       <div className={styles.SurveyLink}>{name}</div>
@@ -44,7 +43,7 @@ const SurveyLink = ({ name, url }) => {
 };
 
 const SurveyLinkForm = ({ name, url, formData, urlEncoded = false }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   return (
     <div className={styles.SurveyLink}>
       <form
@@ -90,7 +89,7 @@ SurveyLinkForm.defaultProps = {
 };
 
 const SurveyLinkList = ({ ra, dec, id }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const ra_hrs = ra_to_hours(ra, ":");
   const dec_hrs = dec_to_dms(dec, ":");
   // TODO: const thumbnail_timestamp = "TODO";

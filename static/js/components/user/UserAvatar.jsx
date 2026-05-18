@@ -1,32 +1,34 @@
 import React from "react";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Badge from "@mui/material/Badge";
 
-const useStyles = makeStyles((theme) => ({
-  avatar: (props) => ({
-    width: props.size,
-    height: props.size,
-    backgroundColor: props.usercolor,
-    "&:after": {
-      content: `"${props.backUpLetters}"`,
-      color: theme.palette.getContrastText(props.usercolor),
-      fontWeight: "bold",
-      fontSize: `${Math.max(parseInt(parseFloat(props.size) / 3, 10), 10)}px`,
-      position: "absolute",
+const useStyles = makeStyles()(
+  (theme, { size, usercolor, backUpLetters }) => ({
+    avatar: {
+      width: size,
+      height: size,
+      backgroundColor: usercolor,
+      "&:after": {
+        content: `"${backUpLetters}"`,
+        color: theme.palette.getContrastText(usercolor),
+        fontWeight: "bold",
+        fontSize: `${Math.max(parseInt(parseFloat(size) / 3, 10), 10)}px`,
+        position: "absolute",
+      },
+    },
+    avatarImg: {
+      zIndex: 1,
+    },
+    badge: {
+      fontSize: `${Math.max(parseInt(parseFloat(size) / 1.8, 10), 10)}px`,
+      color: "#555555",
     },
   }),
-  avatarImg: {
-    zIndex: 1,
-  },
-  badge: (props) => ({
-    fontSize: `${Math.max(parseInt(parseFloat(props.size) / 1.8, 10), 10)}px`,
-    color: "#555555",
-  }),
-}));
+);
 
 // Return true if all characters in a string are Korean characters
 export const isAllKoreanCharacters = (str) =>
@@ -72,7 +74,7 @@ const UserAvatar = ({
       : getInitials(firstName, lastName);
 
   const props = { size, usercolor, backUpLetters };
-  const classes = useStyles(props);
+  const { classes } = useStyles(props);
 
   let tooltipText = username;
   if (firstName && lastName) {

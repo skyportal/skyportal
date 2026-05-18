@@ -12,7 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import GroupsSelect from "../group/GroupsSelect";
 import * as shiftsActions from "../../ducks/shifts";
 import { getLastDayOfMonthTwoMonthsAgo } from "./ShiftPage";
@@ -23,7 +23,7 @@ let currentUser;
 const localizer = momentLocalizer(moment);
 let groups;
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   content: {
     padding: theme.spacing(2),
     paddingBottom: "0",
@@ -100,7 +100,7 @@ function MyCalendar({
   setPreSelectedRange,
 }) {
   dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const currentShift = useSelector((state) => state.shifts.currentShift);
   currentUser = useSelector((state) => state.profile);
   groups = useSelector((state) => state.groups.userAccessible);

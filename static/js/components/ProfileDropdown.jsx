@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from "@mui/material/MenuList";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
@@ -15,7 +15,7 @@ import Divider from "@mui/material/Divider";
 import Button from "./Button";
 import UserAvatar from "./user/UserAvatar";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   avatar: {
     padding: `${theme.spacing(2)} 0 ${theme.spacing(1)} 0`,
   },
@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleClick = (event) => {

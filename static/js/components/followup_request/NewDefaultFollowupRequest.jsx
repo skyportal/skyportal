@@ -7,8 +7,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import * as allocationActions from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
@@ -16,7 +15,7 @@ import GroupShareSelect from "../group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -40,7 +39,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const NewDefaultFollowupRequest = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);

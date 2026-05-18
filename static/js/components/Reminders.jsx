@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import { withStyles } from "@mui/styles";
+import { withStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MUIDataTable from "mui-datatables";
@@ -68,7 +68,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle component="div" className={classes.root}>
       <Typography variant="h6" className={classes.title}>
@@ -85,6 +85,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       )}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const NewReminder = ({ resourceId, resourceType, handleClose }) => {

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -20,7 +19,7 @@ import * as telescopesAction from "../../ducks/telescopes";
 import * as weatherActions from "../../ducks/weather";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   title: {
     fontSize: "0.875rem",
   },
@@ -34,7 +33,7 @@ const useStyles = makeStyles((theme) => ({
 
 const TelescopeSummary = ({ route }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const instrumentsState = useSelector((state) => state.instruments);
   const groups = useSelector((state) => state.groups.all);
   const weather = useSelector((state) => state.weather);

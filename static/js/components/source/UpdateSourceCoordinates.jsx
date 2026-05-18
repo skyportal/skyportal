@@ -5,7 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 
@@ -14,7 +14,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import * as sourceActions from "../../ducks/source";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -26,7 +26,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateSourceCoordinates = ({ source }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [state, setState] = useState({
     ra: source.ra,

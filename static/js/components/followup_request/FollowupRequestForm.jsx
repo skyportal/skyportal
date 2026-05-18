@@ -6,7 +6,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PropTypes from "prop-types";
@@ -32,7 +32,7 @@ import {
   rangeIsActive,
 } from "../allocation/AllocationTable";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   marginTop: {
     marginTop: "1rem",
   },
@@ -55,7 +55,7 @@ const FollowupRequestForm = ({
   instrumentFormParams,
   requestType,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiClassname } = useSelector(

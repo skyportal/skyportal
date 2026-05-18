@@ -9,7 +9,7 @@ import DragHandleIcon from "@mui/icons-material/DragHandle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DynamicTagDisplay from "./DynamicTagDisplay";
@@ -21,7 +21,7 @@ import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   header: {},
   timespanSelect: {
     display: "inline",
@@ -118,7 +118,7 @@ const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
     });
   }, [sources]);
 
-  const topSourceSpecificStyles = useStyles();
+  const { classes: topSourceSpecificStyles } = useStyles();
   if (sources === undefined) {
     return <div>Loading top sources...</div>;
   }
@@ -320,13 +320,13 @@ TopSourcesList.defaultProps = {
 };
 
 const TopSources = ({ classes }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const dispatch = useDispatch();
 
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
-  const sourceListStyles = useSourceListStyles({ invertThumbnails });
+  const { classes: sourceListStyles } = useSourceListStyles({ invertThumbnails });
 
   const { sourceViews } = useSelector((state) => state.topSources);
   const prefs =

@@ -2,13 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import * as allocationActions from "../../../ducks/allocations";
 import * as profileActions from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   allocationSelect: {
     width: "40%",
   },
@@ -34,7 +33,7 @@ const FollowupRequestPreferences = () => {
     defaultAllocationId || -1,
   );
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   useEffect(() => {

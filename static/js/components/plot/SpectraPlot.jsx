@@ -16,8 +16,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import { makeStyles } from "@mui/styles";
-
+import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 
 import {
@@ -32,7 +31,7 @@ import {
 
 const Plot = createPlotlyComponent(Plotly);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   gridContainerLines: {
     display: "grid",
     gridAutoFlow: "row",
@@ -89,7 +88,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const plotRef = useRef(null);
   const singleClickTimerRef = useRef(null);
   const [data, setData] = useState(null);

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -41,7 +41,7 @@ import { clearPhotometryMinimal } from "../../ducks/photometry_minimal";
 
 const numPerPage = 50;
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   listPaper: {
     borderColor: theme.palette.grey[350],
     borderWidth: "2px",
@@ -170,7 +170,7 @@ const CustomSortToolbar = ({
   sortOrder,
   setSortOrder,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { selectedAnnotationSortOptions } = useSelector(
     (state) => state.candidates,
@@ -268,7 +268,7 @@ CustomSortToolbar.defaultProps = {
 };
 
 const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
@@ -343,7 +343,7 @@ const CandidateInfo = ({
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group,
@@ -692,7 +692,7 @@ CandidateAutoannotations.defaultProps = {
 };
 
 const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <Paper
       variant="outlined"
@@ -769,7 +769,7 @@ const CandidateList = () => {
   const ref = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [filterGroups, setFilterGroups] = useState([]);
-  const classes = useStyles();
+  const { classes } = useStyles();
   const {
     candidates,
     pageNumber,

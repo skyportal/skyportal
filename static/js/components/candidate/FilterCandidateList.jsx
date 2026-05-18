@@ -24,8 +24,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Grid from "@mui/material/Grid";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -40,7 +39,7 @@ import Button from "../Button";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   filterListContainer: {
     padding: "1rem 1rem 0 1rem",
     display: "flex",
@@ -192,7 +191,7 @@ const FilterCandidateList = ({
   annotationFilterList,
   setSortOrder,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo,

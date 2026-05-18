@@ -12,7 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import MUIDataTable from "mui-datatables";
 
@@ -21,7 +21,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as objectTagsActions from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     padding: theme.spacing(2),
   },
@@ -99,7 +99,7 @@ const getMuiTheme = (theme) =>
   });
 
 const TagManagement = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 

@@ -4,14 +4,14 @@ import { useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
 import Button from "../Button";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperDiv: {
     padding: "1rem",
     height: "100%",
@@ -92,7 +92,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ObservationFilterForm = ({ handleFilterSubmit }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const sortedInstrumentList = [...instrumentList];

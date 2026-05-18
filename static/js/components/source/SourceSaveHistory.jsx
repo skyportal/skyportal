@@ -6,14 +6,14 @@ import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   historyIcon: {
     display: "inline-block",
   },
@@ -23,7 +23,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourceSaveHistory = ({ groups }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [dialogOpen, setDialogOpen] = useState(false);
 

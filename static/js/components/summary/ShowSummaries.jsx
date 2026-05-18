@@ -2,7 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -12,7 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-export const useStyles = makeStyles((theme) => ({
+export const useStyles = makeStyles()((theme) => ({
   commentsContainer: {
     width: "100%",
   },
@@ -37,7 +37,7 @@ export const useStyles = makeStyles((theme) => ({
 }));
 
 const ShowSummaries = ({ summaries = [], showAISummaries = true }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const renderCommentText = () => {
     let filteredSummaries = [...(summaries || [])].filter(
       (summary) =>

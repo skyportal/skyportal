@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -13,7 +13,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import * as gcnTagsActions from "../../ducks/gcnTags";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     margin: "0",
     padding: "0",
@@ -45,7 +45,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const dispatch = useDispatch();
 

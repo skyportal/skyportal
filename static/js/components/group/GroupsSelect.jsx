@@ -7,9 +7,9 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
-import { makeStyles, useTheme } from "@mui/styles";
-
-const useStyles = makeStyles(() => ({
+import { makeStyles } from "tss-react/mui";
+import { useTheme } from "@mui/material/styles";
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -30,7 +30,7 @@ const getStyles = (group, selectedGroups, theme) => ({
 const GroupsSelect = (props) => {
   const { selectedGroups, setSelectedGroups } = props;
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const groups = useSelector((state) => state.groups.userAccessible);
 

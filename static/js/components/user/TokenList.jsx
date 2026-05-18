@@ -7,8 +7,7 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import Button from "../Button";
 import UpdateTokenACLs from "./UpdateTokenACLs";
@@ -16,7 +15,7 @@ import SharePage from "../SharePage";
 
 import * as Action from "../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -61,7 +60,7 @@ const copyToken = (elementID) => {
 };
 
 const TokenList = ({ tokens }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 

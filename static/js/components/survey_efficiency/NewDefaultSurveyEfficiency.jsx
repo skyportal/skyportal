@@ -7,12 +7,11 @@ import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -36,7 +35,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const NewDefaultSurveyEfficiency = ({ onClose }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [selectedObservationPlanId, setSelectedObservationPlanId] =

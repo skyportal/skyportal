@@ -5,15 +5,14 @@ import Typography from "@mui/material/Typography";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
 import * as groupsActions from "../../ducks/groups";
 import FormValidationError from "../FormValidationError";
 import Button from "../Button";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   groupSelect: {
     width: "20rem",
     marginBottom: "0.75rem",
@@ -35,7 +34,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
 
     formState: { errors },
   } = useForm();
-  const classes = useStyles();
+  const { classes } = useStyles();
   groups = groups?.filter((g) => g.id !== groupID) || [];
 
   const validateGroups = () => {

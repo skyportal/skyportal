@@ -5,7 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 
@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import * as shiftsActions from "../../ducks/shifts";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   editIcon: {
     margin: "0 1rem",
     cursor: "pointer",
@@ -22,7 +22,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateShift = ({ shift }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [state, setState] = useState({
     name: shift.name,
