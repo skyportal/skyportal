@@ -11,7 +11,7 @@ import Pagination from "@mui/material/Pagination";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-// eslint-disable-next-line
+
 import HoursBelowAirmassPlot from "../templates/HoursBelowAirmassPlot";
 import ObservabilityPreferences from "../user/preferences/ObservabilityPreferences";
 import AirmassPlot from "../plot/AirmassPlot";

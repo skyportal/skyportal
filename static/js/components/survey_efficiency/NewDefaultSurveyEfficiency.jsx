@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
@@ -45,7 +45,7 @@ const NewDefaultSurveyEfficiency = ({ onClose }) => {
   );
 
   const observationPlanLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   defaultObservationPlanList?.forEach((default_observation_plan) => {
     observationPlanLookUp[default_observation_plan.id] =
       default_observation_plan;
@@ -220,7 +220,6 @@ const NewDefaultSurveyEfficiency = ({ onClose }) => {
             schema={SimSurveySelectionFormSchema}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
             liveValidate
           />

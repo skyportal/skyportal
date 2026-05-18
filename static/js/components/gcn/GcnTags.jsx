@@ -138,7 +138,7 @@ const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
               </>
             }
           >
-            {/* eslint-disable-next-line no-nested-ternary */}
+            {}
             {graceid && tag === "LVC" ? (
               <Chip
                 className={styles[tag]}

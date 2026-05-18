@@ -63,7 +63,7 @@ const FindGcnEvents = ({
   }, []);
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   if (gcnEvents?.events) {
     gcnEvents?.events.forEach((gcnEvent) => {
       gcnEventsLookUp[gcnEvent.id] = gcnEvent;
@@ -92,7 +92,6 @@ const FindGcnEvents = ({
             }` || ""
           }
           className={classes.select}
-          // eslint-disable-next-line no-shadow
           onInputChange={(event, value) => {
             if (event?.type !== "change") {
               return;

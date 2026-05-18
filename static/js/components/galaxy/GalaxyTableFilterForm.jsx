@@ -131,7 +131,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
   };
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
