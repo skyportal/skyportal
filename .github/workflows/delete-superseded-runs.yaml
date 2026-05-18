@@ -37,6 +37,14 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Runs on `main` are never auto-cancelled by `concurrency`
+          # (cancel-in-progress is false on main), so a cancelled main run is
+          # always a manual cancel, never delete it.
+          if [ "$BRANCH" = "main" ]; then
+            echo "Run $RUN_ID is on 'main', never superseded by concurrency, keeping it."
+            exit 0
+          fi
+
           # Most recent run for the same workflow + same head branch.
           # The list endpoint returns runs sorted by created_at descending,
           # so per_page=1 gives us the latest one.
