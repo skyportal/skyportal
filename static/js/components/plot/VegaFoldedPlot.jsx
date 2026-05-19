@@ -30,7 +30,7 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
         transform: [
           {
             calculate:
-              "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')",
+              "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f')], '')",
             as: "magAndErr",
           },
         ],
