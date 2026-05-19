@@ -12,16 +12,9 @@ export function fetchSourcePhotometryMinimal(id) {
     `/api/sources/${id}/photometry`,
     FETCH_SOURCE_PHOTOMETRY_MINIMAL,
     {
-      format: "mag",
+      format: "plot",
       magsys: "ab",
       individualOrSeries: "both",
-      includeOwnerInfo: false,
-      includeStreamInfo: false,
-      includeValidationInfo: false,
-      includeAnnotationInfo: false,
-      includeExtinctionInfo: false,
-      deduplicatePhotometry: false,
-      phaseFoldData: false,
       includeSuperObjsPhotometry: true,
     },
   );
