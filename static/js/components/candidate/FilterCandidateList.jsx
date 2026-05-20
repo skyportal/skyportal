@@ -294,8 +294,10 @@ const FilterCandidateList = ({
     reset,
     formState: { errors },
   } = useForm({
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
+    defaultValues: {
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
+    },
   });
 
   useEffect(() => {
@@ -360,9 +362,9 @@ const FilterCandidateList = ({
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
       rejectedStatus: scanningProfile?.rejectedStatus || "show",
       savedStatus: scanningProfile?.savedStatus || "all",
-      sortingOrigin: scanningProfile?.sortingOrigin || "",
-      sortingKey: scanningProfile?.sortingKey || "",
-      sortingOrder: scanningProfile?.sortingOrder || "",
+      sortingOrigin: scanningProfile?.sortingOrigin || null,
+      sortingKey: scanningProfile?.sortingKey || null,
+      sortingOrder: scanningProfile?.sortingOrder || null,
       gcneventid: "",
       localizationid: "",
       firstDetectionAfter: "",
@@ -577,11 +579,11 @@ const FilterCandidateList = ({
               >
                 Generate report
               </Button>
-              <GenerateReportForm
-                dialogOpen={generateReportDialogOpen}
-                setDialogOpen={setGenerateReportDialogOpen}
-              />
             </Tooltip>
+            <GenerateReportForm
+              dialogOpen={generateReportDialogOpen}
+              setDialogOpen={setGenerateReportDialogOpen}
+            />
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
                 <Button primary type="submit" endIcon={<SearchIcon />}>
@@ -902,6 +904,7 @@ const FilterCandidateList = ({
                     name="redshiftMinimum"
                     labelId="redshift-select-label"
                     control={control}
+                    defaultValue=""
                   />
                   <Controller
                     render={({ field: { onChange, value } }) => (
@@ -921,6 +924,7 @@ const FilterCandidateList = ({
                     )}
                     name="redshiftMaximum"
                     control={control}
+                    defaultValue=""
                   />
                 </div>
               </div>
@@ -1178,7 +1182,7 @@ const FilterCandidateList = ({
                       name="sortingKey"
                       control={control}
                       input={<Input data-testid="annotationSortingKeySelect" />}
-                      defaultValue={selectedScanningProfile?.sortingKey || ""}
+                      defaultValue={selectedScanningProfile?.sortingKey || null}
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingKeySelect"

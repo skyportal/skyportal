@@ -2,7 +2,6 @@ import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
@@ -96,11 +95,16 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     )
     driver.scroll_to_element_and_click(new_reminder_button)
 
+    reminder_text_2 = str(uuid.uuid4())
+
+    # Wait for the dialog to load
+    driver.wait_for_xpath('//*[contains(.,"New Reminder on ")]')
     # timeout to let the form load with default values
     time.sleep(2)
 
-    reminder_text_2 = str(uuid.uuid4())
-    driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
+    text_input = driver.wait_for_xpath('//*[@id="root_text"]')
+    text_input.click()  # click to focus the input field
+    text_input.send_keys(reminder_text_2)
 
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
@@ -188,6 +192,3 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
 
     post_and_verify_reminder_frontend(driver, reminder_text, obj_id)
-
-
-# frontend for the reminders on spectra is not implemented yet

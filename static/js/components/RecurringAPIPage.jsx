@@ -77,7 +77,6 @@ const RecurringAPIPage = () => {
     return (
       <div>
         <IconButton
-          key={recurringAPI.id}
           id="delete_button"
           onClick={() => openDialog(recurringAPI.id)}
         >
