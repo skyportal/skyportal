@@ -109,11 +109,11 @@ app:
         scimma_username: # SCiMMA/Kafka username for authentication
         scimma_password: # SCiMMA/Kafka password for authentication
         kafka_server: kafka.scimma.org
-        from_start: False  # Start from beginning of topic (true) or latest message (false)
+        from_start: False  # Start from beginning of topic (True) or latest message (False)
         max_age_days:  # Skip messages older than N days (null/empty = no limit)
-        bot_user_id:   # User ID of the bot account that will save sources and own photometry
+        bot_user_id:   # User ID of the bot account that will save sources and own photometry. If not set, the service will not start.
         group_ids: []  # List of group IDs to assign imported sources to
-        instrument_tns_ids: # List of TNS IDs of instruments for imported photometry
+        instrument_tns_ids: # Whitelist of TNS instrument IDs whose photometry will be imported (see https://www.wis-tns.org/api/get/values). If not set, photometry import is skipped entirely.
 
   # Configuration for the WINTER and SPRING instruments.
   winter:
