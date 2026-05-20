@@ -26,12 +26,12 @@ from skyportal.models import (
     Group,
     Instrument,
     Obj,
-    PhotometricSeries,
     Photometry,
     Source,
     User,
 )
 from skyportal.utils.parse import safe_round
+from skyportal.utils.photometry import mag2flux, magerr2fluxerr
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -61,7 +61,6 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
     if obj is None:
         obj = Obj(id=obj_id, ra=ra, dec=dec)
         session.add(obj)
-        session.flush()
         log(f"Created new Obj: {obj_id}")
 
 
@@ -219,13 +218,11 @@ def add_photometry_with_deduplication(
         mjd = safe_round(jd - 2400000.5, 7)
 
         mag = float(brightness)
-        flux = PhotometricSeries.mag2flux(np.array([mag]))[0]
+        flux = mag2flux(np.array([mag]))[0]
 
         if brightness_error is not None:
             magerr = float(brightness_error)
-            fluxerr = PhotometricSeries.magerr2fluxerr(
-                np.array([mag]), np.array([magerr])
-            )[0]
+            fluxerr = magerr2fluxerr(np.array([mag]), np.array([magerr]))[0]
         else:
             fluxerr = np.nan
 
@@ -263,9 +260,6 @@ def add_photometry_with_deduplication(
 
         added_count += 1
         existing_keys.add(duplicate_key)
-
-    if added_count > 0:
-        session.flush()
 
     return added_count, duplicate_count
 
