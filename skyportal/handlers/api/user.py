@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -352,7 +353,12 @@ class UserHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
 
         with self.Session() as session:
-            stmt = User.select(self.current_user)
+            stmt = User.select(self.current_user).options(
+                selectinload(User.streams),
+                selectinload(User.groups),
+                selectinload(User.roles),
+                selectinload(User.acls),
+            )
 
             if not include_expired:
                 stmt = stmt.where(
