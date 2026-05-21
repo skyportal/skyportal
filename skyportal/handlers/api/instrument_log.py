@@ -77,7 +77,7 @@ class InstrumentLogHandler(BaseHandler):
         if start_date is None:
             return self.error("date is required")
         try:
-            start_date = arrow.get(start_date).datetime
+            start_date = arrow.get(start_date).naive
         except Exception as e:
             return self.error(f"Invalid start_date: {str(e)}")
 
@@ -85,7 +85,7 @@ class InstrumentLogHandler(BaseHandler):
         if end_date is None:
             return self.error("date is required")
         try:
-            end_date = arrow.get(end_date).datetime
+            end_date = arrow.get(end_date).naive
         except Exception as e:
             return self.error(f"Invalid end_date: {str(e)}")
 
@@ -125,13 +125,13 @@ class InstrumentLogHandler(BaseHandler):
 
         if start_date is not None:
             try:
-                start_date = arrow.get(start_date.strip()).datetime
+                start_date = arrow.get(start_date.strip()).naive
             except Exception as e:
                 return self.error(f"Invalid start_date: {str(e)}")
 
         if end_date is not None:
             try:
-                end_date = arrow.get(end_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).naive
             except Exception as e:
                 return self.error(f"Invalid end_date: {str(e)}")
 
@@ -210,11 +210,11 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         end_date = self.get_query_argument("endDate")
 
         if start_date is not None:
-            start_date = arrow.get(start_date.strip()).datetime
+            start_date = arrow.get(start_date.strip()).naive
         else:
             start_date = (Time.now() - TimeDelta(3 * u.day)).datetime
         if end_date is not None:
-            end_date = arrow.get(end_date.strip()).datetime
+            end_date = arrow.get(end_date.strip()).naive
         else:
             end_date = Time.now().datetime
 

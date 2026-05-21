@@ -159,6 +159,11 @@ class ScanReportItemHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
+        try:
+            report_id = int(report_id)
+            item_id = int(item_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid report_id/item_id: {report_id}/{item_id}")
 
         with self.Session() as session:
             item = session.scalar(
@@ -207,6 +212,10 @@ class ScanReportItemHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            report_id = int(report_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid report_id: {report_id}")
         with self.Session() as session:
             items = session.scalars(
                 ScanReportItem.select(session.user_or_token, mode="read").where(

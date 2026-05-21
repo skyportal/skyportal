@@ -152,10 +152,10 @@ class TelescopeHandler(BaseHandler):
         """
 
         tel_name = self.get_query_argument("name", None)
-        latitude_min = self.get_query_argument("latitudeMin", None)
-        latitude_max = self.get_query_argument("latitudeMax", None)
-        longitude_min = self.get_query_argument("longitudeMin", None)
-        longitude_max = self.get_query_argument("longitudeMax", None)
+        latitude_min = self.get_query_argument("latitudeMin", None, type=float)
+        latitude_max = self.get_query_argument("latitudeMax", None, type=float)
+        longitude_min = self.get_query_argument("longitudeMin", None, type=float)
+        longitude_max = self.get_query_argument("longitudeMax", None, type=float)
 
         with self.Session() as session:
             if telescope_id is not None:

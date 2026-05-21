@@ -48,6 +48,11 @@ class FilterHandler(BaseHandler):
                   schema: Error
         """
 
+        if filter_id is not None:
+            try:
+                filter_id = int(filter_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             if filter_id is not None:
                 f = session.scalars(
@@ -132,6 +137,10 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            filter_id = int(filter_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="update").where(
@@ -182,6 +191,10 @@ class FilterHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            filter_id = int(filter_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="delete").where(
