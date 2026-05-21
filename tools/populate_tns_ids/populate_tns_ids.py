@@ -1,13 +1,13 @@
 """
 Script to populate TNS IDs for instruments in SkyPortal.
 
-This script maps SkyPortal instruments to their corresponding TNS API IDs
-based on the data from https://www.wis-tns.org/api/get/values
-
-The TNS instrument mappings are stored in tns_instruments.json.
+This script maps SkyPortal instruments to their corresponding TNS API IDs.
+Instrument data is fetched live from the TNS API (https://www.wis-tns.org/api/get/values)
+if a TNS API key is provided. Otherwise, a local tns_instruments.json is used as fallback.
 
 Usage:
     PYTHONPATH=. python3 tools/populate_tns_ids/populate_tns_ids.py [--dry-run]
+    PYTHONPATH=. python3 tools/populate_tns_ids/populate_tns_ids.py --api-key KEY --bot-id ID --bot-name NAME [--dry-run]
 """
 
 import argparse
@@ -15,36 +15,87 @@ import json
 import sys
 from pathlib import Path
 
+import requests
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
 from skyportal.models import DBSession, Instrument, init_db
 
 DATA_FILE = Path(__file__).parent / "tns_instruments.json"
+TNS_VALUES_URL = "https://www.wis-tns.org/api/get/values"
 
 
-def load_tns_data():
+def fetch_tns_instruments(api_key, bot_id, bot_name):
+    """Fetch instrument data live from the TNS API.
+
+    Returns
+    -------
+    dict or None
+        Dict mapping TNS ID (int) to instrument name string, or None on failure.
     """
-    Load TNS instrument data from JSON file.
+    try:
+        headers = {
+            "User-Agent": f'tns_marker{{"tns_id":{bot_id},"type":"bot","name":"{bot_name}"}}'
+        }
+        r = requests.post(
+            TNS_VALUES_URL, headers=headers, data={"api_key": api_key}, timeout=30
+        )
+        r.raise_for_status()
+        payload = r.json()
+        instruments_raw = payload.get("data", {}).get("instruments", {})
+        if not instruments_raw:
+            print("WARNING: TNS API returned no instrument data.")
+            return None
+        return {int(k): v for k, v in instruments_raw.items()}
+    except Exception as e:
+        print(f"WARNING: Failed to fetch TNS instrument data from API: {e}")
+        return None
 
-    Returns:
-        tuple: (tns_instruments dict, common_mappings dict)
+
+def load_tns_data(api_key=None, bot_id=None, bot_name=None):
+    """Load TNS instrument data from the API if credentials provided, else from local JSON.
+
+    Returns
+    -------
+    tuple
+        (tns_instruments dict, common_mappings dict)
     """
+    if api_key and bot_id and bot_name:
+        print("Fetching instrument data from TNS API...")
+        tns_instruments = fetch_tns_instruments(api_key, bot_id, bot_name)
+        if tns_instruments:
+            print(f"Fetched {len(tns_instruments)} instruments from TNS API.")
+            common_mappings = _load_common_mappings()
+            return tns_instruments, common_mappings
+        print("API fetch failed. Falling back to local tns_instruments.json.")
+    else:
+        print("No API credentials provided. Using local tns_instruments.json.")
+
     if not DATA_FILE.exists():
-        raise FileNotFoundError(f"TNS data file not found: {DATA_FILE}")
+        raise FileNotFoundError(
+            f"TNS data file not found: {DATA_FILE}. "
+            "Provide --api-key to fetch from TNS API."
+        )
 
     with open(DATA_FILE) as f:
         data = json.load(f)
 
     tns_instruments = {int(k): v for k, v in data["tns_instruments"].items()}
     common_mappings = data["common_mappings"]
-
     return tns_instruments, common_mappings
 
 
+def _load_common_mappings():
+    """Load manual instrument name mappings from the local JSON file."""
+    if not DATA_FILE.exists():
+        return {}
+    with open(DATA_FILE) as f:
+        data = json.load(f)
+    return data.get("common_mappings", {})
+
+
 def find_tns_id_for_instrument(instrument_name, tns_instruments, common_mappings):
-    """
-    Try to find a TNS ID for a given instrument name.
+    """Try to find a TNS ID for a given instrument name.
 
     Args:
         instrument_name: Name of the instrument to look up
@@ -73,14 +124,16 @@ def find_tns_id_for_instrument(instrument_name, tns_instruments, common_mappings
     return None
 
 
-def populate_tns_ids(dry_run=False):
-    """
-    Populate TNS IDs for instruments in the database.
+def populate_tns_ids(dry_run=False, api_key=None, bot_id=None, bot_name=None):
+    """Populate TNS IDs for instruments in the database.
 
     Args:
         dry_run: If True, only print what would be done without making changes
+        api_key: TNS bot API key (optional)
+        bot_id: TNS bot ID (optional)
+        bot_name: TNS bot name (optional)
     """
-    tns_instruments, common_mappings = load_tns_data()
+    tns_instruments, common_mappings = load_tns_data(api_key, bot_id, bot_name)
 
     with DBSession() as session:
         instruments = session.scalars(sa.select(Instrument)).all()
@@ -154,6 +207,9 @@ def main():
         action="store_true",
         help="Show what would be done without making changes",
     )
+    parser.add_argument("--api-key", help="TNS bot API key")
+    parser.add_argument("--bot-id", help="TNS bot ID")
+    parser.add_argument("--bot-name", help="TNS bot name")
     args = parser.parse_args()
 
     print("=" * 80)
@@ -163,12 +219,16 @@ def main():
     if args.dry_run:
         print("\n*** DRY RUN MODE - No changes will be made ***\n")
 
-    # Load configuration and initialize database connection
     _, cfg = load_env()
     init_db(**cfg["database"])
 
     try:
-        populate_tns_ids(dry_run=args.dry_run)
+        populate_tns_ids(
+            dry_run=args.dry_run,
+            api_key=args.api_key,
+            bot_id=args.bot_id,
+            bot_name=args.bot_name,
+        )
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
         import traceback
