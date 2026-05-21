@@ -185,7 +185,12 @@ const Thumbnail = ({
                 className={imgClasses}
                 title={alt}
                 loading="lazy"
-                style={{ opacity: status === "loaded" ? 1 : 0 }}
+                style={{
+                  opacity: status === "loaded" ? 1 : 0,
+                  ...(imgSrc?.startsWith("data:")
+                    ? { imageRendering: "pixelated" }
+                    : {}),
+                }}
                 onLoad={() => setStatus("loaded")}
                 onError={(e) => {
                   e.target.onerror = null;
