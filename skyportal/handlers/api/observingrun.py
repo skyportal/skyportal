@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
@@ -360,7 +360,7 @@ class ObservingRunHandler(BaseHandler):
 
             # don't allow deleting past runs, unless they have no assignments
             if (
-                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
+                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
                 and len(assignments) > 0
             ):
                 return self.error(

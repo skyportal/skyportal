@@ -24,6 +24,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ....models import (
     Allocation,
@@ -1585,6 +1586,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
+    @validate_path_params(filter_id=int)
     def delete(self, obj_id, filter_id):
         """
         ---
@@ -1609,11 +1611,6 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
 
         with self.Session() as session:
             cands_to_delete = session.scalars(

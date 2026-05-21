@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import Role, User, UserRole
 from ..base import BaseHandler
@@ -40,6 +41,7 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
+    @validate_path_params(user_id=int)
     def post(self, user_id, *ignored_args):
         """
         ---
@@ -72,10 +74,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
@@ -114,6 +112,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
+    @validate_path_params(user_id=int)
     def delete(self, user_id, role_id):
         """
         ---
@@ -138,10 +137,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         with self.Session() as session:
             user = session.scalar(
                 User.select(self.associated_user_object).where(User.id == user_id)

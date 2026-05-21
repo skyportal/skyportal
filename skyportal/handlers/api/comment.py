@@ -10,6 +10,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Comment,
@@ -860,6 +861,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
+    @validate_path_params(comment_id=int)
     def put(self, associated_resource_type, resource_id, comment_id):
         """
         ---
@@ -918,11 +920,6 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         with self.Session() as session:
             try:
@@ -1081,6 +1078,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
+    @validate_path_params(comment_id=int)
     def delete(self, associated_resource_type, resource_id, comment_id):
         """
         ---
@@ -1120,11 +1118,6 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID.")
 
         with self.Session() as session:
             if associated_resource_type.lower() == "sources":
@@ -1238,6 +1231,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(comment_id=int)
     def get(self, associated_resource_type, resource_id, comment_id):
         """
         ---
@@ -1308,11 +1302,6 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
-
         download = self.get_query_argument("download", True)
         preview = self.get_query_argument("preview", False)
 

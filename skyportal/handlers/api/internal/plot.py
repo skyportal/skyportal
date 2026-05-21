@@ -7,6 +7,7 @@ from astropy import time as ap_time
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from skyportal.utils.handlers import validate_path_params
 
 from ....models import ClassicalAssignment, Obj, Telescope
 from ...base import BaseHandler
@@ -36,11 +37,8 @@ class AirmassHandler(BaseHandler):
 
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
+    @validate_path_params(assignment_id=int)
     async def get(self, assignment_id):
-        try:
-            assignment_id = int(assignment_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid assignment_id: {assignment_id}")
         with self.Session() as session:
             assignment = session.scalar(
                 ClassicalAssignment.select(session.user_or_token).where(

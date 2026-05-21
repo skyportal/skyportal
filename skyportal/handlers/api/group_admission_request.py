@@ -1,5 +1,6 @@
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
@@ -7,6 +8,7 @@ from ..base import BaseHandler
 
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(admission_request_id=(int, None))
     def get(self, admission_request_id=None):
         """
         ---
@@ -55,14 +57,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
                   schema: Error
         """
         group_id = self.get_query_argument("groupID", None, type=int)
-        if admission_request_id is not None:
-            try:
-                admission_request_id = int(admission_request_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid admission_request_id: {admission_request_id}"
-                )
-
         with self.Session() as session:
             if admission_request_id is not None:
                 admission_request = session.scalars(
@@ -231,6 +225,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
+    @validate_path_params(admission_request_id=int)
     def patch(self, admission_request_id):
         """
         ---
@@ -271,10 +266,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
             )
 
-        try:
-            admission_request_id = int(admission_request_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid admission_request_id: {admission_request_id}")
         with self.Session() as session:
             admission_request = session.scalars(
                 GroupAdmissionRequest.select(
@@ -303,6 +294,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
+    @validate_path_params(admission_request_id=int)
     def delete(self, admission_request_id):
         """
         ---
@@ -324,10 +316,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            admission_request_id = int(admission_request_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid admission_request_id: {admission_request_id}")
         with self.Session() as session:
             admission_request = session.scalars(
                 GroupAdmissionRequest.select(

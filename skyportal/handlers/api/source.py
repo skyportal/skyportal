@@ -788,7 +788,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     # we want to allow admins to save sources as another user(s).
     # it's optional, and we default to saving to the current user unless specified otherwise.
-    saver_per_group_id = {gid: user for gid in group_ids}
+    saver_per_group_id = dict.fromkeys(group_ids, user)
     if "saver_per_group_id" in data:
         if not user.is_admin:
             raise AttributeError(

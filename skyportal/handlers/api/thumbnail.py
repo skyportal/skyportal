@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import Obj, Thumbnail, User
 from ..base import BaseHandler
@@ -145,6 +146,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data={"id": obj_id})
 
     @auth_or_token
+    @validate_path_params(thumbnail_id=int)
     def get(self, thumbnail_id):
         """
         ---
@@ -168,10 +170,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token).where(
@@ -183,6 +181,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data=t)
 
     @permissions(["Manage sources"])
+    @validate_path_params(thumbnail_id=int)
     def put(self, thumbnail_id):
         """
         ---
@@ -210,10 +209,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="update").where(
@@ -241,6 +236,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage sources"])
+    @validate_path_params(thumbnail_id=int)
     def delete(self, thumbnail_id):
         """
         ---
@@ -265,10 +261,6 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
 
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="delete").where(

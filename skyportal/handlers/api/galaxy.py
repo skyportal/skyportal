@@ -1359,8 +1359,8 @@ def get_galaxies_completeness(
     alpha_M2 = -0.79
     logMStar = 10.79
 
-    schechter_M_log_2 = (
-        lambda x: np.log(10)
+    schechter_M_log_2 = lambda x: (
+        np.log(10)
         * np.exp(-(10 ** (x - logMStar)))
         * (
             phiStar_M1 * (10 ** (x - logMStar)) ** (alpha_M1 + 1)

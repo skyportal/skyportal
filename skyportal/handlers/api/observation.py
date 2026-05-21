@@ -24,6 +24,7 @@ from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -1172,6 +1173,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
+    @validate_path_params(observation_id=int)
     def delete(self, observation_id):
         """
         ---
@@ -1195,11 +1197,6 @@ class ObservationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            observation_id = int(observation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid observation_id: {observation_id}")
 
         with self.Session() as session:
             observation = session.scalars(
@@ -2385,6 +2382,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
+    @validate_path_params(survey_efficiency_analysis_id=int)
     def delete(self, survey_efficiency_analysis_id):
         """
         ---
@@ -2404,18 +2402,13 @@ class ObservationSimSurveyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            sea_id = int(survey_efficiency_analysis_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
-            )
         with self.Session() as session:
             survey_efficiency_analysis = session.scalars(
                 SurveyEfficiencyForObservations.select(
                     session.user_or_token, mode="delete"
-                ).where(SurveyEfficiencyForObservations.id == sea_id)
+                ).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
             ).first()
             if survey_efficiency_analysis is None:
                 return self.error(

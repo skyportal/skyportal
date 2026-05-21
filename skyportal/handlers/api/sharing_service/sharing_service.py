@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ....models import (
     Group,
@@ -208,6 +209,7 @@ def update_sharing_service(
 
 class SharingServiceHandler(BaseHandler):
     @permissions(["Manage sharing services"])
+    @validate_path_params(existing_id=(int, None))
     def put(self, existing_id=None):
         """
         ---
@@ -255,12 +257,6 @@ class SharingServiceHandler(BaseHandler):
 
         instrument_ids = data.pop("instrument_ids", [])
         stream_ids = data.pop("stream_ids", [])
-
-        if existing_id is not None:
-            try:
-                existing_id = int(existing_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid sharing_service_id: {existing_id}")
 
         with self.Session() as session:
             # Check for duplicates if we're creating a new sharing service
@@ -316,6 +312,7 @@ class SharingServiceHandler(BaseHandler):
                     return self.error(f"Failed to update sharing service: {e}")
 
     @auth_or_token
+    @validate_path_params(sharing_service_id=(int, None))
     def get(self, sharing_service_id=None):
         """
         ---
@@ -354,12 +351,6 @@ class SharingServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if sharing_service_id is not None:
-            try:
-                sharing_service_id = int(sharing_service_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
-
         with self.Session() as session:
             stmt = SharingService.select(session.user_or_token, mode="read").options(
                 joinedload(SharingService.groups),
@@ -396,6 +387,7 @@ class SharingServiceHandler(BaseHandler):
                 return self.success(data=sharing_services)
 
     @permissions(["Manage sharing services"])
+    @validate_path_params(sharing_service_id=int)
     def delete(self, sharing_service_id):
         """
         ---
@@ -419,11 +411,6 @@ class SharingServiceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            sharing_service_id = int(sharing_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
 
         with self.Session() as session:
             sharing_service = session.scalar(

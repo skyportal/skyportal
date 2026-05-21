@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ....models import Group, GroupPublicRelease, PublicRelease, PublicSourcePage
 from ...base import BaseHandler
@@ -120,6 +121,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
+    @validate_path_params(release_id=int)
     def patch(self, release_id):
         """
         ---
@@ -170,11 +172,6 @@ class PublicReleaseHandler(BaseHandler):
         group_ids = data.get("group_ids")
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
-
-        try:
-            release_id = int(release_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid release_id: {release_id}")
 
         with self.Session() as session:
             public_release = session.scalar(
@@ -273,6 +270,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
+    @validate_path_params(release_id=int)
     def delete(self, release_id):
         """
         ---
@@ -298,11 +296,6 @@ class PublicReleaseHandler(BaseHandler):
         """
         if release_id is None:
             return self.error("Missing release id")
-        try:
-            release_id = int(release_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid release_id: {release_id}")
-
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(

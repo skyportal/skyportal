@@ -14,6 +14,7 @@ from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     EarthquakeEvent,
@@ -499,6 +500,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(mma_detector_id=int)
     async def post(self, earthquake_id, mma_detector_id):
         """
         ---
@@ -523,11 +525,6 @@ class EarthquakePredictionHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -650,6 +647,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(mma_detector_id=int)
     async def post(self, earthquake_id, mma_detector_id):
         """
         ---
@@ -674,11 +672,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -735,6 +728,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
+    @validate_path_params(mma_detector_id=int)
     async def get(self, earthquake_id, mma_detector_id):
         """
         ---
@@ -759,11 +753,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -789,6 +778,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
+    @validate_path_params(mma_detector_id=int)
     async def patch(self, earthquake_id, mma_detector_id):
         """
         ---
@@ -813,11 +803,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -865,6 +850,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
+    @validate_path_params(mma_detector_id=int)
     async def delete(self, earthquake_id, mma_detector_id):
         """
         ---
@@ -889,11 +875,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(

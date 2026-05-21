@@ -6,6 +6,7 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Classification,
@@ -162,6 +163,7 @@ def post_classification(data, user_id, session):
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(classification_id=(int, None))
     def get(self, classification_id=None):
         """
         ---
@@ -279,11 +281,6 @@ class ClassificationHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         include_taxonomy = self.get_query_argument("includeTaxonomy", False)
 
-        if classification_id is not None:
-            try:
-                classification_id = int(classification_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid classification_id: {classification_id}")
         with self.Session() as session:
             if classification_id is not None:
                 classification = session.scalars(
@@ -429,6 +426,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
+    @validate_path_params(classification_id=int)
     def put(self, classification_id):
         """
         ---
@@ -467,11 +465,6 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
@@ -533,6 +526,7 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
+    @validate_path_params(classification_id=int)
     def delete(self, classification_id):
         """
         ---
@@ -563,11 +557,6 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
@@ -831,6 +820,7 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(classification_id=int)
     def post(self, classification_id):
         """
         ---
@@ -864,11 +854,6 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         data = self.get_json()
         vote = data.get("vote")
@@ -928,6 +913,7 @@ class ClassificationVotesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
+    @validate_path_params(classification_id=int)
     def delete(self, classification_id):
         """
         ---
@@ -947,11 +933,6 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             classification = session.scalars(

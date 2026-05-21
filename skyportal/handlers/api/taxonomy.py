@@ -5,6 +5,7 @@ from tdtax import schema, validate
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import Classification, Group, Taxonomy
 from ..base import BaseHandler
@@ -325,6 +326,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete taxonomy"])
+    @validate_path_params(taxonomy_id=int)
     def delete(self, taxonomy_id):
         """
         ---
@@ -345,10 +347,6 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            taxonomy_id = int(taxonomy_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
         with self.Session() as session:
             classification = session.scalars(
                 sa.select(Classification).where(

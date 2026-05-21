@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from astropy.time import Time
 
 from baselayer.app.access import permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -230,6 +231,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
+    @validate_path_params(allocation_id=int)
     def delete(self, allocation_id):
         """
         ---
@@ -267,14 +269,9 @@ class SkymapTriggerAPIHandler(BaseHandler):
             return self.error("Missing trigger_name parameter.")
         trigger_name = data["trigger_name"]
 
-        try:
-            allocation_id_int = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id_int
+        data["allocation_id"] = allocation_id
 
         with self.Session() as session:
             allocation = session.scalars(

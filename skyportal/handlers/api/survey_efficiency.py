@@ -1,6 +1,7 @@
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     DefaultObservationPlanRequest,
@@ -234,6 +235,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data={"id": default_survey_efficiency_request.id})
 
     @auth_or_token
+    @validate_path_params(default_survey_efficiency_id=(int, None))
     def get(self, default_survey_efficiency_id=None):
         """
         ---
@@ -273,13 +275,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_survey_efficiency_id is not None:
-            try:
-                default_survey_efficiency_id = int(default_survey_efficiency_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
-                )
         with self.Session() as session:
             if default_survey_efficiency_id is not None:
                 default_survey_efficiency_request = session.scalars(
@@ -329,6 +324,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data=default_survey_efficiency_data)
 
     @auth_or_token
+    @validate_path_params(default_survey_efficiency_id=int)
     def delete(self, default_survey_efficiency_id):
         """
         ---
@@ -349,12 +345,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            default_survey_efficiency_id = int(default_survey_efficiency_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
-            )
         with self.Session() as session:
             stmt = DefaultSurveyEfficiencyRequest.select(session.user_or_token).where(
                 DefaultSurveyEfficiencyRequest.id == default_survey_efficiency_id

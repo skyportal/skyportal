@@ -10,6 +10,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.models import DBSession
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ....enum_types import THUMBNAIL_TYPES
 from ....models import (
@@ -388,6 +389,7 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success(data=public_source_pages)
 
     @permissions(["Manage sources"])
+    @validate_path_params(page_id=int)
     def delete(self, page_id):
         """
         ---
@@ -415,11 +417,6 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
-        try:
-            page_id = int(page_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid page_id: {page_id}")
-
         with self.Session() as session:
             public_source_page = session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(

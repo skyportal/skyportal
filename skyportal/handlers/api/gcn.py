@@ -45,6 +45,7 @@ from baselayer.app.json_util import to_json
 from baselayer.log import make_log
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.models.photometry import Photometry
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -2145,6 +2146,7 @@ class GcnEventUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
+    @validate_path_params(user_id=int)
     def delete(self, dateobs, user_id):
         """
         ---
@@ -2170,11 +2172,6 @@ class GcnEventUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            user_id = int(user_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid userID parameter: unable to parse to integer")
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -3908,6 +3905,7 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error(f"Error generating summary: {e}")
 
     @auth_or_token
+    @validate_path_params(summary_id=int)
     def get(self, dateobs, summary_id):
         """
         ---
@@ -3939,11 +3937,6 @@ class GcnSummaryHandler(BaseHandler):
         """
         if summary_id is None:
             return self.error("Summary ID is required")
-
-        try:
-            summary_id = int(summary_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid summary_id {summary_id}")
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -4043,6 +4036,7 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
+    @validate_path_params(summary_id=int)
     def delete(self, dateobs, summary_id):
         """
         ---
@@ -4069,11 +4063,6 @@ class GcnSummaryHandler(BaseHandler):
         """
         if summary_id is None:
             return self.error("Summary ID is required")
-
-        try:
-            summary_id = int(summary_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid summary_id {summary_id}")
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -4593,6 +4582,7 @@ class GcnReportHandler(BaseHandler):
                 return self.error(f"Error generating report: {e}")
 
     @auth_or_token
+    @validate_path_params(report_id=int)
     def get(self, dateobs, report_id=None):
         """
         ---
@@ -4645,11 +4635,6 @@ class GcnReportHandler(BaseHandler):
                     reverse=True,
                 )
                 return self.success(data=reports)
-
-        try:
-            report_id = int(report_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid report_id {report_id}")
 
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="read").where(

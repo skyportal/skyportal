@@ -18,6 +18,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (
@@ -287,6 +288,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
+    @validate_path_params(spectrum_id=(int, None))
     def get(self, spectrum_id=None):
         """
         ---
@@ -474,10 +476,6 @@ class SpectrumHandler(BaseHandler):
         """
 
         if spectrum_id is not None:
-            try:
-                spectrum_id = int(spectrum_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid spectrum_id: {spectrum_id}")
             with self.Session() as session:
                 spectrum = session.scalars(
                     Spectrum.select(session.user_or_token).where(
@@ -1037,6 +1035,7 @@ class SpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
+    @validate_path_params(spectrum_id=int)
     def delete(self, spectrum_id):
         """
         ---
@@ -1060,10 +1059,6 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
         with self.Session() as session:
             spectrum = session.scalars(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
@@ -1651,6 +1646,7 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(spectrum_id=int)
     def post(self, spectrum_id):
         """
         ---
@@ -1684,11 +1680,6 @@ class SyntheticPhotometryHandler(BaseHandler):
 
         data = self.get_json()
         filters = data.get("filters")
-
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
 
         with self.Session() as session:
             spectrum = session.scalars(

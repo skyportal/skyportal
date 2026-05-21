@@ -2,6 +2,7 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import Filter
 from ..base import BaseHandler
@@ -9,6 +10,7 @@ from ..base import BaseHandler
 
 class FilterHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(filter_id=(int, None))
     def get(self, filter_id=None):
         """
         ---
@@ -48,11 +50,6 @@ class FilterHandler(BaseHandler):
                   schema: Error
         """
 
-        if filter_id is not None:
-            try:
-                filter_id = int(filter_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             if filter_id is not None:
                 f = session.scalars(
@@ -110,6 +107,7 @@ class FilterHandler(BaseHandler):
             return self.success(data={"id": fil.id})
 
     @permissions(["Upload data"])
+    @validate_path_params(filter_id=int)
     def patch(self, filter_id):
         """
         ---
@@ -137,10 +135,6 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="update").where(
@@ -171,6 +165,7 @@ class FilterHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
+    @validate_path_params(filter_id=int)
     def delete(self, filter_id):
         """
         ---
@@ -191,10 +186,6 @@ class FilterHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="delete").where(

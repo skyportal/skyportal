@@ -269,8 +269,9 @@ class ObjPositionHandler(BaseHandler):
 
                 # POST-QUERY FILTERING
                 additional_constraints = [
-                    lambda p: p.flux / p.fluxerr
-                    > snr_threshold,  # signal-to-noise ratio threshold
+                    lambda p: (
+                        p.flux / p.fluxerr > snr_threshold
+                    ),  # signal-to-noise ratio threshold
                 ]
                 if (
                     stream_only and not stream_ids

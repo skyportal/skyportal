@@ -13,6 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -592,6 +593,7 @@ class AllocationHandler(BaseHandler):
             return self.success(data={"id": allocation.id})
 
     @permissions(["Manage allocations"])
+    @validate_path_params(allocation_id=int)
     def put(self, allocation_id):
         """
         ---
@@ -619,11 +621,6 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
 
         with self.Session() as session:
             allocation = session.scalars(
@@ -696,6 +693,7 @@ class AllocationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
+    @validate_path_params(allocation_id=int)
     def delete(self, allocation_id):
         """
         ---
@@ -716,11 +714,6 @@ class AllocationHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token, mode="delete").where(
@@ -738,6 +731,7 @@ class AllocationHandler(BaseHandler):
 
 class AllocationReportHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(instrument_id=int)
     async def get(self, instrument_id):
         """
         ---
@@ -772,11 +766,6 @@ class AllocationReportHandler(BaseHandler):
         output_format = self.get_query_argument("output_format", "pdf")
         if output_format not in ["pdf", "png"]:
             return self.error("output_format must be png or pdf")
-
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         with self.Session() as session:
             # get owned allocations

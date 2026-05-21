@@ -2,6 +2,7 @@ from astropy.time import Time
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from .... import facility_apis
 from ....models import Obj, Source
@@ -189,6 +190,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
+    @validate_path_params(report_id=int)
     def get(self, report_id, _):
         """
         ---
@@ -212,10 +214,6 @@ class ScanReportItemHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            report_id = int(report_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid report_id: {report_id}")
         with self.Session() as session:
             items = session.scalars(
                 ScanReportItem.select(session.user_or_token, mode="read").where(

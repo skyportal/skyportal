@@ -14,6 +14,7 @@ from sqlalchemy.sql.expression import case
 from baselayer.app.access import permissions  # , auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...enum_types import ALLOWED_BANDPASSES
 from ...models.assignment import ClassicalAssignment
@@ -781,6 +782,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
+    @validate_path_params(photometric_series_id=int)
     def patch(self, photometric_series_id):
         """
         ---
@@ -821,10 +823,6 @@ class PhotometricSeriesHandler(BaseHandler):
                               type: integer
                               description: New photometric series ID
         """
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -869,6 +867,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
+    @validate_path_params(photometric_series_id=(int, None))
     def get(self, photometric_series_id=None):
         """
         ---
@@ -1345,12 +1344,6 @@ class PhotometricSeriesHandler(BaseHandler):
                                 type: integer
         """
         if photometric_series_id is not None:
-            try:
-                photometric_series_id = int(photometric_series_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid photometric_series_id: {photometric_series_id}"
-                )
             with self.Session() as session:
                 ps = session.scalars(
                     PhotometricSeries.select(self.current_user).where(
@@ -1883,6 +1876,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
+    @validate_path_params(photometric_series_id=int)
     def delete(self, photometric_series_id):
         """
         ---
@@ -1906,11 +1900,6 @@ class PhotometricSeriesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
 
         with self.Session() as session:
             ps = session.scalars(

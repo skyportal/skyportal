@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Group,
@@ -351,6 +352,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
+    @validate_path_params(invitation_id=int)
     def patch(self, invitation_id):
         """
         ---
@@ -387,11 +389,6 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
 
         with self.Session() as session:
             invitation = session.scalars(
@@ -490,6 +487,7 @@ class InvitationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
+    @validate_path_params(invitation_id=int)
     def delete(self, invitation_id):
         """
         ---
@@ -509,11 +507,6 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
 
         with self.Session() as session:
             invitation = session.scalars(

@@ -24,6 +24,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...enum_types import ALLOWED_BANDPASSES, ALLOWED_MAGSYSTEMS
 from ...models import (
@@ -1805,11 +1806,8 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
+    @validate_path_params(photometry_id=int)
     def get(self, photometry_id):
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -1997,6 +1995,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
+    @validate_path_params(photometry_id=int)
     def delete(self, photometry_id):
         """
         ---
@@ -2020,10 +2019,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(

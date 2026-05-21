@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Annotation,
@@ -427,6 +428,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
+    @validate_path_params(annotation_id=int)
     def put(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
@@ -482,11 +484,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
@@ -553,6 +550,7 @@ class AnnotationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Annotate"])
+    @validate_path_params(annotation_id=int)
     def delete(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
@@ -589,11 +587,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid annotation ID. ")
-
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         with self.Session() as session:

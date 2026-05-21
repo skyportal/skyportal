@@ -1,6 +1,7 @@
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Stream,
@@ -11,6 +12,7 @@ from ..base import BaseHandler
 
 class StreamHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(stream_id=(int, None))
     def get(self, stream_id=None):
         """
         ---
@@ -49,11 +51,6 @@ class StreamHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if stream_id is not None:
-            try:
-                stream_id = int(stream_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid stream_id: {stream_id}")
         with self.Session() as session:
             if stream_id is not None:
                 s = session.scalars(
@@ -116,6 +113,7 @@ class StreamHandler(BaseHandler):
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
+    @validate_path_params(stream_id=int)
     def patch(self, stream_id):
         """
         ---
@@ -149,10 +147,6 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            stream_id = int(stream_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid stream_id: {stream_id}")
         data = self.get_json()
         data["id"] = stream_id
         with self.Session() as session:
@@ -178,6 +172,7 @@ class StreamHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
+    @validate_path_params(stream_id=int)
     def delete(self, stream_id):
         """
         ---
@@ -197,10 +192,6 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            stream_id = int(stream_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid stream_id: {stream_id}")
         with self.Session() as session:
             stream = session.scalars(
                 Stream.select(session.user_or_token, mode="delete").where(

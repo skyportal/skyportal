@@ -3,6 +3,7 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     GcnEvent,
@@ -282,6 +283,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
+    @validate_path_params(shift_id=int)
     def patch(self, shift_id):
         """
         ---
@@ -309,11 +311,6 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            shift_id = int(shift_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid shift_id: {shift_id}")
 
         with self.Session() as session:
             try:
@@ -415,6 +412,7 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(shift_id=int)
     def post(self, shift_id, *ignored_args):
         """
         ---
@@ -493,11 +491,6 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        try:
-            shift_id = int(shift_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid shift_id parameter: unable to parse to integer")
-
         with self.Session() as session:
             shift = session.scalars(
                 Shift.select(

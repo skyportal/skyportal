@@ -23,6 +23,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...app_utils import get_app_base_url
 from ...enum_types import (
@@ -975,6 +976,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage Analysis Services"])
+    @validate_path_params(analysis_service_id=int)
     def delete(self, analysis_service_id):
         """
         ---
@@ -995,11 +997,6 @@ class AnalysisServiceHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            analysis_service_id = int(analysis_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
-
         with self.Session() as session:
             analysis_service = session.scalars(
                 AnalysisService.select(session.user_or_token, mode="delete").where(
@@ -1017,6 +1014,7 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
+    @validate_path_params(analysis_service_id=int)
     async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
@@ -1098,11 +1096,6 @@ class AnalysisHandler(BaseHandler):
             data = self.get_json()
         except Exception as e:
             return self.error(f"Error parsing JSON: {e}")
-
-        try:
-            analysis_service_id = int(analysis_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
@@ -1432,6 +1425,7 @@ class AnalysisHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])
+    @validate_path_params(analysis_id=int)
     def delete(self, analysis_resource_type, analysis_id):
         """
         ---
@@ -1451,11 +1445,6 @@ class AnalysisHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            analysis_id = int(analysis_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid analysis_id {analysis_id}")
 
         with self.Session() as session:
             if analysis_resource_type.lower() == "obj":
@@ -1680,6 +1669,7 @@ class AnalysisProductsHandler(BaseHandler):
 
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
+    @validate_path_params(analysis_service_id=int)
     def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
@@ -1760,11 +1750,6 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             data = self.get_json()
         except Exception as e:
             return self.error(f"Error parsing JSON: {e}")
-
-        try:
-            analysis_service_id = int(analysis_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
@@ -1967,6 +1952,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
+    @validate_path_params(analysis_service_id=int)
     def post(self, analysis_service_id, *ignored_args):
         """
         ---
@@ -2027,11 +2013,6 @@ class DefaultAnalysisHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        try:
-            analysis_service_id = int(analysis_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid analysis_service_id: {analysis_service_id}")
-
         data = self.get_json()
         with self.Session() as session:
             try:

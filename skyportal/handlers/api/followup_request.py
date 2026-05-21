@@ -42,6 +42,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -1401,6 +1402,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
+    @validate_path_params(request_id=int)
     def delete(self, request_id):
         """
         ---
@@ -1429,11 +1431,6 @@ class FollowupRequestHandler(BaseHandler):
         refresh_requests = self.get_query_argument(
             "refreshRequests", data.pop("refreshRequests", False)
         )
-
-        try:
-            request_id = int(request_id)
-        except (TypeError, ValueError):
-            return self.error("Request id must be an int.")
 
         with self.Session() as session:
             followup_request = session.scalars(
@@ -1468,6 +1465,7 @@ class FollowupRequestHandler(BaseHandler):
 
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
+    @validate_path_params(followup_request_id=int)
     def put(self, followup_request_id):
         """
         ---
@@ -1497,11 +1495,6 @@ class FollowupRequestCommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            followup_request_id = int(followup_request_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid followup_request_id: {followup_request_id}")
 
         data = self.get_json()
         comment = str(data.get("comment")).strip()
@@ -1946,6 +1939,7 @@ def observation_schedule(
 
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
+    @validate_path_params(instrument_id=int)
     async def get(self, instrument_id):
         """
         ---
@@ -2066,11 +2060,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         with self.Session() as session:
             instrument = session.scalars(
@@ -2534,6 +2523,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data={"id": default_followup_request.id})
 
     @auth_or_token
+    @validate_path_params(default_followup_request_id=(int, None))
     def get(self, default_followup_request_id=None):
         """
         ---
@@ -2573,13 +2563,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_followup_request_id is not None:
-            try:
-                default_followup_request_id = int(default_followup_request_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid default_followup_request_id: {default_followup_request_id}"
-                )
         with self.Session() as session:
             if default_followup_request_id is not None:
                 default_followup_request = session.scalars(
@@ -2619,6 +2602,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data=default_followup_request_data)
 
     @auth_or_token
+    @validate_path_params(default_followup_request_id=int)
     def delete(self, default_followup_request_id):
         """
         ---
@@ -2639,12 +2623,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            default_followup_request_id = int(default_followup_request_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_followup_request_id: {default_followup_request_id}"
-            )
         with self.Session() as session:
             stmt = DefaultFollowupRequest.select(
                 session.user_or_token, mode="delete"

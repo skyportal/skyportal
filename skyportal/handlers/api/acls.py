@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token, permissions
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import ACL, User, UserACL
 from ..base import BaseHandler
@@ -36,6 +37,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
+    @validate_path_params(user_id=int)
     def post(self, user_id, *ignored_args):
         """
         ---
@@ -68,10 +70,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_acl_ids = data.get("aclIds")
         if new_acl_ids is None:
@@ -106,6 +104,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
+    @validate_path_params(user_id=int)
     def delete(self, user_id, acl_id):
         """
         ---
@@ -130,10 +129,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         with self.Session() as session:
             user = session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)

@@ -4,6 +4,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
+from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Listing,
@@ -242,6 +243,7 @@ class UserObjListHandler(BaseHandler):
             return self.success(data={"id": listing.id})
 
     @auth_or_token
+    @validate_path_params(listing_id=int)
     def patch(self, listing_id):
         """
         ---
@@ -285,11 +287,6 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-        try:
-            listing_id = int(listing_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid listing_id {listing_id}")
-
         with self.Session() as session:
             listing = session.scalars(
                 Listing.select(self.current_user, mode="update").where(

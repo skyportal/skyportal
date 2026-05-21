@@ -62,6 +62,7 @@ from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time, get_target
+from skyportal.utils.handlers import validate_path_params
 from skyportal.utils.observation_plan import (
     convert_plan_to_rubin_format,
     generate_observation_plan_statistics,
@@ -3690,6 +3691,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data=default_observation_plan_data)
 
     @permissions(["Manage observation plans"])
+    @validate_path_params(default_observation_plan_id=int)
     def delete(self, default_observation_plan_id):
         """
         ---
@@ -3709,13 +3711,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            default_observation_plan_id = int(default_observation_plan_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_observation_plan_id {default_observation_plan_id}"
-            )
 
         with self.Session() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
