@@ -8,7 +8,6 @@ from sqlalchemy import func
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Group,
@@ -352,8 +351,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    @validate_path_params(invitation_id=int)
-    def patch(self, invitation_id):
+    def patch(self, invitation_id: int):
         """
         ---
         summary: Update a pending invitation
@@ -487,8 +485,7 @@ class InvitationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    @validate_path_params(invitation_id=int)
-    def delete(self, invitation_id):
+    def delete(self, invitation_id: int):
         """
         ---
         summary: Delete an invitation

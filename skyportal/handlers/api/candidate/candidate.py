@@ -24,7 +24,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ....models import (
     Allocation,
@@ -1586,8 +1585,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    @validate_path_params(filter_id=int)
-    def delete(self, obj_id, filter_id):
+    def delete(self, obj_id, filter_id: int):
         """
         ---
         summary: Delete candidate(s)

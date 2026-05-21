@@ -24,7 +24,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...enum_types import ALLOWED_BANDPASSES, ALLOWED_MAGSYSTEMS
 from ...models import (
@@ -1806,8 +1805,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    @validate_path_params(photometry_id=int)
-    def get(self, photometry_id):
+    def get(self, photometry_id: int):
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -1995,8 +1993,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    @validate_path_params(photometry_id=int)
-    def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete photometry

@@ -2,7 +2,6 @@ import sqlalchemy as sa
 from astropy.time import Time
 
 from baselayer.app.access import permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -231,8 +230,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    @validate_path_params(allocation_id=int)
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete skymap-based trigger from external API

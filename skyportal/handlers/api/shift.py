@@ -3,7 +3,6 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     GcnEvent,
@@ -283,8 +282,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
-    @validate_path_params(shift_id=int)
-    def patch(self, shift_id):
+    def patch(self, shift_id: int):
         """
         ---
         summary: Update a shift
@@ -412,8 +410,7 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(shift_id=int)
-    def post(self, shift_id, *ignored_args):
+    def post(self, shift_id: int, *ignored_args):
         """
         ---
         summary: Add a shift user

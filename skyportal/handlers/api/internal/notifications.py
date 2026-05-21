@@ -1,7 +1,6 @@
 from jsonschema.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
-from skyportal.utils.handlers import validate_path_params
 
 from ....models import UserNotification
 from ...base import BaseHandler
@@ -9,8 +8,7 @@ from ...base import BaseHandler
 
 class NotificationHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(notification_id=(int, None))
-    def get(self, notification_id=None):
+    def get(self, notification_id: int | None = None):
         """Fetch notification(s)"""
 
         with self.Session() as session:
@@ -33,8 +31,7 @@ class NotificationHandler(BaseHandler):
             return self.success(data=notifications)
 
     @auth_or_token
-    @validate_path_params(notification_id=int)
-    def patch(self, notification_id):
+    def patch(self, notification_id: int):
         """Update a notification"""
 
         data = self.get_json()
@@ -65,8 +62,7 @@ class NotificationHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     @auth_or_token
-    @validate_path_params(notification_id=int)
-    def delete(self, notification_id):
+    def delete(self, notification_id: int):
         """Delete a notification"""
         if notification_id is None:
             return self.error("Missing required notification_id")

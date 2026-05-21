@@ -2,7 +2,6 @@ from astropy.time import Time
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from .... import facility_apis
 from ....models import Obj, Source
@@ -190,8 +189,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    @validate_path_params(report_id=int)
-    def get(self, report_id, _):
+    def get(self, report_id: int, _):
         """
         ---
         summary: Retrieve all items in a scanning report

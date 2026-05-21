@@ -13,7 +13,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -593,8 +592,7 @@ class AllocationHandler(BaseHandler):
             return self.success(data={"id": allocation.id})
 
     @permissions(["Manage allocations"])
-    @validate_path_params(allocation_id=int)
-    def put(self, allocation_id):
+    def put(self, allocation_id: int):
         """
         ---
         summary: Update an allocation
@@ -693,8 +691,7 @@ class AllocationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    @validate_path_params(allocation_id=int)
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete an allocation
@@ -731,8 +728,7 @@ class AllocationHandler(BaseHandler):
 
 class AllocationReportHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(instrument_id=int)
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Get allocation report

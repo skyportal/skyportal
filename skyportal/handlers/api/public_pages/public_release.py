@@ -5,7 +5,6 @@ from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ....models import Group, GroupPublicRelease, PublicRelease, PublicSourcePage
 from ...base import BaseHandler
@@ -121,8 +120,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    @validate_path_params(release_id=int)
-    def patch(self, release_id):
+    def patch(self, release_id: int):
         """
         ---
         summary: Update a public release
@@ -270,8 +268,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
-    @validate_path_params(release_id=int)
-    def delete(self, release_id):
+    def delete(self, release_id: int):
         """
         ---
         summary: Delete a public release

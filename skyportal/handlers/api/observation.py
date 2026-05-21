@@ -24,7 +24,6 @@ from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -1173,8 +1172,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    @validate_path_params(observation_id=int)
-    def delete(self, observation_id):
+    def delete(self, observation_id: int):
         """
         ---
         summary: Delete an observation
@@ -2382,8 +2380,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    @validate_path_params(survey_efficiency_analysis_id=int)
-    def delete(self, survey_efficiency_analysis_id):
+    def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a SimSurvey efficiency calculation

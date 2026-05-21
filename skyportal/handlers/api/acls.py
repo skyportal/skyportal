@@ -1,5 +1,4 @@
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import ACL, User, UserACL
 from ..base import BaseHandler
@@ -37,8 +36,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    @validate_path_params(user_id=int)
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant ACLs to a user
@@ -104,8 +102,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    @validate_path_params(user_id=int)
-    def delete(self, user_id, acl_id):
+    def delete(self, user_id: int, acl_id):
         """
         ---
         summary: Remove ACL from a user

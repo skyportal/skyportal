@@ -5,7 +5,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.flow import Flow
 from skyportal.models.source import Source
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     EarthquakeEvent,
@@ -560,8 +559,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    @validate_path_params(reminder_id=int)
-    def patch(self, associated_resource_type, resource_id, reminder_id):
+    def patch(self, associated_resource_type, resource_id, reminder_id: int):
         """
         ---
         summary: Update a reminder
@@ -796,8 +794,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    @validate_path_params(reminder_id=int)
-    def delete(self, associated_resource_type, resource_id, reminder_id):
+    def delete(self, associated_resource_type, resource_id, reminder_id: int):
         """
         ---
         summary: Delete a reminder

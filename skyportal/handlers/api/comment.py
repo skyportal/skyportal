@@ -10,7 +10,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Comment,
@@ -861,8 +860,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    @validate_path_params(comment_id=int)
-    def put(self, associated_resource_type, resource_id, comment_id):
+    def put(self, associated_resource_type, resource_id, comment_id: int):
         """
         ---
         summary: Update a comment
@@ -1078,8 +1076,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    @validate_path_params(comment_id=int)
-    def delete(self, associated_resource_type, resource_id, comment_id):
+    def delete(self, associated_resource_type, resource_id, comment_id: int):
         """
         ---
         summary: Delete a comment
@@ -1231,8 +1228,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(comment_id=int)
-    def get(self, associated_resource_type, resource_id, comment_id):
+    def get(self, associated_resource_type, resource_id, comment_id: int):
         """
         ---
         summary: Download/Preview comment attachment

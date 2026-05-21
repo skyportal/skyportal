@@ -1,7 +1,6 @@
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Stream,
@@ -12,8 +11,7 @@ from ..base import BaseHandler
 
 class StreamHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(stream_id=(int, None))
-    def get(self, stream_id=None):
+    def get(self, stream_id: int | None = None):
         """
         ---
         single:
@@ -113,8 +111,7 @@ class StreamHandler(BaseHandler):
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
-    @validate_path_params(stream_id=int)
-    def patch(self, stream_id):
+    def patch(self, stream_id: int):
         """
         ---
         summary: Update a stream
@@ -172,8 +169,7 @@ class StreamHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
-    @validate_path_params(stream_id=int)
-    def delete(self, stream_id):
+    def delete(self, stream_id: int):
         """
         ---
         summary: Delete a stream

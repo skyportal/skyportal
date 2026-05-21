@@ -11,7 +11,6 @@ from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import Obj, Thumbnail, User
 from ..base import BaseHandler
@@ -146,8 +145,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data={"id": obj_id})
 
     @auth_or_token
-    @validate_path_params(thumbnail_id=int)
-    def get(self, thumbnail_id):
+    def get(self, thumbnail_id: int):
         """
         ---
         summary: Get a thumbnail
@@ -181,8 +179,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    @validate_path_params(thumbnail_id=int)
-    def put(self, thumbnail_id):
+    def put(self, thumbnail_id: int):
         """
         ---
         summary: Update a thumbnail
@@ -236,8 +233,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage sources"])
-    @validate_path_params(thumbnail_id=int)
-    def delete(self, thumbnail_id):
+    def delete(self, thumbnail_id: int):
         """
         ---
         summary: Delete a thumbnail

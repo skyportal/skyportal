@@ -1,6 +1,5 @@
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
@@ -8,8 +7,7 @@ from ..base import BaseHandler
 
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(admission_request_id=(int, None))
-    def get(self, admission_request_id=None):
+    def get(self, admission_request_id: int | None = None):
         """
         ---
         single:
@@ -225,8 +223,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
-    @validate_path_params(admission_request_id=int)
-    def patch(self, admission_request_id):
+    def patch(self, admission_request_id: int):
         """
         ---
         summary: Update a group admission request status
@@ -294,8 +291,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    @validate_path_params(admission_request_id=int)
-    def delete(self, admission_request_id):
+    def delete(self, admission_request_id: int):
         """
         ---
         summary: Delete a group admission request

@@ -2,7 +2,6 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import Filter
 from ..base import BaseHandler
@@ -10,8 +9,7 @@ from ..base import BaseHandler
 
 class FilterHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(filter_id=(int, None))
-    def get(self, filter_id=None):
+    def get(self, filter_id: int | None = None):
         """
         ---
         single:
@@ -107,8 +105,7 @@ class FilterHandler(BaseHandler):
             return self.success(data={"id": fil.id})
 
     @permissions(["Upload data"])
-    @validate_path_params(filter_id=int)
-    def patch(self, filter_id):
+    def patch(self, filter_id: int):
         """
         ---
         summary: Update a filter
@@ -165,8 +162,7 @@ class FilterHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    @validate_path_params(filter_id=int)
-    def delete(self, filter_id):
+    def delete(self, filter_id: int):
         """
         ---
         summary: Delete a filter

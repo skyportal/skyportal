@@ -6,7 +6,6 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Classification,
@@ -163,8 +162,7 @@ def post_classification(data, user_id, session):
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(classification_id=(int, None))
-    def get(self, classification_id=None):
+    def get(self, classification_id: int | None = None):
         """
         ---
         single:
@@ -426,8 +424,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
-    @validate_path_params(classification_id=int)
-    def put(self, classification_id):
+    def put(self, classification_id: int):
         """
         ---
         summary: Update a classification
@@ -526,8 +523,7 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
-    @validate_path_params(classification_id=int)
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification
@@ -820,8 +816,7 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(classification_id=int)
-    def post(self, classification_id):
+    def post(self, classification_id: int):
         """
         ---
         summary: Vote for a classification
@@ -913,8 +908,7 @@ class ClassificationVotesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    @validate_path_params(classification_id=int)
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification vote

@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Annotation,
@@ -428,8 +427,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    @validate_path_params(annotation_id=int)
-    def put(self, associated_resource_type, resource_id, annotation_id):
+    def put(self, associated_resource_type, resource_id, annotation_id: int):
         """
         ---
         summary: Update an annotation
@@ -550,8 +548,7 @@ class AnnotationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Annotate"])
-    @validate_path_params(annotation_id=int)
-    def delete(self, associated_resource_type, resource_id, annotation_id):
+    def delete(self, associated_resource_type, resource_id, annotation_id: int):
         """
         ---
         summary: Delete an annotation

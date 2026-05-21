@@ -45,7 +45,6 @@ from baselayer.app.json_util import to_json
 from baselayer.log import make_log
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.models.photometry import Photometry
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -2146,8 +2145,7 @@ class GcnEventUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    @validate_path_params(user_id=int)
-    def delete(self, dateobs, user_id):
+    def delete(self, dateobs, user_id: int):
         """
         ---
         summary: Remove a GCN event advocate
@@ -3905,8 +3903,7 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error(f"Error generating summary: {e}")
 
     @auth_or_token
-    @validate_path_params(summary_id=int)
-    def get(self, dateobs, summary_id):
+    def get(self, dateobs, summary_id: int):
         """
         ---
         summary: Get a GCN summary
@@ -4036,8 +4033,7 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
-    @validate_path_params(summary_id=int)
-    def delete(self, dateobs, summary_id):
+    def delete(self, dateobs, summary_id: int):
         """
         ---
         summary: Delete a GCN summary
@@ -4582,8 +4578,7 @@ class GcnReportHandler(BaseHandler):
                 return self.error(f"Error generating report: {e}")
 
     @auth_or_token
-    @validate_path_params(report_id=int)
-    def get(self, dateobs, report_id=None):
+    def get(self, dateobs, report_id: int = None):
         """
         ---
         summary: Get a GCN report

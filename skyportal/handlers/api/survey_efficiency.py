@@ -1,7 +1,6 @@
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     DefaultObservationPlanRequest,
@@ -235,8 +234,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data={"id": default_survey_efficiency_request.id})
 
     @auth_or_token
-    @validate_path_params(default_survey_efficiency_id=(int, None))
-    def get(self, default_survey_efficiency_id=None):
+    def get(self, default_survey_efficiency_id: int | None = None):
         """
         ---
         single:
@@ -324,8 +322,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data=default_survey_efficiency_data)
 
     @auth_or_token
-    @validate_path_params(default_survey_efficiency_id=int)
-    def delete(self, default_survey_efficiency_id):
+    def delete(self, default_survey_efficiency_id: int):
         """
         ---
         summary: Delete a default survey efficiency

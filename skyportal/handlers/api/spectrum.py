@@ -18,7 +18,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (
@@ -288,8 +287,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
-    @validate_path_params(spectrum_id=(int, None))
-    def get(self, spectrum_id=None):
+    def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -1035,8 +1033,7 @@ class SpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    @validate_path_params(spectrum_id=int)
-    def delete(self, spectrum_id):
+    def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete a spectrum
@@ -1646,8 +1643,7 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(spectrum_id=int)
-    def post(self, spectrum_id):
+    def post(self, spectrum_id: int):
         """
         ---
         summary: Create synthetic photometry from a spectrum

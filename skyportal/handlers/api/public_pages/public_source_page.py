@@ -10,7 +10,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.models import DBSession
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ....enum_types import THUMBNAIL_TYPES
 from ....models import (
@@ -389,8 +388,7 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success(data=public_source_pages)
 
     @permissions(["Manage sources"])
-    @validate_path_params(page_id=int)
-    def delete(self, page_id):
+    def delete(self, page_id: int):
         """
         ---
         summary: Delete a public source page

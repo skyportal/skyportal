@@ -3,7 +3,6 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import Photometry, PhotometryValidation
 from ..base import BaseHandler
@@ -39,8 +38,7 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    @validate_path_params(photometry_id=int)
-    async def post(self, photometry_id):
+    async def post(self, photometry_id: int):
         """
         ---
         summary: Validate/Reject a photometry point
@@ -169,8 +167,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    @validate_path_params(photometry_id=int)
-    def patch(self, photometry_id):
+    def patch(self, photometry_id: int):
         """
         ---
         summary: Update the validated/rejected status of a photometry point
@@ -271,8 +268,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    @validate_path_params(photometry_id=int)
-    def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete the validated/rejected status of a photometry point

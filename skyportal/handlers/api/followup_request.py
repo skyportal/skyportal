@@ -42,7 +42,6 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Allocation,
@@ -1402,8 +1401,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    @validate_path_params(request_id=int)
-    def delete(self, request_id):
+    def delete(self, request_id: int):
         """
         ---
         summary: Delete a follow-up request
@@ -1465,8 +1463,7 @@ class FollowupRequestHandler(BaseHandler):
 
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
-    @validate_path_params(followup_request_id=int)
-    def put(self, followup_request_id):
+    def put(self, followup_request_id: int):
         """
         ---
         summary: Update a follow-up request comment
@@ -1939,8 +1936,7 @@ def observation_schedule(
 
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(instrument_id=int)
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Retrieve followup requests schedule
@@ -2523,8 +2519,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data={"id": default_followup_request.id})
 
     @auth_or_token
-    @validate_path_params(default_followup_request_id=(int, None))
-    def get(self, default_followup_request_id=None):
+    def get(self, default_followup_request_id: int | None = None):
         """
         ---
         single:
@@ -2602,8 +2597,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data=default_followup_request_data)
 
     @auth_or_token
-    @validate_path_params(default_followup_request_id=int)
-    def delete(self, default_followup_request_id):
+    def delete(self, default_followup_request_id: int):
         """
         ---
         summary: Delete a default follow-up request

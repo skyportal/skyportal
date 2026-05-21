@@ -5,7 +5,6 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ....models import (
     Group,
@@ -209,8 +208,7 @@ def update_sharing_service(
 
 class SharingServiceHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    @validate_path_params(existing_id=(int, None))
-    def put(self, existing_id=None):
+    def put(self, existing_id: int | None = None):
         """
         ---
         summary: Create or update a sharing service
@@ -312,8 +310,7 @@ class SharingServiceHandler(BaseHandler):
                     return self.error(f"Failed to update sharing service: {e}")
 
     @auth_or_token
-    @validate_path_params(sharing_service_id=(int, None))
-    def get(self, sharing_service_id=None):
+    def get(self, sharing_service_id: int | None = None):
         """
         ---
         single:
@@ -387,8 +384,7 @@ class SharingServiceHandler(BaseHandler):
                 return self.success(data=sharing_services)
 
     @permissions(["Manage sharing services"])
-    @validate_path_params(sharing_service_id=int)
-    def delete(self, sharing_service_id):
+    def delete(self, sharing_service_id: int):
         """
         ---
         summary: Delete an external sharing service

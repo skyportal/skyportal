@@ -23,7 +23,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...app_utils import get_app_base_url
 from ...enum_types import (
@@ -976,8 +975,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage Analysis Services"])
-    @validate_path_params(analysis_service_id=int)
-    def delete(self, analysis_service_id):
+    def delete(self, analysis_service_id: int):
         """
         ---
         summary: Delete an Analysis Service.
@@ -1014,8 +1012,7 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    @validate_path_params(analysis_service_id=int)
-    async def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    async def post(self, analysis_resource_type, resource_id, analysis_service_id: int):
         """
         ---
         summary: Run an analysis
@@ -1425,8 +1422,7 @@ class AnalysisHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])
-    @validate_path_params(analysis_id=int)
-    def delete(self, analysis_resource_type, analysis_id):
+    def delete(self, analysis_resource_type, analysis_id: int):
         """
         ---
         summary: Delete an Analysis.
@@ -1669,8 +1665,7 @@ class AnalysisProductsHandler(BaseHandler):
 
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    @validate_path_params(analysis_service_id=int)
-    def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    def post(self, analysis_resource_type, resource_id, analysis_service_id: int):
         """
         ---
         summary: Upload an upload_only analysis result
@@ -1952,8 +1947,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    @validate_path_params(analysis_service_id=int)
-    def post(self, analysis_service_id, *ignored_args):
+    def post(self, analysis_service_id: int, *ignored_args):
         """
         ---
         summary: Create a new default analysis

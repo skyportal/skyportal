@@ -1,5 +1,4 @@
 from baselayer.app.access import auth_or_token, permissions
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import Role, User, UserRole
 from ..base import BaseHandler
@@ -41,8 +40,7 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
-    @validate_path_params(user_id=int)
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant new Role(s) to a user
@@ -112,8 +110,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    @validate_path_params(user_id=int)
-    def delete(self, user_id, role_id):
+    def delete(self, user_id: int, role_id):
         """
         ---
         summary: Delete user role

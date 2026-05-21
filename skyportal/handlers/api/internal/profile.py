@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
-from skyportal.utils.handlers import validate_path_params
 
 from ....models import (
     Group,
@@ -111,8 +110,7 @@ class ProfileHandler(BaseHandler):
             return self.success(data=user_info)
 
     @auth_or_token
-    @validate_path_params(user_id=(int, None))
-    def patch(self, user_id=None):
+    def patch(self, user_id: int | None = None):
         """
         ---
         description: Update user preferences

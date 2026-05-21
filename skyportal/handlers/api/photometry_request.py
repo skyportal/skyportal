@@ -1,7 +1,6 @@
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.access import auth_or_token
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     DBSession,
@@ -12,8 +11,7 @@ from ..base import BaseHandler
 
 class PhotometryRequestHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(request_id=int)
-    def get(self, request_id):
+    def get(self, request_id: int):
         """
         ---
         summary: Get photometry request

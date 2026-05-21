@@ -12,7 +12,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.model_util import all_acl_ids, role_acls
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     ACL,
@@ -633,8 +632,7 @@ class UserHandler(BaseHandler):
             return self.error("User ID must be provided")
 
     @permissions(["Manage users"])
-    @validate_path_params(user_id=int)
-    def delete(self, user_id=None):
+    def delete(self, user_id: int = None):
         """
         ---
         summary: Delete a user

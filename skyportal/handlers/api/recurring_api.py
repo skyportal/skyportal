@@ -7,7 +7,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     RecurringAPI,
@@ -197,8 +196,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Recurring APIs"])
-    @validate_path_params(recurring_api_id=int)
-    def delete(self, recurring_api_id):
+    def delete(self, recurring_api_id: int):
         """
         ---
         summary: Delete a Recurring API

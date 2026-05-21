@@ -5,7 +5,6 @@ from sqlalchemy import or_
 from baselayer.app.access import AccessError, auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.utils.handlers import validate_path_params
 
 from ...models import (
     Group,
@@ -40,8 +39,7 @@ log = make_log("api/group")
 
 class GroupHandler(BaseHandler):
     @auth_or_token
-    @validate_path_params(group_id=(int, None))
-    def get(self, group_id=None):
+    def get(self, group_id: int | None = None):
         """
         ---
         single:
@@ -314,8 +312,7 @@ class GroupHandler(BaseHandler):
             return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
-    @validate_path_params(group_id=int)
-    def put(self, group_id):
+    def put(self, group_id: int):
         """
         ---
         summary: Update a group
@@ -370,8 +367,7 @@ class GroupHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_GROUPS")
 
     @permissions(["Upload data"])
-    @validate_path_params(group_id=int)
-    def delete(self, group_id):
+    def delete(self, group_id: int):
         """
         ---
         summary: Delete a group
@@ -414,8 +410,7 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(["Upload data"])
-    @validate_path_params(group_id=int)
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add a group user
@@ -635,8 +630,7 @@ class GroupUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    @validate_path_params(group_id=int)
-    def delete(self, group_id, user_id):
+    def delete(self, group_id: int, user_id):
         """
         ---
         summary: Delete a group user
@@ -692,8 +686,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @permissions(["Upload data"])
-    @validate_path_params(group_id=int)
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add users from other group(s)
@@ -790,8 +783,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @permissions(["Upload data"])
-    @validate_path_params(group_id=int)
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add alert stream to group
