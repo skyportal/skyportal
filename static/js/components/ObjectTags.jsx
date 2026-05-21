@@ -22,6 +22,7 @@ import Button from "./Button";
 import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
 import * as objectTagsActions from "../ducks/objectTags";
+import * as groupsActions from "../ducks/groups";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -98,8 +99,13 @@ const ObjectTags = ({ source }) => {
   const { control, setValue, getValues } = useForm();
 
   useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
+    if (!tagOptions || tagOptions.length === 0) {
+      dispatch(objectTagsActions.fetchTagOptions());
+    }
+    if (!groups || groups.length === 0) {
+      dispatch(groupsActions.fetchGroups());
+    }
+  }, [dispatch, tagOptions, groups]);
 
   const handleOpenDialog = () => {
     setOpen(true);

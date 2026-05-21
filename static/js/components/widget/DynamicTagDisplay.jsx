@@ -5,17 +5,26 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
+import * as groupsActions from "../../ducks/groups";
+
 const DynamicTagDisplay = ({ source, styles }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
   const measureRef = useRef(null);
+  const dispatch = useDispatch();
   const tagOptions = useSelector((state) => state.objectTags || []);
   const userGroups = useSelector((state) => state.groups.userAccessible);
+
+  useEffect(() => {
+    if (!userGroups || userGroups.length === 0) {
+      dispatch(groupsActions.fetchGroups());
+    }
+  }, [dispatch, userGroups]);
 
   // Filter tags to only show those the user has access to (via group membership)
   const userGroupIds = useMemo(

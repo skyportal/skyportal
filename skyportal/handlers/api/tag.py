@@ -130,6 +130,7 @@ class ObjTagOptionHandler(BaseHandler):
             session.add(new_tag)
             session.commit()
 
+            self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success(new_tag)
 
     @auth_or_token
@@ -220,6 +221,7 @@ class ObjTagOptionHandler(BaseHandler):
                 tag.color = new_color
             session.commit()
 
+            self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success()
 
     @permissions(["Manage sources"])
@@ -264,6 +266,7 @@ class ObjTagOptionHandler(BaseHandler):
             session.delete(tag)
             session.commit()
 
+            self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success(f"Successfully deleted tag {tag}")
 
 
