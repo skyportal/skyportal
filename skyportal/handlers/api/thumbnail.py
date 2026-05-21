@@ -168,6 +168,10 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            thumbnail_id = int(thumbnail_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token).where(
@@ -206,6 +210,10 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            thumbnail_id = int(thumbnail_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="update").where(
@@ -257,6 +265,10 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            thumbnail_id = int(thumbnail_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="delete").where(

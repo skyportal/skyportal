@@ -182,6 +182,10 @@ class ShiftHandler(BaseHandler):
         with self.Session() as session:
             try:
                 if shift_id is not None:
+                    try:
+                        shift_id = int(shift_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid shift_id: {shift_id}")
                     shift = session.scalars(
                         Shift.select(
                             session.user_or_token,
@@ -246,7 +250,7 @@ class ShiftHandler(BaseHandler):
                     }
                     return self.success(data)
                 else:
-                    group_id = self.get_query_argument("group_id", None)
+                    group_id = self.get_query_argument("group_id", None, type=int)
                     start_date_limit = self.get_query_argument("start_date_limit", None)
                     end_date_limit = self.get_query_argument("end_date_limit", None)
 
@@ -257,9 +261,7 @@ class ShiftHandler(BaseHandler):
                         stmt = stmt.where(Shift.group_id == group_id)
                     if start_date_limit is not None:
                         try:
-                            start_date_limit = arrow.get(
-                                start_date_limit
-                            ).datetime.replace(tzinfo=None)
+                            start_date_limit = arrow.get(start_date_limit).naive
                         except ValueError:
                             return self.error(
                                 "Invalid start_date_limit; unable to parse to datetime"
@@ -267,9 +269,7 @@ class ShiftHandler(BaseHandler):
                         stmt = stmt.where(Shift.start_date >= start_date_limit)
                     if end_date_limit is not None:
                         try:
-                            end_date_limit = arrow.get(end_date_limit).datetime.replace(
-                                tzinfo=None
-                            )
+                            end_date_limit = arrow.get(end_date_limit).naive
                         except ValueError:
                             return self.error(
                                 "Invalid end_date_limit; unable to parse to datetime"
@@ -309,6 +309,11 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        try:
+            shift_id = int(shift_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid shift_id: {shift_id}")
 
         with self.Session() as session:
             try:
@@ -773,13 +778,13 @@ class ShiftSummary(BaseHandler):
 
         if start_date is not None and end_date is not None:
             try:
-                start_date = arrow.get(start_date).datetime
-                end_date = arrow.get(end_date).datetime
+                start_date = arrow.get(start_date).naive
+                end_date = arrow.get(end_date).naive
             except ValueError:
                 return self.error("Please provide valid start_date and end_date")
             if start_date > end_date:
                 return self.error("Please provide start_date < end_date")
-            if start_date > arrow.utcnow():
+            if start_date > arrow.utcnow().naive:
                 return self.error("Please provide start_date < today")
             # if there is more than 4 weeks, we return an error
             if (end_date - start_date).days > 28:
@@ -804,6 +809,10 @@ class ShiftSummary(BaseHandler):
                     .all()
                 )
             else:
+                try:
+                    shift_id = int(shift_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid shift_id {shift_id}")
                 s = (
                     session.scalars(
                         Shift.select(

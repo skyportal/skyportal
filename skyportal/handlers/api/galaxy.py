@@ -732,8 +732,20 @@ class GalaxyCatalogHandler(BaseHandler):
             "galaxyName", None
         )  # Partial name to match
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        if localization_dateobs is not None:
+            # psycopg3 requires a real datetime when comparing against a
+            # DateTime column; coerce here so the sync helper's WHERE
+            # against Localization.dateobs binds correctly.
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except (arrow.parser.ParserError, ValueError):
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
         min_redshift = self.get_query_argument("minRedshift", None)
@@ -1304,16 +1316,18 @@ def add_glade(file_path=None, file_url=None):
                 quotechar="'",
             )
             output.seek(0)
+            # psycopg3 COPY API: full `COPY ... FROM STDIN` statement +
+            # context-managed copy object. Same shape as the rewrite in
+            # `photometry.save_data_using_copy`.
             connection = DBSession().connection().connection
-            cursor = connection.cursor()
-            cursor.copy_from(
-                output,
-                "galaxys",
-                sep="\t",
-                null="",
-                columns=columns,
+            quoted_columns = ", ".join(f'"{c}"' for c in columns)
+            copy_sql = (
+                f"COPY galaxys ({quoted_columns}) FROM STDIN "
+                "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
             )
-            cursor.close()
+            with connection.cursor() as cursor:
+                with cursor.copy(copy_sql) as copy:
+                    copy.write(output.getvalue())
             output.close()
             DBSession().commit()
             end_timer = time.perf_counter()

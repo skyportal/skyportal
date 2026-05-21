@@ -17,7 +17,7 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy import and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 from sqlalchemy.sql import Values, column
 
 from baselayer.app.access import auth_or_token, permissions
@@ -262,19 +262,21 @@ def save_data_using_copy(rows, table, columns, session):
     )
     output.seek(0)
 
-    # Insert data
+    # Insert data via psycopg v3's COPY API. psycopg2 had
+    # `cursor.copy_from(file, table, sep, null, columns)`; psycopg3 expects a
+    # full `COPY ... FROM STDIN` statement and a context-managed copy object
+    # that you write rows (or raw bytes) into.
     # Use the provided session's connection so that the COPY runs within the
     # same database connection/transaction that holds any table-level locks.
     connection = session.connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep="\t",
-        null="",
-        columns=columns,
+    quoted_columns = ", ".join(f'"{c}"' for c in columns)
+    copy_sql = (
+        f"COPY {table} ({quoted_columns}) FROM STDIN "
+        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
     )
-    cursor.close()
+    with connection.cursor() as cursor:
+        with cursor.copy(copy_sql) as copy:
+            copy.write(output.getvalue())
     output.close()
 
 
@@ -290,6 +292,76 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
+# Columns required by _serialize_plot. The slim ObjPhotometry path applies
+# load_only(*PHOT_PLOT_COLUMNS) so the rest of the Photometry row (altdata,
+# ra/dec, snr, ref_*, etc.) stays deferred.
+PHOT_PLOT_COLUMNS = (
+    "id",
+    "obj_id",
+    "filter",
+    "mjd",
+    "origin",
+    "flux",
+    "fluxerr",
+    "original_user_data",
+)
+
+
+def _serialize_plot(phot, outsys):
+    """Slim serializer for the lightcurve-plotter payload.
+
+    Returns only the columns the front-end plot consumes
+    (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) and skips
+    every per-point auxiliary join (groups, annotations, instrument, owner,
+    streams, validations) plus the ref/tot/extinction blocks. Magnitudes are
+    converted into ``outsys`` the same way the full ``serialize`` does.
+    """
+    filter = phot.filter
+
+    if filter == "swiftxrt":
+        outsys = "ab"
+
+    magsys_db = sncosmo.get_magsystem("ab")
+    outsys_ms = sncosmo.get_magsystem(outsys)
+
+    try:
+        relzp_out = 2.5 * np.log10(outsys_ms.zpbandflux(filter))
+        relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
+        db_correction = relzp_out - relzp_db
+        corrected_db_zp = PHOT_ZP + db_correction
+
+        if (
+            phot.original_user_data is not None
+            and "limiting_mag" in phot.original_user_data
+        ):
+            magsys_packet = sncosmo.get_magsystem(phot.original_user_data["magsys"])
+            relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
+            packet_correction = relzp_out - relzp_packet
+            maglimit = float(phot.original_user_data["limiting_mag"])
+            maglimit_out = maglimit + packet_correction
+        else:
+            maglimit_out = -2.5 * np.log10(5 * phot.fluxerr) + corrected_db_zp
+
+        return {
+            "id": phot.id,
+            "obj_id": phot.obj_id,
+            "filter": filter,
+            "mjd": phot.mjd,
+            "origin": phot.origin,
+            "mag": (phot.mag + db_correction)
+            if nan_to_none(phot.mag) is not None
+            else None,
+            "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
+            "limiting_mag": maglimit_out,
+        }
+    except ValueError as e:
+        raise ValueError(
+            f"Could not serialize phot_id: {phot.id} "
+            f"on obj {phot.obj_id} with filter: {filter},  "
+            f"due to error: {e}"
+        )
+
+
 def serialize(
     phot,
     outsys,
@@ -302,6 +374,8 @@ def serialize(
     validation=False,
     extinction_dict=None,
 ):
+    if format == "plot":
+        return _serialize_plot(phot, outsys)
     return_value = {
         "obj_id": phot.obj_id,
         "ra": phot.ra,
@@ -1678,7 +1752,7 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(
                             df.loc[df_index]["altdata"], cls=NumpyEncoder
                         )
-                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        duplicate.modified = datetime.datetime.utcnow()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 
@@ -1732,6 +1806,10 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -1942,6 +2020,10 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
@@ -2023,30 +2105,38 @@ class ObjPhotometryHandler(BaseHandler):
             phot_data = []
             series_data = []
             if individual_or_series in ["individual", "both"]:
-                options = [
-                    joinedload(Photometry.instrument).load_only(Instrument.name),
-                    joinedload(Photometry.groups).load_only(
-                        Group.id, Group.name, Group.nickname, Group.single_user_group
-                    ),
-                ]
-                if include_annotation_info:
-                    options.append(joinedload(Photometry.annotations))
-                if include_owner_info:
-                    options.append(
-                        joinedload(Photometry.owner).load_only(
-                            User.id,
-                            User.username,
-                            User.first_name,
-                            User.last_name,
+                if format == "plot":
+                    options = [
+                        load_only(*(getattr(Photometry, c) for c in PHOT_PLOT_COLUMNS))
+                    ]
+                else:
+                    options = [
+                        joinedload(Photometry.instrument).load_only(Instrument.name),
+                        joinedload(Photometry.groups).load_only(
+                            Group.id,
+                            Group.name,
+                            Group.nickname,
+                            Group.single_user_group,
+                        ),
+                    ]
+                    if include_annotation_info:
+                        options.append(joinedload(Photometry.annotations))
+                    if include_owner_info:
+                        options.append(
+                            joinedload(Photometry.owner).load_only(
+                                User.id,
+                                User.username,
+                                User.first_name,
+                                User.last_name,
+                            )
                         )
-                    )
-                if include_stream_info:
-                    options.append(
-                        joinedload(Photometry.streams).load_only(
-                            Stream.id,
-                            Stream.name,
+                    if include_stream_info:
+                        options.append(
+                            joinedload(Photometry.streams).load_only(
+                                Stream.id,
+                                Stream.name,
+                            )
                         )
-                    )
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
@@ -2080,6 +2170,7 @@ class ObjPhotometryHandler(BaseHandler):
                 extinction_dict = None
                 if (
                     include_extinction
+                    and format != "plot"
                     and len(photometry) > 0
                     and nan_to_none(obj.ra) is not None
                     and nan_to_none(obj.dec) is not None
@@ -2104,7 +2195,7 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     for phot in photometry
                 ]
-                if deduplicate_photometry and len(phot_data) > 0:
+                if deduplicate_photometry and format != "plot" and len(phot_data) > 0:
                     df_phot = pd.DataFrame.from_records(phot_data)
                     # drop duplicate mjd/filter points, keeping most recent
                     phot_data = (
@@ -2393,11 +2484,18 @@ ObjPhotometryHandler.get.__doc__ = f"""
               Return the photometry in flux or magnitude space?
               If a value for this query parameter is not provided, the
               result will be returned in magnitude space.
+              "plot" returns a slim per-point payload
+              (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag)
+              intended for lightcurve plotting; all per-point auxiliary
+              joins (groups, annotations, instrument, owner, streams,
+              validations) and the ref/tot/extinction blocks are skipped,
+              regardless of the corresponding ``include*`` flags.
             schema:
               type: string
               enum:
                 - mag
                 - flux
+                - plot
           - in: query
             name: magsys
             required: false

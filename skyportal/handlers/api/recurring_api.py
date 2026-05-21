@@ -162,6 +162,10 @@ class RecurringAPIHandler(BaseHandler):
         """
         with self.Session() as session:
             if recurring_api_id is not None:
+                try:
+                    recurring_api_id = int(recurring_api_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
                 s = session.scalars(
                     RecurringAPI.select(session.user_or_token).where(
                         RecurringAPI.id == recurring_api_id
@@ -212,6 +216,10 @@ class RecurringAPIHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            recurring_api_id = int(recurring_api_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
         with self.Session() as session:
             recurring_api = session.scalars(
                 RecurringAPI.select(session.user_or_token, mode="delete").where(

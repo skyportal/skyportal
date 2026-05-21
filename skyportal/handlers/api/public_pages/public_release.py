@@ -171,6 +171,11 @@ class PublicReleaseHandler(BaseHandler):
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
+        try:
+            release_id = int(release_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid release_id: {release_id}")
+
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="update").where(
@@ -293,6 +298,10 @@ class PublicReleaseHandler(BaseHandler):
         """
         if release_id is None:
             return self.error("Missing release id")
+        try:
+            release_id = int(release_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid release_id: {release_id}")
 
         with self.Session() as session:
             public_release = session.scalar(

@@ -41,7 +41,7 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        radius = self.get_query_argument("radius", 2.0)
+        radius = self.get_query_argument("radius", 2.0, type=float)
 
         try:
             radius = float(radius)
