@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import MUIDataTable from "mui-datatables";
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
@@ -146,14 +146,14 @@ const photHeadCells = [
   { name: "groups", label: "Currently visible to" },
 ];
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   groupSelect: {
     width: "20rem",
   },
 }));
 
 const SpectrumRow = ({ rowData, route, annotations }) => {
-  const styles = useSourceStyles();
+  const { classes: styles } = useSourceStyles();
   const colSpan = rowData.length + 1;
   const spectrumID = parseInt(rowData[0], 10);
   const spectra = useSelector((state) => state.spectra)[route.id] || [];
@@ -229,7 +229,7 @@ SpectrumRow.propTypes = {
 };
 
 const ShareDataForm = ({ route }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
 

@@ -2,36 +2,38 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import Card from "@mui/material/Card";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Skeleton from "@mui/material/Skeleton";
 import CardHeader from "@mui/material/CardHeader";
 import CardMedia from "@mui/material/CardMedia";
 import CardActionArea from "@mui/material/CardActionArea";
 import Box from "@mui/material/Box";
 
-const useStyles = makeStyles(() => ({
-  root: ({ size, minSize, maxSize, noMargin }) => ({
-    width: size,
-    minWidth: minSize,
-    maxWidth: maxSize,
-    margin: noMargin ? 0 : "0.5rem auto",
-    height: "100%",
-    maxHeight: "31rem",
+const useStyles = makeStyles()(
+  (_theme, { size, minSize, maxSize, noMargin, invertThumbnails }) => ({
+    root: {
+      width: size,
+      minWidth: minSize,
+      maxWidth: maxSize,
+      margin: noMargin ? 0 : "0.5rem auto",
+      height: "100%",
+      maxHeight: "31rem",
+    },
+    media: {
+      height: size,
+      width: size,
+    },
+    inverted: {
+      filter: invertThumbnails ? "invert(1)" : "unset",
+      WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
+    },
+    overlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+    },
   }),
-  media: ({ size }) => ({
-    height: size,
-    width: size,
-  }),
-  inverted: ({ invertThumbnails }) => ({
-    filter: invertThumbnails ? "invert(1)" : "unset",
-    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
-  }),
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-  },
-}));
+);
 
 const MAXIMUM_NB_OF_RETRIES = 3;
 
@@ -92,7 +94,7 @@ const Thumbnail = ({
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
   );
-  const classes = useStyles({
+  const { classes } = useStyles({
     size,
     minSize,
     maxSize,
@@ -185,7 +187,12 @@ const Thumbnail = ({
                 className={imgClasses}
                 title={alt}
                 loading="lazy"
-                style={{ opacity: status === "loaded" ? 1 : 0 }}
+                style={{
+                  opacity: status === "loaded" ? 1 : 0,
+                  ...(imgSrc?.startsWith("data:")
+                    ? { imageRendering: "pixelated" }
+                    : {}),
+                }}
                 onLoad={() => setStatus("loaded")}
                 onError={(e) => {
                   e.target.onerror = null;

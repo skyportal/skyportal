@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
@@ -10,7 +10,7 @@ import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../../../ducks/profile";
 import DeletableChips from "../../DeletableChips";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   submitButton: {
     margin: "1.5rem 0 0 0",
   },
@@ -23,7 +23,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const PhotometryButtonsForm = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { photometryButtons } = useSelector(
     (state) => state.profile.preferences,
@@ -51,10 +51,12 @@ const PhotometryButtonsForm = () => {
   };
 
   const onSubmit = (formValues) => {
-    const currPhotButtons = photometryButtons || {};
-    currPhotButtons[formValues.photometryButtonName] = {
-      filters: selectedFilters,
-      origins: selectedOrigins,
+    const currPhotButtons = {
+      ...(photometryButtons || {}),
+      [formValues.photometryButtonName]: {
+        filters: selectedFilters,
+        origins: selectedOrigins,
+      },
     };
     const prefs = {
       photometryButtons: currPhotButtons,
@@ -68,8 +70,8 @@ const PhotometryButtonsForm = () => {
   };
 
   const onDelete = (buttonName) => {
-    const currPhotButtons = photometryButtons;
-    delete currPhotButtons[buttonName];
+    const { [buttonName]: _removed, ...currPhotButtons } =
+      photometryButtons || {};
     const prefs = {
       photometryButtons: currPhotButtons,
     };

@@ -1,7 +1,7 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import GroupManagement from "./GroupManagement";
@@ -9,7 +9,7 @@ import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
 import NonMemberGroupList from "./NonMemberGroupList";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   // Hide drag handle icon since this isn't the home page
   widgetIcon: {
     display: "none",
@@ -24,7 +24,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const Groups = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { permissions } = useSelector((state) => state.profile);
   const { user: userGroups, all: allGroups } = useSelector(
     (state) => state.groups,

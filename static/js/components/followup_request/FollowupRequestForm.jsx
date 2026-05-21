@@ -6,7 +6,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PropTypes from "prop-types";
@@ -32,7 +32,7 @@ import {
   rangeIsActive,
 } from "../allocation/AllocationTable";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   marginTop: {
     marginTop: "1rem",
   },
@@ -55,7 +55,7 @@ const FollowupRequestForm = ({
   instrumentFormParams,
   requestType,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiClassname } = useSelector(
@@ -284,10 +284,13 @@ const FollowupRequestForm = ({
         errors.start_date.addError("Start Date must come before End Date");
       }
     }
+    const startDateForRangeCheck = formData.start_date
+      ? new Date(formData.start_date)
+      : new Date();
     if (
       !isSomeActiveRangeOrNoRange(
         allocationLookUp[selectedAllocationId].validity_ranges,
-        new Date(formData.start_date || Date.now()),
+        startDateForRangeCheck,
       )
     ) {
       if (formData.start_date) {
@@ -315,7 +318,7 @@ const FollowupRequestForm = ({
     return errors;
   };
 
-  const schema =
+  const baseSchema =
     requestType === "forced_photometry"
       ? instrumentFormParams[
           allocationLookUp[selectedAllocationId].instrument_id
@@ -324,17 +327,24 @@ const FollowupRequestForm = ({
           allocationLookUp[selectedAllocationId].instrument_id
         ].formSchema;
 
-  if (schema && schema.properties?.start_date && schema.properties?.end_date) {
+  let schema = baseSchema;
+  if (
+    baseSchema &&
+    baseSchema.properties?.start_date &&
+    baseSchema.properties?.end_date
+  ) {
+    let startDefault;
+    let endDefault;
     if (requestType === "forced_photometry") {
       // edit the start and end date to be 30 days ending right now (in UTC)
       const endDate = new Date();
       const startDate = new Date(endDate - 30 * 24 * 60 * 60 * 1000);
-      schema.properties.start_date.default = startDate
+      startDefault = startDate
         .toISOString()
         .replace("Z", "")
         .replace("T", " ")
         .split(".")[0];
-      schema.properties.end_date.default = endDate
+      endDefault = endDate
         .toISOString()
         .replace("Z", "")
         .replace("T", " ")
@@ -344,7 +354,7 @@ const FollowupRequestForm = ({
       // calculate the range, and then update the default to be:
       // - start_date: now
       // - end_date: now + range
-      const { start_date, end_date } = schema.properties;
+      const { start_date, end_date } = baseSchema.properties;
       const startDate = new Date(start_date.default);
       const endDate = new Date(end_date.default);
       const range = endDate - startDate;
@@ -361,15 +371,26 @@ const FollowupRequestForm = ({
       if (end_date.format === "date") {
         newEndDate = newEndDate.split("T")[0];
       }
-      schema.properties.start_date.default = newStartDate
+      startDefault = newStartDate
         .replace("Z", "")
         .replace("T", " ")
         .split(".")[0];
-      schema.properties.end_date.default = newEndDate
-        .replace("Z", "")
-        .replace("T", " ")
-        .split(".")[0];
+      endDefault = newEndDate.replace("Z", "").replace("T", " ").split(".")[0];
     }
+    schema = {
+      ...baseSchema,
+      properties: {
+        ...baseSchema.properties,
+        start_date: {
+          ...baseSchema.properties.start_date,
+          default: startDefault,
+        },
+        end_date: {
+          ...baseSchema.properties.end_date,
+          default: endDefault,
+        },
+      },
+    };
   }
 
   const { uiSchema } =

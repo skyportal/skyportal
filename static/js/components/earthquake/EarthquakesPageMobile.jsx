@@ -6,12 +6,12 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewEarthquake from "./NewEarthquake";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "22.5rem",
@@ -22,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const textStyles = makeStyles(() => ({
+const textStyles = makeStyles()(() => ({
   primary: {
     fontWeight: "bold",
     fontSize: "110%",
@@ -64,8 +64,8 @@ export function earthquakeInfo(earthquake) {
 }
 
 const EarthquakeList = ({ earthquakes }) => {
-  const classes = useStyles();
-  const textClasses = textStyles();
+  const { classes } = useStyles();
+  const { classes: textClasses } = textStyles();
 
   return (
     <div className={classes.root}>
@@ -88,7 +88,7 @@ const EarthquakePage = () => {
   const { earthquakeList } = useSelector((state) => state.earthquakes);
   const currentUser = useSelector((state) => state.profile);
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>

@@ -4,15 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -36,7 +35,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const NewDefaultSurveyEfficiency = ({ onClose }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [selectedObservationPlanId, setSelectedObservationPlanId] =
@@ -46,7 +45,7 @@ const NewDefaultSurveyEfficiency = ({ onClose }) => {
   );
 
   const observationPlanLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   defaultObservationPlanList?.forEach((default_observation_plan) => {
     observationPlanLookUp[default_observation_plan.id] =
       default_observation_plan;
@@ -221,7 +220,6 @@ const NewDefaultSurveyEfficiency = ({ onClose }) => {
             schema={SimSurveySelectionFormSchema}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
             liveValidate
           />

@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -26,7 +26,7 @@ import {
   patchGcnEventSummary,
 } from "../../ducks/gcnEvent";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -97,7 +97,7 @@ const getMuiTheme = (theme) =>
   });
 
 const EditSummary = ({ text, setRenderedText }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [editedText, setEditedText] = useState(text);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ EditSummary.propTypes = {
 };
 
 const RenderSummary = ({ text }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <div className={classes.textForm}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} className={classes.markdown}>
@@ -140,7 +140,7 @@ RenderSummary.propTypes = {
 };
 
 const EditSummaryDialog = ({ open, onSave, onClose, text, summaryID }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [textToRender, setTextToRender] = useState(text);
 
   // handle Ctrl+S/Command+S to save
@@ -203,7 +203,7 @@ const GcnSummaryTable = ({
   serverSide = false,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);

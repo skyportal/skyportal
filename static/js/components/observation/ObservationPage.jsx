@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,7 +21,7 @@ import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 import * as observationsActions from "../../ducks/observations";
 import * as queuedObservationsActions from "../../ducks/queued_observations";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "22.5rem",
@@ -135,7 +135,7 @@ const ObservationPage = () => {
   const queued_observations = useSelector((state) => state.queued_observations);
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [fetchExecutedParams, setFetchExecutedParams] = useState({
     pageNumber: 1,

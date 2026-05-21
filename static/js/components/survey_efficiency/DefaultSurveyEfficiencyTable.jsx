@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
@@ -18,7 +18,7 @@ import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -73,7 +73,7 @@ const DefaultSurveyEfficiencyTable = ({
   sortingCallback,
   deletePermission,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const dispatch = useDispatch();

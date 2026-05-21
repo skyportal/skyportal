@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -14,7 +14,7 @@ import Button from "../Button";
 
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperDiv: {
     padding: "1rem",
     height: "100%",
@@ -96,7 +96,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const gcnEvents = useSelector((state) => state.gcnEvents);
@@ -131,7 +131,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
   };
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });

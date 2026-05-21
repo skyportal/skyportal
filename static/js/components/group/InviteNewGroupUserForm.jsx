@@ -17,8 +17,7 @@ import Popover from "@mui/material/Popover";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -28,7 +27,7 @@ import * as invitationsActions from "../../ducks/invitations";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   heading: {
     fontSize: "1.0625rem",
     fontWeight: 500,
@@ -57,7 +56,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
   const [formState, setFormState] = useState(defaultState);
   const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const handleClickExpirationDateHelp = (event) => {

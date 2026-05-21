@@ -8,7 +8,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
@@ -35,7 +35,7 @@ import withRouter from "../withRouter";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   eventTags: {
     marginLeft: "1rem",
     "& > div": {
@@ -91,7 +91,7 @@ const EarthquakePage = ({ route }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const earthquake = useSelector((state) => state.earthquake);
   const dispatch = useDispatch();
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   useEffect(() => {
     const fetchEarthquake = async (event_id) => {

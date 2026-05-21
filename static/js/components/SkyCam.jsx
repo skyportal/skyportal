@@ -4,10 +4,10 @@ import PropTypes from "prop-types";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CardMedia from "@mui/material/CardMedia";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   cardDiv: {
     minWidth: "18.75rem",
     minHeight: "18.75rem",
@@ -21,7 +21,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SkyCam = ({ telescope }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   if (!telescope.skycam_link) {
     return <div />;

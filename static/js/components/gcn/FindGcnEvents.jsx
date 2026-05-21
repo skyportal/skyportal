@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -9,7 +9,7 @@ import TextField from "@mui/material/TextField";
 
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     display: "flex",
     flexDirection: "column",
@@ -50,7 +50,7 @@ const FindGcnEvents = ({
   selectedLocalizationId,
   setSelectedLocalizationId,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
 
@@ -63,7 +63,7 @@ const FindGcnEvents = ({
   }, []);
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   if (gcnEvents?.events) {
     gcnEvents?.events.forEach((gcnEvent) => {
       gcnEventsLookUp[gcnEvent.id] = gcnEvent;
@@ -92,7 +92,6 @@ const FindGcnEvents = ({
             }` || ""
           }
           className={classes.select}
-          // eslint-disable-next-line no-shadow
           onInputChange={(event, value) => {
             if (event?.type !== "change") {
               return;

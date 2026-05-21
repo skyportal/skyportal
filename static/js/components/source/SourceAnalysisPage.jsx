@@ -11,7 +11,7 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import DownloadIcon from "@mui/icons-material/Download";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -23,12 +23,11 @@ import * as sourceActions from "../../ducks/source";
 
 dayjs.extend(calendar);
 
-const useStyles = makeStyles((theme) => ({
-  root: ({ size }) => ({
-    width: size,
+const useStyles = makeStyles()((theme) => ({
+  root: {
     margin: "0.5rem auto",
     flexGrow: 1,
-  }),
+  },
   div: {
     padding: "0.25rem 0.5rem 0.25rem 0",
     fontSize: "0.875rem",
@@ -81,7 +80,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SourceAnalysisPage = ({ route }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [analysis, setAnalysis] = useState(null);

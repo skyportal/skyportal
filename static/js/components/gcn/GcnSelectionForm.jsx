@@ -18,7 +18,7 @@ import { useTheme } from "@mui/material/styles";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
@@ -51,7 +51,7 @@ const GcnSummary = React.lazy(() => import("./GcnSummary"));
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   formGroup: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))",
@@ -108,7 +108,7 @@ const GcnEventSourcesPage = ({
   localizationName,
   sourceFilteringState,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const sourcesState = useSelector((state) => state.sources.gcnEventSources);
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
@@ -389,7 +389,7 @@ MyObjectFieldTemplate.propTypes = {
 
 const GcnSelectionForm = ({ dateobs }) => {
   const theme = useTheme();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [fetchingLocalization, setFetchingLocalization] = useState(false);
   const [selectedLocalizationName, setSelectedLocalizationName] =

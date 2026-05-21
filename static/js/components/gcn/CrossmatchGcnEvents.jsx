@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 import FindGcnEvents from "./FindGcnEvents";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     display: "flex",
     flexDirection: "column",
@@ -42,7 +41,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const Crossmatch = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [selectedGcnEventId1, setSelectedGcnEventId1] = useState(null);
   const [selectedLocalizationId1, setSelectedLocalizationId1] = useState(null);

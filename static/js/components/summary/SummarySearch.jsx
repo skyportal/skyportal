@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
@@ -26,7 +26,7 @@ import Button from "../Button";
 
 import * as summaryActions from "../../ducks/summary";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
     fontSize: "1.2rem",
@@ -72,7 +72,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SummarySearch = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const summary_sources_classes = useSelector(
     (state) => state.config.summary_sourcesClasses,
   );

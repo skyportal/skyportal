@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewEarthquake from "./NewEarthquake";
 import EarthquakeInfo from "./EarthquakeInfo";
@@ -11,7 +11,7 @@ import Spinner from "../Spinner";
 // lazy import the EarthquakeMap component
 const EarthquakeMap = lazy(() => import("./EarthquakeMap"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperContent: {
     padding: "1rem",
   },
@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme) => ({
 
 const EarthquakePage = () => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const earthquakes = useSelector((state) => state.earthquakes);
   const currentEarthquakeMenu = useSelector(

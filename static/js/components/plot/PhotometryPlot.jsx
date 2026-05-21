@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { useTheme } from "@mui/material/styles";
 import Slider from "@mui/material/Slider";
 import Select from "@mui/material/Select";
@@ -54,7 +54,7 @@ const periodUnitDividers = {
 
 const Plot = createPlotlyComponent(Plotly);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   gridContainer: {
     display: "grid",
     gridAutoFlow: "row",
@@ -237,7 +237,7 @@ const PhotometryPlot = ({
   showExtinctionCorrection,
 }) => {
   const theme = useTheme();
-  const classes = useStyles(theme);
+  const { classes } = useStyles(theme);
   const dispatch = useDispatch();
 
   const profile = useSelector((state) => state.profile);

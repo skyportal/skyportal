@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
@@ -9,7 +9,7 @@ import * as profileActions from "../../../ducks/profile";
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import DeletableChips from "../../DeletableChips";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   form: {
     display: "flex",
     gap: "1rem",
@@ -19,7 +19,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const ClassificationsShortcutForm = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
   const {
     handleSubmit,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import * as d3 from "d3";
 import Typography from "@mui/material/Typography";
 
@@ -19,7 +19,7 @@ const Plot = createPlotlyComponent(Plotly);
 
 const SNR_THRESHOLD = 3.0; // TODO: make this configurable from the UI
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   plotContainer: {
     width: "100%",
     height: "100%",
@@ -301,7 +301,7 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
 
 const CentroidPlot = ({ sourceId, plotStyle }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const { id, ra, dec } = useSelector((state) => state.source);
   const photometry = useSelector((state) => state.photometry[sourceId]);

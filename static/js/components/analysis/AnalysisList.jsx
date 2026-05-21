@@ -19,7 +19,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 
 import * as sourceActions from "../../ducks/source";
@@ -30,7 +30,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 dayjs.extend(calendar);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
     borderSpacing: "0.7em",
   },
@@ -102,7 +102,7 @@ const getMuiTheme = (theme) =>
   });
 
 const AnalysisList = ({ obj_id }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 

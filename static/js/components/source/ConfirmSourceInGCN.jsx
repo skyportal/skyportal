@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import { makeStyles, withStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
 
 import Dialog from "@mui/material/Dialog";
@@ -50,7 +50,7 @@ const defaultExplanations = defaultExplanationsHighlight.concat(
   defaultExplanationsReject,
 );
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -92,7 +92,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle className={classes.root}>
       <Typography variant="h6" className={classes.title}>
@@ -109,6 +109,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const ConfirmSourceInGCN = ({
@@ -121,7 +122,7 @@ const ConfirmSourceInGCN = ({
   sources_id_list,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 

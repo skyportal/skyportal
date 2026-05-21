@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { Controller, useForm } from "react-hook-form";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
@@ -17,7 +17,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import * as Actions from "../../ducks/source";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   formControl: {
     margin: theme.spacing(1),
     minWidth: 120,
@@ -39,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SourceNotification = ({ sourceId }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const groupIDToName = {};
   groups?.forEach((g) => {

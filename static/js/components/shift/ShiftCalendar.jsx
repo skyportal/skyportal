@@ -12,18 +12,15 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import GroupsSelect from "../group/GroupsSelect";
 import * as shiftsActions from "../../ducks/shifts";
 import { getLastDayOfMonthTwoMonthsAgo } from "./ShiftPage";
 
 const allViews = Object.keys(Views).map((k) => Views[k]);
-let dispatch;
-let currentUser;
 const localizer = momentLocalizer(moment);
-let groups;
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   content: {
     padding: theme.spacing(2),
     paddingBottom: "0",
@@ -99,11 +96,11 @@ function MyCalendar({
   preSelectedRange,
   setPreSelectedRange,
 }) {
-  dispatch = useDispatch();
-  const classes = useStyles();
+  const dispatch = useDispatch();
+  const { classes } = useStyles();
   const currentShift = useSelector((state) => state.shifts.currentShift);
-  currentUser = useSelector((state) => state.profile);
-  groups = useSelector((state) => state.groups.userAccessible);
+  const currentUser = useSelector((state) => state.profile);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [defaultDate, setDefaultDate] = useState();
   const [showAllShifts, setShowAllShifts] = useState(false);
   const [sortByGroups, setSortByGroups] = useState(false);
@@ -310,16 +307,6 @@ function MyCalendar({
       </div>
     </div>
   );
-  const ShiftToolTip = () => (
-    <Tooltip
-      title={Title()}
-      placement="top"
-      classes={{ tooltip: classes.tooltip }}
-    >
-      <HelpOutlineOutlinedIcon />
-    </Tooltip>
-  );
-
   return (
     <div>
       {!shifts ? (
@@ -422,7 +409,13 @@ function MyCalendar({
               </div>
             </div>
             <div className={classes.help}>
-              <ShiftToolTip />
+              <Tooltip
+                title={Title()}
+                placement="top"
+                classes={{ tooltip: classes.tooltip }}
+              >
+                <HelpOutlineOutlinedIcon />
+              </Tooltip>
             </div>
           </div>
         </div>

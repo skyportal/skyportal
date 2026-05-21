@@ -1,5 +1,5 @@
 import React from "react";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -65,7 +65,7 @@ export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
   return schema;
 };
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   sourcePublishOptions: {
     marginBottom: "1rem",
     display: "flex",
@@ -78,7 +78,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourcePublishOptions = ({ options, setOptions, isElements }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const streams = useSelector((state) => state.streams);
   const groups = useSelector((state) => state.groups.userAccessible);
 

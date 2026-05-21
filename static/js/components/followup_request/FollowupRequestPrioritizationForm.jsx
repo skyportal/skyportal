@@ -7,12 +7,11 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import * as followupRequestActions from "../../ducks/followup_requests";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   select: {
     width: "25%",
   },
@@ -26,7 +25,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const FollowupRequestPrioritizationForm = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
 

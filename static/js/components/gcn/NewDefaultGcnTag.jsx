@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -15,7 +15,7 @@ import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -39,7 +39,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const NewDefaultGcnTag = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState([]);

@@ -6,7 +6,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Controller, useForm } from "react-hook-form";
@@ -16,7 +16,7 @@ import Button from "../Button";
 
 import * as ProfileActions from "../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -28,7 +28,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateTokenACLs = ({ tokenId, currentACLs, availableACLs }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);

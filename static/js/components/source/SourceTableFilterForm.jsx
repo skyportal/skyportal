@@ -7,7 +7,7 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import TextField from "@mui/material/TextField";
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Input from "@mui/material/Input";
 import Chip from "@mui/material/Chip";
@@ -23,7 +23,7 @@ import { allowedClasses } from "../classification/ClassificationForm";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperDiv: {
     padding: "1rem",
     height: "100%",
@@ -115,7 +115,7 @@ const SourceTableFilterForm = ({
   handleFilterSubmit,
   spatialCatalogQuery = true,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 

@@ -4,12 +4,12 @@ import { Link } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Button from "../Button";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   row: {
     display: "flex",
     flexDirection: "row",
@@ -18,7 +18,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (gcn_crossmatches?.length > 1) {

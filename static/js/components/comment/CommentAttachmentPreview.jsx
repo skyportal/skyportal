@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -20,7 +20,7 @@ import * as gcnEventActions from "../../ducks/gcnEvent";
 import * as shiftsActions from "../../ducks/shifts";
 import * as earthquakeActions from "../../ducks/earthquake";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   dialogTitle: {
     display: "flex",
     flexDirection: "row",
@@ -177,7 +177,7 @@ const CommentAttachmentPreview = ({
   shiftID = null,
   earthquakeID = null,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
   const dispatch = useDispatch();

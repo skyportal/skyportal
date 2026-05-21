@@ -12,7 +12,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
@@ -36,7 +36,7 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "flux_corr",
 ];
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
@@ -98,7 +98,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 

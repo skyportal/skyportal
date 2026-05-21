@@ -1,9 +1,8 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
-
-const useStyles = makeStyles(() => ({
+import { makeStyles } from "tss-react/mui";
+const useStyles = makeStyles()(() => ({
   rotateLogo: {
     verticalAlign: "middle",
     height: "100%",
@@ -29,7 +28,7 @@ const useStyles = makeStyles(() => ({
 
 const Logo = ({ src, altText }) => {
   const rotateLogo = useSelector((state) => state.logo.rotateLogo);
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   return (
     <div className={styles.logoContainer}>
       <img

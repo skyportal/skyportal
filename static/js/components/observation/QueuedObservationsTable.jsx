@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -14,7 +14,7 @@ import MUIDataTable from "mui-datatables";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -70,7 +70,7 @@ const QueuedObservationsTable = ({
   numPerPage = 10,
   serverSide = true,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const { instrumentList } = useSelector((state) => state.instruments);

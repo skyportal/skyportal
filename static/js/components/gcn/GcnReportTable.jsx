@@ -2,14 +2,14 @@ import React from "react";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
 
 import Button from "../Button";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -55,7 +55,7 @@ const GcnReportTable = ({
   numPerPage = 10,
   serverSide = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   if (!reports || reports?.length === 0) {
