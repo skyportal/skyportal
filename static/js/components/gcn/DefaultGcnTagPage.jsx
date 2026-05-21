@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";
 import DefaultGcnTagTable from "./DefaultGcnTagTable";
 
 import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     backgroundColor: theme.palette.background.paper,
@@ -44,7 +44,7 @@ const DefaultGcnTags = () => {
 
 const DefaultGcnTagPage = () => {
   const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const permission =
     currentUser.permissions?.includes("System admin") ||

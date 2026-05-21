@@ -5,9 +5,8 @@ import ListItem from "@mui/material/ListItem";
 import Typography from "@mui/material/Typography";
 
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
-
-const useStyles = makeStyles(() => ({
+import { makeStyles } from "tss-react/mui";
+const useStyles = makeStyles()(() => ({
   root: {
     margin: "0",
     padding: "0",
@@ -18,8 +17,8 @@ const useStyles = makeStyles(() => ({
 }));
 
 const GcnCirculars = ({ gcnEvent }) => {
-  const classes = useStyles();
-  const styles = useStyles();
+  const { classes } = useStyles();
+  const { classes: styles } = useStyles();
 
   return (
     <div className={classes.root}>

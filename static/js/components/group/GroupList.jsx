@@ -7,9 +7,8 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import makeStyles from "@mui/styles/makeStyles";
-
-const useStyles = makeStyles(() => ({
+import { makeStyles } from "tss-react/mui";
+const useStyles = makeStyles()(() => ({
   listContainer: {
     overflowX: "hidden",
     overflowY: "scroll",
@@ -22,7 +21,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const GroupList = ({ title, groups, classes, linkToGroupSources }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const getLink = (group) =>
     linkToGroupSources ? `/group_sources/${group.id}` : `/group/${group.id}`;

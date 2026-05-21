@@ -1,4 +1,4 @@
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -32,7 +32,7 @@ const initialFormState = {
   numoffset: 3,
 };
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   media: {
     maxWidth: "100%",
     width: "95%",
@@ -66,7 +66,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const PlaceHolder = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <div className={classes.spinner}>
       <TextLoop>
@@ -83,7 +83,7 @@ const PlaceHolder = () => {
 
 const FindingChart = () => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const {
     handleSubmit,
     getValues,

@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -18,7 +17,7 @@ const ALLOWED_TYPES = [
   "GCN comments",
 ];
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     "& .MuiOutlinedInput-root": {
       backgroundColor: theme.palette.primary.light,
@@ -89,7 +88,7 @@ const filterOptions = createFilterOptions({
 });
 
 const QuickSearchBar = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -326,7 +325,6 @@ const QuickSearchBar = () => {
         popupIcon={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             variant="outlined"
             placeholder="Search"

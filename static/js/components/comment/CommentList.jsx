@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 
@@ -22,7 +22,7 @@ import Comment from "./Comment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   commentsContainer: {
     width: "100%",
   },
@@ -168,7 +168,7 @@ const CommentList = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
 }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {

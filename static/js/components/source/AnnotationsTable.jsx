@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -27,7 +27,7 @@ import * as spectraActions from "../../ducks/spectra";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     margin: "auto",
@@ -108,7 +108,7 @@ const AnnotationsTable = ({
   spectrumAnnotations = [],
   canExpand = true,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
   const renderValue = (value) => getAnnotationValueString(value);

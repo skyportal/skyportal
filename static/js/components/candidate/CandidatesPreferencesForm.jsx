@@ -14,8 +14,7 @@ import Checkbox from "@mui/material/Checkbox";
 import SaveIcon from "@mui/icons-material/Save";
 import Switch from "@mui/material/Switch";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
@@ -29,7 +28,7 @@ import ClassificationSelect from "../classification/ClassificationSelect";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   filterListContainer: {
     padding: "1rem",
     display: "flex",
@@ -103,7 +102,7 @@ const CandidatesPreferencesForm = ({
   selectedScanningProfile,
   setSelectedScanningProfile,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const preferences = useSelector((state) => state.profile.preferences);
 
   const dispatch = useDispatch();

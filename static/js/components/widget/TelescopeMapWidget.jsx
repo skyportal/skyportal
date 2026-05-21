@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Tooltip, IconButton } from "@mui/material";
@@ -10,7 +10,7 @@ import ReplayIcon from "@mui/icons-material/Replay";
 
 const TelescopeMap = lazy(() => import("../telescope/TelescopeMap"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   mapContainer: {
     position: "relative",
     width: "100%",
@@ -98,7 +98,7 @@ const TelescopeToolTip = ({ classes }) => (
 TelescopeToolTip.propTypes = { classes: classesPropType.isRequired };
 
 const TelescopeMapWidget = ({ classes: parentClasses }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const [mapKey, setMapKey] = useState(0);
 

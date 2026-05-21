@@ -3,13 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
 import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
 import ReleasesList from "../../release/ReleasesList";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   sourcePublishRelease: {
     marginBottom: "1rem",
     display: "flex",
@@ -39,7 +39,7 @@ const SourcePublishRelease = ({
   setSourceReleaseId,
   setOptions,
 }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const releases = useSelector((state) => state.publicReleases);

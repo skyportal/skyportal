@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Checkbox from "@mui/material/Checkbox";
 import TextField from "@mui/material/TextField";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -13,7 +13,7 @@ import Button from "../Button";
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   commentEntry: {
     position: "relative",
   },
@@ -34,7 +34,7 @@ const CommentEntry = ({
   attachmentName,
   closeDialog,
 }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const users = useSelector((state) => state.users);
   const { userAccessible: groups } = useSelector((state) => state.groups);
   const { instrumentList } = useSelector((state) => state.instruments);

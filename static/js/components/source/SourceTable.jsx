@@ -21,7 +21,7 @@ import MUIDataTable from "mui-datatables";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -69,7 +69,7 @@ import NewSource from "./NewSource";
 const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   tableGrid: {
     width: "100%",
   },
@@ -85,11 +85,9 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     fontSize: "1rem",
   },
-  annotations: (props) => ({
-    minWidth: props.annotationsMinWidth,
-    maxWidth: props.annotationsMaxWidth,
+  annotations: {
     overflowWrap: "break-word",
-  }),
+  },
   root: {
     width: "100%",
     background: theme.palette.background.paper,
@@ -251,7 +249,7 @@ let defaultDisplayedColumns = [
 ];
 
 const RenderShowClassification = ({ source }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
@@ -620,7 +618,7 @@ const SourceTable = ({
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const [searchBy, setSearchBy] = useState("name");

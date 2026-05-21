@@ -14,14 +14,13 @@ import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import * as sourceActions from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   iconButton: {
     display: "inline-block",
   },
@@ -31,7 +30,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const EditSourceGroups = ({ source, groups, icon }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");

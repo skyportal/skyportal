@@ -5,7 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import ClearIcon from "@mui/icons-material/Clear";
 import Tooltip from "@mui/material/Tooltip";
@@ -16,7 +16,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import * as sourceActions from "../../ducks/source";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   formInput: {
     marginTop: "0.5rem",
   },
@@ -31,7 +31,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateSourceT0 = ({ source }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [t0, setT0] = useState(source.t0 ? String(source.t0) : "");
 

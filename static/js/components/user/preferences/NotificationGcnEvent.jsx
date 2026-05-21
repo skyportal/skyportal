@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Chip from "@mui/material/Chip";
@@ -37,7 +37,7 @@ const comparators = {
   gt: ">=",
 };
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   pref: {
     display: "flex",
     flexDirection: "row",
@@ -102,7 +102,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const NotificationGcnEvent = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
   const { notifications } = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();

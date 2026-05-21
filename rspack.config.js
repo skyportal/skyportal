@@ -8,7 +8,8 @@ const config = (env, argv) => {
   return {
     entry: {
       main: [
-        "@babel/polyfill",
+        "core-js/stable",
+        "regenerator-runtime/runtime",
         path.resolve(__dirname, "static/js/components/templates/Main.jsx"),
       ],
     },
@@ -69,8 +70,8 @@ const config = (env, argv) => {
             plugins: [
               "@babel/plugin-transform-async-to-generator",
               "@babel/plugin-transform-arrow-functions",
-              "@babel/plugin-proposal-class-properties",
-              "@babel/plugin-proposal-object-rest-spread",
+              "@babel/plugin-transform-class-properties",
+              "@babel/plugin-transform-object-rest-spread",
             ],
             compact: false,
           },

@@ -3,11 +3,10 @@ import { useSelector } from "react-redux";
 
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import GroupList from "./GroupList";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   // Hide drag handle icon since this isn't the home page
   widgetIcon: {
     display: "none",
@@ -25,7 +24,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const GroupManagement = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const allGroups = useSelector((state) => state.groups.all)?.filter(
     (group) => !group.single_user_group,
   );

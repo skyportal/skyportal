@@ -7,8 +7,7 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import HelpIcon from "@mui/icons-material/Help";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -23,7 +22,7 @@ import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   header: {},
   icon: {
     height: "1rem",
@@ -85,7 +84,7 @@ const defaultPrefs = {
 };
 
 const RecentGcnEvents = ({ classes }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const gcnEvents = useSelector((state) => state.recentGcnEvents);
   const recentEventsPrefs =

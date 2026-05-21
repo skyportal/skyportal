@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Button from "../Button";
@@ -14,7 +14,7 @@ const magsysOptions = [
   { label: "Vega", magsys: "vega", tooltip: "Display Vega magnitudes" },
 ];
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   magsysSelect: {
     display: "inline",
     "& > button": {
@@ -42,7 +42,7 @@ const PhotometryMagsys = ({ magsys, setMagsys }) => {
     setMagsys(newMagsys.magsys);
   };
 
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   return (
     <div

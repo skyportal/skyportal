@@ -12,7 +12,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from "tss-react/mui";
 import Collapse from '@mui/material/Collapse';
 import Divider from "@mui/material/Divider";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -36,7 +36,7 @@ import hydrate from "../../actions";
 
 const drawerWidth = 170;
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     display: 'flex',
     padding: 0,
@@ -119,7 +119,7 @@ const useStyles = makeStyles((theme) => ({
 
 // eslint-disable-next-line react/prop-types
 const SidebarLinkText = ({ route, title, open }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const currentRoute = useLocation().pathname;
 
   return (
@@ -136,7 +136,7 @@ const SidebarLinkText = ({ route, title, open }) => {
 
 
 const SidebarAndHeader = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const open = useSelector((state) => state.sidebar.open);
   const currentUser = useSelector((state) => state.profile);

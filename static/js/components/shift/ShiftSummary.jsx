@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
 import List from "@mui/material/List";
@@ -19,7 +19,7 @@ import * as shiftsActions from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
 import * as sourcesActions from "../../ducks/sources";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   content: {
     padding: theme.spacing(2),
     marginBottom: theme.spacing(2),
@@ -57,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ShiftSummary = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [selectedGCN, setSelectedGCN] = useState(null);
   const sources = useSelector((state) => state?.sources?.gcnEventSources);

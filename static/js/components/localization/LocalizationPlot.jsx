@@ -3,8 +3,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
@@ -12,7 +11,7 @@ import d3GeoZoom from "d3-geo-zoom";
 import GeoPropTypes from "geojson-prop-types";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   fieldStyle: {
     stroke: "blue",
     strokeWidth: "0.5",
@@ -274,7 +273,7 @@ const GeoJSONGlobePlot = ({
     orthographic: 1.57,
     mollweide: 3.14,
   };
-  const classes = useStyles();
+  const { classes } = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
     const center = [svgwidth / 2, svgheight / 2];
     let projection = null;
