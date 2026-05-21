@@ -32,16 +32,13 @@ from baselayer.app.models import (
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
-<<<<<<< feat_hermes_sync
 from ..utils.photometry import mag2flux as _mag2flux
 from ..utils.photometry import magerr2fluxerr as _magerr2fluxerr
-=======
 
 # Cast literal "NaN" once at module import — comparing a double-precision
 # column against the bare string "NaN" works under psycopg2 but fails under
 # psycopg3 (UndefinedFunction). Reuse the casted literal in SQL expressions.
 _PG_NAN = sa.cast(sa.literal("NaN"), sa.Float)
->>>>>>> main
 from .group import accessible_by_groups_members, accessible_by_streams_members
 from .photometry import PHOT_ZP
 
