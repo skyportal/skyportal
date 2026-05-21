@@ -547,7 +547,11 @@ class ObjTagHandler(BaseHandler):
         data = self.get_json() or {}
         requested_group_ids = data.get("group_ids")
 
-        if requested_group_ids is not None and len(requested_group_ids) == 0:
+        if (
+            requested_group_ids is not None
+            and isinstance(requested_group_ids, list)
+            and len(requested_group_ids) == 0
+        ):
             return self.error("`group_ids` cannot be an empty list", status=400)
 
         with self.Session() as session:

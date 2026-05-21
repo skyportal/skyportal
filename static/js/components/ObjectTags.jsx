@@ -22,7 +22,6 @@ import Button from "./Button";
 import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
 import * as objectTagsActions from "../ducks/objectTags";
-import * as groupsActions from "../ducks/groups";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -100,7 +99,6 @@ const ObjectTags = ({ source }) => {
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
-    dispatch(groupsActions.fetchGroups());
   }, [dispatch]);
 
   const handleOpenDialog = () => {
