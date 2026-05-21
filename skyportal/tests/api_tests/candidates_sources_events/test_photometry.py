@@ -1,13 +1,19 @@
+import datetime
 import os
 import uuid
 
 import numpy as np
 import pandas as pd
+import pytest
 import sncosmo
 import sqlalchemy as sa
+from marshmallow.exceptions import ValidationError as MMValidationError
 
 from baselayer.app.env import load_env
-from skyportal.handlers.api.photometry import add_external_photometry
+from skyportal.handlers.api.photometry import (
+    add_external_photometry,
+    bulk_upsert_photometry,
+)
 from skyportal.models import DBSession, Token
 from skyportal.models.photometry import Photometry
 from skyportal.tests import api, assert_api
@@ -3305,3 +3311,100 @@ def test_token_user_big_post(
         data["message"]
         == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
     )
+
+
+def _build_params(obj_id, instrument_id, user_id, mjd_offset=0, flux=100.0):
+    """Construct minimal Photometry param dicts for bulk_upsert_photometry.
+
+    All Photometry NOT NULL columns are populated; non-dedup fields are kept
+    distinct from defaults so we can detect updates.
+    """
+    now = datetime.datetime.utcnow()
+    return [
+        {
+            "obj_id": obj_id,
+            "instrument_id": instrument_id,
+            "mjd": 59000.0 + mjd_offset + i,
+            "flux": flux,
+            "fluxerr": 2.0,
+            "filter": "ztfr",
+            "origin": "bulk-upsert-test",
+            "ra": 10.0,
+            "dec": 20.0,
+            "ra_unc": None,
+            "dec_unc": None,
+            "altdata": None,
+            "original_user_data": None,
+            "upload_id": str(uuid.uuid4()),
+            "owner_id": user_id,
+            "ref_flux": None,
+            "ref_fluxerr": None,
+            "created_at": now,
+            "modified": now,
+        }
+        for i in range(3)
+    ]
+
+
+def test_bulk_upsert_photometry_error_mode(public_source, ztf_camera, user):
+    """duplicates="error": first insert succeeds; re-inserting any
+    overlapping row raises ValidationError listing the dedup keys."""
+    params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=100)
+    session = DBSession()
+    ids = bulk_upsert_photometry(session, params, duplicates="error")
+    session.commit()
+    assert len(ids) == 3
+    assert all(isinstance(i, int) for i in ids)
+
+    # Second call with overlapping dedup keys should raise
+    with pytest.raises(MMValidationError) as excinfo:
+        bulk_upsert_photometry(session, params, duplicates="error")
+    session.rollback()
+    assert "already exists" in str(excinfo.value)
+
+    # Cleanup
+    session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
+    session.commit()
+
+
+def test_bulk_upsert_photometry_ignore_mode(public_source, ztf_camera, user):
+    """duplicates="ignore": re-inserting overlapping rows is a no-op;
+    returns the IDs of the existing rows in input order."""
+    params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=200)
+    session = DBSession()
+    first_ids = bulk_upsert_photometry(session, params, duplicates="ignore")
+    session.commit()
+    assert len(first_ids) == 3
+
+    # Re-call with same params — should not raise, should return same IDs
+    second_ids = bulk_upsert_photometry(session, params, duplicates="ignore")
+    session.commit()
+    assert second_ids == first_ids
+
+    session.execute(sa.delete(Photometry).where(Photometry.id.in_(first_ids)))
+    session.commit()
+
+
+def test_bulk_upsert_photometry_update_mode(public_source, ztf_camera, user):
+    """duplicates="update": overlapping dedup keys atomically update the
+    non-key columns. Verify a non-key field (ra) is overwritten."""
+    params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=300)
+    session = DBSession()
+    ids = bulk_upsert_photometry(session, params, duplicates="update")
+    session.commit()
+    assert len(ids) == 3
+
+    # Mutate non-key column and re-upsert
+    new_ra = 99.5
+    for p in params:
+        p["ra"] = new_ra
+    updated_ids = bulk_upsert_photometry(session, params, duplicates="update")
+    session.commit()
+    assert updated_ids == ids  # same rows
+
+    # Verify the update actually landed
+    rows = session.scalars(sa.select(Photometry).where(Photometry.id.in_(ids))).all()
+    assert all(r.ra == new_ra for r in rows)
+
+    session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
+    session.commit()
