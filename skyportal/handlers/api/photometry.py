@@ -85,11 +85,16 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def numpy_to_native(value):
-    """Convert a numpy scalar to a native Python type.
+    """Recursively convert numpy scalars and arrays inside ``value`` to
+    native Python types. Passes through anything that's already native.
 
-    In numpy 2.x, numpy scalars are no longer subclasses of Python
-    built-in types, which can cause issues with JSON serialization
-    and database adapters (e.g., psycopg2).
+    In numpy 2.x, numpy scalars are no longer subclasses of Python built-in
+    types, which can cause issues with JSON serialization and database
+    adapters (e.g., psycopg2/3 rejecting np.float64 in JSONB payloads).
+
+    Use this on a dict/list before handing it to ``pg_insert.values()`` for
+    a JSONB column, instead of a ``json.loads(json.dumps(..., NumpyEncoder))``
+    round-trip — same effect, no parse step.
     """
     if isinstance(value, np.integer):
         return int(value)
@@ -97,6 +102,12 @@ def numpy_to_native(value):
         return float(value)
     if isinstance(value, np.bool_):
         return bool(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {k: numpy_to_native(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [numpy_to_native(x) for x in value]
     return value
 
 
@@ -857,33 +868,30 @@ def get_values_table_and_condition(df, ignore_flux=False):
     return values_table, condition
 
 
-_PHOTOMETRY_DEDUP_COLS = (
-    "obj_id",
-    "instrument_id",
-    "origin",
-    "mjd",
-    "fluxerr",
-    "flux",
-)
+# Per-column coercions applied when building a dedup key from either an
+# input param dict (raw user data, may contain numpy scalars) or a row
+# returned from RETURNING (driver types). Columns not listed pass through
+# unchanged. Keep aligned with Photometry.DEDUP_COLUMNS.
+_DEDUP_COERCIONS = {
+    "origin": str,
+    "mjd": float,
+    "fluxerr": float,
+    "flux": float,
+}
 
 
 def _dedup_key(row):
     """Normalize a row (dict or ORM result) into the canonical deduplication
-    key tuple matching the Photometry deduplication_index columns. Coercing
-    types here lets us treat returned rows and input params interchangeably
-    in the id_by_key map.
+    key tuple matching the Photometry.DEDUP_COLUMNS columns. Coercing types
+    here lets us treat returned rows and input params interchangeably in
+    the id_by_key map.
     """
     if isinstance(row, dict):
         get = row.get
     else:
         get = lambda k: getattr(row, k)  # noqa: E731
-    return (
-        get("obj_id"),
-        get("instrument_id"),
-        str(get("origin")),
-        float(get("mjd")),
-        float(get("fluxerr")),
-        float(get("flux")),
+    return tuple(
+        _DEDUP_COERCIONS.get(c, lambda x: x)(get(c)) for c in Photometry.DEDUP_COLUMNS
     )
 
 
@@ -935,23 +943,23 @@ def bulk_upsert_photometry(session, params, duplicates):
     stmt = pg_insert(Photometry).values(params)
     if duplicates == "error":
         stmt = stmt.on_conflict_do_nothing(
-            index_elements=list(_PHOTOMETRY_DEDUP_COLS),
+            index_elements=list(Photometry.DEDUP_COLUMNS),
         )
     elif duplicates == "ignore":
         # No-op set: keep the existing row exactly as-is, but emit it in
         # RETURNING so we can read back its id.
         stmt = stmt.on_conflict_do_update(
-            index_elements=list(_PHOTOMETRY_DEDUP_COLS),
+            index_elements=list(Photometry.DEDUP_COLUMNS),
             set_={"id": Photometry.id},
         )
     elif duplicates == "update":
         non_key_cols = {col.name for col in Photometry.__table__.columns} - {
-            *_PHOTOMETRY_DEDUP_COLS,
+            *Photometry.DEDUP_COLUMNS,
             "id",
             "created_at",
         }
         stmt = stmt.on_conflict_do_update(
-            index_elements=list(_PHOTOMETRY_DEDUP_COLS),
+            index_elements=list(Photometry.DEDUP_COLUMNS),
             set_={c: stmt.excluded[c] for c in non_key_cols},
         )
     else:
@@ -959,7 +967,7 @@ def bulk_upsert_photometry(session, params, duplicates):
 
     stmt = stmt.returning(
         Photometry.id,
-        *(getattr(Photometry, c) for c in _PHOTOMETRY_DEDUP_COLS),
+        *(getattr(Photometry, c) for c in Photometry.DEDUP_COLUMNS),
     )
     returned = session.execute(stmt).all()
 
@@ -1037,20 +1045,12 @@ def insert_new_photometry_data(
         if isinstance(altdata_val, float) and np.isnan(altdata_val):
             altdata_val = None
         phot = {
-            "original_user_data": (
-                json.loads(json.dumps(original_user_data, cls=NumpyEncoder))
-                if original_user_data is not None
-                else None
-            ),
+            "original_user_data": numpy_to_native(original_user_data),
             "upload_id": upload_id,
             "flux": flux,
             "fluxerr": fluxerr,
             "obj_id": packet["obj_id"],
-            "altdata": (
-                json.loads(json.dumps(altdata_val, cls=NumpyEncoder))
-                if altdata_val is not None
-                else None
-            ),
+            "altdata": numpy_to_native(altdata_val),
             "instrument_id": packet["instrument_id"],
             "ra_unc": packet["ra_unc"],
             "dec_unc": packet["dec_unc"],
