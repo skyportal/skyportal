@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import Box from "@mui/material/Box";
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
@@ -20,7 +20,7 @@ import hydrate from "../../actions";
 import QuickSearchBar from "../QuickSearchBar";
 import {alpha} from "@mui/material/styles";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   topBannerContent: {
     width: "100%",
     position: "relative",
@@ -71,7 +71,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const HeaderContent = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const isDesktop = useMediaQuery((theme) => theme.breakpoints.up("md"));

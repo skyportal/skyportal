@@ -221,7 +221,11 @@ def post_aliases(dateobs, tach_id, user_id):
     try:
         flow = Flow()
         user = session.scalars(sa.select(User).where(User.id == user_id)).first()
-        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        if isinstance(dateobs, str):
+            dateobs_parsed = arrow.get(dateobs).naive
+        else:
+            dateobs_parsed = dateobs
+        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs_parsed)
         gcn_event = session.scalars(stmt).first()
         if gcn_event is None:
             return
@@ -299,13 +303,13 @@ class GcnTachHandler(BaseHandler):
                 schema: Error
         """
         try:
-            arrow.get(dateobs).datetime
+            dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == dateobs_parsed
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
@@ -340,13 +344,13 @@ class GcnTachHandler(BaseHandler):
     def get(self, dateobs):
         # gets the circulars and aliases of a GCN event
         try:
-            arrow.get(dateobs).datetime
+            dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == dateobs_parsed
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:

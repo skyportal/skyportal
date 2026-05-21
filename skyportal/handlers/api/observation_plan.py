@@ -1000,7 +1000,9 @@ class ObservationPlanRequestHandler(BaseHandler):
                 observation_plan_request = session.scalars(
                     ObservationPlanRequest.select(
                         session.user_or_token, options=options
-                    ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                    ).where(
+                        ObservationPlanRequest.id == int(observation_plan_request_id)
+                    )
                 ).first()
 
                 if observation_plan_request is None:
@@ -1104,18 +1106,19 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at <= end_date
                 )
             if dateobs:
+                parsed_dateobs = arrow.get(dateobs).naive
                 gcn_event_query = GcnEvent.select(self.current_user).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == parsed_dateobs
                 )
                 gcn_event_subquery = gcn_event_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1126,8 +1129,12 @@ class ObservationPlanRequestHandler(BaseHandler):
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
+                try:
+                    instrument_id_int = int(instrumentID)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid instrumentID: {instrumentID}")
                 allocation_query = Allocation.select(self.current_user).where(
-                    Allocation.instrument_id == instrumentID
+                    Allocation.instrument_id == instrument_id_int
                 )
                 allocation_subquery = allocation_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1180,7 +1187,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
                     session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id))
             ).first()
             if observation_plan_request is None:
                 return self.error(
@@ -1247,7 +1254,9 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             if "gcnevent_id" in json_data:
                 stmt = stmt.where(GcnEvent.id == json_data["gcnevent_id"])
             elif "dateobs" in json_data:
-                stmt = stmt.where(GcnEvent.dateobs == json_data["dateobs"])
+                stmt = stmt.where(
+                    GcnEvent.dateobs == arrow.get(json_data["dateobs"]).naive
+                )
             else:
                 return self.error(
                     message="Need to specify either gcnevent_id or dateobs"
@@ -1409,7 +1418,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
                     session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id))
             ).first()
             if observation_plan_request is None:
                 return self.error(
@@ -1540,7 +1549,7 @@ class ObservationPlanGCNHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1754,7 +1763,7 @@ class ObservationPlanMovieHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1840,7 +1849,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1999,7 +2008,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2085,7 +2094,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans).joinedload(
                         EventObservationPlan.survey_efficiency_analyses
@@ -2145,7 +2154,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2222,7 +2231,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2306,7 +2315,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
             telescopes = session.scalars(stmt).all()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
             m = localization.flat_2d
@@ -2446,7 +2455,7 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
             telescopes = session.scalars(stmt).all()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
             cent = localization.contour["features"][0]["geometry"]["coordinates"]
@@ -2548,12 +2557,12 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = Telescope.select(self.current_user).where(
-                Telescope.id == telescope_id
+                Telescope.id == int(telescope_id)
             )
             telescope = session.scalars(stmt).first()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
 
@@ -2635,7 +2644,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                         .joinedload(EventObservationPlan.planned_observations)
                         .joinedload(PlannedObservation.field)
                     ],
-                ).where(ObservationPlanRequest.id == observation_plan_request_id),
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id)),
             ).first()
             if observation_plan_request is None:
                 raise self.error(
@@ -2775,7 +2784,7 @@ def observation_simsurvey(
 
     try:
         localization = session.scalars(
-            sa.select(Localization).where(Localization.id == localization_id)
+            sa.select(Localization).where(Localization.id == int(localization_id))
         ).first()
         if localization is None:
             raise ValueError(f"No localization with ID {localization_id}")
@@ -3220,7 +3229,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -3638,6 +3647,12 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
 
         with self.Session() as session:
             if default_observation_plan_id is not None:
+                try:
+                    default_observation_plan_id = int(default_observation_plan_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid default_observation_plan_id {default_observation_plan_id}"
+                    )
                 default_observation_plan_request = session.scalars(
                     DefaultObservationPlanRequest.select(
                         session.user_or_token,
@@ -3694,6 +3709,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            default_observation_plan_id = int(default_observation_plan_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid default_observation_plan_id {default_observation_plan_id}"
+            )
 
         with self.Session() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(

@@ -55,6 +55,10 @@ class TaxonomyHandler(BaseHandler):
 
         with self.Session() as session:
             if taxonomy_id is not None:
+                try:
+                    taxonomy_id = int(taxonomy_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
                 taxonomy = Taxonomy.get_taxonomy_usable_by_user(
                     taxonomy_id,
                     self.current_user,
@@ -341,6 +345,10 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            taxonomy_id = int(taxonomy_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
         with self.Session() as session:
             classification = session.scalars(
                 sa.select(Classification).where(

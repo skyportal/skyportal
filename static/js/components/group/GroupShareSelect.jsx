@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
@@ -9,7 +9,7 @@ import FormControl from "@mui/material/FormControl";
 import Chip from "@mui/material/Chip";
 import Input from "@mui/material/Input";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   formControl: {
     marginTop: theme.spacing(1),
     minWidth: 170,
@@ -36,7 +36,7 @@ const GroupShareSelect = ({
   setGroupIDs,
   maxGroups = 3,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const handleChange = (event) => {

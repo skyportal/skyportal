@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import { makeStyles, withStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
@@ -34,7 +34,7 @@ import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   tags: {
     margin: "0 1px 1px 0",
     "& > div": {
@@ -173,7 +173,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle className={classes.root}>
       <Typography className={classes.title}>{children}</Typography>
@@ -188,12 +188,13 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const defaultNumPerPage = 10;
 
 const GcnEvents = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);

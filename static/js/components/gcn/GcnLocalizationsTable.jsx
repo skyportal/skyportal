@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Chip from "@mui/material/Chip";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -14,7 +14,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as localizationActions from "../../ducks/localization";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   accordion: {
     width: "100%",
   },
@@ -84,7 +84,7 @@ const getMuiTheme = (theme) =>
   });
 
 const GcnLocalizationsTable = ({ localizations }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 

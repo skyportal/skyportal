@@ -15,8 +15,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import Button from "../Button";
 import * as profileActions from "../../ducks/profile";
@@ -48,7 +47,7 @@ const savedStatusSelectOptions = [
   },
 ];
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -102,7 +101,7 @@ const ScanningProfilesList = ({
   availableAnnotationsInfo,
   classifications,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const profiles = useSelector(
     (state) => state.profile.preferences.scanningProfiles,

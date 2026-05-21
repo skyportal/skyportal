@@ -2,15 +2,14 @@ import React, { useEffect, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import SourceTable from "../source/SourceTable";
 
 import * as sourcesActions from "../../ducks/sources";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -26,7 +25,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const FavoritesPage = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
 

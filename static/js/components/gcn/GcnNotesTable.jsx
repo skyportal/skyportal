@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -24,7 +24,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     margin: "auto",
@@ -101,7 +101,7 @@ const getMuiTheme = (theme) =>
 
 // Table for displaying annotations
 const GcnNotesTable = ({ gcnNotes, canExpand = true }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const [openGCNNotes, setOpenGCNNotes] = useState(false);

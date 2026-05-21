@@ -6,13 +6,13 @@ import Tooltip from "@mui/material/Tooltip";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import DialogTitle from "@mui/material/DialogTitle";
 import * as profileActions from "../../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   tooltip: {
     fontSize: "1rem",
     maxWidth: "30rem",
@@ -22,7 +22,7 @@ const useStyles = makeStyles(() => ({
 const CustomizeOpenAIParameters = () => {
   const dispatch = useDispatch();
   const [aiopen, setAIOpen] = useState(false);
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const site_openai_summary_parameters = useSelector(
     (state) => state.config.openai_summary_parameters,

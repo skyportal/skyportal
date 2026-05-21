@@ -1876,6 +1876,56 @@ def test_token_user_retrieving_source_photometry_and_convert(
     assert np.allclose(magerrlast_ab, magerrlast_vega)
 
 
+def test_source_photometry_format_plot_is_slim(view_only_token, public_source):
+    """``format=plot`` must return only the lightcurve-plotter fields and
+    match the magnitudes that ``format=mag`` produces."""
+    status, plot_resp = api(
+        "GET",
+        f"sources/{public_source.id}/photometry?format=plot&magsys=ab",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert plot_resp["status"] == "success"
+    assert isinstance(plot_resp["data"], list)
+    assert len(plot_resp["data"]) > 0
+
+    allowed_keys = {
+        "id",
+        "obj_id",
+        "filter",
+        "mjd",
+        "origin",
+        "mag",
+        "magerr",
+        "limiting_mag",
+    }
+    for point in plot_resp["data"]:
+        assert set(point.keys()) == allowed_keys, (
+            f"format=plot returned unexpected keys: {set(point.keys()) - allowed_keys}; "
+            f"missing: {allowed_keys - set(point.keys())}"
+        )
+
+    status, mag_resp = api(
+        "GET",
+        f"sources/{public_source.id}/photometry?format=mag&magsys=ab",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert mag_resp["status"] == "success"
+
+    mag_by_id = {p["id"]: p for p in mag_resp["data"]}
+    assert {p["id"] for p in plot_resp["data"]} == set(mag_by_id), (
+        "format=plot and format=mag returned different photometry IDs"
+    )
+    for plot_point in plot_resp["data"]:
+        mag_point = mag_by_id[plot_point["id"]]
+        for field in ("mag", "magerr", "limiting_mag"):
+            if mag_point[field] is None:
+                assert plot_point[field] is None
+            else:
+                assert np.allclose(plot_point[field], mag_point[field])
+
+
 def test_token_user_retrieve_null_photometry(
     upload_data_token, public_source, ztf_camera, public_group
 ):

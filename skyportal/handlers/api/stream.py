@@ -49,6 +49,11 @@ class StreamHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        if stream_id is not None:
+            try:
+                stream_id = int(stream_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid stream_id: {stream_id}")
         with self.Session() as session:
             if stream_id is not None:
                 s = session.scalars(
@@ -144,6 +149,10 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
         data = self.get_json()
         data["id"] = stream_id
         with self.Session() as session:
@@ -188,6 +197,10 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
         with self.Session() as session:
             stream = session.scalars(
                 Stream.select(session.user_or_token, mode="delete").where(
@@ -294,6 +307,11 @@ class StreamUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            stream_id = int(stream_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id/user_id: {stream_id}/{user_id}")
         with self.Session() as session:
             su = session.scalars(
                 StreamUser.select(session.user_or_token, mode="delete")

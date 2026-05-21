@@ -4,13 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchTaxonomies, modifyTaxonomy } from "../../ducks/taxonomies";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -31,7 +31,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const ModifyTaxonomy = ({ taxonomy_id, onClose }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const dispatch = useDispatch();

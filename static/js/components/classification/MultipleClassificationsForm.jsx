@@ -15,16 +15,15 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
-import withStyles from "@mui/styles/withStyles";
-
+import { makeStyles } from "tss-react/mui";
+import { withStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import { getSortedClasses } from "./ShowClassification";
 import * as Actions from "../../ducks/source";
 import * as ClassificationsActions from "../../ducks/classifications";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     padding: "1rem",
   },
@@ -91,7 +90,7 @@ const MultipleClassificationsForm = ({
   groupId,
   currentClassifications,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const stateTaxonomy = useSelector((state) => state.classifications.taxonomy);
   const [selectedTaxonomy, setSelectedTaxonomy] = useState(stateTaxonomy);
@@ -231,82 +230,84 @@ const MultipleClassificationsForm = ({
 
   const renderSliders = (classifications, depth, path) =>
     classifications?.map((classification) => {
-      const StyledSlider = withStyles({
-        sliderDiv: {
-          textAlign: "end",
-        },
-        slider: {
-          width: `calc(100% * (1 - .15 * ${depth}))`,
-        },
-        sliderLabel: {
-          width: `calc(100% * (1 - .15 * ${depth}))`,
-          marginLeft: `calc(100% * .15 * ${depth})`,
-          textAlign: "left",
-        },
-      })(({ classes: styles }) =>
-        depth > 0 ? (
-          <div className={styles.sliderDiv}>
-            <Typography className={styles.sliderLabel} gutterBottom>
-              {classification.class}
-            </Typography>
-            <Slider
-              className={styles.slider}
-              value={
+      const StyledSlider = withStyles(
+        ({ classes: styles }) =>
+          depth > 0 ? (
+            <div className={styles.sliderDiv}>
+              <Typography className={styles.sliderLabel} gutterBottom>
+                {classification.class}
+              </Typography>
+              <Slider
+                className={styles.slider}
+                value={
+                  formState[selectedTaxonomy.id][classification.class]
+                    ?.probability || 0
+                }
+                onChangeCommitted={(_, value) =>
+                  handleChange(value, classification.class, path)
+                }
+                id={classification.class}
+                aria-labelledby={classification.class}
+                valueLabelDisplay="auto"
+                step={0.25}
+                marks
+                min={0}
+                max={1.0}
+              />
+              {classification.class in (formState[selectedTaxonomy.id] || []) &&
                 formState[selectedTaxonomy.id][classification.class]
-                  ?.probability || 0
-              }
-              onChangeCommitted={(_, value) =>
-                handleChange(value, classification.class, path)
-              }
-              id={classification.class}
-              aria-labelledby={classification.class}
-              valueLabelDisplay="auto"
-              step={0.25}
-              marks
-              min={0}
-              max={1.0}
-            />
-            {classification.class in (formState[selectedTaxonomy.id] || []) &&
-              formState[selectedTaxonomy.id][classification.class]
-                ?.probability !== 0 &&
-              renderSliders(
-                classification.subclasses,
-                depth + 1,
-                [classification.class].concat(path),
-              )}
-          </div>
-        ) : (
-          <Paper variant="outlined" className={styles.sliderDiv}>
-            <Typography className={styles.sliderLabel} gutterBottom>
-              {classification.class}
-            </Typography>
-            <Slider
-              className={styles.slider}
-              value={
-                (formState[selectedTaxonomy.id] || [])[classification.class]
-                  ?.probability || 0
-              }
-              onChangeCommitted={(_, value) =>
-                handleChange(value, classification.class, path)
-              }
-              id={classification.class}
-              aria-labelledby={classification.class}
-              valueLabelDisplay="auto"
-              step={0.25}
-              marks
-              min={0}
-              max={1.0}
-            />
-            {classification.class in (formState[selectedTaxonomy.id] || []) &&
-              formState[selectedTaxonomy.id][classification.class]
-                ?.probability !== 0 &&
-              renderSliders(
-                classification.subclasses,
-                depth + 1,
-                [classification.class].concat(path),
-              )}
-          </Paper>
-        ),
+                  ?.probability !== 0 &&
+                renderSliders(
+                  classification.subclasses,
+                  depth + 1,
+                  [classification.class].concat(path),
+                )}
+            </div>
+          ) : (
+            <Paper variant="outlined" className={styles.sliderDiv}>
+              <Typography className={styles.sliderLabel} gutterBottom>
+                {classification.class}
+              </Typography>
+              <Slider
+                className={styles.slider}
+                value={
+                  (formState[selectedTaxonomy.id] || [])[classification.class]
+                    ?.probability || 0
+                }
+                onChangeCommitted={(_, value) =>
+                  handleChange(value, classification.class, path)
+                }
+                id={classification.class}
+                aria-labelledby={classification.class}
+                valueLabelDisplay="auto"
+                step={0.25}
+                marks
+                min={0}
+                max={1.0}
+              />
+              {classification.class in (formState[selectedTaxonomy.id] || []) &&
+                formState[selectedTaxonomy.id][classification.class]
+                  ?.probability !== 0 &&
+                renderSliders(
+                  classification.subclasses,
+                  depth + 1,
+                  [classification.class].concat(path),
+                )}
+            </Paper>
+          ),
+        {
+          sliderDiv: {
+            textAlign: "end",
+          },
+          slider: {
+            width: `calc(100% * (1 - .15 * ${depth}))`,
+          },
+          sliderLabel: {
+            width: `calc(100% * (1 - .15 * ${depth}))`,
+            marginLeft: `calc(100% * .15 * ${depth})`,
+            textAlign: "left",
+          },
+        },
       );
       return <StyledSlider key={`${classification.class}`} />;
     });

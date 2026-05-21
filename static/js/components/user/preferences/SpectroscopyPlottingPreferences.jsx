@@ -1,17 +1,16 @@
 import React from "react";
-import { makeStyles } from "@mui/styles";
-
+import { makeStyles } from "tss-react/mui";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SpectroscopyButtonsForm from "./SpectroscopyButtonsForm";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   spectroscopyPlottingPreferencesHeader: {
     paddingBottom: "1rem",
   },
 }));
 
 const SpectroscopyPlottingPreferences = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <div>
       <div className={classes.spectroscopyPlottingPreferencesHeader}>

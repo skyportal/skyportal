@@ -167,6 +167,11 @@ class ProfileHandler(BaseHandler):
         """
         data = self.get_json()
 
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid user_id: {user_id}")
         with self.Session() as session:
             if user_id is None:
                 user_id = self.associated_user_object.id

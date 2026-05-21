@@ -8,7 +8,7 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Typography from "@mui/material/Typography";
@@ -22,7 +22,7 @@ import Button from "../Button";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   select: {
     width: "25%",
   },
@@ -46,7 +46,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);

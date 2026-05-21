@@ -1,18 +1,17 @@
 import React from "react";
-import { makeStyles } from "@mui/styles";
-
+import { makeStyles } from "tss-react/mui";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SetAutomaticallyVisiblePhotometry from "./SetAutomaticallyVisiblePhotometry";
 import PhotometryButtonsForm from "./PhotometryButtonsForm";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   photometryPlottingPreferencesHeader: {
     paddingBottom: "1rem",
   },
 }));
 
 const PhotometryPlottingPreferences = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <div>
       <div className={classes.photometryPlottingPreferencesHeader}>

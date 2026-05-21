@@ -7,7 +7,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import { makeStyles, withStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
 
@@ -25,7 +25,7 @@ import NewGalaxy from "./NewGalaxy";
 
 import * as galaxiesActions from "../../ducks/galaxies";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     backgroundColor: theme.palette.background.paper,
@@ -76,7 +76,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const textStyles = makeStyles(() => ({
+const textStyles = makeStyles()(() => ({
   primary: {
     fontWeight: "bold",
     fontSize: "110%",
@@ -100,7 +100,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle className={classes.root}>
       <Typography className={classes.title}>{children}</Typography>
@@ -115,12 +115,13 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const GalaxyList = ({ catalogs, setCatalogs }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
-  const textClasses = textStyles();
+  const { classes } = useStyles();
+  const { classes: textClasses } = textStyles();
 
   const currentUser = useSelector((state) => state.profile);
   const permission = currentUser.permissions?.includes("System admin");
@@ -230,7 +231,7 @@ const defaultNumPerPage = 10;
 const GalaxyPage = () => {
   const galaxies = useSelector((state) => state.galaxies?.galaxies);
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [catalogs, setCatalogs] = useState([]);
 
   const [fetchParams, setFetchParams] = useState({

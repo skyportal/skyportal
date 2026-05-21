@@ -5,7 +5,7 @@ import Badge from "@mui/material/Badge";
 import MUINotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
@@ -14,7 +14,7 @@ import Button from "./Button";
 
 import * as userNotificationsActions from "../ducks/userNotifications";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: 360,
@@ -33,7 +33,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const Notifications = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const notifications = useSelector((state) => state.userNotifications);
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -9,7 +9,7 @@ import Paper from "@mui/material/Paper";
 
 import AboutPlugins from "./AboutPlugins";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     padding: "1rem 2rem 2rem 2rem",
     fontSize: "1rem",
@@ -46,7 +46,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const About = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const cosmology = useSelector((state) => state.sysInfo.cosmology);
   const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
 

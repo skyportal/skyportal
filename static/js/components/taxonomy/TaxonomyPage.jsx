@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import TaxonomyTable from "./TaxonomyTable";
@@ -11,7 +11,7 @@ import Spinner from "../Spinner";
 
 import * as taxonomyActions from "../../ducks/taxonomies";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "44.5rem",
@@ -86,7 +86,7 @@ export function taxonomyInfo(taxonomy) {
 
 const TaxonomyList = () => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const taxonomiesState = useSelector((state) => state.taxonomies);
 
@@ -156,7 +156,7 @@ const TaxonomyPage = () => {
 
   const permission = currentUser.permissions?.includes("System admin");
 
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>

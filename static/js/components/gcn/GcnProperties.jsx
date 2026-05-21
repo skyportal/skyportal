@@ -1,10 +1,10 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   accordion: {
     width: "100%",
   },
@@ -58,7 +58,7 @@ const getMuiTheme = (theme) =>
   });
 
 const GcnProperties = ({ properties }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   if (!properties || properties.length === 0) {

@@ -60,6 +60,10 @@ class InstrumentHandler(BaseHandler):
 
         data = self.get_json()
         telescope_id = data.get("telescope_id")
+        try:
+            telescope_id = int(telescope_id) if telescope_id is not None else None
+        except (TypeError, ValueError):
+            return self.error(f"Invalid telescope_id: {telescope_id}")
         with self.Session() as session:
             stmt = Telescope.select(session.user_or_token).filter(
                 Telescope.id == telescope_id
@@ -401,7 +405,9 @@ class InstrumentHandler(BaseHandler):
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
 
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
@@ -410,13 +416,23 @@ class InstrumentHandler(BaseHandler):
         airmass_time = self.get_query_argument("airmassTime", None)
         ignore_cache = self.get_query_argument("ignoreCache", False)
 
+        # Parse localization_dateobs into a naive datetime so psycopg3 can bind
+        # the Localization.dateobs (DateTime) comparison correctly.
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
+                )
+
         if airmass_time is None:
             if localization_dateobs is not None:
                 try:
-                    airmass_time = Time(arrow.get(localization_dateobs).datetime)
-                except Exception as e:
+                    airmass_time = Time(localization_dateobs)
+                except Exception:
                     return self.error(
-                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
                     )
         else:
             try:

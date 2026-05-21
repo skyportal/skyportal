@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
-import { makeStyles, withStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "tss-react/mui";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,7 +21,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
 import * as profileActions from "../../../ducks/profile";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   typography: {
     padding: theme.spacing(2),
   },
@@ -75,7 +75,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle disableTypography className={classes.root}>
       <Typography variant="h6" className={classes.title}>
@@ -92,10 +92,11 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
 const NotificationSettingsSelect = ({ notificationResourceType }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();

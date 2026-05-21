@@ -5,14 +5,14 @@ import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -24,7 +24,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourceRedshiftHistory = ({ redshiftHistory }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { users: allUsers } = useSelector((state) => state.users);
   const userIdToUsername = {};
 

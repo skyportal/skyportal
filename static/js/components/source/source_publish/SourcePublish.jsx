@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -15,7 +15,7 @@ import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
 import SourcePublishRelease from "./SourcePublishRelease";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   expandButton: {
     backgroundColor: "#80808017",
     width: "100%",
@@ -35,7 +35,7 @@ const useStyles = makeStyles(() => ({
 
 const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const manageSourcesAccess =
     currentUser.permissions?.includes("Manage sources");

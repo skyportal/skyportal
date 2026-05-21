@@ -5,7 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 
@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import * as usersActions from "../../ducks/users";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -25,7 +25,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateUserParameter = ({ user, parameter }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [param, setParam] = useState(user[parameter]);

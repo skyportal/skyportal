@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import InfoIcon from "@mui/icons-material/Info";
@@ -16,7 +16,7 @@ import * as earthquakeActions from "../../ducks/earthquake";
 import Spinner from "../Spinner";
 import EarthquakesFilterForm from "./EarthquakesFilterForm";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -71,7 +71,7 @@ const getMuiTheme = (theme) =>
 const defaultNumPerPage = 10;
 
 const Earthquake = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
   const earthquakes = useSelector((state) => state.earthquakes);

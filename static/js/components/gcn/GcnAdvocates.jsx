@@ -4,7 +4,7 @@ import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -13,7 +13,7 @@ import Button from "../Button";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import { userLabel } from "../../utils/format";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     margin: "0",
     padding: "0",
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const GcnAdvocates = ({ gcnEvent, show_title = false }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const dispatch = useDispatch();
   const userProfile = useSelector((state) => state.profile);

@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Popover from "@mui/material/Popover";
 import IconButton from "@mui/material/IconButton";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
     alignItems: "center",
@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const UserPreferencesHeader = ({ title, popupText, variant = "h6" }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);

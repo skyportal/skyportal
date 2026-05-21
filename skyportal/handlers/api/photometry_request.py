@@ -30,6 +30,10 @@ class PhotometryRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            request_id_int = int(request_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid request_id: {request_id}")
 
         refresh_source = self.get_query_argument("refreshSource", True)
         refresh_requests = self.get_query_argument("refreshRequests", False)
@@ -38,7 +42,7 @@ class PhotometryRequestHandler(BaseHandler):
             try:
                 followup_request = session.scalar(
                     FollowupRequest.select(self.associated_user_object).filter(
-                        FollowupRequest.id == request_id
+                        FollowupRequest.id == request_id_int
                     )
                 )
                 if followup_request is None:

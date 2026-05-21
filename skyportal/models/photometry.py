@@ -31,6 +31,12 @@ PHOT_SYS = "ab"
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+# SQL literal for double-precision NaN. Used in hybrid_property expressions
+# below to compare against Float columns. Under psycopg2, `"NaN"` was
+# implicitly coerced; psycopg3 binds Python strings as VARCHAR, so the cast
+# must be explicit.
+_PG_NAN = sa.cast(sa.literal("NaN"), sa.Float)
+
 manage_photometry_access = (
     accessible_by_groups_members | accessible_by_streams_members | accessible_by_owner
 )
@@ -220,7 +226,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The magnitude of the photometry point in the AB system."""
         return sa.case(
             (
-                sa.and_(cls.flux != "NaN", cls.flux > 0),  # noqa
+                sa.and_(cls.flux != _PG_NAN, cls.flux > 0),  # noqa
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ),
             else_=None,
@@ -231,7 +237,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The error on the magnitude of the photometry point."""
         return sa.case(
             (
-                sa.and_(cls.flux != "NaN", cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
+                sa.and_(cls.flux != _PG_NAN, cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
                 2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
             ),
             else_=None,
@@ -269,7 +275,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -284,7 +290,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711
@@ -333,9 +339,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                 ),  # noqa
                 -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
@@ -350,11 +356,11 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux is not None,
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                     cls.flux is not None,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                     cls.fluxerr > 0,
                 ),  # noqa: E711
@@ -396,9 +402,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                 ),  # noqa
                 cls.ref_flux + cls.flux,
@@ -413,10 +419,10 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_fluxerr != None,  # noqa: E711
-                    cls.ref_fluxerr != "NaN",
+                    cls.ref_fluxerr != _PG_NAN,
                     cls.ref_fluxerr > 0,
                     cls.fluxerr != None,  # noqa: E711
-                    cls.fluxerr != "NaN",
+                    cls.fluxerr != _PG_NAN,
                     cls.fluxerr > 0,
                 ),  # noqa
                 sa.func.sqrt(
@@ -458,7 +464,9 @@ class Photometry(conesearch_alchemy.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return sa.case(
             (
-                sa.and_(self.flux != "NaN", self.fluxerr != "NaN", self.fluxerr != 0),  # noqa
+                sa.and_(
+                    self.flux != _PG_NAN, self.fluxerr != _PG_NAN, self.fluxerr != 0
+                ),  # noqa
                 self.flux / self.fluxerr,
             ),
             else_=None,

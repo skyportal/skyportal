@@ -6,12 +6,11 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import * as profileActions from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   textField: {
     marginLeft: theme.spacing(1),
     marginRight: theme.spacing(1),
@@ -22,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SlackPreferences = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const slack_preamble = useSelector((state) => state.config.slackPreamble);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();

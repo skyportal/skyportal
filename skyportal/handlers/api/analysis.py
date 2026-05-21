@@ -764,6 +764,12 @@ class AnalysisServiceHandler(BaseHandler):
         """
         with self.Session() as session:
             if analysis_service_id is not None:
+                try:
+                    analysis_service_id = int(analysis_service_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid analysis_service_id {analysis_service_id}"
+                    )
                 s = session.scalars(
                     AnalysisService.select(session.user_or_token).where(
                         AnalysisService.id == analysis_service_id
@@ -989,6 +995,11 @@ class AnalysisServiceHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            analysis_service_id = int(analysis_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
+
         with self.Session() as session:
             analysis_service = session.scalars(
                 AnalysisService.select(session.user_or_token, mode="delete").where(
@@ -1087,6 +1098,11 @@ class AnalysisHandler(BaseHandler):
             data = self.get_json()
         except Exception as e:
             return self.error(f"Error parsing JSON: {e}")
+
+        try:
+            analysis_service_id = int(analysis_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
 
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
@@ -1303,7 +1319,9 @@ class AnalysisHandler(BaseHandler):
         summary_only = self.get_query_argument("summaryOnly", False)
 
         obj_id = self.get_query_argument("objID", None)
-        analysis_service_id = self.get_query_argument("analysisServiceID", None)
+        analysis_service_id = self.get_query_argument(
+            "analysisServiceID", None, type=int
+        )
 
         with self.Session() as session:
             if obj_id is not None:
@@ -1314,6 +1332,10 @@ class AnalysisHandler(BaseHandler):
 
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
+                    try:
+                        analysis_id = int(analysis_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid analysis_id {analysis_id}")
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
@@ -1429,6 +1451,11 @@ class AnalysisHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            analysis_id = int(analysis_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_id {analysis_id}")
 
         with self.Session() as session:
             if analysis_resource_type.lower() == "obj":
@@ -1553,6 +1580,10 @@ class AnalysisProductsHandler(BaseHandler):
         with self.Session() as session:
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
+                    try:
+                        analysis_id = int(analysis_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid analysis_id {analysis_id}")
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
@@ -1730,6 +1761,11 @@ class AnalysisUploadOnlyHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Error parsing JSON: {e}")
 
+        try:
+            analysis_service_id = int(analysis_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_service_id {analysis_service_id}")
+
         with self.Session() as session:
             stmt = AnalysisService.select(self.current_user).where(
                 AnalysisService.id == analysis_service_id
@@ -1888,6 +1924,19 @@ class DefaultAnalysisHandler(BaseHandler):
                   schema: Error
         """
 
+        try:
+            analysis_service_id = (
+                int(analysis_service_id) if analysis_service_id is not None else None
+            )
+            default_analysis_id = (
+                int(default_analysis_id) if default_analysis_id is not None else None
+            )
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid analysis_service_id/default_analysis_id: "
+                f"{analysis_service_id}/{default_analysis_id}"
+            )
+
         with self.Session() as session:
             try:
                 if default_analysis_id is not None and analysis_service_id is not None:
@@ -1978,6 +2027,11 @@ class DefaultAnalysisHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
+        try:
+            analysis_service_id = int(analysis_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_service_id: {analysis_service_id}")
+
         data = self.get_json()
         with self.Session() as session:
             try:
@@ -2158,6 +2212,15 @@ class DefaultAnalysisHandler(BaseHandler):
         """
         if default_analysis_id is None:
             return self.error("Missing required parameter: default_analysis_id")
+
+        try:
+            analysis_service_id = int(analysis_service_id)
+            default_analysis_id = int(default_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid analysis_service_id/default_analysis_id: "
+                f"{analysis_service_id}/{default_analysis_id}"
+            )
 
         with self.Session() as session:
             try:

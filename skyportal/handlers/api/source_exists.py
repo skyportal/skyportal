@@ -51,9 +51,12 @@ class SourceExistsHandler(BaseHandler):
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
         """
 
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
+        # ra/dec/radius are explicitly converted to float below, so opting
+        # into type=float here keeps the query-arg surface uniform but
+        # isn't strictly required for the comparison.
+        ra = self.get_query_argument("ra", None, type=float)
+        dec = self.get_query_argument("dec", None, type=float)
+        radius = self.get_query_argument("radius", None, type=float)
 
         if not (all([ra, dec, radius]) or obj_id):
             return self.error(

@@ -474,6 +474,10 @@ class SpectrumHandler(BaseHandler):
         """
 
         if spectrum_id is not None:
+            try:
+                spectrum_id = int(spectrum_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid spectrum_id: {spectrum_id}")
             with self.Session() as session:
                 spectrum = session.scalars(
                     Spectrum.select(session.user_or_token).where(
@@ -1056,6 +1060,10 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
         with self.Session() as session:
             spectrum = session.scalars(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
@@ -1618,6 +1626,11 @@ class SpectrumRangeHandler(BaseHandler):
         min_date = self.get_query_argument("min_date", None)
         max_date = self.get_query_argument("max_date", None)
 
+        try:
+            instrument_ids = [int(i) for i in instrument_ids]
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_ids: {instrument_ids}")
+
         with self.Session() as session:
             if len(instrument_ids) > 0:
                 query = Spectrum.select(session.user_or_token).where(
@@ -1628,10 +1641,10 @@ class SpectrumRangeHandler(BaseHandler):
 
             if min_date is not None:
                 utc = Time(min_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at >= utc.isot)
+                query = query.where(Spectrum.observed_at >= utc.datetime)
             if max_date is not None:
                 utc = Time(max_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at <= utc.isot)
+                query = query.where(Spectrum.observed_at <= utc.datetime)
 
             return self.success(data=session.scalars(query).unique().all())
 
@@ -1671,6 +1684,11 @@ class SyntheticPhotometryHandler(BaseHandler):
 
         data = self.get_json()
         filters = data.get("filters")
+
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
 
         with self.Session() as session:
             spectrum = session.scalars(

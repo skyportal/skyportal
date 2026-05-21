@@ -9,7 +9,7 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -19,7 +19,7 @@ import * as Actions from "../../ducks/source";
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
@@ -105,7 +105,7 @@ const FollowupRequestLists = ({
   requestType = "triggered",
   onDownload = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 

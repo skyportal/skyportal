@@ -8,8 +8,7 @@ import FormControl from "@mui/material/FormControl";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -19,7 +18,7 @@ import * as Actions from "../../ducks/source";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   formControl: {
     margin: theme.spacing(1),
     minWidth: 120,
@@ -36,7 +35,7 @@ const useStyles = makeStyles((theme) => ({
 
 const ModifyAssignment = ({ assignment, onClose }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
 
