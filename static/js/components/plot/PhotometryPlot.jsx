@@ -54,6 +54,9 @@ const periodUnitDividers = {
 
 const Plot = createPlotlyComponent(Plotly);
 
+const getPhotometryInstrumentLabel = (point) =>
+  point.instrument_name || point.instrument || point.telescope || "Unknown";
+
 const useStyles = makeStyles((theme) => ({
   gridContainer: {
     display: "grid",
@@ -417,7 +420,7 @@ const PhotometryPlot = ({
       }
       newPoint.text += `
         <br>Filter: ${newPoint.filter}
-        <br>Instrument: ${newPoint.instrument_name}
+        <br>Instrument: ${getPhotometryInstrumentLabel(newPoint)}
       `;
       if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
         newPoint.text += `<br>Origin: ${newPoint.origin}`;
@@ -507,7 +510,12 @@ const PhotometryPlot = ({
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc, point) => {
-      let key = `${point.instrument_name}/${point.filter}`;
+      const instrumentLabel = getPhotometryInstrumentLabel(point);
+      const truncatedInstrument =
+        instrumentLabel.length > 10
+          ? `${instrumentLabel.substring(0, 10)}...`
+          : instrumentLabel;
+      let key = `${truncatedInstrument}/${point.filter}`;
       // if we are using duplicates, put the obj_id at the beginning of the key
       if (usingDuplicates) {
         key = `${point.obj_id}/${key}`;
@@ -515,7 +523,8 @@ const PhotometryPlot = ({
       if (
         point?.origin !== "None" &&
         point.origin !== "" &&
-        point.origin !== null
+        point.origin !== null &&
+        point.origin !== undefined
       ) {
         // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
         const remaining = (usingDuplicates ? 33 : 23) - key.length;
