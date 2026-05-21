@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -12,7 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import * as gcnEventActions from "../../ducks/gcnEvent";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   root: {
     margin: "0",
     padding: "0",
@@ -81,7 +80,7 @@ const GcnEventAllocationTriggers = ({
   showUnset = false,
   showTitle = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const currentUser = useSelector((state) => state.profile);

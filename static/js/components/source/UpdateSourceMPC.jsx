@@ -7,8 +7,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -17,7 +16,7 @@ import * as sourceActions from "../../ducks/source";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -29,7 +28,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdateSourceMPC = ({ source }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
@@ -20,7 +20,7 @@ import { MyObjectFieldTemplate } from "../gcn/GcnSelectionForm";
 
 import * as movingObjectActions from "../../ducks/moving_object";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     backgroundColor: theme.palette.background.paper,
@@ -39,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const PlaceHolder = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <div className={classes.spinner}>
       <TextLoop interval={1500}>
@@ -57,7 +57,7 @@ const PlaceHolder = () => {
 };
 
 const MovingObjectObsPlanPage = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const instruments = useSelector((state) => state.instruments.instrumentList);
   const dispatch = useDispatch();
 

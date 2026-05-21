@@ -1,19 +1,19 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   form: {
     marginBottom: "1rem",
   },
 }));
 
 const SetAutomaticallyVisiblePhotometry = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { automaticallyVisibleFilters, automaticallyVisibleOrigins } =
     useSelector((state) => state.profile.preferences);

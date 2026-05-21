@@ -19,8 +19,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
@@ -38,14 +37,14 @@ import SpectroscopyPlottingPreferences from "./preferences/SpectroscopyPlottingP
 import ClassificationsShortcutForm from "./preferences/ClassificationsShortcutForm";
 import QuickSaveSourcePreferences from "./preferences/QuickSaveSourcePreferences";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   spacing: {
     paddingBottom: 0,
   },
 }));
 
 const UpdateProfileForm = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const profile = useSelector((state) => state.profile);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);

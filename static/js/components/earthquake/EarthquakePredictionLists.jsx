@@ -7,10 +7,10 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
     borderSpacing: "0.7em",
   },
@@ -72,7 +72,7 @@ const getMuiTheme = (theme) =>
   });
 
 const EarthquakePredictionLists = ({ earthquake }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const { mmadetectorList } = useSelector((state) => state.mmadetectors);

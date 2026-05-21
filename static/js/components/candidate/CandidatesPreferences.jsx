@@ -12,8 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Grid from "@mui/material/Grid";
 import Slide from "@mui/material/Slide";
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
@@ -23,7 +22,7 @@ import ScanningProfilesList from "./ScanningProfilesList";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     backgroundColor: theme.palette.background.default,
   },
@@ -53,7 +52,7 @@ const CandidatesPreferences = ({
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo,
   );
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible,

@@ -9,7 +9,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogActions from "@mui/material/DialogActions";
 import Divider from "@mui/material/Divider";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
@@ -24,7 +24,7 @@ import EditTagGroups from "./EditTagGroups";
 import * as objectTagsActions from "../ducks/objectTags";
 import * as groupsActions from "../ducks/groups";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     margin: "0",
     padding: "0",
@@ -77,7 +77,7 @@ export const getContrastColor = (hexColor) => {
 };
 
 const ObjectTags = ({ source }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState(null);

@@ -14,7 +14,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 // Store
@@ -38,7 +38,7 @@ const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ 
 
 messageHandler.init(store.dispatch, store.getState);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   content: {
     flexGrow: 1,
     transition: theme.transitions.create("margin", {
@@ -63,7 +63,7 @@ LazyRoute.propTypes = {
 
 const MainContentInternal = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
   const marginLeft = isSmall ? "0" : open ? "170px" : "65px";

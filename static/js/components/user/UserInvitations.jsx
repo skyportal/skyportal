@@ -24,8 +24,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
@@ -44,7 +43,7 @@ import Spinner from "../Spinner";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   icon: {
     height: "1rem",
   },
@@ -82,7 +81,7 @@ example2@gmail.com,1 2 3,2 5 9,false false true`;
 const defaultNumPerPage = 25;
 
 const UserInvitations = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);

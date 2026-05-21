@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
@@ -90,7 +90,7 @@ const CentroidPlot = React.lazy(
   () => import(/* webpackChunkName: "CentroidPlot" */ "../plot/CentroidPlot"),
 );
 
-export const useSourceStyles = makeStyles((theme) => ({
+export const useSourceStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
     justifyContent: "space-between",
@@ -203,7 +203,7 @@ export const useSourceStyles = makeStyles((theme) => ({
 
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
-  const classes = useSourceStyles();
+  const { classes } = useSourceStyles();
 
   const currentUser = useSelector((state) => state.profile);
   const groups = (useSelector((state) => state.groups.all) || []).filter(

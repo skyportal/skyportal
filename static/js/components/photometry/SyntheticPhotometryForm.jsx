@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as spectraActions from "../../ducks/spectra";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -23,7 +23,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SyntheticPhotometryForm = ({ spectrum_id }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
   const { enum_types } = useSelector((state) => state.enum_types);

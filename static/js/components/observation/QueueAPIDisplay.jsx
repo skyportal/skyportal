@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -15,7 +15,7 @@ import * as allocationActions from "../../ducks/allocations";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   marginTop: {
     marginTop: "1rem",
   },
@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const QueueAPIDisplay = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [queueList, setQueueList] = useState(["None"]);

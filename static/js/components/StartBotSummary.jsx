@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SmartToyTwoToneIcon from "@mui/icons-material/SmartToyTwoTone";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -28,7 +28,7 @@ import "react-datepicker/dist/react-datepicker-cssmodules.css";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -64,7 +64,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const StartBotSummary = ({ obj_id }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
 

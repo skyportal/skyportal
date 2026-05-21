@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -15,7 +15,7 @@ import {
   fetchPublicSourcePages,
 } from "../../../ducks/public_pages/public_source_page";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   versionHistory: {
     width: "100%",
     padding: "0 0.3rem",
@@ -56,7 +56,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourcePublishHistory = ({ sourceId, versions }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const manageSourcesAccess = useSelector(

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
@@ -11,7 +11,7 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   submitButton: {
     margin: "0.5rem 0 0 0",
   },
@@ -38,7 +38,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SpectroscopyButtonsForm = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const colorPalette = useSelector((state) => state.config.colorPalette);
   const { spectroscopyButtons } = useSelector(
@@ -52,12 +52,14 @@ const SpectroscopyButtonsForm = () => {
   } = useForm();
 
   const onSubmit = (formValues) => {
-    const currSpectroscopyButtons = spectroscopyButtons || {};
-    currSpectroscopyButtons[formValues.spectroscopyButtonName] = {
-      color: formValues.spectroscopyColorSelect,
-      wavelengths: formValues.spectroscopyButtonWavelengths
-        .split(",")
-        .map(Number),
+    const currSpectroscopyButtons = {
+      ...(spectroscopyButtons || {}),
+      [formValues.spectroscopyButtonName]: {
+        color: formValues.spectroscopyColorSelect,
+        wavelengths: formValues.spectroscopyButtonWavelengths
+          .split(",")
+          .map(Number),
+      },
     };
     const prefs = {
       spectroscopyButtons: currSpectroscopyButtons,
@@ -70,8 +72,8 @@ const SpectroscopyButtonsForm = () => {
   };
 
   const onDelete = (buttonName) => {
-    const currSpectroscopyButtons = spectroscopyButtons;
-    delete currSpectroscopyButtons[buttonName];
+    const { [buttonName]: _removed, ...currSpectroscopyButtons } =
+      spectroscopyButtons || {};
     const prefs = {
       spectroscopyButtons: currSpectroscopyButtons,
     };

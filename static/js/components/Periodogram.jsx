@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
@@ -25,7 +24,7 @@ import Button from "./Button";
 
 import * as photometryActions from "../ducks/photometry";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   copyb: {
     display: "block",
     border: "1px solid blue",
@@ -104,7 +103,6 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   let omega;
   let wi;
 
-  /* eslint-disable react/destructuring-assignment  */
   const goodi = t_data_uf
     ?.map((e, ind) =>
       !(
@@ -117,10 +115,9 @@ function GLS(t_data_uf, y_data_uf, kwa) {
         : undefined,
     )
     ?.filter((x) => x);
-  /* eslint-enable react/destructuring-assignment  */
 
-  const t_data = goodi.map((ind) => t_data_uf[ind]); // eslint-disable-line react/destructuring-assignment
-  const y_data = goodi.map((ind) => y_data_uf[ind]); // eslint-disable-line react/destructuring-assignment
+  const t_data = goodi.map((ind) => t_data_uf[ind]);
+  const y_data = goodi.map((ind) => y_data_uf[ind]);
   const e_y = goodi.map((ind) => kwa.e_y[ind]);
 
   const tmin = Math.min.apply(null, t_data);
@@ -142,7 +139,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   if (nt < 10) {
     return { p: [], f: [], k: 1, fbest: null, tbase };
   }
-  // eslint-disable-next-line no-plusplus
+
   while (i--) {
     w[i] = e_y ? 1 / e_y[i] / e_y[i] : 1;
     wsum += w[i];
@@ -150,7 +147,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 
   // normalize weights, now "wsum=1"
   i = nt;
-  // eslint-disable-next-line no-plusplus
+
   while (i--) w[i] /= wsum;
 
   const ymean = dot(w, y_data);
@@ -183,7 +180,6 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   const f = new Array(nf);
   const p = new Array(nf);
 
-  // eslint-disable-next-line no-plusplus
   for (k = 0; k < nf; k++) {
     f[k] = fbeg + k * df;
     omega = twopi * f[k];
@@ -194,7 +190,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
     CC = 0;
     SS = 0;
     CS = 0;
-    // eslint-disable-next-line no-plusplus
+
     for (i = 0; i < nt; i++) {
       wi = w[i];
       cosx = Math.cos(omega * t[i]);
@@ -228,7 +224,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 }
 
 const Periodogram = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useDispatch();
@@ -296,7 +292,7 @@ const Periodogram = () => {
       .map((x, i) => [x[0], [x[1], me[i]]])
       .sort((a, b) => b[0] - a[0]);
     const filteredy = mags?.filter((n) => n);
-    // eslint-disable-next-line no-new
+
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
       strokeWidth: 0,
@@ -314,7 +310,7 @@ const Periodogram = () => {
     // Create graph with native array as data source
     const pp = [...times.map((x) => x % p), ...times.map((x) => (x % p) + p)];
     const filteredy = mags?.filter((n) => n);
-    // eslint-disable-next-line no-new
+
     new Dygraph(phaseplotRef.current, transpose([pp, [...mags, ...mags]]), {
       drawPoints: true,
       strokeWidth: 0,
@@ -746,7 +742,7 @@ const Periodogram = () => {
                             </Typography>
                             <Slider
                               value={periodmultiplier}
-                              getAriaValueText={valuetext} // eslint-disable-line react/jsx-no-bind
+                              getAriaValueText={valuetext}
                               aria-labelledby="period-slider"
                               step={null}
                               max={3}

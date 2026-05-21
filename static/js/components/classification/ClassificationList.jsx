@@ -6,7 +6,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import { showNotification } from "baselayer/components/Notifications";
@@ -22,7 +22,7 @@ import * as sourceActions from "../../ducks/source";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   classification: {
     fontSize: "90%",
     display: "flex",
@@ -70,7 +70,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const ClassificationList = () => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);

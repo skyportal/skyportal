@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -18,7 +18,7 @@ import ProgressIndicator from "../ProgressIndicators";
 
 import * as sourcesActions from "../../ducks/sources";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -42,7 +42,7 @@ const GroupSources = ({ route }) => {
     (state) => state.sources.pendingGroupSources,
   );
   const groups = useSelector((state) => state.groups.userAccessible);
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
   const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] =
     useState(10);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import Accordion from "@mui/material/Accordion";
@@ -26,7 +26,7 @@ import * as groupActions from "../../ducks/group";
 import * as groupsActions from "../../ducks/groups";
 import * as streamsActions from "../../ducks/streams";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   padding_bottom: {
     paddingBottom: "2em",
   },
@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const Group = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
   const navigate = useNavigate();

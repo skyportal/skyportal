@@ -9,8 +9,7 @@ import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -35,7 +34,7 @@ const defaultPrefs = {
   },
 };
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   newsFeed: {
     display: "flex",
     flexDirection: "column",
@@ -91,11 +90,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const NewsFeedItem = ({ item }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
-  let EntryAvatar;
+  let entryAvatar = null;
   let entryTitle;
   // Use switch-case to make it easy to add future newsfeed types
   switch (item.type) {
@@ -103,8 +102,7 @@ const NewsFeedItem = ({ item }) => {
     case "photometry":
     case "spectrum":
     case "classification":
-      /* eslint-disable react/display-name */
-      EntryAvatar = () => (
+      entryAvatar = (
         <UserAvatar
           size={32}
           firstName={item.author_info.first_name}
@@ -117,8 +115,7 @@ const NewsFeedItem = ({ item }) => {
       entryTitle = null;
       break;
     case "source":
-      /* eslint-disable react/display-name */
-      EntryAvatar = () => (
+      entryAvatar = (
         <Avatar
           alt="S"
           size={32}
@@ -153,14 +150,10 @@ const NewsFeedItem = ({ item }) => {
           placement="top-start"
           classes={{ tooltip: styles.entryTitle }}
         >
-          <div className={styles.entryAvatar}>
-            <EntryAvatar />
-          </div>
+          <div className={styles.entryAvatar}>{entryAvatar}</div>
         </Tooltip>
       ) : (
-        <div className={styles.entryAvatar}>
-          <EntryAvatar />
-        </div>
+        <div className={styles.entryAvatar}>{entryAvatar}</div>
       )}
       <div className={styles.entryContent}>
         <ReactMarkdown
@@ -197,19 +190,17 @@ const NewsFeedItem = ({ item }) => {
 };
 
 const NewsFeed = ({ classes }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const { items } = useSelector((state) => state.newsFeed);
-  const newsFeedPrefs =
+  const rawNewsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
-  if (!Object.keys(newsFeedPrefs).includes("categories")) {
-    newsFeedPrefs.categories = defaultPrefs.categories;
-  }
-  // if a category is missing from the user's preferences, add it with the default value
-  Object.keys(defaultPrefs.categories).forEach((cat) => {
-    if (!Object.keys(newsFeedPrefs.categories).includes(cat)) {
-      newsFeedPrefs.categories[cat] = defaultPrefs.categories[cat];
-    }
-  });
+  const newsFeedPrefs = {
+    ...rawNewsFeedPrefs,
+    categories: {
+      ...defaultPrefs.categories,
+      ...(rawNewsFeedPrefs.categories || {}),
+    },
+  };
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>

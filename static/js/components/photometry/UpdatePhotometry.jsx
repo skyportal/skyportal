@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
@@ -18,7 +18,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import * as photActions from "../../ducks/photometry";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   Select: {
     width: "100%",
   },
@@ -32,7 +32,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const UpdatePhotometry = ({ phot, magsys }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const { instrumentList } = useSelector((state) => state.instruments);
