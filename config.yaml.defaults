@@ -101,10 +101,10 @@ app:
     look_back_days: 1
 
   hermes:
-      endpoint: https://hermes.lco.global/api/v0
-      token:
-      topic: skyportal.skyportal
-      test_topic: skyportal.skyportal_test
+      endpoint: https://hermes.lco.global/api/v0  # Base URL of the Hermes API
+      token:  # Hermes API token for authentication (required to publish messages)
+      topic: skyportal.skyportal  # Kafka topic used to publish outgoing SkyPortal alerts to Hermes
+      test_topic: skyportal.skyportal_test  # Kafka topic used during testing
       sync:
         scimma_username: # SCiMMA/Kafka username for authentication
         scimma_password: # SCiMMA/Kafka password for authentication
