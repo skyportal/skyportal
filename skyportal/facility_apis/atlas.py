@@ -78,7 +78,30 @@ async def commit_photometry(
     user_id,
     duplicates="error",
 ):
-    """Commits ATLAS photometry to the database (async)."""
+    """
+    Commits ATLAS photometry to the database.
+
+    Async because it ultimately calls ``add_external_photometry``, which is
+    async. Drive from sync contexts (e.g. facility_queue) with
+    ``asyncio.run(commit_photometry(...))``; from async handlers, ``await``
+    directly.
+
+    Parameters
+    ----------
+    json_response : dict
+        response.json() from call to ATLAS photometry service.
+    altdata : dict
+        Contains ATLAS photometry api_token for the user.
+    request_id : int
+        FollowupRequest SkyPortal ID.
+    instrument_id : int
+        Instrument SkyPortal ID.
+    user_id : int
+        User SkyPortal ID.
+    duplicates : str
+        Duplicate-handling mode passed through to ``add_external_photometry``
+        ("error", "ignore", or "update"). Defaults to "error".
+    """
 
     from ..models import FollowupRequest, Instrument, Obj
 

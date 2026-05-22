@@ -28,8 +28,19 @@ async def commit_photometry(text_response, request_id, instrument_id, user_id):
 
     Async because it ultimately calls ``add_external_photometry``, which is
     async. Scheduled from the get/submit code paths via
-    ``IOLoop.current().asyncio_loop.create_task(...)`` so it runs on the
+    ``asyncio.ensure_future(commit_photometry(...))`` so it runs on the
     tornado event loop without blocking the calling handler.
+
+    Parameters
+    ----------
+    text_response : str
+        response.text from call to PS1 DR2 photometry service.
+    request_id : int
+        FollowupRequest SkyPortal ID.
+    instrument_id : int
+        Instrument SkyPortal ID.
+    user_id : int
+        User SkyPortal ID.
     """
 
     from ..models import FollowupRequest, Instrument, Obj
