@@ -10,6 +10,11 @@ import Thumbnail from "./Thumbnail";
 
 dayjs.extend(calendar);
 
+const ALERT_THUMBNAIL_TYPES = ["new", "ref", "sub"];
+const ARCHIVAL_THUMBNAIL_TYPES = ["sdss", "ls", "ps1"];
+
+const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
+
 const sortThumbnailsByDate = (a, b) => {
   const aDate = dayjs(a.created_at);
   const bDate = dayjs(b.created_at);
@@ -32,101 +37,68 @@ const ThumbnailList = ({
   maxSize = null,
   noMargin = false,
   titleSize = "0.875rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes = thumbnailTypes,
 }) => {
-  thumbnails
-    ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
-    ?.sort(sortThumbnailsByDate);
+  const sortedThumbnails = [...(thumbnails ?? [])].sort(sortThumbnailsByDate);
+  const latestThumbnails = thumbnailTypes
+    .filter((type) => displayTypes.includes(type))
+    .map((type) => sortedThumbnails.find((t) => t.type === type))
+    .filter(Boolean);
 
-  const latestThumbnails = displayTypes
-    ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
-    ?.filter((thumbnail) => thumbnail !== undefined);
-
-  const thumbnailOrder = ["new", "ref", "sub", "sdss", "ls", "ps1"];
-  // Sort thumbnails by order of appearance in `thumbnailOrder`
-  latestThumbnails?.sort((a, b) =>
-    thumbnailOrder.indexOf(a.type) < thumbnailOrder.indexOf(b.type) ? -1 : 1,
+  const archivalThumbnails = latestThumbnails.filter((t) =>
+    ARCHIVAL_THUMBNAIL_TYPES.includes(t.type),
   );
 
-  if (useGrid) {
-    return (
-      <Grid container direction="row" spacing={1}>
-        {latestThumbnails?.map((t) => (
-          <Grid item key={t.id}>
-            <Thumbnail
-              key={`thumb_${t.type}`}
-              ra={ra}
-              dec={dec}
-              name={t.type}
-              url={t.public_url}
-              size={size}
-              minSize={minSize === null ? size : minSize}
-              maxSize={maxSize === null ? size : maxSize}
-              grayscale={t.is_grayscale}
-              titleSize={titleSize}
-            />
-          </Grid>
-        ))}
-        {displayTypes?.includes("ps1") &&
-          !latestThumbnails?.map((t) => t.type)?.includes("ps1") && (
-            <Grid item key="placeholder">
-              <Thumbnail
-                key="thumbPlaceHolder"
-                ra={ra}
-                dec={dec}
-                name="PanSTARRS DR2: Loading..."
-                url="#"
-                size={size}
-                minSize={minSize === null ? size : minSize}
-                maxSize={maxSize === null ? size : maxSize}
-                grayscale={false}
-                header="PanSTARRS DR2"
-                titleSize={titleSize}
-              />
-            </Grid>
-          )}
-      </Grid>
-    );
-  }
-  return (
+  // If PanSTARRS DR2 is included in the display types and there are archival thumbnails
+  // but none of them are PanSTARRS, show a loading thumbnail for PanSTARRS DR2
+  const ps1Loading =
+    displayTypes.includes("ps1") &&
+    archivalThumbnails.length > 0 &&
+    !archivalThumbnails.some((t) => t.type === "ps1");
+
+  const thumbnailItems = (
     <>
-      {latestThumbnails?.map((t) => (
+      {latestThumbnails.map((t) => (
         <Grid item key={t.id}>
           <Thumbnail
-            key={`thumb_${t.type}`}
             ra={ra}
             dec={dec}
             name={t.type}
-            url={t.public_url}
+            src={t.public_url}
             size={size}
-            minSize={minSize === null ? size : minSize}
-            maxSize={maxSize === null ? size : maxSize}
-            noMargin={noMargin}
+            minSize={minSize ?? size}
+            maxSize={maxSize ?? size}
+            noMargin={!useGrid && noMargin}
             grayscale={t.is_grayscale}
             titleSize={titleSize}
           />
         </Grid>
       ))}
-      {displayTypes?.includes("ps1") &&
-        !latestThumbnails?.map((t) => t.type)?.includes("ps1") && (
-          <Grid item key="thumb_placeholder">
-            <Thumbnail
-              key="thumbPlaceHolder"
-              ra={ra}
-              dec={dec}
-              name="PanSTARRS DR2: Loading..."
-              url="#"
-              size={size}
-              minSize={minSize === null ? size : minSize}
-              maxSize={maxSize === null ? size : maxSize}
-              noMargin={noMargin}
-              grayscale={false}
-              header="PanSTARRS DR2"
-              titleSize={titleSize}
-            />
-          </Grid>
-        )}
+      {ps1Loading && (
+        <Grid item>
+          <Thumbnail
+            ra={ra}
+            dec={dec}
+            name="ps1"
+            src="#"
+            size={size}
+            minSize={minSize ?? size}
+            maxSize={maxSize ?? size}
+            noMargin={!useGrid && noMargin}
+            grayscale={false}
+            titleSize={titleSize}
+          />
+        </Grid>
+      )}
     </>
+  );
+
+  if (!useGrid) return thumbnailItems;
+
+  return (
+    <Grid container direction="row" spacing={1}>
+      {thumbnailItems}
+    </Grid>
   );
 };
 
@@ -141,16 +113,6 @@ ThumbnailList.propTypes = {
   displayTypes: PropTypes.arrayOf(PropTypes.string),
   useGrid: PropTypes.bool,
   noMargin: PropTypes.bool,
-};
-
-ThumbnailList.defaultProps = {
-  size: "13rem",
-  minSize: null,
-  maxSize: null,
-  titleSize: "0.875rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
-  useGrid: true,
-  noMargin: false,
 };
 
 export default ThumbnailList;

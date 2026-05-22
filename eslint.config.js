@@ -1,5 +1,5 @@
 // eslint.config.js
-const global = require("globals");
+const globalsLib = require("globals");
 const eslint = require("@eslint/js");
 
 const reactPlugin = require("eslint-plugin-react");
@@ -16,6 +16,16 @@ module.exports = [
   { files: ["static/**/*.js", "static/**/*.jsx"] },
   { ignores: ["docs/*"] },
   {
+    // CommonJS config files at repo root use Node globals
+    files: ["*.config.js", "*.config.cjs"],
+    languageOptions: {
+      globals: {
+        ...globalsLib.node,
+      },
+      sourceType: "commonjs",
+    },
+  },
+  {
     languageOptions: {
       parser: require("@babel/eslint-parser"),
       parserOptions: {
@@ -28,7 +38,7 @@ module.exports = [
         },
       },
       globals: {
-        ...global.browser,
+        ...globalsLib.browser,
       },
     },
   },
@@ -63,7 +73,6 @@ module.exports = [
       "react/jsx-props-no-spreading": 0,
       "react/jsx-curly-newline": 0,
       "react/forbid-prop-types": "warn",
-      "react-hooks/exhaustive-deps": "warn",
       "react/destructuring-assignment": 0,
       "prefer-template": "warn",
       "no-param-reassign": 0,

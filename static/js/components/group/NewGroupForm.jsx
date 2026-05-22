@@ -12,8 +12,7 @@ import TextField from "@mui/material/TextField";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import * as groupsActions from "../../ducks/groups";
 import * as usersActions from "../../ducks/users";
 import Button from "../Button";
@@ -70,7 +69,7 @@ const NewGroupForm = () => {
     });
   };
 
-  const useStyles = makeStyles((theme) => ({
+  const useStyles = makeStyles()((theme) => ({
     formControl: {
       margin: `${theme.spacing(1)} 0`,
       minWidth: "50%",
@@ -94,7 +93,7 @@ const NewGroupForm = () => {
       margin: "1rem 0",
     },
   }));
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const ITEM_HEIGHT = 48;
   const MenuProps = {

@@ -54,6 +54,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.error(
                 "You must specify a coauthor_id when adding a coauthor to a sharing service"
             )
+        try:
+            sharing_service_id = int(sharing_service_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
+            )
         with self.Session() as session:
             # verify that the user has access to the sharing_service
             sharing_service = session.scalar(
@@ -129,6 +136,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
                         schema: Error
         """
 
+        try:
+            sharing_service_id = int(sharing_service_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
+            )
         with self.Session() as session:
             # verify that the user has access to the sharing_service
             sharing_service = session.scalar(

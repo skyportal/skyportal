@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 
 import Dialog from "@mui/material/Dialog";
@@ -21,7 +21,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import * as instrumentActions from "../../ducks/instrument";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -79,7 +79,7 @@ const InstrumentTable = ({
   telescopeInfo = true,
   fixedHeader = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -244,7 +244,6 @@ const InstrumentTable = ({
     return (
       <div className={classes.instrumentManage}>
         <Button
-          key={`edit_${instrument.id}`}
           id={`edit_button_${instrument.id}`}
           onClick={() => openEditDialog(instrument.id)}
           disabled={!deletePermission}
@@ -252,7 +251,6 @@ const InstrumentTable = ({
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${instrument.id}`}
           id={`delete_button_${instrument.id}`}
           onClick={() => openDeleteDialog(instrument.id)}
           disabled={!deletePermission}

@@ -25,7 +25,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
 import MUIDataTable from "mui-datatables";
@@ -46,7 +46,7 @@ import Button from "../Button";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -281,8 +281,8 @@ const AllocationObservationPlansTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
-  const styles = useStyles();
+  const { classes } = useStyles();
+  const { classes: styles } = useStyles();
 
   const handlePageChange = async (page, numPerPage) => {
     const params = {
@@ -451,7 +451,7 @@ const AllocationSummaryTable = ({
   setFetchParams,
 }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const { requests } = allocation;
 
   const [dialogOpen, setDialogOpen] = useState(null);

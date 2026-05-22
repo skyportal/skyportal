@@ -10,7 +10,7 @@ import Grid from "@mui/material/Grid";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
 import Button from "../Button";
@@ -23,7 +23,7 @@ import SourceTable from "../source/SourceTable";
 import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
 import * as sourcesActions from "../../ducks/sources";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "22.5rem",
@@ -63,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const textStyles = makeStyles(() => ({
+const textStyles = makeStyles()(() => ({
   primary: {
     fontWeight: "bold",
     fontSize: "110%",
@@ -76,7 +76,7 @@ const SpatialCatalogSourcesPage = ({
   selectedSpatialCatalogId,
   selectedSpatialCatalogEntryId,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   const [spatialCatalogName, setSpatialCatalogName] = useState(null);
@@ -206,8 +206,8 @@ SpatialCatalogSourcesPage.defaultProps = {
 
 const SpatialCatalogList = ({ catalogs, deletePermission }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
-  const textClasses = textStyles();
+  const { classes } = useStyles();
+  const { classes: textClasses } = textStyles();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catalogToDelete, setCatalogToDelete] = useState(null);
   const openDialog = (id) => {
@@ -248,7 +248,6 @@ const SpatialCatalogList = ({ catalogs, deletePermission }) => {
               classes={textClasses}
             />
             <Button
-              key={catalog}
               id="delete_button"
               classes={{
                 root: classes.catalogDelete,
@@ -296,7 +295,7 @@ const SpatialCatalogPage = () => {
 
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const { handleSubmit, control, reset, getValues } = useForm();
 

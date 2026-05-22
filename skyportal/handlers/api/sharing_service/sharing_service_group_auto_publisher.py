@@ -65,6 +65,13 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
+        try:
+            sharing_service_id = int(sharing_service_id)
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/group_id: {sharing_service_id}/{group_id}"
+            )
         data = self.get_json()
 
         user_ids = get_list_typed(data.get("user_ids", []), int)
@@ -209,6 +216,13 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
+        try:
+            sharing_service_id = int(sharing_service_id)
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/group_id: {sharing_service_id}/{group_id}"
+            )
         data = self.get_json()
 
         user_ids = get_list_typed(data.get("user_ids", []), int)

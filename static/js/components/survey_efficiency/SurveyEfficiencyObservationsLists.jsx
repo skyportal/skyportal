@@ -8,7 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -17,7 +17,7 @@ import Button from "../Button";
 import { TableProgressText } from "../ProgressIndicators";
 import * as surveyEfficiencyObservationsActions from "../../ducks/survey_efficiency_observations";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
     borderSpacing: "0.7em",
   },
@@ -82,7 +82,7 @@ const getMuiTheme = (theme) =>
   });
 
 const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
-import { makeStyles } from "@mui/styles";
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormGroup from "@mui/material/FormGroup";
@@ -18,7 +18,7 @@ import * as profileActions from "../../../ducks/profile";
 import NotificationGcnEvent from "./NotificationGcnEvent";
 import { SelectLabelWithChips } from "../../SelectWithChips";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   typography: {
     padding: theme.spacing(2),
   },
@@ -68,7 +68,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const NotificationPreferences = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
   const groups = useSelector((state) => state.groups.userAccessible);
   const { allocationListApiClassname } = useSelector(

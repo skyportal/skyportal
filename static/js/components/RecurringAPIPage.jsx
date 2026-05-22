@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -16,7 +16,7 @@ import NewRecurringAPI from "./NewRecurringAPI";
 
 import * as recurringAPIsActions from "../ducks/recurring_apis";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "22.5rem",
@@ -33,7 +33,7 @@ const RecurringAPIPage = () => {
   const [openNewForm, setOpenNewForm] = useState(false);
 
   const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const [recurringAPIToDelete, setRecurringAPIToDelete] = useState(null);
@@ -77,7 +77,6 @@ const RecurringAPIPage = () => {
     return (
       <div>
         <IconButton
-          key={recurringAPI.id}
           id="delete_button"
           onClick={() => openDialog(recurringAPI.id)}
         >

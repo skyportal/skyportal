@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -31,7 +31,7 @@ export const rangeIsActive = (range, date = new Date()) =>
   range.start_date <= date.toISOString() &&
   range.end_date >= date.toISOString();
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -91,7 +91,7 @@ const AllocationTable = ({
   telescopeInfo = true,
   fixedHeader = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const dispatch = useDispatch();
@@ -255,14 +255,12 @@ const AllocationTable = ({
     return (
       <div className={classes.allocationManage}>
         <IconButton
-          key={`edit_${allocation.id}`}
           id={`edit_button_${allocation.id}`}
           onClick={() => setAllocationToEdit(allocation.id)}
         >
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${allocation.id}`}
           id={`delete_button_${allocation.id}`}
           onClick={() => setAllocationToDelete(allocation.id)}
         >

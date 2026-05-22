@@ -300,7 +300,7 @@ class ObjTagHandler(BaseHandler):
                             $ref: '#/components/schemas/ObjTag'
         """
         obj_id = self.get_query_argument("obj_id", None)
-        objtagoption_id = self.get_query_argument("objtagoption_id", None)
+        objtagoption_id = self.get_query_argument("objtagoption_id", None, type=int)
 
         with self.Session() as session:
             query = ObjTag.select(session.user_or_token)

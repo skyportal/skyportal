@@ -17,14 +17,14 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
 import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   header: {},
   timespanSelect: {
     display: "inline",
@@ -255,7 +255,7 @@ TopSaversList.defaultProps = {
 
 const TopSavers = ({ classes }) => {
   const dispatch = useDispatch();
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
 
   const storedPrefs = useSelector(

@@ -15,7 +15,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import MUIDataTable from "mui-datatables";
 import { JSONTree } from "react-json-tree";
 
@@ -28,7 +28,7 @@ import ObservationPlanGlobe from "./ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
 import { showNotification } from "baselayer/components/Notifications";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
@@ -99,7 +99,7 @@ const getMuiTheme = (theme) =>
   });
 
 const ObservationPlanRequestLists = ({ dateobs }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 

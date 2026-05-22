@@ -3,8 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -22,7 +21,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { fetchTelescopes, submitTelescope } from "../../ducks/telescopes";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   telescopeManage: {
     display: "flex",
     flexDirection: "row",
@@ -51,7 +50,7 @@ const TelescopeTable = ({
   deletePermission,
   hideTitle = false,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -187,7 +186,6 @@ const TelescopeTable = ({
     return (
       <div className={classes.telescopeManage}>
         <Button
-          key={`delete_${telescope.id}`}
           id={`delete_button_${telescope.id}`}
           onClick={() => openDeleteDialog(telescope.id)}
           disabled={!deletePermission}

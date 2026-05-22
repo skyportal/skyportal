@@ -8,15 +8,14 @@ import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import * as sourceActions from "../../ducks/source";
 
-export const useStyles = makeStyles(() => ({
+export const useStyles = makeStyles()(() => ({
   chip: {
     fontSize: "1.2rem",
     fontWeight: "bold",
@@ -35,7 +34,7 @@ export const useStyles = makeStyles(() => ({
 }));
 
 const ClassificationRow = ({ classifications, fontSize }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const currentUser = useSelector((state) => state.profile);
@@ -163,7 +162,6 @@ const ClassificationRow = ({ classifications, fontSize }) => {
             </div>
             <div>
               <Button
-                key={classification.id}
                 id="delete_classification"
                 classes={{
                   root: classes.classificationDelete,

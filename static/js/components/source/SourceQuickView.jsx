@@ -3,8 +3,8 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
-import makeStyles from "@mui/styles/makeStyles";
-import withStyles from "@mui/styles/withStyles";
+import { makeStyles } from "tss-react/mui";
+import { withStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
@@ -37,7 +37,7 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)(
+const DialogTitle = withStyles(
   ({ children, classes, onClose }) => (
     <MuiDialogTitle disableTypography className={classes.root}>
       <Typography variant="h4">{children}</Typography>
@@ -53,9 +53,10 @@ const DialogTitle = withStyles(dialogTitleStyles)(
       ) : null}
     </MuiDialogTitle>
   ),
+  dialogTitleStyles,
 );
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   textContent: {
     marginTop: "1rem",
     fontSize: "1.2em",
@@ -82,7 +83,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   if (source.loadError) {
     return <div>{source.loadError}</div>;
   }
@@ -166,7 +167,7 @@ DialogContentDiv.propTypes = {
 
 const SourceQuickView = ({ sourceId, className }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [open, setOpen] = useState(false);
   const handleClickOpen = () => {

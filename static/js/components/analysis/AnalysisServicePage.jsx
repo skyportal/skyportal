@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,7 +24,7 @@ import NewAnalysisService from "./NewAnalysisService";
 
 import * as analysisServicesActions from "../../ducks/analysis_services";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     backgroundColor: theme.palette.background.paper,
@@ -90,7 +90,7 @@ export function analysisServiceInfo(analysisService) {
 
 const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -181,7 +181,6 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     return (
       <div className={classes.analysisServiceManage}>
         <Button
-          key={`delete_${analysis_service.id}`}
           id={`delete_button_${analysis_service.id}`}
           onClick={() => openDeleteDialog(analysis_service.id)}
           disabled={!deletePermission}

@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -20,7 +20,7 @@ import Typography from "@mui/material/Typography";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paperContent: {
     padding: theme.spacing(2),
     marginBottom: theme.spacing(2),
@@ -42,7 +42,7 @@ export const getLastDayOfMonthTwoMonthsAgo = (date) =>
   new Date(date.getFullYear(), date.getMonth() - 2 + 1, 0);
 
 const ShiftPage = ({ route }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shifts.currentShift);

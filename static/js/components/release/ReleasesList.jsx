@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
@@ -17,7 +17,7 @@ export function truncateText(text, length) {
   return "...";
 }
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   listHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -53,7 +53,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const ReleasesList = () => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const dispatch = useDispatch();
   const releases = useSelector((state) => state.publicReleases);
   const manageSourcesAccess = useSelector(
@@ -126,18 +126,10 @@ const ReleasesList = () => {
                   </Button>
                   {manageSourcesAccess && release.group_ids.length > 0 && (
                     <>
-                      <Button
-                        onClick={() => {
-                          handleViewEdit(release);
-                        }}
-                      >
+                      <Button onClick={() => handleViewEdit(release)}>
                         <EditIcon />
                       </Button>
-                      <Button
-                        onClick={() => {
-                          deleteRelease(release.id);
-                        }}
-                      >
+                      <Button onClick={() => deleteRelease(release.id)}>
                         <DeleteIcon />
                       </Button>
                     </>

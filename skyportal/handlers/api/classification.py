@@ -279,6 +279,11 @@ class ClassificationHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         include_taxonomy = self.get_query_argument("includeTaxonomy", False)
 
+        if classification_id is not None:
+            try:
+                classification_id = int(classification_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid classification_id: {classification_id}")
         with self.Session() as session:
             if classification_id is not None:
                 classification = session.scalars(
@@ -299,12 +304,12 @@ class ClassificationHandler(BaseHandler):
             classifications = Classification.select(session.user_or_token)
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at <= end_date
                 )
@@ -463,6 +468,11 @@ class ClassificationHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            classification_id = int(classification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid classification_id: {classification_id}")
+
         with self.Session() as session:
             c = session.scalars(
                 Classification.select(session.user_or_token, mode="update").where(
@@ -553,6 +563,11 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            classification_id = int(classification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
@@ -794,12 +809,12 @@ class ObjClassificationQueryHandler(BaseHandler):
             classifications = Classification.select(session.user_or_token)
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at <= end_date
                 )
@@ -849,6 +864,11 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            classification_id = int(classification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid classification_id: {classification_id}")
 
         data = self.get_json()
         vote = data.get("vote")
@@ -927,6 +947,11 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            classification_id = int(classification_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             classification = session.scalars(

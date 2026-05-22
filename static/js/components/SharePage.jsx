@@ -4,11 +4,10 @@ import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import IconButton from "@mui/material/IconButton";
 import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { QRCodeSVG } from "qrcode.react";
 
-const useStyles = makeStyles({
+const useStyles = makeStyles()({
   paper: {
     fontWeight: "bold",
     fontSize: "150%",
@@ -17,7 +16,7 @@ const useStyles = makeStyles({
 });
 
 const SharePage = ({ value }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const [open, setOpen] = useState(false);
 

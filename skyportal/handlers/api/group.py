@@ -139,6 +139,11 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
 
+        if group_id is not None:
+            try:
+                group_id = int(group_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid group_id: {group_id}")
         with self.Session() as session:
             if group_id is not None:
                 group = session.scalars(
@@ -339,6 +344,11 @@ class GroupHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id: {group_id}")
+
         data = self.get_json()
         data["id"] = group_id
 
@@ -386,6 +396,11 @@ class GroupHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id: {group_id}")
 
         with self.Session() as session:
             # permission check
@@ -462,6 +477,11 @@ class GroupUserHandler(BaseHandler):
                               type: boolean
                               description: Boolean indicating whether user is group admin
         """
+
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id: {group_id}")
 
         data = self.get_json()
 
@@ -660,6 +680,10 @@ class GroupUserHandler(BaseHandler):
             user_id = int(user_id)
         except ValueError:
             return self.error("Invalid user_id; unable to parse to integer")
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id: {group_id}")
 
         with self.Session() as session:
             gu = session.scalars(
@@ -833,8 +857,15 @@ class GroupStreamHandler(BaseHandler):
                               description: Stream ID
         """
         data = self.get_json()
-        group_id = int(group_id)
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id: {group_id}")
         stream_id = data.get("stream_id")
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
 
         with self.Session() as session:
             group = session.scalars(
@@ -902,6 +933,12 @@ class GroupStreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            group_id = int(group_id)
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id/stream_id: {group_id}/{stream_id}")
 
         with self.Session() as session:
             groupstreams = session.scalars(

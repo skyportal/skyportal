@@ -120,7 +120,7 @@ class TokenHandler(BaseHandler):
                   schema: Error
         """
 
-        user_id = self.get_query_argument("userID", None)
+        user_id = self.get_query_argument("userID", None, type=int)
 
         with self.Session() as session:
             if token_id is not None:

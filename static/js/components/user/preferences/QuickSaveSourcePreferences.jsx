@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { makeStyles } from "@mui/styles";
-
+import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
 import * as profileActions from "../../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   allocationSelect: {
     width: "100%",
   },
@@ -20,7 +19,7 @@ const useStyles = makeStyles(() => ({
 
 const QuickSaveSourcePreferences = () => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible,

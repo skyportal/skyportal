@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
@@ -27,7 +27,6 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "../withRouter";
 
-import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
@@ -81,6 +80,7 @@ import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
+import ThumbnailList from "../thumbnail/ThumbnailList";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -90,7 +90,7 @@ const CentroidPlot = React.lazy(
   () => import(/* webpackChunkName: "CentroidPlot" */ "../plot/CentroidPlot"),
 );
 
-export const useSourceStyles = makeStyles((theme) => ({
+export const useSourceStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
     justifyContent: "space-between",
@@ -199,15 +199,11 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  tooltipLink: {
-    textDecoration: "none",
-    color: theme.palette.secondary.dark,
-  },
 }));
 
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
-  const classes = useSourceStyles();
+  const { classes } = useSourceStyles();
 
   const currentUser = useSelector((state) => state.profile);
   const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -844,8 +840,8 @@ const SourceContent = ({ source }) => {
                       <CopyPhotometryDialog
                         source={source}
                         duplicate={duplicate}
-                        sendToDialogOpen={copyPhotometryDialogOpen}
-                        closeDialog={setCopyPhotometryDialogOpen}
+                        dialogOpen={copyPhotometryDialogOpen}
+                        closeDialog={() => setCopyPhotometryDialogOpen(false)}
                       />
                     </div>
                   ))}
@@ -1001,15 +997,13 @@ const SourceContent = ({ source }) => {
                   setDialogOpen={setSendToDialogOpen}
                 />
               </div>
-              {currentUser?.preferences?.hideSourceSummary === true ? (
-                <div>
-                  <ShowSummaryHistory
-                    summaries={source.summary_history || []}
-                    obj_id={source.id}
-                    button
-                  />
-                </div>
-              ) : null}
+              {currentUser?.preferences?.hideSourceSummary && (
+                <ShowSummaryHistory
+                  summaries={source.summary_history || []}
+                  obj_id={source.id}
+                  button
+                />
+              )}
               <SourcePublish
                 sourceId={source.id}
                 isElements={{
@@ -1020,6 +1014,7 @@ const SourceContent = ({ source }) => {
                 }}
               />
             </div>
+            {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               currentUser?.preferences?.hideSourceSummary !== true && (
@@ -1145,19 +1140,32 @@ const SourceContent = ({ source }) => {
                 />
               </div>
             </div>
-            {showStarList && (
-              <div style={{ paddingTop: "0.5rem" }}>
-                <StarList sourceId={source.id} />
-              </div>
-            )}
-            <div style={{ paddingTop: "0.25rem" }}>
-              <ThumbnailsOnPage
+            <div
+              style={{
+                display: "grid",
+                gap: "0.5rem",
+                gridAutoFlow: "row",
+                ...(rightPanelVisible || downLg
+                  ? {
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      alignItems: "center",
+                      maxWidth: "fit-content",
+                    }
+                  : {
+                      gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                    }),
+              }}
+            >
+              <ThumbnailList
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}
-                rightPanelVisible={rightPanelVisible}
-                downSmall={downSm}
-                downLarge={downLg}
+                size="100%"
+                minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
+                maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
+                titleSize={downSm ? "0.55rem" : undefined}
+                useGrid={false}
+                noMargin
               />
             </div>
           </Paper>
@@ -1514,7 +1522,11 @@ SourceContent.propTypes = {
     dm: PropTypes.number,
     ebv: PropTypes.number,
     tns_name: PropTypes.string,
-    tns_info: PropTypes.arrayOf(PropTypes.shape(Object)),
+    tns_info: PropTypes.shape({
+      internal_name: PropTypes.string,
+      name: PropTypes.string,
+      classification: PropTypes.string,
+    }),
     mpc_name: PropTypes.string,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(

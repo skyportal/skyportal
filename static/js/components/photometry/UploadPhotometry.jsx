@@ -12,10 +12,11 @@ import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-import withStyles from "@mui/styles/withStyles";
+import { makeStyles } from "tss-react/mui";
+import { withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
 import PapaParse from "papaparse";
 import Button from "../Button";
@@ -36,7 +37,7 @@ const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,filter,altdata.me
 58002.,13.1,0.2,18.0,ab,ztfg,43.1
 58003.,12.9,0.3,18.0,ab,ztfg,42.5`;
 
-export const HtmlTooltip = withStyles((theme) => ({
+export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
   tooltip: {
     backgroundColor: theme.palette.info.main,
     color: theme.palette.text.primary,
@@ -44,7 +45,7 @@ export const HtmlTooltip = withStyles((theme) => ({
     fontSize: theme.typography.pxToRem(12),
     border: "1px solid #dadde9",
   },
-}))(Tooltip);
+}));
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
@@ -119,7 +120,6 @@ const UploadPhotometryForm = () => {
     if (!dataRows.every((row) => row.length === headerLength)) {
       return "Invalid input: All data rows must have the same number of columns as header row";
     }
-    // eslint-disable-next-line no-restricted-syntax
     for (const col of ["mjd", "filter", "magsys"]) {
       if (!header.includes(col)) {
         return `Invalid input: Missing required column: ${col}`;
@@ -216,7 +216,7 @@ const UploadPhotometryForm = () => {
     groupIDToName[g.id] = g.name;
   });
 
-  const useStyles = makeStyles((theme) => ({
+  const useStyles = makeStyles()((theme) => ({
     formControl: {
       margin: theme.spacing(1),
       minWidth: 120,
@@ -240,7 +240,7 @@ const UploadPhotometryForm = () => {
       },
     },
   }));
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   if (!sortedInstrumentList || !userGroups) {
     return (
@@ -252,6 +252,17 @@ const UploadPhotometryForm = () => {
 
   return (
     <div>
+      <Link
+        to={`/source/${id}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          marginBottom: "0.5rem",
+        }}
+      >
+        <ArrowBackIcon fontSize="small" /> Back to source
+      </Link>
       <Typography variant="h5">
         Upload photometry for source&nbsp;
         <Link to={`/source/${id}`} role="link">
@@ -353,6 +364,7 @@ const UploadPhotometryForm = () => {
                           render={({ field: { onChange, value } }) => (
                             <Select
                               labelId="instrumentSelectLabel"
+                              label="Instrument"
                               value={value}
                               onChange={onChange}
                             >

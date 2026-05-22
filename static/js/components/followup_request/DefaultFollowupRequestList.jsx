@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -21,7 +21,7 @@ import Button from "../Button";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -72,7 +72,7 @@ const DefaultFollowupRequestList = ({
   deletePermission,
 }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -203,7 +203,6 @@ const DefaultFollowupRequestList = ({
     return (
       <div className={classes.defaultFollowupRequestManage}>
         <Button
-          key={`delete_${default_followup_request.id}`}
           id={`delete_button_${default_followup_request.id}`}
           onClick={() => openDeleteDialog(default_followup_request.id)}
           disabled={!deletePermission}

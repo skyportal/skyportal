@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -8,7 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { useTheme } from "@mui/material/styles";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -29,7 +29,7 @@ const getStyles = (option, opts, theme) => ({
 const menuProps = { PaperProps: { style: { maxHeight: "20rem" } } };
 
 const SelectWithChips = (props) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const [opts, setOpts] = useState([]);
   const { label, id, initValue, onChange, options } = props;
@@ -101,7 +101,7 @@ SelectWithChips.defaultProps = {
 
 const SelectLabelWithChips = (props) => {
   // the difference with SelectWithChips is that the initValue is not a list of strings, but a list of element with an id and a label
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const [opts, setOpts] = useState([]);
   const { label, id, initValue, onChange, options } = props;
@@ -184,7 +184,7 @@ SelectLabelWithChips.defaultProps = {
 
 const SelectSingleLabelWithChips = (props) => {
   // the difference with SelectWithChips is that the initValue is not a list of strings, but a list of element with an id and a label
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const opts = [];
   const { label, id, initValue, onChange, options } = props;

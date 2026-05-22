@@ -5,8 +5,7 @@ import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
 import * as groupsActions from "../../ducks/groups";
@@ -15,7 +14,7 @@ import Button from "../Button";
 
 const filter = createFilterOptions();
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   heading: {
     fontSize: "1.0625rem",
     fontWeight: 500,
@@ -32,7 +31,7 @@ const NewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
   const { users: allUsers } = useSelector((state) => state.users);
   const [formState, setFormState] = useState(defaultState);
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   useEffect(() => {
     if (allUsers.length === 0) {
@@ -88,7 +87,6 @@ const NewGroupUserForm = ({ group_id }) => {
         defaultValue={null}
         renderInput={(params) => (
           <TextField
-            // eslint-disable-next-line react/jsx-props-no-spreading
             {...params}
             label="Username"
             data-testid="newGroupUserTextInput"

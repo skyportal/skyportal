@@ -7,7 +7,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import SettingsIcon from "@mui/icons-material/Settings";
 import Checkbox from "@mui/material/Checkbox";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -16,7 +16,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Autocomplete from "@mui/material/Autocomplete";
 import Button from "../Button";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   saveButton: {
     margin: "1rem 0",
   },
@@ -35,7 +35,7 @@ const WidgetPrefsDialog = ({
   onSubmit,
   stateBranchName,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const groups = useSelector((state) => state.groups.userAccessible);

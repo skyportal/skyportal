@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { CountUp } from "use-count-up";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -11,7 +11,7 @@ import DragHandleIcon from "@mui/icons-material/DragHandle";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../../ducks/profile";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   counter: {
     width: "100%",
     display: "flex",
@@ -28,7 +28,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SourceCounts = ({ classes, sinceDaysAgo }) => {
-  const styles = useStyles();
+  const { classes: styles } = useStyles();
   const sourceCounts = useSelector((state) => state.sourceCounts?.sourceCounts);
   const userPrefs = useSelector(
     (state) => state.profile.preferences.sourceCounts,

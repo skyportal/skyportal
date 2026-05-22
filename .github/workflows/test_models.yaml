@@ -88,8 +88,11 @@ jobs:
 
           ### firefox installation
           sudo snap remove firefox
-          sudo add-apt-repository ppa:mozillateam/ppa
-          printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+          sudo apt update -y
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 

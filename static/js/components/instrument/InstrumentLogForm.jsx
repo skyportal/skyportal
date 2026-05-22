@@ -4,11 +4,11 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,7 +21,7 @@ import "react-datepicker/dist/react-datepicker-cssmodules.css";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const InstrumentLogForm = ({ instrument }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -96,13 +96,13 @@ const InstrumentLogForm = ({ instrument }) => {
   }
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allocationListApiClassname?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
@@ -192,7 +192,6 @@ const InstrumentLogForm = ({ instrument }) => {
             schema={InstrumentLogSelectionFormSchema}
             validator={validator}
             onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
             disabled={isSubmitting}
             liveValidate

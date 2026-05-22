@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import validator from "@rjsf/validator-ajv8";
 import { withTheme } from "@rjsf/core";
 
-import makeStyles from "@mui/styles/makeStyles";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -17,9 +16,10 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Spinner from "../Spinner";
 import FormValidationError from "../FormValidationError";
 
 import * as sharingServicesActions from "../../ducks/sharingServices";
@@ -29,18 +29,7 @@ import { userLabel } from "../../utils/format";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme);
 
-const useStyles = makeStyles(() => ({
-  sharingServiceSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  container: {
-    width: "99%",
-    margin: "1rem 0",
-  },
-}));
-
 const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const { users: allUsers } = useSelector((state) => state.users);
   const currentUser = useSelector((state) => state.profile);
@@ -72,16 +61,16 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     (b) => b.id === selectedSharingServiceId,
   );
   const allowedInstruments = selectedSharingService?.instruments
-    ? instrumentList.filter((instrument) =>
-        selectedSharingService.instruments.some((i) => i.id === instrument.id),
+    ? instrumentList.filter(
+        (instrument) =>
+          selectedSharingService.instruments.some(
+            (i) => i.id === instrument.id,
+          ) &&
+          (allowedInstrumentsForSharing || []).includes(
+            instrument.name?.toLowerCase(),
+          ),
       )
     : [];
-
-  instrumentList.filter((instrument) =>
-    (allowedInstrumentsForSharing || []).includes(
-      instrument.name?.toLowerCase(),
-    ),
-  );
 
   useEffect(() => {
     const getSharingServices = async () => {
@@ -216,26 +205,6 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     setDialogOpen(false);
   };
 
-  if (!sharingServicesList?.length) {
-    return (
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        {loading ? (
-          <DialogContent
-            style={{ width: "60px", height: "60px", padding: "0" }}
-          >
-            <Spinner />
-          </DialogContent>
-        ) : (
-          <DialogTitle>
-            <Typography variant="body1" color="text.secondary">
-              No sharing services available...
-            </Typography>
-          </DialogTitle>
-        )}
-      </Dialog>
-    );
-  }
-
   const formSchema = {
     type: "object",
     properties: {
@@ -258,7 +227,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         type: "array",
         items: {
           type: "integer",
-          enum: streams.map((stream) => stream.id),
+          enum: (streams || []).map((stream) => stream.id),
         },
         uniqueItems: true,
         default: defaultStreamIds,
@@ -330,7 +299,7 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
       ),
     },
     stream_ids: {
-      "ui:enumNames": streams.map((stream) => stream.name),
+      "ui:enumNames": (streams || []).map((stream) => stream.name),
     },
   };
 
@@ -366,6 +335,34 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
     return errors;
   };
 
+  const sharingServiceForm = () => {
+    if (!sharingServicesList?.length || !selectedSharingServiceId) return null;
+    if (!defaultSharersString) {
+      return (
+        <Box display="flex" justifyContent="center" mt={2}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (!allowedInstruments.length) {
+      return (
+        <FormValidationError message="This sharing service has no allowed instruments, edit it before submitting" />
+      );
+    }
+
+    return (
+      <Form
+        schema={formSchema}
+        uiSchema={uiSchema}
+        validator={validator}
+        onSubmit={handleSubmit}
+        disabled={SharingRequestInProcess}
+        customValidate={validate}
+      />
+    );
+  };
+
   return (
     <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
       <DialogTitle>
@@ -373,13 +370,11 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
           Send to
           <Tooltip
             title={
-              isNoAffiliation ? (
+              isNoAffiliation && (
                 <h3>
                   Warning: You have no affiliation(s), you should set your
                   affiliation(s) in your profile before submitting to TNS
                 </h3>
-              ) : (
-                ""
               )
             }
           >
@@ -406,7 +401,6 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
                   href="https://hermes.lco.global/about"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={classes.tooltipLink}
                 >
                   here
                 </a>{" "}
@@ -426,74 +420,54 @@ const SharingServicesDialog = ({ obj_id, dialogOpen, setDialogOpen }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        <div className={classes.container}>
-          <FormControl fullWidth required>
-            <InputLabel id="sharingServiceSelectLabel">
-              Sharing Service
-            </InputLabel>
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="sharingServiceSelectLabel"
-              label="Sharing Service"
-              value={selectedSharingServiceId || ""}
-              onChange={(e) => setselectedSharingServiceId(e.target.value)}
-            >
-              {sharingServicesList?.map((sharingService) => (
-                <MenuItem
-                  value={sharingService.id}
-                  key={sharingService.id}
-                  className={classes.sharingServiceSelectItem}
-                >
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    {sharingService.testing === true && (
-                      <Tooltip
-                        title={
-                          <h3>
-                            This Sharing Service is currently in testing mode.
-                            It will not publish any data to TNS but will store
-                            the payload in the database instead (useful for
-                            debugging purposes). For Hermes, it will publish to
-                            the test topic. You can remove it from the sharing
-                            services page.
-                          </h3>
-                        }
-                        placement="right"
-                      >
-                        <BugReportIcon style={{ color: "orange" }} />
-                      </Tooltip>
-                    )}
-                    <Typography
-                      variant="body1"
-                      style={{ marginLeft: "0.5rem" }}
+        <FormControl
+          sx={{ marginTop: 1 }}
+          fullWidth
+          required
+          error={!sharingServicesList?.length && !loading}
+        >
+          <InputLabel id="sharingServiceSelectLabel">
+            Sharing Service
+          </InputLabel>
+          <Select
+            inputProps={{ MenuProps: { disableScrollLock: true } }}
+            labelId="sharingServiceSelectLabel"
+            label="Sharing Service"
+            value={selectedSharingServiceId || ""}
+            onChange={(e) => setselectedSharingServiceId(e.target.value)}
+          >
+            {sharingServicesList?.map((sharingService) => (
+              <MenuItem value={sharingService.id} key={sharingService.id}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {sharingService.testing === true && (
+                    <Tooltip
+                      title={
+                        <h3>
+                          This Sharing Service is currently in testing mode. It
+                          will not publish any data to TNS but will store the
+                          payload in the database instead (useful for debugging
+                          purposes). For Hermes, it will publish to the test
+                          topic. You can remove it from the sharing services
+                          page.
+                        </h3>
+                      }
+                      placement="right"
                     >
-                      {sharingService.name}
-                    </Typography>
-                  </div>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {selectedSharingServiceId &&
-            sharingServicesList &&
-            (allowedInstruments.length === 0 ? (
-              <FormValidationError message="This sharing service has no allowed instruments, edit it before submitting" />
-            ) : (
-              <div data-testid="external-publishing-form">
-                {defaultSharersString ? (
-                  <Form
-                    schema={formSchema}
-                    uiSchema={uiSchema}
-                    validator={validator}
-                    onSubmit={handleSubmit}
-                    disabled={SharingRequestInProcess}
-                    customValidate={validate}
-                  />
-                ) : (
-                  <h3>Loading...</h3>
-                )}
-              </div>
+                      <BugReportIcon style={{ color: "orange" }} />
+                    </Tooltip>
+                  )}
+                  <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
+                    {sharingService.name}
+                  </Typography>
+                </Box>
+              </MenuItem>
             ))}
-        </div>
+          </Select>
+          {!sharingServicesList?.length && !loading && (
+            <FormHelperText>No sharing service available.</FormHelperText>
+          )}
+        </FormControl>
+        {sharingServiceForm()}
       </DialogContent>
     </Dialog>
   );

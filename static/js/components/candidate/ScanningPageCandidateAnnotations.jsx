@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -14,7 +14,7 @@ import Paper from "@mui/material/Paper";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     background: theme.palette.background.paper,
@@ -55,7 +55,7 @@ const ScanningPageCandidateAnnotations = ({
   listWidth = 250,
   listItemWidth = 200,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const dispatch = useDispatch();
 

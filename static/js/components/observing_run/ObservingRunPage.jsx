@@ -12,7 +12,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -38,7 +38,7 @@ dayjs.extend(utc);
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: "100%",
     maxWidth: "22.5rem",
@@ -102,7 +102,7 @@ export const observingRunInfo = (
 };
 
 const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observingRunToModify, setObservingRunToModify] = useState(null);
@@ -155,7 +155,7 @@ ModifyObservingRunDialog.propTypes = {
 };
 
 const DeleteObservingRunDialog = ({ run, deletePermission }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observingRunToDelete, setObservingRunToDelete] = useState(null);
@@ -181,7 +181,6 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
   return (
     <div>
       <Button
-        key={`${run.id}-delete_button`}
         id="delete_button"
         classes={{
           root: classes.observingRunDelete,
@@ -211,7 +210,7 @@ DeleteObservingRunDialog.propTypes = {
 };
 
 const ObservingRunList = ({ observingRuns, deletePermission }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
@@ -303,7 +302,7 @@ ObservingRunList.propTypes = {
 const ObservingRunPage = () => {
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const permission =
     currentUser.permissions?.includes("System admin") ||

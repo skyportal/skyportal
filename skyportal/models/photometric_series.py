@@ -32,6 +32,11 @@ from baselayer.app.models import (
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
+
+# Cast literal "NaN" once at module import — comparing a double-precision
+# column against the bare string "NaN" works under psycopg2 but fails under
+# psycopg3 (UndefinedFunction). Reuse the casted literal in SQL expressions.
+_PG_NAN = sa.cast(sa.literal("NaN"), sa.Float)
 from .group import accessible_by_groups_members, accessible_by_streams_members
 from .photometry import PHOT_ZP
 
@@ -1359,7 +1364,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -1394,7 +1399,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711

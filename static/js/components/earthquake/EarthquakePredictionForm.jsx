@@ -8,7 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -22,7 +22,7 @@ import "react-datepicker/dist/react-datepicker-cssmodules.css";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -56,7 +56,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const EarthquakePredictionForm = ({ earthquake }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const { mmadetectorList } = useSelector((state) => state.mmadetectors);

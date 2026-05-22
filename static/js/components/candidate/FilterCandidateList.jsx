@@ -24,8 +24,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Grid from "@mui/material/Grid";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import makeStyles from "@mui/styles/makeStyles";
-
+import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -40,7 +39,7 @@ import Button from "../Button";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   filterListContainer: {
     padding: "1rem 1rem 0 1rem",
     display: "flex",
@@ -192,7 +191,7 @@ const FilterCandidateList = ({
   annotationFilterList,
   setSortOrder,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo,
@@ -294,8 +293,10 @@ const FilterCandidateList = ({
     reset,
     formState: { errors },
   } = useForm({
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
+    defaultValues: {
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
+    },
   });
 
   useEffect(() => {
@@ -360,9 +361,9 @@ const FilterCandidateList = ({
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
       rejectedStatus: scanningProfile?.rejectedStatus || "show",
       savedStatus: scanningProfile?.savedStatus || "all",
-      sortingOrigin: scanningProfile?.sortingOrigin || "",
-      sortingKey: scanningProfile?.sortingKey || "",
-      sortingOrder: scanningProfile?.sortingOrder || "",
+      sortingOrigin: scanningProfile?.sortingOrigin || null,
+      sortingKey: scanningProfile?.sortingKey || null,
+      sortingOrder: scanningProfile?.sortingOrder || null,
       gcneventid: "",
       localizationid: "",
       firstDetectionAfter: "",
@@ -577,11 +578,11 @@ const FilterCandidateList = ({
               >
                 Generate report
               </Button>
-              <GenerateReportForm
-                dialogOpen={generateReportDialogOpen}
-                setDialogOpen={setGenerateReportDialogOpen}
-              />
             </Tooltip>
+            <GenerateReportForm
+              dialogOpen={generateReportDialogOpen}
+              setDialogOpen={setGenerateReportDialogOpen}
+            />
             <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
               <div>
                 <Button primary type="submit" endIcon={<SearchIcon />}>
@@ -902,6 +903,7 @@ const FilterCandidateList = ({
                     name="redshiftMinimum"
                     labelId="redshift-select-label"
                     control={control}
+                    defaultValue=""
                   />
                   <Controller
                     render={({ field: { onChange, value } }) => (
@@ -921,6 +923,7 @@ const FilterCandidateList = ({
                     )}
                     name="redshiftMaximum"
                     control={control}
+                    defaultValue=""
                   />
                 </div>
               </div>
@@ -1178,7 +1181,7 @@ const FilterCandidateList = ({
                       name="sortingKey"
                       control={control}
                       input={<Input data-testid="annotationSortingKeySelect" />}
-                      defaultValue={selectedScanningProfile?.sortingKey || ""}
+                      defaultValue={selectedScanningProfile?.sortingKey || null}
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingKeySelect"

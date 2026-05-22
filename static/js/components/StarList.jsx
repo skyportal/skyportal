@@ -5,122 +5,100 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
-import makeStyles from "@mui/styles/makeStyles";
-import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Tooltip from "@mui/material/Tooltip";
+import FormControl from "@mui/material/FormControl";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { GET } from "../API";
 
-const useStyles = makeStyles(() => ({
-  starList: {
-    fontSize: "0.75rem",
-  },
-  codeText: {
-    overflow: "scroll",
-  },
-  paper: {
-    marginTop: "0.5rem",
-    padding: "0 0.5rem 0 0.5rem",
-  },
-}));
-
 const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
-  const classes = useStyles();
   const handleChange = (event) => {
     setFacility(event.target.value);
-    setStarList([{ str: "Loading starlist..." }]);
+    setStarList(null);
   };
 
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
+    <div style={{ marginTop: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <FormControl size="small">
           <InputLabel id="StarListSelect">Facility</InputLabel>
           <Select
+            label="Facility"
             labelId="StarListSelect"
             value={facility}
             onChange={handleChange}
             name="StarListSelectElement"
-            size="small"
           >
             <MenuItem value="Keck">Keck</MenuItem>
             <MenuItem value="P200">P200</MenuItem>
             <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
             <MenuItem value="Shane">Shane</MenuItem>
           </Select>
+        </FormControl>
+        <div>
+          <Tooltip title="Copy to clipboard">
+            <span>
+              <IconButton
+                disabled={!starList?.length}
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    starList.map((item) => item.str).join("\n"),
+                  );
+                }}
+              >
+                <ContentCopyIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Download">
+            <span>
+              <IconButton
+                disabled={!starList?.length}
+                onClick={() => {
+                  const element = document.createElement("a");
+                  const file = new Blob(
+                    [starList.map((item) => item.str).join("\n")],
+                    { type: "text/plain" },
+                  );
+                  element.href = URL.createObjectURL(file);
+                  element.download = `starlist_${facility.toLowerCase()}${
+                    facility === "P200-NGPS" ? ".csv" : ".txt"
+                  }`;
+                  document.body.appendChild(element);
+                  element.click();
+                }}
+              >
+                <DownloadOutlined />
+              </IconButton>
+            </span>
+          </Tooltip>
         </div>
-        {starList &&
-          starList?.length > 0 &&
-          starList[0].str !== "Loading starlist..." && (
-            <div>
-              <Tooltip title="Copy to clipboard">
-                <span>
-                  <IconButton
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        starList.map((item) => item.str).join("\n"),
-                      );
-                    }}
-                  >
-                    <ContentCopyIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title="Download">
-                <span>
-                  <IconButton
-                    onClick={() => {
-                      const element = document.createElement("a");
-                      const file = new Blob(
-                        [starList.map((item) => item.str).join("\n")],
-                        { type: "text/plain" },
-                      );
-                      element.href = URL.createObjectURL(file);
-                      element.download = `starlist_${facility.toLowerCase()}${
-                        facility === "P200-NGPS" ? ".csv" : ".txt"
-                      }`;
-                      document.body.appendChild(element);
-                      element.click();
-                    }}
-                  >
-                    <DownloadOutlined />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </div>
-          )}
       </div>
-      <Paper variant="outlined" className={classes.paper}>
-        <code className={classes.starList}>
-          <div className={classes.codeText}>
-            <pre>
-              {starList &&
-                starList.map((item, idx) => (
-                  <React.Fragment key={idx}>
-                    {item.str}
-                    <br />
-                  </React.Fragment>
-                ))}
-            </pre>
-          </div>
-        </code>
-      </Paper>
+      {starList === null ? (
+        <CircularProgress sx={{ mt: 1 }} size={32} />
+      ) : (
+        <pre
+          style={{
+            fontSize: "0.75rem",
+            border: "solid lightgray 1px",
+            background: "#eee",
+            padding: "1em",
+            borderRadius: "0.5em",
+            overflowX: "scroll",
+          }}
+        >
+          {starList.map((item) => item.str).join("\n")}
+        </pre>
+      )}
     </div>
   );
 };
 
 const StarList = ({ sourceId }) => {
-  const [starList, setStarList] = useState([{ str: "Loading starlist..." }]);
+  const [starList, setStarList] = useState(null);
   const dispatch = useDispatch();
   const [facility, setFacility] = useState("Keck");
 
@@ -133,7 +111,7 @@ const StarList = ({ sourceId }) => {
         ),
       );
 
-      let data = response.data.starlist_info;
+      let data = response.data.starlist_info || [];
       // if the facility is P200-NGPS, we add the header to the starlist
       if (facility === "P200-NGPS") {
         data = [
@@ -161,7 +139,7 @@ const StarList = ({ sourceId }) => {
 
 export const ObservingRunStarList = () => {
   const dispatch = useDispatch();
-  const [starList, setStarList] = useState([{ str: "Loading starlist..." }]);
+  const [starList, setStarList] = useState(null);
   const { assignments } = useSelector((state) => state.observingRun);
   const [facility, setFacility] = useState("Keck");
 
@@ -223,7 +201,7 @@ StarListBody.propTypes = {
     PropTypes.shape({
       str: PropTypes.string,
     }),
-  ).isRequired,
+  ),
   setStarList: PropTypes.func.isRequired,
   setFacility: PropTypes.func.isRequired,
   facility: PropTypes.string.isRequired,

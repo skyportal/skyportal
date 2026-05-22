@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -23,7 +23,7 @@ import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
 import * as taxonomyActions from "../../ducks/taxonomies";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -89,7 +89,7 @@ const TaxonomyTable = ({
   deletePermission,
   sortingCallback,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
 
   const dispatch = useDispatch();
@@ -216,7 +216,6 @@ const TaxonomyTable = ({
           <EditIcon />
         </Button>
         <Button
-          key={`delete_${taxonomy.id}`}
           id={`delete_button_${taxonomy.id}`}
           onClick={() => openDeleteDialog(taxonomy.id)}
           disabled={!deletePermission}

@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -27,7 +27,7 @@ import NewAPIObservation from "./NewAPIObservation";
 
 import { checkSource, saveSource } from "../../ducks/source";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -85,7 +85,7 @@ const ExecutedObservationsTable = ({
   numPerPage = 10,
   serverSide = true,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
