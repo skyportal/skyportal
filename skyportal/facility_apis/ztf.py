@@ -318,6 +318,22 @@ async def commit_photometry(
     async. Drive from sync contexts (e.g. facility_queue) with
     ``asyncio.run(commit_photometry(...))``; from async handlers, ``await``
     directly.
+
+    Parameters
+    ----------
+    url : str
+        ZTF forced photometry service data file location.
+    altdata : dict
+        Contains ZTF photometry api_token for the user.
+    request_id : int
+        FollowupRequest SkyPortal ID.
+    instrument_id : int
+        Instrument SkyPortal ID.
+    user_id : int
+        User SkyPortal ID.
+    duplicates : str
+        Duplicate-handling mode passed through to ``add_external_photometry``
+        ("error", "ignore", or "update"). Defaults to "error".
     """
     import sqlalchemy as sa
     from sqlalchemy.orm import selectinload
