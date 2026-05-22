@@ -30,6 +30,7 @@ from marshmallow_sqlalchemy import (
 from marshmallow_sqlalchemy import (
     SQLAlchemyAutoSchema as _SQLAlchemyAutoSchema,
 )
+from marshmallow_sqlalchemy.fields import Related, RelatedList
 
 from baselayer.app.env import load_env
 from baselayer.app.models import Base as _Base
@@ -159,6 +160,15 @@ def setup_schema():
                     (_SQLAlchemyAutoSchema,),
                     {"Meta": schema_class_meta},
                 )
+
+                # marshmallow-sqlalchemy 1.5+ marks Related fields as required
+                # on load. Our API contract is "send FK IDs, return nested
+                # objects", so make relationships dump-only — they appear in
+                # GET responses but are not demanded on POST/PUT.
+                for _field in schema_class._declared_fields.values():
+                    if isinstance(_field, Related | RelatedList):
+                        _field.dump_only = True
+                        _field.required = False
 
                 if add_to_model:
                     setattr(class_, "__schema__", schema_class)

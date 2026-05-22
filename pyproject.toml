@@ -27,7 +27,7 @@ dependencies = [
     "astroquery==0.4.11",
     "apispec>=6.3.0, <7.0.0",
     "marshmallow==3.26.2",
-    "marshmallow-sqlalchemy==1.5.0",
+    "marshmallow-sqlalchemy==1.1.0",
     "marshmallow-enum==1.5.1",
     "Pillow>=8.4.0",
     "pyproj==3.7.0",
