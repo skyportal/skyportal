@@ -3,7 +3,7 @@ from .base import BaseHandler
 
 
 class BecomeUserHandler(BaseHandler):
-    def get(self, new_user_id: int | None = None):
+    def get(self, new_user_id: str | None = None):
         if not (
             self.cfg["server.auth.debug_login"]
             or {"System admin", "Become user"}.intersection(
