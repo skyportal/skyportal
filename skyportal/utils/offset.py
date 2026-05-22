@@ -333,7 +333,7 @@ def ngps_defaults(mag, magfilter):
         mag = f"{mag:<0.02f}"
     except (TypeError, ValueError):
         pass
-    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5"
+    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5,1"
 
 
 # helper dict for seaching for FITS images from various surveys
@@ -1627,7 +1627,7 @@ def get_finding_chart(
     first_line = None
     if offset_star_kwargs.get("starlist_type", "Keck") == "P200-NGPS":
         # add a first line with the column names for P200-NGPS (csv format)
-        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME"
+        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME,NEXP"
 
     ncolors = len(star_list)
     if star_list[0]["str"].startswith("!Data"):
