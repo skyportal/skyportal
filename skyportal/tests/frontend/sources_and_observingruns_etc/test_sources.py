@@ -339,7 +339,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//*[text()='Classification saved']")
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element(
-        By.XPATH, "//div[@id='classifications-header']"
+        By.XPATH, "//button[@id='classifications-header']"
     )
     driver.scroll_to_element(classifications)
 
