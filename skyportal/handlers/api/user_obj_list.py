@@ -66,6 +66,11 @@ class UserObjListHandler(BaseHandler):
 
         if user_id is None:
             user_id = self.associated_user_object.id
+        else:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid user_id {user_id}")
 
         list_name = self.get_query_argument("listName", None)
 
@@ -280,6 +285,11 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
+        try:
+            listing_id = int(listing_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid listing_id {listing_id}")
+
         with self.Session() as session:
             listing = session.scalars(
                 Listing.select(self.current_user, mode="update").where(

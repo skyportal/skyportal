@@ -658,7 +658,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
 
     user = session.query(User).get(user_id)
 
-    dateobs = arrow.get(payload["dateobs"]).datetime
+    dateobs = arrow.get(payload["dateobs"]).naive
 
     event = session.scalars(
         GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
@@ -835,13 +835,18 @@ class GcnEventAliasesHandler(BaseHandler):
         if type(alias) is not str:
             return self.error("alias must be a string")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             try:
                 event = session.scalars(
                     GcnEvent.select(
                         session.user_or_token,
                         mode="update",
-                    ).where(GcnEvent.dateobs == dateobs)
+                    ).where(GcnEvent.dateobs == dateobs_parsed)
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
@@ -912,13 +917,18 @@ class GcnEventAliasesHandler(BaseHandler):
                     f"Cannot delete alias with substring {forbidden_substring}"
                 )
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             try:
                 event = session.scalars(
                     GcnEvent.select(
                         session.user_or_token,
                         mode="update",
-                    ).where(GcnEvent.dateobs == dateobs)
+                    ).where(GcnEvent.dateobs == dateobs_parsed)
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
@@ -1074,10 +1084,15 @@ class GcnEventTagsHandler(BaseHandler):
         if tag is None:
             return self.error("tag must be present in data to remove GcnTag")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             tag = session.scalars(
                 GcnTag.select(session.user_or_token, mode="delete").where(
-                    GcnTag.dateobs == dateobs,
+                    GcnTag.dateobs == dateobs_parsed,
                     GcnTag.text == tag,
                 )
             ).first()
@@ -1598,6 +1613,11 @@ class GcnEventHandler(BaseHandler):
                 )
 
         if dateobs is not None:
+            try:
+                dateobs_parsed = arrow.get(dateobs).naive
+            except Exception as e:
+                return self.error(f"Invalid dateobs: {e}")
+
             with self.Session() as session:
                 options = [
                     joinedload(GcnEvent.localizations).joinedload(Localization.tags),
@@ -1620,7 +1640,7 @@ class GcnEventHandler(BaseHandler):
                     GcnEvent.select(
                         session.user_or_token,
                         options=options,
-                    ).where(GcnEvent.dateobs == dateobs)
+                    ).where(GcnEvent.dateobs == dateobs_parsed)
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
@@ -1978,11 +1998,16 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             try:
                 event = session.scalars(
                     GcnEvent.select(session.user_or_token, mode="delete").where(
-                        GcnEvent.dateobs == dateobs
+                        GcnEvent.dateobs == dateobs_parsed
                     )
                 ).first()
                 if event is None:
@@ -1991,7 +2016,7 @@ class GcnEventHandler(BaseHandler):
                 # get all of the skymaps on that event
                 localizations = session.scalars(
                     Localization.select(session.user_or_token, mode="delete").where(
-                        Localization.dateobs == dateobs
+                        Localization.dateobs == dateobs_parsed
                     )
                 ).all()
                 for localization in localizations:
@@ -2001,7 +2026,7 @@ class GcnEventHandler(BaseHandler):
                 # get all of the notices of the event, and delete them
                 notices = session.scalars(
                     GcnNotice.select(session.user_or_token, mode="delete").where(
-                        GcnNotice.dateobs == dateobs
+                        GcnNotice.dateobs == dateobs_parsed
                     )
                 ).all()
                 for notice in notices:
@@ -2010,7 +2035,7 @@ class GcnEventHandler(BaseHandler):
                 # delete all GCN tags
                 tags = session.scalars(
                     GcnTag.select(session.user_or_token, mode="delete").where(
-                        GcnTag.dateobs == dateobs
+                        GcnTag.dateobs == dateobs_parsed
                     )
                 ).all()
                 for tag in tags:
@@ -2069,12 +2094,17 @@ class GcnEventUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             event = session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
                     options=[joinedload(GcnEvent.gcnevent_users)],
-                ).where(GcnEvent.dateobs == dateobs)
+                ).where(GcnEvent.dateobs == dateobs_parsed)
             )
 
             user = session.scalar(
@@ -2146,12 +2176,17 @@ class GcnEventUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             event = session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
                     options=[joinedload(GcnEvent.gcnevent_users)],
-                ).where(GcnEvent.dateobs == dateobs)
+                ).where(GcnEvent.dateobs == dateobs_parsed)
             )
 
             gu = session.scalar(
@@ -2722,10 +2757,15 @@ class LocalizationHandler(BaseHandler):
 
         include_2D_map = self.get_query_argument("include2DMap", False)
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             localization = session.scalars(
                 Localization.select(session.user_or_token).where(
-                    Localization.dateobs == dateobs,
+                    Localization.dateobs == dateobs_parsed,
                     Localization.localization_name == localization_name,
                 )
             ).first()
@@ -2775,10 +2815,15 @@ class LocalizationHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             localization = session.scalars(
                 Localization.select(session.user_or_token, mode="delete").where(
-                    Localization.dateobs == dateobs,
+                    Localization.dateobs == dateobs_parsed,
                     Localization.localization_name == localization_name,
                 )
             ).first()
@@ -2803,10 +2848,15 @@ class LocalizationNoticeHandler(BaseHandler):
     @auth_or_token
     async def post(self, dateobs, notice_id):
         # first get the notice, if it exists
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             gcn_notice = session.scalars(
                 GcnNotice.select(session.user_or_token).where(
-                    GcnNotice.dateobs == dateobs, GcnNotice.id == notice_id
+                    GcnNotice.dateobs == dateobs_parsed, GcnNotice.id == notice_id
                 )
             ).first()
 
@@ -2848,7 +2898,7 @@ class LocalizationNoticeHandler(BaseHandler):
                     )
                 localization = session.scalars(
                     Localization.select(session.user_or_token).where(
-                        Localization.dateobs == dateobs,
+                        Localization.dateobs == dateobs_parsed,
                         Localization.localization_name == skymap_metadata["name"],
                     )
                 ).first()
@@ -2986,6 +3036,9 @@ def add_gcn_summary(
     try:
         user = session.query(User).get(user_id)
         session.user_or_token = user
+
+        if isinstance(dateobs, str):
+            dateobs = arrow.get(dateobs).naive
 
         gcn_summary = session.query(GcnSummary).get(summary_id)
         group = session.query(Group).get(group_id)
@@ -3681,7 +3734,7 @@ class GcnSummaryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         number_of_observations = data.get("numberObservations", 1)
         show_sources = data.get("showSources", False)
@@ -3774,9 +3827,14 @@ class GcnSummaryHandler(BaseHandler):
                 if len(acknowledgements) == 0:
                     acknowledgements = None
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnEvent.select(session.user_or_token).where(
-                GcnEvent.dateobs == dateobs
+                GcnEvent.dateobs == dateobs_parsed
             )
             event = session.scalars(stmt).first()
 
@@ -3790,7 +3848,7 @@ class GcnSummaryHandler(BaseHandler):
 
             # verify that the user doesn't already have a summary with this title for this event
             stmt = GcnSummary.select(session.user_or_token, mode="read").where(
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
                 GcnSummary.title == title,
                 GcnSummary.group_id == group_id,
                 GcnSummary.sent_by_id == self.associated_user_object.id,
@@ -3882,10 +3940,20 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid summary_id {summary_id}")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="read").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -3945,10 +4013,15 @@ class GcnSummaryHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid summary_id value.")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -3997,10 +4070,20 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid summary_id {summary_id}")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="delete").where(
                 GcnSummary.id == summary_id,
-                GcnSummary.dateobs == dateobs,
+                GcnSummary.dateobs == dateobs_parsed,
             )
             summary = session.scalars(stmt).first()
             if summary is None:
@@ -4055,6 +4138,9 @@ def add_gcn_report(
         gcn_report = session.query(GcnReport).get(report_id)
 
         try:
+            if isinstance(dateobs, str):
+                dateobs = arrow.get(dateobs).naive
+
             group = session.query(Group).get(group_id)
             event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
             localization = (
@@ -4378,7 +4464,7 @@ class GcnReportHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         show_sources = data.get("showSources", False)
         show_observations = data.get("showObservations", False)
@@ -4432,9 +4518,14 @@ class GcnReportHandler(BaseHandler):
         except ValueError:
             return self.error("numberDetections must be an integer")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             stmt = GcnEvent.select(session.user_or_token).where(
-                GcnEvent.dateobs == dateobs
+                GcnEvent.dateobs == dateobs_parsed
             )
             event = session.scalars(stmt).first()
 
@@ -4448,7 +4539,7 @@ class GcnReportHandler(BaseHandler):
 
             # verify that the user doesn't already have a summary with this title for this event
             stmt = GcnReport.select(session.user_or_token, mode="read").where(
-                GcnReport.dateobs == dateobs,
+                GcnReport.dateobs == dateobs_parsed,
                 GcnReport.report_name == report_name,
                 GcnReport.group_id == group_id,
                 GcnReport.sent_by_id == self.associated_user_object.id,
@@ -4530,10 +4621,15 @@ class GcnReportHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         if report_id is None:
             with self.Session() as session:
                 stmt = GcnReport.select(session.user_or_token, mode="read").where(
-                    GcnReport.dateobs == dateobs
+                    GcnReport.dateobs == dateobs_parsed
                 )
                 reports = session.scalars(stmt).all()
                 reports = sorted(
@@ -4550,10 +4646,15 @@ class GcnReportHandler(BaseHandler):
                 )
                 return self.success(data=reports)
 
+        try:
+            report_id = int(report_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid report_id {report_id}")
+
         with self.Session() as session:
             stmt = GcnReport.select(session.user_or_token, mode="read").where(
                 GcnReport.id == report_id,
-                GcnReport.dateobs == dateobs,
+                GcnReport.dateobs == dateobs_parsed,
             )
             report = session.scalars(stmt).first()
             if report is None:
@@ -4809,11 +4910,16 @@ class LocalizationDownloadHandler(BaseHandler):
         localization_name = localization_name.strip()
         local_temp_files = []
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             try:
                 localization = session.scalars(
                     Localization.select(session.user_or_token).where(
-                        Localization.dateobs == dateobs,
+                        Localization.dateobs == dateobs_parsed,
                         Localization.localization_name == localization_name,
                     )
                 ).first()
@@ -4996,11 +5102,18 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
             return self.error(f"Failed to parse dateobs: str({e})")
 
         localization_name = self.get_query_argument("localization_name", None)
-        integrated_probability = self.get_query_argument("integrated_probability", 0.95)
+        integrated_probability = self.get_query_argument(
+            "integrated_probability", 0.95, type=float
+        )
+
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
 
         with self.Session() as session:
             stmt = Localization.select(session.user_or_token).where(
-                Localization.dateobs == dateobs
+                Localization.dateobs == dateobs_parsed
             )
             if localization_name is not None:
                 stmt = stmt.where(Localization.localization_name == localization_name)
@@ -5062,7 +5175,7 @@ class GcnEventTriggerHandler(BaseHandler):
     def get(self, dateobs, allocation_id=None):
         dateobs = dateobs.strip()
         try:
-            arrow.get(dateobs)
+            dateobs_parsed = arrow.get(dateobs).naive
         except arrow.parser.ParserError as e:
             return self.error(f"Failed to parse dateobs: str({e})")
 
@@ -5075,7 +5188,7 @@ class GcnEventTriggerHandler(BaseHandler):
                 try:
                     gcn_triggered = session.scalars(
                         GcnTrigger.select(session.user_or_token).where(
-                            GcnTrigger.dateobs == dateobs,
+                            GcnTrigger.dateobs == dateobs_parsed,
                             GcnTrigger.allocation_id == allocation_id,
                         )
                     ).all()
@@ -5089,7 +5202,7 @@ class GcnEventTriggerHandler(BaseHandler):
                 try:
                     gcn_triggered = session.scalars(
                         GcnTrigger.select(session.user_or_token).where(
-                            GcnTrigger.dateobs == dateobs
+                            GcnTrigger.dateobs == dateobs_parsed
                         )
                     ).all()
                     return self.success(data=gcn_triggered)
@@ -5123,11 +5236,16 @@ class GcnEventTriggerHandler(BaseHandler):
         except ValueError:
             return self.error(f"Failed to parse allocation_id: {allocation_id}")
 
+        try:
+            dateobs_parsed = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
         with self.Session() as session:
             try:
                 gcn_triggered = session.scalars(
                     GcnTrigger.select(session.user_or_token).where(
-                        GcnTrigger.dateobs == dateobs,
+                        GcnTrigger.dateobs == dateobs_parsed,
                         GcnTrigger.allocation_id == allocation_id,
                     )
                 ).first()
@@ -5135,7 +5253,7 @@ class GcnEventTriggerHandler(BaseHandler):
                     # verify that the event and allocation exist
                     event = session.scalars(
                         GcnEvent.select(session.user_or_token).where(
-                            GcnEvent.dateobs == dateobs
+                            GcnEvent.dateobs == dateobs_parsed
                         )
                     ).first()
 

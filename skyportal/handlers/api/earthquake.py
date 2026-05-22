@@ -411,7 +411,7 @@ class EarthquakeHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = arrow.get(start_date.strip()).datetime
+                start_date = arrow.get(start_date.strip()).naive
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
                     .where(EarthquakeNotice.date >= start_date)
@@ -422,7 +422,7 @@ class EarthquakeHandler(BaseHandler):
                     EarthquakeEvent.event_id == notice_subquery.c.event_id,
                 )
             if end_date:
-                end_date = arrow.get(end_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).naive
 
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
@@ -523,6 +523,10 @@ class EarthquakePredictionHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            mma_detector_id = int(mma_detector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
 
         with self.Session() as session:
             event = session.scalars(
@@ -670,6 +674,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            mma_detector_id = int(mma_detector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
 
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
@@ -751,6 +759,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
+        try:
+            mma_detector_id = int(mma_detector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
 
         with self.Session() as session:
             event = session.scalars(
@@ -801,6 +813,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            mma_detector_id = int(mma_detector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
 
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
@@ -873,6 +889,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            mma_detector_id = int(mma_detector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
 
         with self.Session() as session:
             event = session.scalars(

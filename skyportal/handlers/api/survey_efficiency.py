@@ -273,6 +273,13 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                   schema: Error
         """
 
+        if default_survey_efficiency_id is not None:
+            try:
+                default_survey_efficiency_id = int(default_survey_efficiency_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
+                )
         with self.Session() as session:
             if default_survey_efficiency_id is not None:
                 default_survey_efficiency_request = session.scalars(
@@ -342,6 +349,12 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            default_survey_efficiency_id = int(default_survey_efficiency_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
+            )
         with self.Session() as session:
             stmt = DefaultSurveyEfficiencyRequest.select(session.user_or_token).where(
                 DefaultSurveyEfficiencyRequest.id == default_survey_efficiency_id

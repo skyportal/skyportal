@@ -37,6 +37,10 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, assignment_id):
+        try:
+            assignment_id = int(assignment_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid assignment_id: {assignment_id}")
         with self.Session() as session:
             assignment = session.scalar(
                 ClassicalAssignment.select(session.user_or_token).where(

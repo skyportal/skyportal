@@ -108,6 +108,10 @@ class SharingServiceSubmissionHandler(BaseHandler):
 
         if sharing_service_id is None:
             return self.error("Sharing service id is required")
+        try:
+            sharing_service_id = int(sharing_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
         if not obj_id:
             return self.error("obj_id is required")
         if not publish_to_tns and not publish_to_hermes:
@@ -289,6 +293,10 @@ class SharingServiceSubmissionHandler(BaseHandler):
         sharing_service_id = self.get_query_argument("sharing_service_id", None)
         if sharing_service_id is None:
             return self.error("Sharing service id is required")
+        try:
+            sharing_service_id = int(sharing_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
         include_payload = str_to_bool(self.get_query_argument("include_payload", False))
         include_response = str_to_bool(
             self.get_query_argument("include_response", False)
@@ -312,6 +320,12 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 return self.error(f"Sharing service {sharing_service_id} not found")
 
             if sharing_service_submission_id is not None:
+                try:
+                    sharing_service_submission_id = int(sharing_service_submission_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid sharing_service_submission_id: {sharing_service_submission_id}"
+                    )
                 submission = session.scalar(
                     SharingServiceSubmission.select(session.user_or_token).where(
                         SharingServiceSubmission.sharing_service_id

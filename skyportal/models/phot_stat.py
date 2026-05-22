@@ -100,6 +100,7 @@ class PhotStat(Base):
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
+        unique=True,
         index=True,
         doc="ID of the PhotStat's Obj.",
     )

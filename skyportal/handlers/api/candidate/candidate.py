@@ -833,7 +833,17 @@ class CandidateHandler(BaseHandler):
         )
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
+
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
 
         if (localization_dateobs or localization_name) and require_detections:
             if (
@@ -1599,6 +1609,11 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            filter_id = int(filter_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid filter_id: {filter_id}")
 
         with self.Session() as session:
             cands_to_delete = session.scalars(

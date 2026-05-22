@@ -325,14 +325,12 @@ class PhotStatUpdateHandler(BaseHandler):
                 # start with Objs that have created_at within range
                 stmt = sa.select(Obj).options(joinedload(Obj.photstats))
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -351,34 +349,32 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt_with = stmt.where(Obj.photstats.any())
             try:
                 if quick_update_start_time:
-                    quick_update_start_time = str(
-                        arrow.get(quick_update_start_time.strip()).datetime
-                    )
+                    quick_update_start_time = arrow.get(
+                        quick_update_start_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_update >= quick_update_start_time
                         )
                     )
                 if quick_update_end_time:
-                    quick_update_end_time = str(
-                        arrow.get(quick_update_end_time.strip()).datetime
-                    )
+                    quick_update_end_time = arrow.get(
+                        quick_update_end_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
-                    full_update_start_time = str(
-                        arrow.get(full_update_start_time.strip()).datetime
-                    )
+                    full_update_start_time = arrow.get(
+                        full_update_start_time.strip()
+                    ).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update >= full_update_start_time
                         )
                     )
                 if full_update_end_time:
-                    full_update_end_time = str(
-                        arrow.get(full_update_end_time.strip()).datetime
-                    )
+                    full_update_end_time = arrow.get(full_update_end_time.strip()).naive
                     stmt_with = stmt_with.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update <= full_update_end_time
@@ -484,14 +480,12 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
             try:
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -654,14 +648,12 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
             try:
                 if created_at_start_time:
-                    created_at_start_time = str(
-                        arrow.get(created_at_start_time.strip()).datetime
-                    )
+                    created_at_start_time = arrow.get(
+                        created_at_start_time.strip()
+                    ).naive
                     stmt = stmt.where(Obj.created_at >= created_at_start_time)
                 if created_at_end_time:
-                    created_at_end_time = str(
-                        arrow.get(created_at_end_time.strip()).datetime
-                    )
+                    created_at_end_time = arrow.get(created_at_end_time.strip()).naive
                     stmt = stmt.where(Obj.created_at <= created_at_end_time)
             except arrow.parser.ParserError:
                 return self.error(
@@ -673,34 +665,32 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = stmt.where(Obj.photstats.any())
             try:
                 if quick_update_start_time:
-                    quick_update_start_time = str(
-                        arrow.get(quick_update_start_time.strip()).datetime
-                    )
+                    quick_update_start_time = arrow.get(
+                        quick_update_start_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_update >= quick_update_start_time
                         )
                     )
                 if quick_update_end_time:
-                    quick_update_end_time = str(
-                        arrow.get(quick_update_end_time.strip()).datetime
-                    )
+                    quick_update_end_time = arrow.get(
+                        quick_update_end_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
-                    full_update_start_time = str(
-                        arrow.get(full_update_start_time.strip()).datetime
-                    )
+                    full_update_start_time = arrow.get(
+                        full_update_start_time.strip()
+                    ).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update >= full_update_start_time
                         )
                     )
                 if full_update_end_time:
-                    full_update_end_time = str(
-                        arrow.get(full_update_end_time.strip()).datetime
-                    )
+                    full_update_end_time = arrow.get(full_update_end_time.strip()).naive
                     stmt = stmt.where(
                         Obj.photstats.any(
                             PhotStat.last_full_update <= full_update_end_time

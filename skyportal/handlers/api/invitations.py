@@ -388,6 +388,11 @@ class InvitationHandler(BaseHandler):
         """
         data = self.get_json()
 
+        try:
+            invitation_id = int(invitation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid invitation_id: {invitation_id}")
+
         with self.Session() as session:
             invitation = session.scalars(
                 Invitation.select(session.user_or_token, mode="update").where(
@@ -504,6 +509,11 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        try:
+            invitation_id = int(invitation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid invitation_id: {invitation_id}")
 
         with self.Session() as session:
             invitation = session.scalars(

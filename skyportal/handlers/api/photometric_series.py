@@ -821,6 +821,10 @@ class PhotometricSeriesHandler(BaseHandler):
                               type: integer
                               description: New photometric series ID
         """
+        try:
+            photometric_series_id = int(photometric_series_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -1341,6 +1345,12 @@ class PhotometricSeriesHandler(BaseHandler):
                                 type: integer
         """
         if photometric_series_id is not None:
+            try:
+                photometric_series_id = int(photometric_series_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid photometric_series_id: {photometric_series_id}"
+                )
             with self.Session() as session:
                 ps = session.scalars(
                     PhotometricSeries.select(self.current_user).where(
@@ -1451,7 +1461,9 @@ class PhotometricSeriesHandler(BaseHandler):
         if series_obj_id:
             stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
         if filter:
-            stmt = stmt.where(PhotometricSeries.filter == filter)
+            # psycopg3 strict-binds the string against the enum column; cast
+            # explicitly so the comparison binds as the enum type.
+            stmt = stmt.where(sa.cast(PhotometricSeries.filter, sa.String) == filter)
         if channel:
             stmt = stmt.where(PhotometricSeries.channel == channel)
         if origin:
@@ -1808,11 +1820,16 @@ class PhotometricSeriesHandler(BaseHandler):
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
+                # Cast the enum column to String for the case() value mapping
+                # — psycopg3 won't implicitly compare bandpasses to varchar.
                 whens = {
                     name: name
                     for name in getattr(PhotometricSeries, sort_by).type.enums
                 }
-                order_by_column = case(whens, value=getattr(PhotometricSeries, sort_by))
+                order_by_column = case(
+                    whens,
+                    value=sa.cast(getattr(PhotometricSeries, sort_by), sa.String),
+                )
             else:
                 order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
@@ -1889,6 +1906,11 @@ class PhotometricSeriesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        try:
+            photometric_series_id = int(photometric_series_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
 
         with self.Session() as session:
             ps = session.scalars(
