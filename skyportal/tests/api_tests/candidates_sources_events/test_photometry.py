@@ -1,3 +1,5 @@
+import asyncio
+import datetime
 import os
 import uuid
 
@@ -8,12 +10,13 @@ import sncosmo
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError as MMValidationError
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from skyportal.handlers.api.photometry import (
     add_external_photometry,
     bulk_upsert_photometry,
 )
-from skyportal.models import DBSession, Token
+from skyportal.models import DBSession, Token, User
 from skyportal.models.photometry import Photometry
 from skyportal.tests import api, assert_api
 
@@ -3271,7 +3274,12 @@ def test_post_external_photometry(
         **df.to_dict(orient="list"),
     }
 
-    add_external_photometry(data_out, super_admin_user)
+    async def _call():
+        async with baselayer_models.async_plain_session_factory() as s:
+            u = await s.get(User, super_admin_user.id)
+            await add_external_photometry(data_out, u, s)
+
+    asyncio.run(_call())
 
     # Check the photometry sent back with the source
     status, data = api(
@@ -3351,61 +3359,84 @@ def test_bulk_upsert_photometry_error_mode(public_source, ztf_camera, user):
     """duplicates="error": first insert succeeds; re-inserting any
     overlapping row raises ValidationError listing the dedup keys."""
     params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=100)
-    session = DBSession()
-    ids = bulk_upsert_photometry(session, params, duplicates="error")
-    session.commit()
-    assert len(ids) == 3
-    assert all(isinstance(i, int) for i in ids)
 
-    # Second call with overlapping dedup keys should raise
-    with pytest.raises(MMValidationError) as excinfo:
-        bulk_upsert_photometry(session, params, duplicates="error")
-    session.rollback()
-    assert "already exists" in str(excinfo.value)
+    async def _body():
+        async with baselayer_models.async_plain_session_factory() as session:
+            ids = await bulk_upsert_photometry(session, params, duplicates="error")
+            await session.commit()
+            assert len(ids) == 3
+            assert all(isinstance(i, int) for i in ids)
 
-    # Cleanup
-    session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
-    session.commit()
+            # Second call with overlapping dedup keys should raise
+            with pytest.raises(MMValidationError) as excinfo:
+                await bulk_upsert_photometry(session, params, duplicates="error")
+            await session.rollback()
+            assert "already exists" in str(excinfo.value)
+
+            await session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
+            await session.commit()
+
+    asyncio.run(_body())
 
 
 def test_bulk_upsert_photometry_ignore_mode(public_source, ztf_camera, user):
     """duplicates="ignore": re-inserting overlapping rows is a no-op;
     returns the IDs of the existing rows in input order."""
     params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=200)
-    session = DBSession()
-    first_ids = bulk_upsert_photometry(session, params, duplicates="ignore")
-    session.commit()
-    assert len(first_ids) == 3
 
-    # Re-call with same params — should not raise, should return same IDs
-    second_ids = bulk_upsert_photometry(session, params, duplicates="ignore")
-    session.commit()
-    assert second_ids == first_ids
+    async def _body():
+        async with baselayer_models.async_plain_session_factory() as session:
+            first_ids = await bulk_upsert_photometry(
+                session, params, duplicates="ignore"
+            )
+            await session.commit()
+            assert len(first_ids) == 3
 
-    session.execute(sa.delete(Photometry).where(Photometry.id.in_(first_ids)))
-    session.commit()
+            # Re-call with same params — should not raise, should return same IDs
+            second_ids = await bulk_upsert_photometry(
+                session, params, duplicates="ignore"
+            )
+            await session.commit()
+            assert second_ids == first_ids
+
+            await session.execute(
+                sa.delete(Photometry).where(Photometry.id.in_(first_ids))
+            )
+            await session.commit()
+
+    asyncio.run(_body())
 
 
 def test_bulk_upsert_photometry_update_mode(public_source, ztf_camera, user):
     """duplicates="update": overlapping dedup keys atomically update the
     non-key columns. Verify a non-key field (ra) is overwritten."""
     params = _build_params(public_source.id, ztf_camera.id, user.id, mjd_offset=300)
-    session = DBSession()
-    ids = bulk_upsert_photometry(session, params, duplicates="update")
-    session.commit()
-    assert len(ids) == 3
 
-    # Mutate non-key column and re-upsert
-    new_ra = 99.5
-    for p in params:
-        p["ra"] = new_ra
-    updated_ids = bulk_upsert_photometry(session, params, duplicates="update")
-    session.commit()
-    assert updated_ids == ids  # same rows
+    async def _body():
+        async with baselayer_models.async_plain_session_factory() as session:
+            ids = await bulk_upsert_photometry(session, params, duplicates="update")
+            await session.commit()
+            assert len(ids) == 3
 
-    # Verify the update actually landed
-    rows = session.scalars(sa.select(Photometry).where(Photometry.id.in_(ids))).all()
-    assert all(r.ra == new_ra for r in rows)
+            # Mutate non-key column and re-upsert
+            new_ra = 99.5
+            for p in params:
+                p["ra"] = new_ra
+            updated_ids = await bulk_upsert_photometry(
+                session, params, duplicates="update"
+            )
+            await session.commit()
+            assert updated_ids == ids  # same rows
 
-    session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
-    session.commit()
+            # Verify the update actually landed
+            rows = (
+                await session.scalars(
+                    sa.select(Photometry).where(Photometry.id.in_(ids))
+                )
+            ).all()
+            assert all(r.ra == new_ra for r in rows)
+
+            await session.execute(sa.delete(Photometry).where(Photometry.id.in_(ids)))
+            await session.commit()
+
+    asyncio.run(_body())
