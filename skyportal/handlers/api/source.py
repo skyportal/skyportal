@@ -3200,7 +3200,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, target_id: str):
+    async def post(self, target_id: str):
         """
         ---
         summary: Copy photometry from one source to another
@@ -3261,22 +3261,28 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
         origin_id = data.get("origin_id")
 
-        with self.Session() as session:
-            s = session.scalars(
-                Obj.select(self.current_user).where(Obj.id == target_id)
+        async with self.AsyncSession() as session:
+            s = (
+                await session.scalars(
+                    Obj.select(self.current_user).where(Obj.id == target_id)
+                )
             ).first()
             if s is None:
                 return self.error(f"Source {target_id} not found")
 
-            d = session.scalars(
-                Obj.select(self.current_user).where(Obj.id == origin_id)
+            d = (
+                await session.scalars(
+                    Obj.select(self.current_user).where(Obj.id == origin_id)
+                )
             ).first()
             if d is None:
                 return self.error("Duplicate source {origin_id} not found")
 
             groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                (
+                    await session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
                 )
                 .unique()
                 .all()
@@ -3286,12 +3292,16 @@ class SourceCopyPhotometryHandler(BaseHandler):
                     f"Cannot find one or more groups with IDs: {group_ids}."
                 )
 
-            data = session.scalars(
-                Photometry.select(self.current_user)
-                .options(
-                    joinedload(Photometry.instrument).joinedload(Instrument.telescope)
+            data = (
+                await session.scalars(
+                    Photometry.select(self.current_user)
+                    .options(
+                        joinedload(Photometry.instrument).joinedload(
+                            Instrument.telescope
+                        )
+                    )
+                    .where(Photometry.obj_id == origin_id)
                 )
-                .where(Photometry.obj_id == origin_id)
             ).all()
 
             query_result = []
@@ -3322,10 +3332,10 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient="list"),
             }
 
-            add_external_photometry(
+            await add_external_photometry(
                 data_out,
                 self.associated_user_object,
-                parent_session=session,
+                session,
                 refresh=True,
             )
 

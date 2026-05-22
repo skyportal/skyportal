@@ -1643,7 +1643,7 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    def post(self, spectrum_id: int):
+    async def post(self, spectrum_id: int):
         """
         ---
         summary: Create synthetic photometry from a spectrum
@@ -1677,9 +1677,18 @@ class SyntheticPhotometryHandler(BaseHandler):
         data = self.get_json()
         filters = data.get("filters")
 
-        with self.Session() as session:
-            spectrum = session.scalars(
-                Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
+        async with self.AsyncSession() as session:
+            spectrum = (
+                await session.scalars(
+                    Spectrum.select(session.user_or_token)
+                    .where(Spectrum.id == spectrum_id)
+                    .options(joinedload(Spectrum.obj), joinedload(Spectrum.instrument))
+                )
             ).first()
             if spectrum is None:
                 return self.error(f"No spectrum with id {spectrum_id}")
@@ -1733,8 +1742,8 @@ class SyntheticPhotometryHandler(BaseHandler):
                     "group_ids": [g.id for g in self.current_user.accessible_groups],
                     **df.to_dict(orient="list"),
                 }
-                add_external_photometry(
-                    data_out, self.associated_user_object, parent_session=session
+                await add_external_photometry(
+                    data_out, self.associated_user_object, session
                 )
 
                 return self.success()
