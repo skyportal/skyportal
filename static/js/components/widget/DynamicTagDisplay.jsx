@@ -10,6 +10,7 @@ import { Chip, Tooltip } from "@mui/material";
 import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
 import * as groupsActions from "../../ducks/groups";
+import * as objectTagsActions from "../../ducks/objectTags";
 
 const DynamicTagDisplay = ({ source, styles }) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
@@ -24,7 +25,10 @@ const DynamicTagDisplay = ({ source, styles }) => {
     if (!userGroups || userGroups.length === 0) {
       dispatch(groupsActions.fetchGroups());
     }
-  }, [dispatch, userGroups]);
+    if (!tagOptions || tagOptions.length === 0) {
+      dispatch(objectTagsActions.fetchTagOptions());
+    }
+  }, [dispatch]);
 
   // Filter tags to only show those the user has access to (via group membership)
   const userGroupIds = useMemo(

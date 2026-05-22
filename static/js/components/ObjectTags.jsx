@@ -105,7 +105,7 @@ const ObjectTags = ({ source }) => {
     if (!groups || groups.length === 0) {
       dispatch(groupsActions.fetchGroups());
     }
-  }, [dispatch, tagOptions, groups]);
+  }, [dispatch]);
 
   const handleOpenDialog = () => {
     setOpen(true);
