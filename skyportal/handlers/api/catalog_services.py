@@ -45,7 +45,7 @@ from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
 from ..base import BaseHandler
 from .photometric_series import post_photometric_series, update_photometric_series
-from .photometry import add_external_photometry
+from .photometry import add_external_photometry, commit_external_photometry
 from .source import post_source
 
 _, cfg = load_env()
@@ -56,20 +56,6 @@ TESS_URL = cfg["app.tess_endpoint"]
 log = make_log("api/catalogs")
 
 Session = scoped_session(sessionmaker())
-
-
-async def _post_external_photometry_async(data_out, user_id):
-    """Open an async session and commit photometry via add_external_photometry.
-
-    Called from sync `fetch_*` worker functions via `asyncio.run(...)` since
-    `add_external_photometry` is now async and requires an AsyncSession.
-    """
-    from baselayer.app import models as baselayer_models
-
-    async with baselayer_models.async_plain_session_factory() as async_session:
-        user = await async_session.get(User, user_id)
-        ids, _ = await add_external_photometry(data_out, user, async_session)
-        return ids
 
 
 class CatalogQueryHandler(BaseHandler):
@@ -298,7 +284,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
-                    asyncio.run(_post_external_photometry_async(data_out, user.id))
+                    asyncio.run(commit_external_photometry(data_out, user.id))
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
@@ -582,7 +568,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                     }
 
                     if len(df.index) > 0:
-                        asyncio.run(_post_external_photometry_async(data_out, user.id))
+                        asyncio.run(commit_external_photometry(data_out, user.id))
                         log(f"Photometry committed to database for {obj_id}")
                     else:
                         log(f"No photometry to commit to database for {obj_id}")
@@ -825,7 +811,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             }
 
             if len(df.index) > 0:
-                asyncio.run(_post_external_photometry_async(data_out, user.id))
+                asyncio.run(commit_external_photometry(data_out, user.id))
                 log(f"Photometry committed to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")
