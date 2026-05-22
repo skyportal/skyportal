@@ -248,7 +248,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id: int | None = None):
+    async def get(self, event_id: str | None = None):
         """
         ---
         single:
@@ -459,7 +459,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, event_id: int):
+    def delete(self, event_id: str):
         """
         ---
         summary: Delete an Earthquake event

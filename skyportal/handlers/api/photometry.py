@@ -2295,7 +2295,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    def delete(self, upload_id: int):
+    def delete(self, upload_id: str):
         """
         ---
         summary: Delete bulk-uploaded photometry

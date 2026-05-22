@@ -74,8 +74,19 @@ def install_path_param_validation(cls):
                 if i >= len(new_args):
                     break
                 val = new_args[i]
-                if val is None and allow_none:
+                # Tornado passes ``None`` for unmatched optional URL captures
+                # (e.g. the trailing ``(/[0-9]+)?`` in
+                # ``/api/obj/analysis(/[0-9]+)/corner(/[0-9]+)?``). Pass that
+                # through unchanged so the method's own default (e.g.
+                # ``plot_number=0``) applies — and so explicit ``T | None``
+                # annotations also work.
+                if val is None:
                     continue
+                # Several Tornado URL patterns in app_server.py capture with a
+                # leading slash, e.g. ``(/[0-9]+)`` → ``"/5"``. Strip it before
+                # coercion so the cast doesn't spuriously fail.
+                if isinstance(val, str) and val.startswith("/"):
+                    val = val[1:]
                 try:
                     new_args[i] = cast_fn(val)
                 except (TypeError, ValueError):
