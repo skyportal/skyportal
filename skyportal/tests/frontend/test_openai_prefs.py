@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 
@@ -27,10 +26,7 @@ def test_openai_prefs(driver, user, upload_data_token):
     dummy_gpt_model = f"gpt-{str(uuid.uuid4())}"
     model_input = driver.wait_for_xpath('//input[@name="root_model"]')
     driver.scroll_to_element_and_click(model_input)
-    # rjsf v6 uses a controlled TextField; .clear() doesn't reset React state
-    # for the default-populated value, so select-all + delete before typing.
-    model_input.send_keys(Keys.CONTROL + "a")
-    model_input.send_keys(Keys.DELETE)
+    model_input.clear()
     model_input.send_keys(dummy_gpt_model)
 
     driver.click_xpath(
