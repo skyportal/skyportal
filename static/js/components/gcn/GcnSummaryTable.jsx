@@ -167,10 +167,10 @@ const EditSummaryDialog = ({ open, onSave, onClose, text, summaryID }) => {
       </DialogTitle>
       <DialogContent className={classes.content} onKeyDown={handleKeyDown}>
         <Grid container spacing={2}>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <EditSummary text={text} setRenderedText={setTextToRender} />
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <RenderSummary text={textToRender} />
           </Grid>
         </Grid>

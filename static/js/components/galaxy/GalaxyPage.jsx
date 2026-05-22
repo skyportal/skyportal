@@ -278,14 +278,14 @@ const GalaxyPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={3} sm={12}>
+      <Grid size={{ md: 3, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <GalaxyList catalogs={catalogs} setCatalogs={setCatalogs} />
           </div>
         </Paper>
       </Grid>
-      <Grid item md={9} sm={12}>
+      <Grid size={{ md: 9, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <GalaxyTable

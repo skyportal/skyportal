@@ -131,7 +131,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} lg={3}>
+              <Grid size={{ xs: 12, lg: 3 }}>
                 <TextField
                   {...register("username", { required: true })}
                   name="username"
@@ -150,7 +150,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={6} lg={3}>
+              <Grid size={{ xs: 6, lg: 3 }}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
                 <TextField
                   {...register("firstName", { required: true })}
@@ -161,7 +161,7 @@ const UpdateProfileForm = () => {
                   style={{ width: "100%" }}
                 />
               </Grid>
-              <Grid item xs={6} lg={3}>
+              <Grid size={{ xs: 6, lg: 3 }}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
                   {...register("lastName", { required: false })}
@@ -179,7 +179,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} lg={6}>
+              <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="bio_id">
                   Bio (min 10, max 1000 chars)
                 </InputLabel>
@@ -202,7 +202,7 @@ const UpdateProfileForm = () => {
                 alignItems="baseline"
                 spacing={2}
               >
-                <Grid item xs={12} lg={6}>
+                <Grid size={{ xs: 12, lg: 6 }}>
                   <InputLabel htmlFor="affiliationsInput">
                     Affiliations
                   </InputLabel>
@@ -265,7 +265,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} lg={6}>
+              <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
@@ -298,7 +298,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} lg={6}>
+              <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>
@@ -340,7 +340,7 @@ const UpdateProfileForm = () => {
                   alignItems="baseline"
                   spacing={2}
                 >
-                  <Grid item xs={12} lg={6}>
+                  <Grid size={{ xs: 12, lg: 6 }}>
                     <InputLabel htmlFor="is_bot_id">
                       Is this a bot account (used only from the API)?
                     </InputLabel>

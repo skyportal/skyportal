@@ -322,7 +322,7 @@ const SourceContent = ({ source }) => {
 
   const rightPanelContent = (downLarge, isRightPanelVisible) => (
     <>
-      <Grid item xs={12} lg={6} order={{ xs: 6, md: 4, lg: 3 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 6, md: 4, lg: 3 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -355,9 +355,7 @@ const SourceContent = ({ source }) => {
       </Grid>
       {source?.gcn_notes?.length > 0 && (
         <Grid
-          item
-          xs={12}
-          lg={12}
+          size={{ xs: 12, lg: 12 }}
           order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
         >
           <Accordion
@@ -388,9 +386,7 @@ const SourceContent = ({ source }) => {
         </Grid>
       )}
       <Grid
-        item
-        xs={12}
-        lg={6}
+        size={{ xs: 12, lg: 6 }}
         order={{ xs: 3, md: 3, lg: !downLg && !rightPanelVisible ? 4 : 5 }}
       >
         <Accordion
@@ -420,7 +416,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ xs: 13, md: 10, lg: 8 }}>
+      <Grid size={{ xs: 12, lg: 12 }} order={{ xs: 13, md: 10, lg: 8 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -447,7 +443,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ xs: 8, md: 8, lg: 12 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 8, md: 8, lg: 12 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -480,7 +476,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ xs: 9, md: 9, lg: 13 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, md: 9, lg: 13 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -519,9 +515,7 @@ const SourceContent = ({ source }) => {
         </Accordion>
       </Grid>
       <Grid
-        item
-        xs={14}
-        lg={6}
+        size={{ xs: 14, lg: 6 }}
         order={{ xs: 13, md: 13, lg: 13 }}
         style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
       >
@@ -547,7 +541,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ xs: 15, md: 15, lg: 15 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 15, md: 15, lg: 15 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -577,15 +571,13 @@ const SourceContent = ({ source }) => {
     <Grid container spacing={1.5}>
       <Grid
         container
-        item
+        size={{ xs: 12, lg: rightPanelVisible && !downLg ? 7 : 12 }}
         spacing={1.5}
-        xs={12}
-        lg={rightPanelVisible && !downLg ? 7 : 12}
         style={{
           display: downLg || (!downLg && !rightPanelVisible) ? "flex" : "block",
         }}
       >
-        <Grid item xs={12} order={{ xs: 1, md: 1, lg: 1 }}>
+        <Grid size={12} order={{ xs: 1, md: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -1170,7 +1162,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ xs: 2, md: 2, lg: 2 }}>
+        <Grid size={12} order={{ xs: 2, md: 2, lg: 2 }}>
           <Paper>
             <Typography
               variant="h6"
@@ -1186,7 +1178,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ xs: 4, md: 6, lg: 6 }}>
+        <Grid size={12} order={{ xs: 4, md: 6, lg: 6 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1318,7 +1310,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 5, md: 7, lg: 7 }}>
+        <Grid size={12} order={{ xs: 5, md: 7, lg: 7 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1378,7 +1370,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 10, md: 11, lg: 9 }}>
+        <Grid size={12} order={{ xs: 10, md: 11, lg: 9 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1414,7 +1406,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 11, md: 12, lg: 10 }}>
+        <Grid size={12} order={{ xs: 11, md: 12, lg: 10 }}>
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1448,7 +1440,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 12, md: 13, lg: 11 }}>
+        <Grid size={12} order={{ xs: 12, md: 13, lg: 11 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1481,7 +1473,7 @@ const SourceContent = ({ source }) => {
           ? rightPanelContent(downLg, rightPanelVisible)
           : null}
       </Grid>
-      <Grid item xs={rightPanelVisible && !downLg ? 5 : 12}>
+      <Grid size={rightPanelVisible && !downLg ? 5 : 12}>
         <Grid container spacing={1.5} columns={{ xs: 6 }}>
           {rightPanelVisible && !downLg
             ? rightPanelContent(downLg, rightPanelVisible)

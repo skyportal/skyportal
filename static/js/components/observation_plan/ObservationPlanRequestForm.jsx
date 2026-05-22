@@ -274,7 +274,7 @@ const MyObjectFieldTemplate = (props) => {
   return (
     <Grid container spacing={2}>
       {properties.map((prop) => (
-        <Grid item xs={4} key={prop.content.key}>
+        <Grid size={4} key={prop.content.key}>
           {prop.content}
         </Grid>
       ))}
@@ -667,9 +667,9 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   return (
     <Grid container spacing={4}>
-      <Grid item xs={12} sm={12} md={6} lg={4}>
+      <Grid size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
         <Grid container spacing={4} alignItems="center">
-          <Grid item xs={12} sm={7} md={12}>
+          <Grid size={{ xs: 12, sm: 7, md: 12 }}>
             <ObservationPlanGlobe
               gcnEvent={gcnEvent}
               loc={obsplanLoc}
@@ -682,7 +682,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               airmassValue={airmassValue}
             />
           </Grid>
-          <Grid item xs={12} sm={5} md={12}>
+          <Grid size={{ xs: 12, sm: 5, md: 12 }}>
             <div
               style={{
                 display: "flex",
@@ -741,7 +741,6 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               </InputLabel>
               <Grid container spacing={1} alignItems="center">
                 <Grid
-                  item
                   style={{
                     display: "grid",
                     gridTemplateColumns: "3fr 1fr",
@@ -776,7 +775,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                     style={{ width: "100%" }}
                   />
                 </Grid>
-                <Grid item>
+                <Grid>
                   <Button id="setAirmassSelect" onClick={() => setAirmass()}>
                     Update airmass calculation
                   </Button>
@@ -834,7 +833,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
           </Grid>
         </Grid>
       </Grid>
-      <Grid item xs={12} sm={12} md={6} lg={8}>
+      <Grid size={{ xs: 12, sm: 12, md: 6, lg: 8 }}>
         <div>
           <FieldSelect
             selectedFields={selectedFields}

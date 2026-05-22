@@ -333,7 +333,7 @@ const SpatialCatalogPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid size={{ md: 6, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Spatial Catalogs</Typography>
@@ -404,7 +404,7 @@ const SpatialCatalogPage = () => {
         </Paper>
       </Grid>
       {currentUser.permissions?.includes("System admin") && (
-        <Grid item md={6} sm={12}>
+        <Grid size={{ md: 6, sm: 12 }}>
           <Paper>
             <div className={classes.paperContent}>
               <Typography variant="h5">Add New Spatial Catalog</Typography>

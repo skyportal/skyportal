@@ -111,7 +111,7 @@ const ObservabilityPage = ({ route }) => {
                   ),
               )
               ?.map((telescope) => (
-                <Grid item key={telescope.id}>
+                <Grid key={telescope.id}>
                   <Paper>
                     <div className={classes.inner}>
                       <Typography variant="h6">{telescope.name}</Typography>
@@ -144,7 +144,7 @@ const ObservabilityPage = ({ route }) => {
               ))
           : null}
         {(telescopeList?.length === 0 || !telescopeList) && (
-          <Grid item md={12} sm={12}>
+          <Grid size={{ md: 12, sm: 12 }}>
             <Paper>
               <Typography variant="h6" style={{ margin: "1rem" }}>
                 Fetching Telescopes...
@@ -153,7 +153,7 @@ const ObservabilityPage = ({ route }) => {
           </Grid>
         )}
         {loading && telescopeList?.length > 0 && preferences?.length && (
-          <Grid item md={12} sm={12}>
+          <Grid size={{ md: 12, sm: 12 }}>
             <Paper>
               <Typography variant="h6" style={{ margin: "1rem" }}>
                 Loading Plots...
@@ -165,7 +165,7 @@ const ObservabilityPage = ({ route }) => {
           Object?.keys(typeof ephemerides === "object" ? ephemerides : {})
             ?.length === 0 &&
           (selectedTelescopes?.length === 0 || !selectedTelescopes) && (
-            <Grid item md={12} sm={12}>
+            <Grid size={{ md: 12, sm: 12 }}>
               <Paper>
                 <Typography variant="h6" style={{ margin: "1rem" }}>
                   No telescopes selected

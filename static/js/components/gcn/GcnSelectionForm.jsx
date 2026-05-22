@@ -356,7 +356,6 @@ const MyObjectFieldTemplate = (props) => {
     >
       {uiSchema["ui:grid"].map((row) => (
         <Grid
-          item
           container
           direction="row"
           justify="space-between"
@@ -365,7 +364,7 @@ const MyObjectFieldTemplate = (props) => {
           key={JSON.stringify(row)}
         >
           {Object.keys(row).map((fieldName) => (
-            <Grid item xs={row[fieldName]} key={fieldName}>
+            <Grid size={row[fieldName]} key={fieldName}>
               {properties.find((p) => p.name === fieldName).content}
             </Grid>
           ))}
@@ -882,8 +881,7 @@ const GcnSelectionForm = ({ dateobs }) => {
   return (
     <Grid container spacing={4}>
       <Grid
-        item
-        sm={4}
+        size={{ sm: 4 }}
         sx={{ display: { xs: "none", sm: "none", md: "block" } }}
       >
         {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
@@ -955,7 +953,7 @@ const GcnSelectionForm = ({ dateobs }) => {
           </div>
         )}
       </Grid>
-      <Grid item sm={12} md={8}>
+      <Grid size={{ sm: 12, md: 8 }}>
         <Tabs
           value={tabIndex}
           onChange={handleChangeTab}
@@ -984,9 +982,7 @@ const GcnSelectionForm = ({ dateobs }) => {
             !fetchingLocalization ? (
               <Grid container spacing={2}>
                 <Grid
-                  item
-                  sm={8}
-                  md={12}
+                  size={{ sm: 8, md: 12 }}
                   className={classes.localizationPlotSmall}
                 >
                   <LocalizationPlot
@@ -1001,7 +997,7 @@ const GcnSelectionForm = ({ dateobs }) => {
                     projection={selectedProjection}
                   />
                 </Grid>
-                <Grid item xs={9} sm={4} md={12}>
+                <Grid size={{ xs: 9, sm: 4, md: 12 }}>
                   <InputLabel
                     style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
                     id="projection"
@@ -1067,7 +1063,7 @@ const GcnSelectionForm = ({ dateobs }) => {
             className={classes.formContainer}
             alignItems="center"
           >
-            <Grid item sm={12} className={classes.formContainerItem}>
+            <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
               <InputLabel id="localizationSelectLabel">Localization</InputLabel>
               <Select
                 fullWidth
@@ -1083,7 +1079,7 @@ const GcnSelectionForm = ({ dateobs }) => {
                 ))}
               </Select>
             </Grid>
-            <Grid item sm={12} className={classes.formContainerItem}>
+            <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
               <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
               <Select
                 fullWidth
@@ -1106,10 +1102,9 @@ const GcnSelectionForm = ({ dateobs }) => {
               </Select>
             </Grid>
             <Grid
-              item
-              xs={11}
-              sm={12}
-              data-testid="gcnsource-selection-form"
+              size={{ xs: 11, sm: 12 }}
+              data
+              testid="gcnsource-selection-form"
               sx={{ mt: "0.8rem" }}
             >
               <Form
@@ -1136,7 +1131,7 @@ const GcnSelectionForm = ({ dateobs }) => {
               </Form>
             </Grid>
             {gcnEvent && selectedLocalizationId ? (
-              <Grid item xs={11} sm={12}>
+              <Grid size={{ xs: 11, sm: 12 }}>
                 <div className={classes.buttons}>
                   <Suspense fallback={<CircularProgress />}>
                     <GcnSummary dateobs={dateobs} />

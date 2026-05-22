@@ -543,7 +543,7 @@ const GcnEvents = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={12} sm={12}>
+      <Grid size={{ md: 12, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             {gcnEvents ? (

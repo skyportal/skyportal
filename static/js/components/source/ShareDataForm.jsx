@@ -167,7 +167,7 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           alignItems="flex-start"
           spacing={2}
         >
-          <Grid item className={styles.photometryContainer} sm={12}>
+          <Grid size={{ sm: 12 }} className={styles.photometryContainer}>
             <Suspense
               fallback={
                 <div>
@@ -181,9 +181,9 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
             </Suspense>
           </Grid>
           <Grid
-            item
-            data-testid={`individual-spectrum-id_${rowData[0]}`}
-            sm={6}
+            size={{ sm: 6 }}
+            data
+            testid={`individual-spectrum-id_${rowData[0]}`}
           >
             <Paper style={{ padding: "0.5rem" }}>
               <Typography variant="h6">Comments</Typography>
@@ -196,13 +196,13 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
               </Suspense>
             </Paper>
           </Grid>
-          <Grid item sm={6}>
+          <Grid size={{ sm: 6 }}>
             <Paper style={{ padding: "0.5rem" }}>
               <Typography variant="h6">Annotations</Typography>
               <AnnotationsTable annotations={annotations} />
             </Paper>
           </Grid>
-          <Grid item sm={6}>
+          <Grid size={{ sm: 6 }}>
             <Paper style={{ padding: "0.5rem" }}>
               <Typography variant="h6">Synthetic Photometry</Typography>
               <SyntheticPhotometryForm spectrum_id={rowData[0]} />

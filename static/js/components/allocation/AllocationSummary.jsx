@@ -508,7 +508,7 @@ const AllocationSummaryTable = ({
               dec={request.obj.dec}
               useGrid={false}
             />
-            <Grid item>
+            <Grid>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <AirmassPlot
                   dataUrl={`/api/internal/plot/airmass/objtel/${request.obj.id}/${allocation.telescope.id}`}
@@ -516,7 +516,7 @@ const AllocationSummaryTable = ({
                 />
               </Suspense>
             </Grid>
-            <Grid item>
+            <Grid>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPhotometry sourceId={request.obj.id} />
               </Suspense>

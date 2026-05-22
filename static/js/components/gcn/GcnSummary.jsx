@@ -381,7 +381,7 @@ const GcnSummary = ({ dateobs }) => {
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
-              <Grid item md={5} sm={12}>
+              <Grid size={{ md: 5, sm: 12 }}>
                 <Paper elevation={1} className={classes.form}>
                   <TextField
                     id="title"
@@ -566,7 +566,7 @@ const GcnSummary = ({ dateobs }) => {
                   </div>
                 </Paper>
               </Grid>
-              <Grid item md={7} sm={12}>
+              <Grid size={{ md: 7, sm: 12 }}>
                 <Paper elevation={1} className={classes.content}>
                   <div>
                     <GcnSummaryTable

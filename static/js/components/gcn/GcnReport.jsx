@@ -347,7 +347,7 @@ const GcnReport = ({ dateobs }) => {
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
-              <Grid item md={4} sm={12}>
+              <Grid size={{ md: 4, sm: 12 }}>
                 <Paper elevation={1} className={classes.form}>
                   <TextField
                     id="reportName"
@@ -475,7 +475,7 @@ const GcnReport = ({ dateobs }) => {
                   </div>
                 </Paper>
               </Grid>
-              <Grid item md={8} sm={12}>
+              <Grid size={{ md: 8, sm: 12 }}>
                 {!selectedGcnReportId && (
                   <Paper elevation={1} className={classes.content}>
                     <div>

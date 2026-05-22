@@ -64,12 +64,12 @@ const EarthquakePage = () => {
   return (
     <Suspense fallback={<CircularProgress color="secondary" />}>
       <Grid container spacing={3}>
-        <Grid item md={8} sm={12}>
+        <Grid size={{ md: 8, sm: 12 }}>
           <Paper className={classes.paperContent}>
             <EarthquakeMap earthquakes={earthquakes.events} />
           </Paper>
         </Grid>
-        <Grid item md={4} sm={12}>
+        <Grid size={{ md: 4, sm: 12 }}>
           <Paper className={classes.menu}>
             <Button
               onClick={() => setSelectedMenu("Earthquake List")}

@@ -796,10 +796,10 @@ const SourceTable = ({
               dec={source.dec}
               useGrid={false}
             />
-            <Grid item>
+            <Grid>
               <VegaPhotometry sourceId={source.id} />
             </Grid>
-            <Grid item>
+            <Grid>
               {photometry[source.id] && photometry[source.id].length > 0 ? (
                 <VegaPhotometry
                   sourceId={source.id}
@@ -808,7 +808,7 @@ const SourceTable = ({
                 />
               ) : null}
             </Grid>
-            <Grid item>
+            <Grid>
               {source.color_magnitude.length ? (
                 <div data-testid={`hr_diagram_${source.id}`}>
                   <Suspense
@@ -827,7 +827,7 @@ const SourceTable = ({
                 </div>
               ) : null}
             </Grid>
-            <Grid item>
+            <Grid>
               <Suspense
                 fallback={
                   <div>
@@ -844,7 +844,7 @@ const SourceTable = ({
                 />
               </Suspense>
             </Grid>
-            <Grid item>
+            <Grid>
               <div className={classes.annotations}>
                 {annotations && annotations.length > 0 && (
                   <>
@@ -903,7 +903,7 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <MultipleClassificationsForm
                 objId={source.id}
                 taxonomyList={taxonomyList}
@@ -911,7 +911,7 @@ const SourceTable = ({
                 currentClassifications={source.classifications}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <ShowSummaries summaries={source.summary_history} />
               {source.summary_history?.length < 1 ||
               !source.summary_history ||
@@ -2051,11 +2051,11 @@ const SourceTable = ({
           spacing={3}
         >
           {queryInProgress ? (
-            <Grid item>
+            <Grid>
               <CircularProgress />
             </Grid>
           ) : (
-            <Grid item className={classes.tableGrid}>
+            <Grid className={classes.tableGrid}>
               <ThemeProvider theme={getMuiTheme(theme)}>
                 <MUIDataTable
                   title={title}
