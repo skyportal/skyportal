@@ -297,7 +297,7 @@ setting `debug_login` to `False`.
 
 ### Username generation
 
-When `server.auth.username_is_email` is set to `True` (the default), the user's email address is used as their username.
+When `server.auth.username_is_email` is set to `True` (the default), the user's username is generated from their email address (e.g., `testuser@cesium-ml.org` → `testuser-cesium-ml-org`).
 
 When `server.auth.username_is_email` is set to `False`, SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
 
