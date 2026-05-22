@@ -1512,6 +1512,37 @@ async def add_external_photometry(
         return None, None
 
 
+async def commit_external_photometry(data, user_id):
+    """Sync-to-async bridge for ``add_external_photometry``.
+
+    Opens its own ``async_plain_session_factory()`` session, re-loads the
+    User by ID inside that session, calls ``add_external_photometry``, and
+    returns the inserted IDs. Intended to be invoked from sync contexts
+    (executor-bound workers, top-level service scripts) via
+    ``asyncio.run(commit_external_photometry(data, user.id))``.
+
+    Parameters
+    ----------
+    data : dict
+        Same payload shape that ``add_external_photometry`` expects.
+    user_id : int
+        ID of the user the photometry should be attributed to. The user
+        is re-loaded inside the new async session so callers can pass
+        only the id.
+
+    Returns
+    -------
+    ids : list[int] or None
+        The IDs returned by ``add_external_photometry``.
+    """
+    from baselayer.app import models as baselayer_models
+
+    async with baselayer_models.async_plain_session_factory() as async_session:
+        user = await async_session.get(User, user_id)
+        ids, _ = await add_external_photometry(data, user, async_session)
+        return ids
+
+
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
     @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
