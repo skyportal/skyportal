@@ -142,7 +142,6 @@ def setup_schema():
                         "model": class_,
                         "sqla_session": _DBSession,
                         "load_instance": True,
-                        "ordered": True,
                         "exclude": [],
                         "include_fk": True,
                         "include_relationships": True,

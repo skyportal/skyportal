@@ -25,9 +25,9 @@ class SourceViewsHandler(BaseHandler):
 
         max_num_sources = int(top_sources_prefs["maxNumSources"])
         since_days_ago = float(top_sources_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
+        cutoff_day = datetime.datetime.now(datetime.UTC).replace(
+            tzinfo=None
+        ) - datetime.timedelta(days=since_days_ago)
         results = session.execute(
             SourceView.select(
                 session.user_or_token,

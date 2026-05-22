@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import requests
 
@@ -565,13 +565,15 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (
+                    datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7)
+                ).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -737,13 +739,15 @@ class SOARGHTSAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (
+                    datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7)
+                ).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -911,13 +915,15 @@ class SOARTSPECAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (
+                    datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7)
+                ).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

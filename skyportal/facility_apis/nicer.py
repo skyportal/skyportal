@@ -1,6 +1,6 @@
 import re
 import urllib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import requests
 from astropy.time import Time
@@ -406,13 +406,16 @@ class NICERAPI(FollowUpAPI):
                             },
                             "TimeRangeStart": {
                                 "type": "string",
-                                "default": str(datetime.utcnow()),
+                                "default": str(datetime.now(UTC).replace(tzinfo=None)),
                                 "title": "Time Range Start (UT)",
                             },
                             "TimeRangeEnd": {
                                 "type": "string",
                                 "title": "Time Range End (UT)",
-                                "default": str(datetime.utcnow() + timedelta(days=7)),
+                                "default": str(
+                                    datetime.now(UTC).replace(tzinfo=None)
+                                    + timedelta(days=7)
+                                ),
                             },
                         }
                     },
@@ -434,7 +437,7 @@ class NICERAPI(FollowUpAPI):
                             },
                             "PhaseDependentEpoch": {
                                 "type": "string",
-                                "default": str(datetime.utcnow()),
+                                "default": str(datetime.now(UTC).replace(tzinfo=None)),
                                 "title": "Phase Dependent Epoch (UT)",
                             },
                             "PhaseDependentPeriod": {

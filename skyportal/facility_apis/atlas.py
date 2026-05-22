@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from io import StringIO
 
 import numpy as np
@@ -390,13 +390,15 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
+                "default": str(
+                    datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
+                ).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(datetime.now(UTC).replace(tzinfo=None)).replace("T", ""),
             },
         },
         "required": [

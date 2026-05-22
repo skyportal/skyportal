@@ -4,7 +4,7 @@ import base64
 import os
 import shutil
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import astroplan
@@ -437,7 +437,8 @@ def public_candidate(public_filter, user):
     candidate = Candidate(
         obj=obj,
         filter=public_filter,
-        passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+        passed_at=datetime.now(UTC).replace(tzinfo=None)
+        - timedelta(seconds=np.random.randint(0, 100)),
         uploader_id=user.id,
     )
     DBSession.add(candidate)
@@ -466,7 +467,8 @@ def public_candidate_two_groups(
         candidate = Candidate(
             obj=obj,
             filter=filter_,
-            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            passed_at=datetime.now(UTC).replace(tzinfo=None)
+            - timedelta(seconds=np.random.randint(0, 100)),
             uploader_id=user.id,
         )
         candidates.append(candidate)
@@ -483,7 +485,8 @@ def public_candidate2(public_filter, user):
         Candidate(
             obj=obj,
             filter=public_filter,
-            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            passed_at=datetime.now(UTC).replace(tzinfo=None)
+            - timedelta(seconds=np.random.randint(0, 100)),
             uploader_id=user.id,
         )
     )

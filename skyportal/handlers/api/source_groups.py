@@ -119,7 +119,9 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 source.unsaved_by_id = self.associated_user_object.id
                 source.active = False
-                source.unsaved_at = datetime.datetime.utcnow()
+                source.unsaved_at = datetime.datetime.now(datetime.UTC).replace(
+                    tzinfo=None
+                )
 
             if len(unsave_group_ids) > 0:
                 from .public_pages.public_source_page import delete_auto_published_page

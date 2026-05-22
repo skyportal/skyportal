@@ -58,7 +58,9 @@ def gcn_notification_content(target, session):
         localization = localizations[-1]
         tags = [tag.text for tag in localization.tags]
 
-    time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
+    time_since_dateobs = (
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - gcn_event.dateobs
+    )
     # remove the microseconds from the timedelta
     time_since_dateobs = time_since_dateobs - datetime.timedelta(
         microseconds=time_since_dateobs.microseconds

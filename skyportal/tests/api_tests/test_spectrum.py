@@ -330,7 +330,9 @@ def test_spectrum_filtering_time_ranges(
     assert data["status"] == "success"
     spectrum_id1 = data["data"]["id"]
 
-    time_after_posting_first_spec = str(datetime.datetime.utcnow())
+    time_after_posting_first_spec = str(
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     status, data = api(
         "POST",
@@ -468,7 +470,9 @@ def test_spectrum_filtering_id_lists(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.datetime.utcnow()),
+            "observed_at": str(
+                datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            ),
             "instrument_id": sedm.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -692,7 +696,9 @@ def test_spectrum_filtering_origin_label_type(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.datetime.utcnow()),
+            "observed_at": str(
+                datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            ),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -879,7 +885,9 @@ def test_spectrum_filtering_comments(
     assert data["status"] == "success"
 
     time.sleep(2)
-    time_after_posting_first_spec = str(datetime.datetime.utcnow())
+    time_after_posting_first_spec = str(
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     status, data = api(
         "POST",
@@ -956,7 +964,8 @@ def test_spectrum_filtering_comments(
     assert data["status"] == "success"
     assert len(data["data"]) == 0
     time_offset = (
-        datetime.datetime.utcnow() - datetime.datetime.now()
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        - datetime.datetime.now()
     ) / datetime.timedelta(hours=1)
 
     comment_created_time = str(

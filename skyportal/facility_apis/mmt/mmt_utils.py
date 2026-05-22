@@ -267,7 +267,9 @@ def submit_mmt_request(
             facility="Keck",
             image_source=image_source_dict[request.payload["primary_image_source"]],
             use_ztfref=request.payload["offset_position_origin"] == "ZTF Ref",
-            obstime=datetime.datetime.utcnow().isoformat(),
+            obstime=datetime.datetime.now(datetime.UTC)
+            .replace(tzinfo=None)
+            .isoformat(),
             output_type="pdf",
             num_offset_stars=request.payload.get("number_offset_Stars", 3),
         )

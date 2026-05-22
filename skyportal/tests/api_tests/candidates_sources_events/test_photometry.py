@@ -3319,7 +3319,7 @@ def _build_params(obj_id, instrument_id, user_id, mjd_offset=0, flux=100.0):
     All Photometry NOT NULL columns are populated; non-dedup fields are kept
     distinct from defaults so we can detect updates.
     """
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     return [
         {
             "obj_id": obj_id,

@@ -3,7 +3,7 @@ __all__ = ["PhotStat"]
 import bisect
 import copy
 import json
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 
 import numpy as np
 import sqlalchemy as sa
@@ -653,7 +653,7 @@ class PhotStat(Base):
         else:
             self.time_to_non_detection = None
 
-        self.last_update = datetime.utcnow()
+        self.last_update = datetime.now(UTC).replace(tzinfo=None)
 
     def full_update(self, phot_list):
         """
@@ -674,8 +674,8 @@ class PhotStat(Base):
             self.__init__(self.obj_id)
 
             # make sure to update the last update time
-            self.last_update = datetime.utcnow()
-            self.last_full_update = datetime.utcnow()
+            self.last_update = datetime.now(UTC).replace(tzinfo=None)
+            self.last_full_update = datetime.now(UTC).replace(tzinfo=None)
             return
 
         filters = []
@@ -906,8 +906,8 @@ class PhotStat(Base):
                 if len(filt_mags):
                     self.deepest_limit_per_filter[filt] = max(filt_mags)
 
-        self.last_update = datetime.utcnow()
-        self.last_full_update = datetime.utcnow()
+        self.last_update = datetime.now(UTC).replace(tzinfo=None)
+        self.last_full_update = datetime.now(UTC).replace(tzinfo=None)
 
     @staticmethod
     def update_average(current, number, new):

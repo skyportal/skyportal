@@ -871,7 +871,9 @@ def get_nearby_offset_stars(
         raise Exception("Number of offsets queries needed exceeds what is allowed")
 
     if not obstime:
-        source_obstime = Time(datetime.datetime.utcnow().isoformat())
+        source_obstime = Time(
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
+        )
     else:
         # TODO: check the obstime format
         source_obstime = Time(obstime)
@@ -1424,7 +1426,9 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
-    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
+    obstime = offset_star_kwargs.get(
+        "obstime", datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
+    )
     if use_cache:
         cache_key = get_finding_chart_cache_key(
             source_ra,

@@ -1269,7 +1269,9 @@ def add_glade(file_path=None, file_url=None):
             ]
 
             df["catalog_id"] = catalog_id
-            utcnow = datetime.datetime.utcnow().isoformat()
+            utcnow = (
+                datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
+            )
             df["created_at"] = utcnow
             df["modified_at"] = utcnow
             blueshift_length = len(df[(df["redshift"] < 0)])

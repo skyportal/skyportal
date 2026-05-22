@@ -103,10 +103,9 @@ class WeatherHandler(BaseHandler):
             # Should we call the API again?
             refresh = weather_refresh is not None
             if refresh and weather.retrieved_at is not None:
-                if (
-                    weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                    >= datetime.datetime.utcnow()
-                ):
+                if weather.retrieved_at + datetime.timedelta(
+                    seconds=weather_refresh
+                ) >= datetime.datetime.now(datetime.UTC).replace(tzinfo=None):
                     # it is too soon to refresh
                     refresh = False
             elif weather.retrieved_at is None:
@@ -122,7 +121,9 @@ class WeatherHandler(BaseHandler):
                     if response.status_code == 200:
                         data = response.json()
                         weather.weather_info = data
-                        weather.retrieved_at = datetime.datetime.utcnow()
+                        weather.retrieved_at = datetime.datetime.now(
+                            datetime.UTC
+                        ).replace(tzinfo=None)
                         session.commit()
                     else:
                         message = response.text
@@ -135,7 +136,9 @@ class WeatherHandler(BaseHandler):
                     # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
                     # Timestamp indicating when the API call was made, even if no data was returned
-                    "weather_fetch_at": datetime.datetime.utcnow(),
+                    "weather_fetch_at": datetime.datetime.now(datetime.UTC).replace(
+                        tzinfo=None
+                    ),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

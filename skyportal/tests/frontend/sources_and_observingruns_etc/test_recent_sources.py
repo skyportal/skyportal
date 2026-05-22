@@ -91,7 +91,7 @@ def test_recently_saved_candidate(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
         },
         token=upload_data_token,
     )

@@ -1108,7 +1108,7 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        utcnow = datetime.datetime.utcnow()
+        utcnow = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         # original_user_data and altdata are JSONB columns; with pg_insert.values()
         # SQLAlchemy serializes Python dicts via the column type, so we pass
         # the raw structures (None or dict). The old COPY path needed
@@ -1870,7 +1870,9 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(
                             df.loc[df_index]["altdata"], cls=NumpyEncoder
                         )
-                        duplicate.modified = datetime.datetime.utcnow()
+                        duplicate.modified = datetime.datetime.now(
+                            datetime.UTC
+                        ).replace(tzinfo=None)
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 

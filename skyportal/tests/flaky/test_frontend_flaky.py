@@ -736,7 +736,7 @@ def test_candidate_date_filtering(
     upload_data_token,
     ztf_camera,
 ):
-    now_utc = datetime.datetime.utcnow()
+    now_utc = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     now = datetime.datetime.now()
 
     candidate_id = str(uuid.uuid4())

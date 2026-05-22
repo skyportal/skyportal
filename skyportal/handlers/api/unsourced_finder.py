@@ -148,7 +148,8 @@ class UnsourcedFinderHandler(BaseHandler):
             return self.error(f"Invalid argument for `location_type`: {location_type}")
 
         obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
+            "obstime",
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")

@@ -2384,7 +2384,8 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument(
-                "obstime", datetime.datetime.utcnow().isoformat()
+                "obstime",
+                datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
                 return self.error("obstime is not valid isoformat")
@@ -2776,7 +2777,8 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
+            "obstime",
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")
@@ -2816,11 +2818,10 @@ class SourceFinderHandler(BaseHandler):
                     if "public_url" in rez:
                         data["public_url"] = rez["public_url"]
                         if finding_charts_cache._max_age:
-                            data["public_url_expires_at"] = (
-                                datetime.datetime.utcnow()
-                                + datetime.timedelta(
-                                    seconds=finding_charts_cache._max_age
-                                )
+                            data["public_url_expires_at"] = datetime.datetime.now(
+                                datetime.UTC
+                            ).replace(tzinfo=None) + datetime.timedelta(
+                                seconds=finding_charts_cache._max_age
                             )
                     return self.success(data)
                 filename = rez["name"]
