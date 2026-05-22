@@ -12,7 +12,7 @@ import AddIcon from "@mui/icons-material/Add";
 import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import Close from "@mui/icons-material/Close";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 
 import MUIDataTable from "mui-datatables";
 

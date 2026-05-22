@@ -13,8 +13,6 @@ import * as allocationActions from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",

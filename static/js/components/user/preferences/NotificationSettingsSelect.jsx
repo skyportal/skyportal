@@ -12,7 +12,7 @@ import IconButton from "@mui/material/IconButton";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 import EditNotificationsIcon from "@mui/icons-material/EditNotifications";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Box from "@mui/material/Box";

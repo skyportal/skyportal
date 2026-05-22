@@ -14,7 +14,7 @@ import PropTypes from "prop-types";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Close from "@mui/icons-material/Close";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";

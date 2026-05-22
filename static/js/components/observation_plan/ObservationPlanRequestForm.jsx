@@ -35,8 +35,6 @@ import * as localizationActions from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
 import LocalizationPlot from "../localization/LocalizationPlot";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
