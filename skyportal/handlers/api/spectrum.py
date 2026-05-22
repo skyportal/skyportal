@@ -287,7 +287,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -474,10 +474,6 @@ class SpectrumHandler(BaseHandler):
         """
 
         if spectrum_id is not None:
-            try:
-                spectrum_id = int(spectrum_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid spectrum_id: {spectrum_id}")
             with self.Session() as session:
                 spectrum = session.scalars(
                     Spectrum.select(session.user_or_token).where(
@@ -860,7 +856,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    def put(self, spectrum_id):
+    def put(self, spectrum_id: int):
         """
         ---
         summary: Update a spectrum
@@ -1037,7 +1033,7 @@ class SpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id):
+    def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete a spectrum
@@ -1060,10 +1056,6 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
         with self.Session() as session:
             spectrum = session.scalars(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
@@ -1353,7 +1345,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
 
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get spectra for an object
@@ -1651,7 +1643,7 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    def post(self, spectrum_id):
+    def post(self, spectrum_id: int):
         """
         ---
         summary: Create synthetic photometry from a spectrum
@@ -1684,11 +1676,6 @@ class SyntheticPhotometryHandler(BaseHandler):
 
         data = self.get_json()
         filters = data.get("filters")
-
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
 
         with self.Session() as session:
             spectrum = session.scalars(

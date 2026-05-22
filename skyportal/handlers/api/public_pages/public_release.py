@@ -120,7 +120,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    def patch(self, release_id):
+    def patch(self, release_id: int):
         """
         ---
         summary: Update a public release
@@ -170,11 +170,6 @@ class PublicReleaseHandler(BaseHandler):
         group_ids = data.get("group_ids")
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
-
-        try:
-            release_id = int(release_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid release_id: {release_id}")
 
         with self.Session() as session:
             public_release = session.scalar(
@@ -273,7 +268,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
-    def delete(self, release_id):
+    def delete(self, release_id: int):
         """
         ---
         summary: Delete a public release
@@ -298,11 +293,6 @@ class PublicReleaseHandler(BaseHandler):
         """
         if release_id is None:
             return self.error("Missing release id")
-        try:
-            release_id = int(release_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid release_id: {release_id}")
-
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(

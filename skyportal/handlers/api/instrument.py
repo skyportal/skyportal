@@ -238,7 +238,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    async def get(self, instrument_id=None):
+    async def get(self, instrument_id: int | None = None):
         """
         ---
         single:
@@ -689,7 +689,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    def put(self, instrument_id):
+    def put(self, instrument_id: int):
         """
         ---
         summary: Update an instrument
@@ -919,7 +919,7 @@ class InstrumentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete instrument"])
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument
@@ -1443,7 +1443,7 @@ def add_tiles(
 
 class InstrumentFieldHandler(BaseHandler):
     @permissions(["Delete instrument"])
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument's fields

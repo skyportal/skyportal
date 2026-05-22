@@ -1172,7 +1172,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, observation_id):
+    def delete(self, observation_id: int):
         """
         ---
         summary: Delete an observation
@@ -1195,11 +1195,6 @@ class ObservationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            observation_id = int(observation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid observation_id: {observation_id}")
 
         with self.Session() as session:
             observation = session.scalars(
@@ -1420,7 +1415,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Retrieve queued observations from external API
@@ -1524,7 +1519,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete queued observations from external API
@@ -1596,7 +1591,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id):
+    def post(self, instrument_id: int):
         """
         ---
         summary: Submit observations to TreasureMap
@@ -1840,7 +1835,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Remove observations from TreasureMap
@@ -2107,7 +2102,7 @@ def retrieve_observations_and_simsurvey(
 
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Perform SimSurvey efficiency calculation
@@ -2385,7 +2380,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    def delete(self, survey_efficiency_analysis_id):
+    def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a SimSurvey efficiency calculation
@@ -2404,18 +2399,13 @@ class ObservationSimSurveyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            sea_id = int(survey_efficiency_analysis_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
-            )
         with self.Session() as session:
             survey_efficiency_analysis = session.scalars(
                 SurveyEfficiencyForObservations.select(
                     session.user_or_token, mode="delete"
-                ).where(SurveyEfficiencyForObservations.id == sea_id)
+                ).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
             ).first()
             if survey_efficiency_analysis is None:
                 return self.error(
@@ -2435,7 +2425,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
 class ObservationSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create summary plot for SimSurvey

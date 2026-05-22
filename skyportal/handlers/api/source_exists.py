@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    def get(self, obj_id: str = None):
         """
         ---
         single:

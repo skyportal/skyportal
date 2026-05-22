@@ -118,7 +118,7 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         single:
@@ -282,7 +282,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
-    def patch(self, shift_id):
+    def patch(self, shift_id: int):
         """
         ---
         summary: Update a shift
@@ -309,11 +309,6 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            shift_id = int(shift_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid shift_id: {shift_id}")
 
         with self.Session() as session:
             try:
@@ -370,7 +365,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Could not update shift: {e}")
 
     @permissions(["Manage shifts"])
-    def delete(self, shift_id):
+    def delete(self, shift_id: int):
         """
         ---
         summary: Delete a shift
@@ -415,7 +410,7 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
-    def post(self, shift_id, *ignored_args):
+    def post(self, shift_id: int, *ignored_args):
         """
         ---
         summary: Add a shift user
@@ -493,11 +488,6 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        try:
-            shift_id = int(shift_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid shift_id parameter: unable to parse to integer")
-
         with self.Session() as session:
             shift = session.scalars(
                 Shift.select(
@@ -552,7 +542,7 @@ class ShiftUserHandler(BaseHandler):
             )
 
     @auth_or_token
-    def patch(self, shift_id, user_id):
+    def patch(self, shift_id: int, user_id: int):
         """
         ---
         summary: Update a shift user
@@ -670,7 +660,7 @@ class ShiftUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, shift_id, user_id):
+    def delete(self, shift_id: int, user_id: int):
         """
         ---
         summary: Delete a shift user
@@ -735,7 +725,7 @@ class ShiftSummary(BaseHandler):
     """
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         summary: Get a summary of a shift

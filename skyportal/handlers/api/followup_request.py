@@ -132,7 +132,7 @@ def post_assignment(data, session):
 
 class AssignmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, assignment_id=None):
+    def get(self, assignment_id: int | None = None):
         """
         ---
         single:
@@ -256,7 +256,7 @@ class AssignmentHandler(BaseHandler):
             return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])
-    def put(self, assignment_id):
+    def put(self, assignment_id: int):
         """
         ---
         summary: Update an assignment
@@ -330,7 +330,7 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, assignment_id):
+    def delete(self, assignment_id: int):
         """
         ---
         summary: Delete an assignment
@@ -804,7 +804,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    def get(self, followup_request_id=None):
+    def get(self, followup_request_id: int | None = None):
         """
         ---
         single:
@@ -1263,7 +1263,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
     @permissions(["Upload data"])
-    def put(self, request_id):
+    def put(self, request_id: int):
         """
         ---
         summary: Update a follow-up request
@@ -1401,7 +1401,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, request_id):
+    def delete(self, request_id: int):
         """
         ---
         summary: Delete a follow-up request
@@ -1429,11 +1429,6 @@ class FollowupRequestHandler(BaseHandler):
         refresh_requests = self.get_query_argument(
             "refreshRequests", data.pop("refreshRequests", False)
         )
-
-        try:
-            request_id = int(request_id)
-        except (TypeError, ValueError):
-            return self.error("Request id must be an int.")
 
         with self.Session() as session:
             followup_request = session.scalars(
@@ -1468,7 +1463,7 @@ class FollowupRequestHandler(BaseHandler):
 
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
-    def put(self, followup_request_id):
+    def put(self, followup_request_id: int):
         """
         ---
         summary: Update a follow-up request comment
@@ -1497,11 +1492,6 @@ class FollowupRequestCommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            followup_request_id = int(followup_request_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid followup_request_id: {followup_request_id}")
 
         data = self.get_json()
         comment = str(data.get("comment")).strip()
@@ -1946,7 +1936,7 @@ def observation_schedule(
 
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Retrieve followup requests schedule
@@ -2066,11 +2056,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         with self.Session() as session:
             instrument = session.scalars(
@@ -2534,7 +2519,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data={"id": default_followup_request.id})
 
     @auth_or_token
-    def get(self, default_followup_request_id=None):
+    def get(self, default_followup_request_id: int | None = None):
         """
         ---
         single:
@@ -2573,13 +2558,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_followup_request_id is not None:
-            try:
-                default_followup_request_id = int(default_followup_request_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid default_followup_request_id: {default_followup_request_id}"
-                )
         with self.Session() as session:
             if default_followup_request_id is not None:
                 default_followup_request = session.scalars(
@@ -2619,7 +2597,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data=default_followup_request_data)
 
     @auth_or_token
-    def delete(self, default_followup_request_id):
+    def delete(self, default_followup_request_id: int):
         """
         ---
         summary: Delete a default follow-up request
@@ -2639,12 +2617,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            default_followup_request_id = int(default_followup_request_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_followup_request_id: {default_followup_request_id}"
-            )
         with self.Session() as session:
             stmt = DefaultFollowupRequest.select(
                 session.user_or_token, mode="delete"
@@ -2664,7 +2636,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
 class FollowupRequestWatcherHandler(BaseHandler):
     @auth_or_token
-    def post(self, followup_request_id):
+    def post(self, followup_request_id: int):
         """
         ---
         summary: Add follow-up request to watch list
@@ -2741,7 +2713,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, followup_request_id):
+    def delete(self, followup_request_id: int):
         """
         ---
         summary: Delete follow-up request from watch list

@@ -162,7 +162,7 @@ def post_classification(data, user_id, session):
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, classification_id=None):
+    def get(self, classification_id: int | None = None):
         """
         ---
         single:
@@ -279,11 +279,6 @@ class ClassificationHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         include_taxonomy = self.get_query_argument("includeTaxonomy", False)
 
-        if classification_id is not None:
-            try:
-                classification_id = int(classification_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid classification_id: {classification_id}")
         with self.Session() as session:
             if classification_id is not None:
                 classification = session.scalars(
@@ -429,7 +424,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
-    def put(self, classification_id):
+    def put(self, classification_id: int):
         """
         ---
         summary: Update a classification
@@ -467,11 +462,6 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
@@ -533,7 +523,7 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification
@@ -563,11 +553,6 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
@@ -622,7 +607,7 @@ class ClassificationHandler(BaseHandler):
 
 class ObjClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get an object's classifications
@@ -669,7 +654,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete all classifications for an object
@@ -831,7 +816,7 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    def post(self, classification_id):
+    def post(self, classification_id: int):
         """
         ---
         summary: Vote for a classification
@@ -864,11 +849,6 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         data = self.get_json()
         vote = data.get("vote")
@@ -928,7 +908,7 @@ class ClassificationVotesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification vote
@@ -947,11 +927,6 @@ class ClassificationVotesHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            classification_id = int(classification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid classification_id: {classification_id}")
 
         with self.Session() as session:
             classification = session.scalars(

@@ -75,7 +75,7 @@ class Validator(Schema):
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, source_id=None):
+    async def get(self, dateobs: str, source_id: str = None):
         """
         ---
         single:
@@ -228,7 +228,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs, source_id=None):
+    async def post(self, dateobs: str, source_id: str = None):
         """
         ---
         summary: Confirm or reject a source in a gcn
@@ -445,7 +445,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Manage GCNs"])
-    def patch(self, dateobs, source_id):
+    def patch(self, dateobs: str, source_id: str):
         """
         ---
         summary: Update the confirmed/rejected status of a source in a GCN
@@ -580,7 +580,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Manage GCNs"])
-    def delete(self, dateobs, source_id):
+    def delete(self, dateobs: str, source_id: str):
         """
         ---
         summary: Remove the confirmed/rejected status of a source in a GCN
@@ -685,7 +685,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
     @auth_or_token
-    async def get(self, source_id):
+    async def get(self, source_id: str):
         """
         ---
         summary: Get GCNs associated with a source

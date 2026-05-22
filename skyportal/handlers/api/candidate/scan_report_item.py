@@ -121,7 +121,7 @@ def create_scan_report_item(session, report, sources_by_obj):
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    def patch(self, report_id, item_id):
+    def patch(self, report_id: int, item_id: int):
         """
         ---
         summary: Update an item from a scanning report
@@ -189,7 +189,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, report_id, _):
+    def get(self, report_id: int, _):
         """
         ---
         summary: Retrieve all items in a scanning report
@@ -212,10 +212,6 @@ class ScanReportItemHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            report_id = int(report_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid report_id: {report_id}")
         with self.Session() as session:
             items = session.scalars(
                 ScanReportItem.select(session.user_or_token, mode="read").where(

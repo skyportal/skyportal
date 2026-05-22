@@ -9,7 +9,7 @@ from ..base import BaseHandler
 
 class SourceLabelsHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Label a source
@@ -87,7 +87,7 @@ class SourceLabelsHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete source labels

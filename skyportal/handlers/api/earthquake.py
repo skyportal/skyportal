@@ -248,7 +248,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id=None):
+    async def get(self, event_id: str | None = None):
         """
         ---
         single:
@@ -459,7 +459,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, event_id):
+    def delete(self, event_id: str):
         """
         ---
         summary: Delete an Earthquake event
@@ -499,7 +499,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Run a prediction analysis for the earthquake.
@@ -523,11 +523,6 @@ class EarthquakePredictionHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -650,7 +645,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -674,11 +669,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -735,7 +725,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, earthquake_id, mma_detector_id):
+    async def get(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Retrieve a ground velocity measurement for the earthquake.
@@ -759,11 +749,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -789,7 +774,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id, mma_detector_id):
+    async def patch(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -813,11 +798,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -865,7 +845,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, earthquake_id, mma_detector_id):
+    async def delete(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Delete a ground velocity measurement for the earthquake.
@@ -889,11 +869,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(

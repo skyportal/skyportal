@@ -232,7 +232,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data={"id": catalog.id})
 
     @auth_or_token
-    async def get(self, catalog_id=None):
+    async def get(self, catalog_id: int | None = None):
         """
         ---
         single:
@@ -288,7 +288,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, catalog_id):
+    def delete(self, catalog_id: int):
         """
         ---
         summary: Delete a Spatial Catalog

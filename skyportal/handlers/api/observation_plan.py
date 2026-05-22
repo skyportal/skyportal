@@ -855,7 +855,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_OBSERVATION_PLAN_REQUESTS=MAX_OBSERVATION_PLAN_REQUESTS)
-    def get(self, observation_plan_request_id=None):
+    def get(self, observation_plan_request_id: int | None = None):
         """
         ---
         single:
@@ -1164,7 +1164,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Delete observation plan request.
@@ -1364,7 +1364,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
 
 class ObservationPlanSubmitHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to telescope.
@@ -1394,7 +1394,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan request from telescope queue.
@@ -1527,7 +1527,7 @@ class ObservationPlanNameHandler(BaseHandler):
 
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GCN summary for observation plan request.
@@ -1740,7 +1740,7 @@ def observation_animations(
 
 class ObservationPlanMovieHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get a movie of the observation plan.
@@ -1822,7 +1822,7 @@ class ObservationPlanMovieHandler(BaseHandler):
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to TreasureMap.
@@ -1985,7 +1985,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan from treasuremap.space.
@@ -2071,7 +2071,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
 class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get survey efficiency analyses of the observation plan.
@@ -2131,7 +2131,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
 
 class ObservationPlanGeoJSONHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GeoJSON summary of the observation plan.
@@ -2192,7 +2192,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
 
 class ObservationPlanFieldsHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Delete fields from the observation plan.
@@ -2269,7 +2269,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
 
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(self, localization_id: int):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2411,7 +2411,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(self, localization_id: int):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2526,7 +2526,7 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id, telescope_id):
+    async def get(self, localization_id: int, telescope_id: int):
         """
         ---
         summary: Create an airmass chart for an event.
@@ -2606,7 +2606,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Create observing run from observation plan.
@@ -3112,7 +3112,7 @@ def observation_simsurvey_plot(
 
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Run a simsurvey analysis for an observation plan request
@@ -3375,7 +3375,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    def delete(self, survey_efficiency_analysis_id):
+    def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a simsurvey efficiency calculation.
@@ -3416,7 +3416,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create a summary plot for a simsurvey.
@@ -3606,7 +3606,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data={"id": default_observation_plan_request.id})
 
     @auth_or_token
-    def get(self, default_observation_plan_id=None):
+    def get(self, default_observation_plan_id: int | None = None):
         """
         ---
         single:
@@ -3690,7 +3690,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data=default_observation_plan_data)
 
     @permissions(["Manage observation plans"])
-    def delete(self, default_observation_plan_id):
+    def delete(self, default_observation_plan_id: int):
         """
         ---
         summary: Delete a default observation plan request.
@@ -3709,13 +3709,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            default_observation_plan_id = int(default_observation_plan_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_observation_plan_id {default_observation_plan_id}"
-            )
 
         with self.Session() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(

@@ -43,7 +43,7 @@ gaia = GaiaQuery()
 
 class GaiaQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Add Gaia annotations
@@ -268,7 +268,7 @@ class GaiaQueryHandler(BaseHandler):
 
 class IRSAQueryWISEHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Add WISE annotations
@@ -417,7 +417,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
 class VizierQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Add Vizier annotations
@@ -623,7 +623,7 @@ class DatalabQueryHandler(BaseHandler):
     """
 
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         data = self.get_json()
 
         with self.Session() as session:
@@ -706,7 +706,7 @@ class DatalabQueryHandler(BaseHandler):
 
 class PS1QueryHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Add PS1 annotations

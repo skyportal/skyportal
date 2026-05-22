@@ -38,7 +38,7 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, photometry_id):
+    async def post(self, photometry_id: int):
         """
         ---
         summary: Validate/Reject a photometry point
@@ -86,11 +86,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         data = self.get_json()
 
@@ -172,7 +167,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def patch(self, photometry_id):
+    def patch(self, photometry_id: int):
         """
         ---
         summary: Update the validated/rejected status of a photometry point
@@ -219,11 +214,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         data = self.get_json()
         validated = data.get("validated")
@@ -278,7 +268,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete the validated/rejected status of a photometry point
@@ -315,11 +305,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         validator_instance = Validator()
         params_to_be_validated = {

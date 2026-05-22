@@ -36,7 +36,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant ACLs to a user
@@ -68,10 +68,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_acl_ids = data.get("aclIds")
         if new_acl_ids is None:
@@ -106,7 +102,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id, acl_id):
+    def delete(self, user_id: int, acl_id: str):
         """
         ---
         summary: Remove ACL from a user
@@ -130,10 +126,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         with self.Session() as session:
             user = session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)

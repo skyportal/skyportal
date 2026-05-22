@@ -145,7 +145,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data={"id": obj_id})
 
     @auth_or_token
-    def get(self, thumbnail_id):
+    def get(self, thumbnail_id: int):
         """
         ---
         summary: Get a thumbnail
@@ -168,10 +168,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token).where(
@@ -183,7 +179,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    def put(self, thumbnail_id):
+    def put(self, thumbnail_id: int):
         """
         ---
         summary: Update a thumbnail
@@ -210,10 +206,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="update").where(
@@ -241,7 +233,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, thumbnail_id):
+    def delete(self, thumbnail_id: int):
         """
         ---
         summary: Delete a thumbnail
@@ -265,10 +257,6 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
 
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         with self.Session() as session:
             t = session.scalars(
                 Thumbnail.select(session.user_or_token, mode="delete").where(

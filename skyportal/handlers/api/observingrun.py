@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
@@ -98,7 +98,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    def get(self, run_id=None):
+    def get(self, run_id: int | None = None):
         """
         ---
         single:
@@ -248,7 +248,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Update an observing run
@@ -310,7 +310,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, run_id):
+    def delete(self, run_id: int):
         """
         ---
         summary: Delete an observing run
@@ -360,7 +360,7 @@ class ObservingRunHandler(BaseHandler):
 
             # don't allow deleting past runs, unless they have no assignments
             if (
-                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
+                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
                 and len(assignments) > 0
             ):
                 return self.error(
@@ -379,7 +379,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Bulk update observing run assignments
