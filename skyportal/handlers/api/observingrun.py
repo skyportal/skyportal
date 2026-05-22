@@ -98,7 +98,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    def get(self, run_id=None):
+    def get(self, run_id: int | None = None):
         """
         ---
         single:
@@ -248,7 +248,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Update an observing run
@@ -310,7 +310,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, run_id):
+    def delete(self, run_id: int):
         """
         ---
         summary: Delete an observing run
@@ -379,7 +379,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Bulk update observing run assignments

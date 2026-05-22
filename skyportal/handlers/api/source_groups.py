@@ -155,7 +155,7 @@ class SourceGroupsHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def patch(self, obj_id, *ignored_args):
+    def patch(self, obj_id: str, *ignored_args):
         """
         ---
         summary: Update a Source table row

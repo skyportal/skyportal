@@ -118,7 +118,7 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         single:
@@ -365,7 +365,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Could not update shift: {e}")
 
     @permissions(["Manage shifts"])
-    def delete(self, shift_id):
+    def delete(self, shift_id: int):
         """
         ---
         summary: Delete a shift
@@ -542,7 +542,7 @@ class ShiftUserHandler(BaseHandler):
             )
 
     @auth_or_token
-    def patch(self, shift_id, user_id):
+    def patch(self, shift_id: int, user_id: int):
         """
         ---
         summary: Update a shift user
@@ -660,7 +660,7 @@ class ShiftUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, shift_id, user_id):
+    def delete(self, shift_id: int, user_id: int):
         """
         ---
         summary: Delete a shift user
@@ -725,7 +725,7 @@ class ShiftSummary(BaseHandler):
     """
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         summary: Get a summary of a shift

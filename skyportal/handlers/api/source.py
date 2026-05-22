@@ -1011,7 +1011,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    async def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -2114,7 +2114,7 @@ class SourceHandler(BaseHandler):
                 return self.error(f"Failed to post source: {str(e)}")
 
     @permissions(["Upload data"])
-    def patch(self, obj_id):
+    def patch(self, obj_id: str):
         """
         ---
         summary: Update a source
@@ -2197,7 +2197,7 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete a source
@@ -2249,7 +2249,7 @@ class SourceHandler(BaseHandler):
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve offset stars
@@ -2663,7 +2663,7 @@ def get_finding_chart_callable(
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve finding chart
@@ -3048,7 +3048,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
 class SourceObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Generate observability plot for a source
@@ -3160,7 +3160,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, target_id):
+    def post(self, target_id: int):
         """
         ---
         summary: Copy photometry from one source to another

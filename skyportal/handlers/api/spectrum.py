@@ -856,7 +856,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    def put(self, spectrum_id):
+    def put(self, spectrum_id: int):
         """
         ---
         summary: Update a spectrum
@@ -1345,7 +1345,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
 
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get spectra for an object

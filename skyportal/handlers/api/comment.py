@@ -157,7 +157,12 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id=None, comment_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str = None,
+        comment_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -423,7 +428,7 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    def post(self, associated_resource_type, resource_id, *ignore_args):
+    def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
         """
         ---
         summary: Post a comment
@@ -860,7 +865,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def put(self, associated_resource_type, resource_id, comment_id: int):
+    def put(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Update a comment
@@ -1076,7 +1081,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def delete(self, associated_resource_type, resource_id, comment_id: int):
+    def delete(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Delete a comment
@@ -1228,7 +1233,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id: int):
+    def get(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Download/Preview comment attachment

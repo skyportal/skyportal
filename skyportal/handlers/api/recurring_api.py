@@ -122,7 +122,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
-    def get(self, recurring_api_id=None):
+    def get(self, recurring_api_id: int | None = None):
         """
         ---
         single:

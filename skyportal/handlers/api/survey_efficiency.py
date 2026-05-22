@@ -13,7 +13,7 @@ from ..base import BaseHandler
 
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
     @auth_or_token
-    def get(self, survey_efficiency_analysis_id=None):
+    def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:
@@ -99,7 +99,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
 
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
     @auth_or_token
-    def get(self, survey_efficiency_analysis_id=None):
+    def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:

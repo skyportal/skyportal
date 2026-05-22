@@ -559,7 +559,7 @@ class GalaxyCatalogHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_GALAXIES=MAX_GALAXIES)
-    async def get(self, catalog_name=None):
+    async def get(self, catalog_name: str = None):
         """
         ---
           summary: Retrieve multiple galaxies
@@ -812,7 +812,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(f"get_galaxies fails: {e}")
 
     @permissions(["System admin"])
-    def delete(self, catalog_name):
+    def delete(self, catalog_name: str):
         """
         ---
         summary: Delete a galaxy catalog
@@ -1470,7 +1470,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Set an object's host galaxy
@@ -1536,7 +1536,7 @@ class ObjHostHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete an object's host galaxy

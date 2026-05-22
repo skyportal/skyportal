@@ -21,7 +21,7 @@ MAX_SOURCES_PER_PAGE = 500
 
 class PhotStatHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    def get(self, obj_id: str = None):
         """
         ---
         summary: Get photometry stats for a source
@@ -79,7 +79,7 @@ class PhotStatHandler(BaseHandler):
         return self.success(data=phot_stat)
 
     @permissions(["system admin"])
-    def post(self, obj_id=None):
+    def post(self, obj_id: str = None):
         """
         ---
         summary: Create new phot stats for a source
@@ -130,7 +130,7 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    def put(self, obj_id=None):
+    def put(self, obj_id: str = None):
         """
         ---
         summary: Update phot stats for a source
@@ -178,7 +178,7 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    def delete(self, obj_id=None):
+    def delete(self, obj_id: str = None):
         """
         ---
         summary: Delete phot stats of a source

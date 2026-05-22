@@ -31,7 +31,7 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id=None):
+    def get(self, user_id: int | None = None):
         """
         ---
         summary: Get user object listings
@@ -342,7 +342,7 @@ class UserObjListHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, listing_id=None):
+    def delete(self, listing_id: int | None = None):
         """
         ---
         summary: Remove a listing

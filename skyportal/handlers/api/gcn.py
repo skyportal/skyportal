@@ -792,7 +792,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
 
 class GcnEventAliasesHandler(BaseHandler):
     @auth_or_token
-    def post(self, dateobs):
+    def post(self, dateobs: str):
         """
         ---
         summary: Post a GCN Event alias
@@ -869,7 +869,7 @@ class GcnEventAliasesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, dateobs):
+    def delete(self, dateobs: str):
         """
         ---
         summary: Delete a GCN Event alias
@@ -977,7 +977,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data=tags)
 
     @auth_or_token
-    def post(self, dateobs=None, tag=None):
+    def post(self, dateobs: str = None, tag: str = None):
         """
         ---
         summary: Post a GCN Event tag
@@ -1050,7 +1050,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data={"gcntag_id": tag.id})
 
     @auth_or_token
-    def delete(self, dateobs):
+    def delete(self, dateobs: str):
         """
         ---
         summary: Delete a GCN Event tag
@@ -1143,7 +1143,7 @@ class GcnEventPropertiesHandler(BaseHandler):
 
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, gcnevent_id):
+    async def get(self, gcnevent_id: int):
         """
         ---
         summary: Get an event's survey efficiencies
@@ -1195,7 +1195,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
 
 class GcnEventObservationPlanRequestsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, gcnevent_id):
+    async def get(self, gcnevent_id: int):
         """
         ---
         summary: Get an event's observation plan requests.
@@ -1264,7 +1264,7 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
 
 class GcnEventCatalogQueryHandler(BaseHandler):
     @auth_or_token
-    async def get(self, gcnevent_id):
+    async def get(self, gcnevent_id: int):
         """
         ---
         summary: Get an event's catalog queries.
@@ -1372,7 +1372,7 @@ class GcnEventHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_GCNEVENTS=MAX_GCNEVENTS)
-    async def get(self, dateobs=None):
+    async def get(self, dateobs: str = None):
         """
         ---
         single:
@@ -1975,7 +1975,7 @@ class GcnEventHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["System admin"])
-    def delete(self, dateobs):
+    def delete(self, dateobs: str):
         """
         ---
         summary: Delete a GCN Event
@@ -2053,7 +2053,7 @@ class GcnEventHandler(BaseHandler):
 
 class GcnEventUserHandler(BaseHandler):
     @auth_or_token
-    def post(self, dateobs, *ignored_args):
+    def post(self, dateobs: str, *ignored_args):
         """
         ---
         summary: Add a user as GCN event advocate
@@ -2145,7 +2145,7 @@ class GcnEventUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, dateobs, user_id: int):
+    def delete(self, dateobs: str, user_id: int):
         """
         ---
         summary: Remove a GCN event advocate
@@ -2712,7 +2712,7 @@ def add_tiles_properties_contour_and_obsplan(
 
 class LocalizationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, localization_name):
+    async def get(self, dateobs: str, localization_name: str):
         """
         ---
         summary: Get a GCN localization
@@ -2781,7 +2781,7 @@ class LocalizationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, dateobs, localization_name):
+    def delete(self, dateobs: str, localization_name: str):
         """
         ---
         summary: Delete a GCN localization
@@ -2841,7 +2841,7 @@ class LocalizationHandler(BaseHandler):
 
 class LocalizationNoticeHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs, notice_id):
+    async def post(self, dateobs: str, notice_id: int):
         # first get the notice, if it exists
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -3598,7 +3598,7 @@ def add_gcn_summary(
 
 class GcnSummaryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs, summary_id=None):
+    async def post(self, dateobs: str, summary_id: int | None = None):
         """
         ---
           summary: Create a GCN summary
@@ -3903,7 +3903,7 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error(f"Error generating summary: {e}")
 
     @auth_or_token
-    def get(self, dateobs, summary_id: int):
+    def get(self, dateobs: str, summary_id: int):
         """
         ---
         summary: Get a GCN summary
@@ -3955,7 +3955,7 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
-    def patch(self, dateobs, summary_id):
+    def patch(self, dateobs: str, summary_id: int):
         """
         summary: Update a GCN summary
         description: Update a GCN summary
@@ -4033,7 +4033,7 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
-    def delete(self, dateobs, summary_id: int):
+    def delete(self, dateobs: str, summary_id: int):
         """
         ---
         summary: Delete a GCN summary
@@ -4345,7 +4345,7 @@ def add_gcn_report(
 
 class GcnReportHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs, summary_id=None):
+    async def post(self, dateobs: str, summary_id: int | None = None):
         """
         ---
           summary: Create a GCN report
@@ -4578,7 +4578,7 @@ class GcnReportHandler(BaseHandler):
                 return self.error(f"Error generating report: {e}")
 
     @auth_or_token
-    def get(self, dateobs, report_id: int = None):
+    def get(self, dateobs: str, report_id: int | None = None):
         """
         ---
         summary: Get a GCN report
@@ -4644,7 +4644,7 @@ class GcnReportHandler(BaseHandler):
             return self.success(data=report)
 
     @auth_or_token
-    async def patch(self, dateobs, report_id):
+    async def patch(self, dateobs: str, report_id: int):
         """
         summary: Update a GCN report
         description: Update a GCN report
@@ -4791,7 +4791,7 @@ class GcnReportHandler(BaseHandler):
             return self.success(data=report)
 
     @auth_or_token
-    def delete(self, dateobs, report_id):
+    def delete(self, dateobs: str, report_id: int):
         """
         ---
         summary: Delete a GCN report
@@ -4852,7 +4852,7 @@ class GcnReportHandler(BaseHandler):
 
 class LocalizationDownloadHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, localization_name):
+    async def get(self, dateobs: str, localization_name: str):
         """
         ---
         summary: Download a localization's skymap
@@ -5033,7 +5033,7 @@ class LocalizationCrossmatchHandler(BaseHandler):
 
 class GcnEventInstrumentFieldHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, instrument_id):
+    async def get(self, dateobs: str, instrument_id: int):
         """
         ---
         summary: Get instrument field probabilities for a skymap
@@ -5152,7 +5152,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
 
 class GcnEventTriggerHandler(BaseHandler):
     @permissions(["Manage allocations"])
-    def get(self, dateobs, allocation_id=None):
+    def get(self, dateobs: str, allocation_id: int | None = None):
         dateobs = dateobs.strip()
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -5192,7 +5192,7 @@ class GcnEventTriggerHandler(BaseHandler):
                     )
 
     @permissions(["Manage allocations"])
-    def put(self, dateobs, allocation_id):
+    def put(self, dateobs: str, allocation_id: int):
         dateobs = dateobs.strip()
         try:
             arrow.get(dateobs)
@@ -5265,7 +5265,7 @@ class GcnEventTriggerHandler(BaseHandler):
                 return self.error(f"Failed to set triggered status: str({e})")
 
     @permissions(["Manage allocations"])
-    def delete(self, dateobs, allocation_id):
+    def delete(self, dateobs: str, allocation_id: int):
         dateobs = dateobs.strip()
         try:
             arrow.get(dateobs)
@@ -5305,7 +5305,7 @@ class GcnEventTriggerHandler(BaseHandler):
 
 class ObjGcnEventHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Crossmatch an object with GCN events
@@ -5589,7 +5589,7 @@ class DefaultGcnTagHandler(BaseHandler):
             return self.success(data={"id": default_gcn_tag.id})
 
     @auth_or_token
-    def get(self, default_gcn_tag_id=None):
+    def get(self, default_gcn_tag_id: int | None = None):
         """
         ---
         single:
@@ -5654,7 +5654,7 @@ class DefaultGcnTagHandler(BaseHandler):
             return self.success(data=default_gcn_tags)
 
     @permissions(["Manage GCNs"])
-    def delete(self, default_gcn_tag_id):
+    def delete(self, default_gcn_tag_id: int):
         """
         ---
         summary: Delete a default gcn tag
@@ -5694,7 +5694,7 @@ class DefaultGcnTagHandler(BaseHandler):
 # the following handler is used to download the content of a GCN notice, as a txt file
 class GcnEventNoticeDownloadHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, notice_id):
+    async def get(self, dateobs: str, notice_id: int):
         """
         ---
         summary: Download a GCN notice

@@ -16,7 +16,7 @@ log = make_log("api/sharing_service_group")
 
 class SharingServiceGroupHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def put(self, sharing_service_id, group_id=None):
+    def put(self, sharing_service_id: int, group_id: int | None = None):
         """
         ---
         summary: Add or edit a group for an external sharing service
@@ -205,7 +205,7 @@ class SharingServiceGroupHandler(BaseHandler):
                 return self.success(data={"id": sharing_service_group.id})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, group_id):
+    def delete(self, sharing_service_id: int, group_id: int):
         """
         ---
         summary: Delete a group from an external sharing service

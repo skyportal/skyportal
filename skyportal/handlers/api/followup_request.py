@@ -132,7 +132,7 @@ def post_assignment(data, session):
 
 class AssignmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, assignment_id=None):
+    def get(self, assignment_id: int | None = None):
         """
         ---
         single:
@@ -256,7 +256,7 @@ class AssignmentHandler(BaseHandler):
             return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])
-    def put(self, assignment_id):
+    def put(self, assignment_id: int):
         """
         ---
         summary: Update an assignment
@@ -330,7 +330,7 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, assignment_id):
+    def delete(self, assignment_id: int):
         """
         ---
         summary: Delete an assignment
@@ -804,7 +804,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    def get(self, followup_request_id=None):
+    def get(self, followup_request_id: int | None = None):
         """
         ---
         single:
@@ -1263,7 +1263,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
     @permissions(["Upload data"])
-    def put(self, request_id):
+    def put(self, request_id: int):
         """
         ---
         summary: Update a follow-up request
@@ -2636,7 +2636,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
 class FollowupRequestWatcherHandler(BaseHandler):
     @auth_or_token
-    def post(self, followup_request_id):
+    def post(self, followup_request_id: int):
         """
         ---
         summary: Add follow-up request to watch list
@@ -2713,7 +2713,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, followup_request_id):
+    def delete(self, followup_request_id: int):
         """
         ---
         summary: Delete follow-up request from watch list

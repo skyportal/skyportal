@@ -204,7 +204,7 @@ class StreamHandler(BaseHandler):
 
 class StreamUserHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, stream_id, *ignored_args):
+    def post(self, stream_id: int, *ignored_args):
         """
         ---
         summary: Grant stream access to a user
@@ -269,7 +269,7 @@ class StreamUserHandler(BaseHandler):
             return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
-    def delete(self, stream_id, user_id):
+    def delete(self, stream_id: int, user_id: int):
         """
         ---
         summary: Revoke stream access from a user

@@ -67,7 +67,7 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
 
 class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
-    async def get(self, obj_id, telescope_id):
+    async def get(self, obj_id: str, telescope_id: int):
         time = self.get_query_argument("time", None)
         if time is not None:
             try:
@@ -114,7 +114,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
 
 class PlotHoursBelowAirmassHandler(AirmassHandler):
     @auth_or_token
-    async def get(self, obj_id, telescope_id):
+    async def get(self, obj_id: str, telescope_id: int):
         threshold = cfg["misc.hours_below_airmass_threshold"]
         if threshold is None:
             threshold = 2.9

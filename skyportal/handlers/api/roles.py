@@ -110,7 +110,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id: int, role_id):
+    def delete(self, user_id: int, role_id: str):
         """
         ---
         summary: Delete user role

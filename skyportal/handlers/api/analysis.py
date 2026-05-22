@@ -724,7 +724,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
-    def get(self, analysis_service_id=None):
+    def get(self, analysis_service_id: int | None = None):
         """
         ---
         single:
@@ -815,7 +815,7 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    def patch(self, analysis_service_id):
+    def patch(self, analysis_service_id: int):
         """
         ---
         summary: Update an Analysis Service.
@@ -1012,7 +1012,9 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    async def post(self, analysis_resource_type, resource_id, analysis_service_id: int):
+    async def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Run an analysis
@@ -1213,7 +1215,7 @@ class AnalysisHandler(BaseHandler):
                     return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
-    def get(self, analysis_resource_type, analysis_id=None):
+    def get(self, analysis_resource_type: str, analysis_id: int | None = None):
         """
         ---
         single:
@@ -1422,7 +1424,7 @@ class AnalysisHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])
-    def delete(self, analysis_resource_type, analysis_id: int):
+    def delete(self, analysis_resource_type: str, analysis_id: int):
         """
         ---
         summary: Delete an Analysis.
@@ -1493,7 +1495,11 @@ class AnalysisHandler(BaseHandler):
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
-        self, analysis_resource_type, analysis_id, product_type, plot_number=0
+        self,
+        analysis_resource_type: str,
+        analysis_id: int,
+        product_type: str,
+        plot_number: int = 0,
     ):
         """
         ---
@@ -1665,7 +1671,9 @@ class AnalysisProductsHandler(BaseHandler):
 
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    def post(self, analysis_resource_type, resource_id, analysis_service_id: int):
+    def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Upload an upload_only analysis result
@@ -1857,7 +1865,7 @@ class DefaultAnalysisHandler(BaseHandler):
     # for a default analysis to be run on an object
 
     @auth_or_token
-    def get(self, analysis_service_id, default_analysis_id):
+    def get(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         single:
@@ -2155,7 +2163,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    def delete(self, analysis_service_id, default_analysis_id):
+    def delete(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         summary: Delete a default analysis

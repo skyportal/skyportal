@@ -607,7 +607,7 @@ class ClassificationHandler(BaseHandler):
 
 class ObjClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get an object's classifications
@@ -654,7 +654,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete all classifications for an object

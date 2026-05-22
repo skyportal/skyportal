@@ -121,7 +121,7 @@ def create_scan_report_item(session, report, sources_by_obj):
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    def patch(self, report_id, item_id):
+    def patch(self, report_id: int, item_id: int):
         """
         ---
         summary: Update an item from a scanning report

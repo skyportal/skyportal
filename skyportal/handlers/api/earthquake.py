@@ -248,7 +248,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id=None):
+    async def get(self, event_id: int | None = None):
         """
         ---
         single:
@@ -459,7 +459,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, event_id):
+    def delete(self, event_id: int):
         """
         ---
         summary: Delete an Earthquake event
@@ -499,7 +499,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id: int):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Run a prediction analysis for the earthquake.
@@ -645,7 +645,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id: int):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -725,7 +725,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, earthquake_id, mma_detector_id: int):
+    async def get(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Retrieve a ground velocity measurement for the earthquake.
@@ -774,7 +774,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id, mma_detector_id: int):
+    async def patch(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -845,7 +845,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, earthquake_id, mma_detector_id: int):
+    async def delete(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Delete a ground velocity measurement for the earthquake.

@@ -75,7 +75,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    def get(self, mmadetector_id=None):
+    def get(self, mmadetector_id: int | None = None):
         """
         ---
         single:
@@ -142,7 +142,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage allocations"])
-    def patch(self, mmadetector_id):
+    def patch(self, mmadetector_id: int):
         """
         ---
         summary: Update an MMA Detector
@@ -212,7 +212,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    def delete(self, mmadetector_id):
+    def delete(self, mmadetector_id: int):
         """
         ---
         summary: Delete an MMA Detector
@@ -348,7 +348,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data={"id": spec.id})
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -483,7 +483,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data=spectra)
 
     @permissions(["Upload data"])
-    def patch(self, spectrum_id):
+    def patch(self, spectrum_id: int):
         """
         ---
         summary: Update an MMA Detector Spectrum
@@ -570,7 +570,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id):
+    def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete an MMA Detector Spectrum
@@ -731,7 +731,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, time_interval_id=None):
+    def get(self, time_interval_id: int | None = None):
         """
         ---
         single:
@@ -884,7 +884,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def patch(self, time_interval_id):
+    def patch(self, time_interval_id: int):
         """
         ---
         summary: Update an MMA Detector Time Interval
@@ -962,7 +962,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, time_interval_id):
+    def delete(self, time_interval_id: int):
         """
         ---
         summary: Delete an MMA Detector Time Interval

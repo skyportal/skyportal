@@ -13,7 +13,7 @@ class EphemerisHandler(BaseHandler):
     @auth_or_token
     # TODO: add pagination to this endpoint
     @format_doc(MAX_TELESCOPES_TO_DISPLAY=MAX_TELESCOPES_TO_DISPLAY)
-    def get(self, telescope_id=None):
+    def get(self, telescope_id: int | None = None):
         """
         ---
         single:

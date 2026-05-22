@@ -86,7 +86,7 @@ class TelescopeHandler(BaseHandler):
             return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    def get(self, telescope_id=None):
+    def get(self, telescope_id: int | None = None):
         """
         ---
         single:
@@ -222,7 +222,7 @@ class TelescopeHandler(BaseHandler):
             return self.success(data=telescopes)
 
     @permissions(["Manage telescopes"])
-    def put(self, telescope_id):
+    def put(self, telescope_id: int):
         """
         ---
         summary: Update a telescope
@@ -299,7 +299,7 @@ class TelescopeHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete telescope"])
-    def delete(self, telescope_id):
+    def delete(self, telescope_id: int):
         """
         ---
         summary: Delete a telescope

@@ -167,7 +167,7 @@ def add_user_and_setup_groups(
 
 class UserHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id=None):
+    def get(self, user_id: int | None = None):
         """
         ---
         single:
@@ -558,7 +558,7 @@ class UserHandler(BaseHandler):
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
-    def patch(self, user_id):
+    def patch(self, user_id: int):
         """
         ---
         summary: Update a user
@@ -632,7 +632,7 @@ class UserHandler(BaseHandler):
             return self.error("User ID must be provided")
 
     @permissions(["Manage users"])
-    def delete(self, user_id: int = None):
+    def delete(self, user_id: int | None = None):
         """
         ---
         summary: Delete a user

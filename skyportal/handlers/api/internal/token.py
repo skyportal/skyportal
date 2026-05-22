@@ -77,7 +77,7 @@ class TokenHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, token_id=None):
+    def get(self, token_id: int | None = None):
         """
         ---
         single:
@@ -138,7 +138,7 @@ class TokenHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def put(self, token_id):
+    def put(self, token_id: int):
         """
         ---
         description: Update token
@@ -246,7 +246,7 @@ class TokenHandler(BaseHandler):
                 return self.error(f"Could not update token: {e}")
 
     @auth_or_token
-    def delete(self, token_id):
+    def delete(self, token_id: int):
         """
         ---
         description: Delete a token

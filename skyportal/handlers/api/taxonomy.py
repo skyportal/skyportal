@@ -14,7 +14,7 @@ _, cfg = load_env()
 
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
-    def get(self, taxonomy_id=None):
+    def get(self, taxonomy_id: int | None = None):
         """
         ---
         single:
@@ -257,7 +257,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
-    def put(self, taxonomy_id):
+    def put(self, taxonomy_id: int):
         """
         ---
         summary: Update a taxonomy

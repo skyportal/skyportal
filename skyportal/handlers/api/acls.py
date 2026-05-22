@@ -102,7 +102,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id: int, acl_id):
+    def delete(self, user_id: int, acl_id: str):
         """
         ---
         summary: Remove ACL from a user

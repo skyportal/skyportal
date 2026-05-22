@@ -34,7 +34,7 @@ MAX_OBSERVATION_PLANS = 1000
 class AllocationObservationPlanHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_OBSERVATION_PLANS=MAX_OBSERVATION_PLANS)
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Get an allocation's observation plans
@@ -190,7 +190,7 @@ class AllocationObservationPlanHandler(BaseHandler):
 class AllocationHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    def get(self, allocation_id=None):
+    def get(self, allocation_id: int | None = None):
         """
         ---
         single:

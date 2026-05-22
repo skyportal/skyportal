@@ -546,7 +546,7 @@ class GroupUserHandler(BaseHandler):
             )
 
     @permissions(["Upload data"])
-    def patch(self, group_id, *ignored_args):
+    def patch(self, group_id: int, *ignored_args):
         """
         ---
         summary: Update a group user
@@ -630,7 +630,7 @@ class GroupUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, group_id: int, user_id):
+    def delete(self, group_id: int, user_id: int):
         """
         ---
         summary: Delete a group user
@@ -874,7 +874,7 @@ class GroupStreamHandler(BaseHandler):
             return self.success(data={"group_id": group_id, "stream_id": stream_id})
 
     @permissions(["Upload data"])
-    def delete(self, group_id, stream_id):
+    def delete(self, group_id: int, stream_id: int):
         """
         ---
         summary: Delete alert stream from group
@@ -926,7 +926,7 @@ class GroupStreamHandler(BaseHandler):
 
 class ObjGroupsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get an object's groups

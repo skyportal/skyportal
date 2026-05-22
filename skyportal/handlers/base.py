@@ -11,10 +11,10 @@ from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
 
 from .. import __version__
 
-_HANDLER_METHODS = ("get", "post", "put", "patch", "delete")
+HANDLER_METHODS = ("get", "post", "put", "patch", "delete")
 
 
-def _resolve_cast(annotation):
+def resolve_cast(annotation):
     """Resolve a parameter annotation to a cast callable.
 
     Handles ``Optional[T]`` / ``T | None`` by unwrapping to the inner type and
@@ -30,6 +30,62 @@ def _resolve_cast(annotation):
             return non_none[0], True
         return None, False
     return annotation, False
+
+
+def install_path_param_validation(cls):
+    """Wrap each ``get``/``post``/``put``/``patch``/``delete`` defined on ``cls``
+    so positional path arguments are coerced to the types declared in the
+    parameter annotations.
+
+    On ``TypeError``/``ValueError`` the wrapper returns
+    ``self.error(f"Invalid {name}: {val}")`` and the handler is not invoked.
+
+    ``Optional[T]`` / ``T | None`` annotations are honored: a ``None`` value
+    passes through unchanged. Parameters without an annotation are left alone.
+
+    Designed to be called from ``__init_subclass__`` of a base handler class;
+    exposed at module level so tests can exercise the same code path against
+    a minimal fake base class.
+    """
+    for method_name in HANDLER_METHODS:
+        method = cls.__dict__.get(method_name)
+        if method is None:
+            continue
+
+        params = list(inspect.signature(method).parameters.values())[1:]  # skip self
+        validators = []
+        for i, p in enumerate(params):
+            if p.annotation is inspect.Parameter.empty:
+                continue
+            cast_fn, allow_none = resolve_cast(p.annotation)
+            if cast_fn is None or cast_fn is str:
+                # str-as-no-op + unsupported unions are skipped.
+                continue
+            validators.append((i, p.name, cast_fn, allow_none))
+        if not validators:
+            continue
+
+        @functools.wraps(method)
+        async def wrapper(
+            self, *args, _method=method, _validators=validators, **kwargs
+        ):
+            new_args = list(args)
+            for i, name, cast_fn, allow_none in _validators:
+                if i >= len(new_args):
+                    break
+                val = new_args[i]
+                if val is None and allow_none:
+                    continue
+                try:
+                    new_args[i] = cast_fn(val)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid {name}: {val}")
+            result = _method(self, *new_args, **kwargs)
+            if inspect.iscoroutine(result):
+                return await result
+            return result
+
+        setattr(cls, method_name, wrapper)
 
 
 def format_doc(**kwargs):
@@ -64,61 +120,8 @@ def format_doc(**kwargs):
 
 class BaseHandler(BaselayerHandler):
     def __init_subclass__(cls, **kwargs):
-        """Wrap HTTP handler methods to validate path parameters from type hints.
-
-        For each ``get``/``post``/``put``/``patch``/``delete`` defined on a
-        subclass, inspect its parameter annotations and build a wrapper that
-        coerces each positional path arg to its annotated type before the
-        handler body runs. On ``TypeError``/``ValueError`` the wrapper returns
-        ``self.error(...)`` and the handler is not invoked.
-
-        ``Optional[T]`` / ``T | None`` annotations are honored: a ``None`` value
-        passes through unchanged.
-
-        Parameters with no annotation are left alone — opt-in, per parameter.
-        """
         super().__init_subclass__(**kwargs)
-        for method_name in _HANDLER_METHODS:
-            method = cls.__dict__.get(method_name)
-            if method is None:
-                continue
-
-            params = list(inspect.signature(method).parameters.values())[
-                1:
-            ]  # skip self
-            validators = []
-            for i, p in enumerate(params):
-                if p.annotation is inspect.Parameter.empty:
-                    continue
-                cast_fn, allow_none = _resolve_cast(p.annotation)
-                if cast_fn is None or cast_fn is str:
-                    # str-as-no-op + unsupported unions are skipped.
-                    continue
-                validators.append((i, p.name, cast_fn, allow_none))
-            if not validators:
-                continue
-
-            @functools.wraps(method)
-            async def wrapper(
-                self, *args, _method=method, _validators=validators, **kwargs
-            ):
-                new_args = list(args)
-                for i, name, cast_fn, allow_none in _validators:
-                    if i >= len(new_args):
-                        break
-                    val = new_args[i]
-                    if val is None and allow_none:
-                        continue
-                    try:
-                        new_args[i] = cast_fn(val)
-                    except (TypeError, ValueError):
-                        return self.error(f"Invalid {name}: {val}")
-                result = _method(self, *new_args, **kwargs)
-                if inspect.iscoroutine(result):
-                    return await result
-                return result
-
-            setattr(cls, method_name, wrapper)
+        install_path_param_validation(cls)
 
     @property
     def associated_user_object(self):
