@@ -1794,22 +1794,17 @@ class GcnEventHandler(BaseHandler):
                 gcn_dateobs_query = GcnEvent.select(
                     session.user_or_token, columns=[GcnEvent.dateobs]
                 ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
-                gcn_dateobs_subquery = gcn_dateobs_query.subquery()
 
-                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_subquery))
+                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
             if localization_tag_keep:
                 tag_subquery = (
                     LocalizationTag.select(session.user_or_token)
                     .where(LocalizationTag.text.in_(localization_tag_keep))
                     .subquery()
                 )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
+                localization_id_query = Localization.select(
+                    session.user_or_token, columns=[Localization.dateobs]
+                ).where(Localization.id == tag_subquery.c.localization_id)
                 query = query.where(GcnEvent.dateobs.in_(localization_id_query))
             if localization_tag_remove:
                 tag_subquery = (
@@ -1817,13 +1812,9 @@ class GcnEventHandler(BaseHandler):
                     .where(LocalizationTag.text.in_(localization_tag_remove))
                     .subquery()
                 )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
+                localization_id_query = Localization.select(
+                    session.user_or_token, columns=[Localization.dateobs]
+                ).where(Localization.id == tag_subquery.c.localization_id)
                 query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
             if gcn_properties_filter is not None:
                 for prop_filt in gcn_properties_filter:
