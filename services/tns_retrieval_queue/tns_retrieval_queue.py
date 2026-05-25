@@ -10,7 +10,9 @@ import conesearch_alchemy as ca
 import requests
 import sqlalchemy as sa
 import tornado.escape
+import tornado.httpserver
 import tornado.ioloop
+import tornado.netutil
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -21,8 +23,16 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Group, Obj, Source, User
+from skyportal.models import (
+    DBSession,
+    Group,
+    Obj,
+    Source,
+    TNSRetrievalTask,
+    User,
+)
 from skyportal.utils.calculations import great_circle_distance
+from skyportal.utils.coordination import service_leader_lock
 from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
@@ -243,13 +253,38 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
         log(f"Successfully retrieved {len(spectra)} TNS spectra from {tns_name}")
 
 
-def process_queue(queue):
-    """Process the TNS retrieval queue
+def _notify_user_of_failure(user_id, ref, exc):
+    """Best-effort frontend toast for the submitter when a task fails."""
+    if user_id is None:
+        return
+    try:
+        flow = Flow()
+        if "not found on TNS" in str(exc):
+            flow.push(
+                user_id,
+                action_type="baselayer/SHOW_NOTIFICATION",
+                payload={"note": str(exc), "type": "warning"},
+            )
+        else:
+            flow.push(
+                user_id,
+                action_type="baselayer/SHOW_NOTIFICATION",
+                payload={
+                    "note": f"Error processing TNS source {ref}: {exc}",
+                    "type": "error",
+                },
+            )
+    except Exception as flow_exc:
+        log(f"Failed to push user notification for TNS task: {flow_exc}")
 
-    Parameters
-    ----------
-    queue : list
-        Tasks to be processed
+
+def process_queue():
+    """Drain pending TNSRetrievalTask rows from the DB queue.
+
+    Each replica claims one row at a time via FOR UPDATE SKIP LOCKED, holds
+    the lock for the duration of the (possibly slow) TNS fetch + DB writes,
+    then marks the task 'done' or 'failed' and commits. Concurrent replicas
+    naturally split work.
     """
     if TNS_URL is None or bot_id is None or bot_name is None or api_key is None:
         log("TNS watcher not configured, skipping")
@@ -257,290 +292,294 @@ def process_queue(queue):
     tns_headers = get_tns_headers(bot_id, bot_name)
 
     while True:
-        if not queue:
-            time.sleep(1)
-            continue
-        task = queue.pop(0)
-        if not task:
-            continue
-
-        tns_name = None
-        existing_obj = None
         try:
-            with DBSession() as session:
-                public_group = session.scalar(
-                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-                )
-                if public_group is None:
-                    log(
-                        f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, stopping TNS watcher"
-                    )
-                    return
-                public_group_id = public_group.id
+            processed = _claim_and_process_one(tns_headers)
+            if not processed:
+                time.sleep(1)
+        except Exception as e:
+            log(f"Unexpected error draining TNS queue: {e}")
+            traceback.print_exc()
+            time.sleep(5)
 
-                if task.get("obj_id") is not None:
-                    # here we are looking for the TNS name of an existing object
-                    # to add the TNS name to the object + create a TNS source
-                    existing_obj = session.scalar(
-                        sa.select(Obj).where(Obj.id == task.get("obj_id"))
-                    )
-                    if existing_obj is None:
-                        log(
-                            f"Object {task['obj_id']} not found in the database, skipping"
-                        )
-                        continue
 
-                    # find the most recent object on TNS within a certain radius (default 2 arcsec) of the object
-                    tns_prefix, tns_source = get_IAUname(
-                        api_key,
-                        tns_headers,
-                        ra=existing_obj.ra,
-                        dec=existing_obj.dec,
-                        radius=float(task.get("radius", DEFAULT_RADIUS)),
-                        closest=True,  # get the closest object to the input coordinates as the TNS source
-                    )
-                    log(
-                        f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
-                    )
-                    if is_null(tns_source):
-                        raise ValueError(f"{task.get('obj_id')} not found on TNS.")
-                    tns_name = f"{tns_prefix} {tns_source}"
-                elif task.get("tns_source"):
-                    # here we just want to create a TNS source
-                    tns_source = task.get("tns_source")
-                    tns_prefix = task.get("tns_prefix")
+def _claim_and_process_one(tns_headers):
+    """Returns True if a task was claimed (regardless of outcome), False if idle."""
+    with DBSession() as session:
+        task = session.scalars(
+            sa.select(TNSRetrievalTask)
+            .where(TNSRetrievalTask.status == "pending")
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        ).first()
+        if task is None:
+            return False
 
-                    # providing the prefix is not mandatory, just nice for logging if we already have it.
-                    # we will retrieve it anyway if it's not provided when fetching the object from TNS
-                    if tns_prefix:
-                        tns_name = f"{tns_prefix} {tns_source}"
-                    else:
-                        tns_name = tns_source
-                    log(f"Processing TNS source {tns_name}")
-                else:
-                    log("No obj_id or tns_name provided, skipping")
-                    continue
+        # Identify the task's reference for logs/notifications before any
+        # mutations -- the ORM object stays attached to the session.
+        ref = task.tns_source or task.obj_id
+        user_id = task.user_id
 
-                # fetch the data from TNS
-                data = {
-                    "api_key": api_key,
-                    "data": json.dumps(
-                        {
-                            "objname": tns_source,
-                            "photometry": 1,
-                            "spectra": 1,
-                        }
-                    ),
-                }
-
-                # 24 * 10 seconds = 4 minutes of retries
-                max_retries = 24
-                retry_delay = 10
-                r = None
-                for _ in range(max_retries):
-                    r = requests.post(
-                        get_tns_url("object"),
-                        headers=tns_headers,
-                        data=data,
-                        allow_redirects=True,
-                        stream=True,
-                        timeout=10,
-                    )
-                    status_code = r.status_code
-                    if status_code != 429:
-                        break
-                    time.sleep(retry_delay)
-
-                if status_code != 200:
-                    log(f"Error getting TNS data for {tns_name}: {r.text}")
-                    continue
-
-                try:
-                    tns_source_data = r.json().get("data", {})
-                except Exception:
-                    tns_source_data = None
-                if tns_source_data is None:
-                    log(f"Error getting TNS data for {tns_name}: no reply in data")
-                    continue
-
-                try:
-                    # '110' is the TNS code we get when an object is not found
-                    msg = (
-                        tns_source_data.get("name", {})
-                        .get("110", {})
-                        .get("message", None)
-                    )
-                    if msg == "No results found.":
-                        log(f"Could not find {tns_name} on TNS at {TNS_URL}")
-                        continue
-                except Exception:
-                    pass
-
-                tns_prefix = tns_source_data.get("name_prefix", None)
-                if tns_prefix is None:
-                    log(
-                        f"Error processing TNS source {tns_name}: obj has no prefix ({str(r.json())})"
-                    )
-                    continue
-
-                tns_name = f"{tns_prefix} {tns_source}"
-
-                ra, dec = (
-                    tns_source_data.get("radeg", None),
-                    tns_source_data.get("decdeg", None),
-                )
-                if ra is None or dec is None:
-                    log(f"Error processing TNS source {tns_name}: no coordinates")
-                    continue
-
-                if existing_obj:
-                    # if existing obj add TNS name and info to it and update frontend
-                    existing_obj.tns_name = tns_name
-                    existing_obj.tns_info = tns_source_data
-                    session.commit()
-                    refresh_obj_on_frontend(existing_obj)
-                else:
-                    # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
-                    add_tns_name_to_existing_objs(
-                        tns_name, tns_source_data, ra, dec, session
-                    )
-
-                with DBSession() as session:
-                    existing_tns_obj = session.scalar(
-                        sa.select(Obj).where(Obj.id == tns_source)
-                    )
-                    existing_tns_public_source = session.scalar(
-                        sa.select(Source).where(
-                            Source.obj_id == tns_source,
-                            Source.group_id == public_group_id,
-                        )
-                    )
-                    # if an object already exists for this tns_source, we update its TNS name
-                    if existing_tns_obj and existing_tns_obj.tns_name != tns_name:
-                        existing_tns_obj.tns_name = tns_name
-                        existing_tns_obj.tns_info = tns_source_data
-                        session.commit()
-                        log(
-                            f"TNS obj {tns_name} already exists in the database, updated its TNS name."
-                        )
-                        refresh_obj_on_frontend(existing_tns_obj)
-
-                    # if the obj does not exist or if it exists but is saved to the public group,
-                    # we create/save the TNS source to the public group
-                    if existing_tns_public_source is None:
-                        log(
-                            f"Saving TNS source {tns_name} to the database (public group)"
-                        )
-                        new_source_data = {
-                            "id": tns_source,  # the name without the prefix
-                            "ra": ra,
-                            "dec": dec,
-                            "tns_name": tns_name,  # the name with the prefix (AT, SN, etc.)
-                            "tns_info": tns_source_data,
-                            "group_ids": [public_group_id],
-                        }
-                        post_source(new_source_data, USER_ID, session)
-
-                        add_tns_photometry(
-                            tns_name,
-                            tns_source,
-                            tns_source_data,
-                            public_group_id,
-                            session,
-                        )
-
-                        add_tns_spectra(
-                            tns_name,
-                            tns_source,
-                            tns_source_data,
-                            public_group_id,
-                            session,
-                        )
+        try:
+            _process_task(session, task, tns_headers)
+            task.status = "done"
         except Exception as e:
             traceback.print_exc()
-            log(f"Error processing TNS source {tns_name}: {e}")
-            user_id = task.get("user_id", None)
-            if user_id is not None:
-                flow = Flow()
-                if "not found on TNS" in str(e):
-                    flow.push(
-                        user_id,
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": str(e),
-                            "type": "warning",
-                        },
-                    )
-                else:
-                    flow.push(
-                        user_id,
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": f"Error processing TNS source {tns_name}: {e}",
-                            "type": "error",
-                        },
-                    )
+            log(f"Error processing TNS task {task.id} ({ref}): {e}")
+            task.status = "failed"
+            task.error = str(e)[:5000]
+            _notify_user_of_failure(user_id, ref, e)
+
+        session.commit()
+    return True
 
 
-def tns_watcher(queue):
-    """Watch TNS for new sources and add them to the queue
+def _process_task(session, task, tns_headers):
+    """Carry out a single TNS retrieval. Raises on failure."""
+    public_group = session.scalar(
+        sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+    )
+    if public_group is None:
+        raise RuntimeError(f"Public group {cfg['misc.public_group_name']} not found")
+    public_group_id = public_group.id
 
-    Parameters
-    ----------
-    queue : list
-        The queue to add the TNS sources to, shared across threads
+    existing_obj = None
+    tns_name = None
+
+    if task.obj_id is not None:
+        existing_obj = session.scalar(sa.select(Obj).where(Obj.id == task.obj_id))
+        if existing_obj is None:
+            raise ValueError(f"Object {task.obj_id} not found in the database")
+
+        tns_prefix, tns_source = get_IAUname(
+            api_key,
+            tns_headers,
+            ra=existing_obj.ra,
+            dec=existing_obj.dec,
+            radius=float(task.radius if task.radius is not None else DEFAULT_RADIUS),
+            closest=True,
+        )
+        log(
+            f"Found TNS source {tns_source} for object {existing_obj.id} "
+            f"with prefix {tns_prefix}"
+        )
+        if is_null(tns_source):
+            raise ValueError(f"{task.obj_id} not found on TNS.")
+        tns_name = f"{tns_prefix} {tns_source}"
+    elif task.tns_source:
+        tns_source = task.tns_source
+        tns_prefix = task.tns_prefix
+        tns_name = f"{tns_prefix} {tns_source}" if tns_prefix else tns_source
+        log(f"Processing TNS source {tns_name}")
+    else:
+        raise ValueError("Task has neither obj_id nor tns_source")
+
+    # Fetch the data from TNS, with retries on 429.
+    data = {
+        "api_key": api_key,
+        "data": json.dumps(
+            {
+                "objname": tns_source,
+                "photometry": 1,
+                "spectra": 1,
+            }
+        ),
+    }
+    max_retries = 24
+    retry_delay = 10
+    r = None
+    status_code = None
+    for _ in range(max_retries):
+        r = requests.post(
+            get_tns_url("object"),
+            headers=tns_headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
+        )
+        status_code = r.status_code
+        if status_code != 429:
+            break
+        time.sleep(retry_delay)
+
+    if status_code != 200:
+        raise RuntimeError(f"TNS returned {status_code} for {tns_name}: {r.text}")
+
+    try:
+        tns_source_data = r.json().get("data", {})
+    except Exception:
+        tns_source_data = None
+    if tns_source_data is None:
+        raise RuntimeError(f"TNS reply for {tns_name} had no data field")
+
+    # '110' is the TNS code we get when an object is not found
+    msg = tns_source_data.get("name", {}).get("110", {}).get("message", None)
+    if msg == "No results found.":
+        raise ValueError(f"{tns_source} not found on TNS at {TNS_URL}")
+
+    tns_prefix = tns_source_data.get("name_prefix", None)
+    if tns_prefix is None:
+        raise RuntimeError(f"TNS source {tns_name} has no prefix ({r.json()})")
+
+    tns_name = f"{tns_prefix} {tns_source}"
+    ra = tns_source_data.get("radeg", None)
+    dec = tns_source_data.get("decdeg", None)
+    if ra is None or dec is None:
+        raise RuntimeError(f"TNS source {tns_name} missing coordinates")
+
+    if existing_obj:
+        existing_obj.tns_name = tns_name
+        existing_obj.tns_info = tns_source_data
+        session.flush()
+        refresh_obj_on_frontend(existing_obj)
+    else:
+        add_tns_name_to_existing_objs(tns_name, tns_source_data, ra, dec, session)
+
+    # Public source creation / update (used to live in a second DBSession;
+    # we now keep it on the same session so the TNSRetrievalTask row stays
+    # locked through the entire operation).
+    existing_tns_obj = session.scalar(sa.select(Obj).where(Obj.id == tns_source))
+    existing_tns_public_source = session.scalar(
+        sa.select(Source).where(
+            Source.obj_id == tns_source,
+            Source.group_id == public_group_id,
+        )
+    )
+    if existing_tns_obj and existing_tns_obj.tns_name != tns_name:
+        existing_tns_obj.tns_name = tns_name
+        existing_tns_obj.tns_info = tns_source_data
+        session.flush()
+        log(f"TNS obj {tns_name} already exists in the database, updated its TNS name.")
+        refresh_obj_on_frontend(existing_tns_obj)
+
+    if existing_tns_public_source is None:
+        log(f"Saving TNS source {tns_name} to the database (public group)")
+        new_source_data = {
+            "id": tns_source,
+            "ra": ra,
+            "dec": dec,
+            "tns_name": tns_name,
+            "tns_info": tns_source_data,
+            "group_ids": [public_group_id],
+        }
+        post_source(new_source_data, USER_ID, session)
+
+        add_tns_photometry(
+            tns_name,
+            tns_source,
+            tns_source_data,
+            public_group_id,
+            session,
+        )
+
+        add_tns_spectra(
+            tns_name,
+            tns_source,
+            tns_source_data,
+            public_group_id,
+            session,
+        )
+
+
+def _pending_count(session):
+    return session.scalar(
+        sa.select(sa.func.count(TNSRetrievalTask.id)).where(
+            TNSRetrievalTask.status == "pending"
+        )
+    )
+
+
+def tns_watcher():
+    """Periodically poll TNS for recent sources and enqueue tasks for them.
+
+    Wraps each tick in a transactional advisory lock so only one replica
+    actually hits the TNS API per tick (saves rate-limit budget). Other
+    replicas' ticks are no-ops and resume on the next interval.
     """
     if not TNS_URL or not bot_id or not bot_name or not api_key or not look_back_days:
         log("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
 
-    # when the service starts, we look back a certain number of days
-    # useful if the app has been down for a while
+    # Process-local start_date. After a failover the new leader starts from
+    # `look_back_days` ago; duplicate enqueues are skipped at insert time
+    # (we filter on existing pending/processing rows for the same tns_source).
     start_date = datetime.now() - timedelta(days=look_back_days)
+
     while True:
         try:
-            tns_sources = get_recent_TNS(
-                api_key,
-                tns_headers,
-                start_date.strftime(
-                    "%Y-%m-%dT%H:%M:%S"
-                ),  # convert start date to isot format
-                get_data=False,
-            )
-            for tns_source in tns_sources:
-                queue.append(
-                    {
-                        "tns_prefix": tns_source["prefix"],
-                        "tns_source": tns_source["id"],
-                        "obj_id": None,
-                    }
-                )
-                log(f"Added TNS source {tns_source['id']} to the queue for processing")
+            with DBSession() as session:
+                with service_leader_lock(session, "tns_watcher") as got_lock:
+                    if got_lock:
+                        try:
+                            tns_sources = get_recent_TNS(
+                                api_key,
+                                tns_headers,
+                                start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                                get_data=False,
+                            )
+                        except Exception as e:
+                            log(
+                                f"Error getting TNS sources: {e}, retrying in 4 minutes"
+                            )
+                            tns_sources = []
 
-            # if we got any sources, we update the start date to now - 1 hour
-            # otherwise we keep querying TNS starting from same start date
-            if tns_sources:
-                start_date = datetime.now() - timedelta(hours=1)
+                        enqueued = 0
+                        for tns_source in tns_sources:
+                            already = session.scalar(
+                                sa.select(TNSRetrievalTask.id).where(
+                                    TNSRetrievalTask.tns_source == tns_source["id"],
+                                    TNSRetrievalTask.status.in_(
+                                        ["pending", "processing"]
+                                    ),
+                                )
+                            )
+                            if already is not None:
+                                continue
+                            session.add(
+                                TNSRetrievalTask(
+                                    tns_prefix=tns_source["prefix"],
+                                    tns_source=tns_source["id"],
+                                    obj_id=None,
+                                    status="pending",
+                                    payload={
+                                        "source": "watcher",
+                                        "tns_prefix": tns_source["prefix"],
+                                        "tns_source": tns_source["id"],
+                                    },
+                                )
+                            )
+                            log(
+                                f"Added TNS source {tns_source['id']} "
+                                f"to the queue for processing"
+                            )
+                            enqueued += 1
+
+                        session.commit()
+
+                        if tns_sources:
+                            start_date = datetime.now() - timedelta(hours=1)
         except Exception as e:
-            log(f"Error getting TNS sources: {e}, retrying in 4 minutes")
+            log(f"Unexpected error in tns_watcher tick: {e}")
+            traceback.print_exc()
 
-        time.sleep(60 * 4)  # sleep for 4 minutes
+        time.sleep(60 * 4)
 
 
-def api(queue):
-    """Start the internal API that endpoint that receives requests from the main app
+def api():
+    """Internal HTTP endpoint: receives TNS requests and inserts task rows.
 
-    Parameters
-    ----------
-    queue : list
-        The queue to add the sources to, shared across threads
+    The Tornado app binds with SO_REUSEPORT so N replicas can share the port.
+    Each POST inserts a TNSRetrievalTask with status='pending'; the consumer
+    loop in another thread (or another replica) picks it up via SKIP LOCKED.
     """
 
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
-            self.write({"status": "success", "data": {"queue_length": len(queue)}})
+            with DBSession() as session:
+                pending = _pending_count(session)
+            self.write({"status": "success", "data": {"queue_length": pending}})
 
         async def post(self):
             try:
@@ -550,13 +589,22 @@ def api(queue):
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
             if "tns_source" in data:
-                queue.append({"tns_source": data["tns_source"]})
+                with DBSession() as session:
+                    session.add(
+                        TNSRetrievalTask(
+                            tns_source=data["tns_source"],
+                            status="pending",
+                            payload=data,
+                        )
+                    )
+                    session.commit()
+                    pending = _pending_count(session)
                 self.set_status(200)
                 return self.write(
                     {
                         "status": "success",
                         "message": "TNS request accepted into queue",
-                        "data": {"queue_length": len(queue)},
+                        "data": {"queue_length": pending},
                     }
                 )
 
@@ -570,14 +618,24 @@ def api(queue):
                     }
                 )
 
-            queue.append(data)
-
+            with DBSession() as session:
+                session.add(
+                    TNSRetrievalTask(
+                        obj_id=data["obj_id"],
+                        user_id=data["user_id"],
+                        radius=data.get("radius"),
+                        status="pending",
+                        payload=data,
+                    )
+                )
+                session.commit()
+                pending = _pending_count(session)
             self.set_status(200)
             return self.write(
                 {
                     "status": "success",
                     "message": "TNS request accepted into queue",
-                    "data": {"queue_length": len(queue)},
+                    "data": {"queue_length": pending},
                 }
             )
 
@@ -587,23 +645,37 @@ def api(queue):
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    app.listen(cfg["ports.tns_retrieval_queue"])
+    port = cfg["ports.tns_retrieval_queue"]
+    try:
+        sockets = tornado.netutil.bind_sockets(port, reuse_port=True)
+        http_server = tornado.httpserver.HTTPServer(app)
+        http_server.add_sockets(sockets)
+    except ValueError as e:
+        log(
+            f"SO_REUSEPORT unavailable ({e}); falling back to single-replica "
+            f"bind on port {port}"
+        )
+        app.listen(port)
     loop.run_forever()
 
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    """Process the TNS retrieval queue"""
+    """Spawn the three worker threads. Queue state lives in the DB now."""
 
-    queue = []
-    t = Thread(target=process_queue, args=(queue,))
-    t2 = Thread(target=api, args=(queue,))
-    t3 = Thread(target=tns_watcher, args=(queue,))
+    t = Thread(target=process_queue)
+    t2 = Thread(target=api)
+    t3 = Thread(target=tns_watcher)
     t.start()
     t2.start()
     t3.start()
     while True:
-        log(f"Current TNS retrieval queue length: {len(queue)}")
+        try:
+            with DBSession() as session:
+                pending = _pending_count(session)
+            log(f"Current TNS retrieval queue length: {pending}")
+        except Exception as e:
+            log(f"Failed to read pending TNS count: {e}")
         time.sleep(120)
 
 
