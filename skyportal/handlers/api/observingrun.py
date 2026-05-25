@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
@@ -166,6 +166,17 @@ class ObservingRunHandler(BaseHandler):
                 data = ObservingRunGetWithAssignments.dump(run)
                 data["assignments"] = [a.to_dict() for a in assignments]
 
+                obj_ids = [a["obj"].id for a in data["assignments"]]
+                sources_by_obj = {}
+                if obj_ids:
+                    for s in session.scalars(
+                        Source.select(
+                            session.user_or_token,
+                            options=[joinedload(Source.group)],
+                        ).where(Source.obj_id.in_(obj_ids))
+                    ).all():
+                        sources_by_obj.setdefault(s.obj_id, []).append(s)
+
                 for a in data["assignments"]:
                     a["accessible_group_names"] = [
                         (
@@ -173,11 +184,7 @@ class ObservingRunHandler(BaseHandler):
                             if s.group.nickname is not None
                             else s.group.name
                         )
-                        for s in session.scalars(
-                            Source.select(session.user_or_token).where(
-                                Source.obj_id == a["obj"].id
-                            )
-                        ).all()
+                        for s in sources_by_obj.get(a["obj"].id, [])
                     ]
                     del a["obj"].sources
                     del a["obj"].users
@@ -360,7 +367,7 @@ class ObservingRunHandler(BaseHandler):
 
             # don't allow deleting past runs, unless they have no assignments
             if (
-                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
+                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
                 and len(assignments) > 0
             ):
                 return self.error(
