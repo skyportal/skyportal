@@ -1103,8 +1103,7 @@ const GcnSelectionForm = ({ dateobs }) => {
             </Grid>
             <Grid
               size={{ xs: 11, sm: 12 }}
-              data
-              testid="gcnsource-selection-form"
+              data-testid="gcnsource-selection-form"
               sx={{ mt: "0.8rem" }}
             >
               <Form
