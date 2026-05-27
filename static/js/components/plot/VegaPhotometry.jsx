@@ -57,13 +57,7 @@ const VegaPhotometryMemo = React.memo(
       <VegaPlot values={values} colorScale={colorScale} style={style} />
     );
     return (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
+      <Suspense fallback={<CircularProgress color="secondary" />}>
         {plot}
       </Suspense>
     );
@@ -234,17 +228,11 @@ const VegaPhotometry = (props) => {
     fetchPhotometry();
   }, [sourceId, photometry, config, dispatch]);
 
-  if (folded && (period === undefined || period === null)) {
-    return <div>No period found.</div>;
-  }
+  if (folded && !period) return "No period found.";
 
-  if (photometry?.length === 0) {
-    return <div>No photometry found.</div>;
-  }
+  if (!photometry?.length) return "No photometry found.";
 
-  if (photDisplayData === null || filters === null || wavelengths === null) {
-    return <CircularProgress color="secondary" />;
-  }
+  if (!photDisplayData || !filters || !wavelengths) return <CircularProgress />;
 
   return (
     <div>

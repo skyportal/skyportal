@@ -800,7 +800,7 @@ const SourceTable = ({
               <VegaPhotometry sourceId={source.id} />
             </Grid>
             <Grid>
-              {photometry[source.id]?.length && (
+              {photometry[source.id]?.length > 0 && (
                 <VegaPhotometry
                   sourceId={source.id}
                   annotations={annotations}
@@ -809,7 +809,7 @@ const SourceTable = ({
               )}
             </Grid>
             <Grid>
-              {source.color_magnitude.length && (
+              {source.color_magnitude.length > 0 && (
                 <div data-testid={`hr_diagram_${source.id}`}>
                   <Suspense fallback={<CircularProgress color="secondary" />}>
                     <VegaHR
@@ -834,7 +834,7 @@ const SourceTable = ({
             </Grid>
             <Grid>
               <div className={classes.annotations}>
-                {annotations?.length && (
+                {annotations?.length > 0 && (
                   <>
                     <Typography variant="subtitle2">Annotations:</Typography>
                     <List
