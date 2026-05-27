@@ -16,8 +16,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as allocationActions from "../../ducks/allocations";
 import * as instrumentLogActions from "../../ducks/instrument_log";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 

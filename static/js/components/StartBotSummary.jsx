@@ -23,8 +23,6 @@ import * as analysisServicesActions from "../ducks/analysis_services";
 import * as sourceActions from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 

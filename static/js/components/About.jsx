@@ -126,7 +126,7 @@ const About = () => {
       <div>
         <Grid container spacing={2}>
           {developers.map((dev) => (
-            <Grid item md={3} xs={4} key={dev.name}>
+            <Grid size={{ md: 3, xs: 4 }} key={dev.name}>
               <div className={classes.dev}>
                 <Avatar
                   alt={dev.name}
@@ -143,7 +143,7 @@ const About = () => {
       <div>
         <Grid container spacing={2}>
           {alumni.map((dev) => (
-            <Grid item md={3} xs={4} key={dev.name}>
+            <Grid size={{ md: 3, xs: 4 }} key={dev.name}>
               <div className={classes.dev}>
                 <Avatar
                   alt={dev.name}

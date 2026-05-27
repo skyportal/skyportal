@@ -105,7 +105,7 @@ const EarthquakePage = ({ route }) => {
   return (
     <div>
       <Grid container spacing={2} className={styles.source}>
-        <Grid item xs={isMobile ? 14 : 7}>
+        <Grid size={isMobile ? 14 : 7}>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
               <AccordionSummary
@@ -170,7 +170,7 @@ const EarthquakePage = ({ route }) => {
         </Grid>
 
         {!isMobile && (
-          <Grid item xs={5}>
+          <Grid size={5}>
             <div className={styles.columnItem}>
               <Accordion
                 defaultExpanded

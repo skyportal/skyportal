@@ -72,7 +72,7 @@ const ShiftPage = ({ route }) => {
   const isManageShift = show === "manage shift";
   return (
     <Grid container spacing={3}>
-      <Grid item md={8} sm={12}>
+      <Grid size={{ md: 8, sm: 12 }}>
         <Paper elevation={1}>
           {shiftList ? (
             <MyCalendar
@@ -87,7 +87,7 @@ const ShiftPage = ({ route }) => {
         </Paper>
       </Grid>
 
-      <Grid item md={4} sm={12}>
+      <Grid size={{ md: 4, sm: 12 }}>
         <Paper>
           <Box display="flex" width="100%">
             <Button
@@ -218,7 +218,7 @@ const ShiftPage = ({ route }) => {
           </>
         )}
       </Grid>
-      <Grid item md={12} sm={12}>
+      <Grid size={{ md: 12, sm: 12 }}>
         <ShiftSummary />
       </Grid>
     </Grid>

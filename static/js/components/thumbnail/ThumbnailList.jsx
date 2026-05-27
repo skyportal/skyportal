@@ -59,7 +59,7 @@ const ThumbnailList = ({
   const thumbnailItems = (
     <>
       {latestThumbnails.map((t) => (
-        <Grid item key={t.id}>
+        <Grid key={t.id}>
           <Thumbnail
             ra={ra}
             dec={dec}
@@ -75,7 +75,7 @@ const ThumbnailList = ({
         </Grid>
       ))}
       {ps1Loading && (
-        <Grid item>
+        <Grid>
           <Thumbnail
             ra={ra}
             dec={dec}

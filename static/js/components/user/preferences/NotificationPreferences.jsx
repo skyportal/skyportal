@@ -295,7 +295,7 @@ const NotificationPreferences = () => {
                     selectedClassifications={selectedClassifications}
                     setSelectedClassifications={setSelectedClassifications}
                   />
-                  {sortedGroups?.length && (
+                  {sortedGroups?.length > 0 && (
                     <>
                       <SelectLabelWithChips
                         label="Groups (optional)"

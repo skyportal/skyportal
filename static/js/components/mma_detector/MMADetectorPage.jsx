@@ -45,7 +45,7 @@ const MMADetectorPage = () => {
   return (
     <Suspense fallback={<Spinner />}>
       <Grid container spacing={3}>
-        <Grid item lg={8} md={6} sm={12}>
+        <Grid size={{ lg: 8, md: 6, sm: 12 }}>
           <Paper>
             {isMobile ? (
               <>
@@ -60,7 +60,7 @@ const MMADetectorPage = () => {
           </Paper>
         </Grid>
         {(!isMobile || canManage) && (
-          <Grid item lg={4} md={6} sm={12}>
+          <Grid size={{ lg: 4, md: 6, sm: 12 }}>
             {!isMobile && canManage && (
               <Box>
                 <Button

@@ -1,6 +1,5 @@
 import { createStore, combineReducers, applyMiddleware, compose } from "redux";
 import thunk from "redux-thunk";
-import { createLogger } from "redux-logger";
 
 import { reducer as notificationsReducer } from "baselayer/components/Notifications";
 
@@ -21,9 +20,23 @@ const syncConfig = {
   ],
 };
 
-const logger = createLogger({
-  collapsed: (getState, action, logEntry) => !logEntry.error,
-});
+const logger = (store) => (next) => (action) => {
+  const prevState = store.getState();
+  let errored = false;
+  try {
+    return next(action);
+  } catch (e) {
+    errored = true;
+    throw e;
+  } finally {
+    const group = errored ? console.group : console.groupCollapsed;
+    group(`action ${action.type}`);
+    console.log("%cprev state", "color: #9E9E9E", prevState);
+    console.log("%caction    ", "color: #03A9F4", action);
+    console.log("%cnext state", "color: #4CAF50", store.getState());
+    console.groupEnd();
+  }
+};
 
 // Compose function that hooks up the Chrome/FF developer plugin
 // https://github.com/zalmoxisus/redux-devtools-extension

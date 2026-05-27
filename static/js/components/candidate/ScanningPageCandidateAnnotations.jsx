@@ -132,7 +132,7 @@ const ScanningPageCandidateAnnotations = ({
             <ListItem button onClick={() => handleClick(annotation.origin)}>
               <ListItemText
                 primary={`${annotation.origin}`}
-                primaryTypographyProps={{ variant: "button" }}
+                slotProps={{ primary: { variant: "button" } }}
               />
               {openedOrigins[annotation.origin] ? (
                 <ExpandLess />
@@ -165,8 +165,8 @@ const ScanningPageCandidateAnnotations = ({
                     onClick={() => handleItemSelect(annotation.origin, key)}
                   >
                     <ListItemText
-                      secondaryTypographyProps={{
-                        sx: { maxWidth: listItemWidth },
+                      slotProps={{
+                        secondary: { sx: { maxWidth: listItemWidth } },
                       }}
                       secondary={`${key}: ${getAnnotationValueString(value)}`}
                     />

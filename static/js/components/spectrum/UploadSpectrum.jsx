@@ -667,7 +667,7 @@ const UploadSpectrumForm = ({ route }) => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={4} sm={12}>
+      <Grid size={{ md: 4, sm: 12 }}>
         <Paper sx={{ position: "relative" }}>
           <Link
             to={`/source/${route.id}`}
@@ -749,7 +749,7 @@ const UploadSpectrumForm = ({ route }) => {
         </Paper>
       </Grid>
       {parsed && (
-        <Grid item md={8} sm={12}>
+        <Grid size={{ md: 8, sm: 12 }}>
           <Paper sx={{ position: "sticky", top: 74 }}>
             <Box
               sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}

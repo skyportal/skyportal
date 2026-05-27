@@ -8,7 +8,7 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 import TextField from "@mui/material/TextField";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
@@ -347,7 +347,7 @@ const GcnReport = ({ dateobs }) => {
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
-              <Grid item md={4} sm={12}>
+              <Grid size={{ md: 4, sm: 12 }}>
                 <Paper elevation={1} className={classes.form}>
                   <TextField
                     id="reportName"
@@ -475,7 +475,7 @@ const GcnReport = ({ dateobs }) => {
                   </div>
                 </Paper>
               </Grid>
-              <Grid item md={8} sm={12}>
+              <Grid size={{ md: 8, sm: 12 }}>
                 {!selectedGcnReportId && (
                   <Paper elevation={1} className={classes.content}>
                     <div>

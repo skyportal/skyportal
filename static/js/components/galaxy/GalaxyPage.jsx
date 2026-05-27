@@ -14,7 +14,7 @@ import PropTypes from "prop-types";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Close from "@mui/icons-material/Close";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
@@ -278,14 +278,14 @@ const GalaxyPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={3} sm={12}>
+      <Grid size={{ md: 3, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <GalaxyList catalogs={catalogs} setCatalogs={setCatalogs} />
           </div>
         </Paper>
       </Grid>
-      <Grid item md={9} sm={12}>
+      <Grid size={{ md: 9, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <GalaxyTable
