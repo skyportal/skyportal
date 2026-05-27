@@ -800,24 +800,18 @@ const SourceTable = ({
               <VegaPhotometry sourceId={source.id} />
             </Grid>
             <Grid>
-              {photometry[source.id] && photometry[source.id].length > 0 ? (
+              {photometry[source.id]?.length && (
                 <VegaPhotometry
                   sourceId={source.id}
                   annotations={annotations}
                   folded
                 />
-              ) : null}
+              )}
             </Grid>
             <Grid>
-              {source.color_magnitude.length ? (
+              {source.color_magnitude.length && (
                 <div data-testid={`hr_diagram_${source.id}`}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
+                  <Suspense fallback={<CircularProgress color="secondary" />}>
                     <VegaHR
                       data={source.color_magnitude}
                       width={200}
@@ -825,16 +819,10 @@ const SourceTable = ({
                     />
                   </Suspense>
                 </div>
-              ) : null}
+              )}
             </Grid>
             <Grid>
-              <Suspense
-                fallback={
-                  <div>
-                    <CircularProgress color="secondary" />
-                  </div>
-                }
-              >
+              <Suspense fallback={<CircularProgress color="secondary" />}>
                 <VegaSpectrum
                   sourceId={source.id}
                   width={plotWidth}
@@ -846,7 +834,7 @@ const SourceTable = ({
             </Grid>
             <Grid>
               <div className={classes.annotations}>
-                {annotations && annotations.length > 0 && (
+                {annotations?.length && (
                   <>
                     <Typography variant="subtitle2">Annotations:</Typography>
                     <List
@@ -864,7 +852,7 @@ const SourceTable = ({
                           >
                             <ListItemText
                               primary={`${annotation.origin}`}
-                              primaryTypographyProps={{ variant: "button" }}
+                              slotProps={{ primary: { variant: "button" } }}
                             />
                             {openedOrigins[annotation.origin] ? (
                               <ExpandLess />
