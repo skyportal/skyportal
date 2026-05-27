@@ -188,7 +188,7 @@ const VegaSpectrum = (props) => {
   if (!spectra?.length) return "No spectra found";
 
   return (
-    <Suspense fallback={<CircularProgress color="secondary" />}>
+    <Suspense fallback={<CircularProgress />}>
       <VegaSpectrumMemo
         values={spectra}
         width={width}
