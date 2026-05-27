@@ -340,7 +340,7 @@ const SourceContent = ({ source }) => {
           <AccordionDetails
             style={{
               padding: 0,
-              minHeight: !(downLarge || isRightPanelVisible) ? "60vh" : "52vh",
+              minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
             }}
           >
             <AnnotationsTable
@@ -355,7 +355,7 @@ const SourceContent = ({ source }) => {
       </Grid>
       {source?.gcn_notes?.length > 0 && (
         <Grid
-          size={{ xs: 12, lg: 12 }}
+          size={12}
           order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
         >
           <Accordion
@@ -375,9 +375,7 @@ const SourceContent = ({ source }) => {
             <AccordionDetails
               style={{
                 padding: 0,
-                minHeight: !(downLarge || isRightPanelVisible)
-                  ? "40vh"
-                  : "30vh",
+                minHeight: downLarge || isRightPanelVisible ? "30vh" : "40vh",
               }}
             >
               <GcnNotesTable gcnNotes={source.gcn_notes} />
@@ -387,7 +385,7 @@ const SourceContent = ({ source }) => {
       )}
       <Grid
         size={{ xs: 12, lg: 6 }}
-        order={{ xs: 3, md: 3, lg: !downLg && !rightPanelVisible ? 4 : 5 }}
+        order={{ xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 }}
       >
         <Accordion
           defaultExpanded
@@ -405,9 +403,7 @@ const SourceContent = ({ source }) => {
           </AccordionSummary>
           <AccordionDetails
             style={{
-              minHeight: !(downLarge || isRightPanelVisible)
-                ? "63.5vh"
-                : "55.5vh",
+              minHeight: downLarge || isRightPanelVisible ? "55.5vh" : "63.5vh",
             }}
           >
             <Suspense fallback={<CircularProgress />}>
@@ -416,7 +412,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 12 }} order={{ xs: 13, md: 10, lg: 8 }}>
+      <Grid size={12} order={{ xs: 13, md: 10, lg: 8 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -443,7 +439,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 8, md: 8, lg: 12 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 8, lg: 12 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -459,24 +455,16 @@ const SourceContent = ({ source }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Suspense
-              fallback={
-                <div>
-                  <CircularProgress color="secondary" />
-                </div>
-              }
-            >
+            <Suspense fallback={<CircularProgress color="secondary" />}>
               <CentroidPlot
                 sourceId={source.id}
-                plotStyle={{
-                  height: "50vh",
-                }}
+                plotStyle={{ height: "50vh" }}
               />
             </Suspense>
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, md: 9, lg: 13 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -491,34 +479,22 @@ const SourceContent = ({ source }) => {
               HR Diagram
             </Typography>
           </AccordionSummary>
-          <AccordionDetails>
-            <div data-testid={`hr_diagram_${source.id}`}>
-              {source.color_magnitude?.length > 0 ? (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaHR
-                    data={source.color_magnitude}
-                    width={300}
-                    height={300}
-                  />
-                </Suspense>
-              ) : (
-                <div>No color magnitude for this source</div>
-              )}
-            </div>
+          <AccordionDetails data-testid={`hr_diagram_${source.id}`}>
+            {source.color_magnitude?.length ? (
+              <Suspense fallback={<CircularProgress color="secondary" />}>
+                <VegaHR
+                  data={source.color_magnitude}
+                  width={300}
+                  height={300}
+                />
+              </Suspense>
+            ) : (
+              "No color magnitude for this source"
+            )}
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid
-        size={{ xs: 14, lg: 6 }}
-        order={{ xs: 13, md: 13, lg: 13 }}
-        style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
-      >
+      <Grid size={{ xs: 12, lg: 6 }} order={13}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -541,7 +517,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 15, md: 15, lg: 15 }}>
+      <Grid size={{ xs: 12, lg: 6 }} order={15}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -574,10 +550,10 @@ const SourceContent = ({ source }) => {
         size={{ xs: 12, lg: rightPanelVisible && !downLg ? 7 : 12 }}
         spacing={1.5}
         style={{
-          display: downLg || (!downLg && !rightPanelVisible) ? "flex" : "block",
+          display: downLg || !rightPanelVisible ? "flex" : "block",
         }}
       >
-        <Grid size={12} order={{ xs: 1, md: 1, lg: 1 }}>
+        <Grid size={12} order={1}>
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -593,9 +569,6 @@ const SourceContent = ({ source }) => {
                 <div className={classes.container}>
                   <IconButton
                     onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                    data-testid={`${
-                      rightPanelVisible ? "hide" : "show"
-                    }-right-panel-button`}
                     size="small"
                     variant="contained"
                     className={classes.panelButton}
@@ -1162,7 +1135,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={{ xs: 2, md: 2, lg: 2 }}>
+        <Grid size={12} order={2}>
           <Paper>
             <Typography
               variant="h6"
@@ -1178,7 +1151,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={{ xs: 4, md: 6, lg: 6 }}>
+        <Grid size={12} order={{ xs: 4, md: 6 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1310,7 +1283,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 5, md: 7, lg: 7 }}>
+        <Grid size={12} order={{ xs: 5, md: 7 }}>
           <Accordion
             defaultExpanded
             disableGutters
