@@ -5,7 +5,7 @@ from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)

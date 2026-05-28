@@ -60,7 +60,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.test_util import driver  # noqa: F401
 
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 
 if shutil.which("geckodriver") is None:
     raise RuntimeError(

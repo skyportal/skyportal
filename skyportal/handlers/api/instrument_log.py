@@ -4,7 +4,7 @@ import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
 from sqlalchemy.orm import undefer
-from utils.UTCTZnaiveDateTime import utcnow_naive
+from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token, permissions
 

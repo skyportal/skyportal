@@ -11,7 +11,7 @@ import yaml
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from skyportal.tests import api
 
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 
 
 def test_spectrum_put(super_admin_user, super_admin_token, public_source, lris):

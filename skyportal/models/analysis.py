@@ -44,7 +44,7 @@ from ..enum_types import (
     allowed_analysis_types,
     allowed_external_authentication_types,
 )
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 from .classification import Classification
 from .group import Group, accessible_by_groups_members
 from .webhook import WebhookMixin

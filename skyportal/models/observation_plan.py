@@ -25,7 +25,7 @@ from baselayer.app.models import (
     join_model,
 )
 
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 from .followup_request import updatable_by_token_with_listener_acl
 from .group import Group
 

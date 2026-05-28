@@ -4,7 +4,7 @@ from collections import defaultdict
 import tornado.web
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
-from utils.UTCTZnaiveDateTime import utcnow_naive
+from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token
 

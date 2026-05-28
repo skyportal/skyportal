@@ -7,7 +7,7 @@ from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)

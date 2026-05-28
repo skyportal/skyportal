@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from skyportal.tests import api
 
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 
 
 def test_post_and_verify_recurring_api(

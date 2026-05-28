@@ -8,7 +8,7 @@ from skyportal.models.phot_stat import PhotStat
 from skyportal.models.photometry import PHOT_ZP, Photometry
 from skyportal.tests import api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]

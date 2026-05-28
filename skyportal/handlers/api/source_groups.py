@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from utils.UTCTZnaiveDateTime import utcnow_naive
+from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log

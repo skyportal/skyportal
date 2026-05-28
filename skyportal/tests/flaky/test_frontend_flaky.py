@@ -15,7 +15,7 @@ from skyportal.tests.external.test_moving_objects import (
     remove_telescope_and_instrument,
 )
 
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)

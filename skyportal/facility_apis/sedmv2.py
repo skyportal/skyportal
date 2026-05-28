@@ -16,7 +16,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.instrument_log import read_logs
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()

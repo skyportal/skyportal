@@ -14,7 +14,7 @@ from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
-from .UTCTZnaiveDateTime import utcnow_naive
+from .naive_datetime import utcnow_naive
 
 env, cfg = load_env()
 

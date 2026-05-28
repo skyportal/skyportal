@@ -11,6 +11,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import (
     GaiaQuery,
     facility_parameters,
@@ -18,7 +19,6 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.parse import str_to_bool
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler
 
 _, cfg = load_env()

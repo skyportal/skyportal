@@ -2,7 +2,7 @@ import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import desc, func
-from utils.UTCTZnaiveDateTime import utcnow_naive
+from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token
 

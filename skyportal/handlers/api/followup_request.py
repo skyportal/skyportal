@@ -62,9 +62,9 @@ from ...models import (
     cosmo,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import get_formatted_standards_list
 from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler, format_doc
 
 log = make_log("api/followup_request")

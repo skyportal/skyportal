@@ -1,6 +1,6 @@
 from skyportal.tests import api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_token_user_post_robotic_followup_request(

@@ -50,8 +50,8 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...utils.extinction import calculate_extinction, deredden_flux
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler, format_doc
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 

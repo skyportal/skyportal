@@ -17,7 +17,7 @@ from skyportal.models import DBSession, Token
 from skyportal.models.photometry import Photometry
 from skyportal.tests import api, assert_api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]

@@ -11,7 +11,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ...utils import http
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 
 env, cfg = load_env()
 

@@ -87,9 +87,9 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler, format_doc
 
 env, cfg = load_env()

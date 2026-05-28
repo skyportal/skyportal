@@ -4,7 +4,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import Base
 
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 
 
 class SourceView(Base):

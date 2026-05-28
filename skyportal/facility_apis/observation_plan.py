@@ -18,7 +18,7 @@ from baselayer.log import make_log
 
 from ..email_utils import send_email
 from ..utils import http
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 log = make_log("api/observation_plan")

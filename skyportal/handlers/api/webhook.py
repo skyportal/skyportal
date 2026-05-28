@@ -5,7 +5,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import DBSession, ObjAnalysis
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_summary_history_if_relevant,

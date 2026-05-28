@@ -45,7 +45,7 @@ from ...models import (
     User,
     UserNotification,
 )
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
 

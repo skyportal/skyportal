@@ -11,7 +11,7 @@ from skyportal.utils.asynchronous import run_async
 from skyportal.utils.calculations import deg2dms, deg2hms
 from skyportal.utils.parse import bool_to_int
 
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 
 env, cfg = load_env()
 

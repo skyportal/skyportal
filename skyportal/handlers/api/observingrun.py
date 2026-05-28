@@ -17,7 +17,7 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunGetWithAssignments, ObservingRunPost
-from ...utils.UTCTZnaiveDateTime import utcnow_naive
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")

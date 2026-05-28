@@ -8,7 +8,7 @@ from tdtax import __version__, taxonomy
 from baselayer.app.config import load_config
 from skyportal.tests import api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 cfg = load_config()
 

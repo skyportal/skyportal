@@ -11,9 +11,9 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import deg2dms, deg2hms
+from ..utils.naive_datetime import utcnow_naive
 from ..utils.offset import _calculate_best_position_for_offset_stars, get_finding_chart
 from ..utils.parse import get_list_typed
-from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()

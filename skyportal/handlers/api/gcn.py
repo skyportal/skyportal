@@ -97,9 +97,9 @@ from ...utils.gcn import (
     get_xml_notice_type,
     has_skymap,
 )
+from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime, utcnow_naive
 from ..base import BaseHandler, format_doc
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data

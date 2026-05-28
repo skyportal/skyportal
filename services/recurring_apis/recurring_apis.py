@@ -9,8 +9,8 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import HOST, check_loaded
-from skyportal.utils.UTCTZnaiveDateTime import utcnow_naive
 
 env, cfg = load_env()
 

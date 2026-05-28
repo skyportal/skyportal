@@ -33,8 +33,8 @@ from baselayer.log import make_log
 
 from .. import __version__
 from .cache import Cache, dict_to_bytes
+from .naive_datetime import utcnow_naive
 from .tap_services.gaia import GaiaQuery
-from .UTCTZnaiveDateTime import utcnow_naive
 
 log = make_log("finder-chart")
 

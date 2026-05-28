@@ -7,7 +7,7 @@ from tdtax import __version__, taxonomy
 
 from skyportal.tests import api, assert_api
 
-from ....utils.UTCTZnaiveDateTime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_candidate_list(view_only_token, public_candidate):

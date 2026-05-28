@@ -16,8 +16,8 @@ from skyportal.models import (
 )
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
-from skyportal.utils.UTCTZnaiveDateTime import utcnow_naive
 
 env, cfg = load_env()
 

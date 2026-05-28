@@ -77,6 +77,7 @@ from ...models import (
 from ...utils.asynchronous import run_async
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.offset import (
     ALL_NGPS_SNCOSMO_BANDS,
     _calculate_best_position_for_offset_stars,
@@ -88,7 +89,6 @@ from ...utils.offset import (
 )
 from ...utils.parse import get_list_typed, get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime, utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_healpix_if_relevant,
