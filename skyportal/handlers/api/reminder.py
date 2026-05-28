@@ -193,7 +193,12 @@ def post_reminder(
 
 class ReminderHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, reminder_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        reminder_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -377,7 +382,7 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(["Reminder"])
-    def post(self, associated_resource_type, resource_id, *ignored_args):
+    def post(self, associated_resource_type: str, resource_id: str, *ignored_args):
         """
         ---
         summary: Post a reminder
@@ -559,7 +564,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def patch(self, associated_resource_type, resource_id, reminder_id):
+    def patch(self, associated_resource_type: str, resource_id: str, reminder_id: int):
         """
         ---
         summary: Update a reminder
@@ -616,11 +621,6 @@ class ReminderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            reminder_id = int(reminder_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) reminder ID. ")
 
         coerced_resource_id, err = _coerce_resource_id(
             associated_resource_type, resource_id
@@ -799,7 +799,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def delete(self, associated_resource_type, resource_id, reminder_id):
+    def delete(self, associated_resource_type: str, resource_id: str, reminder_id: int):
         """
         ---
         summary: Delete a reminder
@@ -839,10 +839,6 @@ class ReminderHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            reminder_id = int(reminder_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) reminder ID.")
         coerced_resource_id, err = _coerce_resource_id(
             associated_resource_type, resource_id
         )

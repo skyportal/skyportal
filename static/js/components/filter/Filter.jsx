@@ -143,7 +143,7 @@ const Filter = () => {
       </Typography>
 
       <Grid container spacing={2}>
-        <Grid item sm={12} md={12}>
+        <Grid size={{ sm: 12, md: 12 }}>
           <Card className={classes.root}>
             <CardContent>
               {group && stream && (
@@ -162,7 +162,7 @@ const Filter = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item sm={12} md={12}>
+        <Grid size={{ sm: 12, md: 12 }}>
           <FilterPlugins group={group} />
         </Grid>
       </Grid>

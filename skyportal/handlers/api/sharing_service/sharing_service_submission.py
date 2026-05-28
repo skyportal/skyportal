@@ -208,7 +208,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, sharing_service_submission_id=None):
+    def get(self, sharing_service_submission_id: int | None = None):
         """
         ---
         single:

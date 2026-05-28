@@ -351,7 +351,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    def patch(self, invitation_id):
+    def patch(self, invitation_id: int):
         """
         ---
         summary: Update a pending invitation
@@ -387,11 +387,6 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
 
         with self.Session() as session:
             invitation = session.scalars(
@@ -490,7 +485,7 @@ class InvitationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, invitation_id):
+    def delete(self, invitation_id: int):
         """
         ---
         summary: Delete an invitation
@@ -509,11 +504,6 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
 
         with self.Session() as session:
             invitation = session.scalars(

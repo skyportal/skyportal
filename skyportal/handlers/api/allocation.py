@@ -34,7 +34,7 @@ MAX_OBSERVATION_PLANS = 1000
 class AllocationObservationPlanHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_OBSERVATION_PLANS=MAX_OBSERVATION_PLANS)
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Get an allocation's observation plans
@@ -190,7 +190,7 @@ class AllocationObservationPlanHandler(BaseHandler):
 class AllocationHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    def get(self, allocation_id=None):
+    def get(self, allocation_id: int | None = None):
         """
         ---
         single:
@@ -592,7 +592,7 @@ class AllocationHandler(BaseHandler):
             return self.success(data={"id": allocation.id})
 
     @permissions(["Manage allocations"])
-    def put(self, allocation_id):
+    def put(self, allocation_id: int):
         """
         ---
         summary: Update an allocation
@@ -619,11 +619,6 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
 
         with self.Session() as session:
             allocation = session.scalars(
@@ -696,7 +691,7 @@ class AllocationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete an allocation
@@ -716,11 +711,6 @@ class AllocationHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         with self.Session() as session:
             allocation = session.scalars(
                 Allocation.select(session.user_or_token, mode="delete").where(
@@ -738,7 +728,7 @@ class AllocationHandler(BaseHandler):
 
 class AllocationReportHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Get allocation report
@@ -772,11 +762,6 @@ class AllocationReportHandler(BaseHandler):
         output_format = self.get_query_argument("output_format", "pdf")
         if output_format not in ["pdf", "png"]:
             return self.error("output_format must be png or pdf")
-
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         with self.Session() as session:
             # get owned allocations

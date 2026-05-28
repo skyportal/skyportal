@@ -15,7 +15,7 @@ from ..base import BaseHandler
 
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id):
+    def post(self, instrument_id: int):
         """
         ---
         summary: Add instrument logs
@@ -119,7 +119,7 @@ class InstrumentLogHandler(BaseHandler):
             return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
-    def get(self, instrument_id):
+    def get(self, instrument_id: int):
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
 
@@ -159,7 +159,7 @@ class InstrumentLogHandler(BaseHandler):
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Get instrument logs from external API
@@ -254,7 +254,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    def put(self, instrument_id):
+    def put(self, instrument_id: int):
         """
         ---
         summary: Update instrument status

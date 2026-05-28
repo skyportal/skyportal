@@ -14,7 +14,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import * as Actions from "../../ducks/source";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
 import Button from "../Button";
 
 dayjs.extend(utc);

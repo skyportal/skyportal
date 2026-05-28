@@ -220,15 +220,15 @@ const FollowupRequestPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <Tabs value={tabIndex} onChange={handleChangeTab} centered>
           <Tab label="Follow-up Requests" />
           <Tab label="Default Follow-up Requests" />
         </Tabs>
       </Grid>
       {tabIndex === 0 && (
-        <Grid container item xs={12} style={{ paddingTop: 0 }}>
-          <Grid item sm={12} md={8}>
+        <Grid container size={12} style={{ paddingTop: 0 }}>
+          <Grid size={{ sm: 12, md: 8 }}>
             <Paper elevation={1}>
               <div className={classes.paperContent}>
                 <Typography variant="h6">List of Followup Requests</Typography>
@@ -256,7 +256,7 @@ const FollowupRequestPage = () => {
               </div>
             </Paper>
           </Grid>
-          <Grid item sm={12} md={4}>
+          <Grid size={{ sm: 12, md: 4 }}>
             <Paper>
               <div className={classes.paperContent}>
                 <Typography variant="h6">Filter Followup Requests</Typography>
@@ -308,7 +308,7 @@ const FollowupRequestPage = () => {
         </Grid>
       )}
       {tabIndex === 1 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <Paper elevation={1}>
             <DefaultFollowupRequestList
               default_followup_requests={defaultFollowupRequestList}

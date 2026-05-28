@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class PhotometryRequestHandler(BaseHandler):
     @auth_or_token
-    def get(self, request_id):
+    def get(self, request_id: int):
         """
         ---
         summary: Get photometry request
@@ -30,11 +30,6 @@ class PhotometryRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            request_id_int = int(request_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid request_id: {request_id}")
-
         refresh_source = self.get_query_argument("refreshSource", True)
         refresh_requests = self.get_query_argument("refreshRequests", False)
 
@@ -42,7 +37,7 @@ class PhotometryRequestHandler(BaseHandler):
             try:
                 followup_request = session.scalar(
                     FollowupRequest.select(self.associated_user_object).filter(
-                        FollowupRequest.id == request_id_int
+                        FollowupRequest.id == request_id
                     )
                 )
                 if followup_request is None:

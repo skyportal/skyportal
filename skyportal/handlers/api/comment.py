@@ -157,7 +157,12 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id=None, comment_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str = None,
+        comment_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -423,7 +428,7 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    def post(self, associated_resource_type, resource_id, *ignore_args):
+    def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
         """
         ---
         summary: Post a comment
@@ -860,7 +865,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def put(self, associated_resource_type, resource_id, comment_id):
+    def put(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Update a comment
@@ -918,11 +923,6 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         with self.Session() as session:
             try:
@@ -1081,7 +1081,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def delete(self, associated_resource_type, resource_id, comment_id):
+    def delete(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Delete a comment
@@ -1120,11 +1120,6 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID.")
 
         with self.Session() as session:
             if associated_resource_type.lower() == "sources":
@@ -1238,7 +1233,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id):
+    def get(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Download/Preview comment attachment
@@ -1308,11 +1303,6 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
-
         download = self.get_query_argument("download", True)
         preview = self.get_query_argument("preview", False)
 

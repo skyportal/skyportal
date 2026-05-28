@@ -100,7 +100,7 @@ class SourceViewsHandler(BaseHandler):
             return self.success(data=sources)
 
     @tornado.web.authenticated
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         with self.Session() as session:
             sv = SourceView(
                 obj_id=obj_id,

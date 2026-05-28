@@ -781,7 +781,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    def patch(self, photometric_series_id):
+    def patch(self, photometric_series_id: int):
         """
         ---
         summary: Update a photometric series.
@@ -821,10 +821,6 @@ class PhotometricSeriesHandler(BaseHandler):
                               type: integer
                               description: New photometric series ID
         """
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -869,7 +865,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id=None):
+    def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -1345,12 +1341,6 @@ class PhotometricSeriesHandler(BaseHandler):
                                 type: integer
         """
         if photometric_series_id is not None:
-            try:
-                photometric_series_id = int(photometric_series_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid photometric_series_id: {photometric_series_id}"
-                )
             with self.Session() as session:
                 ps = session.scalars(
                     PhotometricSeries.select(self.current_user).where(
@@ -1883,7 +1873,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id):
+    def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series
@@ -1906,11 +1896,6 @@ class PhotometricSeriesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
 
         with self.Session() as session:
             ps = session.scalars(

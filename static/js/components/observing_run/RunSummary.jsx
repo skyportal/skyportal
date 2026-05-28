@@ -280,7 +280,7 @@ const RunSummary = ({ route }) => {
               dec={assignment.obj.dec}
               useGrid={false}
             />
-            <Grid item>
+            <Grid>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <AirmassPlot
                   dataUrl={`/api/internal/plot/airmass/assignment/${assignment.id}`}
@@ -288,7 +288,7 @@ const RunSummary = ({ route }) => {
                 />
               </Suspense>
             </Grid>
-            <Grid item>
+            <Grid>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPhotometry sourceId={assignment.obj.id} />
               </Suspense>
@@ -582,12 +582,7 @@ const RunSummary = ({ route }) => {
       />
       <Grid container spacing={1} style={{ marginTop: "0.5rem" }}>
         <Grid
-          item
-          xs={12}
-          sm={12}
-          md={12}
-          lg={8}
-          xl={8}
+          size={{ xs: 12, sm: 12, md: 12, lg: 8, xl: 8 }}
           className={styles.displayInlineBlock}
         >
           <Paper style={{ padding: "0.5rem" }}>
@@ -598,12 +593,7 @@ const RunSummary = ({ route }) => {
           </Paper>
         </Grid>
         <Grid
-          item
-          xs={12}
-          sm={12}
-          md={12}
-          lg={4}
-          xl={4}
+          size={{ xs: 12, sm: 12, md: 12, lg: 4, xl: 4 }}
           className={styles.displayInlineBlock}
         >
           <SkyCam telescope={observingRun.instrument.telescope} />

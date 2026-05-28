@@ -20,7 +20,7 @@ Session = scoped_session(sessionmaker())
 
 
 class AnalysisWebhookHandler(BaseHandler):
-    def post(self, analysis_resource_type, token):
+    def post(self, analysis_resource_type: str, token: str):
         """
         ---
         summary: Return the results of an analysis

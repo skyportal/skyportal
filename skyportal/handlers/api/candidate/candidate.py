@@ -339,7 +339,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id=None):
+    def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -1585,7 +1585,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    def delete(self, obj_id, filter_id):
+    def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
@@ -1609,11 +1609,6 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
 
         with self.Session() as session:
             cands_to_delete = session.scalars(

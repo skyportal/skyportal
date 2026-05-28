@@ -593,7 +593,7 @@ const FilterCandidateList = ({
           </div>
         </div>
         <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
-          <Grid item xs={12} lg={6}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Paper
               variant="outlined"
               className={classes.simplePadding}
@@ -848,7 +848,7 @@ const FilterCandidateList = ({
               </div>
             </Paper>
           </Grid>
-          <Grid item xs={12} lg={6}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Paper variant="outlined" className={classes.simplePadding}>
               <div className={classes.savedFiltering} style={{ marginTop: 0 }}>
                 <div className={classes.savedStatusSelect}>

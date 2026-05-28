@@ -257,7 +257,7 @@ def delete_auto_published_page(source_id, remaining_group_ids):
 
 class PublicSourcePageHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, source_id):
+    async def post(self, source_id: str):
         """
         ---
           summary: Create a public page for a source
@@ -346,7 +346,7 @@ class PublicSourcePageHandler(BaseHandler):
                 return self.error(str(e))
 
     @auth_or_token
-    def get(self, source_id):
+    def get(self, source_id: str):
         """
         ---
           summary: Retrieve all public pages for a source
@@ -388,7 +388,7 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success(data=public_source_pages)
 
     @permissions(["Manage sources"])
-    def delete(self, page_id):
+    def delete(self, page_id: int):
         """
         ---
         summary: Delete a public source page
@@ -415,11 +415,6 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
-        try:
-            page_id = int(page_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid page_id: {page_id}")
-
         with self.Session() as session:
             public_source_page = session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(

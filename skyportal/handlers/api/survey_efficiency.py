@@ -13,7 +13,7 @@ from ..base import BaseHandler
 
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
     @auth_or_token
-    def get(self, survey_efficiency_analysis_id=None):
+    def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:
@@ -99,7 +99,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
 
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
     @auth_or_token
-    def get(self, survey_efficiency_analysis_id=None):
+    def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:
@@ -234,7 +234,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data={"id": default_survey_efficiency_request.id})
 
     @auth_or_token
-    def get(self, default_survey_efficiency_id=None):
+    def get(self, default_survey_efficiency_id: int | None = None):
         """
         ---
         single:
@@ -273,13 +273,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_survey_efficiency_id is not None:
-            try:
-                default_survey_efficiency_id = int(default_survey_efficiency_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
-                )
         with self.Session() as session:
             if default_survey_efficiency_id is not None:
                 default_survey_efficiency_request = session.scalars(
@@ -329,7 +322,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data=default_survey_efficiency_data)
 
     @auth_or_token
-    def delete(self, default_survey_efficiency_id):
+    def delete(self, default_survey_efficiency_id: int):
         """
         ---
         summary: Delete a default survey efficiency
@@ -349,12 +342,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            default_survey_efficiency_id = int(default_survey_efficiency_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
-            )
         with self.Session() as session:
             stmt = DefaultSurveyEfficiencyRequest.select(session.user_or_token).where(
                 DefaultSurveyEfficiencyRequest.id == default_survey_efficiency_id

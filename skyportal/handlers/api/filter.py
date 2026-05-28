@@ -9,7 +9,7 @@ from ..base import BaseHandler
 
 class FilterHandler(BaseHandler):
     @auth_or_token
-    def get(self, filter_id=None):
+    def get(self, filter_id: int | None = None):
         """
         ---
         single:
@@ -48,11 +48,6 @@ class FilterHandler(BaseHandler):
                   schema: Error
         """
 
-        if filter_id is not None:
-            try:
-                filter_id = int(filter_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             if filter_id is not None:
                 f = session.scalars(
@@ -110,7 +105,7 @@ class FilterHandler(BaseHandler):
             return self.success(data={"id": fil.id})
 
     @permissions(["Upload data"])
-    def patch(self, filter_id):
+    def patch(self, filter_id: int):
         """
         ---
         summary: Update a filter
@@ -137,10 +132,6 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="update").where(
@@ -171,7 +162,7 @@ class FilterHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, filter_id):
+    def delete(self, filter_id: int):
         """
         ---
         summary: Delete a filter
@@ -191,10 +182,6 @@ class FilterHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
         with self.Session() as session:
             f = session.scalars(
                 Filter.select(session.user_or_token, mode="delete").where(

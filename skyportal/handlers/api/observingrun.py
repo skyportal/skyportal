@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
@@ -98,7 +98,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    def get(self, run_id=None):
+    def get(self, run_id: int | None = None):
         """
         ---
         single:
@@ -166,6 +166,17 @@ class ObservingRunHandler(BaseHandler):
                 data = ObservingRunGetWithAssignments.dump(run)
                 data["assignments"] = [a.to_dict() for a in assignments]
 
+                obj_ids = [a["obj"].id for a in data["assignments"]]
+                sources_by_obj = {}
+                if obj_ids:
+                    for s in session.scalars(
+                        Source.select(
+                            session.user_or_token,
+                            options=[joinedload(Source.group)],
+                        ).where(Source.obj_id.in_(obj_ids))
+                    ).all():
+                        sources_by_obj.setdefault(s.obj_id, []).append(s)
+
                 for a in data["assignments"]:
                     a["accessible_group_names"] = [
                         (
@@ -173,11 +184,7 @@ class ObservingRunHandler(BaseHandler):
                             if s.group.nickname is not None
                             else s.group.name
                         )
-                        for s in session.scalars(
-                            Source.select(session.user_or_token).where(
-                                Source.obj_id == a["obj"].id
-                            )
-                        ).all()
+                        for s in sources_by_obj.get(a["obj"].id, [])
                     ]
                     del a["obj"].sources
                     del a["obj"].users
@@ -248,7 +255,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Update an observing run
@@ -310,7 +317,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, run_id):
+    def delete(self, run_id: int):
         """
         ---
         summary: Delete an observing run
@@ -360,7 +367,7 @@ class ObservingRunHandler(BaseHandler):
 
             # don't allow deleting past runs, unless they have no assignments
             if (
-                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
+                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
                 and len(assignments) > 0
             ):
                 return self.error(
@@ -379,7 +386,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    def put(self, run_id):
+    def put(self, run_id: int):
         """
         ---
         summary: Bulk update observing run assignments

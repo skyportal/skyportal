@@ -8,7 +8,7 @@ from ..base import BaseHandler
 
 
 class ReleaseHandler(BaseHandler):
-    def get(self, link_name=None):
+    def get(self, link_name: str = None):
         """
         ---
         single:

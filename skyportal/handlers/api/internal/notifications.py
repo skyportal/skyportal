@@ -8,14 +8,8 @@ from ...base import BaseHandler
 
 class NotificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, notification_id=None):
+    def get(self, notification_id: int | None = None):
         """Fetch notification(s)"""
-
-        if notification_id is not None:
-            try:
-                notification_id = int(notification_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid notification_id: {notification_id}")
 
         with self.Session() as session:
             if notification_id is not None:
@@ -37,13 +31,8 @@ class NotificationHandler(BaseHandler):
             return self.success(data=notifications)
 
     @auth_or_token
-    def patch(self, notification_id):
+    def patch(self, notification_id: int):
         """Update a notification"""
-
-        try:
-            notification_id = int(notification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid notification_id: {notification_id}")
 
         data = self.get_json()
         data["id"] = notification_id
@@ -73,15 +62,10 @@ class NotificationHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     @auth_or_token
-    def delete(self, notification_id):
+    def delete(self, notification_id: int):
         """Delete a notification"""
         if notification_id is None:
             return self.error("Missing required notification_id")
-
-        try:
-            notification_id = int(notification_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid notification_id: {notification_id}")
 
         with self.Session() as session:
             notification = session.scalars(

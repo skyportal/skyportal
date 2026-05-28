@@ -13,8 +13,6 @@ import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 
 import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 const useStyles = makeStyles()(() => ({
   chips: {
     display: "flex",

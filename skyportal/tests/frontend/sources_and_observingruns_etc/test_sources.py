@@ -339,7 +339,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//*[text()='Classification saved']")
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element(
-        By.XPATH, "//div[@id='classifications-header']"
+        By.XPATH, "//button[@id='classifications-header']"
     )
     driver.scroll_to_element(classifications)
 
@@ -778,9 +778,9 @@ def test_show_photometry_table(public_source, driver, user):
 def test_hide_right_panel(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@data-testid="hide-right-panel-button"]')
+    driver.click_xpath('//*[@data-testid="KeyboardArrowRightIcon"]')
     driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-entered"]')
-    driver.click_xpath('//*[@data-testid="show-right-panel-button"]')
+    driver.click_xpath('//*[@data-testid="KeyboardArrowLeftIcon"]')
     driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-hidden"]')
 
 

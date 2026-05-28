@@ -122,7 +122,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
-    def get(self, recurring_api_id=None):
+    def get(self, recurring_api_id: int | None = None):
         """
         ---
         single:
@@ -196,7 +196,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Recurring APIs"])
-    def delete(self, recurring_api_id):
+    def delete(self, recurring_api_id: int):
         """
         ---
         summary: Delete a Recurring API
@@ -216,10 +216,6 @@ class RecurringAPIHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            recurring_api_id = int(recurring_api_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
         with self.Session() as session:
             recurring_api = session.scalars(
                 RecurringAPI.select(session.user_or_token, mode="delete").where(

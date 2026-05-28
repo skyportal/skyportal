@@ -16,7 +16,7 @@ log = make_log("api/sharing_service_group_auto_publisher")
 
 class SharingServiceGroupAutoPublisherHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def post(self, sharing_service_id, group_id, user_id=None):
+    def post(self, sharing_service_id: int, group_id: int, user_id: int | None = None):
         """
         ---
         summary: Add auto_publisher(s) to an SharingServiceGroup
@@ -166,7 +166,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             return self.success(data={"ids": [a.id for a in new_auto_publishers]})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, group_id, user_id):
+    def delete(self, sharing_service_id: int, group_id: int, user_id: int):
         """
         ---
         summary: Remove auto_publisher(s) from an SharingServiceGroup

@@ -1923,11 +1923,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id):
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
+    def get(self, photometry_id: int):
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -1947,7 +1943,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    def patch(self, photometry_id):
+    def patch(self, photometry_id: int):
         """
         ---
         summary: Update photometry
@@ -2115,7 +2111,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete photometry
@@ -2138,10 +2134,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
@@ -2181,7 +2173,7 @@ class PhotometryHandler(BaseHandler):
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")
@@ -2367,7 +2359,7 @@ class ObjPhotometryHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Delete bulk photometry"])
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete all photometry for an object
@@ -2421,7 +2413,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    def delete(self, upload_id):
+    def delete(self, upload_id: str):
         """
         ---
         summary: Delete bulk-uploaded photometry

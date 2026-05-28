@@ -236,7 +236,7 @@ const MovingObjectObsPlanPage = () => {
 
   return (
     <Grid container spacing={2}>
-      <Grid item lg={5} md={12}>
+      <Grid size={{ lg: 5, md: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Form
@@ -251,7 +251,7 @@ const MovingObjectObsPlanPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item lg={7} md={12}>
+      <Grid size={{ lg: 7, md: 12 }}>
         <Paper elevation={1}>
           <TableContainer>
             <Table sx={{ minWidth: 650 }} aria-label="simple table">

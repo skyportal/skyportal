@@ -169,7 +169,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Retrieve skymap-based trigger from external API
@@ -230,7 +230,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete skymap-based trigger from external API
@@ -267,14 +267,9 @@ class SkymapTriggerAPIHandler(BaseHandler):
             return self.error("Missing trigger_name parameter.")
         trigger_name = data["trigger_name"]
 
-        try:
-            allocation_id_int = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id_int
+        data["allocation_id"] = allocation_id
 
         with self.Session() as session:
             allocation = session.scalars(

@@ -189,7 +189,7 @@ const AllocationPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <Tabs
           value={tabIndex}
           onChange={(_, newValue) => setTabIndex(newValue)}
@@ -201,12 +201,12 @@ const AllocationPage = () => {
         </Tabs>
       </Grid>
       {tabIndex === 0 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <AllocationList managePermission={permissionAllocation} />
         </Grid>
       )}
       {tabIndex === 1 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <DefaultObservationPlanTable
             default_observation_plans={defaultObservationPlanList || []}
             instruments={instrumentList}
@@ -221,7 +221,7 @@ const AllocationPage = () => {
         </Grid>
       )}
       {tabIndex === 2 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <DefaultSurveyEfficiencyTable
             default_survey_efficiencies={defaultSurveyEfficiencyList || []}
             paginateCallback={handleDefaultSurveyEfficiencyTablePagination}

@@ -134,7 +134,7 @@ class ObjTagOptionHandler(BaseHandler):
             return self.success(new_tag)
 
     @auth_or_token
-    def patch(self, tag_id):
+    def patch(self, tag_id: int):
         """
         ---
         summary: Update a tag option
@@ -225,7 +225,7 @@ class ObjTagOptionHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, tag_id):
+    def delete(self, tag_id: int):
         """
         ---
         summary: Delete a tag option
@@ -501,7 +501,7 @@ class ObjTagHandler(BaseHandler):
             return self.success(new_assoc)
 
     @auth_or_token
-    def delete(self, association_id):
+    def delete(self, association_id: int):
         """
         ---
         summary: Delete object-tag association

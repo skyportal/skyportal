@@ -40,7 +40,7 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant new Role(s) to a user
@@ -72,10 +72,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
@@ -114,7 +110,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id, role_id):
+    def delete(self, user_id: int, role_id: str):
         """
         ---
         summary: Delete user role
@@ -138,10 +134,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         with self.Session() as session:
             user = session.scalar(
                 User.select(self.associated_user_object).where(User.id == user_id)

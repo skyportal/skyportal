@@ -207,7 +207,7 @@ const FollowupRequestPrioritizationForm = () => {
 
   return (
     <div>
-      <div data-testid="gcnsource-selection-form">
+      <div>
         <Form
           schema={FollowupRequestPrioritizationFormSchema}
           validator={validator}

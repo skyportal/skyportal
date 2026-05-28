@@ -64,7 +64,12 @@ class AnnotationHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, annotation_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        annotation_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -213,7 +218,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type: str, resource_id: str):
         """
         ---
         summary: Post an annotation
@@ -427,7 +432,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    def put(self, associated_resource_type, resource_id, annotation_id):
+    def put(self, associated_resource_type: str, resource_id: str, annotation_id: int):
         """
         ---
         summary: Update an annotation
@@ -482,11 +487,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
@@ -553,7 +553,9 @@ class AnnotationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Annotate"])
-    def delete(self, associated_resource_type, resource_id, annotation_id):
+    def delete(
+        self, associated_resource_type: str, resource_id: str, annotation_id: int
+    ):
         """
         ---
         summary: Delete an annotation
@@ -589,11 +591,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid annotation ID. ")
-
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         with self.Session() as session:

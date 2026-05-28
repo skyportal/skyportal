@@ -18,8 +18,6 @@ import * as allocationActions from "../../ducks/allocations";
 import * as catalogQueryActions from "../../ducks/catalog_query";
 import GroupShareSelect from "../group/GroupShareSelect";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 

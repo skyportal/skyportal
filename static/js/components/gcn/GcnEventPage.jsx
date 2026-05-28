@@ -231,31 +231,31 @@ const GcnEventPage = ({ route }) => {
   return (
     <div>
       <Grid container spacing={2}>
-        <Grid item xs={12}>
+        <Grid size={12}>
           <div className={styles.columnItem}>
             <Grid container spacing={2}>
-              <Grid item xs={9}>
+              <Grid size={9}>
                 <Grid container>
-                  <Grid item md={12} lg={4}>
+                  <Grid size={{ md: 12, lg: 4 }}>
                     <Grid container alignItems="end" spacing={1}>
-                      <Grid item>
+                      <Grid>
                         <span className={styles.headerName}>
                           {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                         </span>
                       </Grid>
-                      <Grid item>
+                      <Grid>
                         <span className={styles.headerDate}>
                           ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
                         </span>
                       </Grid>
                     </Grid>
                   </Grid>
-                  <Grid item md={12} lg={8}>
+                  <Grid size={{ md: 12, lg: 8 }}>
                     <GcnTags gcnEvent={gcnEvent} />
                   </Grid>
                 </Grid>
               </Grid>
-              <Grid item xs={3}>
+              <Grid size={3}>
                 <div className={styles.headerButtons}>
                   <Button
                     secondary
@@ -453,7 +453,7 @@ const GcnEventPage = ({ route }) => {
           <div className={styles.sidePanelContent}>
             <Grid container spacing={2}>
               {/* event properties */}
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -470,7 +470,7 @@ const GcnEventPage = ({ route }) => {
                 </Accordion>
               </Grid>
               {/* localization properties */}
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -488,7 +488,7 @@ const GcnEventPage = ({ route }) => {
                   </AccordionDetails>
                 </Accordion>
               </Grid>
-              <Grid item sm={12} lg={6}>
+              <Grid size={{ sm: 12, lg: 6 }}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -517,7 +517,7 @@ const GcnEventPage = ({ route }) => {
                   </AccordionDetails>
                 </Accordion>
               </Grid>
-              <Grid item sm={12} lg={6}>
+              <Grid size={{ sm: 12, lg: 6 }}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -589,7 +589,7 @@ const GcnEventPage = ({ route }) => {
                   </AccordionDetails>
                 </Accordion>
               </Grid>
-              <Grid item sm={12} lg={6}>
+              <Grid size={{ sm: 12, lg: 6 }}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -616,7 +616,7 @@ const GcnEventPage = ({ route }) => {
                   </AccordionDetails>
                 </Accordion>
               </Grid>
-              <Grid item sm={12} lg={6}>
+              <Grid size={{ sm: 12, lg: 6 }}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -643,7 +643,7 @@ const GcnEventPage = ({ route }) => {
                   </AccordionDetails>
                 </Accordion>
               </Grid>
-              <Grid item sm={12} lg={6}>
+              <Grid size={{ sm: 12, lg: 6 }}>
                 <Accordion defaultExpanded>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}

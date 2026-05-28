@@ -9,7 +9,7 @@ log = make_log("api/sharing_service_coauthor")
 
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def post(self, sharing_service_id, user_id=None):
+    def post(self, sharing_service_id: int, user_id: int | None = None):
         """
         ---
         summary: Add a coauthor to an external sharing service
@@ -105,7 +105,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.success(data={"id": coauthor.id})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, user_id):
+    def delete(self, sharing_service_id: int, user_id: int):
         """
         ---
         summary: Remove a coauthor from an external sharing service
