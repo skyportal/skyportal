@@ -218,7 +218,7 @@ const SummarySearch = () => {
       alignItems="center"
       justifyContent="center"
     >
-      <Grid item xs={12} className={classes.gridItem} style={{ paddingTop: 0 }}>
+      <Grid size={12} className={classes.gridItem} style={{ paddingTop: 0 }}>
         <Paper elevation={1} className={classes.paper}>
           <Form
             schema={formSchema}
@@ -253,7 +253,7 @@ const SummarySearch = () => {
           </Form>
         </Paper>
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={12}>
         {runningQuery && (
           <div
             style={{

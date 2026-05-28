@@ -183,22 +183,12 @@ const VegaSpectrum = (props) => {
     fetchSpectra();
   }, [sourceId, spectra, dispatch]);
 
-  if (loading) {
-    return <CircularProgress color="secondary" />;
-  }
+  if (loading) return <CircularProgress />;
 
-  if ((!spectra || spectra?.length === 0) && !loading) {
-    return <div>No spectra found.</div>;
-  }
+  if (!spectra?.length) return "No spectra found";
 
   return (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
+    <Suspense fallback={<CircularProgress />}>
       <VegaSpectrumMemo
         values={spectra}
         width={width}

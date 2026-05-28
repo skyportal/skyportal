@@ -226,7 +226,7 @@ const Earthquake = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={12} sm={12}>
+      <Grid size={{ md: 12, sm: 12 }}>
         <Typography variant="h5">Earthquake Events</Typography>
         <ThemeProvider theme={getMuiTheme(theme)}>
           <MUIDataTable

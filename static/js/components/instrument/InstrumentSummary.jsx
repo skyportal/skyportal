@@ -143,7 +143,7 @@ const InstrumentSummary = ({ route }) => {
   return (
     <div>
       <Grid container spacing={2} className={styles.source}>
-        <Grid item xs={12}>
+        <Grid size={12}>
           <div>
             <Accordion defaultExpanded>
               <AccordionSummary

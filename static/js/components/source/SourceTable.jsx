@@ -796,28 +796,22 @@ const SourceTable = ({
               dec={source.dec}
               useGrid={false}
             />
-            <Grid item>
+            <Grid>
               <VegaPhotometry sourceId={source.id} />
             </Grid>
-            <Grid item>
-              {photometry[source.id] && photometry[source.id].length > 0 ? (
+            <Grid>
+              {photometry[source.id]?.length > 0 && (
                 <VegaPhotometry
                   sourceId={source.id}
                   annotations={annotations}
                   folded
                 />
-              ) : null}
+              )}
             </Grid>
-            <Grid item>
-              {source.color_magnitude.length ? (
+            <Grid>
+              {source.color_magnitude.length > 0 && (
                 <div data-testid={`hr_diagram_${source.id}`}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
+                  <Suspense fallback={<CircularProgress color="secondary" />}>
                     <VegaHR
                       data={source.color_magnitude}
                       width={200}
@@ -825,16 +819,10 @@ const SourceTable = ({
                     />
                   </Suspense>
                 </div>
-              ) : null}
+              )}
             </Grid>
-            <Grid item>
-              <Suspense
-                fallback={
-                  <div>
-                    <CircularProgress color="secondary" />
-                  </div>
-                }
-              >
+            <Grid>
+              <Suspense fallback={<CircularProgress color="secondary" />}>
                 <VegaSpectrum
                   sourceId={source.id}
                   width={plotWidth}
@@ -844,9 +832,9 @@ const SourceTable = ({
                 />
               </Suspense>
             </Grid>
-            <Grid item>
+            <Grid>
               <div className={classes.annotations}>
-                {annotations && annotations.length > 0 && (
+                {annotations?.length > 0 && (
                   <>
                     <Typography variant="subtitle2">Annotations:</Typography>
                     <List
@@ -864,7 +852,7 @@ const SourceTable = ({
                           >
                             <ListItemText
                               primary={`${annotation.origin}`}
-                              primaryTypographyProps={{ variant: "button" }}
+                              slotProps={{ primary: { variant: "button" } }}
                             />
                             {openedOrigins[annotation.origin] ? (
                               <ExpandLess />
@@ -903,7 +891,7 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <MultipleClassificationsForm
                 objId={source.id}
                 taxonomyList={taxonomyList}
@@ -911,7 +899,7 @@ const SourceTable = ({
                 currentClassifications={source.classifications}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <ShowSummaries summaries={source.summary_history} />
               {source.summary_history?.length < 1 ||
               !source.summary_history ||
@@ -2051,11 +2039,11 @@ const SourceTable = ({
           spacing={3}
         >
           {queryInProgress ? (
-            <Grid item>
+            <Grid>
               <CircularProgress />
             </Grid>
           ) : (
-            <Grid item className={classes.tableGrid}>
+            <Grid className={classes.tableGrid}>
               <ThemeProvider theme={getMuiTheme(theme)}>
                 <MUIDataTable
                   title={title}

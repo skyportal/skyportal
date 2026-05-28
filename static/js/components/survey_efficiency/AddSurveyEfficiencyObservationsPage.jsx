@@ -59,12 +59,12 @@ const AddSurveyEfficiencyObservationsPage = () => {
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} style={{ paddingTop: "0.1em" }}>
-            <Grid item xs={12} lg={8}>
+            <Grid size={{ xs: 12, lg: 8 }}>
               <SurveyEfficiencyObservationsLists
                 survey_efficiency_analyses={surveyEfficiencyAnalysisList || []}
               />
             </Grid>
-            <Grid item xs={12} lg={4}>
+            <Grid size={{ xs: 12, lg: 4 }}>
               <Paper style={{ padding: "1em" }}>
                 <SurveyEfficiencyForm gcnevent={gcnEvent} />
               </Paper>

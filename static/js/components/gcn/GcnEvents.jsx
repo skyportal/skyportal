@@ -12,7 +12,7 @@ import AddIcon from "@mui/icons-material/Add";
 import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import Close from "@mui/icons-material/Close";
-import grey from "@mui/material/colors/grey";
+import { grey } from "@mui/material/colors";
 
 import MUIDataTable from "mui-datatables";
 
@@ -543,7 +543,7 @@ const GcnEvents = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={12} sm={12}>
+      <Grid size={{ md: 12, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             {gcnEvents ? (

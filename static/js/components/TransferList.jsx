@@ -145,16 +145,13 @@ const TransferList = ({
   return (
     <Grid
       container
-      item
-      xs={12}
+      size={12}
       spacing={1}
       justifyContent="center"
       alignItems="baseline"
     >
-      <Grid item xs={5}>
-        {customList(leftLabel || "Choices", left)}
-      </Grid>
-      <Grid item xs={2}>
+      <Grid size={5}>{customList(leftLabel || "Choices", left)}</Grid>
+      <Grid size={2}>
         <Grid container direction="column" alignItems="center">
           <Button
             sx={{ my: 0.5 }}
@@ -178,9 +175,7 @@ const TransferList = ({
           </Button>
         </Grid>
       </Grid>
-      <Grid item xs={5}>
-        {customList(rightLabel || "Chosen", right)}
-      </Grid>
+      <Grid size={5}>{customList(rightLabel || "Chosen", right)}</Grid>
     </Grid>
   );
 };

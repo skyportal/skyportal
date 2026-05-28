@@ -438,7 +438,7 @@ const ObservationPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <Tabs value={tabIndex} onChange={handleChangeTab} centered>
           <Tab label="Executed Observations" />
           <Tab label="Queued Observations" />
@@ -448,7 +448,7 @@ const ObservationPage = () => {
         </Tabs>
       </Grid>
       {tabIndex === 0 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <ExecutedObservationList
               observations={observations.observations}
@@ -491,7 +491,7 @@ const ObservationPage = () => {
         </Grid>
       )}
       {tabIndex === 1 && (
-        <Grid item xs={12} style={{ paddingTop: 0 }}>
+        <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <QueuedObservationList
               observations={queued_observations.queued_observations}
@@ -504,8 +504,8 @@ const ObservationPage = () => {
         </Grid>
       )}
       {tabIndex === 2 && currentUser.permissions?.includes("System admin") && (
-        <Grid container item xs={12} spacing={1} style={{ paddingTop: 0 }}>
-          <Grid item xs={12} lg={6}>
+        <Grid container size={12} spacing={1} style={{ paddingTop: 0 }}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Paper style={{ padding: "1rem" }}>
               <Typography className={classes.accordionHeading}>
                 Queue Interaction
@@ -515,7 +515,7 @@ const ObservationPage = () => {
               </div>
             </Paper>
           </Grid>
-          <Grid item xs={12} lg={6}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Paper style={{ padding: "1rem" }}>
               <Typography className={classes.accordionHeading}>
                 Skymap Queue Interaction

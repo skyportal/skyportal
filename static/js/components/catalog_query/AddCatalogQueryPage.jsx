@@ -53,10 +53,10 @@ const AddCatalogQueryPage = () => {
         <DialogTitle>Catalog Query</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <CatalogQueryForm gcnevent={gcnEvent} />
             </Grid>
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <CatalogQueryLists catalog_queries={catalogQueryList || []} />
             </Grid>
           </Grid>

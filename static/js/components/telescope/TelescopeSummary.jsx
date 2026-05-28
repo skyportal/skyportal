@@ -70,29 +70,19 @@ const TelescopeSummary = ({ route }) => {
   return (
     <div>
       <Grid container spacing={2} className={classes.source}>
-        <Grid item xs={12}>
+        <Grid size={12}>
           <Typography variant="h5">
             {telescope.name} ({telescope.nickname})
           </Typography>
         </Grid>
         <Grid
-          item
-          xs={12}
-          sm={12}
-          md={6}
-          lg={6}
-          xl={6}
+          size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
           className={classes.displayInlineBlock}
         >
           <SkyCam telescope={telescope} />
         </Grid>
         <Grid
-          item
-          xs={12}
-          sm={12}
-          md={6}
-          lg={6}
-          xl={6}
+          size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
           className={classes.displayInlineBlock}
         >
           <Paper elevation={1} className={classes.paper}>
@@ -106,7 +96,7 @@ const TelescopeSummary = ({ route }) => {
             )}
           </Paper>
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={12}>
           {telescope.instruments ? (
             <InstrumentTable
               instruments={telescope.instruments}
@@ -120,7 +110,7 @@ const TelescopeSummary = ({ route }) => {
             </Paper>
           )}
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={12}>
           {telescope.allocations ? (
             <AllocationTable
               instruments={instrumentsState.instrumentList}

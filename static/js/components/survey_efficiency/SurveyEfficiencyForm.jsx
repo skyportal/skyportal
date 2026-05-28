@@ -20,8 +20,6 @@ import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_eff
 import * as instrumentsActions from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 

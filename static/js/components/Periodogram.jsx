@@ -139,7 +139,6 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   if (nt < 10) {
     return { p: [], f: [], k: 1, fbest: null, tbase };
   }
-
   while (i--) {
     w[i] = e_y ? 1 / e_y[i] / e_y[i] : 1;
     wsum += w[i];
@@ -147,7 +146,6 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 
   // normalize weights, now "wsum=1"
   i = nt;
-
   while (i--) w[i] /= wsum;
 
   const ymean = dot(w, y_data);
@@ -292,7 +290,6 @@ const Periodogram = () => {
       .map((x, i) => [x[0], [x[1], me[i]]])
       .sort((a, b) => b[0] - a[0]);
     const filteredy = mags?.filter((n) => n);
-
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
       strokeWidth: 0,
@@ -310,7 +307,6 @@ const Periodogram = () => {
     // Create graph with native array as data source
     const pp = [...times.map((x) => x % p), ...times.map((x) => (x % p) + p)];
     const filteredy = mags?.filter((n) => n);
-
     new Dygraph(phaseplotRef.current, transpose([pp, [...mags, ...mags]]), {
       drawPoints: true,
       strokeWidth: 0,
@@ -530,7 +526,7 @@ const Periodogram = () => {
           alignItems="flex-start"
           spacing={1}
         >
-          <Grid item xs={10}>
+          <Grid size={10}>
             <Card>
               <CardContent ref={componentRef}>
                 <div>
@@ -563,7 +559,7 @@ const Periodogram = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={2} xm={2}>
+          <Grid size={2}>
             <Card>
               <CardContent className={classes.items}>
                 <div>
@@ -576,7 +572,7 @@ const Periodogram = () => {
                       spacing={2}
                     >
                       {params.instrument && (
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                           <FormControl>
                             <InputLabel
                               className={classes.items}
@@ -609,7 +605,7 @@ const Periodogram = () => {
                       )}
                       {params.filter && (
                         <>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <FormControl>
                               <InputLabel
                                 className={classes.items}
@@ -636,7 +632,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <FormControl>
                               <Controller
                                 render={({ field: { onChange, value } }) => (
@@ -656,7 +652,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <FormControl>
                               <Controller
                                 render={({ field: { onChange, value } }) => (
@@ -676,7 +672,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <FormControl>
                               <Controller
                                 render={({ field: { onChange, value } }) => (
@@ -696,7 +692,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <FormControl>
                               <Controller
                                 render={({ field: { onChange, value } }) => (
@@ -716,7 +712,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={8}>
+                          <Grid size={8}>
                             <Button
                               primary
                               type="submit"
@@ -726,7 +722,7 @@ const Periodogram = () => {
                               Recalculate
                             </Button>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <Typography gutterBottom>
                               Change the parameters above then recalculate. When
                               you zoom to a new time range in the top plot the
@@ -736,7 +732,7 @@ const Periodogram = () => {
                               frequency.
                             </Typography>
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             <Typography id="period-slider" gutterBottom>
                               Period multiplier
                             </Typography>
@@ -752,7 +748,7 @@ const Periodogram = () => {
                               onChange={handleMultiplierChange}
                             />
                           </Grid>
-                          <Grid item xs={12}>
+                          <Grid size={12}>
                             {bestp && (
                               <>
                                 <Typography>

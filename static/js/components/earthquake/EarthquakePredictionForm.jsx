@@ -17,8 +17,6 @@ import * as earthquakeActions from "../../ducks/earthquake";
 import * as mmadetectorActions from "../../ducks/mmadetector";
 import GroupShareSelect from "../group/GroupShareSelect";
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 

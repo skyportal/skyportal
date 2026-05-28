@@ -152,9 +152,6 @@ const CustomizeOpenAIParameters = () => {
         "Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.",
     },
   };
-  Object.keys(formSchema.properties).forEach((key) => {
-    formSchema.properties[key].default = default_openai_summary_parameters[key];
-  });
 
   const validate = (formData, errors) => {
     if (formData.temperature < 0.0 || formData.temperature > 1.0) {
@@ -217,6 +214,7 @@ const CustomizeOpenAIParameters = () => {
             schema={formSchema}
             validator={validator}
             uiSchema={uiSchema}
+            formData={default_openai_summary_parameters}
             data-testid="UpdateOpenAIform"
             onSubmit={handleAISubmit}
             customValidate={validate}

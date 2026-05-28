@@ -177,14 +177,14 @@ const FindingChart = () => {
           alignItems="flex-start"
           spacing={1}
         >
-          <Grid item xs={12} md={10}>
+          <Grid size={{ xs: 12, md: 10 }}>
             <Card>
               <CardContent style={{ textAlign: "center" }}>
                 <div>{image ? <FinderImage /> : <PlaceHolder />}</div>
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid size={{ xs: 12, md: 2 }}>
             <Card>
               <CardContent>
                 <div>
