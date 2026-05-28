@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, ObjTag, Source, serialize_obj_tag
+from ....models import Obj, ObjTag, Source
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
@@ -70,17 +70,11 @@ class RecentSourcesHandler(BaseHandler):
                 self.current_user, session
             )
             tags = session.scalars(
-                ObjTag.select(session.user_or_token)
-                .where(ObjTag.obj_id.in_(list(set(query_results))))
-                .distinct()
+                ObjTag.select(session.user_or_token).where(
+                    ObjTag.obj_id.in_(list(set(query_results)))
+                )
             ).all()
-
-            user_group_ids = (
-                None
-                if session.user_or_token.is_system_admin
-                else {g.id for g in session.user_or_token.accessible_groups}
-            )
-            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
+            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:
