@@ -88,7 +88,7 @@ from ...utils.offset import (
 )
 from ...utils.parse import get_list_typed, get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime, utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_healpix_if_relevant,
@@ -2385,7 +2385,7 @@ class SourceOffsetsHandler(BaseHandler):
 
             obstime = self.get_query_argument(
                 "obstime",
-                datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
+                utcnow_naive().isoformat(),
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
                 return self.error("obstime is not valid isoformat")
@@ -2778,7 +2778,7 @@ class SourceFinderHandler(BaseHandler):
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument(
             "obstime",
-            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
+            utcnow_naive().isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")
@@ -2818,10 +2818,11 @@ class SourceFinderHandler(BaseHandler):
                     if "public_url" in rez:
                         data["public_url"] = rez["public_url"]
                         if finding_charts_cache._max_age:
-                            data["public_url_expires_at"] = datetime.datetime.now(
-                                datetime.UTC
-                            ).replace(tzinfo=None) + datetime.timedelta(
-                                seconds=finding_charts_cache._max_age
+                            data["public_url_expires_at"] = (
+                                utcnow_naive()
+                                + datetime.timedelta(
+                                    seconds=finding_charts_cache._max_age
+                                )
                             )
                     return self.success(data)
                 filename = rez["name"]

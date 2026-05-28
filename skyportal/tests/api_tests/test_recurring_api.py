@@ -1,15 +1,17 @@
 import json
 import time
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 from skyportal.tests import api
+
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 
 
 def test_post_and_verify_recurring_api(
     view_only_token, public_group, super_admin_token
 ):
-    next_call = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=1)
+    next_call = utcnow_naive() + timedelta(seconds=1)
     obj_id = str(uuid.uuid4())
 
     request_data = {

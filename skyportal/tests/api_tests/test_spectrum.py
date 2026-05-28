@@ -11,6 +11,8 @@ import yaml
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from skyportal.tests import api
 
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
+
 
 def test_spectrum_put(super_admin_user, super_admin_token, public_source, lris):
     # make groups that must be unique to this test
@@ -330,9 +332,7 @@ def test_spectrum_filtering_time_ranges(
     assert data["status"] == "success"
     spectrum_id1 = data["data"]["id"]
 
-    time_after_posting_first_spec = str(
-        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-    )
+    time_after_posting_first_spec = str(utcnow_naive())
 
     status, data = api(
         "POST",
@@ -470,9 +470,7 @@ def test_spectrum_filtering_id_lists(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(
-                datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-            ),
+            "observed_at": str(utcnow_naive()),
             "instrument_id": sedm.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -696,9 +694,7 @@ def test_spectrum_filtering_origin_label_type(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(
-                datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-            ),
+            "observed_at": str(utcnow_naive()),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -885,9 +881,7 @@ def test_spectrum_filtering_comments(
     assert data["status"] == "success"
 
     time.sleep(2)
-    time_after_posting_first_spec = str(
-        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-    )
+    time_after_posting_first_spec = str(utcnow_naive())
 
     status, data = api(
         "POST",
@@ -963,10 +957,9 @@ def test_spectrum_filtering_comments(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]) == 0
-    time_offset = (
-        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-        - datetime.datetime.now()
-    ) / datetime.timedelta(hours=1)
+    time_offset = (utcnow_naive() - datetime.datetime.now()) / datetime.timedelta(
+        hours=1
+    )
 
     comment_created_time = str(
         arrow.get(time_after_posting_first_spec)

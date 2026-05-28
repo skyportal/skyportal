@@ -1,6 +1,6 @@
 import time
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -17,6 +17,7 @@ from skyportal.models import (
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
 from skyportal.utils.services import check_loaded
+from skyportal.utils.UTCTZnaiveDateTime import utcnow_naive
 
 env, cfg = load_env()
 
@@ -29,7 +30,7 @@ MAX_SLEEP = cfg.get("misc", {}).get("max_seconds_to_sleep_reminders_service", 60
 
 def send_reminders():
     sleep_time = MAX_SLEEP
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utcnow_naive()
     reminders = []
     with DBSession() as session:
         user = session.query(User).where(User.id == 1).first()

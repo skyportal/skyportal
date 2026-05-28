@@ -5,7 +5,7 @@ import os
 import tarfile
 import tempfile
 import traceback
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 import pandas as pd
 import requests
@@ -21,6 +21,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
@@ -641,17 +642,14 @@ class UVOTXRTAPI(FollowUpAPI):
                             "start_date": {
                                 "type": "string",
                                 "default": str(
-                                    datetime.now(UTC).replace(tzinfo=None)
-                                    - timedelta(days=365)
+                                    utcnow_naive() - timedelta(days=365)
                                 ).replace("T", ""),
                                 "title": "Start Date (UT)",
                             },
                             "end_date": {
                                 "type": "string",
                                 "title": "End Date (UT)",
-                                "default": str(
-                                    datetime.now(UTC).replace(tzinfo=None)
-                                ).replace("T", ""),
+                                "default": str(utcnow_naive()).replace("T", ""),
                             },
                             "XRT": {
                                 "title": "Do you want XRT data?",
@@ -691,9 +689,7 @@ class UVOTXRTAPI(FollowUpAPI):
                             "T0": {
                                 "type": "string",
                                 "title": "Date (UT)",
-                                "default": str(
-                                    datetime.now(UTC).replace(tzinfo=None)
-                                ).replace("T", ""),
+                                "default": str(utcnow_naive()).replace("T", ""),
                             },
                             "poserr": {
                                 "title": "Position Error [arcmin]",

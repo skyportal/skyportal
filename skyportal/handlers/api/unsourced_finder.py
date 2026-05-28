@@ -18,6 +18,7 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.parse import str_to_bool
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -149,7 +150,7 @@ class UnsourcedFinderHandler(BaseHandler):
 
         obstime = self.get_query_argument(
             "obstime",
-            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(),
+            utcnow_naive().isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")

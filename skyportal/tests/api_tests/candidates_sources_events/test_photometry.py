@@ -1,4 +1,3 @@
-import datetime
 import os
 import uuid
 
@@ -17,6 +16,8 @@ from skyportal.handlers.api.photometry import (
 from skyportal.models import DBSession, Token
 from skyportal.models.photometry import Photometry
 from skyportal.tests import api, assert_api
+
+from ....utils.UTCTZnaiveDateTime import utcnow_naive
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -3319,7 +3320,7 @@ def _build_params(obj_id, instrument_id, user_id, mjd_offset=0, flux=100.0):
     All Photometry NOT NULL columns are populated; non-dedup fields are kept
     distinct from defaults so we can detect updates.
     """
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    now = utcnow_naive()
     return [
         {
             "obj_id": obj_id,

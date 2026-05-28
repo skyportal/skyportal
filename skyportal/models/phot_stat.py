@@ -3,7 +3,6 @@ __all__ = ["PhotStat"]
 import bisect
 import copy
 import json
-from datetime import UTC, datetime, timezone
 
 import numpy as np
 import sqlalchemy as sa
@@ -22,6 +21,8 @@ from baselayer.app.models import (
     restricted,
 )
 from skyportal.models.photometry import PHOT_ZP, Photometry
+
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -653,7 +654,7 @@ class PhotStat(Base):
         else:
             self.time_to_non_detection = None
 
-        self.last_update = datetime.now(UTC).replace(tzinfo=None)
+        self.last_update = utcnow_naive()
 
     def full_update(self, phot_list):
         """
@@ -674,8 +675,8 @@ class PhotStat(Base):
             self.__init__(self.obj_id)
 
             # make sure to update the last update time
-            self.last_update = datetime.now(UTC).replace(tzinfo=None)
-            self.last_full_update = datetime.now(UTC).replace(tzinfo=None)
+            self.last_update = utcnow_naive()
+            self.last_full_update = utcnow_naive()
             return
 
         filters = []
@@ -906,8 +907,8 @@ class PhotStat(Base):
                 if len(filt_mags):
                     self.deepest_limit_per_filter[filt] = max(filt_mags)
 
-        self.last_update = datetime.now(UTC).replace(tzinfo=None)
-        self.last_full_update = datetime.now(UTC).replace(tzinfo=None)
+        self.last_update = utcnow_naive()
+        self.last_full_update = utcnow_naive()
 
     @staticmethod
     def update_average(current, number, new):

@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import arviz
@@ -44,6 +44,7 @@ from ..enum_types import (
     allowed_analysis_types,
     allowed_external_authentication_types,
 )
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from .classification import Classification
 from .group import Group, accessible_by_groups_members
 from .webhook import WebhookMixin
@@ -709,7 +710,7 @@ def create_default_analysis(mapper, connection, target):
                     ),
                     DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
                     < cast(
-                        datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
+                        utcnow_naive() - timedelta(days=1),
                         sa.DateTime,
                     ),
                 ),
@@ -751,32 +752,30 @@ def create_default_analysis(mapper, connection, target):
                                 default_analysis.stats = {
                                     "daily_limit": 10,
                                     "daily_count": 1,
-                                    "last_run": datetime.now(UTC)
-                                    .replace(tzinfo=None)
-                                    .strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                    "last_run": utcnow_naive().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
                                 }
                             if datetime.strptime(
                                 default_analysis.stats["last_run"],
                                 "%Y-%m-%dT%H:%M:%S.%f",
-                            ) < datetime.now(UTC).replace(tzinfo=None) - timedelta(
-                                days=1
-                            ):
+                            ) < utcnow_naive() - timedelta(days=1):
                                 default_analysis.stats = {
                                     "daily_limit": default_analysis.stats[
                                         "daily_limit"
                                     ],
                                     "daily_count": 0,
-                                    "last_run": datetime.now(UTC)
-                                    .replace(tzinfo=None)
-                                    .strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                    "last_run": utcnow_naive().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
                                 }
                             default_analysis.stats = {
                                 "daily_limit": default_analysis.stats["daily_limit"],
                                 "daily_count": default_analysis.stats["daily_count"]
                                 + 1,
-                                "last_run": datetime.now(UTC)
-                                .replace(tzinfo=None)
-                                .strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                "last_run": utcnow_naive().strftime(
+                                    "%Y-%m-%dT%H:%M:%S.%f"
+                                ),
                             }
                             db_session.add(default_analysis)
 

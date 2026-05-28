@@ -1,4 +1,3 @@
-import datetime
 import io
 import math
 import os
@@ -35,6 +34,7 @@ from baselayer.log import make_log
 from .. import __version__
 from .cache import Cache, dict_to_bytes
 from .tap_services.gaia import GaiaQuery
+from .UTCTZnaiveDateTime import utcnow_naive
 
 log = make_log("finder-chart")
 
@@ -871,9 +871,7 @@ def get_nearby_offset_stars(
         raise Exception("Number of offsets queries needed exceeds what is allowed")
 
     if not obstime:
-        source_obstime = Time(
-            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        )
+        source_obstime = Time(utcnow_naive().isoformat())
     else:
         # TODO: check the obstime format
         source_obstime = Time(obstime)
@@ -1426,9 +1424,7 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
-    obstime = offset_star_kwargs.get(
-        "obstime", datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-    )
+    obstime = offset_star_kwargs.get("obstime", utcnow_naive().isoformat())
     if use_cache:
         cache_key = get_finding_chart_cache_key(
             source_ra,

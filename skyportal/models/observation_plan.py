@@ -25,6 +25,7 @@ from baselayer.app.models import (
     join_model,
 )
 
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from .followup_request import updatable_by_token_with_listener_acl
 from .group import Group
 
@@ -297,7 +298,7 @@ class EventObservationPlan(Base):
     validity_window_start = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         doc="Start of validity window",
     )
 

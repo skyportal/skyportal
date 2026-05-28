@@ -1,15 +1,15 @@
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from skyportal.tests import api
+
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-        seconds=2
-    )
+    next_reminder = utcnow_naive() + timedelta(seconds=2)
     next_reminder = next_reminder.replace(microsecond=0)
     reminder_delay = 1
     number_of_reminders = 1
@@ -107,12 +107,8 @@ def test_reminder_on_shift(
     super_admin_user,
 ):
     shift_name = str(uuid.uuid4())
-    start_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
-    end_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    start_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
     request_data = {
         "name": shift_name,
         "group_id": public_group.id,

@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 import requests
 
@@ -7,6 +7,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..utils import http
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -381,20 +382,14 @@ class GENERICAPI(FollowUpAPI):
                 "start_date": {
                     "type": "string",
                     "format": "date",
-                    "default": datetime.now(UTC)
-                    .replace(tzinfo=None)
-                    .date()
-                    .isoformat(),
+                    "default": utcnow_naive().date().isoformat(),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
                     "type": "string",
                     "format": "date",
                     "title": "End Date (UT)",
-                    "default": (
-                        datetime.now(UTC).replace(tzinfo=None).date()
-                        + timedelta(days=7)
-                    ).isoformat(),
+                    "default": (utcnow_naive().date() + timedelta(days=7)).isoformat(),
                 },
             },
             "required": [

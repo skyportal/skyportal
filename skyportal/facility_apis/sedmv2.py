@@ -1,7 +1,6 @@
 import ast
 import functools
 import json
-from datetime import UTC, datetime, timezone
 
 import numpy as np
 import requests
@@ -17,6 +16,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.instrument_log import read_logs
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -370,7 +370,7 @@ class SEDMV2API(FollowUpAPI):
             status = {k: v for k, v in status.items() if v not in [None, "", {}, []]}
 
             instrument.status = status
-            instrument.last_status_update = datetime.now(UTC).replace(tzinfo=None)
+            instrument.last_status_update = utcnow_naive()
             session.commit()
 
         except Exception as e:

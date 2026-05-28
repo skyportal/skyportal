@@ -7,6 +7,7 @@ from baselayer.app.env import load_env
 
 from ...models import Telescope, Weather
 from ...utils.offset import get_url
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -103,9 +104,10 @@ class WeatherHandler(BaseHandler):
             # Should we call the API again?
             refresh = weather_refresh is not None
             if refresh and weather.retrieved_at is not None:
-                if weather.retrieved_at + datetime.timedelta(
-                    seconds=weather_refresh
-                ) >= datetime.datetime.now(datetime.UTC).replace(tzinfo=None):
+                if (
+                    weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
+                    >= utcnow_naive()
+                ):
                     # it is too soon to refresh
                     refresh = False
             elif weather.retrieved_at is None:
@@ -121,9 +123,7 @@ class WeatherHandler(BaseHandler):
                     if response.status_code == 200:
                         data = response.json()
                         weather.weather_info = data
-                        weather.retrieved_at = datetime.datetime.now(
-                            datetime.UTC
-                        ).replace(tzinfo=None)
+                        weather.retrieved_at = utcnow_naive()
                         session.commit()
                     else:
                         message = response.text
@@ -136,9 +136,7 @@ class WeatherHandler(BaseHandler):
                     # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
                     # Timestamp indicating when the API call was made, even if no data was returned
-                    "weather_fetch_at": datetime.datetime.now(datetime.UTC).replace(
-                        tzinfo=None
-                    ),
+                    "weather_fetch_at": utcnow_naive(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

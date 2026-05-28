@@ -5,7 +5,6 @@ import uuid
 
 import pandas as pd
 import pytest
-from regions import Regions
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from tdtax import __version__, taxonomy
@@ -15,6 +14,8 @@ from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
 )
+
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)
@@ -736,7 +737,7 @@ def test_candidate_date_filtering(
     upload_data_token,
     ztf_camera,
 ):
-    now_utc = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    now_utc = utcnow_naive()
     now = datetime.datetime.now()
 
     candidate_id = str(uuid.uuid4())

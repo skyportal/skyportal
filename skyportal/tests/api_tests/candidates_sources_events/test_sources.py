@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import arrow
 import astropy.units as u
@@ -13,6 +13,8 @@ from tdtax import __version__, taxonomy
 
 from skyportal.models import cosmo
 from skyportal.tests import api
+
+from ....utils.UTCTZnaiveDateTime import utcnow_naive
 
 
 def test_source_list(view_only_token):
@@ -563,7 +565,7 @@ def test_source_notifications_unauthorized(
 def test_token_user_source_summary(
     public_group, public_source, view_only_token_two_groups, public_group2
 ):
-    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    now = utcnow_naive().isoformat()
 
     status, data = api(
         "GET",

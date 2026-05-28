@@ -1,7 +1,7 @@
 import json
 import traceback
 import urllib
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 import requests
 from astropy.time import Time
@@ -11,6 +11,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ...utils import http
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 
 env, cfg = load_env()
 
@@ -331,15 +332,13 @@ def build_form_json_schema(filter_defaults):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.now(UTC).replace(tzinfo=None)).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(
-                    datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7)
-                ).replace("T", ""),
+                "default": str(utcnow_naive() + timedelta(days=7)).replace("T", ""),
             },
             "filter": {
                 "type": "string",

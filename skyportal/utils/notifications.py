@@ -14,6 +14,8 @@ from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
+from .UTCTZnaiveDateTime import utcnow_naive
+
 env, cfg = load_env()
 
 app_url = get_app_base_url()
@@ -58,9 +60,7 @@ def gcn_notification_content(target, session):
         localization = localizations[-1]
         tags = [tag.text for tag in localization.tags]
 
-    time_since_dateobs = (
-        datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - gcn_event.dateobs
-    )
+    time_since_dateobs = utcnow_naive() - gcn_event.dateobs
     # remove the microseconds from the timedelta
     time_since_dateobs = time_since_dateobs - datetime.timedelta(
         microseconds=time_since_dateobs.microseconds

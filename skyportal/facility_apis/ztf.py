@@ -1,7 +1,7 @@
 import functools
 import json
 import urllib
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 import astropy
 import numpy as np
@@ -21,6 +21,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
@@ -684,15 +685,13 @@ class ZTFAPI(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": str(datetime.now(UTC).replace(tzinfo=None)).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(
-                    datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)
-                ).replace("T", ""),
+                "default": str(utcnow_naive() + timedelta(days=1)).replace("T", ""),
             },
             "program_id": {
                 "type": "string",
@@ -709,7 +708,7 @@ class ZTFAPI(FollowUpAPI):
             "field_ids": {"type": "string", "default": "699,700"},
             "queue_name": {
                 "type": "string",
-                "default": datetime.now(UTC).replace(tzinfo=None),
+                "default": utcnow_naive(),
             },
         },
         "required": [
@@ -738,15 +737,13 @@ class ZTFAPI(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": str(
-                    datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
-                ).replace("T", ""),
+                "default": str(utcnow_naive() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.now(UTC).replace(tzinfo=None)).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
             },
         },
         "required": [

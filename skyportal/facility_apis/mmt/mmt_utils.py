@@ -1,4 +1,3 @@
-import datetime
 import functools
 import io
 import json
@@ -11,6 +10,8 @@ from skyportal.utils import http
 from skyportal.utils.asynchronous import run_async
 from skyportal.utils.calculations import deg2dms, deg2hms
 from skyportal.utils.parse import bool_to_int
+
+from ...utils.UTCTZnaiveDateTime import utcnow_naive
 
 env, cfg = load_env()
 
@@ -267,9 +268,7 @@ def submit_mmt_request(
             facility="Keck",
             image_source=image_source_dict[request.payload["primary_image_source"]],
             use_ztfref=request.payload["offset_position_origin"] == "ZTF Ref",
-            obstime=datetime.datetime.now(datetime.UTC)
-            .replace(tzinfo=None)
-            .isoformat(),
+            obstime=utcnow_naive().isoformat(),
             output_type="pdf",
             num_offset_stars=request.payload.get("number_offset_Stars", 3),
         )

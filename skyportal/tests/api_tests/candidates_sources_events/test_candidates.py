@@ -7,6 +7,8 @@ from tdtax import __version__, taxonomy
 
 from skyportal.tests import api, assert_api
 
+from ....utils.UTCTZnaiveDateTime import utcnow_naive
+
 
 def test_candidate_list(view_only_token, public_candidate):
     status, data = api("GET", "candidates", token=view_only_token)
@@ -73,7 +75,7 @@ def test_token_user_post_delete_new_candidate(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -104,7 +106,7 @@ def test_cannot_add_candidate_without_filter_id(upload_data_token):
             "redshift": 3,
             "transient": False,
             "ra_dis": 2.3,
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -145,7 +147,7 @@ def test_token_user_post_two_candidates_same_obj_filter(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -167,7 +169,7 @@ def test_token_user_post_two_candidates_same_obj_filter(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -178,7 +180,7 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
     upload_data_token, view_only_token, public_filter
 ):
     obj_id = str(uuid.uuid4())
-    passed_at = str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
+    passed_at = str(utcnow_naive())
     status, data = api(
         "POST",
         "candidates",
@@ -562,7 +564,7 @@ def test_candidate_list_classifications(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -578,7 +580,7 @@ def test_candidate_list_classifications(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -650,7 +652,7 @@ def test_candidate_list_redshift_range(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -666,7 +668,7 @@ def test_candidate_list_redshift_range(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -702,13 +704,10 @@ def test_exclude_by_outdated_annotations(
     num_candidates = len(data["data"]["candidates"])
 
     origin = str(uuid.uuid4())
-    t0 = datetime.datetime.now(datetime.UTC).replace(
-        tzinfo=None
-    )  # recall when it was created
-    time_offset = (
-        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-        - datetime.datetime.now()
-    ) / datetime.timedelta(hours=1)
+    t0 = utcnow_naive()  # recall when it was created
+    time_offset = (utcnow_naive() - datetime.datetime.now()) / datetime.timedelta(
+        hours=1
+    )
     t0 += datetime.timedelta(
         hours=time_offset
     )  # adjust for time zone of PC running the tests
@@ -746,7 +745,7 @@ def test_candidate_list_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -762,7 +761,7 @@ def test_candidate_list_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -778,7 +777,7 @@ def test_candidate_list_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -843,7 +842,7 @@ def test_candidate_list_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -859,7 +858,7 @@ def test_candidate_list_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -875,7 +874,7 @@ def test_candidate_list_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -942,7 +941,7 @@ def test_candidate_list_saved_to_any_accessible_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -958,7 +957,7 @@ def test_candidate_list_saved_to_any_accessible_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1014,7 +1013,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1030,7 +1029,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1046,7 +1045,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1117,7 +1116,7 @@ def test_candidate_list_not_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1133,7 +1132,7 @@ def test_candidate_list_not_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1149,7 +1148,7 @@ def test_candidate_list_not_saved_to_any_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1216,7 +1215,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1232,7 +1231,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1248,7 +1247,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1405,7 +1404,7 @@ def test_candidate_list_pagination(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -1421,10 +1420,7 @@ def test_candidate_list_pagination(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(
-                datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-                + datetime.timedelta(days=1)
-            ),
+            "passed_at": str(utcnow_naive() + datetime.timedelta(days=1)),
         },
         token=upload_data_token,
     )
@@ -1602,7 +1598,7 @@ def test_candidate_savers(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1618,7 +1614,7 @@ def test_candidate_savers(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )
@@ -1634,7 +1630,7 @@ def test_candidate_savers(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.now(datetime.UTC).replace(tzinfo=None)),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token_two_groups,
     )

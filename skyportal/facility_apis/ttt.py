@@ -1,9 +1,5 @@
-import base64
 import json
-import os
-import urllib
-from datetime import UTC, datetime, timedelta, timezone
-from urllib.parse import urlparse
+from datetime import timedelta
 
 import astropy.units as u
 import requests
@@ -16,6 +12,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.UTCTZnaiveDateTime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -314,16 +311,14 @@ class TTTAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.now(UTC).replace(tzinfo=None).date().isoformat(),
+                "default": utcnow_naive().date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (
-                    datetime.now(UTC).replace(tzinfo=None).date() + timedelta(days=7)
-                ).isoformat(),
+                "default": (utcnow_naive().date() + timedelta(days=7)).isoformat(),
             },
         },
         "required": [
