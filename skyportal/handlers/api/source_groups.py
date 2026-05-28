@@ -1,6 +1,5 @@
-import datetime
-
 import sqlalchemy as sa
+from utils.UTCTZnaiveDateTime import utcnow_naive
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -119,9 +118,7 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 source.unsaved_by_id = self.associated_user_object.id
                 source.active = False
-                source.unsaved_at = datetime.datetime.now(datetime.UTC).replace(
-                    tzinfo=None
-                )
+                source.unsaved_at = utcnow_naive()
 
             if len(unsave_group_ids) > 0:
                 from .public_pages.public_source_page import delete_auto_published_page
