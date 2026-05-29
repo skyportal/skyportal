@@ -1,7 +1,7 @@
 import csv
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from os.path import join
 
 import pytest
@@ -53,10 +53,11 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
     phot_table_button.click()
 
     driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
-    driver.wait_for_xpath('//div[contains(@class, "MUIDataTableToolbar")]')
+    driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
 
     download_button = driver.wait_for_xpath_to_be_clickable(
-        '//div[contains(@class, "MuiDialog-root")]//button[@aria-label="Download CSV"]',
+        '//div[contains(@class, "MuiDialog-root")]'
+        '//button[@data-testid="open-photometry-download-button"]',
         timeout=10,
     )
     download_button.click()
@@ -119,10 +120,11 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
     phot_table_button.click()
 
     driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
-    driver.wait_for_xpath('//div[contains(@class, "MUIDataTableToolbar")]')
+    driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
 
     download_button = driver.wait_for_xpath_to_be_clickable(
-        '//div[contains(@class, "MuiDialog-root")]//button[@aria-label="Download CSV"]',
+        '//div[contains(@class, "MuiDialog-root")]'
+        '//button[@data-testid="open-photometry-download-button"]',
         timeout=10,
     )
     download_button.click()
@@ -169,7 +171,7 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
         phot_utc = Time(phot["mjd"], format="mjd")
         assert datetime.fromisoformat(
             csv_data[0]["utc"][:-1] + "+00:00"
-        ) == phot_utc.datetime.replace(microsecond=0, tzinfo=timezone.utc)
+        ) == phot_utc.datetime.replace(microsecond=0, tzinfo=UTC)
 
     finally:
         os.remove(file_path)

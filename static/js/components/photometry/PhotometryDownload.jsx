@@ -74,7 +74,6 @@ const PhotometryDownload = ({
   data,
   objId,
   usePhotometryValidation,
-  downloadParams,
   onDownload,
 }) => {
   const dispatch = useDispatch();
@@ -223,7 +222,12 @@ const PhotometryDownload = ({
     }
   }, [availableDownloadColumns]);
 
-  const performDownload = (buildHead, buildBody, cols, tableData) => {
+  const performDownload = () => {
+    // Previously these row descriptors and the CSV header builder came from
+    // mui-datatables' onDownload callback. With MUI X DataGrid we build them
+    // ourselves: one {index} per photometry point, indexing into `data`.
+    const tableData = data.map((_, index) => ({ index }));
+
     let filteredTableData = filterDataByValidation(
       tableData,
       downloadFormData.validationFilter || DEFAULT_VALIDATION_FILTER,
@@ -291,12 +295,8 @@ const PhotometryDownload = ({
       })
       .join("\n");
 
-    const selectedHeaders = downloadFormData.columns.map((colKey) => ({
-      name: colKey,
-      download: true,
-    }));
-
-    const result = buildHead(selectedHeaders) + body;
+    const head = `${downloadFormData.columns.join(",")}\n`;
+    const result = head + body;
     const blob = new Blob([result], {
       type: "text/csv;charset=utf-8;",
     });
@@ -312,18 +312,8 @@ const PhotometryDownload = ({
   };
 
   const executeDownload = () => {
-    if (!downloadParams?.buildHead || !downloadParams?.tableData) {
-      console.error("No download parameters available");
-      return;
-    }
-
     onClose();
-    performDownload(
-      downloadParams.buildHead,
-      downloadParams.buildBody,
-      downloadParams.cols,
-      downloadParams.tableData,
-    );
+    performDownload();
     onDownload();
   };
 
@@ -424,12 +414,7 @@ PhotometryDownload.propTypes = {
   data: PropTypes.array.isRequired,
   objId: PropTypes.string.isRequired,
   usePhotometryValidation: PropTypes.bool.isRequired,
-  downloadParams: PropTypes.object,
   onDownload: PropTypes.func.isRequired,
-};
-
-PhotometryDownload.defaultProps = {
-  downloadParams: null,
 };
 
 export default PhotometryDownload;

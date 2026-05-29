@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from tdtax import __version__, taxonomy
@@ -27,7 +27,7 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # make a new object/source and save the time when it was posted
     obj_id = str(uuid.uuid4())
-    t0 = datetime.now(timezone.utc)
+    t0 = datetime.now(UTC)
 
     # upload a new source, saved to the public group
     status, data = api(
@@ -66,7 +66,7 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
+    driver.wait_for_xpath(f'//*[@data-testid="groupSourceExpand_{obj_id}"]')
 
     # post a taxonomy and classification
     status, data = api(
@@ -248,24 +248,16 @@ def test_sources_sorting(
     driver.click_xpath("//*[text()='Saved at']")
 
     # Now, the first one posted should be the second row
-    # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//span[text()="{obj_id2}"]]'
-    )
-    # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//span[text()="{obj_id}"]]'
-    )
+    # Row 0 should be the second source's id
+    driver.wait_for_xpath(f'//div[@data-rowindex="0"]//span[text()="{obj_id2}"]')
+    # Row 1 should be the first source's id
+    driver.wait_for_xpath(f'//div[@data-rowindex="1"]//span[text()="{obj_id}"]')
 
     # Now sort by redshift ascending, which would put obj_id first
     driver.click_xpath("//*[text()='Redshift']")
 
     # Now, the first one posted should be the second row
-    # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//span[text()="{obj_id}"]]'
-    )
-    # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//span[text()="{obj_id2}"]]'
-    )
+    # Row 0 should be the first source's id
+    driver.wait_for_xpath(f'//div[@data-rowindex="0"]//span[text()="{obj_id}"]')
+    # Row 1 should be the second source's id
+    driver.wait_for_xpath(f'//div[@data-rowindex="1"]//span[text()="{obj_id2}"]')

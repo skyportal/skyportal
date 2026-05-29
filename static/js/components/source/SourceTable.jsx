@@ -1,11 +1,15 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
@@ -17,10 +21,14 @@ import DialogContent from "@mui/material/DialogContent";
 import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import MUIDataTable from "mui-datatables";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import DownloadIcon from "@mui/icons-material/Download";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import TextField from "@mui/material/TextField";
+import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
 import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
@@ -38,10 +46,15 @@ import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -68,6 +81,28 @@ import NewSource from "./NewSource";
 
 const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
+
+// Page-size options preserved from the previous mui-datatables config.
+const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100, 200];
+
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map are not server-sortable.
+const SERVER_SORT_FIELD = {
+  id: "id",
+  alias: "alias",
+  origin: "origin",
+  ra: "ra",
+  dec: "dec",
+  ra_sex: "ra",
+  dec_sex: "dec",
+  l: "l",
+  b: "b",
+  redshift: "redshift",
+  host: "host",
+  host_offset: "host_offset",
+  saved_at: "saved_at",
+  gcn_status: "gcn_status",
+};
 
 const useStyles = makeStyles()((theme) => ({
   tableGrid: {
@@ -122,133 +157,15 @@ const useStyles = makeStyles()((theme) => ({
     gap: "0.25rem",
     maxWidth: "120px",
   },
+  filterChips: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.25rem",
+    marginBottom: "0.5rem",
+  },
 }));
 
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUITableCell: {
-        styleOverrides: {
-          paddingCheckbox: {
-            padding: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.5rem",
-            paddingLeft: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.5rem",
-            paddingLeft: 0,
-            margin: 0,
-          },
-          sortLabelRoot: {
-            height: "1.4rem",
-          },
-        },
-      },
-      // Hide default filter items for custom form
-      MuiGridList: {
-        root: {
-          display: "none",
-        },
-      },
-      MUIDataTableFilter: {
-        root: {
-          height: "100%",
-        },
-        header: {
-          display: "none",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        navContainer: {
-          flexDirection: "column",
-          alignItems: "center",
-          [theme.breakpoints.up("sm")]: {
-            flexDirection: "row",
-          },
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        filterPaper: {
-          // Use fullscreen dialog for small-screen filter form
-          width: "100%",
-          maxWidth: "100%",
-          margin: 0,
-          maxHeight: "calc(100vh - 1rem)",
-          borderRadius: 0,
-          top: "0 !important",
-          left: "0 !important",
-          [theme.breakpoints.up("md")]: {
-            // Override the overrides above for bigger screens
-            maxWidth: "50%",
-            top: "unset !important",
-            left: "unset !important",
-            float: "right",
-            position: "unset",
-            margin: "1rem",
-          },
-        },
-        filterCloseIcon: {
-          [theme.breakpoints.up("md")]: {
-            top: "1rem !important",
-            right: "1rem !important",
-          },
-        },
-      },
-      MUIDataTableFilterList: {
-        chip: {
-          maxWidth: "100%",
-        },
-      },
-    },
-  });
-
-let defaultDisplayedColumns = [
-  "Source ID",
-  "TNS",
-  "Favorites",
-  "RA (deg)",
-  "Dec (deg)",
-  "Redshift",
-  "Tags",
-  "Classification",
-  " ",
-  "Groups",
-  "Saved at",
-  "Finder",
-];
-
-const RenderShowClassification = ({ source }) => {
+const RenderShowClassification = React.memo(({ source }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
@@ -408,69 +325,22 @@ const RenderShowClassification = ({ source }) => {
       </Tooltip>
     </div>
   );
-};
+});
+RenderShowClassification.displayName = "RenderShowClassification";
 
 RenderShowClassification.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
-    ra: PropTypes.number,
-    dec: PropTypes.number,
-    gal_lon: PropTypes.number,
-    gal_lat: PropTypes.number,
-    origin: PropTypes.string,
-    alias: PropTypes.arrayOf(PropTypes.string),
-    redshift: PropTypes.number,
-    mpc_name: PropTypes.string,
-    annotations: PropTypes.arrayOf(
-      PropTypes.shape({
-        origin: PropTypes.string.isRequired,
-        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-        author: PropTypes.shape({
-          username: PropTypes.string.isRequired,
-        }),
-        created_at: PropTypes.string.isRequired,
-      }),
-    ).isRequired,
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
         classification: PropTypes.string,
-        created_at: PropTypes.string,
-        groups: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            name: PropTypes.string,
-          }),
-        ),
-      }),
-    ),
-    altdata: PropTypes.shape({
-      tns: PropTypes.shape({
-        name: PropTypes.string,
-      }),
-    }),
-    last_detected_at: PropTypes.string,
-    last_detected_mag: PropTypes.number,
-    peak_detected_at: PropTypes.string,
-    peak_detected_mag: PropTypes.number,
-    groups: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        name: PropTypes.string,
-      }),
-    ),
-    photstats: PropTypes.arrayOf(
-      PropTypes.shape({
-        peak_mag_global: PropTypes.number,
-        peak_mjd_global: PropTypes.number,
-        last_detected_mag: PropTypes.number,
-        last_detected_mjd: PropTypes.number,
       }),
     ),
   }).isRequired,
 };
 
-const RenderShowLabelling = ({ source }) => {
+const RenderShowLabelling = React.memo(({ source }) => {
   const dispatch = useDispatch();
   const { control } = useForm();
   const [checked, setChecked] = useState(false);
@@ -527,63 +397,16 @@ const RenderShowLabelling = ({ source }) => {
       />
     </div>
   );
-};
+});
+RenderShowLabelling.displayName = "RenderShowLabelling";
 
 RenderShowLabelling.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
-    ra: PropTypes.number,
-    dec: PropTypes.number,
-    gal_lon: PropTypes.number,
-    gal_lat: PropTypes.number,
-    origin: PropTypes.string,
-    alias: PropTypes.arrayOf(PropTypes.string),
-    mpc_name: PropTypes.string,
-    redshift: PropTypes.number,
-    annotations: PropTypes.arrayOf(
-      PropTypes.shape({
-        origin: PropTypes.string.isRequired,
-        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-        author: PropTypes.shape({
-          username: PropTypes.string.isRequired,
-        }).isRequired,
-        created_at: PropTypes.string.isRequired,
-      }),
-    ).isRequired,
-    classifications: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        classification: PropTypes.string,
-        created_at: PropTypes.string,
-        groups: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            name: PropTypes.string,
-          }),
-        ),
-      }),
-    ),
-    altdata: PropTypes.shape({
-      tns: PropTypes.shape({
-        name: PropTypes.string,
-      }),
-    }),
-    last_detected_at: PropTypes.string,
-    last_detected_mag: PropTypes.number,
-    peak_detected_at: PropTypes.string,
-    peak_detected_mag: PropTypes.number,
     groups: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
         name: PropTypes.string,
-      }),
-    ),
-    photstats: PropTypes.arrayOf(
-      PropTypes.shape({
-        peak_mag_global: PropTypes.number,
-        peak_mjd_global: PropTypes.number,
-        last_detected_mag: PropTypes.number,
-        last_detected_mjd: PropTypes.number,
       }),
     ),
     labellers: PropTypes.arrayOf(
@@ -595,7 +418,185 @@ RenderShowLabelling.propTypes = {
   }).isRequired,
 };
 
-// MUI data table with pull out rows containing a summary of each source.
+// The pull-out detail panel previously rendered by mui-datatables'
+// renderExpandableRow. Extracted into a memoized component that subscribes to
+// photometry itself, so incoming photometry (e.g. at Argus alert rates) updates
+// only the expanded panels and never forces the parent grid's columns to rebuild.
+const SourceDetailPanel = React.memo(({ source, groupID, taxonomyList }) => {
+  const { classes } = useStyles();
+  const photometry = useSelector((state) => state.photometry);
+  const [openedOrigins, setOpenedOrigins] = useState({});
+
+  const annotations = source.annotations || [];
+
+  const handleClick = (origin) => {
+    setOpenedOrigins((prev) => ({ ...prev, [origin]: !prev[origin] }));
+  };
+
+  const plotWidth = isMobileOnly ? 200 : 400;
+  const specPlotHeight = isMobileOnly ? 150 : 200;
+  const legendOrient = isMobileOnly ? "bottom" : "right";
+
+  return (
+    <div
+      data-testid={`groupSourceExpand_${source.id}`}
+      style={{ width: "100%" }}
+    >
+      <Grid
+        container
+        direction="row"
+        spacing={3}
+        justifyContent="center"
+        alignItems="center"
+      >
+        <ThumbnailList
+          thumbnails={source.thumbnails}
+          ra={source.ra}
+          dec={source.dec}
+          useGrid={false}
+        />
+        <Grid>
+          <VegaPhotometry sourceId={source.id} />
+        </Grid>
+        <Grid>
+          {photometry[source.id]?.length > 0 && (
+            <VegaPhotometry
+              sourceId={source.id}
+              annotations={annotations}
+              folded
+            />
+          )}
+        </Grid>
+        <Grid>
+          {source.color_magnitude?.length > 0 && (
+            <div data-testid={`hr_diagram_${source.id}`}>
+              <Suspense fallback={<CircularProgress color="secondary" />}>
+                <VegaHR
+                  data={source.color_magnitude}
+                  width={200}
+                  height={200}
+                />
+              </Suspense>
+            </div>
+          )}
+        </Grid>
+        <Grid>
+          <Suspense fallback={<CircularProgress color="secondary" />}>
+            <VegaSpectrum
+              sourceId={source.id}
+              width={plotWidth}
+              height={specPlotHeight}
+              legendOrient={legendOrient}
+              normalization="median"
+            />
+          </Suspense>
+        </Grid>
+        <Grid>
+          <div className={classes.annotations}>
+            {annotations?.length > 0 && (
+              <>
+                <Typography variant="subtitle2">Annotations:</Typography>
+                <List
+                  component="nav"
+                  aria-labelledby="nested-list-subheader"
+                  className={classes.root}
+                  dense
+                >
+                  {annotations.map((annotation) => (
+                    <div key={`annotation_${annotation.origin}`}>
+                      <Divider />
+                      <ListItem
+                        button
+                        onClick={() => handleClick(annotation.origin)}
+                      >
+                        <ListItemText
+                          primary={`${annotation.origin}`}
+                          slotProps={{ primary: { variant: "button" } }}
+                        />
+                        {openedOrigins[annotation.origin] ? (
+                          <ExpandLess />
+                        ) : (
+                          <ExpandMore />
+                        )}
+                      </ListItem>
+                      <Collapse
+                        in={openedOrigins[annotation.origin]}
+                        timeout="auto"
+                        unmountOnExit
+                      >
+                        <List component="div" dense disablePadding>
+                          {Object.entries(annotation.data).map(
+                            ([key, value]) => (
+                              <ListItem
+                                key={`key_${annotation.origin}_${key}`}
+                                button
+                                className={classes.nested}
+                              >
+                                <ListItemText
+                                  secondary={`${key}: ${getAnnotationValueString(
+                                    value,
+                                  )}`}
+                                />
+                              </ListItem>
+                            ),
+                          )}
+                        </List>
+                      </Collapse>
+                      <Divider />
+                    </div>
+                  ))}
+                </List>
+              </>
+            )}
+          </div>
+        </Grid>
+        <Grid size={12}>
+          <MultipleClassificationsForm
+            objId={source.id}
+            taxonomyList={taxonomyList}
+            groupId={groupID}
+            currentClassifications={source.classifications}
+          />
+        </Grid>
+        <Grid size={12}>
+          <ShowSummaries summaries={source.summary_history} />
+          {source.summary_history?.length < 1 ||
+          !source.summary_history ||
+          source.summary_history[0].summary === null ? (
+            <div>
+              <b>Summarize: &nbsp;</b>
+            </div>
+          ) : null}
+          <UpdateSourceSummary source={source} />
+          {source.classifications?.length > 0 ? (
+            <StartBotSummary obj_id={source.id} />
+          ) : null}
+          {source.summary_history?.length > 0 ? (
+            <ShowSummaryHistory
+              summaries={source.summary_history}
+              obj_id={source.id}
+            />
+          ) : null}
+        </Grid>
+      </Grid>
+    </div>
+  );
+});
+SourceDetailPanel.displayName = "SourceDetailPanel";
+
+SourceDetailPanel.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
+  source: PropTypes.object.isRequired,
+  groupID: PropTypes.number,
+  // eslint-disable-next-line react/forbid-prop-types
+  taxonomyList: PropTypes.array,
+};
+SourceDetailPanel.defaultProps = {
+  groupID: undefined,
+  taxonomyList: [],
+};
+
+// Data grid with pull-out rows containing a summary of each source.
 // This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
@@ -619,39 +620,50 @@ const SourceTable = ({
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const [searchBy, setSearchBy] = useState("name");
+  const [searchText, setSearchText] = useState("");
   const [openNew, setOpenNew] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  if (includeGcnStatus) {
-    defaultDisplayedColumns.push("GCN Status");
-    defaultDisplayedColumns.push("Explanation");
-    defaultDisplayedColumns.push("Notes");
-    defaultDisplayedColumns.push("Host");
-    defaultDisplayedColumns.push("Host Offset (arcsec)");
-  }
-
-  const [displayedColumns, setDisplayedColumns] = useState(
-    defaultDisplayedColumns,
-  );
   const [openedRows, setOpenedRows] = useState([]);
+  const [sortModel, setSortModel] = useState([]);
 
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
-
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
-  const [queryInProgress, setQueryInProgress] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
-
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
-
-  const photometry = useSelector((state) => state.photometry);
-
   const tagOptions = useSelector((state) => state.objectTags || []);
+
+  // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
+  // defaultDisplayedColumns list (which only enumerated visible labels).
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState(() => {
+    const hidden = [
+      "alias",
+      "origin",
+      "ra_sex",
+      "dec_sex",
+      "l",
+      "b",
+      "labelling",
+      "saved_by",
+      "peak_mag",
+      "latest_mag",
+      "mpc_name",
+    ];
+    if (!includeGcnStatus) {
+      hidden.push("host", "host_offset");
+    }
+    return hidden.reduce((acc, field) => {
+      acc[field] = false;
+      return acc;
+    }, {});
+  });
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
@@ -659,7 +671,7 @@ const SourceTable = ({
 
   useEffect(() => {
     if (sources) {
-      setQueryInProgress(false);
+      setLoading(false);
       if (includeGcnStatus) {
         dispatch(
           sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
@@ -688,35 +700,40 @@ const SourceTable = ({
     }
   }, [searchBy]);
 
-  const handleTableChange = (action, tableState) => {
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-          filterFormData,
-        );
-        break;
-      case "viewColumnsChange":
-        // Save displayed column labels
-        setDisplayedColumns(
-          tableState.columns
-            ?.filter((column) => column.display === "true")
-            ?.map((column) => column.label),
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {}, filterFormData);
-        } else {
-          sortingCallback(tableState.sortOrder, filterFormData);
-        }
-        break;
-      default:
+  const currentSortOrder = useCallback(
+    () =>
+      sortModel.length
+        ? {
+            name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
+            direction: sortModel[0].sort,
+          }
+        : {},
+    [sortModel],
+  );
+
+  const handlePaginationModelChange = (model) => {
+    setRowsPerPage(model.pageSize);
+    setLoading(true);
+    paginateCallback(
+      model.page + 1,
+      model.pageSize,
+      currentSortOrder(),
+      filterFormData,
+    );
+  };
+
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    setLoading(true);
+    if (!model.length) {
+      paginateCallback(1, rowsPerPage, {}, filterFormData);
+      return;
     }
+    const { field, sort } = model[0];
+    sortingCallback(
+      { name: SERVER_SORT_FIELD[field] || field, direction: sort },
+      filterFormData,
+    );
   };
 
   const handleSaveSource = async (sourceID) => {
@@ -756,296 +773,138 @@ const SourceTable = ({
     }
   };
 
-  const [openedOrigins, setOpenedOrigins] = useState({});
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderPullOutRow = (rowData, rowMeta) => {
-    const colSpan = rowData.length + 1;
-    const source = sources[rowMeta.dataIndex];
-
-    const annotations = source.annotations || [];
-
-    const initState = {};
-    annotations?.forEach((annotation) => {
-      initState[annotation.origin] = true;
-    });
-
-    const handleClick = (origin) => {
-      setOpenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
-    };
-
-    const plotWidth = isMobileOnly ? 200 : 400;
-    const specPlotHeight = isMobileOnly ? 150 : 200;
-    const legendOrient = isMobileOnly ? "bottom" : "right";
-    return (
-      <TableRow data-testid={`groupSourceExpand_${source.id}`}>
-        <TableCell
-          style={{ paddingBottom: 0, paddingTop: 0 }}
-          colSpan={colSpan}
-        >
-          <Grid
-            container
-            direction="row"
-            spacing={3}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <ThumbnailList
-              thumbnails={source.thumbnails}
-              ra={source.ra}
-              dec={source.dec}
-              useGrid={false}
-            />
-            <Grid>
-              <VegaPhotometry sourceId={source.id} />
-            </Grid>
-            <Grid>
-              {photometry[source.id]?.length > 0 && (
-                <VegaPhotometry
-                  sourceId={source.id}
-                  annotations={annotations}
-                  folded
-                />
-              )}
-            </Grid>
-            <Grid>
-              {source.color_magnitude.length > 0 && (
-                <div data-testid={`hr_diagram_${source.id}`}>
-                  <Suspense fallback={<CircularProgress color="secondary" />}>
-                    <VegaHR
-                      data={source.color_magnitude}
-                      width={200}
-                      height={200}
-                    />
-                  </Suspense>
-                </div>
-              )}
-            </Grid>
-            <Grid>
-              <Suspense fallback={<CircularProgress color="secondary" />}>
-                <VegaSpectrum
-                  sourceId={source.id}
-                  width={plotWidth}
-                  height={specPlotHeight}
-                  legendOrient={legendOrient}
-                  normalization="median"
-                />
-              </Suspense>
-            </Grid>
-            <Grid>
-              <div className={classes.annotations}>
-                {annotations?.length > 0 && (
-                  <>
-                    <Typography variant="subtitle2">Annotations:</Typography>
-                    <List
-                      component="nav"
-                      aria-labelledby="nested-list-subheader"
-                      className={classes.root}
-                      dense
-                    >
-                      {annotations.map((annotation) => (
-                        <div key={`annotation_${annotation.origin}`}>
-                          <Divider />
-                          <ListItem
-                            button
-                            onClick={() => handleClick(annotation.origin)}
-                          >
-                            <ListItemText
-                              primary={`${annotation.origin}`}
-                              slotProps={{ primary: { variant: "button" } }}
-                            />
-                            {openedOrigins[annotation.origin] ? (
-                              <ExpandLess />
-                            ) : (
-                              <ExpandMore />
-                            )}
-                          </ListItem>
-                          <Collapse
-                            in={openedOrigins[annotation.origin]}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <List component="div" dense disablePadding>
-                              {Object.entries(annotation.data).map(
-                                ([key, value]) => (
-                                  <ListItem
-                                    key={`key_${annotation.origin}_${key}`}
-                                    button
-                                    className={classes.nested}
-                                  >
-                                    <ListItemText
-                                      secondary={`${key}: ${getAnnotationValueString(
-                                        value,
-                                      )}`}
-                                    />
-                                  </ListItem>
-                                ),
-                              )}
-                            </List>
-                          </Collapse>
-                          <Divider />
-                        </div>
-                      ))}
-                    </List>
-                  </>
-                )}
-              </div>
-            </Grid>
-            <Grid size={12}>
-              <MultipleClassificationsForm
-                objId={source.id}
-                taxonomyList={taxonomyList}
-                groupId={groupID}
-                currentClassifications={source.classifications}
-              />
-            </Grid>
-            <Grid size={12}>
-              <ShowSummaries summaries={source.summary_history} />
-              {source.summary_history?.length < 1 ||
-              !source.summary_history ||
-              source.summary_history[0].summary === null ? (
-                <div>
-                  <b>Summarize: &nbsp;</b>
-                </div>
-              ) : null}
-              <UpdateSourceSummary source={source} />
-              {source.classifications?.length > 0 ? (
-                <StartBotSummary obj_id={source.id} />
-              ) : null}
-              {source.summary_history?.length > 0 ? (
-                <ShowSummaryHistory
-                  summaries={source.summary_history}
-                  obj_id={source.id}
-                />
-              ) : null}
-            </Grid>
-          </Grid>
-        </TableCell>
-      </TableRow>
+  const toggleExpand = (id) => {
+    setOpenedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = sources[dataIndex].id;
-    return (
-      <Link
-        to={`/source/${objid}`}
-        key={`${objid}_objid`}
-        data-testid={`${objid}`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <span className={classes.objId}>{objid}</span>
-      </Link>
-    );
+  // helper functions shared by renderers and CSV download
+  const getGroups = (source) => source.groups?.filter((group) => group.active);
+  const navigate = useNavigate();
+
+  const getDate = (source) => {
+    if (!source.groups) {
+      return undefined;
+    }
+    if (groupID !== undefined) {
+      const group = source.groups.find((g) => g.id === groupID);
+      return group?.saved_at;
+    }
+    const dates = source.groups.map((g) => g.saved_at).sort();
+    return dates[dates.length - 1];
   };
 
-  const renderTNSName = (dataIndex) => {
-    const source = sources[dataIndex];
-    if (source.tns_name) {
+  const getSavedBy = (source) => {
+    if (!source.groups) {
+      return undefined;
+    }
+    if (groupID !== undefined) {
+      const group = source.groups.find((g) => g.id === groupID);
+      return group?.saved_by?.username;
+    }
+    const usernames = source.groups
+      .sort((g1, g2) => (g1.saved_at < g2.saved_at ? -1 : 1))
+      .map((g) => g.saved_by?.username);
+    return usernames[usernames.length - 1];
+  };
+
+  // Build the DataGrid column definitions. Each renderCell receives the row
+  // (the source object) directly, replacing mui-datatables' dataIndex lookups.
+  const columns = useMemo(() => {
+    const renderObjId = (params) => {
+      const objid = params.row.id;
       return (
-        <a
-          key={source.tns_name}
-          href={`https://www.wis-tns.org/object/${
-            source.tns_name.trim().includes(" ")
-              ? source.tns_name.split(" ")[1]
-              : source.tns_name
-          }`}
+        <Link
+          to={`/source/${objid}`}
+          key={`${objid}_objid`}
+          data-testid={`${objid}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ whiteSpace: "nowrap" }}
         >
-          {`${source.tns_name} `}
-        </a>
-      );
-    }
-    return null;
-  };
-
-  const renderFavoritesStar = (dataIndex) => {
-    const objid = sources[dataIndex].id;
-    return <FavoritesButton sourceID={objid} />;
-  };
-
-  const renderAlias = (dataIndex) => {
-    const { id: objid, alias } = sources[dataIndex];
-
-    if (alias) {
-      const alias_str = Array.isArray(alias)
-        ? alias.map((name) => <div key={name}> {name} </div>)
-        : alias;
-
-      return (
-        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-          {alias_str}
+          <span className={classes.objId}>{objid}</span>
         </Link>
       );
-    }
-    return null;
-  };
+    };
 
-  const renderOrigin = (dataIndex) => {
-    const { id: objid, origin } = sources[dataIndex];
+    const renderTNSName = (params) => {
+      const source = params.row;
+      if (source.tns_name) {
+        return (
+          <a
+            key={source.tns_name}
+            href={`https://www.wis-tns.org/object/${
+              source.tns_name.trim().includes(" ")
+                ? source.tns_name.split(" ")[1]
+                : source.tns_name
+            }`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {`${source.tns_name} `}
+          </a>
+        );
+      }
+      return null;
+    };
 
-    return (
-      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
-        {origin}
-      </Link>
+    const renderAlias = (params) => {
+      const { id: objid, alias } = params.row;
+      if (alias) {
+        const alias_str = Array.isArray(alias)
+          ? alias.map((name) => <div key={name}> {name} </div>)
+          : alias;
+        return (
+          <Link to={`/source/${objid}`} key={`${objid}_alias`}>
+            {alias_str}
+          </Link>
+        );
+      }
+      return null;
+    };
+
+    const renderOrigin = (params) => {
+      const { id: objid, origin } = params.row;
+      return (
+        <Link to={`/source/${objid}`} key={`${objid}_origin`}>
+          {origin}
+        </Link>
+      );
+    };
+
+    const renderRA = (params) => (
+      <div key={`${params.row.id}_ra`}>{params.row.ra?.toFixed(6)}</div>
     );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-
-  const renderRA = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
-  };
-
-  const renderRASex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
-  };
-
-  const renderDecSex = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
-  };
-
-  const renderGalLon = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
-  };
-
-  const renderGalLat = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
-  };
-
-  const renderHost = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div key={`${source.id}_host`}>{source.host?.name}</div>;
-  };
-
-  const renderHostOffset = (dataIndex) => {
-    const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_host_offset`}>
-        {source.host_offset?.toFixed(3)}
+    const renderRASex = (params) => (
+      <div key={`${params.row.id}_ra_sex`}>{ra_to_hours(params.row.ra)}</div>
+    );
+    const renderDec = (params) => (
+      <div key={`${params.row.id}_dec`}>{params.row.dec?.toFixed(6)}</div>
+    );
+    const renderDecSex = (params) => (
+      <div key={`${params.row.id}_dec_sex`}>{dec_to_dms(params.row.dec)}</div>
+    );
+    const renderGalLon = (params) => (
+      <div key={`${params.row.id}_gal_lon`}>
+        {params.row.gal_lon?.toFixed(6)}
       </div>
     );
-  };
+    const renderGalLat = (params) => (
+      <div key={`${params.row.id}_gal_lat`}>
+        {params.row.gal_lat?.toFixed(6)}
+      </div>
+    );
+    const renderHost = (params) => (
+      <div key={`${params.row.id}_host`}>{params.row.host?.name}</div>
+    );
+    const renderHostOffset = (params) => (
+      <div key={`${params.row.id}_host_offset`}>
+        {params.row.host_offset?.toFixed(3)}
+      </div>
+    );
 
-  const renderClassification = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
+    const renderClassification = (params) => (
       <Suspense
         fallback={
           <div>
@@ -1054,16 +913,12 @@ const SourceTable = ({
         }
       >
         <div>
-          <RenderShowClassification source={source} />
+          <RenderShowClassification source={params.row} />
         </div>
       </Suspense>
     );
-  };
 
-  const renderPhotStats = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
+    const renderPhotStats = (params) => (
       <Suspense
         fallback={
           <div>
@@ -1073,18 +928,14 @@ const SourceTable = ({
       >
         <div>
           <DisplayPhotStats
-            photstats={source.photstats[0]}
+            photstats={params.row.photstats?.[0]}
             display_header={false}
           />
         </div>
       </Suspense>
     );
-  };
 
-  const renderLabelling = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
+    const renderLabelling = (params) => (
       <Suspense
         fallback={
           <div>
@@ -1093,291 +944,554 @@ const SourceTable = ({
         }
       >
         <div>
-          <RenderShowLabelling source={source} />
+          <RenderShowLabelling source={params.row} />
         </div>
       </Suspense>
     );
-  };
 
-  // helper function to get the source groups
-  const getGroups = (source) => source.groups?.filter((group) => group.active);
-  const navigate = useNavigate();
+    const renderGroups = (params) => {
+      const source = params.row;
+      return (
+        <div key={`${source.id}_groups`} className={classes.groupChips}>
+          {(getGroups(source) || []).map((group) => (
+            <div key={group.name}>
+              <Chip
+                label={group.name.substring(0, 15)}
+                key={group.id}
+                size="small"
+                onClick={() => navigate(`/group/${group.id}`)}
+              />
+              <br />
+            </div>
+          ))}
+        </div>
+      );
+    };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderGroups = (dataIndex) => {
-    const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_groups`} className={classes.groupChips}>
-        {getGroups(source).map((group) => (
-          <div key={group.name}>
-            <Chip
-              label={group.name.substring(0, 15)}
-              key={group.id}
-              size="small"
-              onClick={() => navigate(`/group/${group.id}`)}
-            />
-            <br />
-          </div>
-        ))}
+    const renderDateSaved = (params) => (
+      <div key={`${params.row.id}_date_saved`}>
+        {getDate(params.row)?.substring(0, 19)}
       </div>
     );
-  };
 
-  // helper function to get the source saved_at date
-  const getDate = (source) => {
-    if (groupID !== undefined) {
-      const group = source.groups.find((g) => g.id === groupID);
-      return group?.saved_at;
-    }
-    const dates = source.groups.map((g) => g.saved_at).sort();
-    return dates[dates.length - 1];
-  };
-
-  const renderDateSaved = (dataIndex) => {
-    const source = sources[dataIndex];
-
-    return (
-      <div key={`${source.id}_date_saved`}>
-        {getDate(source)?.substring(0, 19)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderFinderButton = (dataIndex) => {
-    const source = sources[dataIndex];
-    return (
-      <IconButton size="small" key={`${source.id}_actions`}>
-        <a href={`/api/sources/${source.id}/finder`}>
+    const renderFinderButton = (params) => (
+      <IconButton size="small" key={`${params.row.id}_actions`}>
+        <a href={`/api/sources/${params.row.id}/finder`}>
           <PictureAsPdfIcon />
         </a>
       </IconButton>
     );
-  };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderSaveIgnore = (dataIndex) => {
-    const source = sources[dataIndex];
-    return (
-      <>
-        <Button
-          secondary
-          size="small"
-          onClick={() => {
-            handleSaveSource(source.id);
-          }}
-          data-testid={`saveSourceButton_${source.id}`}
-        >
-          Save
-        </Button>
-        &nbsp;
-        <Button
-          secondary
-          size="small"
-          onClick={() => {
-            handleIgnoreSource(source.id);
-          }}
-          data-testid={`declineRequestButton_${source.id}`}
-        >
-          Ignore
-        </Button>
-      </>
-    );
-  };
-
-  const renderPeakMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    const photstats = source.photstats[0];
-    if (!photstats) {
-      return <div>No photometry</div>;
-    }
-    return photstats.peak_mag_global ? (
-      <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
-        <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
-
-  const renderLatestMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    const photstats = source.photstats[0];
-    if (!photstats) {
-      return <div>No photometry</div>;
-    }
-    return photstats.last_detected_mag ? (
-      <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
-        <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
-
-  const renderMPCName = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
-  };
-
-  const renderTags = (dataIndex) => {
-    const source = sources[dataIndex];
-    const tags = source.tags || [];
-
-    if (tags.length === 0) {
-      return null;
-    }
-
-    const tagsWithColors = tags.map((tag) => {
-      const tagOption = tagOptions.find(
-        (option) => option.id === tag.objtagoption_id,
-      );
-      return {
-        ...tag,
-        color: tagOption?.color || "#dddfe2",
-      };
-    });
-
-    return (
-      <div key={`${source.id}_tags`} className={classes.groupChips}>
-        {tagsWithColors.map((tag) => (
-          <Chip
-            key={tag.id}
-            label={tag.name}
+    const renderSaveIgnore = (params) => {
+      const source = params.row;
+      return (
+        <>
+          <Button
+            secondary
             size="small"
-            style={{
-              backgroundColor: tag.color,
-              color: getContrastColor(tag.color),
+            onClick={() => {
+              handleSaveSource(source.id);
             }}
+            data-testid={`saveSourceButton_${source.id}`}
+          >
+            Save
+          </Button>
+          &nbsp;
+          <Button
+            secondary
+            size="small"
+            onClick={() => {
+              handleIgnoreSource(source.id);
+            }}
+            data-testid={`declineRequestButton_${source.id}`}
+          >
+            Ignore
+          </Button>
+        </>
+      );
+    };
+
+    const renderPeakMagnitude = (params) => {
+      const photstats = params.row.photstats?.[0];
+      if (!photstats) {
+        return <div>No photometry</div>;
+      }
+      return photstats.peak_mag_global ? (
+        <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
+          <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+        </Tooltip>
+      ) : (
+        <div>No photometry</div>
+      );
+    };
+
+    const renderLatestMagnitude = (params) => {
+      const photstats = params.row.photstats?.[0];
+      if (!photstats) {
+        return <div>No photometry</div>;
+      }
+      return photstats.last_detected_mag ? (
+        <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
+          <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
+        </Tooltip>
+      ) : (
+        <div>No photometry</div>
+      );
+    };
+
+    const renderMPCName = (params) => (
+      <div>{params.row.mpc_name ? params.row.mpc_name : ""}</div>
+    );
+
+    const renderTags = (params) => {
+      const source = params.row;
+      const tags = source.tags || [];
+      if (tags.length === 0) {
+        return null;
+      }
+      const tagsWithColors = tags.map((tag) => {
+        const tagOption = tagOptions.find(
+          (option) => option.id === tag.objtagoption_id,
+        );
+        return {
+          ...tag,
+          color: tagOption?.color || "#dddfe2",
+        };
+      });
+      return (
+        <div key={`${source.id}_tags`} className={classes.groupChips}>
+          {tagsWithColors.map((tag) => (
+            <Chip
+              key={tag.id}
+              label={tag.name}
+              size="small"
+              style={{
+                backgroundColor: tag.color,
+                color: getContrastColor(tag.color),
+              }}
+            />
+          ))}
+        </div>
+      );
+    };
+
+    const renderSavedBy = (params) => getSavedBy(params.row);
+
+    const renderGcnStatus = (params) => {
+      const source = params.row;
+      let statusIcon = null;
+      if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+        statusIcon = <PriorityHigh size="small" color="primary" />;
+      } else if (
+        sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
+      ) {
+        statusIcon = <CheckIcon size="small" color="green" />;
+      } else if (
+        sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed ===
+        false
+      ) {
+        statusIcon = <ClearIcon size="small" color="secondary" />;
+      } else {
+        statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+      }
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          name={`${source.id}_gcn_status`}
+        >
+          {statusIcon}
+          <ConfirmSourceInGCN
+            dateobs={gcnEvent.dateobs}
+            localization_name={sourceInGcnFilter.localizationName}
+            localization_cumprob={sourceInGcnFilter.localizationCumprob}
+            source_id={source.id}
+            start_date={sourceInGcnFilter.startDate}
+            end_date={sourceInGcnFilter.endDate}
+            sources_id_list={sources.map((s) => s.id)}
           />
-        ))}
-      </div>
-    );
-  };
+        </div>
+      );
+    };
 
-  const getSavedBy = (source) => {
-    // Get the user who saved the source to the specified group
-    if (groupID !== undefined) {
-      const group = source.groups.find((g) => g.id === groupID);
-      return group?.saved_by?.username;
+    const renderGcnStatusExplanation = (params) => {
+      const source = params.row;
+      let statusExplanation = null;
+      if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+        statusExplanation = "";
+      } else {
+        statusExplanation = sourcesingcn.filter(
+          (s) => s.obj_id === source.id,
+        )[0].explanation;
+      }
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          name={`${source.id}_gcn_status_explanation`}
+        >
+          {statusExplanation}
+        </div>
+      );
+    };
+
+    const renderGcnNotes = (params) => {
+      const source = params.row;
+      let notes = "";
+      if (sourcesingcn.filter((s) => s.obj_id === source.id).length) {
+        notes = sourcesingcn.filter((s) => s.obj_id === source.id)[0].notes;
+      }
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {notes}
+        </div>
+      );
+    };
+
+    // Leading expand/detail column. For normal rows it renders the expand
+    // toggle; for the synthetic detail rows it renders the pull-out panel,
+    // spanning the full width of the grid via colSpan.
+    const cols = [
+      {
+        field: "__expand",
+        headerName: "",
+        width: 56,
+        sortable: false,
+        filterable: false,
+        hideable: false,
+        disableColumnMenu: true,
+        colSpan: (value, row) => (row.__detail ? 100 : 1),
+        renderCell: (params) => {
+          if (params.row.__detail) {
+            return (
+              <SourceDetailPanel
+                source={params.row.__source}
+                groupID={groupID}
+                taxonomyList={taxonomyList}
+              />
+            );
+          }
+          const expanded = openedRows.includes(params.row.id);
+          return (
+            <IconButton
+              id="expandable-button"
+              size="small"
+              aria-label="expand row"
+              onClick={() => toggleExpand(params.row.id)}
+            >
+              {expanded ? (
+                <KeyboardArrowDownIcon />
+              ) : (
+                <KeyboardArrowRightIcon />
+              )}
+            </IconButton>
+          );
+        },
+      },
+      {
+        field: "id",
+        headerName: "Source ID",
+        flex: 1,
+        minWidth: 120,
+        renderCell: renderObjId,
+      },
+      {
+        field: "tns",
+        headerName: "TNS",
+        flex: 1,
+        minWidth: 90,
+        sortable: false,
+        renderCell: renderTNSName,
+      },
+      {
+        field: "alias",
+        headerName: "Alias",
+        flex: 1,
+        minWidth: 90,
+        renderCell: renderAlias,
+      },
+      {
+        field: "origin",
+        headerName: "Origin",
+        flex: 1,
+        minWidth: 90,
+        renderCell: renderOrigin,
+      },
+      {
+        field: "ra",
+        headerName: "RA (deg)",
+        flex: 1,
+        minWidth: 100,
+        renderCell: renderRA,
+      },
+      {
+        field: "dec",
+        headerName: "Dec (deg)",
+        flex: 1,
+        minWidth: 100,
+        renderCell: renderDec,
+      },
+      {
+        field: "ra_sex",
+        headerName: "RA (hh:mm:ss)",
+        flex: 1,
+        minWidth: 120,
+        renderCell: renderRASex,
+      },
+      {
+        field: "dec_sex",
+        headerName: "Dec (dd:mm:ss)",
+        flex: 1,
+        minWidth: 120,
+        renderCell: renderDecSex,
+      },
+      {
+        field: "l",
+        headerName: "l (deg)",
+        flex: 1,
+        minWidth: 90,
+        renderCell: renderGalLon,
+      },
+      {
+        field: "b",
+        headerName: "b (deg)",
+        flex: 1,
+        minWidth: 90,
+        renderCell: renderGalLat,
+      },
+      {
+        field: "redshift",
+        headerName: "Redshift",
+        flex: 1,
+        minWidth: 90,
+        valueGetter: (value, row) => row.redshift,
+      },
+      {
+        field: "tags",
+        headerName: "Tags",
+        flex: 1,
+        minWidth: 120,
+        maxWidth: 200,
+        sortable: false,
+        renderCell: renderTags,
+      },
+      {
+        field: "classification",
+        headerName: "Classification",
+        flex: 1,
+        minWidth: 120,
+        maxWidth: 200,
+        sortable: false,
+        renderCell: renderClassification,
+      },
+      {
+        field: "host",
+        headerName: "Host",
+        flex: 1,
+        minWidth: 90,
+        renderCell: renderHost,
+      },
+      {
+        field: "host_offset",
+        headerName: "Host Offset (arcsec)",
+        flex: 1,
+        minWidth: 120,
+        renderCell: renderHostOffset,
+      },
+      {
+        field: "photstats",
+        headerName: " ",
+        width: 80,
+        sortable: false,
+        renderCell: renderPhotStats,
+      },
+      {
+        field: "labelling",
+        headerName: "Labelling",
+        flex: 1,
+        minWidth: 120,
+        renderCell: renderLabelling,
+      },
+      {
+        field: "groups",
+        headerName: "Groups",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        renderCell: renderGroups,
+      },
+      {
+        field: "saved_at",
+        headerName: "Saved at",
+        flex: 1,
+        minWidth: 150,
+        renderCell: renderDateSaved,
+      },
+      {
+        field: "saved_by",
+        headerName: groupID ? "Saved To Group By" : "Last Saved By",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        renderCell: renderSavedBy,
+      },
+      {
+        field: "peak_mag",
+        headerName: "Peak Magnitude",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        renderCell: renderPeakMagnitude,
+      },
+      {
+        field: "latest_mag",
+        headerName: "Latest Magnitude",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        renderCell: renderLatestMagnitude,
+      },
+      {
+        field: "mpc_name",
+        headerName: "MPC Name",
+        flex: 1,
+        minWidth: 100,
+        sortable: false,
+        renderCell: renderMPCName,
+      },
+      {
+        field: "favorites",
+        headerName: " ",
+        width: 80,
+        sortable: false,
+        renderCell: (params) => <FavoritesButton sourceID={params.row.id} />,
+      },
+      {
+        field: "finder",
+        headerName: "Finder",
+        width: 80,
+        sortable: false,
+        renderCell: renderFinderButton,
+      },
+    ];
+
+    if (includeGcnStatus) {
+      // Insert GCN columns right after the classification column, matching the
+      // previous splice positions.
+      const insertAt = cols.findIndex((c) => c.field === "classification") + 1;
+      cols.splice(
+        insertAt,
+        0,
+        {
+          field: "gcn_status",
+          headerName: "GCN Status",
+          flex: 1,
+          minWidth: 110,
+          renderCell: renderGcnStatus,
+        },
+        {
+          field: "gcn_explanation",
+          headerName: "Explanation",
+          flex: 1,
+          minWidth: 120,
+          sortable: false,
+          renderCell: renderGcnStatusExplanation,
+        },
+        {
+          field: "gcn_notes",
+          headerName: "Notes",
+          flex: 1,
+          minWidth: 120,
+          sortable: false,
+          renderCell: renderGcnNotes,
+        },
+      );
     }
-    // Otherwise, get whoever saved it last
-    const usernames = source.groups
-      .sort((g1, g2) => (g1.saved_at < g2.saved_at ? -1 : 1))
-      .map((g) => g.saved_by?.username);
-    return usernames[usernames.length - 1];
-  };
 
-  const renderSavedBy = (dataIndex) => {
-    const source = sources[dataIndex];
-    return getSavedBy(source);
-  };
-
-  const renderGcnStatus = (dataIndex) => {
-    const source = sources[dataIndex];
-    let statusIcon = null;
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusIcon = <PriorityHigh size="small" color="primary" />;
-    } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
-    ) {
-      statusIcon = <CheckIcon size="small" color="green" />;
-    } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === false
-    ) {
-      statusIcon = <ClearIcon size="small" color="secondary" />;
-    } else {
-      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+    if (sourceStatus === "requested") {
+      cols.push({
+        field: "save_decline",
+        headerName: "Save/Decline",
+        flex: 1,
+        minWidth: 140,
+        sortable: false,
+        renderCell: renderSaveIgnore,
+      });
     }
 
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        name={`${source.id}_gcn_status`}
-      >
-        {statusIcon}
-        <ConfirmSourceInGCN
-          dateobs={gcnEvent.dateobs}
-          localization_name={sourceInGcnFilter.localizationName}
-          localization_cumprob={sourceInGcnFilter.localizationCumprob}
-          source_id={source.id}
-          start_date={sourceInGcnFilter.startDate}
-          end_date={sourceInGcnFilter.endDate}
-          sources_id_list={sources.map((s) => s.id)}
-        />
-      </div>
-    );
-  };
+    return cols;
+  }, [
+    classes,
+    navigate,
+    taxonomyList,
+    tagOptions,
+    sourcesingcn,
+    gcnEvent,
+    sourceInGcnFilter,
+    sources,
+    groupID,
+    includeGcnStatus,
+    sourceStatus,
+    openedRows,
+  ]);
 
-  const renderGcnStatusExplanation = (dataIndex) => {
-    const source = sources[dataIndex];
-    let statusExplanation = null;
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusExplanation = "";
-    } else {
-      statusExplanation = sourcesingcn.filter((s) => s.obj_id === source.id)[0]
-        .explanation;
-    }
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        name={`${source.id}_gcn_status_explanation`}
-      >
-        {statusExplanation}
-      </div>
-    );
-  };
+  // Interleave a synthetic detail row after each expanded source. getRowHeight
+  // returns "auto" for those rows so the pull-out content sizes itself.
+  const displayRows = useMemo(() => {
+    const out = [];
+    (sources || []).forEach((source) => {
+      out.push(source);
+      if (openedRows.includes(source.id)) {
+        out.push({
+          id: `${source.id}__detail`,
+          __detail: true,
+          __source: source,
+        });
+      }
+    });
+    return out;
+  }, [sources, openedRows]);
 
-  const renderGcnNotes = (dataIndex) => {
-    const source = sources[dataIndex];
-    let notes = "";
-    if (sourcesingcn.filter((s) => s.obj_id === source.id).length) {
-      notes = sourcesingcn.filter((s) => s.obj_id === source.id)[0].notes;
-    }
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {notes}
-      </div>
-    );
-  };
+  const getRowHeight = useCallback(
+    (params) => (params.model.__detail ? "auto" : null),
+    [],
+  );
 
-  const handleSearchChange = (searchText) => {
+  const handleSearchChange = (text) => {
     const data = {
       ...filterFormData,
     };
     if (searchBy === "name") {
-      data.sourceID = searchText;
+      data.sourceID = text;
       delete data.commentsFilter;
     } else if (searchBy === "comment") {
-      data.commentsFilter = searchText;
+      data.commentsFilter = text;
       delete data.sourceID;
     } else {
       dispatch(showNotification("Invalid searchBy parameter", "error"));
     }
+    setLoading(true);
     paginateCallback(1, rowsPerPage, {}, data);
     setFilterFormData(data);
   };
 
   const handleFilterSubmit = async (formData) => {
-    setQueryInProgress(true);
-
+    setLoading(true);
     // Remove empty position
     if (
       !formData.position.ra &&
@@ -1415,618 +1529,207 @@ const SourceTable = ({
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
     setFilterFormSubmitted(true);
+    setFilterOpen(false);
   };
 
-  const handleTableFilterChipChange = (column, filterList, type) => {
-    setQueryInProgress(true);
-
-    if (type === "chip") {
-      const sourceFilterList = filterList[0];
-      // Convert chip filter list to filter form data
-      const data = {};
-      sourceFilterList?.forEach((filterChip) => {
-        const [key, value] = filterChip.split(": ");
-        if (key === "position") {
-          [data.ra, data.dec, data.radius] = value.split(/\s*\(\D*\),*\s*/);
-        } else {
-          data[key] = value;
-        }
-      });
-
-      dispatch(sourcesActions.fetchSources(data)).then((response) => {
-        if (response.status === "success") {
-          setTableFilterList(sourceFilterList);
-          setFilterFormData(data);
-        } else {
-          setTableFilterList([]);
-          setFilterFormData([]);
-        }
-      });
-      paginateCallback(1, rowsPerPage, {}, data);
-    }
+  const handleFilterChipDelete = (chip) => {
+    const remaining = tableFilterList.filter((c) => c !== chip);
+    const data = {};
+    remaining.forEach((filterChip) => {
+      const [key, value] = filterChip.split(": ");
+      if (key === "position") {
+        [data.ra, data.dec, data.radius] = value.split(/\s*\(\D*\),*\s*/);
+      } else {
+        data[key] = value;
+      }
+    });
+    setTableFilterList(remaining);
+    setFilterFormData(data);
+    setLoading(true);
+    paginateCallback(1, rowsPerPage, {}, data);
   };
 
   const handleClose = () => {
     setOpenNew(false);
   };
 
-  const customFilterDisplay = () =>
-    filterFormSubmitted ? (
-      <div className={classes.filterAlert}>
-        <InfoIcon /> &nbsp; Filters submitted to server!
-      </div>
-    ) : (
-      <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
-    );
-  const columns = [
-    {
-      name: "id",
-      label: "Source ID",
-      options: {
-        // Hijack custom filtering for this column to use for the entire form
-        filter: true,
-        filterType: "custom",
-        filterList: tableFilterList,
-        filterOptions: {
-          display: () => <></>,
-        },
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Source ID"),
-        customBodyRenderLite: renderObjId,
-      },
-    },
-    {
-      name: "TNS",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderTNSName,
-        display: displayedColumns.includes("TNS"),
-      },
-    },
-    {
-      name: "alias",
-      label: "Alias",
-      options: {
-        filter: true,
-        sort: true,
-        display: displayedColumns.includes("Alias"),
-        customBodyRenderLite: renderAlias,
-      },
-    },
-    {
-      name: "origin",
-      label: "Origin",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Origin"),
-        customBodyRenderLite: renderOrigin,
-      },
-    },
-    {
-      name: "ra",
-      label: "RA (deg)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("RA (deg)"),
-        customBodyRenderLite: renderRA,
-      },
-    },
-    {
-      name: "dec",
-      label: "Dec (deg)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Dec (deg)"),
-        customBodyRenderLite: renderDec,
-      },
-    },
-    {
-      name: "ra",
-      label: "RA (hh:mm:ss)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("RA (hh:mm:ss)"),
-        customBodyRenderLite: renderRASex,
-      },
-    },
-    {
-      name: "dec",
-      label: "Dec (dd:mm:ss)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Dec (dd:mm:ss)"),
-        customBodyRenderLite: renderDecSex,
-      },
-    },
-    {
-      name: "l",
-      label: "l (deg)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("l (deg)"),
-        customBodyRenderLite: renderGalLon,
-      },
-    },
-    {
-      name: "b",
-      label: "b (deg)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("b (deg)"),
-        customBodyRenderLite: renderGalLat,
-      },
-    },
-    {
-      name: "redshift",
-      label: "Redshift",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Redshift"),
-      },
-    },
-    {
-      name: "tags",
-      label: "Tags",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes("Tags"),
-        customBodyRenderLite: renderTags,
-        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
-      },
-    },
-    {
-      name: "classification",
-      label: "Classification",
-      options: {
-        filter: false,
-        sort: false,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Classification"),
-        customBodyRenderLite: renderClassification,
-        setCellProps: () => ({ style: { maxWidth: "min(150px, 20vw)" } }),
-      },
-    },
-    {
-      name: "host",
-      label: "Host",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Host"),
-        customBodyRenderLite: renderHost,
-      },
-    },
-    {
-      name: "host_offset",
-      label: "Host Offset (arcsec)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Host Offset (arcsec)"),
-        customBodyRenderLite: renderHostOffset,
-      },
-    },
-    {
-      name: "photstats",
-      label: " ",
-      options: {
-        filter: false,
-        sort: false,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes(" "),
-        customBodyRenderLite: renderPhotStats,
-        setCellProps: () => ({ style: { maxWidth: "5rem" } }),
-      },
-    },
-    {
-      name: "labelling",
-      label: "Labelling",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Labelling"),
-        customBodyRenderLite: renderLabelling,
-      },
-    },
-    {
-      name: "groups",
-      label: "Groups",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes("Groups"),
-        customBodyRenderLite: renderGroups,
-      },
-    },
-    {
-      name: "saved_at",
-      label: "Saved at",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        display: displayedColumns.includes("Saved at"),
-        customBodyRenderLite: renderDateSaved,
-      },
-    },
-    {
-      name: "saved_by",
-      label: groupID ? "Saved To Group By" : "Last Saved By",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes(
-          groupID ? "Saved To Group By" : "Last Saved By",
-        ),
-        customBodyRenderLite: renderSavedBy,
-      },
-    },
-    {
-      name: "Peak Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderPeakMagnitude,
-        display: displayedColumns.includes("Peak Magnitude"),
-      },
-    },
-    {
-      name: "Latest Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderLatestMagnitude,
-        display: displayedColumns.includes("Latest Magnitude"),
-      },
-    },
-    {
-      name: "MPC Name",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderMPCName,
-        display: displayedColumns.includes("MPC Name"),
-      },
-    },
-    {
-      name: "favorites",
-      label: " ",
-      options: {
-        display: displayedColumns.includes("Favorites"),
-        customBodyRenderLite: renderFavoritesStar,
-        setCellProps: () => ({ style: { maxWidth: "5rem" } }),
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes("Finder"),
-        customBodyRenderLite: renderFinderButton,
-      },
-    },
-  ];
-
-  if (includeGcnStatus) {
-    columns.splice(10, 0, {
-      name: "gcn_status",
-      label: "GCN Status",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGcnStatus,
-        display: displayedColumns.includes("GCN Status"),
-      },
-    });
-    columns.splice(11, 0, {
-      name: "gcn_explanation",
-      label: "Explanation",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderGcnStatusExplanation,
-        display: displayedColumns.includes("Explanation"),
-      },
-    });
-    columns.splice(12, 0, {
-      name: "gcn_notes",
-      label: "Notes",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderGcnNotes,
-        display: displayedColumns.includes("Notes"),
-      },
-    });
-  }
-
-  const options = {
-    ...(fixedHeader
-      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
-      : {}),
-    draggableColumns: { enabled: true },
-    expandableRows: true,
-    renderExpandableRow: renderPullOutRow,
-    selectableRows: "none",
-    sort: true,
-    onTableChange: handleTableChange,
-    serverSide: true,
-    rowsPerPage: numPerPage,
-    page: pageNumber - 1,
-    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
-    jumpToPage: true,
-    pagination: true,
-    count: totalMatches,
-    filter: true,
-    customFilterDialogFooter: customFilterDisplay,
-    onFilterChange: handleTableFilterChipChange,
-    onFilterDialogOpen: () => setFilterFormSubmitted(false),
-    search: true,
-    onSearchChange: handleSearchChange,
-    download: downloadCallback !== null && downloadCallback !== undefined,
-    customToolbar: () => (
-      <>
-        <Select
-          label="Search by"
-          variant="standard"
-          value={searchBy}
-          onChange={(event) => {
-            setSearchBy(event.target.value);
-          }}
-          style={{ marginLeft: "10px" }}
-          size="small"
-        >
-          <MenuItem value="name">ID/IAU</MenuItem>
-          <MenuItem value="comment">Comment</MenuItem>
-        </Select>
-        <IconButton
-          name="new_source"
-          onClick={() => {
-            setOpenNew(true);
-          }}
-        >
-          <AddIcon />
-        </IconButton>
-      </>
-    ),
-    rowsExpanded: openedRows,
-    onRowExpansionChange: (_, allRowsExpanded) => {
-      setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
-    },
-    onDownload: (buildHead, buildBody) => {
-      const renderDownloadClassification = (source) => {
-        const classifications = [];
-        source?.classifications.forEach((x) => {
-          classifications.push(x.classification);
+  const handleDownload = () => {
+    const renderDownloadClassification = (source) =>
+      (source?.classifications || []).map((x) => x.classification).join(";");
+    const renderDownloadProbability = (source) =>
+      (source?.classifications || []).map((x) => x.probability).join(";");
+    const renderDownloadAnnotationKey = (source) => {
+      const annotationKeys = [];
+      source?.annotations.forEach((x) => {
+        Object.entries(x.data).forEach((keyValuePair) => {
+          annotationKeys.push(keyValuePair[0]);
         });
-        return classifications.join(";");
-      };
-      const renderDownloadProbability = (source) => {
-        const probabilities = [];
-        source?.classifications.forEach((x) => {
-          probabilities.push(x.probability);
-        });
-        return probabilities.join(";");
-      };
-      const renderDownloadAnnotationKey = (source) => {
-        const annotationKeys = [];
-        source?.annotations.forEach((x) => {
-          Object.entries(x.data).forEach((keyValuePair) => {
-            annotationKeys.push(keyValuePair[0]);
-          });
-        });
-        return annotationKeys.join(";");
-      };
-      const renderDownloadAnnotationOrigin = (source) => {
-        const annotationOrigins = [];
-        source?.annotations.forEach((x) => {
-          annotationOrigins.push(x.origin);
-        });
-        return annotationOrigins.join(";");
-      };
-      const renderDownloadAnnotationOriginKeyValuePairCount = (source) => {
-        const annotationOriginsKeyValuePairCount = [];
-        source?.annotations.forEach((x) => {
-          annotationOriginsKeyValuePairCount.push(
-            Object.entries(x.data).length,
-          );
-        });
-        return annotationOriginsKeyValuePairCount.join(";");
-      };
-      const renderDownloadAnnotationValue = (source) => {
-        const annotationValues = [];
-        source?.annotations.forEach((x) => {
-          Object.entries(x.data).forEach((keyValuePair) => {
-            annotationValues.push(keyValuePair[1]);
-          });
-        });
-        return annotationValues.join(";");
-      };
-      const renderDownloadGroups = (source) => {
-        const groups = [];
-        source?.groups.forEach((x) => {
-          groups.push(x.name);
-        });
-        return groups.join(";");
-      };
-
-      const renderDownloadDateSaved = (source) =>
-        getDate(source)?.substring(0, 19);
-
-      const renderDownloadAlias = (source) => {
-        const alias = source?.alias;
-        let alias_str = "";
-        if (alias) {
-          alias_str = Array.isArray(alias) ? alias.join(";") : alias;
-        }
-        return alias_str;
-      };
-      const renderDownloadTNSName = (source) =>
-        source?.tns_name ? source.tns_name : "";
-
-      downloadCallback().then((data) => {
-        // if there is no data, cancel download
-        if (data?.length > 0) {
-          const head = [
-            {
-              name: "id",
-              download: true,
-            },
-            {
-              name: "ra [deg]",
-              download: true,
-            },
-            {
-              name: "dec [deg]",
-              download: true,
-            },
-            {
-              name: "redshift",
-              download: true,
-            },
-            {
-              name: "classification",
-              download: true,
-            },
-            {
-              name: "probability",
-              download: true,
-            },
-            {
-              name: "annotation origin",
-              download: true,
-            },
-            {
-              name: "annotation origin key-value pair count",
-              download: true,
-            },
-            {
-              name: "annotation key",
-              download: true,
-            },
-            {
-              name: "annotation value",
-              download: true,
-            },
-            {
-              name: "groups",
-              download: true,
-            },
-            {
-              name: "Saved at",
-              download: true,
-            },
-            {
-              name: "Alias",
-              download: true,
-            },
-            {
-              name: "Origin",
-              download: true,
-            },
-            {
-              name: "TNS",
-              download: true,
-            },
-          ];
-          if (includeGcnStatus) {
-            head.push({
-              name: "GCN Status",
-              download: true,
-            });
-            head.push({
-              name: "Explanation",
-              download: true,
-            });
-            head.push({
-              name: "Notes",
-              download: true,
-            });
-          }
-
-          const formatDataFunc = (x) => {
-            const formattedData = [
-              x.id,
-              x.ra,
-              x.dec,
-              x.redshift,
-              renderDownloadClassification(x),
-              renderDownloadProbability(x),
-              renderDownloadAnnotationOrigin(x),
-              renderDownloadAnnotationOriginKeyValuePairCount(x),
-              renderDownloadAnnotationKey(x),
-              renderDownloadAnnotationValue(x),
-              renderDownloadGroups(x),
-              renderDownloadDateSaved(x),
-              renderDownloadAlias(x),
-              x.origin,
-              renderDownloadTNSName(x),
-            ];
-            if (includeGcnStatus) {
-              formattedData.push(x.gcn ? x.gcn.status : "");
-              formattedData.push(x.gcn ? x.gcn.explanation : "");
-              formattedData.push(x.gcn ? x.gcn.notes : "");
-            }
-            return formattedData;
-          };
-
-          const result =
-            buildHead(head) +
-            buildBody(
-              data.map((x) => ({
-                ...x,
-                data: formatDataFunc(x),
-              })),
-            );
-          const blob = new Blob([result], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", "sources.csv");
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
       });
-      return false;
-    },
+      return annotationKeys.join(";");
+    };
+    const renderDownloadAnnotationOrigin = (source) =>
+      (source?.annotations || []).map((x) => x.origin).join(";");
+    const renderDownloadAnnotationOriginKeyValuePairCount = (source) =>
+      (source?.annotations || [])
+        .map((x) => Object.entries(x.data).length)
+        .join(";");
+    const renderDownloadAnnotationValue = (source) => {
+      const annotationValues = [];
+      source?.annotations.forEach((x) => {
+        Object.entries(x.data).forEach((keyValuePair) => {
+          annotationValues.push(keyValuePair[1]);
+        });
+      });
+      return annotationValues.join(";");
+    };
+    const renderDownloadGroups = (source) =>
+      (source?.groups || []).map((x) => x.name).join(";");
+    const renderDownloadDateSaved = (source) =>
+      getDate(source)?.substring(0, 19);
+    const renderDownloadAlias = (source) => {
+      const { alias } = source || {};
+      if (alias) {
+        return Array.isArray(alias) ? alias.join(";") : alias;
+      }
+      return "";
+    };
+    const renderDownloadTNSName = (source) => source?.tns_name || "";
+
+    downloadCallback().then((data) => {
+      if (!data?.length) {
+        return;
+      }
+      const head = [
+        "id",
+        "ra [deg]",
+        "dec [deg]",
+        "redshift",
+        "classification",
+        "probability",
+        "annotation origin",
+        "annotation origin key-value pair count",
+        "annotation key",
+        "annotation value",
+        "groups",
+        "Saved at",
+        "Alias",
+        "Origin",
+        "TNS",
+      ];
+      if (includeGcnStatus) {
+        head.push("GCN Status", "Explanation", "Notes");
+      }
+
+      const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+      const rows = data.map((x) => {
+        const cells = [
+          x.id,
+          x.ra,
+          x.dec,
+          x.redshift,
+          renderDownloadClassification(x),
+          renderDownloadProbability(x),
+          renderDownloadAnnotationOrigin(x),
+          renderDownloadAnnotationOriginKeyValuePairCount(x),
+          renderDownloadAnnotationKey(x),
+          renderDownloadAnnotationValue(x),
+          renderDownloadGroups(x),
+          renderDownloadDateSaved(x),
+          renderDownloadAlias(x),
+          x.origin,
+          renderDownloadTNSName(x),
+        ];
+        if (includeGcnStatus) {
+          cells.push(
+            x.gcn ? x.gcn.status : "",
+            x.gcn ? x.gcn.explanation : "",
+            x.gcn ? x.gcn.notes : "",
+          );
+        }
+        return cells.map(csvCell).join(",");
+      });
+
+      const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
+      const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "sources.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
   };
 
-  if (sourceStatus === "requested") {
-    columns.push({
-      name: "Save/Decline",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderSaveIgnore,
+  const showDownload =
+    downloadCallback !== null && downloadCallback !== undefined;
+
+  const CustomToolbar = useMemo(
+    () =>
+      function SourceTableToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <Tooltip title="Filter Table">
+              <IconButton
+                size="small"
+                data-testid="Filter Table-iconButton"
+                onClick={() => {
+                  setFilterFormSubmitted(false);
+                  setFilterOpen(true);
+                }}
+              >
+                <FilterListIcon />
+              </IconButton>
+            </Tooltip>
+            <Select
+              label="Search by"
+              variant="standard"
+              value={searchBy}
+              onChange={(event) => setSearchBy(event.target.value)}
+              style={{ marginLeft: "10px" }}
+              size="small"
+            >
+              <MenuItem value="name">ID/IAU</MenuItem>
+              <MenuItem value="comment">Comment</MenuItem>
+            </Select>
+            <TextField
+              variant="standard"
+              size="small"
+              placeholder="Search"
+              value={searchText}
+              onChange={(event) => {
+                setSearchText(event.target.value);
+                handleSearchChange(event.target.value);
+              }}
+            />
+            <IconButton
+              name="new_source"
+              size="small"
+              onClick={() => setOpenNew(true)}
+            >
+              <AddIcon />
+            </IconButton>
+            {showDownload && (
+              <Tooltip title="Download CSV">
+                <IconButton
+                  size="small"
+                  aria-label="Download CSV"
+                  data-testid="download-sources-button"
+                  onClick={handleDownload}
+                >
+                  <DownloadIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </GridToolbarContainer>
+        );
       },
-    });
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchBy, searchText, showDownload],
+  );
 
   return (
     <div className={classes.source} data-testid={`source_table_${title}`}>
@@ -2038,24 +1741,70 @@ const SourceTable = ({
           justifyContent="flex-start"
           spacing={3}
         >
-          {queryInProgress ? (
-            <Grid>
-              <CircularProgress />
-            </Grid>
-          ) : (
-            <Grid className={classes.tableGrid}>
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title={title}
-                  columns={columns}
-                  data={sources}
-                  options={options}
-                />
-              </ThemeProvider>
-            </Grid>
-          )}
+          <Grid className={classes.tableGrid}>
+            {title && (
+              <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+                {title}
+              </Typography>
+            )}
+            {tableFilterList.length > 0 && (
+              <div className={classes.filterChips}>
+                {tableFilterList.map((chip) => (
+                  <Chip
+                    key={chip}
+                    label={chip}
+                    size="small"
+                    onDelete={() => handleFilterChipDelete(chip)}
+                  />
+                ))}
+              </div>
+            )}
+            <Box
+              sx={{
+                height: fixedHeader ? "calc(100vh - 201px)" : "65vh",
+                width: "100%",
+              }}
+            >
+              <StyledDataGrid
+                rows={displayRows}
+                columns={columns}
+                loading={loading}
+                getRowHeight={getRowHeight}
+                columnVisibilityModel={columnVisibilityModel}
+                onColumnVisibilityModelChange={setColumnVisibilityModel}
+                paginationMode="server"
+                sortingMode="server"
+                rowCount={totalMatches}
+                paginationModel={{
+                  page: pageNumber - 1,
+                  pageSize: rowsPerPage,
+                }}
+                onPaginationModelChange={handlePaginationModelChange}
+                sortModel={sortModel}
+                onSortModelChange={handleSortModelChange}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                disableColumnFilter
+                // Keep all columns mounted so colSpan on the detail row works;
+                // row virtualization stays on, which is the performance win.
+                columnBufferPx={3000}
+                slots={{ toolbar: CustomToolbar }}
+                showToolbar
+              />
+            </Box>
+          </Grid>
         </Grid>
       </div>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>
+          {filterFormSubmitted ? (
+            <div className={classes.filterAlert}>
+              <InfoIcon /> &nbsp; Filters submitted to server!
+            </div>
+          ) : (
+            <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+          )}
+        </DialogContent>
+      </Dialog>
       <div>
         {openNew && (
           <Dialog open={openNew} onClose={handleClose} maxWidth="md">
