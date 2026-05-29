@@ -6,7 +6,7 @@ directly as text. The ciphertext is already valid UTF-8, so `convert_from(...,
 'UTF8')` round-trips losslessly.
 
 Revision ID: c4a7f8e9b2d1
-Revises: 6928ae655672
+Revises: bea830983575
 Create Date: 2026-05-22 13:00:00.000000
 
 """
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c4a7f8e9b2d1"
-down_revision = "6928ae655672"
+down_revision = "bea830983575"
 branch_labels = None
 depends_on = None
 

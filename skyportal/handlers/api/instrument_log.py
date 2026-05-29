@@ -4,12 +4,12 @@ import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
 from sqlalchemy.orm import undefer
-from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 

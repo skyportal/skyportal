@@ -2,11 +2,11 @@ import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import desc, func
-from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token
 
 from ....models import Candidate, Source, User
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}

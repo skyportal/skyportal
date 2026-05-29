@@ -1,5 +1,4 @@
 import sqlalchemy as sa
-from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -7,6 +6,7 @@ from baselayer.log import make_log
 from ...models import Obj, Source
 from ...utils.asynchronous import run_async
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/source_groups")

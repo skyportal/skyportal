@@ -4,11 +4,11 @@ from collections import defaultdict
 import tornado.web
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
-from utils.naive_datetime import utcnow_naive
 
 from baselayer.app.access import auth_or_token
 
 from ....models import Obj, ObjTag, SourceView, serialize_obj_tag
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {
