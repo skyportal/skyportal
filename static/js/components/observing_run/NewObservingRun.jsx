@@ -3,11 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import Paper from "../Paper";
 import { submitObservingRun } from "../../ducks/observingRun";
 
 dayjs.extend(utc);
@@ -78,11 +80,14 @@ const NewObservingRun = () => {
   };
 
   return (
-    <Form
-      schema={observingRunFormSchema}
-      validator={validator}
-      onSubmit={handleSubmit}
-    />
+    <Paper>
+      <Typography variant="h6">Add a New Observing Run</Typography>
+      <Form
+        schema={observingRunFormSchema}
+        validator={validator}
+        onSubmit={handleSubmit}
+      />
+    </Paper>
   );
 };
 
