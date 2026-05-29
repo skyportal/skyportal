@@ -1441,36 +1441,57 @@ def add_external_photometry(
 
                 updated = False
                 # posting to new groups?
-                if len(set(group_ids) - duplicate_group_ids) > 0:
-                    # select old + new groups
-                    group_ids_update = set(group_ids).union(duplicate_group_ids)
-                    groups = (
-                        session.execute(
-                            sa.select(Group).filter(Group.id.in_(group_ids_update))
-                        )
-                        .scalars()
-                        .all()
+                # Use INSERT ... ON CONFLICT DO NOTHING against
+                # group_photometry's unique (group_id, photometr_id)
+                # index rather than ORM collection assignment. ORM
+                # cascade emits plain INSERTs that lose to concurrent
+                # posts racing on the same row + same new group; ON
+                # CONFLICT makes the attach idempotent.
+                group_ids_to_add = set(group_ids) - duplicate_group_ids
+                if group_ids_to_add:
+                    now = datetime.datetime.utcnow()
+                    gp_rows = [
+                        {
+                            "group_id": gid,
+                            "photometr_id": duplicate.id,
+                            "created_at": now,
+                            "modified": now,
+                        }
+                        for gid in group_ids_to_add
+                    ]
+                    gp_stmt = pg_insert(GroupPhotometry).values(gp_rows)
+                    gp_stmt = gp_stmt.on_conflict_do_nothing(
+                        index_elements=["group_id", "photometr_id"]
                     )
-                    # update the corresponding photometry entry in the db
-                    duplicate.groups = groups
+                    session.execute(gp_stmt)
                     log(
-                        f"Adding groups {group_ids_update} to photometry {duplicate.id}"
+                        f"Adding groups {group_ids_to_add} to photometry {duplicate.id}"
                     )
                     updated = True
 
                 # posting to new streams?
+                # Same ON CONFLICT DO NOTHING pattern as groups above.
                 if stream_ids:
-                    # Add new stream_photometry rows if not already present
-                    stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                    if len(stream_ids_update) > 0:
-                        for id in stream_ids_update:
-                            session.add(
-                                StreamPhotometry(
-                                    photometr_id=duplicate.id, stream_id=id
-                                )
-                            )
+                    stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
+                    if stream_ids_to_add:
+                        now = datetime.datetime.utcnow()
+                        sp_rows = [
+                            {
+                                "stream_id": sid,
+                                "photometr_id": duplicate.id,
+                                "created_at": now,
+                                "modified": now,
+                            }
+                            for sid in stream_ids_to_add
+                        ]
+                        sp_stmt = pg_insert(StreamPhotometry).values(sp_rows)
+                        sp_stmt = sp_stmt.on_conflict_do_nothing(
+                            index_elements=["stream_id", "photometr_id"]
+                        )
+                        session.execute(sp_stmt)
                         log(
-                            f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
+                            f"Adding streams {stream_ids_to_add} to photometry "
+                            f"{duplicate.id}"
                         )
                         updated = True
 
@@ -1795,35 +1816,57 @@ class PhotometryHandler(BaseHandler):
                     duplicate_stream_ids = {s.id for s in duplicate.streams}
 
                     # posting to new groups?
-                    if len(set(group_ids) - duplicate_group_ids) > 0:
-                        # select old + new groups
-                        group_ids_update = set(group_ids).union(duplicate_group_ids)
-                        groups = (
-                            session.execute(
-                                sa.select(Group).filter(Group.id.in_(group_ids_update))
-                            )
-                            .scalars()
-                            .all()
+                    # Use INSERT ... ON CONFLICT DO NOTHING against
+                    # group_photometry's unique (group_id, photometr_id)
+                    # index rather than ORM collection assignment. ORM
+                    # cascade emits plain INSERTs that lose to concurrent
+                    # PUTs racing on the same row + same new group; ON
+                    # CONFLICT makes the attach idempotent.
+                    group_ids_to_add = set(group_ids) - duplicate_group_ids
+                    if group_ids_to_add:
+                        now = datetime.datetime.utcnow()
+                        gp_rows = [
+                            {
+                                "group_id": gid,
+                                "photometr_id": duplicate.id,
+                                "created_at": now,
+                                "modified": now,
+                            }
+                            for gid in group_ids_to_add
+                        ]
+                        gp_stmt = pg_insert(GroupPhotometry).values(gp_rows)
+                        gp_stmt = gp_stmt.on_conflict_do_nothing(
+                            index_elements=["group_id", "photometr_id"]
                         )
-                        # update the corresponding photometry entry in the db
-                        duplicate.groups = groups
+                        session.execute(gp_stmt)
                         log(
-                            f"Adding groups {group_ids_update} to photometry {duplicate.id}"
+                            f"Adding groups {group_ids_to_add} to photometry "
+                            f"{duplicate.id}"
                         )
 
                     # posting to new streams?
+                    # Same ON CONFLICT DO NOTHING pattern as groups above.
                     if stream_ids:
-                        # Add new stream_photometry rows if not already present
-                        stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                        if len(stream_ids_update) > 0:
-                            for id in stream_ids_update:
-                                session.add(
-                                    StreamPhotometry(
-                                        photometr_id=duplicate.id, stream_id=id
-                                    )
-                                )
+                        stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
+                        if stream_ids_to_add:
+                            now = datetime.datetime.utcnow()
+                            sp_rows = [
+                                {
+                                    "stream_id": sid,
+                                    "photometr_id": duplicate.id,
+                                    "created_at": now,
+                                    "modified": now,
+                                }
+                                for sid in stream_ids_to_add
+                            ]
+                            sp_stmt = pg_insert(StreamPhotometry).values(sp_rows)
+                            sp_stmt = sp_stmt.on_conflict_do_nothing(
+                                index_elements=["stream_id", "photometr_id"]
+                            )
+                            session.execute(sp_stmt)
                             log(
-                                f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
+                                f"Adding streams {stream_ids_to_add} to photometry "
+                                f"{duplicate.id}"
                             )
 
                     # update duplicate's flux and fluxerr if we are ignoring flux deduplication
