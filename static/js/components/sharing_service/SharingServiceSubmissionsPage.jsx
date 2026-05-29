@@ -17,15 +17,17 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import Tooltip from "@mui/material/Tooltip";
 
-import MUIDataTable from "mui-datatables";
 import ReactJson from "react-json-view";
 
+import StyledDataGrid from "../StyledDataGrid";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
 import * as sharingServicesActions from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
 import Box from "@mui/material/Box";
+
+const PAGE_SIZE_OPTIONS = [1, 25, 50, 100, 200];
 
 function getStatusColors(status) {
   if (status.toLowerCase().startsWith("complete")) {
@@ -75,17 +77,9 @@ const SharingServiceSubmissionsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, page, rowsPerPage, id]);
 
-  const handleTableChange = (action, tableState) => {
-    switch (action) {
-      case "changePage":
-        setPage(tableState.page + 1);
-        break;
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        break;
-      default:
-        break;
-    }
+  const handlePaginationModelChange = (model) => {
+    setPage(model.page + 1);
+    setRowsPerPage(model.pageSize);
   };
 
   const usersLookup = {};
@@ -96,7 +90,7 @@ const SharingServiceSubmissionsPage = () => {
   }
 
   const handleStatusRender = (status) => {
-    if (!status) return;
+    if (!status) return null;
     const colors = getStatusColors(status);
     return (
       <Typography
@@ -115,9 +109,8 @@ const SharingServiceSubmissionsPage = () => {
     );
   };
 
-  const renderTnsInfo = (dataIndex) => {
-    const { tns_name, tns_submission_id, tns_payload } =
-      sharingServiceSubmissions[dataIndex];
+  const renderTnsInfo = (params) => {
+    const { tns_name, tns_submission_id, tns_payload } = params.row;
 
     return (
       <Box
@@ -153,7 +146,7 @@ const SharingServiceSubmissionsPage = () => {
           <Tooltip title="TNS payload">
             <IconButton
               onClick={() => {
-                setShowTNSPayload(dataIndex);
+                setShowTNSPayload(params.row);
               }}
             >
               <HistoryEduIcon />
@@ -166,147 +159,125 @@ const SharingServiceSubmissionsPage = () => {
 
   const columns = [
     {
-      name: "id",
-      label: "ID",
-      options: {
-        display: false,
-        filter: false,
-        sort: false,
-      },
+      field: "created_at",
+      headerName: "Created at",
+      flex: 1,
+      minWidth: 140,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {params.row.created_at.split(".")[0].replace("T", "\n")}
+        </Typography>
+      ),
     },
     {
-      name: "created_at",
-      label: "Created at",
-      options: {
-        display: true,
-        filter: false,
-        sort: false,
-        customBodyRenderLite: (dataIndex) => {
-          const { created_at } = sharingServiceSubmissions[dataIndex];
-          return (
-            <Typography variant="body2">
-              {created_at.split(".")[0].replace("T", "\n")}
-            </Typography>
-          );
-        },
-      },
+      field: "obj_id",
+      headerName: "Source",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Link to={`/source/${params.row.obj_id}`} target="_blank">
+          {params.row.obj_id}
+        </Link>
+      ),
     },
     {
-      name: "obj_id",
-      label: "Source",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { obj_id } = sharingServiceSubmissions[dataIndex];
-          return (
-            <Link to={`/source/${obj_id}`} target="_blank">
-              {obj_id}
-            </Link>
-          );
-        },
-      },
-    },
-    {
-      name: "publisher",
-      label: "Publisher",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const { user_id } = sharingServiceSubmissions[dataIndex];
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}
-            >
-              {usersLookup[user_id]?.username &&
-                usersLookup[user_id]?.gravatar_url && (
-                  <UserAvatar
-                    size={28}
-                    firstName={usersLookup[user_id]?.first_name}
-                    lastName={usersLookup[user_id]?.last_name}
-                    username={usersLookup[user_id]?.username}
-                    gravatarUrl={usersLookup[user_id]?.gravatar_url}
-                    isBot={usersLookup[user_id]?.is_bot || false}
-                  />
-                )}
-              {userLabel(usersLookup[user_id], false, true)}
-              {sharingServiceSubmissions[dataIndex].auto_submission && (
-                <Tooltip
-                  title={`This submission was triggered automatically when the ${
-                    usersLookup[user_id]?.is_bot === true ? "BOT" : ""
-                  } user saved the source.`}
-                >
-                  <AutoAwesomeIcon fontSize="small" style={{ color: "gray" }} />
-                </Tooltip>
+      field: "publisher",
+      headerName: "Publisher",
+      flex: 1,
+      minWidth: 200,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => {
+        const { user_id } = params.row;
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}
+          >
+            {usersLookup[user_id]?.username &&
+              usersLookup[user_id]?.gravatar_url && (
+                <UserAvatar
+                  size={28}
+                  firstName={usersLookup[user_id]?.first_name}
+                  lastName={usersLookup[user_id]?.last_name}
+                  username={usersLookup[user_id]?.username}
+                  gravatarUrl={usersLookup[user_id]?.gravatar_url}
+                  isBot={usersLookup[user_id]?.is_bot || false}
+                />
               )}
-            </div>
-          );
-        },
-      },
-    },
-    {
-      name: "Hermes status",
-      label: "Hermes status",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(
-            sharingServiceSubmissions[dataIndex].hermes_status,
-          ),
-      },
-    },
-    {
-      name: "TNS status",
-      label: "TNS status",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) =>
-          handleStatusRender(sharingServiceSubmissions[dataIndex].tns_status),
-      },
-    },
-    {
-      name: "tns_info",
-      label: "TNS info",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: renderTnsInfo,
-      },
-    },
-    {
-      name: "custom_publishing_string",
-      label: "Custom Publishing String",
-      options: {
-        display: false,
-        filter: false,
-        sort: true,
-      },
-    },
-    {
-      name: "archival",
-      label: "Archival",
-      options: {
-        display: false,
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => (
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            {sharingServiceSubmissions[dataIndex].archival ? (
-              <CheckCircleIcon filled={true} style={{ color: "green" }} />
-            ) : (
-              <CancelIcon filled={true} style={{ color: "red" }} />
+            {userLabel(usersLookup[user_id], false, true)}
+            {params.row.auto_submission && (
+              <Tooltip
+                title={`This submission was triggered automatically when the ${
+                  usersLookup[user_id]?.is_bot === true ? "BOT" : ""
+                } user saved the source.`}
+              >
+                <AutoAwesomeIcon fontSize="small" style={{ color: "gray" }} />
+              </Tooltip>
             )}
-          </Box>
-        ),
+          </div>
+        );
       },
+    },
+    {
+      field: "Hermes status",
+      headerName: "Hermes status",
+      flex: 1,
+      minWidth: 140,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => handleStatusRender(params.row.hermes_status),
+    },
+    {
+      field: "TNS status",
+      headerName: "TNS status",
+      flex: 1,
+      minWidth: 140,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => handleStatusRender(params.row.tns_status),
+    },
+    {
+      field: "tns_info",
+      headerName: "TNS info",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      sortable: false,
+      renderCell: renderTnsInfo,
+    },
+    {
+      field: "custom_publishing_string",
+      headerName: "Custom Publishing String",
+      flex: 1,
+      minWidth: 180,
+      filterable: false,
+      sortable: false,
+    },
+    {
+      field: "archival",
+      headerName: "Archival",
+      flex: 1,
+      minWidth: 110,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          {params.row.archival ? (
+            <CheckCircleIcon filled={true} style={{ color: "green" }} />
+          ) : (
+            <CancelIcon filled={true} style={{ color: "red" }} />
+          )}
+        </Box>
+      ),
     },
   ];
 
@@ -315,28 +286,34 @@ const SharingServiceSubmissionsPage = () => {
       {loading ? (
         <CircularProgress />
       ) : (
-        <MUIDataTable
-          style={{ width: "100%" }}
-          title="Sharing submissions"
-          data={sharingServiceSubmissions}
-          columns={columns}
-          options={{
-            selectableRows: "none",
-            filter: false,
-            print: false,
-            download: false,
-            viewColumns: true,
-            pagination: true,
-            search: false,
-            serverSide: true,
-            page: page - 1,
-            rowsPerPage,
-            rowsPerPageOptions: [1, 25, 50, 100, 200],
-            jumpToPage: true,
-            count: submissions[id]?.totalMatches || 0,
-            onTableChange: handleTableChange,
-          }}
-        />
+        <Box sx={{ width: "100%" }}>
+          <Typography variant="h6" style={{ padding: "0.5rem" }}>
+            Sharing submissions
+          </Typography>
+          <StyledDataGrid
+            autoHeight
+            rows={sharingServiceSubmissions}
+            columns={columns}
+            getRowId={(row) => row.id}
+            paginationMode="server"
+            rowCount={submissions[id]?.totalMatches || 0}
+            paginationModel={{
+              page: page - 1,
+              pageSize: rowsPerPage,
+            }}
+            onPaginationModelChange={handlePaginationModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            initialState={{
+              columns: {
+                columnVisibilityModel: {
+                  custom_publishing_string: false,
+                  archival: false,
+                },
+              },
+            }}
+            showToolbar
+          />
+        </Box>
       )}
       {sharingServiceSubmissions?.length > 0 && (
         <Dialog
@@ -353,13 +330,9 @@ const SharingServiceSubmissionsPage = () => {
                 <IconButton
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      typeof sharingServiceSubmissions[showTNSPayload]
-                        ?.tns_payload === "string"
-                        ? sharingServiceSubmissions[showTNSPayload]?.tns_payload
-                        : JSON.stringify(
-                            sharingServiceSubmissions[showTNSPayload]
-                              ?.tns_payload,
-                          ),
+                      typeof showTNSPayload?.tns_payload === "string"
+                        ? showTNSPayload?.tns_payload
+                        : JSON.stringify(showTNSPayload?.tns_payload),
                     );
                   }}
                 >
@@ -371,12 +344,9 @@ const SharingServiceSubmissionsPage = () => {
           <DialogContent>
             <ReactJson
               src={
-                typeof sharingServiceSubmissions[showTNSPayload]
-                  ?.tns_payload === "string"
-                  ? JSON.parse(
-                      sharingServiceSubmissions[showTNSPayload]?.tns_payload,
-                    )
-                  : sharingServiceSubmissions[showTNSPayload]?.tns_payload
+                typeof showTNSPayload?.tns_payload === "string"
+                  ? JSON.parse(showTNSPayload?.tns_payload)
+                  : showTNSPayload?.tns_payload
               }
               displayDataTypes={false}
               displayObjectSize={false}

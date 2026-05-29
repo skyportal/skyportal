@@ -2,15 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 
-import MUIDataTable from "mui-datatables";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
-import ClearIcon from "@mui/icons-material/Clear";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,8 +22,11 @@ import Switch from "@mui/material/Switch";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -31,6 +35,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
@@ -63,26 +68,24 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const dataTableStyles = (theme) =>
-  createTheme({
-    overrides: {
-      MuiPaper: {
-        elevation4: {
-          boxShadow: "none !important",
-        },
-      },
-    },
-    palette: theme.palette,
-  });
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
+
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map are not server-sortable.
+const SERVER_SORT_FIELD = {
+  username: "username",
+  created_at: "created_at",
+};
 
 const defaultNumPerPage = 25;
 
 const UserManagement = () => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
+  const [sortModel, setSortModel] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const { invitationsEnabled } = useSelector((state) => state.config);
   const currentUser = useSelector((state) => state.profile);
   const { users, totalMatches } = useSelector(
@@ -372,9 +375,9 @@ const UserManagement = () => {
     }
   };
 
-  // MUI DataTable functions
-  const renderName = (dataIndex) => {
-    const user = users[dataIndex];
+  // DataGrid cell renderers
+  const renderName = (params) => {
+    const user = params.row;
     return (
       <div>
         {`${user.first_name ? user.first_name : ""}`}
@@ -385,9 +388,8 @@ const UserManagement = () => {
     );
   };
 
-  // MUI DataTable functions
-  const renderUsername = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderUsername = (params) => {
+    const user = params.row;
     return (
       <div>
         {`${user.username}`}
@@ -396,8 +398,8 @@ const UserManagement = () => {
     );
   };
 
-  const renderEmail = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderEmail = (params) => {
+    const user = params.row;
     return (
       <div>
         {`${user.contact_email ? user.contact_email : ""}`}
@@ -406,8 +408,8 @@ const UserManagement = () => {
     );
   };
 
-  const renderRoles = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderRoles = (params) => {
+    const user = params.row;
     return (
       <div>
         <IconButton
@@ -457,8 +459,8 @@ const UserManagement = () => {
     </div>
   );
 
-  const renderACLs = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderACLs = (params) => {
+    const user = params.row;
     return (
       <div>
         <IconButton
@@ -504,8 +506,8 @@ const UserManagement = () => {
     </div>
   );
 
-  const renderAffiliations = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderAffiliations = (params) => {
+    const user = params.row;
     return (
       <div>
         <IconButton
@@ -551,8 +553,8 @@ const UserManagement = () => {
     </div>
   );
 
-  const renderGroups = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderGroups = (params) => {
+    const user = params.row;
     return (
       <div>
         <IconButton
@@ -582,8 +584,8 @@ const UserManagement = () => {
     );
   };
 
-  const renderStreams = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderStreams = (params) => {
+    const user = params.row;
     return (
       <div>
         <IconButton
@@ -611,8 +613,8 @@ const UserManagement = () => {
     );
   };
 
-  const renderExpirationDate = (dataIndex) => {
-    const user = users[dataIndex];
+  const renderExpirationDate = (params) => {
+    const user = params.row;
     const isExpired = dayjs.utc().isAfter(user.expiration_date);
     return (
       <div className={isExpired ? classes.expired : ""}>
@@ -670,17 +672,15 @@ const UserManagement = () => {
     setQueryInProgress(false);
   };
 
-  const handleTableFilterChipChange = (column, filterList, type) => {
-    if (type === "chip") {
-      const nameFilterList = filterList[0];
-      // Convert chip filter list to filter form data
-      const data = {};
-      nameFilterList.forEach((filterChip) => {
-        const [key, value] = filterChip.split(": ");
-        data[key] = value;
-      });
-      handleFilterSubmit(data);
-    }
+  const handleFilterChipDelete = (chip) => {
+    const remaining = tableFilterList.filter((c) => c !== chip);
+    // Convert remaining chip filter list to filter form data
+    const data = {};
+    remaining.forEach((filterChip) => {
+      const [key, value] = filterChip.split(": ");
+      data[key] = value;
+    });
+    handleFilterSubmit(data);
   };
 
   const handlePageChange = async (page, numPerPage) => {
@@ -707,22 +707,22 @@ const UserManagement = () => {
     setQueryInProgress(false);
   };
 
-  const handleTableChange = (action, tableState) => {
-    setRowsPerPage(tableState.rowsPerPage);
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        handlePageChange(tableState.page, tableState.rowsPerPage);
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          handleUserTableSorting({ name: "username", direction: "asc" });
-        } else {
-          handleUserTableSorting(tableState.sortOrder);
-        }
-        break;
-      default:
+  const handlePaginationModelChange = (model) => {
+    setRowsPerPage(model.pageSize);
+    handlePageChange(model.page, model.pageSize);
+  };
+
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      handleUserTableSorting({ name: "username", direction: "asc" });
+      return;
     }
+    const { field, sort } = model[0];
+    handleUserTableSorting({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
   const handleToggleExpiredUsers = async (event) => {
@@ -803,168 +803,173 @@ const UserManagement = () => {
 
   const columns = [
     {
-      name: "first_name",
-      label: "Name",
-      options: {
-        customBodyRenderLite: renderName,
-        // Hijack custom filtering for this column to use for the entire form
-        // Individually using custom filter renders on each column led to issues
-        // with the form RESET button not being hooked up properly when combined
-        // with server-side pagination/filter confirmation
-        filter: !queryInProgress,
-        filterType: "custom",
-        filterList: tableFilterList,
-        filterOptions: {
-          display: () => <div />,
-        },
-        sort: false,
+      field: "first_name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderName,
+    },
+    {
+      field: "username",
+      headerName: "Username",
+      flex: 1,
+      minWidth: 130,
+      filterable: false,
+      renderCell: renderUsername,
+    },
+    {
+      field: "created_at",
+      headerName: "Created At",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      renderCell: (params) => {
+        const user = params.row;
+        return user.created_at
+          ? dayjs.utc(user.created_at).format("YYYY/MM/DD")
+          : "";
       },
     },
     {
-      name: "username",
-      label: "Username",
-      options: {
-        // Turn off default filtering for custom form
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderUsername,
-      },
+      field: "affiliations",
+      headerName: "Affiliations",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderHeader: renderAffiliationsHeader,
+      renderCell: renderAffiliations,
     },
     {
-      name: "created_at",
-      label: "Created At",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: (dataIndex) => {
-          const user = users[dataIndex];
-          return user.created_at
-            ? dayjs.utc(user.created_at).format("YYYY/MM/DD")
-            : "";
-        },
-      },
+      field: "contact_email",
+      headerName: "Email",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: renderEmail,
     },
     {
-      name: "affiliations",
-      label: "Affiliations",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderAffiliations,
-        customHeadLabelRender: renderAffiliationsHeader,
-        filter: false,
-      },
+      field: "roles",
+      headerName: "Roles",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderHeader: renderRolesHeader,
+      renderCell: renderRoles,
     },
     {
-      name: "contact_email",
-      label: "Email",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderEmail,
-      },
+      field: "addition",
+      headerName: "Additional ACLS",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderHeader: renderACLsHeader,
+      renderCell: renderACLs,
     },
     {
-      name: "roles",
-      label: "Roles",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderRoles,
-        customHeadLabelRender: renderRolesHeader,
-        filter: false,
-      },
+      field: "groups",
+      headerName: "Groups",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGroups,
     },
     {
-      name: "addition",
-      label: "Additional ACLS",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderACLs,
-        customHeadLabelRender: renderACLsHeader,
-        filter: false,
-      },
+      field: "streams",
+      headerName: "Streams",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderStreams,
     },
     {
-      name: "groups",
-      label: "Groups",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderGroups,
-        filter: false,
-      },
-    },
-    {
-      name: "streams",
-      label: "Streams",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderStreams,
-        filter: false,
-      },
-    },
-    {
-      name: "expiration_date",
-      label: "Expiration Date",
-      options: {
-        sort: false,
-        filter: false,
-        customBodyRenderLite: renderExpirationDate,
-        customHeadLabelRender: renderExpirationDateHeader,
-      },
+      field: "expiration_date",
+      headerName: "Expiration Date",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderHeader: renderExpirationDateHeader,
+      renderCell: renderExpirationDate,
     },
   ];
 
-  const customToolbar = () => (
-    <FormControlLabel
-      control={
-        <Switch
-          checked={fetchParams.includeExpired || false}
-          onChange={handleToggleExpiredUsers}
-          color="primary"
-          data-testid="showExpiredUsersToggle"
+  const CustomToolbar = function UserManagementToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <Tooltip title="Filter Table">
+          <IconButton
+            size="small"
+            data-testid="Filter Table-iconButton"
+            onClick={() => setFilterOpen(true)}
+          >
+            <FilterListIcon />
+          </IconButton>
+        </Tooltip>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={fetchParams.includeExpired || false}
+              onChange={handleToggleExpiredUsers}
+              color="primary"
+              data-testid="showExpiredUsersToggle"
+            />
+          }
+          label="Show Expired Users"
+          style={{ marginRight: "1rem" }}
         />
-      }
-      label="Show Expired Users"
-      style={{ marginRight: "1rem" }}
-    />
-  );
-
-  const options = {
-    fixedHeader: true,
-    tableBodyHeight: "calc(100vh - 201px)",
-    responsive: "standard",
-    print: true,
-    download: true,
-    search: false,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    sort: true,
-    rowsPerPage,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: !queryInProgress,
-    customFilterDialogFooter: customFilterDisplay,
-    onFilterChange: handleTableFilterChipChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-    rowHover: false,
-    count: totalMatches,
-    onTableChange: handleTableChange,
-    customToolbar,
+        {tableFilterList.map((chip) => (
+          <Chip
+            key={chip}
+            label={chip}
+            size="small"
+            onDelete={() => handleFilterChipDelete(chip)}
+          />
+        ))}
+      </GridToolbarContainer>
+    );
   };
 
   return (
     <>
       <Paper>
-        <ThemeProvider theme={dataTableStyles(theme)}>
-          <MUIDataTable
-            title="Manage Users"
-            data={users}
-            options={options}
+        <Typography variant="h6" style={{ padding: "0.5rem 0.75rem 0" }}>
+          Manage Users
+        </Typography>
+        <Box sx={{ height: "calc(100vh - 201px)", width: "100%" }}>
+          <StyledDataGrid
             columns={columns}
+            rows={users || []}
+            getRowId={(row) => row.id}
+            loading={queryInProgress}
+            paginationMode="server"
+            sortingMode="server"
+            rowCount={totalMatches}
+            paginationModel={{
+              page: (fetchParams.pageNumber || 1) - 1,
+              pageSize: rowsPerPage,
+            }}
+            onPaginationModelChange={handlePaginationModelChange}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            disableColumnFilter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>{customFilterDisplay()}</DialogContent>
+      </Dialog>
       {invitationsEnabled && (
         <div style={{ marginTop: "1rem" }}>
           <UserInvitations />
@@ -1151,7 +1156,6 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff) => aff)}
-                  // eslint-disable-next-line no-shadow
                   filterOptions={(options, params) => {
                     const filtered = filter(options, params);
 

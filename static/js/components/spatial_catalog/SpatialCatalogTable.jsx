@@ -2,16 +2,16 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import MUIDataTable from "mui-datatables";
 import SourceTableFilterForm from "../source/SourceTableFilterForm";
 
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 import * as sourcesActions from "../../ducks/sources";
@@ -30,37 +30,6 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
 
 const RetrieveSpatialCatalogSources = ({
   entry,
@@ -178,28 +147,20 @@ RetrieveSpatialCatalogSources.defaultProps = {
   entry: null,
 };
 
-const SpatialCatalogTable = ({
-  catalog,
-  totalMatches,
-  setSelectedSpatialCatalogEntryId,
-  pageNumber = 1,
-  numPerPage = 10,
-  serverSide = false,
-}) => {
+const SpatialCatalogTable = ({ catalog, setSelectedSpatialCatalogEntryId }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   if (!catalog || catalog.entries.length === 0) {
     return <p>No entries available...</p>;
   }
 
-  const renderData = (dataIndex) => {
-    const entry = catalog.entries[dataIndex];
+  const renderData = (params) => {
+    const entry = params.row;
     return <div>{JSON.stringify(entry.data)}</div>;
   };
 
-  const renderRetrieveSources = (dataIndex) => {
-    const entry = catalog.entries[dataIndex];
+  const renderRetrieveSources = (params) => {
+    const entry = params.row;
 
     return (
       <div>
@@ -214,55 +175,44 @@ const SpatialCatalogTable = ({
 
   const columns = [
     {
-      name: "entry_name",
-      label: "Entry Name",
+      field: "entry_name",
+      headerName: "Entry Name",
+      flex: 1,
+      minWidth: 160,
     },
     {
-      name: "data",
-      label: "Entry data",
-      options: {
-        customBodyRenderLite: renderData,
-        download: false,
-      },
+      field: "data",
+      headerName: "Entry data",
+      flex: 2,
+      minWidth: 240,
+      renderCell: renderData,
     },
     {
-      name: "retrieve_sources",
-      label: "Retrieve Sources",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderRetrieveSources,
-        download: false,
-      },
+      field: "retrieve_sources",
+      headerName: "Retrieve Sources",
+      flex: 1,
+      minWidth: 180,
+      filterable: false,
+      renderCell: renderRetrieveSources,
     },
   ];
-
-  const options = {
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-    page: pageNumber - 1,
-    rowsPerPage: numPerPage,
-    rowsPerPageOptions: [2, 10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide,
-    pagination: true,
-    count: totalMatches,
-  };
 
   return (
     <div>
       {catalog.entries ? (
         <Paper className={classes.container}>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="Catalog Entries"
-              data={catalog.entries}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
+          <Typography variant="h6">Catalog Entries</Typography>
+          <StyledDataGrid
+            autoHeight
+            rows={catalog.entries}
+            columns={columns}
+            getRowId={(row) => row.id}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[2, 10, 25, 50, 100]}
+            showToolbar
+          />
         </Paper>
       ) : (
         <CircularProgress />
@@ -283,18 +233,10 @@ SpatialCatalogTable.propTypes = {
     ),
   }),
   setSelectedSpatialCatalogEntryId: PropTypes.func.isRequired,
-  pageNumber: PropTypes.number,
-  totalMatches: PropTypes.number,
-  numPerPage: PropTypes.number,
-  serverSide: PropTypes.bool,
 };
 
 SpatialCatalogTable.defaultProps = {
   catalog: null,
-  pageNumber: 1,
-  totalMatches: 0,
-  numPerPage: 10,
-  serverSide: false,
 };
 
 export default SpatialCatalogTable;

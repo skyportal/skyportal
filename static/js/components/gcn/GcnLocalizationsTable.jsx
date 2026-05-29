@@ -2,14 +2,13 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Chip from "@mui/material/Chip";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as localizationActions from "../../ducks/localization";
@@ -20,6 +19,7 @@ const useStyles = makeStyles()(() => ({
   },
   container: {
     margin: "0rem 0",
+    width: "100%",
   },
   position: {
     fontWeight: "bold",
@@ -39,53 +39,8 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const GcnLocalizationsTable = ({ localizations }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -170,169 +125,156 @@ const GcnLocalizationsTable = ({ localizations }) => {
     return newProperty;
   });
 
-  const getDataTableColumns = () => {
-    const columns = [{ name: "created_at", label: "Created at" }];
-
-    const renderName = (dataIndex) => {
-      const localization = localizations[dataIndex];
-      return (
-        <div>
-          <Button
-            secondary
-            href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
-            download={`${localization.dateobs.replaceAll(":", "-")}_${
-              localization.localization_name
-            }.fits`}
-            size="small"
-            type="submit"
-            data-testid={`localization_${localization.id}`}
-          >
-            {localization.localization_name}
-          </Button>
-        </div>
-      );
-    };
-    columns.push({
-      name: "localization_name",
-      label: "Name",
-      options: {
-        customBodyRenderLite: renderName,
-      },
-    });
-
-    const renderCenter = (dataIndex) => {
-      const localization = localizations[dataIndex];
-      const center = localization?.center;
-
-      return (
-        <div className={classes.infoLine}>
-          <div className={classes.sourceInfo}>
-            <div>
-              <b>Position (J2000):&nbsp; &nbsp;</b>
-            </div>
-            <div>
-              <span className={classes.position}>
-                {ra_to_hours(center.ra, ":")} &nbsp;
-                {dec_to_dms(center.dec, ":")} &nbsp;
-              </span>
-            </div>
-          </div>
-          <div className={classes.sourceInfo}>
-            <div>
-              (&alpha;,&delta;= {center.ra}, &nbsp;
-              {center.dec}; &nbsp;
-            </div>
-            <div>
-              <i>l</i>,<i>b</i>={center.gal_lon.toFixed(6)}, &nbsp;
-              {center.gal_lat.toFixed(6)})
-            </div>
-            {center.ebv ? (
-              <div>
-                <i> E(B-V)</i>={center.ebv.toFixed(2)}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      );
-    };
-    columns.push({
-      name: "Center",
-      label: "Center",
-      options: {
-        customBodyRenderLite: renderCenter,
-      },
-    });
-
-    const renderTags = (dataIndex) => {
-      const localization = localizations[dataIndex];
-
-      const localizationTags = [];
-      localization.tags?.forEach((tag) => {
-        localizationTags.push(tag.text);
-      });
-      const localizationTagsUnique = [...new Set(localizationTags)];
-
-      return (
-        <div>
-          {localizationTagsUnique.map((tag) => (
-            <Chip size="small" label={tag} key={tag} />
-          ))}
-        </div>
-      );
-    };
-
-    columns.push({
-      name: "Tags",
-      label: "Tags",
-      options: {
-        customBodyRenderLite: renderTags,
-      },
-    });
-
-    uniquePropertyNames.forEach((name) => {
-      columns.push({
-        name,
-        label: name,
-      });
-    });
-
-    const renderDelete = (dataIndex) => {
-      const localization = localizations[dataIndex];
-      return (
-        <div>
-          <Button
-            id="delete_button"
-            classes={{
-              root: classes.localizationDelete,
-            }}
-            onClick={() =>
-              openDialog(localization.dateobs, localization.localization_name)
-            }
-          >
-            <DeleteIcon />
-          </Button>
-          <ConfirmDeletionDialog
-            deleteFunction={deleteLocalization}
-            dialogOpen={dialogOpen}
-            closeDialog={closeDialog}
-            resourceName="localization"
-          />
-        </div>
-      );
-    };
-
-    columns.push({
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
-    });
-
-    return columns;
+  const renderName = (params) => {
+    const localization = params.row;
+    return (
+      <div>
+        <Button
+          secondary
+          href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
+          download={`${localization.dateobs.replaceAll(":", "-")}_${
+            localization.localization_name
+          }.fits`}
+          size="small"
+          type="submit"
+          data-testid={`localization_${localization.id}`}
+        >
+          {localization.localization_name}
+        </Button>
+      </div>
+    );
   };
 
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
+  const renderCenter = (params) => {
+    const localization = params.row;
+    const center = localization?.center;
+    return (
+      <div className={classes.infoLine}>
+        <div className={classes.sourceInfo}>
+          <div>
+            <b>Position (J2000):&nbsp; &nbsp;</b>
+          </div>
+          <div>
+            <span className={classes.position}>
+              {ra_to_hours(center.ra, ":")} &nbsp;
+              {dec_to_dms(center.dec, ":")} &nbsp;
+            </span>
+          </div>
+        </div>
+        <div className={classes.sourceInfo}>
+          <div>
+            (&alpha;,&delta;= {center.ra}, &nbsp;
+            {center.dec}; &nbsp;
+          </div>
+          <div>
+            <i>l</i>,<i>b</i>={center.gal_lon.toFixed(6)}, &nbsp;
+            {center.gal_lat.toFixed(6)})
+          </div>
+          {center.ebv ? (
+            <div>
+              <i> E(B-V)</i>={center.ebv.toFixed(2)}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
   };
+
+  const renderTags = (params) => {
+    const localization = params.row;
+    const localizationTags = [];
+    localization.tags?.forEach((tag) => {
+      localizationTags.push(tag.text);
+    });
+    const localizationTagsUnique = [...new Set(localizationTags)];
+    return (
+      <div>
+        {localizationTagsUnique.map((tag) => (
+          <Chip size="small" label={tag} key={tag} />
+        ))}
+      </div>
+    );
+  };
+
+  const renderDelete = (params) => {
+    const localization = params.row;
+    return (
+      <div>
+        <Button
+          id="delete_button"
+          classes={{
+            root: classes.localizationDelete,
+          }}
+          onClick={() =>
+            openDialog(localization.dateobs, localization.localization_name)
+          }
+        >
+          <DeleteIcon />
+        </Button>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteLocalization}
+          dialogOpen={dialogOpen}
+          closeDialog={closeDialog}
+          resourceName="localization"
+        />
+      </div>
+    );
+  };
+
+  const columns = [
+    { field: "created_at", headerName: "Created at", flex: 1, minWidth: 160 },
+    {
+      field: "localization_name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: renderName,
+    },
+    {
+      field: "Center",
+      headerName: "Center",
+      flex: 2,
+      minWidth: 280,
+      sortable: false,
+      renderCell: renderCenter,
+    },
+    {
+      field: "Tags",
+      headerName: "Tags",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: renderTags,
+    },
+    ...uniquePropertyNames.map((name) => ({
+      field: name,
+      headerName: name,
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      valueGetter: (value, row) => row[name],
+    })),
+    {
+      field: "delete",
+      headerName: " ",
+      width: 70,
+      sortable: false,
+      renderCell: renderDelete,
+    },
+  ];
 
   return (
     <div className={classes.container}>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          data={propertiesWithUniqueKeys}
-          options={options}
-          columns={getDataTableColumns()}
-        />
-      </ThemeProvider>
+      <StyledDataGrid
+        autoHeight
+        rows={propertiesWithUniqueKeys}
+        columns={columns}
+        getRowId={(row) => row.id}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[1, 10, 15]}
+        showToolbar
+      />
     </div>
   );
 };

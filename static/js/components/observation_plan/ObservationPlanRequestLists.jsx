@@ -12,14 +12,13 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 import { JSONTree } from "react-json-tree";
 
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import * as Actions from "../../ducks/gcnEvent";
 import AddSurveyEfficiencyObservationPlanPage from "../survey_efficiency/AddSurveyEfficiencyObservationPlanPage";
@@ -36,72 +35,9 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTable: {
-        styleOverrides: {
-          paper: {
-            width: "100%",
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
-              0.5,
-            )} ${theme.spacing(0.5)}`,
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: `0 ${theme.spacing(0.5)} 0 ${theme.spacing(0.5)}`,
-          },
-          stackedCommon: {
-            overflow: "hidden",
-            "&:last-child": {
-              paddingLeft: "0.25rem",
-            },
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const ObservationPlanRequestLists = ({ dateobs }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
-  const theme = useTheme();
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -237,104 +173,8 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     const implementsRemove =
       instrumentObsplanFormParams[instrument_id]?.methodsImplemented.remove;
 
-    const columns = [
-      { name: "requester.username", label: "Requester" },
-      { name: "allocation.group.name", label: "Allocation" },
-    ];
-
-    const renderPayload = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-      if (!observationplanRequest) return null;
-
-      return (
-        <div style={{ whiteSpace: "nowrap" }}>
-          <JSONTree data={observationplanRequest.payload} hideRoot />
-        </div>
-      );
-    };
-    columns.push({
-      name: "payload",
-      label: "Payload",
-      options: {
-        customBodyRenderLite: renderPayload,
-      },
-    });
-
-    columns.push({
-      name: "status",
-      label: "Status",
-      options: {
-        customBodyRender: (value) => {
-          return (
-            <Chip
-              label={value}
-              color={
-                value === "complete"
-                  ? "success"
-                  : value === "submitted to telescope queue"
-                    ? "warning"
-                    : "default"
-              }
-            />
-          );
-        },
-      },
-    });
-
-    const renderSummaryStatistics = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-      if (observationplanRequest.status === "running")
-        return <CircularProgress />;
-
-      return (
-        <Box sx={{ minWidth: "200px" }}>
-          <ObservationPlanSummaryStatistics
-            observationplanRequest={observationplanRequest}
-          />
-        </Box>
-      );
-    };
-    columns.push({
-      name: "summarystatistics",
-      label: "Summary Statistics",
-      options: {
-        customBodyRenderLite: renderSummaryStatistics,
-      },
-    });
-
-    const renderLocalization = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-
-      if (
-        !["complete", "running", "submitted to telescope queue"].includes(
-          observationplanRequest?.status,
-        )
-      ) {
-        return null;
-      }
-
-      return (
-        <Box sx={{ minWidth: "500px" }}>
-          <ObservationPlanGlobe
-            observationplanRequest={observationplanRequest}
-          />
-        </Box>
-      );
-    };
-    columns.push({
-      name: "skymap",
-      label: "Skymap",
-      options: {
-        customBodyRenderLite: renderLocalization,
-      },
-    });
-
-    const renderManage = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
+    const renderManage = (params) => {
+      const observationplanRequest = params.row;
       if (observationplanRequest.status === "running")
         return <CircularProgress />;
 
@@ -444,166 +284,269 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       );
     };
 
-    columns.push({
-      name: "manage",
-      label: "Manage",
-      options: {
-        customBodyRenderLite: renderManage,
-      },
-    });
-
-    if (implementsSend || implementsRemove) {
-      const renderQueue = (dataIndex) => {
-        const observationplanRequest =
-          requestsGroupedByInstId[instrument_id][dataIndex];
-        if (observationplanRequest.status === "running")
-          return <CircularProgress />;
-        if (
-          observationplanRequest?.observation_plans?.length &&
-          ["complete", "submitted to telescope queue"].includes(
-            observationplanRequest?.observation_plans[0]?.status,
-          ) &&
-          observationplanRequest?.observation_plans[0]?.statistics?.length &&
-          observationplanRequest?.observation_plans[0]?.statistics[0]
-            ?.statistics?.num_observations === 0
-        ) {
-          return <div> No observations planned. </div>;
-        }
-        return (
-          <div>
-            {implementsSend && observationplanRequest.status === "complete" && (
-              <Button
-                primary
-                onClick={() => handleShowTable(observationplanRequest.id)}
-                size="small"
-                disabled={isSending === observationplanRequest.id}
-                sx={{ marginBottom: "0.2rem" }}
-              >
-                Send to Queue
-              </Button>
-            )}
-            {implementsRemove &&
-              observationplanRequest.status ===
-                "submitted to telescope queue" && (
-                <Button
-                  secondary
-                  onClick={() => handleRemove(observationplanRequest.id)}
-                  size="small"
-                  disabled={isRemoving === observationplanRequest.id}
-                  sx={{ marginBottom: "0.2rem" }}
-                >
-                  Remove from Queue
-                </Button>
-              )}
-            <Dialog
-              open={showTable === observationplanRequest.id}
-              onClose={() => setShowTable(null)}
-              sx={{ minWidth: "60vw" }}
-            >
-              <DialogTitle>Observation plan</DialogTitle>
-              <DialogContent>
-                {fetchedObservationPlan &&
-                fetchedObservationPlan.id === observationplanRequest.id ? (
-                  /* here will show a list (ordered by time) of all the observations in the plan */
-                  /* for each will show the time, field_id, filter */
-                  <>
-                    <MUIDataTable
-                      data={
-                        fetchedObservationPlan.observation_plans[0]
-                          .planned_observations
-                      }
-                      columns={[
-                        { name: "obstime", label: "Time" },
-                        { name: "field_id", label: "Field ID" },
-                        { name: "filt", label: "Filter" },
-                        { name: "exposure_time", label: "Exposure Time" },
-                        { name: "weight", label: "Weight" },
-                      ]}
-                      options={{
-                        filter: false,
-                        sort: false,
-                        print: true,
-                        download: true,
-                        search: true,
-                        selectableRows: "none",
-                        enableNestedDataAccess: ".",
-                        elevation: 0,
-                      }}
-                    />
-                    <Button
-                      primary
-                      onClick={() => handleSend(observationplanRequest.id)}
-                      size="small"
-                    >
-                      Send to Queue
-                    </Button>
-                  </>
-                ) : (
-                  <CircularProgress />
-                )}
-              </DialogContent>
-            </Dialog>
-          </div>
-        );
-      };
-      columns.push({
-        name: "queue",
-        label: "Telescope Queue",
-        options: {
-          customBodyRenderLite: renderQueue,
-        },
-      });
-    }
-
-    const renderTreasureMap = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
+    const renderQueue = (params) => {
+      const observationplanRequest = params.row;
       if (observationplanRequest.status === "running")
         return <CircularProgress />;
+      if (
+        observationplanRequest?.observation_plans?.length &&
+        ["complete", "submitted to telescope queue"].includes(
+          observationplanRequest?.observation_plans[0]?.status,
+        ) &&
+        observationplanRequest?.observation_plans[0]?.statistics?.length &&
+        observationplanRequest?.observation_plans[0]?.statistics[0]?.statistics
+          ?.num_observations === 0
+      ) {
+        return <div> No observations planned. </div>;
+      }
       return (
-        <div className={classes.actionButtons}>
-          <Button
-            secondary
-            onClick={() => handleSubmitTreasureMap(observationplanRequest.id)}
-            size="small"
-            data-testid={`treasuremapRequest_${observationplanRequest.id}`}
-            disabled={isSubmittingTreasureMap === observationplanRequest.id}
+        <div>
+          {implementsSend && observationplanRequest.status === "complete" && (
+            <Button
+              primary
+              onClick={() => handleShowTable(observationplanRequest.id)}
+              size="small"
+              disabled={isSending === observationplanRequest.id}
+              sx={{ marginBottom: "0.2rem" }}
+            >
+              Send to Queue
+            </Button>
+          )}
+          {implementsRemove &&
+            observationplanRequest.status ===
+              "submitted to telescope queue" && (
+              <Button
+                secondary
+                onClick={() => handleRemove(observationplanRequest.id)}
+                size="small"
+                disabled={isRemoving === observationplanRequest.id}
+                sx={{ marginBottom: "0.2rem" }}
+              >
+                Remove from Queue
+              </Button>
+            )}
+          <Dialog
+            open={showTable === observationplanRequest.id}
+            onClose={() => setShowTable(null)}
+            sx={{ minWidth: "60vw" }}
           >
-            Send
-          </Button>
-          <Button
-            sx={{ marginBottom: "0.2rem" }}
-            secondary
-            onClick={() => handleDeleteTreasureMap(observationplanRequest.id)}
-            size="small"
-            disabled={isDeletingTreasureMap === observationplanRequest.id}
-          >
-            Retract
-          </Button>
+            <DialogTitle>Observation plan</DialogTitle>
+            <DialogContent>
+              {fetchedObservationPlan &&
+              fetchedObservationPlan.id === observationplanRequest.id ? (
+                /* here will show a list (ordered by time) of all the observations in the plan */
+                /* for each will show the time, field_id, filter */
+                <>
+                  <StyledDataGrid
+                    autoHeight
+                    rows={(
+                      fetchedObservationPlan.observation_plans[0]
+                        .planned_observations || []
+                    ).map((row, i) => ({ ...row, __rowid: row.id ?? i }))}
+                    getRowId={(row) => row.__rowid}
+                    columns={[
+                      {
+                        field: "obstime",
+                        headerName: "Time",
+                        flex: 1,
+                        minWidth: 160,
+                      },
+                      {
+                        field: "field_id",
+                        headerName: "Field ID",
+                        flex: 1,
+                        minWidth: 100,
+                      },
+                      {
+                        field: "filt",
+                        headerName: "Filter",
+                        flex: 1,
+                        minWidth: 90,
+                      },
+                      {
+                        field: "exposure_time",
+                        headerName: "Exposure Time",
+                        flex: 1,
+                        minWidth: 130,
+                      },
+                      {
+                        field: "weight",
+                        headerName: "Weight",
+                        flex: 1,
+                        minWidth: 90,
+                      },
+                    ]}
+                    showToolbar
+                  />
+                  <Button
+                    primary
+                    onClick={() => handleSend(observationplanRequest.id)}
+                    size="small"
+                  >
+                    Send to Queue
+                  </Button>
+                </>
+              ) : (
+                <CircularProgress />
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       );
     };
+
+    const columns = [
+      {
+        field: "requester_username",
+        headerName: "Requester",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        valueGetter: (value, row) => row.requester?.username,
+      },
+      {
+        field: "allocation_group",
+        headerName: "Allocation",
+        flex: 1,
+        minWidth: 120,
+        sortable: false,
+        valueGetter: (value, row) => row.allocation?.group?.name,
+      },
+      {
+        field: "payload",
+        headerName: "Payload",
+        flex: 1,
+        minWidth: 160,
+        sortable: false,
+        renderCell: (params) =>
+          params.row ? (
+            <div style={{ whiteSpace: "nowrap" }}>
+              <JSONTree data={params.row.payload} hideRoot />
+            </div>
+          ) : null,
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        flex: 1,
+        minWidth: 140,
+        sortable: false,
+        renderCell: (params) => (
+          <Chip
+            label={params.value}
+            color={
+              params.value === "complete"
+                ? "success"
+                : params.value === "submitted to telescope queue"
+                  ? "warning"
+                  : "default"
+            }
+          />
+        ),
+      },
+      {
+        field: "summarystatistics",
+        headerName: "Summary Statistics",
+        flex: 1,
+        minWidth: 220,
+        sortable: false,
+        renderCell: (params) => {
+          const observationplanRequest = params.row;
+          if (observationplanRequest.status === "running")
+            return <CircularProgress />;
+          return (
+            <Box sx={{ minWidth: "200px" }}>
+              <ObservationPlanSummaryStatistics
+                observationplanRequest={observationplanRequest}
+              />
+            </Box>
+          );
+        },
+      },
+      {
+        field: "skymap",
+        headerName: "Skymap",
+        flex: 1,
+        minWidth: 520,
+        sortable: false,
+        renderCell: (params) => {
+          const observationplanRequest = params.row;
+          if (
+            !["complete", "running", "submitted to telescope queue"].includes(
+              observationplanRequest?.status,
+            )
+          ) {
+            return null;
+          }
+          return (
+            <Box sx={{ minWidth: "500px" }}>
+              <ObservationPlanGlobe
+                observationplanRequest={observationplanRequest}
+              />
+            </Box>
+          );
+        },
+      },
+      {
+        field: "manage",
+        headerName: "Manage",
+        flex: 1,
+        minWidth: 240,
+        sortable: false,
+        filterable: false,
+        renderCell: renderManage,
+      },
+    ];
+
+    if (implementsSend || implementsRemove) {
+      columns.push({
+        field: "queue",
+        headerName: "Telescope Queue",
+        flex: 1,
+        minWidth: 160,
+        sortable: false,
+        filterable: false,
+        renderCell: renderQueue,
+      });
+    }
+
     columns.push({
-      name: "treasuremap",
-      label: "Treasure Map",
-      options: {
-        customBodyRenderLite: renderTreasureMap,
+      field: "treasuremap",
+      headerName: "Treasure Map",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const observationplanRequest = params.row;
+        if (observationplanRequest.status === "running")
+          return <CircularProgress />;
+        return (
+          <div className={classes.actionButtons}>
+            <Button
+              secondary
+              onClick={() => handleSubmitTreasureMap(observationplanRequest.id)}
+              size="small"
+              data-testid={`treasuremapRequest_${observationplanRequest.id}`}
+              disabled={isSubmittingTreasureMap === observationplanRequest.id}
+            >
+              Send
+            </Button>
+            <Button
+              sx={{ marginBottom: "0.2rem" }}
+              secondary
+              onClick={() => handleDeleteTreasureMap(observationplanRequest.id)}
+              size="small"
+              disabled={isDeletingTreasureMap === observationplanRequest.id}
+            >
+              Retract
+            </Button>
+          </div>
+        );
       },
     });
 
     return columns;
-  };
-
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
   };
 
   return Object.keys(requestsGroupedByInstId).map((instrument_id) => (
@@ -626,13 +569,19 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       <AccordionDetails
         data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
       >
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={requestsGroupedByInstId[instrument_id]}
-            options={options}
-            columns={getDataTableColumns(instrument_id)}
-          />
-        </ThemeProvider>
+        <StyledDataGrid
+          autoHeight
+          data-testid={`${instLookUp[instrument_id].name}_grid`}
+          rows={requestsGroupedByInstId[instrument_id]}
+          columns={getDataTableColumns(instrument_id)}
+          getRowId={(row) => row.id}
+          disableColumnFilter
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[1, 10, 15]}
+          showToolbar
+        />
       </AccordionDetails>
     </Accordion>
   ));

@@ -12,13 +12,17 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import MUIDataTable from "mui-datatables";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
 
@@ -134,8 +138,8 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     });
   };
 
-  const renderContact = (dataIndex) => {
-    const analysis_service = analysisServices[dataIndex];
+  const renderContact = (params) => {
+    const analysis_service = params.row;
     if (!analysis_service.contact_name) {
       return null;
     }
@@ -150,8 +154,8 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     );
   };
 
-  const renderShareGroups = (dataIndex) => {
-    const analysis_service = analysisServices[dataIndex];
+  const renderShareGroups = (params) => {
+    const analysis_service = params.row;
 
     const group_names = (analysis_service?.groups || []).map(
       (group) => group.name,
@@ -160,8 +164,8 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     return <div>{group_names.length > 0 ? group_names.join(", ") : ""}</div>;
   };
 
-  const renderDetails = (dataIndex) => {
-    const analysis_service = analysisServices[dataIndex];
+  const renderDetails = (params) => {
+    const analysis_service = params.row;
     return (
       <IconButton
         key={`details_${analysis_service.id}`}
@@ -173,8 +177,8 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     );
   };
 
-  const renderManage = (dataIndex) => {
-    const analysis_service = analysisServices[dataIndex];
+  const renderManage = (params) => {
+    const analysis_service = params.row;
     if (!deletePermission) {
       return null;
     }
@@ -193,111 +197,108 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   const columns = [
     {
-      name: "display_name",
-      label: "Name",
-      options: {
-        filter: false,
-        sort: true,
-      },
+      field: "display_name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 140,
+      filterable: false,
     },
     {
-      name: "description",
-      label: "Description",
-      options: {
-        filter: false,
-        sort: false,
-      },
+      field: "description",
+      headerName: "Description",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      sortable: false,
     },
     {
-      name: "version",
-      label: "Version",
-      options: {
-        filter: false,
-        sort: false,
-      },
+      field: "version",
+      headerName: "Version",
+      flex: 1,
+      minWidth: 100,
+      filterable: false,
+      sortable: false,
     },
     {
-      name: "url",
-      label: "URL",
-      options: {
-        filter: false,
-        sort: false,
-      },
+      field: "url",
+      headerName: "URL",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      sortable: false,
     },
     {
-      name: "contact",
-      label: "Contact",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderContact,
-      },
+      field: "contact",
+      headerName: "Contact",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      sortable: false,
+      renderCell: renderContact,
     },
     {
-      name: "default_share_group",
-      label: "Default Share Groups",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderShareGroups,
-      },
+      field: "default_share_group",
+      headerName: "Default Share Groups",
+      flex: 1,
+      minWidth: 180,
+      filterable: false,
+      sortable: false,
+      renderCell: renderShareGroups,
     },
     {
-      name: "details",
-      label: "Details",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderDetails,
-      },
+      field: "details",
+      headerName: "Details",
+      flex: 1,
+      minWidth: 100,
+      filterable: false,
+      sortable: false,
+      renderCell: renderDetails,
     },
   ];
 
   if (deletePermission) {
     columns.push({
-      name: "manage",
-      label: " ",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderManage,
-      },
+      field: "manage",
+      headerName: " ",
+      flex: 1,
+      minWidth: 80,
+      filterable: false,
+      sortable: false,
+      renderCell: renderManage,
     });
   }
 
-  const options = {
-    search: false,
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    elevation: 0,
-    jumpToPage: true,
-    serverSide: false,
-    pagination: true,
-    filter: true,
-    sort: true,
-  };
-
-  if (deletePermission) {
-    options.customToolbar = () => (
-      <IconButton
-        name="new_analysis_service"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
-    );
-  }
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      {deletePermission && (
+        <IconButton
+          name="new_analysis_service"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
+    </GridToolbarContainer>
+  );
 
   return (
     <div className={classes.root}>
       <Paper className={classes.container}>
-        <MUIDataTable
-          title={"Analysis Services"}
-          data={analysisServices || []}
-          options={options}
+        <Typography variant="h6">Analysis Services</Typography>
+        <StyledDataGrid
+          autoHeight
+          rows={analysisServices || []}
           columns={columns}
+          getRowId={(row) => row.id}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[10, 25, 50, 100]}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
         />
         <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Analysis Service</DialogTitle>

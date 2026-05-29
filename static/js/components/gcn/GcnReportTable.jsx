@@ -1,13 +1,12 @@
 import React from "react";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import MUIDataTable from "mui-datatables";
-
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -16,54 +15,19 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const GcnReportTable = ({
   reports,
   setSelectedGcnReportId,
   deleteGcnReport,
-  pageNumber = 1,
-  numPerPage = 10,
-  serverSide = false,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   if (!reports || reports?.length === 0) {
     return <p>No entries available...</p>;
   }
 
-  const renderName = (dataIndex) => {
-    const report = reports[dataIndex];
+  const renderName = (params) => {
+    const report = params.row;
     // return a link to the report that opens in a new tab
     return (
       <a
@@ -76,18 +40,18 @@ const GcnReportTable = ({
     );
   };
 
-  const renderSentBy = (dataIndex) => {
-    const report = reports[dataIndex];
+  const renderSentBy = (params) => {
+    const report = params.row;
     return <div>{report?.sent_by?.username}</div>;
   };
 
-  const renderGroup = (dataIndex) => {
-    const report = reports[dataIndex];
+  const renderGroup = (params) => {
+    const report = params.row;
     return <div>{report?.group?.name}</div>;
   };
 
-  const renderRetrieveDeleteReport = (dataIndex) => {
-    const report = reports[dataIndex];
+  const renderRetrieveDeleteReport = (params) => {
+    const report = params.row;
     return (
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <Button
@@ -118,70 +82,58 @@ const GcnReportTable = ({
 
   const columns = [
     {
-      name: "report_name",
-      label: "Name",
-      options: {
-        customBodyRenderLite: renderName,
-        download: false,
-      },
+      field: "report_name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderName,
     },
     {
-      name: "created_at",
-      label: "Time Created",
+      field: "created_at",
+      headerName: "Time Created",
+      flex: 1,
+      minWidth: 160,
     },
     {
-      name: "User",
-      label: "User",
-      options: {
-        customBodyRenderLite: renderSentBy,
-        download: false,
-      },
+      field: "User",
+      headerName: "User",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderSentBy,
     },
     {
-      name: "Group",
-      label: "Group",
-      options: {
-        customBodyRenderLite: renderGroup,
-        download: false,
-      },
+      field: "Group",
+      headerName: "Group",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderGroup,
     },
     {
-      name: "manage_summary",
-      label: "Manage",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderRetrieveDeleteReport,
-        download: false,
-      },
+      field: "manage_summary",
+      headerName: "Manage",
+      flex: 1,
+      minWidth: 180,
+      filterable: false,
+      renderCell: renderRetrieveDeleteReport,
     },
   ];
-
-  const options = {
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-    page: pageNumber - 1,
-    rowsPerPage: numPerPage,
-    rowsPerPageOptions: [2, 10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide,
-    pagination: true,
-  };
 
   return (
     <div>
       {reports ? (
         <Paper className={classes.container}>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title="GCN Reports"
-              data={reports}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
+          <Typography variant="h6">GCN Reports</Typography>
+          <StyledDataGrid
+            autoHeight
+            rows={reports}
+            columns={columns}
+            getRowId={(row) => row.id}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[2, 10, 25, 50, 100]}
+            showToolbar
+          />
         </Paper>
       ) : (
         <CircularProgress />
@@ -202,16 +154,10 @@ GcnReportTable.propTypes = {
   ),
   setSelectedGcnReportId: PropTypes.func.isRequired,
   deleteGcnReport: PropTypes.func.isRequired,
-  pageNumber: PropTypes.number,
-  numPerPage: PropTypes.number,
-  serverSide: PropTypes.bool,
 };
 
 GcnReportTable.defaultProps = {
   reports: null,
-  pageNumber: 1,
-  numPerPage: 10,
-  serverSide: false,
 };
 
 export default GcnReportTable;

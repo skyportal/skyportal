@@ -62,20 +62,13 @@ def test_annotations(
     # ----> now test the Share data page <----
     driver.get(f"/share_data/{public_source.id}")
 
-    # need to filter out only the new spectrum we've added
-    # open the filter menu
-    driver.click_xpath(
-        "//*[@data-testid='spectrum-div']//button[@data-testid='Filter Table-iconButton']"
+    # filter to only the new spectrum we've added, by typing its id into the
+    # data grid's quick-filter search box (the id column is shown in the table)
+    spectrum_filter = driver.wait_for_xpath(
+        "//*[@data-testid='spectrum-quick-filter']//input"
     )
-
-    # click the filter on ID button
-    driver.click_xpath("//div[@id='mui-component-select-id']", scroll_parent=True)
-
-    # choose the one we've added based on ID
-    driver.click_xpath(f"//li[@data-value='{spectrum_id}']", scroll_parent=True)
-
-    # close the filter menu
-    driver.click_xpath("//*[contains(@class, 'filterClose')]")
+    spectrum_filter.clear()
+    spectrum_filter.send_keys(str(spectrum_id))
 
     # push the little triangle to expand the table
     driver.click_xpath(
@@ -87,22 +80,14 @@ def test_annotations(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//div[text()="Spectrum Obs. at"]')
 
-    # filter once more for only this spectrum
-    driver.click_xpath(
-        "//*[@id='annotations-content']//button[@data-testid='Filter Table-iconButton']",
-        scroll_parent=True,
+    # filter once more for only this spectrum, via the annotations table's
+    # quick-filter search box (the "Spectrum Obs. at" column shows 2021-11-02.5)
+    annotations_filter = driver.wait_for_xpath(
+        "//*[@id='annotations-content']"
+        "//*[@data-testid='annotations-quick-filter']//input"
     )
-
-    # click the filter on ID button
-    driver.click_xpath(
-        "//div[@id='mui-component-select-observed_at']", scroll_parent=True
-    )
-
-    # choose the one we've added based on ID
-    driver.click_xpath("//li[@data-value='2021-11-02.5']", scroll_parent=True)
-
-    # close the filter menu
-    driver.click_xpath("//*[contains(@class, 'filterClose')]")
+    annotations_filter.clear()
+    annotations_filter.send_keys("2021-11-02.5")
 
     driver.wait_for_xpath('//div[text()="2021-11-02.5"]')
     driver.wait_for_xpath(f'//div[text()="{annotation_data}"]')

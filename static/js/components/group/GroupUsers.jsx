@@ -2,10 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
-import MUIDataTable from "mui-datatables";
 import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -16,30 +14,12 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
+import StyledDataGrid from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
-
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableHeadCell: {
-        hintIconAlone: {
-          marginTop: 0,
-        },
-        hintIconWithSortIcon: {
-          marginTop: 0,
-        },
-        sortLabelRoot: {
-          height: "auto",
-          marginBottom: "auto",
-        },
-      },
-    },
-  });
 
 const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -67,10 +47,8 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   // Mobile manage user popover
   const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
 
-  // Set-up members table
-  // MUI DataTable functions
-  const renderUsername = (dataIndex) => {
-    const user = group?.users[dataIndex];
+  const renderUsername = (params) => {
+    const user = params.row;
     return (
       <Link to={`/user/${user.id}`} className={classes.filterLink}>
         {user.username}
@@ -78,8 +56,8 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     );
   };
 
-  const renderAdmin = (dataIndex) => {
-    const user = group?.users[dataIndex];
+  const renderAdmin = (params) => {
+    const user = params.row;
     return (
       user &&
       user.admin && (
@@ -90,8 +68,8 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     );
   };
 
-  const renderActions = (dataIndex) => {
-    const user = group?.users[dataIndex];
+  const renderActions = (params) => {
+    const user = params.row;
     return (
       <div>
         {group &&
@@ -151,62 +129,40 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     ...user,
   }));
 
+  const hasNames = !!group?.users?.filter(
+    (user) => user.first_name || user.last_name,
+  )?.length;
+
   const columns = [
+    { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
     {
-      name: "name",
-      label: "Name",
-      options: {
-        filter: true,
-        // Display only if there's at least one user with a first/last name
-        display: !!group?.users?.filter(
-          (user) => user.first_name || user.last_name,
-        )?.length,
-      },
+      field: "username",
+      headerName: "Username",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderUsername,
     },
     {
-      name: "username",
-      label: "Username",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderUsername,
-      },
+      field: "admin",
+      headerName: "Admin",
+      flex: 1,
+      minWidth: 100,
+      renderCell: renderAdmin,
+      description:
+        "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
     },
     {
-      name: "admin",
-      label: "Admin",
-      options: {
-        sort: true,
-        customBodyRenderLite: renderAdmin,
-        filter: true,
-        hint: "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
-      },
-    },
-    {
-      name: "actions",
-      label: "Actions",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderActions,
-        filter: false,
-        hint: "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: renderActions,
+      description:
+        "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
     },
   ];
-
-  const options = {
-    responsive: "standard",
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    rowsPerPage: 25,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: true,
-    jumpToPage: true,
-    pagination: true,
-    rowHover: false,
-  };
 
   return (
     <Accordion
@@ -222,13 +178,18 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         <Typography className={classes.heading}>Members</Typography>
       </AccordionSummary>
       <AccordionDetails className={classes.accordion_details}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            columns={columns}
-            data={group?.users ? groupUsers : []}
-            options={options}
-          />
-        </ThemeProvider>
+        <StyledDataGrid
+          autoHeight
+          columns={columns}
+          rows={group?.users ? groupUsers : []}
+          getRowId={(row) => row.id}
+          initialState={{
+            columns: { columnVisibilityModel: { name: hasNames } },
+            pagination: { paginationModel: { pageSize: 25 } },
+          }}
+          pageSizeOptions={[10, 25, 50, 100, 200]}
+          showToolbar
+        />
         <Divider />
         <div className={classes.paper}>
           {isAdmin(currentUser) && (

@@ -20,11 +20,11 @@ def test_share_data(
     driver.wait_for_xpath(f"//div[text()='{public_group.name}']", timeout=15)
 
     driver.wait_for_xpath(
-        '//*[@data-testid="MUIDataTableBodyRow-0"]',
+        '//div[@data-rowindex="0"]',
         timeout=10,
     )
     select = driver.wait_for_xpath(
-        '//*[@data-testid="MUIDataTableBodyRow-0"]/td[1]/div/span/input[@type="checkbox"]',
+        '//div[@data-rowindex="0"]//input[@type="checkbox"]',
         timeout=10,
     )
     select.click()
@@ -59,5 +59,5 @@ def test_delete_spectrum(driver, public_source):
     driver.click_xpath("//*[@data-testid='yes-delete']", scroll_parent=True)
 
     driver.wait_for_xpath_to_disappear(
-        '//*[@data-testid="spectrum-table"]//*[@data-testid="MUIDataTableBodyRow-1"]'
+        '//*[@data-testid="spectrum-table"]//div[@data-rowindex="1"]'
     )

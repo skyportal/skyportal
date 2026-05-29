@@ -1,8 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
+
+import StyledDataGrid from "../StyledDataGrid";
 
 const useStyles = makeStyles()(() => ({
   accordion: {
@@ -10,56 +10,12 @@ const useStyles = makeStyles()(() => ({
   },
   container: {
     margin: "0rem 0",
+    width: "100%",
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const GcnProperties = ({ properties }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   if (!properties || properties.length === 0) {
     return <p>No properties for this event...</p>;
@@ -77,8 +33,8 @@ const GcnProperties = ({ properties }) => {
   const uniquePropertyNames = [...new Set(propertyNames)];
 
   // now we can create a list of dicts with a "created_at" key and a key for each property name
-  const propertiesWithUniqueKeys = properties.map((property) => {
-    const newProperty = { created_at: property.created_at };
+  const propertiesWithUniqueKeys = properties.map((property, index) => {
+    const newProperty = { __rowid: index, created_at: property.created_at };
     uniquePropertyNames.forEach((name) => {
       if (Object.keys(property.data).includes(name)) {
         if (typeof property.data[name] === "number") {
@@ -104,39 +60,37 @@ const GcnProperties = ({ properties }) => {
     return newProperty;
   });
 
-  const getDataTableColumns = () => {
-    const columns = [{ name: "created_at", label: "Created at" }];
-    uniquePropertyNames.forEach((name) => {
-      columns.push({
-        name,
-        label: name,
-      });
-    });
-
-    return columns;
-  };
-
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
+  const columns = [
+    {
+      field: "created_at",
+      headerName: "Created at",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+    },
+    ...uniquePropertyNames.map((name) => ({
+      field: name,
+      headerName: name,
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      // Property names may contain dots; force flat access rather than letting
+      // DataGrid interpret the field as a nested path.
+      valueGetter: (value, row) => row[name],
+    })),
+  ];
 
   return (
     <div className={classes.container}>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          data={propertiesWithUniqueKeys}
-          options={options}
-          columns={getDataTableColumns()}
-        />
-      </ThemeProvider>
+      <StyledDataGrid
+        autoHeight
+        rows={propertiesWithUniqueKeys}
+        columns={columns}
+        getRowId={(row) => row.__rowid}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[1, 10, 15]}
+        showToolbar
+      />
     </div>
   );
 };

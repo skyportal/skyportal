@@ -5,19 +5,19 @@ import PropTypes from "prop-types";
 import Checkbox from "@mui/material/Checkbox";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
-import Button from "../Button";
+import { GridToolbarContainer } from "@mui/x-data-grid";
+import StyledDataGrid from "../StyledDataGrid";
 import * as profileActions from "../../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
@@ -63,37 +63,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const ScanningProfilesList = ({
   selectedScanningProfile,
   setSelectedScanningProfile,
@@ -102,7 +71,6 @@ const ScanningProfilesList = ({
   classifications,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const profiles = useSelector(
     (state) => state.profile.preferences.scanningProfiles,
   );
@@ -121,7 +89,11 @@ const ScanningProfilesList = ({
     }
   };
 
-  const renderLoaded = (dataIndex) => {
+  // Profiles are user-preference objects without a stable id, so we key rows on
+  // their array index (sort is disabled, so order is stable). dataIndex below
+  // is that index, preserving the index-based test ids and splice semantics.
+  const renderLoaded = (params) => {
+    const dataIndex = params.row.__rowid;
     const profile = profiles[dataIndex];
     return profile ? (
       <div>
@@ -165,7 +137,8 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderDefault = (dataIndex) => {
+  const renderDefault = (params) => {
+    const dataIndex = params.row.__rowid;
     const profile = profiles[dataIndex];
     return profile ? (
       <div>
@@ -183,13 +156,13 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderTimeRange = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderTimeRange = (params) => {
+    const profile = params.row;
     return profile?.timeRange ? `${profile.timeRange}hrs` : "";
   };
 
-  const renderClassifications = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderClassifications = (params) => {
+    const profile = params.row;
     return profile?.classifications ? (
       <div>
         <p>
@@ -213,8 +186,8 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderGroups = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderGroups = (params) => {
+    const profile = params.row;
     return profile?.groupIDs ? (
       <div>
         {profile.groupIDs.map((groupID) => {
@@ -237,30 +210,31 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderSavedStatus = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderSavedStatus = (params) => {
+    const profile = params.row;
     const option = savedStatusSelectOptions.find(
       (selectOption) => selectOption.value === profile?.savedStatus,
     );
     return option?.label || "";
   };
 
-  const renderRedshift = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderRedshift = (params) => {
+    const profile = params.row;
     return `Min: ${profile?.redshiftMinimum || "N/A"}, Max: ${
       profile?.redshiftMaximum || "N/A"
     }`;
   };
 
-  const renderSorting = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderSorting = (params) => {
+    const profile = params.row;
     return profile?.sortingOrigin
       ? `${profile.sortingOrigin}: ${profile.sortingKey}, ${profile.sortingOrder}`
       : "";
   };
 
-  const renderRejectedStatus = (dataIndex) => {
-    const profile = profiles[dataIndex];
+  const renderRejectedStatus = (params) => {
+    const dataIndex = params.row.__rowid;
+    const profile = params.row;
     return profile?.rejectedStatus === "show" ? (
       <CheckIcon
         size="small"
@@ -276,7 +250,8 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderActions = (dataIndex) => {
+  const renderActions = (params) => {
+    const dataIndex = params.row.__rowid;
     return (
       <div className={classes.actionButtons}>
         <IconButton
@@ -298,112 +273,122 @@ const ScanningProfilesList = ({
 
   const columns = [
     {
-      name: "loaded",
-      label: "Currently Loaded",
-      options: {
-        customBodyRenderLite: renderLoaded,
-      },
+      field: "loaded",
+      headerName: "Currently Loaded",
+      width: 140,
+      sortable: false,
+      renderCell: renderLoaded,
     },
     {
-      name: "default",
-      label: "Default",
-      options: {
-        customBodyRenderLite: renderDefault,
-      },
+      field: "default",
+      headerName: "Default",
+      width: 90,
+      sortable: false,
+      renderCell: renderDefault,
     },
     {
-      name: "name",
-      label: "Name",
+      field: "name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
     },
     {
-      name: "timeRange",
-      label: "Hours Before Now",
-      options: {
-        customBodyRenderLite: renderTimeRange,
-      },
+      field: "timeRange",
+      headerName: "Hours Before Now",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: renderTimeRange,
     },
     {
-      name: "groupIDs",
-      label: "Selected Programs",
-      options: {
-        customBodyRenderLite: renderGroups,
-      },
+      field: "groupIDs",
+      headerName: "Selected Programs",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderGroups,
     },
     {
-      name: "savedStatus",
-      label: "Candidate Saved Status",
-      options: {
-        customBodyRenderLite: renderSavedStatus,
-      },
+      field: "savedStatus",
+      headerName: "Candidate Saved Status",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      renderCell: renderSavedStatus,
     },
     {
-      name: "redshiftMinimum",
-      label: "Redshift Range",
-      options: {
-        customBodyRenderLite: renderRedshift,
-      },
+      field: "redshiftMinimum",
+      headerName: "Redshift Range",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: renderRedshift,
     },
     {
-      name: "sortingOrigin",
-      label: "Annotation Sorting",
-      options: {
-        customBodyRenderLite: renderSorting,
-      },
+      field: "sortingOrigin",
+      headerName: "Annotation Sorting",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderSorting,
     },
     {
-      name: "rejectedStatus",
-      label: "Show Rejected",
-      options: {
-        customBodyRenderLite: renderRejectedStatus,
-      },
+      field: "rejectedStatus",
+      headerName: "Show Rejected",
+      width: 120,
+      sortable: false,
+      renderCell: renderRejectedStatus,
     },
     {
-      name: "classifications",
-      label: "Classifications",
-      options: {
-        customBodyRenderLite: renderClassifications,
-      },
+      field: "classifications",
+      headerName: "Classifications",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderClassifications,
     },
     {
-      name: "manage",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderActions,
-      },
+      field: "manage",
+      headerName: " ",
+      width: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: renderActions,
     },
   ];
 
-  const options = {
-    filter: false,
-    sort: false,
-    print: false,
-    download: false,
-    search: false,
-    selectableRows: "none",
-    elevation: 0,
-    customToolbar: () => (
+  const rows = (profiles || []).map((profile, index) => ({
+    ...profile,
+    __rowid: index,
+  }));
+
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
       <IconButton
         name="new_scanning_profile"
-        onClick={() => {
-          setNewDialogOpen(true);
-        }}
+        onClick={() => setNewDialogOpen(true)}
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+    </GridToolbarContainer>
+  );
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={profiles}
-            options={options}
-            columns={columns}
-            title="Scanning Profiles"
-          />
-        </ThemeProvider>
+        <Typography variant="h6" sx={{ p: 1 }}>
+          Scanning Profiles
+        </Typography>
+        <StyledDataGrid
+          autoHeight
+          rows={rows}
+          columns={columns}
+          getRowId={(row) => row.__rowid}
+          disableColumnFilter
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
+        />
       </Paper>
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
         <DialogContent className={classes.dialogContent}>

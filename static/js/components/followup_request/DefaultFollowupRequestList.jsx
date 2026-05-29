@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -11,17 +10,22 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Paper from "@mui/material/Paper";
-import MUIDataTable from "mui-datatables";
+import Typography from "@mui/material/Typography";
 import { JSONTree } from "react-json-tree";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
@@ -34,46 +38,12 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const DefaultFollowupRequestList = ({
   default_followup_requests,
   deletePermission,
 }) => {
   const dispatch = useDispatch();
   const { classes } = useStyles();
-  const theme = useTheme();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
@@ -97,7 +67,6 @@ const DefaultFollowupRequestList = ({
     setDefaultFollowupRequestToDelete(null);
   };
 
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
     useState(null);
 
@@ -114,13 +83,10 @@ const DefaultFollowupRequestList = ({
     });
   };
 
-  const renderInstrumentName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation } = default_followup_request;
+  const renderInstrumentName = (params) => {
+    const { allocation } = params.row;
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
@@ -130,16 +96,12 @@ const DefaultFollowupRequestList = ({
     );
   };
 
-  const renderTelescopeName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation } = default_followup_request;
+  const renderTelescopeName = (params) => {
+    const { allocation } = params.row;
     const { instrument_id } = allocation;
     const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
@@ -149,27 +111,27 @@ const DefaultFollowupRequestList = ({
     );
   };
 
-  const renderGroup = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation } = default_followup_request;
-
+  const renderGroup = (params) => {
+    const { allocation } = params.row;
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
     return <div>{group ? group.name : ""}</div>;
   };
 
-  const renderPayload = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
+  const renderPayload = (params) => {
+    const cellStyle = { whiteSpace: "nowrap" };
     return (
       <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.payload} hideRoot />
+        {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
+      </div>
+    );
+  };
+
+  const renderSourceFilter = (params) => {
+    const cellStyle = { whiteSpace: "nowrap" };
+    return (
+      <div style={cellStyle}>
+        {params.row ? (
+          <JSONTree data={params.row.source_filter} hideRoot />
         ) : (
           ""
         )}
@@ -177,29 +139,11 @@ const DefaultFollowupRequestList = ({
     );
   };
 
-  const renderSourceFilter = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.source_filter} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-
-  const renderManage = (dataIndex) => {
+  const renderManage = (params) => {
     if (!deletePermission) {
       return null;
     }
-    const default_followup_request = default_followup_requests[dataIndex];
+    const default_followup_request = params.row;
     return (
       <div className={classes.defaultFollowupRequestManage}>
         <Button
@@ -215,105 +159,87 @@ const DefaultFollowupRequestList = ({
 
   const columns = [
     {
-      name: "instrument_name",
-      label: "Instrument Name",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentName,
-      },
+      field: "instrument_name",
+      headerName: "Instrument Name",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: renderInstrumentName,
     },
     {
-      name: "telescope_name",
-      label: "Telescope Name",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeName,
-      },
+      field: "telescope_name",
+      headerName: "Telescope Name",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: renderTelescopeName,
     },
     {
-      name: "default_followup_name",
-      label: "Name",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-      },
+      field: "default_followup_name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 120,
     },
     {
-      name: "group",
-      label: "Group",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGroup,
-      },
+      field: "group",
+      headerName: "Group",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: renderGroup,
     },
     {
-      name: "Payload",
-      label: "Payload",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderPayload,
-      },
+      field: "Payload",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderPayload,
     },
     {
-      name: "Source Filter",
-      label: "Source Filter",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderSourceFilter,
-      },
+      field: "Source Filter",
+      headerName: "Source Filter",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderSourceFilter,
     },
     {
-      name: "manage",
-      label: " ",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderManage,
-      },
+      field: "manage",
+      headerName: " ",
+      width: 70,
+      sortable: false,
+      filterable: false,
+      renderCell: renderManage,
     },
   ];
 
-  const options = {
-    search: false,
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    elevation: 0,
-    jumpToPage: true,
-    pagination: true,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
       <IconButton
         name="new_default_followup_request"
-        onClick={() => {
-          openNewDialog();
-        }}
+        onClick={() => openNewDialog()}
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+    </GridToolbarContainer>
+  );
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Default Follow-up Requests"
-            data={default_followup_requests || []}
-            options={options}
-            columns={columns}
-          />
-        </ThemeProvider>
+        <Typography variant="h6" sx={{ p: 1 }}>
+          Default Follow-up Requests
+        </Typography>
+        <StyledDataGrid
+          autoHeight
+          rows={default_followup_requests || []}
+          columns={columns}
+          getRowId={(row) => row.id}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
+        />
       </Paper>
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Default Follow-up Request</DialogTitle>

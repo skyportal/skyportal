@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseIcon from "@mui/icons-material/Close";
@@ -16,10 +15,17 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarExport,
+} from "@mui/x-data-grid";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+
+import StyledDataGrid from "../StyledDataGrid";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -35,74 +41,50 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive column widths
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
-              0.5,
-            )} ${theme.spacing(0.5)}`,
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(1)} 0 ${theme.spacing(1)} ${theme.spacing(
-              1,
-            )}`,
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          root: {
-            maxHeight: "2rem",
-            padding: 0,
-            margin: 0,
-            paddingRight: "0.75rem",
-          },
-        },
-      },
-      MuiIconButton: {
-        root: {
-          padding: "0.5rem",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
+const renderStatus = (params) => {
+  const { status } = params.row;
+  // status can be "highlighted", "rejected", or "ambiguous"
+  // should never happen here, but show "not vetted" if status is undefined
+  let icon = <PriorityHigh size="small" color="primary" />;
+  if (status === "highlighted") {
+    icon = <CheckIcon size="small" color="green" />;
+  } else if (status === "rejected") {
+    icon = <ClearIcon size="small" color="secondary" />;
+  } else if (status === "ambiguous") {
+    icon = <QuestionMarkIcon size="small" color="primary" />;
+  }
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Tooltip title={status || "not vetted"} placement="right">
+        {icon}
+      </Tooltip>
+    </div>
+  );
+};
+
+const columns = [
+  { field: "dateobs", headerName: "GCN Event", flex: 1, minWidth: 160 },
+  {
+    field: "status",
+    headerName: "Status",
+    width: 100,
+    sortable: false,
+    renderCell: renderStatus,
+  },
+  { field: "explanation", headerName: "Explanation", flex: 1, minWidth: 160 },
+  { field: "notes", headerName: "Notes", flex: 1, minWidth: 160 },
+];
 
 // Table for displaying annotations
 const GcnNotesTable = ({ gcnNotes, canExpand = true }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const [openGCNNotes, setOpenGCNNotes] = useState(false);
 
@@ -111,100 +93,41 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }) => {
   };
 
   // Curate data
-  const tableData = [];
-  gcnNotes?.forEach((gcnNote) => {
+  const tableData = (gcnNotes || []).map((gcnNote, index) => {
     const { dateobs, status, explanation, notes } = gcnNote;
-    tableData.push({
-      dateobs,
-      status,
-      explanation,
-      notes,
-    });
+    return { id: index, dateobs, status, explanation, notes };
   });
 
-  const columns = [
-    {
-      name: "dateobs",
-      label: "GCN Event",
-    },
-    {
-      name: "status",
-      label: "Status",
-      options: {
-        customBodyRenderLite: (index) => {
-          const { status } = tableData[index];
-          // status can be "highlighted", "rejected", or "ambiguous"
-          // should never happen here, but show "not vetted" if status is undefined
-          let icon = <PriorityHigh size="small" color="primary" />;
-          if (status === "highlighted") {
-            icon = <CheckIcon size="small" color="green" />;
-          } else if (status === "rejected") {
-            icon = <ClearIcon size="small" color="secondary" />;
-          } else if (status === "ambiguous") {
-            icon = <QuestionMarkIcon size="small" color="primary" />;
-          }
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Tooltip title={status || "not vetted"} placement="right">
-                {icon}
-              </Tooltip>
-            </div>
-          );
-        },
-      },
-    },
-    {
-      name: "explanation",
-      label: "Explanation",
-    },
-    {
-      name: "notes",
-      label: "Notes",
-    },
-  ];
-
-  const options = {
-    responsive: "standard",
-    print: true,
-    download: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPage: 10,
-    rowsPerPageOptions: [10, 15, 50],
-    jumpToPage: false,
-    pagination: true,
-    tableBodyMaxHeight: canExpand ? "20rem" : "75vh",
-    customToolbar: () => {
-      if (canExpand) {
-        return (
-          <IconButton
-            name="expand_annotations"
-            onClick={() => {
-              setOpenGCNNotes(true);
-            }}
-          >
-            <OpenInFullIcon />
-          </IconButton>
-        );
-      }
-      return null;
-    },
-  };
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <GridToolbarExport />
+      {canExpand && (
+        <IconButton
+          name="expand_annotations"
+          onClick={() => setOpenGCNNotes(true)}
+        >
+          <OpenInFullIcon />
+        </IconButton>
+      )}
+    </GridToolbarContainer>
+  );
 
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <div className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable columns={columns} data={tableData} options={options} />
-        </ThemeProvider>
+        <Box sx={{ width: "100%", height: canExpand ? "22rem" : "78vh" }}>
+          <StyledDataGrid
+            columns={columns}
+            rows={tableData}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[10, 15, 50]}
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
+          />
+        </Box>
       </div>
       <div>
         {openGCNNotes && (

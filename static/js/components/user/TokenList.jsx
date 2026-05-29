@@ -5,11 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import UpdateTokenACLs from "./UpdateTokenACLs";
 import SharePage from "../SharePage";
 
@@ -22,37 +21,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const copyToken = (elementID) => {
   const el = document.getElementById(elementID);
   el.select();
@@ -61,7 +29,6 @@ const copyToken = (elementID) => {
 
 const TokenList = ({ tokens }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const profile = useSelector((state) => state.profile);
@@ -83,21 +50,18 @@ const TokenList = ({ tokens }) => {
     </div>
   );
 
-  const renderQRCode = (dataIndex) => {
-    const tokenId = tokens[dataIndex].id;
-    return (
-      <div>
-        <SharePage value={tokenId} />
-      </div>
-    );
-  };
+  const renderQRCode = (params) => (
+    <div>
+      <SharePage value={params.row.id} />
+    </div>
+  );
 
-  const renderACLs = (dataIndex) => {
-    const tokenId = tokens[dataIndex].id;
-    const tokenACLs = tokens[dataIndex].acls;
+  const renderACLs = (params) => {
+    const tokenId = params.row.id;
+    const tokenACLs = params.row.acls;
     return (
       <div>
-        {tokens[dataIndex].acls.join(", ")}
+        {(params.row.acls || []).join(", ")}
         <div className={classes.sourceInfo}>
           <UpdateTokenACLs
             tokenId={tokenId}
@@ -109,65 +73,58 @@ const TokenList = ({ tokens }) => {
     );
   };
 
-  const renderDelete = (dataIndex) => {
-    const tokenId = tokens[dataIndex].id;
-    return (
-      <Button secondary size="small" onClick={() => deleteToken(tokenId)}>
-        Delete
-      </Button>
-    );
-  };
+  const renderDelete = (params) => (
+    <Button secondary size="small" onClick={() => deleteToken(params.row.id)}>
+      Delete
+    </Button>
+  );
 
   const columns = [
     {
-      name: "id",
-      label: "Value",
-      options: {
-        customBodyRender: renderValue,
-      },
+      field: "id",
+      headerName: "Value",
+      flex: 1,
+      minWidth: 200,
+      sortable: false,
+      renderCell: (params) => renderValue(params.value),
     },
     {
-      name: "qr",
-      label: "QR Code",
-      options: {
-        customBodyRenderLite: renderQRCode,
-      },
+      field: "qr",
+      headerName: "QR Code",
+      width: 120,
+      sortable: false,
+      renderCell: renderQRCode,
     },
-    { name: "name", label: "Name" },
+    { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
     {
-      name: "acls",
-      label: "ACLs",
-      options: {
-        customBodyRenderLite: renderACLs,
-      },
+      field: "acls",
+      headerName: "ACLs",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderACLs,
     },
-    { name: "created_at", label: "Created" },
+    { field: "created_at", headerName: "Created", flex: 1, minWidth: 160 },
     {
-      name: "delete",
-      label: "Delete",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
+      field: "delete",
+      headerName: "Delete",
+      width: 110,
+      sortable: false,
+      renderCell: renderDelete,
     },
   ];
-
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-  };
 
   return (
     <div>
       <Typography variant="h5">My Tokens</Typography>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable data={tokens} options={options} columns={columns} />
-        </ThemeProvider>
+        <StyledDataGrid
+          autoHeight
+          rows={tokens}
+          columns={columns}
+          getRowId={(row) => row.id}
+          showToolbar
+        />
       </Paper>
     </div>
   );

@@ -1,11 +1,13 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionRequests";
 
@@ -42,8 +44,8 @@ const NonMemberGroupList = ({ groups }) => {
     );
   };
 
-  const renderActions = (dataIndex) => {
-    const group = groups[dataIndex];
+  const renderActions = (params) => {
+    const group = params.row;
     if (declinedRequestGroupIDs.includes(group.id)) {
       return <em>Admission request declined.</em>;
     }
@@ -77,53 +79,33 @@ const NonMemberGroupList = ({ groups }) => {
       </Button>
     );
   };
+
   const columns = [
+    { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
+    { field: "nickname", headerName: "Nickname", flex: 1, minWidth: 120 },
     {
-      name: "name",
-      label: "Name",
-      options: {
-        filter: false,
-      },
-    },
-    {
-      name: "nickname",
-      label: "Nickname",
-      options: {
-        filter: false,
-      },
-    },
-    {
-      name: "actions",
-      label: "Actions",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderActions,
-        filter: false,
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderActions,
     },
   ];
 
-  const options = {
-    responsive: "standard",
-    download: false,
-    search: true,
-    selectableRows: "none",
-    rowsPerPage: 10,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: false,
-    jumpToPage: true,
-    pagination: true,
-    rowHover: false,
-    print: false,
-    elevation: 1,
-  };
   return (
-    <MUIDataTable
-      title="Non-member groups"
-      columns={columns}
-      data={groups}
-      options={options}
-    />
+    <Box sx={{ width: "100%" }}>
+      <Typography variant="h6">Non-member groups</Typography>
+      <StyledDataGrid
+        autoHeight
+        rows={groups}
+        columns={columns}
+        getRowId={(row) => row.id}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[10, 25, 50, 100, 200]}
+        showToolbar
+      />
+    </Box>
   );
 };
 

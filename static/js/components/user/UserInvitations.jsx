@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 
-import MUIDataTable from "mui-datatables";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
@@ -16,6 +15,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -23,8 +23,11 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
@@ -34,6 +37,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import * as invitationsActions from "../../ducks/invitations";
@@ -42,6 +46,8 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
 
 dayjs.extend(utc);
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -63,18 +69,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const dataTableStyles = (theme) =>
-  createTheme({
-    overrides: {
-      MuiPaper: {
-        elevation4: {
-          boxShadow: "none !important",
-        },
-      },
-    },
-    palette: theme.palette,
-  });
-
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
 
@@ -82,7 +76,6 @@ const defaultNumPerPage = 25;
 
 const UserInvitations = () => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
   let { all: allGroups } = useSelector((state) => state.groups);
@@ -94,6 +87,7 @@ const UserInvitations = () => {
     numPerPage: defaultNumPerPage,
   });
   const [tableFilterList, setTableFilterList] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const { invitations, totalMatches } = useSelector(
     (state) => state.invitations,
   );
@@ -313,9 +307,9 @@ const UserInvitations = () => {
     }
   };
 
-  // MUI DataTable functions
-  const renderActions = (dataIndex) => {
-    const invitation = invitations[dataIndex];
+  // DataGrid cell renderers
+  const renderActions = (params) => {
+    const invitation = params.row;
     const handleCopyInvitationLink = () => {
       const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
       const invitationLink = `${appBaseUrl}/login/google-oauth2/?invite_token=${invitation.token}`;
@@ -354,8 +348,8 @@ const UserInvitations = () => {
     );
   };
 
-  const renderRole = (dataIndex) => {
-    const invitation = invitations[dataIndex];
+  const renderRole = (params) => {
+    const invitation = params.row;
     return (
       <div>
         {invitation.role_id}
@@ -375,8 +369,8 @@ const UserInvitations = () => {
     );
   };
 
-  const renderGroups = (dataIndex) => {
-    const invitation = invitations[dataIndex];
+  const renderGroups = (params) => {
+    const invitation = params.row;
     return (
       <div>
         <IconButton
@@ -404,8 +398,8 @@ const UserInvitations = () => {
     );
   };
 
-  const renderStreams = (dataIndex) => {
-    const invitation = invitations[dataIndex];
+  const renderStreams = (params) => {
+    const invitation = params.row;
     return (
       <div>
         <IconButton
@@ -433,8 +427,8 @@ const UserInvitations = () => {
     );
   };
 
-  const renderExpirationDate = (dataIndex) => {
-    const invitation = invitations[dataIndex];
+  const renderExpirationDate = (params) => {
+    const invitation = params.row;
     const isExpired = dayjs.utc().isAfter(invitation.user_expiration_date);
     return (
       <div className={isExpired ? classes.expired_user : ""}>
@@ -489,19 +483,17 @@ const UserInvitations = () => {
     setFetchParams(params);
     await dispatch(invitationsActions.fetchInvitations(params));
     setQueryInProgress(false);
+    setFilterOpen(false);
   };
 
-  const handleTableFilterChipChange = (column, filterList, type) => {
-    if (type === "chip") {
-      const nameFilterList = filterList[0];
-      // Convert chip filter list to filter form data
-      const data = {};
-      nameFilterList.forEach((filterChip) => {
-        const [key, value] = filterChip.split(": ");
-        data[key] = value;
-      });
-      handleFilterSubmit(data);
-    }
+  const handleFilterChipDelete = (chip) => {
+    const remaining = tableFilterList.filter((c) => c !== chip);
+    const data = {};
+    remaining.forEach((filterChip) => {
+      const [key, value] = filterChip.split(": ");
+      data[key] = value;
+    });
+    handleFilterSubmit(data);
   };
 
   const handlePageChange = async (page, numPerPage) => {
@@ -513,15 +505,9 @@ const UserInvitations = () => {
     setQueryInProgress(false);
   };
 
-  const handleTableChange = (action, tableState) => {
-    setRowsPerPage(tableState.rowsPerPage);
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        handlePageChange(tableState.page, tableState.rowsPerPage);
-        break;
-      default:
-    }
+  const handlePaginationModelChange = (model) => {
+    setRowsPerPage(model.pageSize);
+    handlePageChange(model.page, model.pageSize);
   };
 
   const customFilterDisplay = () => {
@@ -567,96 +553,94 @@ const UserInvitations = () => {
 
   const columns = [
     {
-      name: "user_email",
-      label: "Invitee Email",
-      options: {
-        // Hijack custom filtering for this column to use for the entire form
-        // Individually using custom filter renders on each column led to issues
-        // with the form RESET button not being hooked up properly when combined
-        // with server-side pagination/filter confirmation
-        filter: !queryInProgress,
-        filterType: "custom",
-        filterList: tableFilterList,
-        filterOptions: {
-          display: () => <div />,
-        },
-      },
+      field: "user_email",
+      headerName: "Invitee Email",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      valueGetter: (value, row) => row.user_email,
     },
     {
-      name: "role",
-      label: "Role",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderRole,
-        filter: false,
-      },
+      field: "role",
+      headerName: "Role",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderRole,
     },
     {
-      name: "groups",
-      label: "Groups",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderGroups,
-        filter: false,
-      },
+      field: "groups",
+      headerName: "Groups",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGroups,
     },
     {
-      name: "streams",
-      label: "Streams",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderStreams,
-        filter: false,
-      },
+      field: "streams",
+      headerName: "Streams",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderStreams,
     },
     {
-      name: "invited_by.username",
-      label: "Invited By",
-      options: {
-        sort: false,
-        filter: false,
-      },
+      field: "invited_by",
+      headerName: "Invited By",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      valueGetter: (value, row) => row.invited_by?.username,
     },
     {
-      name: "user_expiration_date",
-      label: "User Expiration Date",
-      options: {
-        sort: false,
-        filter: false,
-        customBodyRenderLite: renderExpirationDate,
-        customHeadLabelRender: renderExpirationDateHeader,
-      },
+      field: "user_expiration_date",
+      headerName: "User Expiration Date",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderHeader: renderExpirationDateHeader,
+      renderCell: renderExpirationDate,
     },
     {
-      name: "actions",
-      label: "Actions",
-      options: {
-        sort: false,
-        filter: false,
-        customBodyRenderLite: renderActions,
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderActions,
     },
   ];
 
-  const options = {
-    responsive: "standard",
-    print: true,
-    download: true,
-    search: false,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    sort: false,
-    rowsPerPage,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: !queryInProgress,
-    customFilterDialogFooter: customFilterDisplay,
-    onFilterChange: handleTableFilterChipChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-    rowHover: false,
-    count: totalMatches,
-    onTableChange: handleTableChange,
+  const CustomToolbar = function UserInvitationsToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <Tooltip title="Filter Table">
+          <IconButton
+            size="small"
+            data-testid="Filter Table-iconButton"
+            onClick={() => setFilterOpen(true)}
+          >
+            <FilterListIcon />
+          </IconButton>
+        </Tooltip>
+        {tableFilterList.map((chip) => (
+          <Chip
+            key={chip}
+            label={chip}
+            size="small"
+            onDelete={() => handleFilterChipDelete(chip)}
+          />
+        ))}
+      </GridToolbarContainer>
+    );
   };
 
   return (
@@ -667,14 +651,31 @@ const UserInvitations = () => {
         className={classes.section}
         data-testid="pendingInvitations"
       >
-        <ThemeProvider theme={dataTableStyles(theme)}>
-          <MUIDataTable
+        <Box sx={{ width: "100%" }}>
+          <StyledDataGrid
+            autoHeight
             columns={columns}
-            data={invitations}
-            options={options}
+            rows={invitations || []}
+            getRowId={(row) => row.id}
+            loading={queryInProgress}
+            paginationMode="server"
+            sortingMode="server"
+            rowCount={totalMatches}
+            paginationModel={{
+              page: fetchParams.pageNumber - 1,
+              pageSize: rowsPerPage,
+            }}
+            onPaginationModelChange={handlePaginationModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            disableColumnFilter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>{customFilterDisplay()}</DialogContent>
+      </Dialog>
       <Typography variant="h5">Bulk Invite New Users</Typography>
       <Paper variant="outlined" className={classes.section}>
         <Box p={5}>

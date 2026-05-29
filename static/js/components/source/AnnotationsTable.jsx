@@ -3,9 +3,8 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseIcon from "@mui/icons-material/Close";
@@ -14,11 +13,18 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Typography from "@mui/material/Typography";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarExport,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import StyledDataGrid from "../StyledDataGrid";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import * as sourceActions from "../../ducks/source";
@@ -38,69 +44,14 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive column widths
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
-              0.5,
-            )} ${theme.spacing(0.5)}`,
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(1)} 0 ${theme.spacing(1)} ${theme.spacing(
-              1,
-            )}`,
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          root: {
-            maxHeight: "2rem",
-            padding: 0,
-            margin: 0,
-            paddingRight: "0.75rem",
-          },
-        },
-      },
-      MuiIconButton: {
-        root: {
-          padding: "0.5rem",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
+const renderTime = (created_at) => dayjs().to(dayjs.utc(`${created_at}Z`));
+const renderSpectrumDate = (observed_at) => {
+  if (observed_at) {
+    const dayFraction = (parseFloat(observed_at.substring(11, 13)) / 24) * 10;
+    return `${observed_at.substring(0, 10)}.${dayFraction.toFixed(0)}`;
+  }
+  return "";
+};
 
 // Table for displaying annotations
 const AnnotationsTable = ({
@@ -109,17 +60,7 @@ const AnnotationsTable = ({
   canExpand = true,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
-  const renderValue = (value) => getAnnotationValueString(value);
-  const renderTime = (created_at) => dayjs().to(dayjs.utc(`${created_at}Z`));
-  const renderSpectrumDate = (observed_at) => {
-    if (observed_at) {
-      const dayFraction = (parseFloat(observed_at.substring(11, 13)) / 24) * 10;
-      return `${observed_at.substring(0, 10)}.${dayFraction.toFixed(0)}`;
-    }
-    return "";
-  };
 
   const [openAnnotations, setOpenAnnotations] = useState(false);
   const [isRemoving, setIsRemoving] = useState(null);
@@ -156,6 +97,7 @@ const AnnotationsTable = ({
     } = annotation;
     Object.entries(data).forEach(([key, value]) => {
       tableData.push({
+        __rowid: tableData.length,
         id,
         obj_id,
         origin,
@@ -170,9 +112,8 @@ const AnnotationsTable = ({
     });
   });
 
-  const renderDelete = (tmp, row) => {
-    const annotation = tableData[row.rowIndex];
-
+  const renderDelete = (params) => {
+    const annotation = params.row;
     return (
       <div>
         {isRemoving === annotation.id ? (
@@ -203,87 +144,86 @@ const AnnotationsTable = ({
   };
 
   const columns = [
+    { field: "origin", headerName: "Origin", flex: 1, minWidth: 120 },
+    { field: "key", headerName: "Key", flex: 1, minWidth: 120 },
     {
-      name: "origin",
-      label: "Origin",
+      field: "value",
+      headerName: "Value",
+      flex: 1,
+      minWidth: 120,
+      valueFormatter: (value) => getAnnotationValueString(value),
     },
     {
-      name: "key",
-      label: "Key",
+      field: "author_username",
+      headerName: "Author",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) => row.author?.username,
     },
     {
-      name: "value",
-      label: "Value",
-      options: {
-        customBodyRender: renderValue,
-      },
+      field: "created_at",
+      headerName: "Created",
+      flex: 1,
+      minWidth: 120,
+      valueFormatter: (value) => renderTime(value),
     },
     {
-      name: "author.username",
-      label: "Author",
-    },
-    {
-      name: "created_at",
-      label: "Created",
-      options: {
-        customBodyRender: renderTime,
-      },
-    },
-    {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRender: renderDelete,
-        sort: false,
-        setCellProps: () => ({ style: { maxWidth: "4rem" } }),
-      },
+      field: "delete",
+      headerName: " ",
+      width: 70,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDelete,
     },
   ];
 
   if (spectrumAnnotations?.length) {
     // add another column to show the spectrum observed at property
     columns.splice(1, 0, {
-      name: "observed_at",
-      label: "Spectrum Obs. at",
-      options: { customBodyRender: renderSpectrumDate },
+      field: "observed_at",
+      headerName: "Spectrum Obs. at",
+      flex: 1,
+      minWidth: 140,
+      // valueGetter (not valueFormatter) so the displayed "YYYY-MM-DD.f" string
+      // is also the value the toolbar quick filter matches against.
+      valueGetter: (value) => renderSpectrumDate(value),
     });
   }
 
-  const options = {
-    responsive: "standard",
-    print: true,
-    download: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPage: 10,
-    rowsPerPageOptions: [10, 15, 50],
-    jumpToPage: false,
-    pagination: true,
-    tableBodyMaxHeight: canExpand ? "20rem" : "75vh",
-    customToolbar: () => {
-      if (canExpand) {
-        return (
-          <IconButton
-            name="expand_annotations"
-            onClick={() => {
-              setOpenAnnotations(true);
-            }}
-          >
-            <OpenInFullIcon />
-          </IconButton>
-        );
-      }
-      return null;
-    },
-  };
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <GridToolbarExport />
+      <div data-testid="annotations-quick-filter">
+        <GridToolbarQuickFilter />
+      </div>
+      {canExpand && (
+        <IconButton
+          name="expand_annotations"
+          onClick={() => setOpenAnnotations(true)}
+        >
+          <OpenInFullIcon />
+        </IconButton>
+      )}
+    </GridToolbarContainer>
+  );
 
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <div className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable columns={columns} data={tableData} options={options} />
-        </ThemeProvider>
+        <Box sx={{ width: "100%", height: canExpand ? "22rem" : "78vh" }}>
+          <StyledDataGrid
+            columns={columns}
+            rows={tableData}
+            getRowId={(row) => row.__rowid}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[10, 15, 50]}
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
+          />
+        </Box>
       </div>
       <div>
         {openAnnotations && (

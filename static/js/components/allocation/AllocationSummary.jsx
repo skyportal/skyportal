@@ -2,12 +2,10 @@ import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -15,6 +13,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import TextField from "@mui/material/TextField";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import Link from "@mui/material/Link";
 import SaveIcon from "@mui/icons-material/Save";
@@ -28,8 +28,8 @@ import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
-import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
+import StyledDataGrid from "../StyledDataGrid";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
@@ -300,114 +300,102 @@ const AllocationObservationPlansTable = ({
     );
   };
 
-  const handleTableChange = async (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      return handlePageChange(tableState.page, tableState.rowsPerPage);
-    }
-    return null;
+  const handlePaginationModelChange = (model) => {
+    handlePageChange(model.page, model.pageSize);
   };
 
   const columns = [
-    { name: "localization.dateobs", label: "GCN Event" },
-    { name: "localization.localization_name", label: "Localization" },
-    { name: "created_at", label: "Created at" },
-    { name: "status", label: "Status" },
+    {
+      field: "dateobs",
+      headerName: "GCN Event",
+      flex: 1,
+      minWidth: 130,
+      valueGetter: (value, row) => row.localization?.dateobs,
+    },
+    {
+      field: "localization_name",
+      headerName: "Localization",
+      flex: 1,
+      minWidth: 130,
+      valueGetter: (value, row) => row.localization?.localization_name,
+    },
+    { field: "created_at", headerName: "Created at", flex: 1, minWidth: 150 },
+    { field: "status", headerName: "Status", flex: 1, minWidth: 110 },
+    {
+      field: "payload",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: "nowrap" }}>
+          {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
+        </div>
+      ),
+    },
+    {
+      field: "summarystatistics",
+      headerName: "Summary Statistics",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => {
+        const observationplanRequest = params.row;
+        return (
+          <div>
+            {observationplanRequest.status === "running" ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <ObservationPlanSummaryStatistics
+                  observationplanRequest={observationplanRequest}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      field: "skymap",
+      headerName: "Skymap",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => (
+        <div className={classes.localization}>
+          <ObservationPlanGlobe
+            observationplanRequest={params.row}
+            retrieveLocalization
+          />
+        </div>
+      ),
+    },
   ];
-
-  const renderPayload = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {observationplanRequest ? (
-          <JSONTree data={observationplanRequest.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "payload",
-    label: "Payload",
-    options: {
-      customBodyRenderLite: renderPayload,
-    },
-  });
-
-  const renderSummaryStatistics = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div>
-        {observationplanRequest.status === "running" ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <ObservationPlanSummaryStatistics
-              observationplanRequest={observationplanRequest}
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-  columns.push({
-    name: "summarystatistics",
-    label: "Summary Statistics",
-    options: {
-      customBodyRenderLite: renderSummaryStatistics,
-    },
-  });
-
-  const renderLocalization = (dataIndex) => {
-    const observationplanRequest = observation_plan_requests[dataIndex];
-
-    return (
-      <div className={classes.localization}>
-        <ObservationPlanGlobe
-          observationplanRequest={observationplanRequest}
-          retrieveLocalization
-        />
-      </div>
-    );
-  };
-  columns.push({
-    name: "skymap",
-    label: "Skymap",
-    options: {
-      customBodyRenderLite: renderLocalization,
-    },
-  });
-
-  const options = {
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    onTableChange: handleTableChange,
-    count: totalMatches,
-    page: fetchParams.pageNumber - 1,
-    rowsPerPage: fetchParams.numPerPage,
-    rowsPerPageOptions: [1, 10, 25, 50, 100],
-    enableNestedDataAccess: ".",
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-  };
 
   return (
     <div className={styles.center}>
-      <MUIDataTable
-        title="Observation Plans"
-        columns={columns}
-        data={observation_plan_requests}
-        options={options}
-      />
+      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+        Observation Plans
+      </Typography>
+      <Box sx={{ width: "100%" }}>
+        <StyledDataGrid
+          autoHeight
+          rows={observation_plan_requests}
+          columns={columns}
+          getRowId={(row) => row.id}
+          paginationMode="server"
+          rowCount={totalMatches}
+          paginationModel={{
+            page: fetchParams.pageNumber - 1,
+            pageSize: fetchParams.numPerPage,
+          }}
+          onPaginationModelChange={handlePaginationModelChange}
+          pageSizeOptions={[1, 10, 25, 50, 100]}
+        />
+      </Box>
     </div>
   );
 };
@@ -469,125 +457,15 @@ const AllocationSummaryTable = ({
     await dispatch(Action.fetchAllocation(allocation.id, params));
   };
 
-  const handleTableChange = async (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      return handlePageChange(tableState.page, tableState.rowsPerPage);
-    }
-    return null;
+  const handlePaginationModelChange = (model) => {
+    handlePageChange(model.page, model.pageSize);
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderPullOutRow = (rowData, rowMeta) => {
-    if (allocation === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
-
-    const colSpan = rowData.length + 1;
-    const request = requests[rowMeta.dataIndex];
-
-    return (
-      <TableRow>
-        <TableCell
-          style={{ paddingBottom: 0, paddingTop: 0 }}
-          colSpan={colSpan}
-        >
-          <Grid
-            container
-            direction="row"
-            spacing={3}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <ThumbnailList
-              thumbnails={request.obj.thumbnails}
-              ra={request.obj.ra}
-              dec={request.obj.dec}
-              useGrid={false}
-            />
-            <Grid>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <AirmassPlot
-                  dataUrl={`/api/internal/plot/airmass/objtel/${request.obj.id}/${allocation.telescope.id}`}
-                  ephemeris={allocation.ephemeris}
-                />
-              </Suspense>
-            </Grid>
-            <Grid>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPhotometry sourceId={request.obj.id} />
-              </Suspense>
-            </Grid>
-          </Grid>
-        </TableCell>
-      </TableRow>
+  const [openedRows, setOpenedRows] = useState([]);
+  const toggleExpand = (id) => {
+    setOpenedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = requests[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderRA = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div key={`${request.id}_ra`}>
-        {request.obj.ra}
-        <br />
-        {ra_to_hours(request.obj.ra)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <div key={`${request.id}_dec`}>
-        {request.obj.dec}
-        <br />
-        {dec_to_dms(request.obj.dec)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderFinderButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return (
-      <>
-        <IconButton size="small" key={`${request.id}_actions`}>
-          <Link href={`/api/sources/${request.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small" key={`${request.id}_actions_int`}>
-          <Link
-            href={`/source/${request.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const request = requests[dataIndex];
-    return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
   const handleOpenDialog = (id, comment) => {
@@ -609,172 +487,280 @@ const AllocationSummaryTable = ({
     setIsSubmitting(false);
   };
 
-  const renderComment = (dataIndex) => {
-    const request = requests[dataIndex];
-
-    return (
-      <div>
-        {request.comment}
-        <Tooltip title="Update comment">
-          <span>
-            <EditIcon
-              data-testid="updateCommentIconButton"
-              fontSize="small"
-              className={styles.editIcon}
-              onClick={() => {
-                handleOpenDialog(request.id, request.comment);
-              }}
-            />
-          </span>
-        </Tooltip>
-      </div>
-    );
-  };
-
   const columns = [
     {
-      name: "Target Name",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderObjId,
+      field: "__expand",
+      headerName: "",
+      width: 56,
+      sortable: false,
+      filterable: false,
+      hideable: false,
+      disableColumnMenu: true,
+      colSpan: (value, row) => (row.__detail ? 100 : 1),
+      renderCell: (params) => {
+        if (params.row.__detail) {
+          const request = params.row.__source;
+          return (
+            <div style={{ width: "100%" }}>
+              <Grid
+                container
+                direction="row"
+                spacing={3}
+                justifyContent="center"
+                alignItems="center"
+              >
+                <ThumbnailList
+                  thumbnails={request.obj.thumbnails}
+                  ra={request.obj.ra}
+                  dec={request.obj.dec}
+                  useGrid={false}
+                />
+                <Grid>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <AirmassPlot
+                      dataUrl={`/api/internal/plot/airmass/objtel/${request.obj.id}/${allocation.telescope.id}`}
+                      ephemeris={allocation.ephemeris}
+                    />
+                  </Suspense>
+                </Grid>
+                <Grid>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPhotometry sourceId={request.obj.id} />
+                  </Suspense>
+                </Grid>
+              </Grid>
+            </div>
+          );
+        }
+        const expanded = openedRows.includes(params.row.id);
+        return (
+          <IconButton
+            id="expandable-button"
+            size="small"
+            aria-label="expand row"
+            onClick={() => toggleExpand(params.row.id)}
+          >
+            {expanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
+          </IconButton>
+        );
       },
     },
     {
-      name: "Request Date",
-      options: {
-        filter: true,
+      field: "target_name",
+      headerName: "Target Name",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params) => {
+        const objid = params.row.obj?.id;
+        return (
+          <a href={`/source/${objid}`} key={`${objid}_objid`}>
+            {objid}
+          </a>
+        );
       },
     },
     {
-      name: "Start Date",
-      options: {
-        filter: true,
+      field: "created_at",
+      headerName: "Request Date",
+      flex: 1,
+      minWidth: 150,
+    },
+    {
+      field: "start_date",
+      headerName: "Start Date",
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (value, row) => row.payload?.start_date,
+    },
+    {
+      field: "end_date",
+      headerName: "End Date",
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (value, row) => row.payload?.end_date,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 110,
+    },
+    {
+      field: "ra",
+      headerName: "RA",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      valueGetter: (value, row) => row.obj?.ra,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_ra`}>
+          {params.row.obj?.ra}
+          <br />
+          {params.row.obj?.ra != null && ra_to_hours(params.row.obj.ra)}
+        </div>
+      ),
+    },
+    {
+      field: "dec",
+      headerName: "Dec",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      valueGetter: (value, row) => row.obj?.dec,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_dec`}>
+          {params.row.obj?.dec}
+          <br />
+          {params.row.obj?.dec != null && dec_to_dms(params.row.obj.dec)}
+        </div>
+      ),
+    },
+    {
+      field: "redshift",
+      headerName: "Redshift",
+      flex: 1,
+      minWidth: 90,
+      valueGetter: (value, row) => row.obj?.redshift,
+    },
+    {
+      field: "requester",
+      headerName: "Requester",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) => row.requester?.username,
+    },
+    {
+      field: "priority",
+      headerName: "Priority",
+      flex: 1,
+      minWidth: 90,
+      valueGetter: (value, row) => row.payload?.priority,
+    },
+    {
+      field: "rise_time_utc",
+      headerName: "Rises at (>30deg alt, UT)",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) =>
+        params.row.rise_time_utc != null
+          ? new Date(params.row.rise_time_utc).toLocaleTimeString()
+          : null,
+    },
+    {
+      field: "set_time_utc",
+      headerName: "Sets at (<30deg alt, UT)",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) =>
+        params.row.set_time_utc != null
+          ? new Date(params.row.set_time_utc).toLocaleTimeString()
+          : null,
+    },
+    {
+      field: "comment",
+      headerName: "Comment",
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params) => {
+        const request = params.row;
+        return (
+          <div>
+            {request.comment}
+            <Tooltip title="Update comment">
+              <span aria-label="Update comment">
+                <EditIcon
+                  data-testid="updateCommentIconButton"
+                  fontSize="small"
+                  className={styles.editIcon}
+                  onClick={() => {
+                    handleOpenDialog(request.id, request.comment);
+                  }}
+                />
+              </span>
+            </Tooltip>
+          </div>
+        );
       },
     },
     {
-      name: "End Date",
-      options: {
-        filter: true,
+      field: "finder",
+      headerName: "Finder",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const request = params.row;
+        return (
+          <>
+            <IconButton size="small" key={`${request.id}_actions`}>
+              <Link href={`/api/sources/${request.obj.id}/finder`}>
+                <PictureAsPdfIcon />
+              </Link>
+            </IconButton>
+            <IconButton size="small" key={`${request.id}_actions_int`}>
+              <Link
+                href={`/source/${request.obj.id}/finder`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <ImageAspectRatioIcon />
+              </Link>
+            </IconButton>
+          </>
+        );
       },
     },
     {
-      name: "Status",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "RA",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderRA,
-      },
-    },
-    {
-      name: "Dec",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderDec,
-      },
-    },
-    {
-      name: "Redshift",
-      options: {
-        filter: false,
-      },
-    },
-    {
-      name: "Requester",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Priority",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Rises at (>30deg alt, UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].rise_time_utc).toLocaleTimeString(),
-      },
-    },
-    {
-      name: "Sets at (<30deg alt, UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(requests[dataIndex].set_time_utc).toLocaleTimeString(),
-      },
-    },
-    {
-      name: "Comment",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderComment,
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderFinderButton,
-      },
-    },
-    {
-      name: "Actions",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderActionsButton,
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 90,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <SimpleMenu request={params.row} key={`${params.row.id}_menu`} />
+      ),
     },
   ];
 
-  const options = {
-    draggableColumns: { enabled: true },
-    expandableRows: true,
-    renderExpandableRow: renderPullOutRow,
-    selectableRows: "none",
-    onTableChange: handleTableChange,
-    count: totalMatches,
-    page: fetchParams.pageNumber - 1,
-    rowsPerPage: fetchParams.numPerPage,
-    rowsPerPageOptions: [1, 10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-  };
-
-  const data = requests?.map((request) => [
-    request.obj.id,
-    request.created_at,
-    request.payload?.start_date,
-    request.payload?.end_date,
-    request.status,
-    request.obj.ra,
-    request.obj.dec,
-    request.obj.redshift,
-    request.requester?.username,
-    request.payload.priority,
-    request.rise_time_utc,
-    request.set_time_utc,
-    request.comment,
-    null,
-    null,
-  ]);
+  const displayRows = [];
+  (requests || []).forEach((request) => {
+    displayRows.push(request);
+    if (openedRows.includes(request.id)) {
+      displayRows.push({
+        id: `${request.id}__detail`,
+        __detail: true,
+        __source: request,
+      });
+    }
+  });
 
   return (
     <div className={styles.center}>
-      <MUIDataTable
-        title="Targets"
-        columns={columns}
-        data={data}
-        options={options}
-      />
+      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+        Targets
+      </Typography>
+      <Box sx={{ width: "100%" }}>
+        <StyledDataGrid
+          autoHeight
+          rows={displayRows}
+          columns={columns}
+          getRowId={(row) => row.id}
+          getRowHeight={(params) => (params.model.__detail ? "auto" : null)}
+          columnBufferPx={3000}
+          paginationMode="server"
+          rowCount={totalMatches}
+          paginationModel={{
+            page: fetchParams.pageNumber - 1,
+            pageSize: fetchParams.numPerPage,
+          }}
+          onPaginationModelChange={handlePaginationModelChange}
+          pageSizeOptions={[1, 10, 25, 50, 100]}
+        />
+      </Box>
       <Dialog
         open={dialogOpen != null}
         fullWidth

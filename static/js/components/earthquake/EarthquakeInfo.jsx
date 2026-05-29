@@ -2,17 +2,24 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/Info";
-
-import MUIDataTable from "mui-datatables";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { filterOutEmptyValues } from "../../API";
 import * as earthquakeActions from "../../ducks/earthquake";
+import StyledDataGrid from "../StyledDataGrid";
 import Spinner from "../Spinner";
 import EarthquakesFilterForm from "./EarthquakesFilterForm";
 
@@ -37,45 +44,17 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const defaultNumPerPage = 10;
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const Earthquake = () => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
   const earthquakes = useSelector((state) => state.earthquakes);
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [sortModel, setSortModel] = useState([]);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -140,26 +119,25 @@ const Earthquake = () => {
     setFilterFormSubmitted(true);
   };
 
-  const handleTableChange = (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      handlePageChange(
-        tableState.page + 1,
-        tableState.rowsPerPage,
-        tableState.sortOrder,
-      );
-    }
-    if (action === "sort") {
-      if (tableState.sortOrder.direction === "none") {
-        handlePageChange(1, tableState.rowsPerPage, {});
-      } else {
-        handleTableSorting(tableState.sortOrder);
-      }
-    }
+  const handlePaginationModelChange = (model) => {
+    const currentSort = sortModel.length
+      ? { name: sortModel[0].field, direction: sortModel[0].sort }
+      : {};
+    handlePageChange(model.page + 1, model.pageSize, currentSort);
   };
 
-  const renderNotices = (dataIndex) => (
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      handlePageChange(1, fetchParams.numPerPage, {});
+      return;
+    }
+    handleTableSorting({ name: model[0].field, direction: model[0].sort });
+  };
+
+  const renderNotices = (params) => (
     <ul>
-      {events[dataIndex]?.notices?.map((gcnNotice) => (
+      {params.row?.notices?.map((gcnNotice) => (
         <li key={gcnNotice.id}>
           {["date", "magnitude", "lat", "lon", "depth", "country"].map(
             (attr) => (
@@ -173,68 +151,87 @@ const Earthquake = () => {
     </ul>
   );
 
-  const renderEvent = (dataIndex) => (
-    <Link to={`/earthquakes/${events[dataIndex]?.event_id}`}>
-      <Button className={classes.gcnEventLink}>
-        {events[dataIndex]?.event_id}
-      </Button>
+  const renderEvent = (params) => (
+    <Link to={`/earthquakes/${params.row?.event_id}`}>
+      <Button className={classes.gcnEventLink}>{params.row?.event_id}</Button>
     </Link>
   );
 
-  const customFilterDisplay = () =>
-    filterFormSubmitted ? (
-      <div className={classes.filterAlert}>
-        <InfoIcon /> &nbsp; Filters submitted to server!
-      </div>
-    ) : (
-      <EarthquakesFilterForm handleFilterSubmit={handleFilterSubmit} />
-    );
-
   const columns = [
     {
-      name: "event_id",
-      label: "ID",
-      options: {
-        customBodyRenderLite: renderEvent,
-      },
+      field: "event_id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      renderCell: renderEvent,
     },
     {
-      name: "notices",
-      label: "Notices",
-      options: {
-        customBodyRenderLite: renderNotices,
-      },
+      field: "notices",
+      headerName: "Notices",
+      flex: 1,
+      minWidth: 200,
+      sortable: false,
+      filterable: false,
+      renderCell: renderNotices,
     },
   ];
 
-  const options = {
-    selectableRows: "none",
-    elevation: 0,
-    page: fetchParams.pageNumber - 1,
-    rowsPerPage: fetchParams.numPerPage,
-    rowsPerPageOptions: [10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-    count: totalMatches,
-    onTableChange: handleTableChange,
-    search: false, // Disable search for now (not implemented yet)
-    download: false, // Disable download button for now (not implemented yet)
-    filter: true,
-    customFilterDialogFooter: customFilterDisplay,
-  };
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <Tooltip title="Filter Table">
+        <IconButton
+          size="small"
+          data-testid="Filter Table-iconButton"
+          onClick={() => setFilterOpen(true)}
+        >
+          <FilterListIcon />
+        </IconButton>
+      </Tooltip>
+    </GridToolbarContainer>
+  );
 
   return (
     <Grid container spacing={3}>
       <Grid size={{ md: 12, sm: 12 }}>
         <Typography variant="h5">Earthquake Events</Typography>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            data={earthquakes.events}
-            options={options}
+        <Box className={classes.container} sx={{ width: "100%" }}>
+          <StyledDataGrid
+            autoHeight
+            rows={events || []}
             columns={columns}
+            getRowId={(row) => row.event_id}
+            paginationMode="server"
+            sortingMode="server"
+            rowCount={totalMatches || 0}
+            paginationModel={{
+              page: fetchParams.pageNumber - 1,
+              pageSize: fetchParams.numPerPage,
+            }}
+            onPaginationModelChange={handlePaginationModelChange}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
+        <Dialog
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          fullWidth
+        >
+          <DialogContent>
+            {filterFormSubmitted ? (
+              <div>
+                <InfoIcon /> &nbsp; Filters submitted to server!
+              </div>
+            ) : (
+              <EarthquakesFilterForm handleFilterSubmit={handleFilterSubmit} />
+            )}
+          </DialogContent>
+        </Dialog>
       </Grid>
     </Grid>
   );

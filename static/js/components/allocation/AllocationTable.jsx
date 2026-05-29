@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
@@ -15,9 +15,15 @@ import EditIcon from "@mui/icons-material/Edit";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
+import StyledDataGrid from "../StyledDataGrid";
 import * as allocationActions from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
@@ -31,6 +37,16 @@ export const rangeIsActive = (range, date = new Date()) =>
   range.start_date <= date.toISOString() &&
   range.end_date >= date.toISOString();
 
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map fall through to the field itself.
+const SERVER_SORT_FIELD = {
+  id: "id",
+  instrument_name: "instrument_name",
+  telescope_name: "telescope_name",
+  PI: "PI",
+  Group: "Group",
+};
+
 const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
@@ -43,39 +59,6 @@ const useStyles = makeStyles()(() => ({
     alignItems: "center",
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
 
 const AllocationTable = ({
   title = "Allocations",
@@ -96,7 +79,8 @@ const AllocationTable = ({
 
   const dispatch = useDispatch();
 
-  const [setRowsPerPage] = useState(numPerPage);
+  const [rowsPerPage] = useState(numPerPage);
+  const [sortModel, setSortModel] = useState([]);
 
   const [newAllocationDialog, setNewAllocationDialog] = useState(false);
   const [allocationToEdit, setAllocationToEdit] = useState(null);
@@ -113,15 +97,12 @@ const AllocationTable = ({
     );
   };
 
-  const renderAllocationID = (dataIndex) => {
-    return allocations[dataIndex] ? allocations[dataIndex].id : "";
-  };
+  const getInstrument = (allocation) =>
+    instruments?.filter((i) => i.id === allocation.instrument_id)[0];
 
-  const renderInstrumentName = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
+  const renderInstrumentName = (params) => {
+    const allocation = params.row;
+    const instrument = getInstrument(allocation);
     return (
       <Link to={`/allocation/${allocation.id}`} role="link">
         {instrument ? instrument.name : ""}
@@ -129,15 +110,11 @@ const AllocationTable = ({
     );
   };
 
-  const renderTelescopeName = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
-    const { instrument_id } = allocation;
-    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
-
+  const renderTelescopeName = (params) => {
+    const allocation = params.row;
+    const instrument = getInstrument(allocation);
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
     return (
       <Link to={`/allocation/${allocation.id}`} role="link">
         {telescope ? telescope.nickname : ""}
@@ -145,16 +122,12 @@ const AllocationTable = ({
     );
   };
 
-  const renderGroup = (dataIndex) => {
-    const allocation = allocations[dataIndex];
+  const getGroupName = (allocation) => {
     const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
     return group ? group.name : "";
   };
 
-  const renderShareGroups = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
+  const getShareGroups = (allocation) => {
     const share_groups = [];
     if (allocation.default_share_group_ids?.length > 0) {
       allocation.default_share_group_ids.forEach((share_group_id) => {
@@ -163,27 +136,23 @@ const AllocationTable = ({
         );
       });
     }
-
     return share_groups.length > 0 ? share_groups.join("\n") : "";
   };
 
-  const renderAllocationUsers = (dataIndex) => {
-    const allocation = allocations[dataIndex];
-
+  const getAllocationUsers = (allocation) => {
     const allocation_users = [];
     if (allocation.allocation_users?.length > 0) {
       allocation.allocation_users.forEach((user) => {
         allocation_users.push(userLabel(user, true, true, true));
       });
     }
-
     return allocation_users.length > 0 ? allocation_users.join("\n") : "";
   };
 
-  const renderValidityRanges = (dataIndex) => {
-    const validity_ranges = (
-      allocations[dataIndex]?.validity_ranges || []
-    ).filter((range) => range.end_date >= new Date().toISOString());
+  const renderValidityRanges = (params) => {
+    const validity_ranges = (params.row?.validity_ranges || []).filter(
+      (range) => range.end_date >= new Date().toISOString(),
+    );
 
     const formatOptions = {
       hour12: false,
@@ -238,20 +207,10 @@ const AllocationTable = ({
     );
   };
 
-  const renderPI = (dataIndex) => {
-    return allocations[dataIndex] ? allocations[dataIndex].pi : "";
-  };
-
-  const renderTypes = (dataIndex) => {
-    return allocations[dataIndex]
-      ? allocations[dataIndex].types.join(", ")
-      : "";
-  };
-
-  const renderManage = (dataIndex) => {
+  const renderManage = (params) => {
     if (!managePermission) return null;
 
-    const allocation = allocations[dataIndex];
+    const allocation = params.row;
     return (
       <div className={classes.allocationManage}>
         <IconButton
@@ -270,164 +229,156 @@ const AllocationTable = ({
     );
   };
 
-  const handleTableChange = (action, tableState) => {
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
     if (!paginateCallback || !sortingCallback) return;
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
-        }
-        break;
-      default:
+    if (!model.length) {
+      paginateCallback(1, rowsPerPage, {});
+      return;
     }
+    const { field, sort } = model[0];
+    sortingCallback({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
   const columns = [
     {
-      name: "id",
-      label: "ID",
-      options: {
-        filter: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAllocationID,
-      },
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+      valueGetter: (value, row) => row.id ?? "",
     },
     {
-      name: "instrument_name",
-      label: "Instrument Name",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentName,
-      },
+      field: "instrument_name",
+      headerName: "Instrument Name",
+      flex: 1,
+      minWidth: 150,
+      filterable: false,
+      valueGetter: (value, row) => getInstrument(row)?.name || "",
+      renderCell: renderInstrumentName,
     },
     telescopeInfo && {
-      name: "telescope_name",
-      label: "Telescope Name",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeName,
+      field: "telescope_name",
+      headerName: "Telescope Name",
+      flex: 1,
+      minWidth: 150,
+      filterable: false,
+      valueGetter: (value, row) => {
+        const instrument = getInstrument(row);
+        const telescope = telescopes?.filter(
+          (t) => t.id === instrument?.telescope_id,
+        )[0];
+        return telescope ? telescope.nickname : "";
       },
+      renderCell: renderTelescopeName,
     },
     {
-      name: "PI",
-      label: "PI",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderPI,
-      },
+      field: "PI",
+      headerName: "PI",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      valueGetter: (value, row) => row.pi || "",
     },
     {
-      name: "Group",
-      label: "Group",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGroup,
-      },
+      field: "Group",
+      headerName: "Group",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      valueGetter: (value, row) => getGroupName(row),
     },
     {
-      name: "default_share_group",
-      label: "Default Share Groups",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderShareGroups,
-      },
+      field: "default_share_group",
+      headerName: "Default Share Groups",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      valueGetter: (value, row) => getShareGroups(row),
     },
     {
-      name: "admins",
-      label: "Admins",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAllocationUsers,
-      },
+      field: "admins",
+      headerName: "Admins",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      valueGetter: (value, row) => getAllocationUsers(row),
     },
     {
-      name: "types",
-      label: "Types",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTypes,
-      },
+      field: "types",
+      headerName: "Types",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      valueGetter: (value, row) => (row.types ? row.types.join(", ") : ""),
     },
     {
-      name: "validity_ranges",
-      label: "Validity Ranges",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderValidityRanges,
-      },
+      field: "validity_ranges",
+      headerName: "Validity Ranges",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      filterable: false,
+      renderCell: renderValidityRanges,
     },
     managePermission && {
-      name: "manage",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderManage,
-      },
+      field: "manage",
+      headerName: " ",
+      width: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: renderManage,
     },
   ].filter(Boolean);
 
-  const options = {
-    ...(fixedHeader
-      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 201px)" }
-      : {}),
-    search: false,
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    elevation: 0,
-    onTableChange: handleTableChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    count: totalMatches,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
       <IconButton
         name="new_allocation"
+        size="small"
         onClick={() => setNewAllocationDialog(true)}
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+      <GridToolbarQuickFilter />
+    </GridToolbarContainer>
+  );
+
+  // mui-datatables ran with pagination:false (show-all). DataGrid mirrors that
+  // by hiding the footer and rendering every row; sorting stays server-side so
+  // the page's sortingCallback continues to drive the fetch.
+  const serverSide = paginateCallback !== null && sortingCallback !== null;
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title={title}
-            data={allocations || []}
-            options={options}
+        <Typography variant="h6" style={{ padding: "0.5rem" }}>
+          {title}
+        </Typography>
+        <Box
+          sx={{
+            height: fixedHeader ? "calc(100vh - 201px)" : "auto",
+            width: "100%",
+          }}
+        >
+          <StyledDataGrid
+            autoHeight={!fixedHeader}
+            rows={allocations || []}
             columns={columns}
+            getRowId={(row) => row.id}
+            rowCount={totalMatches}
+            sortingMode={serverSide ? "server" : "client"}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            hideFooter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
       <Dialog
         open={newAllocationDialog}

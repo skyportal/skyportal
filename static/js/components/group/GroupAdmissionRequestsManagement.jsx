@@ -1,14 +1,24 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import MUIDataTable from "mui-datatables";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionRequests";
 import * as groupsActions from "../../ducks/groups";
 import * as groupActions from "../../ducks/group";
+
+const renderUserInfo = (value) => {
+  let userInfoString = value.username;
+  if (!!value.first_name && !!value.last_name) {
+    userInfoString += ` (${value.first_name} ${value.last_name})`;
+  }
+  return userInfoString;
+};
 
 const GroupAdmissionRequestsManagement = ({ groupID }) => {
   const dispatch = useDispatch();
@@ -72,8 +82,8 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     }
   };
 
-  const renderActions = (dataIndex) => {
-    const request = requests[dataIndex];
+  const renderActions = (params) => {
+    const request = params.row;
     if (request.status === "pending") {
       return (
         <>
@@ -121,61 +131,39 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     return <></>;
   };
 
-  const renderUserInfo = (value) => {
-    let userInfoString = value.username;
-    if (!!value.first_name && !!value.last_name) {
-      userInfoString += ` (${value.first_name} ${value.last_name})`;
-    }
-    return userInfoString;
-  };
-
   const columns = [
     {
-      name: "user",
-      label: "Requesting User",
-      options: {
-        filter: false,
-        customBodyRender: renderUserInfo,
-      },
+      field: "user",
+      headerName: "Requesting User",
+      flex: 1,
+      minWidth: 180,
+      valueGetter: (value, row) => renderUserInfo(row.user),
     },
+    { field: "status", headerName: "Status", flex: 1, minWidth: 120 },
     {
-      name: "status",
-      label: "Status",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "actions",
-      label: "Actions",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderActions,
-        filter: false,
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: renderActions,
     },
   ];
 
-  const options = {
-    responsive: "standard",
-    download: false,
-    search: true,
-    selectableRows: "none",
-    rowsPerPage: 10,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: true,
-    jumpToPage: true,
-    pagination: true,
-    rowHover: false,
-    print: false,
-  };
   return (
-    <MUIDataTable
-      title="Admission requests"
-      columns={columns}
-      data={requests}
-      options={options}
-    />
+    <Box sx={{ width: "100%" }}>
+      <Typography variant="h6">Admission requests</Typography>
+      <StyledDataGrid
+        autoHeight
+        rows={requests}
+        columns={columns}
+        getRowId={(row) => row.id}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[10, 25, 50, 100, 200]}
+        showToolbar
+      />
+    </Box>
   );
 };
 

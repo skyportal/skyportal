@@ -12,11 +12,17 @@ import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import DownloadIcon from "@mui/icons-material/Download";
+import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
-import MUIDataTable from "mui-datatables";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarFilterButton,
+} from "@mui/x-data-grid";
 
 import Button from "./Button";
+import StyledDataGrid from "./StyledDataGrid";
 import { showNotification } from "baselayer/components/Notifications";
 import * as objectTagsActions from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
@@ -62,45 +68,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUITableCell: {
-        styleOverrides: {
-          paddingCheckbox: {
-            padding: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.25rem",
-            paddingRight: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.5rem",
-            paddingRight: 0,
-            margin: 0,
-          },
-          sortLabelRoot: {
-            height: "1.4rem",
-          },
-        },
-      },
-    },
-  });
-
 const TagManagement = () => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -224,162 +193,161 @@ const TagManagement = () => {
     setTagToDelete(null);
   };
 
-  const renderManage = (dataIndex) => {
-    const tag = tagOptions[dataIndex];
-    return (
-      <div className={classes.manage}>
-        <Tooltip title="Edit tag">
-          <IconButton
-            size="small"
-            onClick={() => handleEditClick(tag)}
-            disabled={loading}
-            data-testid={`edit-tag-button-${tag.id}`}
-          >
-            <EditIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Delete tag">
-          <IconButton
-            size="small"
-            onClick={() => handleDeleteClick(tag)}
-            disabled={loading}
-            color="error"
-            data-testid={`delete-tag-button-${tag.id}`}
-          >
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
-      </div>
-    );
-  };
-
   const columns = [
     {
-      name: "id",
-      label: "ID",
-      options: {
-        filter: false,
-        sort: true,
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+    },
+    {
+      field: "name",
+      headerName: "Tag Name",
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params) => {
+        const tag = params.row;
+        return (
+          <Chip
+            label={tag.name}
+            className={classes.colorChip}
+            style={{
+              backgroundColor: tag.color || "#dddfe2",
+              color: getContrastColor(tag.color || "#dddfe2"),
+            }}
+          />
+        );
       },
     },
     {
-      name: "name",
-      label: "Tag Name",
-      options: {
-        filter: true,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const tag = tagOptions[dataIndex];
-          return (
-            <Chip
-              label={tag.name}
-              className={classes.colorChip}
-              style={{
-                backgroundColor: tag.color || "#dddfe2",
-                color: getContrastColor(tag.color || "#dddfe2"),
-              }}
-            />
-          );
-        },
-      },
+      field: "color",
+      headerName: "Color",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <div
+          className={classes.colorPreview}
+          style={{ backgroundColor: params.row.color || "#dddfe2" }}
+        />
+      ),
     },
     {
-      name: "color",
-      label: "Color",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: (dataIndex) => {
-          const tag = tagOptions[dataIndex];
-          return (
-            <div
-              className={classes.colorPreview}
-              style={{ backgroundColor: tag.color || "#dddfe2" }}
-            />
-          );
-        },
-      },
+      field: "created_at",
+      headerName: "Created",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) =>
+        row.created_at ? new Date(row.created_at).toLocaleDateString() : "N/A",
     },
     {
-      name: "created_at",
-      label: "Created",
-      options: {
-        filter: false,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const tag = tagOptions[dataIndex];
-          return tag.created_at
-            ? new Date(tag.created_at).toLocaleDateString()
-            : "N/A";
-        },
-      },
-    },
-    {
-      name: "manage",
-      label: "Manage",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderManage,
+      field: "manage",
+      headerName: "Manage",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const tag = params.row;
+        return (
+          <div className={classes.manage}>
+            <Tooltip title="Edit tag">
+              <IconButton
+                size="small"
+                onClick={() => handleEditClick(tag)}
+                disabled={loading}
+                data-testid={`edit-tag-button-${tag.id}`}
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete tag">
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteClick(tag)}
+                disabled={loading}
+                color="error"
+                data-testid={`delete-tag-button-${tag.id}`}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
+        );
       },
     },
   ];
 
-  const customToolbar = () => (
-    <Tooltip title="Create new tag">
-      <IconButton
-        onClick={handleCreateClick}
-        disabled={loading}
-        data-testid="create-tag-button"
-      >
-        <AddIcon />
-      </IconButton>
-    </Tooltip>
-  );
-
-  const options = {
-    draggableColumns: { enabled: false },
-    expandableRows: false,
-    selectableRows: "none",
-    filter: true,
-    download: true,
-    print: false,
-    viewColumns: true,
-    search: true,
-    responsive: "standard",
-    rowsPerPageOptions: [10, 25, 50, 100],
-    customToolbar,
-    textLabels: {
-      body: {
-        noMatch: "No tags found",
-        toolTip: "Sort",
-      },
-      pagination: {
-        next: "Next Page",
-        previous: "Previous Page",
-        rowsPerPage: "Rows per page:",
-        displayRows: "of",
-      },
-      toolbar: {
-        search: "Search",
-        downloadCsv: "Download CSV",
-        print: "Print",
-        viewColumns: "View Columns",
-        filterTable: "Filter Table",
-      },
-    },
+  const handleDownload = () => {
+    if (!tagOptions?.length) {
+      return;
+    }
+    const head = ["id", "name", "color", "created_at"];
+    const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows = tagOptions.map((tag) =>
+      [tag.id, tag.name, tag.color, tag.created_at].map(csvCell).join(","),
+    );
+    const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
+    const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "tags.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
+
+  function CustomToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <Tooltip title="Create new tag">
+          <IconButton
+            onClick={handleCreateClick}
+            disabled={loading}
+            data-testid="create-tag-button"
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Download CSV">
+          <IconButton
+            size="small"
+            aria-label="Download CSV"
+            data-testid="download-tags-button"
+            onClick={handleDownload}
+          >
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
+      </GridToolbarContainer>
+    );
+  }
 
   return (
     <div className={classes.root} data-testid="tag-management-page">
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          title="Source Tags Management"
-          data={tagOptions}
+      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+        Source Tags Management
+      </Typography>
+      <Box sx={{ width: "100%" }}>
+        <StyledDataGrid
+          autoHeight
+          rows={tagOptions}
           columns={columns}
-          options={options}
+          getRowId={(row) => row.id}
+          loading={loading}
+          pageSizeOptions={[10, 25, 50, 100]}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10, page: 0 } },
+          }}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
         />
-      </ThemeProvider>
+      </Box>
       <Dialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
