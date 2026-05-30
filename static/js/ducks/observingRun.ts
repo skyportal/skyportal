@@ -43,15 +43,17 @@ export function deleteObservingRun(observingRunID: number | string) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { observingRun } = getState();
-  if (actionType === REFRESH_OBSERVING_RUN) {
-    const { run_id } = payload;
-    if (run_id === observingRun?.id) {
-      dispatch(fetchObservingRun(run_id));
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    const { observingRun } = getState();
+    if (actionType === REFRESH_OBSERVING_RUN) {
+      const { run_id } = payload;
+      if (run_id === observingRun?.id) {
+        dispatch(fetchObservingRun(run_id));
+      }
     }
-  }
-});
+  },
+);
 
 const reducer = (
   state: Record<string, any> = {},

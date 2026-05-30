@@ -47,11 +47,11 @@ const NewObservation = ({ onClose = null }: NewObservationProps) => {
       },
       instrument_id: {
         type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
+        oneOf: instrumentList.map((instrument: any) => ({
           enum: [instrument.id],
           title: `${
             telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id,
+              (telescope: any) => telescope.id === instrument.telescope_id,
             )?.name
           } / ${instrument.name}`,
         })),

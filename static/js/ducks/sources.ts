@@ -101,7 +101,7 @@ export function fetchSpatialCatalogSources(
   return API.GET("/api/sources", FETCH_SPATIAL_CATALOG_SOURCES, filterParams);
 }
 
-const initialState = {
+const initialState: any = {
   sources: null,
   totalMatches: 0,
   numPerPage: 10,

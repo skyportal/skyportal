@@ -48,20 +48,22 @@ export function updatePhotometry(id: number | string, photometry: any) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_SOURCE_PHOTOMETRY) {
-    // check if the source photometry is already in the store
-    // or if the source that is loaded is the one that is being
-    // specified in the payload's obj_id
-    const { source } = getState();
-    const { obj_id, magsys } = payload;
-    if (source?.id && source.id === obj_id) {
-      dispatch(
-        fetchSourcePhotometry(payload.obj_id, { magsys: magsys || "ab" }),
-      );
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    if (actionType === REFRESH_SOURCE_PHOTOMETRY) {
+      // check if the source photometry is already in the store
+      // or if the source that is loaded is the one that is being
+      // specified in the payload's obj_id
+      const { source } = getState();
+      const { obj_id, magsys } = payload;
+      if (source?.id && source.id === obj_id) {
+        dispatch(
+          fetchSourcePhotometry(payload.obj_id, { magsys: magsys || "ab" }),
+        );
+      }
     }
-  }
-});
+  },
+);
 
 interface PhotometryAction {
   type: string;

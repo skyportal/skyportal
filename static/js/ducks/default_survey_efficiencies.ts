@@ -37,7 +37,7 @@ export const submitDefaultSurveyEfficiency = (
   );
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === REFRESH_DEFAULT_SURVEY_EFFICIENCIES) {
     dispatch(fetchDefaultSurveyEfficiencies());
   }

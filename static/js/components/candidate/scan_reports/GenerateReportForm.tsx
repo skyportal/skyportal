@@ -39,7 +39,7 @@ const GenerateReportForm = ({
     groups: [],
   });
 
-  const generateReportSchema = () => {
+  const generateReportSchema = (): any => {
     return {
       type: "object",
       properties: {

@@ -25,7 +25,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-function getCrossMatches(ra: number, dec: number, dispatch: any) {
+function getCrossMatches(ra: number, dec: number, dispatch: any): any {
   // implement logic to fetch cross matches from the archive
   // and add them to the redux store's "cross_matches" key
   return null;
@@ -51,7 +51,7 @@ const CentroidPlotPlugins = ({
   crossMatches = {},
   refRA,
   refDec,
-}: CentroidPlotPluginsProps) => {
+}: CentroidPlotPluginsProps): any => {
   const { classes } = useStyles();
   if (
     !crossMatches ||

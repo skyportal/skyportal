@@ -12,7 +12,7 @@ export const fetchFollowupApis = () =>
   API.GET("/api/internal/followup_apis", FETCH_FOLLOWUP_APIS, {});
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === REFRESH_FOLLOWUP_APIS) {
     dispatch(fetchFollowupApis());
   }

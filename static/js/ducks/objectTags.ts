@@ -39,7 +39,7 @@ export function deleteObjectTag(data: any) {
   return API.DELETE(`/api/objtag/${data.id}`, DELETE_OBJECT_TAG, data);
 }
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === FETCH_TAG_OPTIONS) {
     dispatch(fetchTagOptions());
   }

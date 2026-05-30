@@ -10,7 +10,7 @@ export const fetchRecentSources = () =>
   API.GET("/api/internal/recent_sources", FETCH_RECENT_SOURCES);
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === FETCH_RECENT_SOURCES) {
     dispatch(fetchRecentSources());
   }

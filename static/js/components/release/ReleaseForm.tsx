@@ -28,7 +28,7 @@ const ReleaseForm = ({
     groups as any,
     undefined,
   );
-  const releaseSchema = {
+  const releaseSchema: any = {
     type: "object",
     properties: {
       name: {

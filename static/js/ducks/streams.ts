@@ -81,7 +81,7 @@ export function deleteStreamUser({
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === FETCH_STREAMS) {
     dispatch(fetchStreams());
   }

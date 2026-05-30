@@ -144,7 +144,7 @@ const QuickSearchBar = () => {
       return undefined;
     };
 
-    (async () => {
+    (async (): Promise<any> => {
       if (debouncedInputValue === "") {
         setOptions([]);
         setOpen(false);

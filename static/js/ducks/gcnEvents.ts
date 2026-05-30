@@ -40,7 +40,7 @@ export function deleteGcnEventUser(
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === REFRESH_GCN_EVENTS) {
     dispatch(fetchGcnEvents());
   }

@@ -36,7 +36,7 @@ export function fetchAllocationsApiClassname(params: Record<string, any> = {}) {
   });
 }
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === REFRESH_ALLOCATIONS) {
     dispatch(fetchAllocations());
     dispatch(fetchAllocationsApiObsplan());

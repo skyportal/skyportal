@@ -17,7 +17,7 @@ export const fetchLocalizationProperties = (
   );
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === FETCH_LOCALIZATION_PROPERTIES) {
     dispatch(fetchLocalizationProperties());
   }

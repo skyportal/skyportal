@@ -322,7 +322,7 @@ const TelescopePage = () => {
               <SearchBar />
               <List>
                 {displayedTelescopes &&
-                  displayedTelescopes.map((telescope) => (
+                  displayedTelescopes.map((telescope: any) => (
                     <ListItem
                       id={`${telescope.name}_info`}
                       className={classes.listItem}

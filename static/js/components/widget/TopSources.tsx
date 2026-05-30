@@ -152,14 +152,14 @@ const TopSourcesList = ({
             // Display the most recent non-zero probability class, and that isn't a ml classifier
             // if there are no results, then consider ML classifications too
             let filteredClasses = source.classifications?.filter(
-              (i) => i.probability > 0 && i.ml === false,
+              (i: any) => i.probability > 0 && i.ml === false,
             );
             if (filteredClasses.length === 0) {
               filteredClasses = source.classifications?.filter(
-                (i) => i.probability > 0,
+                (i: any) => i.probability > 0,
               );
             }
-            const sortedClasses = filteredClasses.sort((a, b) =>
+            const sortedClasses = filteredClasses.sort((a: any, b: any) =>
               a.modified < b.modified ? 1 : -1,
             );
 
@@ -353,7 +353,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
                 aria-controls={open ? "basic-menu" : undefined}
                 aria-haspopup="true"
                 aria-expanded={open ? "true" : undefined}
-                onClick={(e) => setAnchorEl(e.currentTarget)}
+                onClick={(e: any) => setAnchorEl(e.currentTarget)}
                 size="small"
                 endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 data-testid="topSources_timespanButton"

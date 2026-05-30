@@ -45,7 +45,7 @@ const EarthquakePage = () => {
   if (!earthquakes) return <Spinner />;
 
   function setSelectedMenu(currentSelectedEarthquakeMenu: string) {
-    const currentEarthquakes = null;
+    const currentEarthquakes: any = null;
     dispatch({
       type: "skyportal/CURRENT_EARTHQUAKES_AND_MENU",
       data: {

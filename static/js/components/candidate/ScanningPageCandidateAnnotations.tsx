@@ -118,7 +118,7 @@ const ScanningPageCandidateAnnotations = ({
       selectedAnnotationSortOptions.origin === origin &&
       selectedAnnotationSortOptions.key === key;
 
-    const annotationItem = currentlySelected
+    const annotationItem: any = currentlySelected
       ? null
       : { origin, key, order: null };
     dispatch(

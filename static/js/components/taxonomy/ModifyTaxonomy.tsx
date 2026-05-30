@@ -63,7 +63,7 @@ const ModifyTaxonomy = ({
 
   const taxonomyLookUp: Record<number, any> = {};
 
-  taxonomyList?.forEach((tax) => {
+  taxonomyList?.forEach((tax: any) => {
     taxonomyLookUp[tax.id] = tax;
   });
 

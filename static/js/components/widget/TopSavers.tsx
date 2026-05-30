@@ -271,7 +271,7 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                 aria-controls={open ? "basic-menu" : undefined}
                 aria-haspopup="true"
                 aria-expanded={open ? "true" : undefined}
-                onClick={(e) => setAnchorEl(e.currentTarget)}
+                onClick={(e: any) => setAnchorEl(e.currentTarget)}
                 size="small"
                 endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 data-testid="topSavers_timespanButton"

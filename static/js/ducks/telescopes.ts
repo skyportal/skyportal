@@ -28,18 +28,20 @@ export function deleteTelescope(id: number | string) {
   return API.DELETE(`/api/telescope/${id}`, DELETE_TELESCOPE);
 }
 
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_TELESCOPE) {
-    const { telescope } = getState();
-    const { telescope_id } = payload;
-    if (telescope_id === telescope?.id) {
-      dispatch(fetchTelescope(telescope_id));
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    if (actionType === REFRESH_TELESCOPE) {
+      const { telescope } = getState();
+      const { telescope_id } = payload;
+      if (telescope_id === telescope?.id) {
+        dispatch(fetchTelescope(telescope_id));
+      }
     }
-  }
-  if (actionType === REFRESH_TELESCOPES) {
-    dispatch(fetchTelescopes());
-  }
-});
+    if (actionType === REFRESH_TELESCOPES) {
+      dispatch(fetchTelescopes());
+    }
+  },
+);
 
 const reducer = (
   state: Record<string, any> = {

@@ -112,7 +112,7 @@ const SummarySearch = () => {
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
     );
 
-  const formSchema = {
+  const formSchema: any = {
     type: "object",
     properties: {
       q: {

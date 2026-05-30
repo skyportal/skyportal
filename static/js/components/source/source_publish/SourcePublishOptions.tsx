@@ -27,7 +27,7 @@ export const sourcePublishOptionsSchema = (
   const selectProperty = (
     text: string,
     items: { id: number; name: string }[],
-  ) => ({
+  ): any => ({
     type: "array",
     items: {
       type: "integer",

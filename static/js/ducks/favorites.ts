@@ -25,7 +25,7 @@ export const removeFromFavorites = (source_id: string) =>
   });
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
   if (actionType === REFRESH_FAVORITES) {
     dispatch(fetchFavorites());
   }

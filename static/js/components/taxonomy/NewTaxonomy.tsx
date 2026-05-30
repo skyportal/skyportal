@@ -37,7 +37,7 @@ const NewTaxonomy = ({ onClose = null }: NewTaxonomyProps) => {
   };
 
   function validate(formData: any, errors: any) {
-    taxonomyList.forEach((taxonomy) => {
+    taxonomyList.forEach((taxonomy: any) => {
       if (formData.name === taxonomy.name) {
         errors.name.addError("Taxonomy name matches another, please change.");
       }

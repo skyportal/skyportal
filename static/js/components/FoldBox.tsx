@@ -11,7 +11,7 @@ interface FoldBoxState {
 }
 
 class FoldBox extends Component<FoldBoxProps, FoldBoxState> {
-  static defaultProps = {
+  static defaultProps: any = {
     folded: false,
     children: null,
   };

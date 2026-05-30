@@ -36,7 +36,7 @@ class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  static defaultProps = {
+  static defaultProps: any = {
     version: null,
     children: [],
   };

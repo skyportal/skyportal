@@ -42,7 +42,7 @@ const numPerPage = 50;
 
 const useStyles = makeStyles()((theme) => ({
   listPaper: {
-    borderColor: theme.palette.grey[350],
+    borderColor: (theme.palette.grey as any)[350],
     borderWidth: "2px",
     marginBottom: "1rem",
   },
@@ -382,7 +382,7 @@ const CandidateInfo = ({
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
           candidateObj.classifications.filter(
-            (c) => c?.ml === false || c?.ml === null,
+            (c: any) => c?.ml === false || c?.ml === null,
           ),
         )
       : null;
@@ -390,7 +390,7 @@ const CandidateInfo = ({
   const recentMLClassification =
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
-          candidateObj.classifications.filter((c) => c?.ml === true),
+          candidateObj.classifications.filter((c: any) => c?.ml === true),
         )
       : null;
 
@@ -428,7 +428,7 @@ const CandidateInfo = ({
                     source={{
                       id: candidateObj.id,
                       currentGroupIds: candidateObj.saved_groups?.map(
-                        (g) => g.id,
+                        (g: any) => g.id,
                       ),
                     }}
                     groups={allGroups}
@@ -436,7 +436,7 @@ const CandidateInfo = ({
                   />
                 </div>
                 <span>
-                  {candidateObj.saved_groups?.map((group) => (
+                  {candidateObj.saved_groups?.map((group: any) => (
                     <Chip
                       label={
                         group.nickname
@@ -463,7 +463,9 @@ const CandidateInfo = ({
             (candidateObj.is_source &&
               filterGroups?.filter(
                 (g) =>
-                  !candidateObj.saved_groups?.map((x) => x.id)?.includes(g.id),
+                  !candidateObj.saved_groups
+                    ?.map((x: any) => x.id)
+                    ?.includes(g.id),
               ).length),
           ) && (
             <div className={classes.saveCandidateButton}>
@@ -475,7 +477,7 @@ const CandidateInfo = ({
                     ? userAccessibleGroups?.filter(
                         (g) =>
                           !candidateObj.saved_groups
-                            ?.map((x) => x.id)
+                            ?.map((x: any) => x.id)
                             ?.includes(g.id),
                       )
                     : userAccessibleGroups
@@ -486,7 +488,7 @@ const CandidateInfo = ({
                     ? filterGroups?.filter(
                         (g) =>
                           !candidateObj.saved_groups
-                            ?.map((x) => x.id)
+                            ?.map((x: any) => x.id)
                             ?.includes(g.id),
                       )
                     : filterGroups
@@ -499,7 +501,7 @@ const CandidateInfo = ({
             candidateObj.associated_objs.length > 0 && (
               <div className={classes.infoItem}>
                 <b>Matches with: </b>
-                {candidateObj.associated_objs.map((a) => (
+                {candidateObj.associated_objs.map((a: any) => (
                   <span
                     key={a.obj_id}
                     className={(classes as any).associatedObj}

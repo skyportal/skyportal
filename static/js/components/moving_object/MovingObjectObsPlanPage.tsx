@@ -76,11 +76,11 @@ const MovingObjectObsPlanPage = () => {
   useEffect(() => {
     let valid_instruments = (instruments || [])
       .filter(
-        (instrument) =>
+        (instrument: any) =>
           (instrument.filters?.length ?? 0) > 0 &&
           (instrument as any).has_fields === true,
       )
-      .map((instrument) => ({
+      .map((instrument: any) => ({
         type: "integer",
         title: instrument.name,
         enum: [instrument.id],
@@ -159,8 +159,9 @@ const MovingObjectObsPlanPage = () => {
         type: "string",
         title: "Filter",
         enum:
-          (instruments || []).filter((i) => i.id === formData.instrument_id)[0]
-            ?.filters || [],
+          (instruments || []).filter(
+            (i: any) => i.id === formData.instrument_id,
+          )[0]?.filters || [],
       },
       primary_only: {
         type: "boolean",

@@ -191,7 +191,7 @@ export const useSourceListStyles = makeStyles<{ invertThumbnails?: boolean }>()(
   }),
 );
 
-const defaultPrefs = {
+const defaultPrefs: any = {
   maxNumSources: "25",
   groupIds: [],
   includeSitewideSources: false,

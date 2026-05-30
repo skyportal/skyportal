@@ -389,63 +389,65 @@ export function fetchGcnEventCatalogQueries({ gcnID }: any) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { gcnEvent } = getState();
-  const loaded_gcnevent_key = gcnEvent?.dateobs;
-  const loaded_report_key = gcnEvent?.report?.id;
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    const { gcnEvent } = getState();
+    const loaded_gcnevent_key = gcnEvent?.dateobs;
+    const loaded_report_key = gcnEvent?.report?.id;
 
-  if (actionType === FETCH_GCNEVENT) {
-    dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(fetchGcnTach(gcnEvent.dateobs));
-      }
-    });
-  }
-  if (actionType === REFRESH_GCN_EVENT) {
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+    if (actionType === FETCH_GCNEVENT) {
       dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response: any) => {
         if (response.status === "success") {
           dispatch(fetchGcnTach(gcnEvent.dateobs));
         }
       });
     }
-  }
-  if (actionType === REFRESH_GCN_TRIGGERED) {
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
+    if (actionType === REFRESH_GCN_EVENT) {
+      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+        dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response: any) => {
+          if (response.status === "success") {
+            dispatch(fetchGcnTach(gcnEvent.dateobs));
+          }
+        });
+      }
     }
-  }
-  if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchObservationPlanRequests(gcnEvent?.id));
+    if (actionType === REFRESH_GCN_TRIGGERED) {
+      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+        dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
+      }
     }
-  }
-  if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+    if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
+      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+        dispatch(fetchObservationPlanRequests(gcnEvent?.id));
+      }
     }
-  }
-  if (actionType === REFRESH_GCNEVENT_SURVEY_EFFICIENCY) {
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
+    if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
+      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+        dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+      }
     }
-  }
-  if (actionType === REFRESH_GCNEVENT_REPORT) {
-    if (loaded_report_key === payload?.report_id) {
-      dispatch(
-        fetchGcnEventReport({
-          dateobs: loaded_gcnevent_key,
-          reportID: loaded_report_key,
-        }),
-      );
+    if (actionType === REFRESH_GCNEVENT_SURVEY_EFFICIENCY) {
+      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+        dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
+      }
     }
-  }
-  if (actionType === REFRESH_GCNEVENT_REPORTS) {
-    if (loaded_gcnevent_key === payload?.gcnEvent_dateobs) {
-      dispatch(fetchGcnEventReports(loaded_gcnevent_key));
+    if (actionType === REFRESH_GCNEVENT_REPORT) {
+      if (loaded_report_key === payload?.report_id) {
+        dispatch(
+          fetchGcnEventReport({
+            dateobs: loaded_gcnevent_key,
+            reportID: loaded_report_key,
+          }),
+        );
+      }
     }
-  }
-});
+    if (actionType === REFRESH_GCNEVENT_REPORTS) {
+      if (loaded_gcnevent_key === payload?.gcnEvent_dateobs) {
+        dispatch(fetchGcnEventReports(loaded_gcnevent_key));
+      }
+    }
+  },
+);
 
 interface GcnEventAction {
   type: string;

@@ -575,25 +575,27 @@ export const fetchAssociatedGCNs = (sourceID: number | string) =>
   API.GET(`/api/associated_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { source } = getState();
-  if (actionType === REFRESH_SOURCE) {
-    const loaded_obj_key = source?.internal_key;
-    if (loaded_obj_key === payload.obj_key) {
-      dispatch(fetchSource(source.id));
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    const { source } = getState();
+    if (actionType === REFRESH_SOURCE) {
+      const loaded_obj_key = source?.internal_key;
+      if (loaded_obj_key === payload.obj_key) {
+        dispatch(fetchSource(source.id));
+      }
+    } else if (actionType === REFRESH_SOURCE_POSITION) {
+      const loaded_obj_key = source?.internal_key;
+      if (loaded_obj_key === payload.obj_key) {
+        dispatch(fetchPosition(source.id));
+      }
+    } else if (actionType === REFRESH_OBJ_ANALYSES) {
+      const loaded_obj_key = source?.internal_key;
+      if (loaded_obj_key === payload.obj_key) {
+        dispatch(fetchAnalyses("obj", { obj_id: source.id }));
+      }
     }
-  } else if (actionType === REFRESH_SOURCE_POSITION) {
-    const loaded_obj_key = source?.internal_key;
-    if (loaded_obj_key === payload.obj_key) {
-      dispatch(fetchPosition(source.id));
-    }
-  } else if (actionType === REFRESH_OBJ_ANALYSES) {
-    const loaded_obj_key = source?.internal_key;
-    if (loaded_obj_key === payload.obj_key) {
-      dispatch(fetchAnalyses("obj", { obj_id: source.id }));
-    }
-  }
-});
+  },
+);
 
 interface SourceAction {
   type: string;

@@ -32,22 +32,24 @@ export function deleteSpatialCatalog(id: number | string) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_SPATIAL_CATALOGS) {
-    dispatch(fetchSpatialCatalogs());
-  }
-  const { spatialCatalog } = getState();
-  if (actionType === FETCH_SPATIAL_CATALOG) {
-    dispatch(fetchSpatialCatalog(spatialCatalog.id));
-  }
-  if (actionType === REFRESH_SPATIAL_CATALOG) {
-    const loaded_spatial_catalog = spatialCatalog?.id;
-
-    if (loaded_spatial_catalog === payload.spatialCatalog_id) {
+messageHandler.add(
+  (actionType: any, payload: any, dispatch: any, getState: any) => {
+    if (actionType === REFRESH_SPATIAL_CATALOGS) {
+      dispatch(fetchSpatialCatalogs());
+    }
+    const { spatialCatalog } = getState();
+    if (actionType === FETCH_SPATIAL_CATALOG) {
       dispatch(fetchSpatialCatalog(spatialCatalog.id));
     }
-  }
-});
+    if (actionType === REFRESH_SPATIAL_CATALOG) {
+      const loaded_spatial_catalog = spatialCatalog?.id;
+
+      if (loaded_spatial_catalog === payload.spatialCatalog_id) {
+        dispatch(fetchSpatialCatalog(spatialCatalog.id));
+      }
+    }
+  },
+);
 
 const reducer_spatialCatalogs = (
   state: any = null,
