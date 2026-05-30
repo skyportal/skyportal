@@ -85,8 +85,10 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     search_bar = driver.wait_for_xpath(
         '//*[@data-testid="reminders-quick-filter"]//input'
     )
+    driver.scroll_to_element(search_bar)
     search_bar.send_keys(f"{reminder_text}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text}"]', timeout=10)
+    driver.scroll_to_element(search_bar)
     search_bar.clear()
 
     new_reminder_button = driver.wait_for_xpath(
@@ -112,8 +114,10 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     search_bar = driver.wait_for_xpath(
         '//*[@data-testid="reminders-quick-filter"]//input'
     )
+    driver.scroll_to_element(search_bar)
     search_bar.send_keys(f"{reminder_text_2}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text_2}"]', timeout=10)
+    driver.scroll_to_element(search_bar)
     search_bar.clear()
 
 

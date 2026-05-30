@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  Suspense,
+} from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -231,6 +237,10 @@ const SourceContent = ({ source }) => {
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
+  // Stable identity so PhotometryTable's memoized toolbar (keyed on onClose)
+  // is not rebuilt — and its close button not remounted — when Source
+  // re-renders as photometry loads (which caused a StaleElementReference).
+  const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
@@ -1455,7 +1465,7 @@ const SourceContent = ({ source }) => {
         <PhotometryTable
           obj_id={source.id}
           open={showPhotometry}
-          onClose={() => setShowPhotometry(false)}
+          onClose={closePhotometryTable}
           magsys={magsys}
           setMagsys={setMagsys}
           t0={source.t0}

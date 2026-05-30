@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -36,7 +36,12 @@ const GalaxyTable = ({
 
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
+  // The search box is intentionally uncontrolled: keeping its current value in
+  // a ref (instead of state) means typing a character does not change the
+  // memoized toolbar's dependencies, so the toolbar — and the search <input> —
+  // are never remounted mid-typing. A controlled value here caused the input
+  // element reference to go stale between keystrokes (StaleElementReference).
+  const searchTextRef = useRef("");
   const [sortModel, setSortModel] = useState([]);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
@@ -65,19 +70,23 @@ const GalaxyTable = ({
               variant="standard"
               placeholder="Search Galaxy Name…"
               data-testid="galaxy-search-input"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              defaultValue={searchTextRef.current}
+              onChange={(e) => {
+                searchTextRef.current = e.target.value;
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleSearchChange(searchText);
+                  handleSearchChange(searchTextRef.current);
                 }
               }}
             />
           </GridToolbarContainer>
         );
       },
+    // The toolbar reads/writes the search value through a ref, so it never
+    // needs to be rebuilt as the user types.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchText],
+    [],
   );
 
   if (!galaxies) {

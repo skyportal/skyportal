@@ -183,6 +183,12 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
           columns={columns}
           rows={group?.users ? groupUsers : []}
           getRowId={(row) => row.id}
+          // The "actions" cell stacks the admin-toggle buttons above the delete
+          // IconButton, which is taller than the default fixed row height. With
+          // the grid's default `overflow: hidden` cells that pushes the delete
+          // button out of the clickable area. Auto row height lets the full
+          // cell content (incl. the delete button) render and stay clickable.
+          getRowHeight={() => "auto"}
           initialState={{
             columns: { columnVisibilityModel: { name: hasNames } },
             pagination: { paginationModel: { pageSize: 25 } },

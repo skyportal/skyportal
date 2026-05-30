@@ -55,12 +55,14 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
     driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
     driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
 
-    download_button = driver.wait_for_xpath_to_be_clickable(
+    # Use click_xpath (re-locates + tolerates stale refs) because the data grid
+    # finishes loading just after the button becomes clickable, re-rendering the
+    # dialog subtree and invalidating a previously captured element reference.
+    driver.click_xpath(
         '//div[contains(@class, "MuiDialog-root")]'
         '//button[@data-testid="open-photometry-download-button"]',
         timeout=10,
     )
-    download_button.click()
 
     driver.wait_for_xpath('//h6[contains(text(), "Download Options")]')
     default_columns_button = driver.wait_for_xpath_to_be_clickable(
@@ -122,12 +124,14 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
     driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
     driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
 
-    download_button = driver.wait_for_xpath_to_be_clickable(
+    # Use click_xpath (re-locates + tolerates stale refs) because the data grid
+    # finishes loading just after the button becomes clickable, re-rendering the
+    # dialog subtree and invalidating a previously captured element reference.
+    driver.click_xpath(
         '//div[contains(@class, "MuiDialog-root")]'
         '//button[@data-testid="open-photometry-download-button"]',
         timeout=10,
     )
-    download_button.click()
 
     driver.wait_for_xpath('//h6[contains(text(), "Download Options")]')
     driver.wait_for_xpath('//button[contains(text(), "Default")]')

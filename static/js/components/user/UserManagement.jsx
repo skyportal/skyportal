@@ -718,6 +718,11 @@ const UserManagement = () => {
     dispatch(setUsersManagementFetchParams(params));
     await dispatch(fetchUsersManagement());
     setQueryInProgress(false);
+    // Close the filter dialog after applying the filter. Otherwise the dialog
+    // (and its own "Submit" button) stays mounted, which both blocks the table
+    // underneath and causes the unscoped `//*[text()="Submit"]` selectors used
+    // by the action dialogs to match the leftover filter Submit instead.
+    setFilterOpen(false);
   };
 
   const handleFilterChipDelete = (chip) => {

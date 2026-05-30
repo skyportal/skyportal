@@ -67,6 +67,10 @@ def test_annotations(
     spectrum_filter = driver.wait_for_xpath(
         "//*[@data-testid='spectrum-quick-filter']//input"
     )
+    # wait_for_xpath only checks DOM presence; the input may be below the fold,
+    # so scroll it into view before interacting or .clear() raises
+    # "element not interactable".
+    driver.scroll_to_element(spectrum_filter)
     spectrum_filter.clear()
     spectrum_filter.send_keys(str(spectrum_id))
 
@@ -86,6 +90,7 @@ def test_annotations(
         "//*[@id='annotations-content']"
         "//*[@data-testid='annotations-quick-filter']//input"
     )
+    driver.scroll_to_element(annotations_filter)
     annotations_filter.clear()
     annotations_filter.send_keys("2021-11-02.5")
 

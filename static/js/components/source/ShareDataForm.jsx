@@ -58,6 +58,67 @@ const SpectrumGridToolbar = () => (
   </GridToolbarContainer>
 );
 
+// Defined at module scope (not nested in ShareDataForm) so its component
+// identity is stable across ShareDataForm re-renders. A nested definition
+// produced a brand-new component type on every render, causing React to
+// unmount/remount this button and reset its `open` state to false — which made
+// the delete confirmation dialog (and its `yes-delete` button) vanish before a
+// test could click it.
+const DeleteSpectrumButton = ({ specid, classes, dispatch }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <Dialog
+        open={open}
+        aria-labelledby="simple-modal-title"
+        aria-describedby="simple-modal-description"
+        onClose={() => setOpen(false)}
+        className={classes.detailedSpecButton}
+      >
+        <DialogContent>
+          <div>
+            <Typography variant="h6">
+              Are you sure you want to do this?
+            </Typography>
+            The following operation <em>permanently</em> deletes the spectrum
+            from the database. This operation cannot be undone and your data
+            cannot be recovered after the fact. You will have to upload the
+            spectrum again from scratch.
+          </div>
+          <div>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                setOpen(false);
+                const result = await dispatch(deleteSpectrum(specid));
+                if (result.status === "success") {
+                  dispatch(showNotification("Spectrum deleted."));
+                }
+              }}
+              data-testid="yes-delete"
+            >
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <IconButton
+        onClick={() => setOpen(true)}
+        size="large"
+        color="error"
+        data-testid={`delete-spectrum-button-${specid}`}
+      >
+        <DeleteIcon />
+      </IconButton>
+    </div>
+  );
+};
+DeleteSpectrumButton.propTypes = {
+  specid: PropTypes.number.isRequired,
+  classes: PropTypes.shape().isRequired,
+  dispatch: PropTypes.func.isRequired,
+};
+
 function get_filename(spectrum) {
   return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
 }
@@ -383,59 +444,6 @@ const ShareDataForm = ({ route }) => {
     return renderMultipleUsers(users);
   };
 
-  const DeleteSpectrumButton = ({ specid }) => {
-    const [open, setOpen] = useState(false);
-    return (
-      <div>
-        <Dialog
-          open={open}
-          aria-labelledby="simple-modal-title"
-          aria-describedby="simple-modal-description"
-          onClose={() => setOpen(false)}
-          className={classes.detailedSpecButton}
-        >
-          <DialogContent>
-            <div>
-              <Typography variant="h6">
-                Are you sure you want to do this?
-              </Typography>
-              The following operation <em>permanently</em> deletes the spectrum
-              from the database. This operation cannot be undone and your data
-              cannot be recovered after the fact. You will have to upload the
-              spectrum again from scratch.
-            </div>
-            <div>
-              <Button onClick={() => setOpen(false)}>Cancel</Button>
-              <Button
-                onClick={async () => {
-                  setOpen(false);
-                  const result = await dispatch(deleteSpectrum(specid));
-                  if (result.status === "success") {
-                    dispatch(showNotification("Spectrum deleted."));
-                  }
-                }}
-                data-testid="yes-delete"
-              >
-                Confirm
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        <IconButton
-          onClick={() => setOpen(true)}
-          size="large"
-          color="error"
-          data-testid={`delete-spectrum-button-${specid}`}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </div>
-    );
-  };
-  DeleteSpectrumButton.propTypes = {
-    specid: PropTypes.number.isRequired,
-  };
-
   const DownloadSpectrumButton = ({ specid }) => {
     const spectrum = sourceSpectra.find((spec) => spec.id === specid);
     if (!spectrum) return null;
@@ -638,7 +646,11 @@ const ShareDataForm = ({ route }) => {
       filterable: false,
       renderCell: (params) =>
         params.row.__detail ? null : (
-          <DeleteSpectrumButton specid={params.row.id} />
+          <DeleteSpectrumButton
+            specid={params.row.id}
+            classes={classes}
+            dispatch={dispatch}
+          />
         ),
     },
     {
@@ -659,7 +671,6 @@ const ShareDataForm = ({ route }) => {
   const specColumnVisibilityModel = {
     reducer_contact: false,
     observer_contact: false,
-    type: false,
     label: false,
   };
 

@@ -15,10 +15,10 @@ from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import 
 
 
 def filter_for_value(driver, value, last=False):
-    # The x-data-grid quick-filter renders a search input (aria-label "Search")
-    # that is always present in the DOM, so we can type directly into it to
-    # filter the table rows.
-    input_xpath = "//input[@aria-label='Search']"
+    # The x-data-grid default-toolbar quick-filter renders a TextField whose
+    # `aria-label="Search"` lands on the wrapper (FormControl root div), not the
+    # inner <input>. So target the input as a descendant of that wrapper.
+    input_xpath = "//*[@aria-label='Search']//input"
     if last:
         input_xpath = f"({input_xpath})[last()]"
     search_input = driver.wait_for_xpath(input_xpath)
