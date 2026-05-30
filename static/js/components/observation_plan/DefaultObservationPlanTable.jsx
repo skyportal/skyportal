@@ -3,54 +3,35 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Chip from "@mui/material/Chip";
-import MUIDataTable from "mui-datatables";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import { JSONTree } from "react-json-tree";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
+import StyledDataGrid from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map fall through to the field itself.
+const SERVER_SORT_FIELD = {
+  defaultObservationPlan: "defaultObservationPlan",
+  payload: "payload",
+  auto_send: "auto_send",
+};
 
 const DefaultObservationPlanTable = ({
   instruments,
@@ -61,13 +42,12 @@ const DefaultObservationPlanTable = ({
   sortingCallback,
   deletePermission,
 }) => {
-  const theme = useTheme();
   const dispatch = useDispatch();
-  const [setRowsPerPage] = useState(100);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
     useState(null);
+  const [sortModel, setSortModel] = useState([]);
 
   const openDeleteDialog = (id) => {
     setDeleteDialogOpen(true);
@@ -91,20 +71,22 @@ const DefaultObservationPlanTable = ({
     });
   };
 
-  const renderObservationPlanTitle = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
+  const getObservationPlanTitle = (default_observation_plan) => {
     const { allocation } = default_observation_plan;
     const { instrument_id } = allocation;
     const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-    if (!instrument?.name || !telescope?.name) return null;
+    if (!instrument?.name || !telescope?.name) return "";
 
     return `${instrument.name}/${telescope.nickname} - ${default_observation_plan.default_plan_name}`;
   };
 
-  const renderGcnEventFilters = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
+  const renderObservationPlanTitle = (params) =>
+    getObservationPlanTitle(params.row) || null;
+
+  const renderGcnEventFilters = (params) => {
+    const default_observation_plan = params.row;
     if (!default_observation_plan?.filters) return null;
 
     return (
@@ -114,8 +96,8 @@ const DefaultObservationPlanTable = ({
     );
   };
 
-  const renderPayload = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
+  const renderPayload = (params) => {
+    const default_observation_plan = params.row;
     if (!default_observation_plan?.payload) return null;
 
     return (
@@ -125,128 +107,116 @@ const DefaultObservationPlanTable = ({
     );
   };
 
-  const renderAutoSend = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
+  const renderAutoSend = (params) => {
+    const default_observation_plan = params.row;
     if (!default_observation_plan?.auto_send) return <Chip label="No" />;
 
     return <Chip label="Yes" color="success" />;
   };
 
-  const renderDelete = (dataIndex) => {
+  const renderDelete = (params) => {
     if (!deletePermission) return null;
     return (
       <Button
         id="delete_button"
-        onClick={() =>
-          openDeleteDialog(default_observation_plans[dataIndex].id)
-        }
+        onClick={() => openDeleteDialog(params.row.id)}
       >
         <DeleteIcon />
       </Button>
     );
   };
 
-  const handleTableChange = (action, tableState) => {
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
-        }
-        break;
-      default:
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      paginateCallback(1, 100, {});
+      return;
     }
+    const { field, sort } = model[0];
+    sortingCallback({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
   const columns = [
     {
-      name: "defaultObservationPlan",
-      label: "Default Observation Plan",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderObservationPlanTitle,
-      },
+      field: "defaultObservationPlan",
+      headerName: "Default Observation Plan",
+      flex: 1,
+      minWidth: 220,
+      filterable: false,
+      valueGetter: (value, row) => getObservationPlanTitle(row),
+      renderCell: renderObservationPlanTitle,
     },
     {
-      name: "Event Filters",
-      label: "GCN Event Filters",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGcnEventFilters,
-      },
+      field: "Event Filters",
+      headerName: "GCN Event Filters",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGcnEventFilters,
     },
     {
-      name: "payload",
-      label: "Payload",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderPayload,
-      },
+      field: "payload",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: renderPayload,
     },
     {
-      name: "auto_send",
-      label: "Automatically send to queue?",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAutoSend,
-      },
+      field: "auto_send",
+      headerName: "Automatically send to queue?",
+      flex: 1,
+      minWidth: 200,
+      filterable: false,
+      valueGetter: (value, row) => (row.auto_send ? "Yes" : "No"),
+      renderCell: renderAutoSend,
     },
     {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
+      field: "delete",
+      headerName: " ",
+      width: 90,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDelete,
     },
   ];
 
-  const options = {
-    search: false,
-    selectableRows: "none",
-    elevation: 0,
-    onTableChange: handleTableChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    count: totalMatches,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
-      <IconButton onClick={() => setNewDialogOpen(true)}>
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-    ),
-  };
+      <GridToolbarQuickFilter />
+    </GridToolbarContainer>
+  );
 
   return (
     <div>
       <Paper>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Default Observation Plans"
-            data={default_observation_plans || []}
-            options={options}
+        <Typography variant="h6" style={{ padding: "0.5rem" }}>
+          Default Observation Plans
+        </Typography>
+        <Box sx={{ width: "100%" }}>
+          <StyledDataGrid
+            autoHeight
+            rows={default_observation_plans || []}
             columns={columns}
+            getRowId={(row) => row.id}
+            rowCount={totalMatches}
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            hideFooter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
       {newDialogOpen && (
         <Dialog

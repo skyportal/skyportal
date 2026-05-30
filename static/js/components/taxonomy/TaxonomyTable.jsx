@@ -2,26 +2,43 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import MUIDataTable from "mui-datatables";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
 import * as taxonomyActions from "../../ducks/taxonomies";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map are not server-sortable.
+const SERVER_SORT_FIELD = {
+  name: "name",
+  id: "id",
+  isLatest: "isLatest",
+  provenance: "provenance",
+  version: "version",
+};
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -49,39 +66,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const TaxonomyTable = ({
   taxonomies,
   paginateCallback,
@@ -90,11 +74,11 @@ const TaxonomyTable = ({
   sortingCallback,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const dispatch = useDispatch();
 
-  const [setRowsPerPage] = useState(100);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [sortModel, setSortModel] = useState([]);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -147,39 +131,33 @@ const TaxonomyTable = ({
     );
   };
 
-  const renderName = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderName = (params) => {
+    const taxonomy = params.row;
     return <div>{taxonomy ? taxonomy.name : ""}</div>;
   };
 
-  const renderID = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderID = (params) => {
+    const taxonomy = params.row;
     return <div>{taxonomy ? taxonomy.id : ""}</div>;
   };
 
-  const renderIsLatest = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderIsLatest = (params) => {
+    const taxonomy = params.row;
     return <div>{taxonomy ? taxonomy.isLatest.toString() : ""}</div>;
   };
 
-  const renderProvenance = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderProvenance = (params) => {
+    const taxonomy = params.row;
     return <div>{taxonomy ? taxonomy.provenance : ""}</div>;
   };
 
-  const renderVersion = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderVersion = (params) => {
+    const taxonomy = params.row;
     return <div>{taxonomy ? taxonomy.version : ""}</div>;
   };
 
-  const renderGroups = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
+  const renderGroups = (params) => {
+    const taxonomy = params.row;
     const groupNames = [];
     taxonomy?.groups?.forEach((group) => {
       groupNames.push(group.name);
@@ -187,8 +165,8 @@ const TaxonomyTable = ({
     return <div>{groupNames.length > 0 ? groupNames.join("\n") : ""}</div>;
   };
 
-  const renderDetails = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
+  const renderDetails = (params) => {
+    const taxonomy = params.row;
     return (
       <IconButton
         key={`details_${taxonomy.id}`}
@@ -200,11 +178,11 @@ const TaxonomyTable = ({
     );
   };
 
-  const renderManage = (dataIndex) => {
+  const renderManage = (params) => {
     if (!deletePermission) {
       return null;
     }
-    const taxonomy = taxonomies[dataIndex];
+    const taxonomy = params.row;
     return (
       <div className={classes.taxonomyManage}>
         <Button
@@ -226,140 +204,138 @@ const TaxonomyTable = ({
     );
   };
 
-  const handleTableChange = (action, tableState) => {
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
+  const currentSortOrder = () =>
+    sortModel.length
+      ? {
+          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
+          direction: sortModel[0].sort,
         }
-        break;
-      default:
+      : {};
+
+  const handlePaginationModelChange = (model) => {
+    setRowsPerPage(model.pageSize);
+    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
+  };
+
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      paginateCallback(1, rowsPerPage, {});
+      return;
     }
+    const { field, sort } = model[0];
+    sortingCallback({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
   const columns = [
     {
-      name: "name",
-      label: "Name",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderName,
-      },
+      field: "name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderName,
     },
     {
-      name: "id",
-      label: "ID",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderID,
-      },
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+      renderCell: renderID,
     },
     {
-      name: "isLatest",
-      label: "isLatest",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderIsLatest,
-      },
+      field: "isLatest",
+      headerName: "isLatest",
+      flex: 1,
+      minWidth: 90,
+      renderCell: renderIsLatest,
     },
     {
-      name: "provenance",
-      label: "Provenance",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderProvenance,
-      },
+      field: "provenance",
+      headerName: "Provenance",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderProvenance,
     },
     {
-      name: "version",
-      label: "Version",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderVersion,
-      },
+      field: "version",
+      headerName: "Version",
+      flex: 1,
+      minWidth: 90,
+      renderCell: renderVersion,
     },
     {
-      name: "groups",
-      label: "Groups",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderGroups,
-      },
+      field: "groups",
+      headerName: "Groups",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGroups,
     },
     {
-      name: "details",
-      label: "Hierarchy",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderDetails,
-      },
+      field: "details",
+      headerName: "Hierarchy",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDetails,
     },
     {
-      name: "manage",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderManage,
-      },
+      field: "manage",
+      headerName: " ",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderManage,
     },
   ];
 
-  const options = {
-    search: false,
-    selectableRows: "none",
-    elevation: 0,
-    onTableChange: handleTableChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    count: totalMatches,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
-      <IconButton
-        name="new_taxonomy"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
-    ),
+  const CustomToolbar = function TaxonomyTableToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <IconButton
+          name="new_taxonomy"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      </GridToolbarContainer>
+    );
   };
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Taxonomies"
-            data={taxonomies}
-            options={options}
+        <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+          Taxonomies
+        </Typography>
+        <Box sx={{ width: "100%" }}>
+          <StyledDataGrid
+            autoHeight
+            rows={taxonomies}
             columns={columns}
+            getRowId={(row) => row.id}
+            paginationMode="server"
+            sortingMode="server"
+            rowCount={totalMatches}
+            paginationModel={{ page: 0, pageSize: rowsPerPage }}
+            onPaginationModelChange={handlePaginationModelChange}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            disableColumnFilter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Taxonomy</DialogTitle>

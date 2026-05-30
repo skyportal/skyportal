@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -10,61 +9,33 @@ import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import MUIDataTable from "mui-datatables";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
+import StyledDataGrid from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
   },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map fall through to the field itself.
+const SERVER_SORT_FIELD = {
+  defaultSurveyEfficiency: "defaultSurveyEfficiency",
+  modelName: "modelName",
+};
 
 const DefaultSurveyEfficiencyTable = ({
   default_survey_efficiencies,
@@ -74,16 +45,14 @@ const DefaultSurveyEfficiencyTable = ({
   deletePermission,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const dispatch = useDispatch();
-
-  const [setRowsPerPage] = useState(100);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultSurveyEfficiencyToDelete, setDefaultSurveyEfficiencyToDelete] =
     useState(null);
+  const [sortModel, setSortModel] = useState([]);
 
   const openNewDialog = () => {
     setNewDialogOpen(true);
@@ -114,117 +83,58 @@ const DefaultSurveyEfficiencyTable = ({
     });
   };
 
-  const renderSurveyEfficiencyTitle = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
-
-    return (
-      <div>
-        {
-          default_survey_efficiency.default_observationplan_request
-            .default_plan_name
-        }
-      </div>
-    );
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      paginateCallback(1, 100, {});
+      return;
+    }
+    const { field, sort } = model[0];
+    sortingCallback({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
-  const renderModelName = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderSurveyEfficiencyTitle = (params) => (
+    <div>{params.row.default_observationplan_request.default_plan_name}</div>
+  );
 
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.modelName
-          : ""}
-      </div>
-    );
-  };
+  const renderModelName = (params) => (
+    <div>{params.row ? params.row.payload.modelName : ""}</div>
+  );
 
-  const renderMaxPhase = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderMaxPhase = (params) => (
+    <div>{params.row ? params.row.payload.maximumPhase : ""}</div>
+  );
 
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.maximumPhase
-          : ""}
-      </div>
-    );
-  };
+  const renderMinPhase = (params) => (
+    <div>{params.row ? params.row.payload.minimumPhase : ""}</div>
+  );
 
-  const renderMinPhase = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderNumDetections = (params) => (
+    <div>{params.row ? params.row.payload.numberDetections : ""}</div>
+  );
 
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.minimumPhase
-          : ""}
-      </div>
-    );
-  };
+  const renderNumInjections = (params) => (
+    <div>{params.row ? params.row.payload.numberInjections : ""}</div>
+  );
 
-  const renderNumDetections = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderDetectionThreshold = (params) => (
+    <div>{params.row ? params.row.payload.detectionThreshold : ""}</div>
+  );
 
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.numberDetections
-          : ""}
-      </div>
-    );
-  };
+  const renderLocCumprob = (params) => (
+    <div>{params.row ? params.row.payload.localizationCumprob : ""}</div>
+  );
 
-  const renderNumInjections = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderInjectionParameters = (params) => (
+    <div>
+      {params.row ? params.row.payload.optionalInjectionParameters : ""}
+    </div>
+  );
 
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.numberInjections
-          : ""}
-      </div>
-    );
-  };
-
-  const renderDetectionThreshold = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
-
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.detectionThreshold
-          : ""}
-      </div>
-    );
-  };
-
-  const renderLocCumprob = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
-
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.localizationCumprob
-          : ""}
-      </div>
-    );
-  };
-
-  const renderInjectionParameters = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
-
-    return (
-      <div>
-        {default_survey_efficiency
-          ? default_survey_efficiency.payload.optionalInjectionParameters
-          : ""}
-      </div>
-    );
-  };
-
-  const renderDelete = (dataIndex) => {
-    const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+  const renderDelete = (params) => {
     if (!deletePermission) {
       return null;
     }
@@ -236,7 +146,7 @@ const DefaultSurveyEfficiencyTable = ({
             root: classes.defaultSurveyEfficiencyDelete,
             disabled: classes.defaultSurveyEfficiencyDeleteDisabled,
           }}
-          onClick={() => openDeleteDialog(default_survey_efficiency.id)}
+          onClick={() => openDeleteDialog(params.row.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
@@ -245,162 +155,135 @@ const DefaultSurveyEfficiencyTable = ({
     );
   };
 
-  const handleTableChange = (action, tableState) => {
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
-        }
-        break;
-      default:
-    }
-  };
-
   const columns = [
     {
-      name: "defaultSurveyEfficiency",
-      label: "Default Plan",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderSurveyEfficiencyTitle,
-      },
+      field: "defaultSurveyEfficiency",
+      headerName: "Default Plan",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      valueGetter: (value, row) =>
+        row.default_observationplan_request?.default_plan_name || "",
+      renderCell: renderSurveyEfficiencyTitle,
     },
     {
-      name: "modelName",
-      label: "Model Name",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderModelName,
-      },
+      field: "modelName",
+      headerName: "Model Name",
+      flex: 1,
+      minWidth: 130,
+      filterable: false,
+      valueGetter: (value, row) => row.payload?.modelName || "",
+      renderCell: renderModelName,
     },
     {
-      name: "numInjections",
-      label: "Number of Injections",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderNumInjections,
-      },
+      field: "numInjections",
+      headerName: "Number of Injections",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: renderNumInjections,
     },
     {
-      name: "maxPhase",
-      label: "Maximum Phase (days)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderMaxPhase,
-      },
+      field: "maxPhase",
+      headerName: "Maximum Phase (days)",
+      flex: 1,
+      minWidth: 170,
+      sortable: false,
+      filterable: false,
+      renderCell: renderMaxPhase,
     },
     {
-      name: "minPhase",
-      label: "Minimum Phase (days)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderMinPhase,
-      },
+      field: "minPhase",
+      headerName: "Minimum Phase (days)",
+      flex: 1,
+      minWidth: 170,
+      sortable: false,
+      filterable: false,
+      renderCell: renderMinPhase,
     },
     {
-      name: "numDetections",
-      label: "Number of Detections",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderNumDetections,
-      },
+      field: "numDetections",
+      headerName: "Number of Detections",
+      flex: 1,
+      minWidth: 170,
+      sortable: false,
+      filterable: false,
+      renderCell: renderNumDetections,
     },
     {
-      name: "detectionThreshold",
-      label: "Detection Threshold (sigma)",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderDetectionThreshold,
-      },
+      field: "detectionThreshold",
+      headerName: "Detection Threshold (sigma)",
+      flex: 1,
+      minWidth: 200,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDetectionThreshold,
     },
     {
-      name: "cumProb",
-      label: "Cumulative Probability",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderLocCumprob,
-      },
+      field: "cumProb",
+      headerName: "Cumulative Probability",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: renderLocCumprob,
     },
     {
-      name: "injectionParameters",
-      label: "Optional Injection Parameters",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInjectionParameters,
-      },
+      field: "injectionParameters",
+      headerName: "Optional Injection Parameters",
+      flex: 1,
+      minWidth: 210,
+      sortable: false,
+      filterable: false,
+      renderCell: renderInjectionParameters,
     },
     {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
+      field: "delete",
+      headerName: " ",
+      width: 90,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDelete,
     },
   ];
 
-  const options = {
-    search: false,
-    selectableRows: "none",
-    elevation: 0,
-    onTableChange: handleTableChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    count: totalMatches,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
       <IconButton
         name="new_default_survey_efficiency"
+        size="small"
         onClick={() => {
           openNewDialog();
         }}
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+    </GridToolbarContainer>
+  );
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Default Survey Efficiencies"
-            data={default_survey_efficiencies}
-            options={options}
+        <Typography variant="h6" style={{ padding: "0.5rem" }}>
+          Default Survey Efficiencies
+        </Typography>
+        <Box sx={{ width: "100%" }}>
+          <StyledDataGrid
+            autoHeight
+            rows={default_survey_efficiencies || []}
             columns={columns}
+            getRowId={(row) => row.id}
+            rowCount={totalMatches}
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            hideFooter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
       </Paper>
       {newDialogOpen && (
         <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">

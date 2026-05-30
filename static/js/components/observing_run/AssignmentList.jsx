@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -10,16 +9,16 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
 import { showNotification } from "baselayer/components/Notifications";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
+import StyledDataGrid from "../StyledDataGrid";
 import * as Actions from "../../ducks/source";
 import * as UserActions from "../../ducks/users";
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(() => ({
   assignmentManage: {
     display: "flex",
     flexDirection: "row",
@@ -28,53 +27,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const AssignmentList = ({ assignments }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -154,118 +108,121 @@ const AssignmentList = ({ assignments }) => {
       : 0,
   );
 
-  const renderRunId = (value) => <a href={`/run/${value}`}>{value}</a>;
-
-  const renderRequester = (value, tableMeta) => {
-    const { requester_id } = assignments[tableMeta.rowIndex];
-    const requester = allUsers.find((user) => user.id === requester_id);
-    return requester?.username || "Loading...";
-  };
-
-  const renderInstrument = (value, tableMeta) => {
-    const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList?.filter((r) => r.id === run_id)[0];
-    const instrument_id = run?.instrument_id;
-    const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-    return instrument?.name || "Loading...";
-  };
-
-  const renderRunDate = (value, tableMeta) => {
-    const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList?.filter((r) => r.id === run_id)[0];
-    return run?.calendar_date || "Loading...";
-  };
-
-  const renderPI = (value, tableMeta) => {
-    const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList?.filter((r) => r.id === run_id)[0];
-    return run?.pi || "Loading...";
-  };
-
-  const renderManage = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div className={classes.assignmentManage}>
-        <IconButton
-          id={`edit_button_assignment_${assignment.id}`}
-          onClick={() => openEditDialog(assignment.id)}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          id={`delete_button_assignment_${assignment.id}`}
-          onClick={() => openDeleteDialog(assignment.id)}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </div>
-    );
-  };
+  const runForRow = (row) =>
+    observingRunList?.filter((r) => r.id === row.run_id)[0];
 
   const columns = [
     {
-      name: "run_id",
-      label: "Run Id",
-      options: {
-        customBodyRender: renderRunId,
+      field: "run_id",
+      headerName: "Run Id",
+      flex: 1,
+      minWidth: 90,
+      sortable: false,
+      renderCell: (params) => (
+        <a href={`/run/${params.value}`}>{params.value}</a>
+      ),
+    },
+    {
+      field: "requester",
+      headerName: "Requester",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      valueGetter: (value, row) =>
+        allUsers.find((user) => user.id === row.requester_id)?.username ||
+        "Loading...",
+    },
+    {
+      field: "instrument",
+      headerName: "Instrument",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      valueGetter: (value, row) => {
+        const run = runForRow(row);
+        const instrument = instrumentList?.filter(
+          (i) => i.id === run?.instrument_id,
+        )[0];
+        return instrument?.name || "Loading...";
       },
     },
     {
-      name: "requester",
-      label: "Requester",
-      options: {
-        customBodyRender: renderRequester,
-      },
+      field: "runDate",
+      headerName: "Run Date",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      valueGetter: (value, row) =>
+        runForRow(row)?.calendar_date || "Loading...",
     },
     {
-      name: "instrument",
-      label: "Instrument",
-      options: {
-        customBodyRender: renderInstrument,
-      },
+      field: "pi",
+      headerName: "PI",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      valueGetter: (value, row) => runForRow(row)?.pi || "Loading...",
     },
     {
-      name: "runDate",
-      label: "Run Date",
-      options: {
-        customBodyRender: renderRunDate,
-      },
+      field: "priority",
+      headerName: "Priority",
+      flex: 1,
+      minWidth: 90,
+      sortable: false,
     },
     {
-      name: "pi",
-      label: "PI",
-      options: {
-        customBodyRender: renderPI,
-      },
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
     },
-    { name: "priority", label: "Priority" },
-    { name: "status", label: "Status" },
-    { name: "comment", label: "Comment" },
     {
-      name: "manage",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderManage,
+      field: "comment",
+      headerName: "Comment",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+    },
+    {
+      field: "manage",
+      headerName: " ",
+      width: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const assignment = params.row;
+        return (
+          <div className={classes.assignmentManage}>
+            <IconButton
+              id={`edit_button_assignment_${assignment.id}`}
+              onClick={() => openEditDialog(assignment.id)}
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              id={`delete_button_assignment_${assignment.id}`}
+              onClick={() => openDeleteDialog(assignment.id)}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </div>
+        );
       },
     },
   ];
 
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
-
   return (
     <div>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable data={assignments} options={options} columns={columns} />
-      </ThemeProvider>
+      <StyledDataGrid
+        autoHeight
+        rows={assignments}
+        columns={columns}
+        getRowId={(row) => row.id}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[1, 10, 15]}
+        showToolbar
+      />
       <Dialog
         open={editDialogOpen && assignmentToEditDelete !== null}
         onClose={closeEditDialog}

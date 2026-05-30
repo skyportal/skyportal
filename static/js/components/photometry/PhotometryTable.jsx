@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
+import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -12,12 +13,17 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import { makeStyles } from "tss-react/mui";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
-import MUIDataTable from "mui-datatables";
 import Typography from "@mui/material/Typography";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
+import StyledDataGrid from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
@@ -26,6 +32,7 @@ import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import * as Actions from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
+
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
   "ra",
@@ -50,42 +57,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUITableCell: {
-        styleOverrides: {
-          paddingCheckbox: {
-            padding: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.25rem",
-            paddingRight: 0,
-            margin: 0,
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: "0.5rem",
-            paddingRight: 0,
-            margin: 0,
-          },
-          sortLabelRoot: {
-            height: "1.4rem",
-          },
-        },
-      },
-    },
-  });
-
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -93,21 +64,41 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
+// Format a raw cell value for display, preserving the old table's behavior:
+// floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
+// are stringified. Used as a DataGrid valueFormatter so sorting still operates
+// on the underlying numeric/object value.
+const formatCell = (key) => (value) => {
+  if (isFloat(value)) {
+    return value.toFixed(key.includes("jd") ? 8 : 6);
+  }
+  if (key === "altdata" && typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  return value;
+};
+
 const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
   const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
-  let bodyContent = null;
 
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
-  const [downloadParams, setDownloadParams] = useState(null);
   const [showExtinction, setShowExtinction] = useState(false);
 
-  const data = photometry[obj_id] || [];
+  const data = useMemo(() => photometry[obj_id] || [], [photometry, obj_id]);
+
+  // DataGrid persists column visibility itself; seed it with the columns that
+  // were hidden by default in the old table.
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState(() =>
+    DEFAULT_HIDDEN_COLUMNS.reduce((acc, curr) => {
+      acc[curr] = false;
+      return acc;
+    }, {}),
+  );
 
   useEffect(() => {
     if (obj_id && open) {
@@ -140,193 +131,126 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
     setDeleteDialogOpen(false);
   };
 
-  const objectWithFalseValues = DEFAULT_HIDDEN_COLUMNS.reduce((acc, curr) => {
-    acc[curr] = false;
-    return acc;
-  }, {});
-
-  const [openColumns, setOpenColumns] = useState(objectWithFalseValues);
-  const handleColumnViewChange = (columnName, action) => {
-    setOpenColumns((prevOpenColumns) => ({
-      ...prevOpenColumns,
-      [columnName]: action === "add",
-    }));
-  };
-
-  const handleDownload = (buildHead, buildBody, cols, tableData) => {
-    setDownloadParams({ buildHead, buildBody, cols, tableData });
-    setDownloadOptionsOpen(true);
-    return false;
-  };
-
   const handleDownloadClose = () => {
     setDownloadOptionsOpen(false);
-    setDownloadParams(null);
   };
 
-  if (!Object.keys(photometry).includes(obj_id)) {
-    bodyContent = (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  } else {
+  const columns = useMemo(() => {
     if (data.length === 0) {
-      bodyContent = <p>Source has no photometry.</p>;
-    } else {
-      const keys = [
+      return [];
+    }
+
+    // Column order, mirroring the previous table.
+    const keys = [
+      "id",
+      "mjd",
+      "mag",
+      "magerr",
+      "limiting_mag",
+      "filter",
+      "instrument_name",
+      "instrument_id",
+      "snr",
+      "magsys",
+      "origin",
+      "altdata",
+      "ra",
+      "dec",
+      "ra_unc",
+      "dec_unc",
+      "created_at",
+    ];
+
+    if (showExtinction) {
+      keys.splice(
+        keys.indexOf("magerr") + 1,
+        0,
+        "extinction",
+        "mag_corr",
+        "flux_corr",
+      );
+    }
+
+    // Pick up any extra keys present in the data that we did not enumerate.
+    Object.keys(data[0]).forEach((key) => {
+      const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
+      const excludedKeys = [
+        "groups",
+        "owner",
+        "obj_id",
         "id",
-        "mjd",
-        "mag",
-        "magerr",
-        "limiting_mag",
-        "filter",
-        "instrument_name",
-        "instrument_id",
-        "snr",
-        "magsys",
-        "origin",
-        "altdata",
-        "ra",
-        "dec",
-        "ra_unc",
-        "dec_unc",
-        "created_at",
+        "streams",
+        "validations",
       ];
 
-      if (showExtinction) {
-        keys.splice(
-          keys.indexOf("magerr") + 1,
-          0,
-          "extinction",
-          "mag_corr",
-          "flux_corr",
-        );
+      if (extinctionColumns.includes(key) && !showExtinction) {
+        return;
       }
 
-      Object.keys(data[0]).forEach((key) => {
-        const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
-        const excludedKeys = [
-          "groups",
-          "owner",
-          "obj_id",
-          "id",
-          "streams",
-          "validations",
-        ];
-
-        if (extinctionColumns.includes(key) && !showExtinction) {
-          return;
-        }
-
-        if (!keys.includes(key) && !excludedKeys.includes(key)) {
-          keys.push(key);
-        }
-      });
-
-      const columns = keys.map((key) => ({
-        name: key,
-        options: {
-          customBodyRenderLite: (dataIndex) => {
-            const value = data[dataIndex][key];
-            if (isFloat(value)) {
-              return value.toFixed(key.includes("jd") ? 8 : 6);
-            }
-            if (
-              key === "altdata" &&
-              typeof value === "object" &&
-              value !== null
-            ) {
-              return JSON.stringify(value);
-            }
-            return value;
-          },
-          display: openColumns[key] === false ? "false" : "true",
-        },
-      }));
-
-      const renderUTC = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
-              <div>{mjd_to_utc(phot.mjd).replace("T", " ")}</div>
-            </div>
-          </div>
-        );
-      };
-      const mjdIndex = columns.findIndex((col) => col.name === "mjd");
-      columns.splice(mjdIndex + 1, 0, {
-        name: "UTC",
-        label: "UTC",
-        options: {
-          customBodyRenderLite: renderUTC,
-          display: openColumns.UTC === false ? "false" : "true",
-        },
-      });
-
-      // Add t-t0 column after UTC if obj has t0
-      if (t0 != null) {
-        const renderTMinusT0 = (dataIndex) => {
-          const phot = data[dataIndex];
-          const value = phot.mjd - t0;
-          return isFloat(value) ? value.toFixed(6) : value;
-        };
-        const utcIndex = columns.findIndex((col) => col.name === "UTC");
-        columns.splice(utcIndex + 1, 0, {
-          name: "t-t0",
-          label: "t-t0",
-          options: {
-            customBodyRenderLite: renderTMinusT0,
-            display: openColumns["t-t0"] === false ? "false" : "true",
-          },
-        });
+      if (!keys.includes(key) && !excludedKeys.includes(key)) {
+        keys.push(key);
       }
+    });
 
-      const renderOwner = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
-              <div>{phot.owner.username}</div>
-            </div>
-          </div>
-        );
+    const cols = keys.map((key) => ({
+      field: key,
+      headerName: key,
+      flex: 1,
+      minWidth: 90,
+      valueFormatter: formatCell(key),
+    }));
+
+    // Computed UTC column, inserted right after mjd.
+    const utcColumn = {
+      field: "UTC",
+      headerName: "UTC",
+      flex: 1,
+      minWidth: 160,
+      valueGetter: (value, row) => mjd_to_utc(row.mjd).replace("T", " "),
+    };
+    const mjdIndex = cols.findIndex((col) => col.field === "mjd");
+    cols.splice(mjdIndex + 1, 0, utcColumn);
+
+    // Computed t-t0 column, inserted right after UTC, only when t0 is known.
+    if (t0 != null) {
+      const tMinusT0Column = {
+        field: "t-t0",
+        headerName: "t-t0",
+        flex: 1,
+        minWidth: 90,
+        valueGetter: (value, row) => row.mjd - t0,
+        valueFormatter: (value) => (isFloat(value) ? value.toFixed(6) : value),
       };
-      columns.push({
-        name: "owner",
-        label: "owner",
-        options: {
-          customBodyRenderLite: renderOwner,
-          display: openColumns.owner === false ? "false" : "true",
-        },
-      });
+      const utcIndex = cols.findIndex((col) => col.field === "UTC");
+      cols.splice(utcIndex + 1, 0, tMinusT0Column);
+    }
 
-      const renderStreams = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
-              <div>
-                {(phot.streams || []).map((stream) => stream.name).join(", ")}
-              </div>
-            </div>
-          </div>
-        );
-      };
+    cols.push({
+      field: "owner",
+      headerName: "owner",
+      flex: 1,
+      minWidth: 100,
+      valueGetter: (value, row) => row.owner?.username || "",
+    });
 
-      columns.push({
-        name: "streams",
-        label: "streams",
-        options: {
-          customBodyRenderLite: renderStreams,
-          display: openColumns.streams === false ? "false" : "true",
-        },
-      });
+    cols.push({
+      field: "streams",
+      headerName: "streams",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) =>
+        (row.streams || []).map((stream) => stream.name).join(", "),
+    });
 
-      if (usePhotometryValidation) {
-        const renderValidationStatus = (dataIndex) => {
-          const phot = data[dataIndex];
+    if (usePhotometryValidation) {
+      cols.push({
+        field: "validation_status",
+        headerName: "Validation",
+        flex: 1,
+        minWidth: 110,
+        sortable: false,
+        renderCell: (params) => {
+          const phot = params.row;
           let statusIcon = null;
           if (phot?.validations.length === 0) {
             statusIcon = <PriorityHigh size="small" color="primary" />;
@@ -337,7 +261,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
           } else {
             statusIcon = <QuestionMarkIcon size="small" color="primary" />;
           }
-
           return (
             <div
               style={{
@@ -352,195 +275,170 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys, t0 }) => {
               <PhotometryValidation phot={phot} magsys={magsys} />
             </div>
           );
-        };
-
-        columns.push({
-          name: "validation_status",
-          label: "Validation",
-          options: {
-            customBodyRenderLite: renderValidationStatus,
-            display: openColumns.validation_status === false ? "false" : "true",
-          },
-        });
-
-        const renderValidationExplanation = (dataIndex) => {
-          const phot = data[dataIndex];
-          let validationExplanation = null;
-          if (phot?.validations.length === 0) {
-            validationExplanation = "";
-          } else {
-            validationExplanation = phot?.validations[0]?.explanation;
-          }
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              name={`${phot.id}_validation_explanation`}
-            >
-              {validationExplanation}
-            </div>
-          );
-        };
-
-        columns.push({
-          name: "validation_explanation",
-          label: "Explanation",
-          options: {
-            customBodyRenderLite: renderValidationExplanation,
-            display:
-              openColumns.validation_explanation === false ? "false" : "true",
-          },
-        });
-
-        const renderValidationNotes = (dataIndex) => {
-          const phot = data[dataIndex];
-          let notes = null;
-          if (phot?.validations.length === 0) {
-            notes = "";
-          } else {
-            notes = phot?.validations[0]?.notes;
-          }
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              name={`${phot.id}_validation_notes`}
-            >
-              {notes}
-            </div>
-          );
-        };
-
-        columns.push({
-          name: "validation_notes",
-          label: "Notes",
-          options: {
-            customBodyRenderLite: renderValidationNotes,
-            display: openColumns.validation_notes === false ? "false" : "true",
-          },
-        });
-      }
-
-      const renderManage = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.manage}>
-              <div>
-                <UpdatePhotometry phot={phot} magsys={magsys} />
-              </div>
-              {deleteDialogOpen === phot.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <IconButton
-                    primary
-                    onClick={() => setDeleteDialogOpen(phot.id)}
-                    size="small"
-                    type="submit"
-                    data-testid={`deleteRequest_${photometry.id}`}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
-      columns.push({
-        name: "manage",
-        label: "Manage",
-        options: {
-          customBodyRenderLite: renderManage,
         },
-        display: openColumns.manage === false ? "false" : "true",
       });
 
-      const customToolbarFunc = () => (
-        <>
-          <Tooltip title="Close Table">
-            <IconButton
-              onClick={onClose}
-              data-testid="close-photometry-table-button"
-              size="large"
-            >
-              <CloseIcon />
-            </IconButton>
-          </Tooltip>
-        </>
-      );
+      cols.push({
+        field: "validation_explanation",
+        headerName: "Explanation",
+        flex: 1,
+        minWidth: 120,
+        valueGetter: (value, row) =>
+          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
+      });
 
-      const options = {
-        draggableColumns: { enabled: false },
-        expandableRows: false,
-        selectableRows: "none",
-        customToolbar: customToolbarFunc,
-        filter: false,
-        download: true,
-        onColumnViewChange: handleColumnViewChange,
-        onDownload: handleDownload,
-      };
+      cols.push({
+        field: "validation_notes",
+        headerName: "Notes",
+        flex: 1,
+        minWidth: 120,
+        valueGetter: (value, row) =>
+          row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
+      });
+    }
 
-      bodyContent = (
-        <div>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    flexDirection: "row",
-                    gap: "1rem",
-                  }}
+    cols.push({
+      field: "manage",
+      headerName: "Manage",
+      flex: 1,
+      minWidth: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const phot = params.row;
+        return (
+          <div className={classes.manage}>
+            <div>
+              <UpdatePhotometry phot={phot} magsys={magsys} />
+            </div>
+            {deleteDialogOpen === phot.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <IconButton
+                  primary
+                  onClick={() => setDeleteDialogOpen(phot.id)}
+                  size="small"
+                  type="submit"
+                  data-testid={`deleteRequest_${photometry.id}`}
                 >
-                  <Typography variant="h6" noWrap>
-                    {`Photometry of ${obj_id}`}
-                  </Typography>
-                  {magsys && typeof setMagsys === "function" && (
-                    <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
-                  )}
-                  <PhotometryExtinction
-                    showExtinction={showExtinction}
-                    setShowExtinction={setShowExtinction}
-                  />
-                </div>
-              }
-              columns={columns}
-              data={data}
-              options={options}
-            />
-          </ThemeProvider>
-          <ConfirmDeletionDialog
-            deleteFunction={handleDelete}
-            dialogOpen={deleteDialogOpen}
-            closeDialog={closeDeleteDialog}
-            resourceName="Photometry Point"
-          />
-          <PhotometryDownload
-            open={downloadOptionsOpen}
-            onClose={handleDownloadClose}
-            data={data}
-            objId={obj_id}
-            usePhotometryValidation={usePhotometryValidation}
-            downloadParams={downloadParams}
-            onDownload={handleDownloadClose}
+                  <DeleteIcon />
+                </IconButton>
+              </div>
+            )}
+          </div>
+        );
+      },
+    });
+
+    return cols;
+  }, [
+    data,
+    t0,
+    showExtinction,
+    usePhotometryValidation,
+    magsys,
+    deleteDialogOpen,
+    photometry.id,
+    classes.manage,
+  ]);
+
+  const CustomToolbar = useMemo(
+    () =>
+      function PhotometryTableToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <Button
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => setDownloadOptionsOpen(true)}
+              data-testid="open-photometry-download-button"
+            >
+              Download
+            </Button>
+            <Box sx={{ flexGrow: 1 }} />
+            <Tooltip title="Close Table">
+              <IconButton
+                onClick={onClose}
+                data-testid="close-photometry-table-button"
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+          </GridToolbarContainer>
+        );
+      },
+    [onClose],
+  );
+
+  let bodyContent = null;
+  if (!Object.keys(photometry).includes(obj_id)) {
+    bodyContent = (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  } else if (data.length === 0) {
+    bodyContent = <p>Source has no photometry.</p>;
+  } else {
+    bodyContent = (
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flexDirection: "row",
+            gap: "1rem",
+            marginBottom: "0.5rem",
+          }}
+        >
+          <Typography variant="h6" noWrap>
+            {`Photometry of ${obj_id}`}
+          </Typography>
+          {magsys && typeof setMagsys === "function" && (
+            <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+          )}
+          <PhotometryExtinction
+            showExtinction={showExtinction}
+            setShowExtinction={setShowExtinction}
           />
         </div>
-      );
-    }
+        <Box sx={{ height: "calc(100vh - 8rem)", width: "100%" }}>
+          <StyledDataGrid
+            rows={data}
+            columns={columns}
+            columnVisibilityModel={columnVisibilityModel}
+            onColumnVisibilityModelChange={setColumnVisibilityModel}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 100 } },
+            }}
+            pageSizeOptions={[50, 100, 250, 500]}
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
+          />
+        </Box>
+        <ConfirmDeletionDialog
+          deleteFunction={handleDelete}
+          dialogOpen={deleteDialogOpen}
+          closeDialog={closeDeleteDialog}
+          resourceName="Photometry Point"
+        />
+        <PhotometryDownload
+          open={downloadOptionsOpen}
+          onClose={handleDownloadClose}
+          data={data}
+          objId={obj_id}
+          usePhotometryValidation={usePhotometryValidation}
+          onDownload={handleDownloadClose}
+        />
+      </div>
+    );
   }
+
   return (
     <Dialog
       fullScreen

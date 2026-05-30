@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -10,15 +11,20 @@ import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import MUIDataTable from "mui-datatables";
+import Chip from "@mui/material/Chip";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "../Button";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as telescopesActions from "../../ducks/telescopes";
-import Chip from "@mui/material/Chip";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import * as telescopesActions from "../../ducks/telescopes";
 import { fetchTelescopes, submitTelescope } from "../../ducks/telescopes";
 
 const useStyles = makeStyles()(() => ({
@@ -30,28 +36,12 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          left: {
-            paddingLeft: "0.5rem",
-          },
-        },
-      },
-    },
-  });
-
 const TelescopeTable = ({
   telescopes,
   deletePermission,
   hideTitle = false,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -178,11 +168,11 @@ const TelescopeTable = ({
     required: ["name", "nickname", "diameter", "robotic", "fixed_location"],
   };
 
-  const renderManage = (dataIndex) => {
+  const renderManage = (params) => {
     if (!deletePermission) {
       return null;
     }
-    const telescope = telescopes[dataIndex];
+    const telescope = params.row;
     return (
       <div className={classes.telescopeManage}>
         <Button
@@ -196,126 +186,110 @@ const TelescopeTable = ({
     );
   };
 
+  const renderBool = (params) =>
+    params.value ? (
+      <Chip label="Yes" color="primary" size="small" />
+    ) : (
+      <Chip label="No" size="small" />
+    );
+
   const columns = [
+    { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
+    { field: "nickname", headerName: "Nickname", flex: 1, minWidth: 100 },
     {
-      name: "name",
-      label: "Name",
+      field: "lat",
+      headerName: "Latitude",
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: (value) => value?.toFixed(4) ?? "—",
     },
     {
-      name: "nickname",
-      label: "Nickname",
+      field: "lon",
+      headerName: "Longitude",
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: (value) => value?.toFixed(4) ?? "—",
     },
     {
-      name: "lat",
-      label: "Latitude",
-      options: {
-        customBodyRender: (value) => value?.toFixed(4) ?? "—",
-      },
+      field: "elevation",
+      headerName: "Elevation",
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: (value) => value?.toFixed(1) ?? "—",
     },
     {
-      name: "lon",
-      label: "Longitude",
-      options: {
-        customBodyRender: (value) => value?.toFixed(4) ?? "—",
-      },
+      field: "diameter",
+      headerName: "Diameter",
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: (value) => value?.toFixed(1) ?? "—",
     },
     {
-      name: "elevation",
-      label: "Elevation",
-      options: {
-        customBodyRender: (value) => value?.toFixed(1) ?? "—",
-      },
+      field: "robotic",
+      headerName: "Robotic",
+      width: 100,
+      renderCell: renderBool,
     },
     {
-      name: "diameter",
-      label: "Diameter",
-      options: {
-        customBodyRender: (value) => value?.toFixed(1) ?? "—",
-      },
+      field: "fixed_location",
+      headerName: "Fixed Location",
+      width: 130,
+      renderCell: renderBool,
     },
     {
-      name: "robotic",
-      label: "Robotic",
-      options: {
-        customBodyRender: (value) =>
-          value ? (
-            <Chip label="Yes" color="primary" size="small" />
-          ) : (
-            <Chip label="No" size="small" />
-          ),
-      },
+      field: "skycam_link",
+      headerName: "Skycam",
+      width: 100,
+      sortable: false,
+      renderCell: (params) =>
+        params.value ? (
+          <a href={params.value} target="_blank" rel="noopener noreferrer">
+            View
+          </a>
+        ) : (
+          "—"
+        ),
     },
     {
-      name: "fixed_location",
-      label: "Fixed Location",
-      options: {
-        customBodyRender: (value) =>
-          value ? (
-            <Chip label="Yes" color="primary" size="small" />
-          ) : (
-            <Chip label="No" size="small" />
-          ),
-      },
-    },
-    {
-      name: "skycam_link",
-      label: "Skycam",
-      options: {
-        customBodyRender: (value) =>
-          value ? (
-            <a href={value} target="_blank" rel="noopener noreferrer">
-              View
-            </a>
-          ) : (
-            "—"
-          ),
-      },
-    },
-    {
-      name: "manage",
-      label: "",
-      options: {
-        customBodyRenderLite: renderManage,
-        sort: false,
-        filter: false,
-      },
+      field: "manage",
+      headerName: "",
+      width: 70,
+      sortable: false,
+      filterable: false,
+      renderCell: renderManage,
     },
   ];
 
-  const options = {
-    fixedHeader: true,
-    tableBodyHeight: "calc(100vh - 148px)",
-    search: true,
-    selectableRows: "none",
-    rowHover: false,
-    print: false,
-    elevation: 1,
-    jumpToPage: true,
-    pagination: false,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
-      <IconButton
-        name="new_telescope"
-        onClick={() => {
-          setNewDialogOpen(true);
-        }}
-      >
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <GridToolbarQuickFilter />
+      <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-    ),
-  };
+    </GridToolbarContainer>
+  );
 
   return (
     <Paper>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          title={hideTitle === true ? "" : "Telescopes"}
-          data={telescopes || []}
-          options={options}
+      {hideTitle !== true && (
+        <Typography variant="h6" sx={{ p: 1 }}>
+          Telescopes
+        </Typography>
+      )}
+      <Box sx={{ width: "100%", height: "calc(100vh - 148px)" }}>
+        <StyledDataGrid
+          rows={telescopes || []}
           columns={columns}
+          getRowId={(row) => row.id}
+          hideFooter
+          initialState={{
+            pagination: { paginationModel: { pageSize: 100 } },
+          }}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
         />
-      </ThemeProvider>
+      </Box>
       <Dialog
         open={newDialogOpen}
         onClose={() => setNewDialogOpen(false)}

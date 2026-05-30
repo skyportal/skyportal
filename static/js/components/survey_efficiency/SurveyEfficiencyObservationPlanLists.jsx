@@ -7,12 +7,11 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
 
@@ -33,62 +32,11 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTable: {
-        styleOverrides: {
-          paper: {
-            width: "100%",
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          stackedCommon: {
-            overflow: "hidden",
-            "&:last-child": {
-              paddingLeft: "0.25rem",
-            },
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const SurveyEfficiencyObservationPlanLists = ({
   survey_efficiency_analyses,
 }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
-  const theme = useTheme();
   const [isDeleting, setIsDeleting] = useState(null);
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {
@@ -108,129 +56,108 @@ const SurveyEfficiencyObservationPlanLists = ({
     }
   };
 
-  const getDataTableColumns = () => {
-    const columns = [{ name: "status", label: "Status" }];
-
-    const renderPayload = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return <div>{JSON.stringify(analysis.payload)}</div>;
-    };
-    columns.push({
-      name: "ntransients",
-      label: "Payload",
-      options: {
-        customBodyRenderLite: renderPayload,
-      },
-    });
-
-    const renderNumberTransients = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
+  const columns = [
+    { field: "status", headerName: "Status", flex: 1, minWidth: 120 },
+    {
+      field: "payload",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: (params) => <div>{JSON.stringify(params.row.payload)}</div>,
+    },
+    {
+      field: "ntransients",
+      headerName: "Number of Transients",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: (params) => (
         <div>
-          {analysis.number_of_transients ? (
-            <div>{analysis.number_of_transients}</div>
+          {params.row.number_of_transients ? (
+            <div>{params.row.number_of_transients}</div>
           ) : (
             <div>N/A</div>
           )}
         </div>
-      );
-    };
-    columns.push({
-      name: "ntransients",
-      label: "Number of Transients",
-      options: {
-        customBodyRenderLite: renderNumberTransients,
-      },
-    });
-
-    const renderNumberCovered = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
+      ),
+    },
+    {
+      field: "ncovered",
+      headerName: "Number in Covered Region",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      renderCell: (params) => (
         <div>
-          {analysis.number_in_covered ? (
-            <div>{analysis.number_in_covered}</div>
+          {params.row.number_in_covered ? (
+            <div>{params.row.number_in_covered}</div>
           ) : (
             <div>N/A</div>
           )}
         </div>
-      );
-    };
-    columns.push({
-      name: "ncovered",
-      label: "Number in Covered Region",
-      options: {
-        customBodyRenderLite: renderNumberCovered,
-      },
-    });
-
-    const renderNumberDetected = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
+      ),
+    },
+    {
+      field: "ndetected",
+      headerName: "Number Detected",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => (
         <div>
-          {analysis.number_detected ? (
-            <div>{analysis.number_detected}</div>
+          {params.row.number_detected ? (
+            <div>{params.row.number_detected}</div>
           ) : (
             <div>N/A</div>
           )}
         </div>
-      );
-    };
-    columns.push({
-      name: "ndetected",
-      label: "Number Detected",
-      options: {
-        customBodyRenderLite: renderNumberDetected,
-      },
-    });
-
-    const renderEfficiency = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
+      ),
+    },
+    {
+      field: "efficiency",
+      headerName: "Efficiency",
+      flex: 1,
+      minWidth: 110,
+      sortable: false,
+      renderCell: (params) => (
         <div>
-          {analysis.efficiency ? (
-            <div>{analysis.efficiency.toFixed(3)}</div>
+          {params.row.efficiency ? (
+            <div>{params.row.efficiency.toFixed(3)}</div>
           ) : (
             <div>N/A</div>
           )}
         </div>
-      );
-    };
-    columns.push({
-      name: "effficiency",
-      label: "Efficiency",
-      options: {
-        customBodyRenderLite: renderEfficiency,
-      },
-    });
-
-    const renderPlot = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
+      ),
+    },
+    {
+      field: "plot",
+      headerName: " ",
+      width: 140,
+      sortable: false,
+      renderCell: (params) => (
         <div>
           <Button
             primary
-            href={`/api/observation_plan/${analysis.id}/simsurvey/plot`}
+            href={`/api/observation_plan/${params.row.id}/simsurvey/plot`}
             size="small"
             type="submit"
-            data-testid={`simsurvey_${analysis.id}`}
+            data-testid={`simsurvey_${params.row.id}`}
           >
             Download Plot
           </Button>
         </div>
-      );
-    };
-    columns.push({
-      name: "plot",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderPlot,
-      },
-    });
-
-    const renderDelete = (dataIndex) => {
-      const analysis = survey_efficiency_analyses[dataIndex];
-      return (
-        <div>
+      ),
+    },
+    {
+      field: "delete",
+      headerName: " ",
+      width: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const analysis = params.row;
+        return (
           <div>
             {isDeleting === analysis.id ? (
               <div>
@@ -252,31 +179,10 @@ const SurveyEfficiencyObservationPlanLists = ({
               </div>
             )}
           </div>
-        </div>
-      );
-    };
-    columns.push({
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
+        );
       },
-    });
-
-    return columns;
-  };
-
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
+    },
+  ];
 
   return (
     <div className={classes.container}>
@@ -289,13 +195,17 @@ const SurveyEfficiencyObservationPlanLists = ({
           <Typography variant="subtitle1">Survey Analysis Requests</Typography>
         </AccordionSummary>
         <AccordionDetails data-testid="survey-requests_observationplanRequestsTable">
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={survey_efficiency_analyses}
-              options={options}
-              columns={getDataTableColumns()}
-            />
-          </ThemeProvider>
+          <StyledDataGrid
+            autoHeight
+            rows={survey_efficiency_analyses}
+            columns={columns}
+            getRowId={(row) => row.id}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[1, 10, 15]}
+            showToolbar
+          />
         </AccordionDetails>
       </Accordion>
     </div>

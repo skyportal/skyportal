@@ -3,18 +3,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles, withStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import Close from "@mui/icons-material/Close";
 import { grey } from "@mui/material/colors";
-
-import MUIDataTable from "mui-datatables";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -22,8 +22,13 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
@@ -33,6 +38,8 @@ import NewGcnEvent from "./NewGcnEvent";
 import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const useStyles = makeStyles()((theme) => ({
   tags: {
@@ -79,83 +86,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTable: {
-        styleOverrides: {
-          root: {
-            "& p": {
-              margin: 0,
-            },
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          root: {
-            maxHeight: "2rem",
-            padding: "0 0.75rem",
-            margin: 0,
-          },
-          filterPaper: {
-            minWidth: "50vw",
-            maxWidth: "95vw",
-          },
-        },
-      },
-      MUIDataTableHeadCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
-              1,
-            )} ${theme.spacing(1.5)}`,
-          },
-        },
-      },
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          stackedParent: {
-            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
-              1,
-            )} ${theme.spacing(1.5)}`,
-            verticalAlign: "top",
-          },
-        },
-      },
-      MuiIconButton: {
-        root: {
-          padding: "0.5rem",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const dialogTitleStyles = (theme) => ({
   root: {
     margin: 0,
@@ -195,7 +125,6 @@ const defaultNumPerPage = 10;
 
 const GcnEvents = () => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
 
@@ -206,6 +135,9 @@ const GcnEvents = () => {
   const [showAllNotices, setShowAllNotices] = useState(false);
   const [openCrossmatch, setOpenCrossmatch] = useState(false);
   const [openDefaultTag, setOpenDefaultTag] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [sortModel, setSortModel] = useState([]);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -283,44 +215,40 @@ const GcnEvents = () => {
     }
     handleTableFilter(1, defaultNumPerPage, data);
     dispatch(showNotification("Filters submitted to server"));
+    setFilterOpen(false);
   };
 
-  const handleSearchChange = async (searchText) => {
+  const handleSearchChange = async (text) => {
     const params = {
       ...fetchParams,
       pageNumber: 1,
-      partialdateobs: searchText,
+      partialdateobs: text,
     };
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
-  const handleFilterReset = async () => {
-    const params = { pageNumber: 1 };
-    setFetchParams(params);
-    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  const handlePaginationModelChange = (model) => {
+    const sortData =
+      sortModel.length > 0
+        ? { name: sortModel[0].field, direction: sortModel[0].sort }
+        : {};
+    handlePageChange(model.page + 1, model.pageSize, sortData);
   };
 
-  const handleTableChange = (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      handlePageChange(
-        tableState.page + 1,
-        tableState.rowsPerPage,
-        tableState.sortOrder,
-      );
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    if (!model.length) {
+      handlePageChange(1, fetchParams.numPerPage, {});
+      return;
     }
-    if (action === "sort") {
-      if (tableState.sortOrder.direction === "none") {
-        handlePageChange(1, tableState.rowsPerPage, {});
-      } else {
-        handleTableSorting(tableState.sortOrder);
-      }
-    }
+    const { field, sort } = model[0];
+    handleTableSorting({ name: field, direction: sort });
   };
 
-  const renderGcnTags = (dataIndex) => {
+  const renderGcnTags = (params) => {
     const gcnTags = [];
-    events[dataIndex]?.tags?.forEach((tag) => {
+    params.row?.tags?.forEach((tag) => {
       gcnTags.push(tag);
     });
     const gcnTagsUnique = [...new Set(gcnTags)];
@@ -340,13 +268,13 @@ const GcnEvents = () => {
     ));
   };
 
-  const renderAllocationTriggers = (dataIndex) => (
-    <GcnEventAllocationTriggers gcnEvent={events[dataIndex]} showPassed />
+  const renderAllocationTriggers = (params) => (
+    <GcnEventAllocationTriggers gcnEvent={params.row} showPassed />
   );
 
-  const renderLocalizationTags = (dataIndex) => {
+  const renderLocalizationTags = (params) => {
     const localizationTags = [];
-    events[dataIndex].localizations?.forEach((loc) => {
+    params.row.localizations?.forEach((loc) => {
       loc.tags?.forEach((tag) => {
         localizationTags.push(tag.text);
       });
@@ -371,148 +299,155 @@ const GcnEvents = () => {
     </div>
   );
 
-  const renderLocalizations = (dataIndex) => (
-    <ul className={classes.list}>
-      {events[dataIndex]?.localizations?.map((loc, index) => (
-        <li
-          key={loc.id}
-          style={
-            showAllLocalizations !== dataIndex && index > 2
-              ? { display: "none" }
-              : {}
-          }
-        >
-          <p>{loc.localization_name}</p>
-        </li>
-      ))}
-      {events[dataIndex]?.localizations?.length > 3 &&
-        expandButton(setShowAllLocalizations, showAllLocalizations, dataIndex)}
-    </ul>
-  );
+  const renderLocalizations = (params) => {
+    const event = params.row;
+    return (
+      <ul className={classes.list}>
+        {event?.localizations?.map((loc, index) => (
+          <li
+            key={loc.id}
+            style={
+              showAllLocalizations !== event.id && index > 2
+                ? { display: "none" }
+                : {}
+            }
+          >
+            <p>{loc.localization_name}</p>
+          </li>
+        ))}
+        {event?.localizations?.length > 3 &&
+          expandButton(setShowAllLocalizations, showAllLocalizations, event.id)}
+      </ul>
+    );
+  };
 
-  const renderGcnNotices = (dataIndex) => (
-    <ul className={classes.list}>
-      {events[dataIndex]?.gcn_notices?.map((gcnNotice, index) => (
-        <li
-          key={gcnNotice.id}
-          style={
-            showAllNotices !== dataIndex && index > 1 ? { display: "none" } : {}
-          }
-        >
-          <Tooltip title={gcnNotice.ivorn} placement="left">
-            <p>{gcnNotice.stream}</p>
-          </Tooltip>
-          <p className={classes.smallText}>{gcnNotice.notice_type}</p>
-          <p className={classes.smallText}>{gcnNotice.date}</p>
-        </li>
-      ))}
-      {events[dataIndex]?.gcn_notices?.length > 2 &&
-        expandButton(setShowAllNotices, showAllNotices, dataIndex)}
-    </ul>
-  );
+  const renderGcnNotices = (params) => {
+    const event = params.row;
+    return (
+      <ul className={classes.list}>
+        {event?.gcn_notices?.map((gcnNotice, index) => (
+          <li
+            key={gcnNotice.id}
+            style={
+              showAllNotices !== event.id && index > 1
+                ? { display: "none" }
+                : {}
+            }
+          >
+            <Tooltip title={gcnNotice.ivorn} placement="left">
+              <p>{gcnNotice.stream}</p>
+            </Tooltip>
+            <p className={classes.smallText}>{gcnNotice.notice_type}</p>
+            <p className={classes.smallText}>{gcnNotice.date}</p>
+          </li>
+        ))}
+        {event?.gcn_notices?.length > 2 &&
+          expandButton(setShowAllNotices, showAllNotices, event.id)}
+      </ul>
+    );
+  };
 
-  const renderDateObs = (dataIndex) => (
-    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`}>
-      <Button className={classes.gcnEventLink}>
-        {events[dataIndex]?.dateobs}
-      </Button>
+  const renderDateObs = (params) => (
+    <Link to={`/gcn_events/${params.row?.dateobs}`}>
+      <Button className={classes.gcnEventLink}>{params.row?.dateobs}</Button>
     </Link>
   );
 
-  const renderAliases = (dataIndex) =>
-    events[dataIndex]?.aliases?.length > 0 ? (
-      <p>{events[dataIndex]?.aliases.join(", ")}</p>
+  const renderAliases = (params) =>
+    params.row?.aliases?.length > 0 ? (
+      <p>{params.row?.aliases.join(", ")}</p>
     ) : (
       <p>No aliases</p>
     );
 
-  const customFilterDisplay = () => (
-    <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
-  );
   const columns = [
     {
-      name: "dateobs",
-      label: "Date Observed",
-      options: {
-        customBodyRenderLite: renderDateObs,
-        filter: false,
-      },
+      field: "dateobs",
+      headerName: "Date Observed",
+      flex: 1,
+      minWidth: 180,
+      filterable: false,
+      renderCell: renderDateObs,
     },
     {
-      name: "aliases",
-      label: "Aliases",
-      options: {
-        customBodyRenderLite: renderAliases,
-        filter: false,
-        sort: false,
-      },
+      field: "aliases",
+      headerName: "Aliases",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderAliases,
     },
     {
-      name: "gcn_tags",
-      label: "Event Tags",
-      options: {
-        customBodyRenderLite: renderGcnTags,
-        filter: false,
-        sort: false,
-      },
+      field: "gcn_tags",
+      headerName: "Event Tags",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGcnTags,
     },
     {
-      name: "allocation_triggers",
-      label: "Allocation Triggers",
-      options: {
-        customBodyRenderLite: renderAllocationTriggers,
-        filter: false,
-        sort: false,
-      },
+      field: "allocation_triggers",
+      headerName: "Allocation Triggers",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderAllocationTriggers,
     },
     {
-      name: "localization_tags",
-      label: "Localization Tags",
-      options: {
-        customBodyRenderLite: renderLocalizationTags,
-        filter: false,
-        sort: false,
-      },
+      field: "localization_tags",
+      headerName: "Localization Tags",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderLocalizationTags,
     },
     {
-      name: "localizations",
-      label: "Localizations",
-      options: {
-        customBodyRenderLite: renderLocalizations,
-        filter: false,
-        sort: false,
-      },
+      field: "localizations",
+      headerName: "Localizations",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderLocalizations,
     },
     {
-      name: "gcn_notices",
-      label: "GCN Notices",
-      options: {
-        customBodyRenderLite: renderGcnNotices,
-        filter: false,
-        sort: false,
-      },
+      field: "gcn_notices",
+      headerName: "GCN Notices",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: renderGcnNotices,
     },
   ];
 
-  const options = {
-    selectableRows: "none",
-    elevation: 0,
-    page: fetchParams.pageNumber - 1,
-    rowsPerPage: fetchParams.numPerPage,
-    rowsPerPageOptions: [10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide: true,
-    pagination: true,
-    count: totalMatches,
-    onTableChange: handleTableChange,
-    search: true, // Disable search for now (not implemented yet)
-    onSearchChange: handleSearchChange,
-    onFilterChange: handleFilterReset,
-    download: false, // Disable download button for now (not implemented yet)
-    filter: true,
-    customFilterDialogFooter: customFilterDisplay,
-    customToolbar: () => (
-      <>
+  const CustomToolbar = function GcnEventsToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <Tooltip title="Filter Table">
+          <IconButton
+            size="small"
+            data-testid="Filter Table-iconButton"
+            onClick={() => setFilterOpen(true)}
+          >
+            <FilterListIcon />
+          </IconButton>
+        </Tooltip>
+        <TextField
+          variant="standard"
+          size="small"
+          placeholder="Search"
+          value={searchText}
+          onChange={(event) => {
+            setSearchText(event.target.value);
+            handleSearchChange(event.target.value);
+          }}
+        />
         <IconButton
           name="new_gcnevent"
           onClick={() => {
@@ -537,8 +472,8 @@ const GcnEvents = () => {
         >
           <LocalOfferIcon />
         </IconButton>
-      </>
-    ),
+      </GridToolbarContainer>
+    );
   };
 
   return (
@@ -547,19 +482,50 @@ const GcnEvents = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             {gcnEvents ? (
-              <ThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title="GCN Events"
-                  data={gcnEvents.events}
-                  options={options}
-                  columns={columns}
-                />
-              </ThemeProvider>
+              <>
+                <Typography
+                  variant="h6"
+                  style={{ padding: "0.5rem 0.75rem 0" }}
+                >
+                  GCN Events
+                </Typography>
+                <Box sx={{ width: "100%" }}>
+                  <StyledDataGrid
+                    autoHeight
+                    rows={gcnEvents.events || []}
+                    columns={columns}
+                    getRowId={(row) => row.dateobs}
+                    paginationMode="server"
+                    sortingMode="server"
+                    rowCount={totalMatches}
+                    paginationModel={{
+                      page: fetchParams.pageNumber - 1,
+                      pageSize: fetchParams.numPerPage,
+                    }}
+                    onPaginationModelChange={handlePaginationModelChange}
+                    sortModel={sortModel}
+                    onSortModelChange={handleSortModelChange}
+                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    disableColumnFilter
+                    slots={{ toolbar: CustomToolbar }}
+                    showToolbar
+                  />
+                </Box>
+              </>
             ) : (
               <Spinner />
             )}
           </div>
         </Paper>
+        <Dialog
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          fullWidth
+        >
+          <DialogContent>
+            <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
+          </DialogContent>
+        </Dialog>
         {openNew && (
           <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogTitle onClose={handleClose}>New GCN Event</DialogTitle>

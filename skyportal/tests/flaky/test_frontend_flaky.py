@@ -849,7 +849,7 @@ def filter_for_user(driver, username):
     driver.click_xpath(username_input_xpath)
     username_input.send_keys(username)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//button[text()='Submit']",
+        "//div[contains(@class, 'MuiDialog-root')]//button[text()='Submit']",
         scroll_parent=True,
     )
 

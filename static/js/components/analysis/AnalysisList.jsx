@@ -18,13 +18,12 @@ import calendar from "dayjs/plugin/calendar";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 
 import * as sourceActions from "../../ducks/source";
 
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -58,52 +57,8 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          stackedCommon: {
-            overflow: "hidden",
-            "&:last-child": {
-              paddingLeft: "0.25rem",
-            },
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const AnalysisList = ({ obj_id }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const analyses = useSelector((state) => state.source.analyses);
@@ -129,262 +84,255 @@ const AnalysisList = ({ obj_id }) => {
     dispatch(sourceActions.deleteAnalysis(analysisID));
   };
 
-  const getDataTableColumns = () => {
-    const columns = [];
+  const renderDedicatedPage = (params) => {
+    const analysis = params.row;
+    return (
+      <div className={classes.infoButton}>
+        <Tooltip title="Link to analysis page" placement="top">
+          <Link to={`/source/${obj_id}/analysis/${analysis.id}`} role="link">
+            <Button primary size="small">
+              {analysis.id}
+            </Button>
+          </Link>
+        </Tooltip>
+      </div>
+    );
+  };
 
-    const renderDedicatedPage = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <div className={classes.infoButton}>
-          <Tooltip title="Link to analysis page" placement="top">
-            <Link to={`/source/${obj_id}/analysis/${analysis.id}`} role="link">
-              <Button primary size="small">
-                {analysis.id}
-              </Button>
-            </Link>
-          </Tooltip>
-        </div>
-      );
-    };
-    columns.push({
-      name: "Link",
-      label: "Analysis Page",
-      options: {
-        customBodyRenderLite: renderDedicatedPage,
-      },
-    });
-
-    const renderStatus = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      let chip_color = "warning";
-      if (analysis.status === "completed") {
-        chip_color = "success";
-      }
-      if (analysis.status === "failure") {
-        chip_color = "error";
-      }
-      const last_active_str = `${dayjs().to(
-        dayjs.utc(`${analysis.last_activity}Z`),
-      )}`;
-      const duration_str = `${analysis.duration?.toFixed(2)} sec`;
-      const tooltip_str = `${last_active_str} (${duration_str})`;
-      return (
-        <div>
-          <Tooltip title={tooltip_str} placement="top">
-            <Chip
-              label={analysis?.status}
-              key={`chip${analysis.id}_${analysis.status}`}
-              size="small"
-              className={classes.chip}
-              color={chip_color}
-            />
-          </Tooltip>
-        </div>
-      );
-    };
-    columns.push({
-      name: "status",
-      label: "Status",
-      options: {
-        customBodyRenderLite: renderStatus,
-      },
-    });
-
-    const renderLastActivity = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      const last_active_str = `${dayjs().to(
-        dayjs.utc(`${analysis?.last_activity}Z`),
-      )}`;
-      const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
-      const info_str = `${last_active_str} (duration ${duration_str})`;
-      return (
-        <div>
+  const renderStatus = (params) => {
+    const analysis = params.row;
+    let chip_color = "warning";
+    if (analysis.status === "completed") {
+      chip_color = "success";
+    }
+    if (analysis.status === "failure") {
+      chip_color = "error";
+    }
+    const last_active_str = `${dayjs().to(
+      dayjs.utc(`${analysis.last_activity}Z`),
+    )}`;
+    const duration_str = `${analysis.duration?.toFixed(2)} sec`;
+    const tooltip_str = `${last_active_str} (${duration_str})`;
+    return (
+      <div>
+        <Tooltip title={tooltip_str} placement="top">
           <Chip
-            label={info_str}
-            key={`chip${analysis.id}_${analysis.analysis_service_id}_activity`}
+            label={analysis?.status}
+            key={`chip${analysis.id}_${analysis.status}`}
+            size="small"
+            className={classes.chip}
+            color={chip_color}
+          />
+        </Tooltip>
+      </div>
+    );
+  };
+
+  const renderLastActivity = (params) => {
+    const analysis = params.row;
+    const last_active_str = `${dayjs().to(
+      dayjs.utc(`${analysis?.last_activity}Z`),
+    )}`;
+    const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
+    const info_str = `${last_active_str} (duration ${duration_str})`;
+    return (
+      <div>
+        <Chip
+          label={info_str}
+          key={`chip${analysis.id}_${analysis.analysis_service_id}_activity`}
+          size="small"
+          className={classes.chip}
+        />
+      </div>
+    );
+  };
+
+  const renderService = (params) => {
+    const analysis = params.row;
+    return (
+      <div>
+        <Tooltip
+          title={`${analysis?.analysis_service_name}: ${analysis?.analysis_service_description}`}
+        >
+          <Chip
+            label={analysis.analysis_service_id}
+            key={`chip${analysis.id}_${analysis.analysis_service_id}`}
             size="small"
             className={classes.chip}
           />
-        </div>
-      );
-    };
-    columns.push({
-      name: "Last Activity",
-      label: "Last Activity",
-      options: {
-        customBodyRenderLite: renderLastActivity,
-      },
-    });
+        </Tooltip>
+      </div>
+    );
+  };
 
-    const renderService = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <div>
-          <Tooltip
-            title={`${analysis?.analysis_service_name}: ${analysis?.analysis_service_description}`}
+  const renderDelete = (params) => {
+    const analysis = params.row;
+    const dataIndex = analysesList.findIndex((a) => a.id === analysis.id);
+    return (
+      <Button
+        size="small"
+        primary
+        type="button"
+        name={`deleteAnalysisButton${dataIndex}`}
+        onClick={() => deleteAnalysis(analysis.id)}
+        className="analysisDelete"
+      >
+        <DeleteIcon fontSize="small" />
+      </Button>
+    );
+  };
+
+  const renderAnalysisParameters = (params) => (
+    <div>{JSON.stringify(params.row.analysis_parameters)}</div>
+  );
+
+  const renderPlot = (params) => {
+    const analysis = params.row;
+    return (
+      <div>
+        {analysis?.status === "completed" && (
+          <Button
+            href={`/api/obj/analysis/${analysis.id}/plots/0`}
+            size="small"
+            primary
+            type="submit"
+            data-testid={`analysis_plots_${analysis.id}`}
           >
-            <Chip
-              label={analysis.analysis_service_id}
-              key={`chip${analysis.id}_${analysis.analysis_service_id}`}
-              size="small"
-              className={classes.chip}
-            />
-          </Tooltip>
-        </div>
-      );
-    };
-    columns.push({
-      name: "Analysis Service",
-      label: "Analysis Service",
-      options: {
-        customBodyRenderLite: renderService,
-      },
-    });
+            Download Plot
+          </Button>
+        )}
+      </div>
+    );
+  };
 
-    columns.push({ name: "status_message", label: "Message" });
+  const renderCornerPlot = (params) => {
+    const analysis = params.row;
+    return (
+      <div>
+        {analysis?.status === "completed" && (
+          <Button
+            primary
+            href={`/api/obj/analysis/${analysis.id}/corner`}
+            size="small"
+            type="submit"
+            data-testid={`analysis_cornerplots_${analysis.id}`}
+          >
+            Download Corner Plot
+          </Button>
+        )}
+      </div>
+    );
+  };
 
-    const renderDelete = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <Button
-          size="small"
-          primary
-          type="button"
-          name={`deleteAnalysisButton${dataIndex}`}
-          onClick={() => deleteAnalysis(analysis.id)}
-          className="analysisDelete"
-        >
-          <DeleteIcon fontSize="small" />
-        </Button>
-      );
-    };
-    columns.push({
-      name: "Delete",
-      label: "",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
-    });
-
-    const renderAnalysisParameters = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return <div>{JSON.stringify(analysis.analysis_parameters)}</div>;
-    };
-    columns.push({
-      name: "parameters",
-      label: "Parameters",
-      options: {
-        customBodyRenderLite: renderAnalysisParameters,
-      },
-    });
-
-    const renderPlot = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <div>
-          {analysis?.status === "completed" && (
-            <Button
-              href={`/api/obj/analysis/${analysis.id}/plots/0`}
-              size="small"
-              primary
-              type="submit"
-              data-testid={`analysis_plots_${analysis.id}`}
-            >
-              Download Plot
-            </Button>
-          )}
-        </div>
-      );
-    };
-    columns.push({
-      name: "plot",
-      label: "Plot",
-      options: {
-        customBodyRenderLite: renderPlot,
-      },
-    });
-
-    const renderCornerPlot = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <div>
-          {analysis?.status === "completed" && (
-            <Button
-              primary
-              href={`/api/obj/analysis/${analysis.id}/corner`}
-              size="small"
-              type="submit"
-              data-testid={`analysis_cornerplots_${analysis.id}`}
-            >
-              Download Corner Plot
-            </Button>
-          )}
-        </div>
-      );
-    };
-    columns.push({
-      name: "cornerplot",
-      label: "Corner Plot",
-      options: {
-        customBodyRenderLite: renderCornerPlot,
-      },
-    });
-
-    const renderResults = (dataIndex) => {
-      const analysis = analysesList[dataIndex];
-      return (
-        <div>
-          {analysis?.status === "completed" && (
+  const renderResults = (params) => {
+    const analysis = params.row;
+    return (
+      <div>
+        {analysis?.status === "completed" && (
+          <div>
             <div>
-              <div>
-                <Button
-                  primary
-                  href={`/api/obj/analysis/${analysis.id}/results?download=True`}
-                  size="small"
-                  type="submit"
-                  data-testid={`analysis_results_${analysis.id}`}
-                >
-                  Download Results
-                </Button>
-              </div>
-              <div>
-                <Button
-                  primary
-                  href={`/api/obj/analysis/${analysis.id}/results`}
-                  size="small"
-                  type="submit"
-                  data-testid={`analysis_results_display_${analysis.id}`}
-                >
-                  Display Results
-                </Button>
-              </div>
+              <Button
+                primary
+                href={`/api/obj/analysis/${analysis.id}/results?download=True`}
+                size="small"
+                type="submit"
+                data-testid={`analysis_results_${analysis.id}`}
+              >
+                Download Results
+              </Button>
             </div>
-          )}
-        </div>
-      );
-    };
-    columns.push({
-      name: "results",
-      label: "Results",
-      options: {
-        customBodyRenderLite: renderResults,
-      },
-    });
-
-    return columns;
+            <div>
+              <Button
+                primary
+                href={`/api/obj/analysis/${analysis.id}/results`}
+                size="small"
+                type="submit"
+                data-testid={`analysis_results_display_${analysis.id}`}
+              >
+                Display Results
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
+  const columns = [
+    {
+      field: "Link",
+      headerName: "Analysis Page",
+      width: 120,
+      sortable: false,
+      renderCell: renderDedicatedPage,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 110,
+      sortable: false,
+      renderCell: renderStatus,
+    },
+    {
+      field: "Last Activity",
+      headerName: "Last Activity",
+      flex: 1,
+      minWidth: 180,
+      sortable: false,
+      renderCell: renderLastActivity,
+    },
+    {
+      field: "Analysis Service",
+      headerName: "Analysis Service",
+      width: 140,
+      sortable: false,
+      renderCell: renderService,
+    },
+    {
+      field: "status_message",
+      headerName: "Message",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+    },
+    {
+      field: "Delete",
+      headerName: "",
+      width: 70,
+      sortable: false,
+      renderCell: renderDelete,
+    },
+    {
+      field: "parameters",
+      headerName: "Parameters",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderAnalysisParameters,
+    },
+    {
+      field: "plot",
+      headerName: "Plot",
+      width: 140,
+      sortable: false,
+      renderCell: renderPlot,
+    },
+    {
+      field: "cornerplot",
+      headerName: "Corner Plot",
+      width: 160,
+      sortable: false,
+      renderCell: renderCornerPlot,
+    },
+    {
+      field: "results",
+      headerName: "Results",
+      width: 160,
+      sortable: false,
+      renderCell: renderResults,
+    },
+  ];
 
   return (
     <div style={{ height: "100%", width: "100%" }}>
@@ -398,13 +346,17 @@ const AnalysisList = ({ obj_id }) => {
             <Typography variant="subtitle1">Analysis Requests</Typography>
           </AccordionSummary>
           <AccordionDetails data-testid="analysisTable">
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={analysesList || []}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
+            <StyledDataGrid
+              autoHeight
+              rows={analysesList || []}
+              columns={columns}
+              getRowId={(row) => row.id}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 10 } },
+              }}
+              pageSizeOptions={[1, 10, 15]}
+              showToolbar
+            />
           </AccordionDetails>
         </Accordion>
       </div>

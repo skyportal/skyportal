@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 
@@ -10,16 +9,42 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import MUIDataTable from "mui-datatables";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import * as instrumentActions from "../../ducks/instrument";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map are not server-sortable.
+const SERVER_SORT_FIELD = {
+  id: "id",
+  instrument_name: "instrument_name",
+  telescope_name: "telescope_name",
+  Latitude: "Latitude",
+  Longitude: "Longitude",
+  filters: "filters",
+  API_classname: "API_classname",
+  API_classname_obsplan: "API_classname_obsplan",
+  Band: "Band",
+  Type: "Type",
+  "FOV Region?": "FOV Region?",
+  Fields: "Fields",
+};
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -34,39 +59,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const InstrumentTable = ({
   title = "Instruments",
   instruments,
@@ -80,13 +72,14 @@ const InstrumentTable = ({
   fixedHeader = false,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [instrumentToEditDelete, setInstrumentToEditDelete] = useState(null);
+  const [sortModel, setSortModel] = useState([]);
+  const [searchText, setSearchText] = useState("");
 
   const openNewDialog = () => {
     setNewDialogOpen(true);
@@ -126,9 +119,8 @@ const InstrumentTable = ({
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
-  const renderInstrumentID = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderInstrumentID = (params) => {
+    const instrument = params.row;
     return (
       <div>
         {instrument?.log_exists ? (
@@ -148,80 +140,69 @@ const InstrumentTable = ({
     );
   };
 
-  const renderInstrumentName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderInstrumentName = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.name : ""}</div>;
   };
 
-  const renderTelescopeName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+  const renderTelescopeName = (params) => {
+    const instrument = params.row;
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
     return <div>{telescope ? telescope.nickname : ""}</div>;
   };
 
-  const renderTelescopeLat = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+  const renderTelescopeLat = (params) => {
+    const instrument = params.row;
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
     return <div>{telescope ? telescope.lat : ""}</div>;
   };
 
-  const renderTelescopeLon = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+  const renderTelescopeLon = (params) => {
+    const instrument = params.row;
     const telescope_id = instrument?.telescope_id;
     const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
     return <div>{telescope ? telescope.lon : ""}</div>;
   };
 
-  const renderFilters = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderFilters = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.filters.join("\n") : ""}</div>;
   };
 
-  const renderAPIClassname = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderAPIClassname = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.api_classname : ""}</div>;
   };
 
-  const renderAPIClassnameObsPlan = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderAPIClassnameObsPlan = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.api_classname_obsplan : ""}</div>;
   };
 
-  const renderBand = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderBand = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.band : ""}</div>;
   };
 
-  const renderType = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderType = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.type : ""}</div>;
   };
 
-  const renderRegion = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderRegion = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.region_summary : ""}</div>;
   };
 
-  const renderFields = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
+  const renderFields = (params) => {
+    const instrument = params.row;
     return <div>{instrument ? instrument.number_of_fields : ""}</div>;
   };
 
-  const renderLogs = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+  const renderLogs = (params) => {
+    const instrument = params.row;
     return (
       <div>
         <Button
@@ -236,11 +217,11 @@ const InstrumentTable = ({
     );
   };
 
-  const renderManage = (dataIndex) => {
+  const renderManage = (params) => {
     if (!deletePermission) {
       return null;
     }
-    const instrument = instruments[dataIndex];
+    const instrument = params.row;
     return (
       <div className={classes.instrumentManage}>
         <Button
@@ -261,213 +242,205 @@ const InstrumentTable = ({
     );
   };
 
-  const handleSearchChange = (searchText) => {
+  const handleSearchChange = (text) => {
     if (!paginateCallback) return;
-    const data = { name: searchText };
+    const data = { name: text };
     paginateCallback(1, rowsPerPage, {}, data);
   };
 
-  const handleTableChange = (action, tableState) => {
-    if (!paginateCallback || !sortingCallback) return;
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        setRowsPerPage(tableState.rowsPerPage);
-        paginateCallback(
-          tableState.page + 1,
-          tableState.rowsPerPage,
-          tableState.sortOrder,
-        );
-        break;
-      case "sort":
-        if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
-        } else {
-          sortingCallback(tableState.sortOrder);
+  const currentSortOrder = () =>
+    sortModel.length
+      ? {
+          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
+          direction: sortModel[0].sort,
         }
-        break;
-      default:
+      : {};
+
+  const handlePaginationModelChange = (model) => {
+    if (!paginateCallback) return;
+    setRowsPerPage(model.pageSize);
+    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
+  };
+
+  const handleSortModelChange = (model) => {
+    if (!paginateCallback || !sortingCallback) return;
+    setSortModel(model);
+    if (!model.length) {
+      paginateCallback(1, rowsPerPage, {});
+      return;
     }
+    const { field, sort } = model[0];
+    sortingCallback({
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
 
   const columns = [
     {
-      name: "id",
-      label: "ID",
-      options: {
-        filter: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentID,
-      },
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+      renderCell: renderInstrumentID,
     },
     {
-      name: "instrument_name",
-      label: "Instrument Name",
-      options: {
-        filter: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentName,
-      },
+      field: "instrument_name",
+      headerName: "Instrument Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderInstrumentName,
     },
   ];
   if (telescopeInfo === true) {
     columns.push({
-      name: "telescope_name",
-      label: "Telescope Name",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeName,
-      },
+      field: "telescope_name",
+      headerName: "Telescope Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderTelescopeName,
     });
     columns.push({
-      name: "Latitude",
-      label: "Latitude",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLat,
-      },
+      field: "Latitude",
+      headerName: "Latitude",
+      flex: 1,
+      minWidth: 100,
+      renderCell: renderTelescopeLat,
     });
     columns.push({
-      name: "Longitude",
-      label: "Longitude",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLon,
-      },
+      field: "Longitude",
+      headerName: "Longitude",
+      flex: 1,
+      minWidth: 100,
+      renderCell: renderTelescopeLon,
     });
   }
 
   columns.push({
-    name: "filters",
-    label: "Filters",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderFilters,
-    },
+    field: "filters",
+    headerName: "Filters",
+    flex: 1,
+    minWidth: 100,
+    renderCell: renderFilters,
   });
   columns.push({
-    name: "API_classname",
-    label: "API Classname",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAPIClassname,
-    },
+    field: "API_classname",
+    headerName: "API Classname",
+    flex: 1,
+    minWidth: 140,
+    renderCell: renderAPIClassname,
   });
   columns.push({
-    name: "API_classname_obsplan",
-    label: "API Observation Plan Classname",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderAPIClassnameObsPlan,
-    },
+    field: "API_classname_obsplan",
+    headerName: "API Observation Plan Classname",
+    flex: 1,
+    minWidth: 200,
+    renderCell: renderAPIClassnameObsPlan,
   });
   columns.push({
-    name: "Band",
-    label: "Band",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderBand,
-    },
+    field: "Band",
+    headerName: "Band",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderBand,
   });
   columns.push({
-    name: "Type",
-    label: "Type",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderType,
-    },
+    field: "Type",
+    headerName: "Type",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderType,
   });
   columns.push({
-    name: "FOV Region?",
-    label: "FOV Region?",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderRegion,
-    },
+    field: "FOV Region?",
+    headerName: "FOV Region?",
+    flex: 1,
+    minWidth: 120,
+    renderCell: renderRegion,
   });
   columns.push({
-    name: "Fields",
-    label: "Fields",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderFields,
-    },
+    field: "Fields",
+    headerName: "Fields",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderFields,
   });
   columns.push({
-    name: "logs",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderLogs,
-    },
+    field: "logs",
+    headerName: " ",
+    flex: 1,
+    minWidth: 90,
+    sortable: false,
+    filterable: false,
+    renderCell: renderLogs,
   });
   columns.push({
-    name: "manage",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderManage,
-    },
+    field: "manage",
+    headerName: " ",
+    flex: 1,
+    minWidth: 120,
+    sortable: false,
+    filterable: false,
+    renderCell: renderManage,
   });
 
-  const options = {
-    ...(fixedHeader
-      ? { fixedHeader: true, tableBodyHeight: "calc(100vh - 148px)" }
-      : {}),
-    search: true,
-    onSearchChange: handleSearchChange,
-    selectableRows: "none",
-    rowHover: false,
-    print: false,
-    elevation: 1,
-    onTableChange: handleTableChange,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    count: totalMatches,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
-      <IconButton
-        name="new_instrument"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
-    ),
+  const CustomToolbar = function InstrumentTableToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <TextField
+          variant="standard"
+          size="small"
+          placeholder="Search"
+          value={searchText}
+          onChange={(event) => {
+            setSearchText(event.target.value);
+            handleSearchChange(event.target.value);
+          }}
+        />
+        <IconButton
+          name="new_instrument"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      </GridToolbarContainer>
+    );
   };
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title={title}
-            data={instruments || []}
-            options={options}
+        <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+          {title}
+        </Typography>
+        <Box
+          sx={
+            fixedHeader
+              ? { height: "calc(100vh - 148px)", width: "100%" }
+              : { width: "100%" }
+          }
+        >
+          <StyledDataGrid
+            autoHeight={!fixedHeader}
+            rows={instruments || []}
             columns={columns}
+            getRowId={(row) => row.id}
+            paginationMode="server"
+            sortingMode="server"
+            rowCount={totalMatches}
+            paginationModel={{ page: 0, pageSize: rowsPerPage }}
+            onPaginationModelChange={handlePaginationModelChange}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            disableColumnFilter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
         <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>New Instrument</DialogTitle>
           <DialogContent dividers>

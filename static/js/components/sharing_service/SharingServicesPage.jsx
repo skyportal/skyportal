@@ -28,10 +28,11 @@ import FormLabel from "@mui/material/FormLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
-import MUIDataTable from "mui-datatables";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import * as sharingServicesActions from "../../ducks/sharingServices";
@@ -820,10 +821,10 @@ const SharingServicesPage = () => {
     return errors;
   };
 
-  const publishingSubmissionsLink = (dataIndex) => {
+  const publishingSubmissionsLink = (sharingService) => {
     return (
       <Link
-        to={`/sharing_service/${sharingServicesList[dataIndex].id}/submissions`}
+        to={`/sharing_service/${sharingService.id}/submissions`}
         target="_blank"
       >
         <Tooltip title="View publishing submissions">
@@ -835,16 +836,12 @@ const SharingServicesPage = () => {
     );
   };
 
-  const renderEdit = (dataIndex) => (
+  const renderEdit = (sharingService) => (
     <IconButton
       onClick={() => {
-        setSharingServiceToManage(sharingServicesList[dataIndex]);
-        setEnablePublishToTNS(
-          sharingServicesList[dataIndex].enable_sharing_with_tns,
-        );
-        setEnablePublishToHermes(
-          sharingServicesList[dataIndex].enable_sharing_with_hermes,
-        );
+        setSharingServiceToManage(sharingService);
+        setEnablePublishToTNS(sharingService.enable_sharing_with_tns);
+        setEnablePublishToHermes(sharingService.enable_sharing_with_hermes);
         setManageDialogOpen(true);
       }}
     >
@@ -852,11 +849,11 @@ const SharingServicesPage = () => {
     </IconButton>
   );
 
-  const renderDelete = (dataIndex) => {
+  const renderDelete = (sharingService) => {
     return (
       <IconButton
         onClick={() => {
-          setSharingServiceToManage(sharingServicesList[dataIndex]);
+          setSharingServiceToManage(sharingService);
           setDeleteDialogOpen(true);
         }}
       >
@@ -865,8 +862,8 @@ const SharingServicesPage = () => {
     );
   };
 
-  const renderName = (dataIndex) => {
-    const sharingService = sharingServicesList[dataIndex];
+  const renderName = (params) => {
+    const sharingService = params.row;
     return (
       <div style={{ display: "flex", alignItems: "center" }}>
         {sharingService.testing === true && (
@@ -891,8 +888,9 @@ const SharingServicesPage = () => {
     );
   };
 
-  const renderCoauthors = (dataIndex) => {
-    const coauthors = [...(sharingServicesList[dataIndex]?.coauthors || [])];
+  const renderCoauthors = (params) => {
+    const sharingService = params.row;
+    const coauthors = [...(sharingService?.coauthors || [])];
     coauthors.sort((a, b) =>
       userLabel(usersLookup[a.user_id] || "", false, true).localeCompare(
         userLabel(usersLookup[b.user_id] || "", false, true),
@@ -910,21 +908,21 @@ const SharingServicesPage = () => {
         {coauthors.map((coauthor, idx) => (
           <SharingServiceCoauthor
             key={`${coauthor.user_id}-${idx}`}
-            sharing_service_id={sharingServicesList[dataIndex]?.id}
+            sharing_service_id={sharingService?.id}
             sharing_service_coauthor={coauthor}
             usersLookup={usersLookup}
           />
         ))}
         <NewSharingServiceCoauthor
-          sharingService={sharingServicesList[dataIndex]}
+          sharingService={sharingService}
           usersLookup={usersLookup}
         />
       </div>
     );
   };
 
-  const renderAcknowledgments = (dataIndex) => {
-    const sharingService = sharingServicesList[dataIndex];
+  const renderAcknowledgments = (params) => {
+    const sharingService = params.row;
     return (
       <Tooltip
         title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
@@ -939,11 +937,10 @@ const SharingServicesPage = () => {
     );
   };
 
-  const renderGroups = (dataIndex) => {
+  const renderGroups = (params) => {
+    const sharingService = params.row;
     // order alphabetically by group name, then by owner status
-    const sharingServiceGroups = [
-      ...(sharingServicesList[dataIndex]?.groups || []),
-    ];
+    const sharingServiceGroups = [...(sharingService?.groups || [])];
     sharingServiceGroups.sort((a, b) => {
       const nameA = allGroupsLookup[a.group_id]?.name || "";
       const nameB = allGroupsLookup[b.group_id]?.name || "";
@@ -957,13 +954,13 @@ const SharingServicesPage = () => {
           <SharingServiceGroup
             key={`${sharingServiceGroup.group_id}-${idx}`}
             sharingServiceGroup={sharingServiceGroup}
-            sharingService={sharingServicesList[dataIndex]}
+            sharingService={sharingService}
             groupsLookup={allGroupsLookup}
             usersLookup={usersLookup}
           />
         ))}
         <NewSharingServiceGroup
-          sharingService={sharingServicesList[dataIndex]}
+          sharingService={sharingService}
           groupsLookup={groupsLookup}
         />
       </div>
@@ -1072,33 +1069,34 @@ const SharingServicesPage = () => {
   };
 
   const columns = [
-    { name: "id", label: "ID", options: { display: false } },
     {
-      name: "Name",
-      label: "Name",
-      options: { customBodyRenderLite: renderName },
+      field: "Name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderName,
     },
     {
-      name: "sending_to",
-      label: "Sending to",
-      options: {
-        sort: false,
-        customBodyRenderLite: (dataIndex) => (
+      field: "sending_to",
+      headerName: "Sending to",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      renderCell: (params) => {
+        const sharingService = params.row;
+        return (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
-            {sharingServicesList[dataIndex].enable_sharing_with_tns && (
+            {sharingService.enable_sharing_with_tns && (
               <Tooltip
                 title={
                   <div style={{ fontSize: "0.8rem", fontWeight: "500" }}>
                     TNS config:
-                    <br />- Bot Name:{" "}
-                    {sharingServicesList[dataIndex].tns_bot_name}
-                    <br />- Bot ID: {sharingServicesList[dataIndex].tns_bot_id}
+                    <br />- Bot Name: {sharingService.tns_bot_name}
+                    <br />- Bot ID: {sharingService.tns_bot_id}
                     <br />- Reporting Group ID:{" "}
-                    {sharingServicesList[dataIndex].tns_source_group_id}
+                    {sharingService.tns_source_group_id}
                     <br />- Report existing TNS objects:{" "}
-                    {sharingServicesList[dataIndex].publish_existing_tns_objects
-                      ? "Yes"
-                      : "No"}
+                    {sharingService.publish_existing_tns_objects ? "Yes" : "No"}
                     <br />
                   </div>
                 }
@@ -1124,96 +1122,109 @@ const SharingServicesPage = () => {
                 />
               </Tooltip>
             )}
-            {sharingServicesList[dataIndex].enable_sharing_with_hermes && (
+            {sharingService.enable_sharing_with_hermes && (
               <Chip label="Hermes" color="primary" variant="outlined" />
             )}
           </div>
-        ),
+        );
       },
     },
     {
-      name: "groups",
-      label: "Groups",
-      options: { sort: false, customBodyRenderLite: renderGroups },
+      field: "groups",
+      headerName: "Groups",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderGroups,
     },
     {
-      name: "coauthors",
-      label: "Coauthors",
-      options: { sort: false, customBodyRenderLite: renderCoauthors },
+      field: "coauthors",
+      headerName: "Coauthors",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderCoauthors,
     },
     {
-      name: "acknowledgments",
-      label: "Acknowledgments",
-      options: { sort: false, customBodyRenderLite: renderAcknowledgments },
+      field: "acknowledgments",
+      headerName: "Acknowledgments",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderAcknowledgments,
     },
     {
-      name: "instruments",
-      label: "Instruments",
-      options: {
-        customBodyRenderLite: (dataIndex) => {
-          const { instruments } = sharingServicesList[dataIndex];
-          if (!instruments?.length) return null;
-          return instruments.map((i) => i.name).join(", ");
-        },
+      field: "instruments",
+      headerName: "Instruments",
+      flex: 1,
+      minWidth: 140,
+      valueGetter: (value, row) => {
+        const { instruments } = row;
+        if (!instruments?.length) return "";
+        return instruments.map((i) => i.name).join(", ");
       },
     },
     {
-      name: "streams",
-      label: "Streams (optional)",
-      options: {
-        customBodyRenderLite: (dataIndex) => {
-          const sharingService = sharingServicesList[dataIndex];
-          if (!sharingService?.streams?.length) return null;
-          return sharingService.streams.map((stream) => stream.name).join(", ");
-        },
+      field: "streams",
+      headerName: "Streams (optional)",
+      flex: 1,
+      minWidth: 160,
+      valueGetter: (value, row) => {
+        if (!row?.streams?.length) return "";
+        return row.streams.map((stream) => stream.name).join(", ");
       },
     },
     {
-      name: "manage",
-      label: " ",
-      options: {
-        customBodyRenderLite: (dataIndex) => (
-          <div style={{ display: "flex" }}>
-            {publishingSubmissionsLink(dataIndex)}
-            {managePermission && renderEdit(dataIndex)}
-            {managePermission && renderDelete(dataIndex)}
-          </div>
-        ),
-      },
+      field: "manage",
+      headerName: " ",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <div style={{ display: "flex" }}>
+          {publishingSubmissionsLink(params.row)}
+          {managePermission && renderEdit(params.row)}
+          {managePermission && renderDelete(params.row)}
+        </div>
+      ),
     },
   ];
 
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      {managePermission && (
+        <IconButton
+          name="new_sharing_service"
+          onClick={() => {
+            setSharingServiceToManage({});
+            setEnablePublishToTNS(true);
+            setEnablePublishToHermes(true);
+            setManageDialogOpen(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
+    </GridToolbarContainer>
+  );
+
   return (
     <div>
-      <MUIDataTable
-        title="Sharing Services"
-        data={sharingServicesList.sort((a, b) =>
+      <Typography variant="h6">Sharing Services</Typography>
+      <StyledDataGrid
+        autoHeight
+        rows={[...sharingServicesList].sort((a, b) =>
           a?.name?.localeCompare(b?.name),
         )}
         columns={columns}
-        options={{
-          selectableRows: "none",
-          filter: false,
-          print: false,
-          download: false,
-          viewColumns: false,
-          pagination: false,
-          search: false,
-          customToolbar: () =>
-            managePermission && (
-              <IconButton
-                name="new_sharing_service"
-                onClick={() => {
-                  setSharingServiceToManage({});
-                  setEnablePublishToTNS(true);
-                  setEnablePublishToHermes(true);
-                  setManageDialogOpen(true);
-                }}
-              >
-                <AddIcon />
-              </IconButton>
-            ),
+        getRowId={(row) => row.id}
+        hideFooter
+        initialState={{
+          pagination: { paginationModel: { pageSize: 100 } },
         }}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
       />
       <Dialog
         open={manageDialogOpen}

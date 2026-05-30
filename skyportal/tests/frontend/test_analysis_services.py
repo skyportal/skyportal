@@ -43,7 +43,9 @@ def test_analysis_service_frontend(
         raise Exception("Failed to click submit button")
 
     # check for analysis service
-    driver.wait_for_xpath(f'//td/div[contains(.,"{display_name}")]', timeout=20)
+    driver.wait_for_xpath(
+        f'//*[@role="gridcell"][contains(.,"{display_name}")]', timeout=20
+    )
 
     # check for user who can only view
     driver.get(f"/become_user/{view_only_user.id}")
@@ -52,7 +54,9 @@ def test_analysis_service_frontend(
     driver.get("/services")
 
     # check for analysis service
-    driver.wait_for_xpath(f'//td/div[contains(.,"{display_name}")]', timeout=20)
+    driver.wait_for_xpath(
+        f'//*[@role="gridcell"][contains(.,"{display_name}")]', timeout=20
+    )
 
     # confirm that no submission without permission
     driver.wait_for_xpath_to_disappear('//button[@name="new_analysis_service"]')

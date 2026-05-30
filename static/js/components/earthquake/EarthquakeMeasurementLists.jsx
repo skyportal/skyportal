@@ -6,9 +6,9 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
+
+import StyledDataGrid from "../StyledDataGrid";
 
 const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
@@ -27,53 +27,25 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
+const columns = [
+  {
+    field: "rfamp",
+    headerName: "Amplitude measurement [m/s]",
+    flex: 1,
+    minWidth: 200,
+    sortable: false,
+  },
+  {
+    field: "lockloss",
+    headerName: "Lockloss Measurement",
+    flex: 1,
+    minWidth: 160,
+    sortable: false,
+  },
+];
 
 const EarthquakeMeasurementLists = ({ earthquake }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const { mmadetectorList } = useSelector((state) => state.mmadetectors);
 
@@ -102,23 +74,6 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
     value.sort();
   });
 
-  const columns = [
-    { name: "rfamp", label: "Amplitude measurement [m/s]" },
-    { name: "lockloss", label: "Lockloss Measurement" },
-  ];
-
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
-
   return (
     <div className={classes.container}>
       {Object.keys(analysesGroupedByMMADetectorId).map((mmadetector_id) => (
@@ -138,13 +93,17 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
           <AccordionDetails
             data-testid={`${mmadetectorLookUp[mmadetector_id].name}_measurementsTable`}
           >
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={analysesGroupedByMMADetectorId[mmadetector_id]}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
+            <StyledDataGrid
+              autoHeight
+              rows={analysesGroupedByMMADetectorId[mmadetector_id]}
+              columns={columns}
+              getRowId={(row) => row.id}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 10 } },
+              }}
+              pageSizeOptions={[1, 10, 15]}
+              showToolbar
+            />
           </AccordionDetails>
         </Accordion>
       ))}

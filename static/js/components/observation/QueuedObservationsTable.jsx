@@ -2,17 +2,35 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
+import DownloadIcon from "@mui/icons-material/Download";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 
-import MUIDataTable from "mui-datatables";
+import StyledDataGrid from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Map each DataGrid column `field` to the field name the server expects for
+// sorting. Columns absent from this map are not server-sortable.
+const SERVER_SORT_FIELD = {
+  instrument_name: "instrument_name",
+  field_id: "field_id",
+};
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -29,37 +47,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
-
 const QueuedObservationsTable = ({
   observations,
   totalMatches,
@@ -71,11 +58,13 @@ const QueuedObservationsTable = ({
   serverSide = true,
 }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const { instrumentList } = useSelector((state) => state.instruments);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [sortModel, setSortModel] = useState([]);
 
   const instrumentsLookup = {};
   if (instrumentList) {
@@ -91,288 +80,292 @@ const QueuedObservationsTable = ({
     setNewDialogOpen(false);
   };
 
-  const renderTelescope = (dataIndex) => {
-    const { instrument_id } = observations[dataIndex];
-
-    const instrument = instrumentsLookup[instrument_id] || null;
-
-    if (!instrument) {
-      return <div>Loading...</div>;
+  // Synthesize the mui-datatables onTableChange(action, tableState) contract
+  // from the DataGrid handlers so callers (ObservationPage) stay unchanged.
+  const emitTableChange = (action, model, currentSort) => {
+    if (typeof handleTableChange !== "function") {
+      return;
     }
-
-    return <div>{instrument?.telescope?.name || ""}</div>;
+    handleTableChange(action, {
+      page: model.page,
+      rowsPerPage: model.pageSize,
+      sortOrder: currentSort,
+    });
   };
 
-  const renderInstrument = (dataIndex) => {
-    const { instrument_id } = observations[dataIndex];
+  const handlePaginationModelChange = (model) => {
+    setRowsPerPage(model.pageSize);
+    const currentSort = sortModel.length
+      ? {
+          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
+          direction: sortModel[0].sort,
+        }
+      : { direction: "none" };
+    emitTableChange("changePage", model, currentSort);
+  };
 
-    const instrument = instrumentsLookup[instrument_id] || null;
-
-    if (!instrument) {
-      return <div>Loading...</div>;
+  const handleSortModelChange = (model) => {
+    setSortModel(model);
+    const paginationModel = { page: pageNumber - 1, pageSize: rowsPerPage };
+    if (!model.length) {
+      emitTableChange("sort", paginationModel, { direction: "none" });
+      return;
     }
-
-    return <div>{instrument?.name || ""}</div>;
+    const { field, sort } = model[0];
+    emitTableChange("sort", paginationModel, {
+      name: SERVER_SORT_FIELD[field] || field,
+      direction: sort,
+    });
   };
-
-  const renderFieldID = (dataIndex) => {
-    const { field } = observations[dataIndex];
-
-    return <div>{field ? field?.field_id?.toFixed(0) : ""}</div>;
-  };
-
-  const renderRA = (dataIndex) => {
-    const { field } = observations[dataIndex];
-
-    return <div>{field ? field?.ra?.toFixed(5) : ""}</div>;
-  };
-
-  const renderDeclination = (dataIndex) => {
-    const { field } = observations[dataIndex];
-
-    return <div>{field ? field?.dec?.toFixed(5) : ""}</div>;
-  };
-
-  const customFilterDisplay = () => (
-    <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
-  );
 
   const columns = [
     {
-      name: "telescope_name",
-      label: "Telescope",
-      options: {
-        filter: false,
-        sort: false,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescope,
+      field: "telescope_name",
+      headerName: "Telescope",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      valueGetter: (value, row) =>
+        instrumentsLookup[row.instrument_id]?.telescope?.name || "",
+      renderCell: (params) => {
+        const instrument = instrumentsLookup[params.row.instrument_id] || null;
+        if (!instrument) {
+          return <div>Loading...</div>;
+        }
+        return <div>{instrument?.telescope?.name || ""}</div>;
       },
     },
     {
-      name: "instrument_name",
-      label: "Instrument",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrument,
+      field: "instrument_name",
+      headerName: "Instrument",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      valueGetter: (value, row) =>
+        instrumentsLookup[row.instrument_id]?.name || "",
+      renderCell: (params) => {
+        const instrument = instrumentsLookup[params.row.instrument_id] || null;
+        if (!instrument) {
+          return <div>Loading...</div>;
+        }
+        return <div>{instrument?.name || ""}</div>;
       },
     },
     {
-      name: "queue_name",
-      label: "Queue name",
-      options: {
-        filter: false,
-        sort: false,
-      },
+      field: "queue_name",
+      headerName: "Queue name",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
     },
     {
-      name: "field_id",
-      label: "Field ID",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderFieldID,
-      },
+      field: "field_id",
+      headerName: "Field ID",
+      flex: 1,
+      minWidth: 100,
+      filterable: false,
+      valueGetter: (value, row) =>
+        row.field ? row.field?.field_id?.toFixed(0) : "",
     },
     {
-      name: "ra",
-      label: "Right Ascension",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderRA,
-      },
+      field: "ra",
+      headerName: "Right Ascension",
+      flex: 1,
+      minWidth: 130,
+      sortable: false,
+      filterable: false,
+      valueGetter: (value, row) => (row.field ? row.field?.ra?.toFixed(5) : ""),
     },
     {
-      name: "dec",
-      label: "Declination",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderDeclination,
-      },
+      field: "dec",
+      headerName: "Declination",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      valueGetter: (value, row) =>
+        row.field ? row.field?.dec?.toFixed(5) : "",
     },
     {
-      name: "obstime",
-      label: "Observation time",
+      field: "obstime",
+      headerName: "Observation time",
+      flex: 1,
+      minWidth: 160,
     },
     {
-      name: "filt",
-      label: "Filter",
+      field: "filt",
+      headerName: "Filter",
+      flex: 1,
+      minWidth: 90,
     },
     {
-      name: "exposure_time",
-      label: "Exposure time [s]",
+      field: "exposure_time",
+      headerName: "Exposure time [s]",
+      flex: 1,
+      minWidth: 140,
     },
     {
-      name: "validity_window_start",
-      label: "Validity Window [start]",
+      field: "validity_window_start",
+      headerName: "Validity Window [start]",
+      flex: 1,
+      minWidth: 180,
     },
     {
-      name: "validity_window_end",
-      label: "Validity Window [end]",
+      field: "validity_window_end",
+      headerName: "Validity Window [end]",
+      flex: 1,
+      minWidth: 180,
     },
   ];
 
-  const options = {
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-    page: pageNumber - 1,
-    rowsPerPage: numPerPage,
-    rowsPerPageOptions: [10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide,
-    pagination: true,
-    count: totalMatches,
-    filter: true,
-    download: true,
-    customFilterDialogFooter: customFilterDisplay,
-    customToolbar: () => (
+  const handleDownload = () => {
+    const renderTelescopeDownload = (observation) => {
+      const instrument = instrumentsLookup[observation.instrument_id] || null;
+      if (!instrument) {
+        return "";
+      }
+      return instrument?.telescope?.name || "";
+    };
+    const renderInstrumentDownload = (observation) => {
+      const instrument = instrumentsLookup[observation.instrument_id] || null;
+      if (!instrument) {
+        return "";
+      }
+      return instrument?.name || "";
+    };
+    const renderFieldIDDownload = (observation) =>
+      observation.field ? observation.field?.field_id : "";
+    const renderRADownload = (observation) =>
+      observation.field ? observation.field?.ra : "";
+    const renderDeclinationDownload = (observation) =>
+      observation.field ? observation.field?.dec : "";
+
+    downloadCallback().then((data) => {
+      // if there is no data, cancel download
+      if (!data?.length) {
+        return;
+      }
+      const head = [
+        "telescope_name",
+        "instrument_name",
+        "queue_name",
+        "field_id",
+        "ra",
+        "dec",
+        "obstime",
+        "filt",
+        "exposure_time",
+        "validity_window_start",
+        "validity_window_end",
+      ];
+      const rows = data.map((x) =>
+        [
+          renderTelescopeDownload(x),
+          renderInstrumentDownload(x),
+          x.queue_name,
+          renderFieldIDDownload(x),
+          renderRADownload(x),
+          renderDeclinationDownload(x),
+          x.obstime,
+          x.filt,
+          x.exposure_time,
+          x.validity_window_start,
+          x.validity_window_end,
+        ].join(","),
+      );
+      const result = `${head.join(",")}\n${rows.join("\n")}`;
+      const blob = new Blob([result], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "observations.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
+      <Tooltip title="Filter Table">
+        <IconButton
+          size="small"
+          data-testid="Filter Table-iconButton"
+          onClick={() => setFilterOpen(true)}
+        >
+          <FilterListIcon />
+        </IconButton>
+      </Tooltip>
       <IconButton
         name="new_queued_observation"
+        size="small"
         onClick={() => {
           openNewDialog();
         }}
       >
         <AddIcon />
       </IconButton>
-    ),
-    onDownload: (buildHead, buildBody) => {
-      const renderTelescopeDownload = (observation) => {
-        const { instrument_id } = observation;
-        const instrument = instrumentsLookup[instrument_id] || null;
-
-        if (!instrument) {
-          return "";
-        }
-        return instrument?.telescope?.name || "";
-      };
-      const renderInstrumentDownload = (observation) => {
-        const { instrument_id } = observation;
-        const instrument = instrumentsLookup[instrument_id] || null;
-
-        if (!instrument) {
-          return "";
-        }
-        return instrument?.name || "";
-      };
-      const renderFieldIDDownload = (observation) => {
-        const { field } = observation;
-        return field ? field?.field_id : "";
-      };
-      const renderRADownload = (observation) => {
-        const { field } = observation;
-        return field ? field?.ra : "";
-      };
-      const renderDeclinationDownload = (observation) => {
-        const { field } = observation;
-        return field ? field?.dec : "";
-      };
-      downloadCallback().then((data) => {
-        // if there is no data, cancel download
-        if (data?.length > 0) {
-          const result =
-            buildHead([
-              {
-                name: "telescope_name",
-                download: true,
-              },
-              {
-                name: "instrument_name",
-                download: true,
-              },
-              {
-                name: "queue_name",
-                download: true,
-              },
-              {
-                name: "field_id",
-                download: true,
-              },
-              {
-                name: "ra",
-                download: true,
-              },
-              {
-                name: "dec",
-                download: true,
-              },
-              {
-                name: "obstime",
-                download: true,
-              },
-              {
-                name: "filt",
-                download: true,
-              },
-              {
-                name: "exposure_time",
-                download: true,
-              },
-              {
-                name: "validity_window_start",
-                download: true,
-              },
-              {
-                name: "validity_window_end",
-                download: true,
-              },
-            ]) +
-            buildBody(
-              data.map((x) => ({
-                ...x,
-                data: [
-                  renderTelescopeDownload(x),
-                  renderInstrumentDownload(x),
-                  x.queue_name,
-                  renderFieldIDDownload(x),
-                  renderRADownload(x),
-                  renderDeclinationDownload(x),
-                  x.obstime,
-                  x.filt,
-                  x.exposure_time,
-                  x.validity_window_start,
-                  x.validity_window_end,
-                ],
-              })),
-            );
-          const blob = new Blob([result], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", "observations.csv");
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      });
-      return false;
-    },
-  };
-  if (typeof handleTableChange === "function") {
-    options.onTableChange = handleTableChange;
-  }
+      <Tooltip title="Download CSV">
+        <IconButton
+          size="small"
+          aria-label="Download CSV"
+          data-testid="download-queued-observations-button"
+          onClick={handleDownload}
+        >
+          <DownloadIcon />
+        </IconButton>
+      </Tooltip>
+      <GridToolbarQuickFilter />
+    </GridToolbarContainer>
+  );
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="Queued Observations"
-            data={observations}
-            options={options}
+        <Typography variant="h6" style={{ padding: "0.5rem" }}>
+          Queued Observations
+        </Typography>
+        <Box sx={{ height: "60vh", width: "100%" }}>
+          <StyledDataGrid
+            rows={observations}
             columns={columns}
+            getRowId={(row) =>
+              row.id ?? `${row.instrument_id}_${row.queue_name}_${row.obstime}`
+            }
+            paginationMode={serverSide ? "server" : "client"}
+            sortingMode={serverSide ? "server" : "client"}
+            rowCount={totalMatches}
+            paginationModel={{
+              page: pageNumber - 1,
+              pageSize: rowsPerPage,
+            }}
+            onPaginationModelChange={handlePaginationModelChange}
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
           />
-        </ThemeProvider>
+        </Box>
         <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
           <DialogTitle>Add Queued Observations (from API)</DialogTitle>
           <DialogContent dividers>
             <NewAPIQueuedObservation onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          fullWidth
+        >
+          <DialogContent>
+            <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
           </DialogContent>
         </Dialog>
       </Paper>
