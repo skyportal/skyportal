@@ -106,7 +106,8 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          corepack enable
+          echo pnpm $(pnpm --version)
           echo node $(node --version)
           nginx -v
           firefox --version
@@ -130,7 +131,7 @@ jobs:
           uv sync --inexact --group dev
           make db_init
 
-          npm ls --depth 0 || true
+          pnpm list --depth 0 || true
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |

@@ -10,11 +10,11 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+            ${{ runner.os }}-pnpm-
 
       # caching dustmap & sncosmo files is dependent on their corresponding
       # python package versions, so we use that as the cache key
