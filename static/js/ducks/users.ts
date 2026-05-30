@@ -1,0 +1,57 @@
+import messageHandler from "baselayer/MessageHandler";
+
+import * as API from "../API";
+import store from "../store";
+
+const FETCH_USER = "skyportal/FETCH_USER";
+const FETCH_USER_OK = "skyportal/FETCH_USER_OK";
+
+const FETCH_USERS = "skyportal/FETCH_USERS";
+const FETCH_USERS_OK = "skyportal/FETCH_USERS_OK";
+
+const PATCH_USER = "skyportal/PATCH_USER";
+
+export function fetchUser(id: number | string) {
+  return API.GET(`/api/user/${id}`, FETCH_USER);
+}
+
+export function fetchUsers(filterParams: Record<string, any> = {}) {
+  return API.GET("/api/user", FETCH_USERS, filterParams);
+}
+
+export function patchUser(id: number | string, data: Record<string, any>) {
+  return API.PATCH(`/api/user/${id}`, PATCH_USER, data);
+}
+
+// Websocket message handler
+messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+  if (actionType === FETCH_USERS) {
+    dispatch(fetchUsers());
+  }
+});
+
+const reducer = (
+  state: Record<string, any> = { users: [], totalMatches: 0, user: {} },
+  action: { type: string; data?: any },
+): Record<string, any> => {
+  switch (action.type) {
+    case FETCH_USER_OK: {
+      return {
+        ...state,
+        user: action.data,
+      };
+    }
+    case FETCH_USERS_OK: {
+      const { users, totalMatches } = action.data;
+      return {
+        ...state,
+        users,
+        totalMatches,
+      };
+    }
+    default:
+      return state;
+  }
+};
+
+store.injectReducer("users", reducer);

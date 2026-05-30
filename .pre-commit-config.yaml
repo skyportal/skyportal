@@ -21,11 +21,13 @@ repos:
         pass_filenames: true
         exclude: baselayer|node_modules|doc|data|^(.*_template\.html)$
         args: [--prose-wrap=preserve]
+        additional_dependencies:
+          - prettier@3.8.3
   - repo: local
     hooks:
       - id: ESLint
         name: ESLint
         entry: npx eslint -c eslint.config.js --fix
         language: system
-        files: static/.*\.jsx?$|static/.*\.js$
+        files: static/.*\.[jt]sx?$
         types: [file]

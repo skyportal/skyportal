@@ -1,0 +1,142 @@
+import messageHandler from "baselayer/MessageHandler";
+
+import * as API from "../API";
+import store from "../store";
+import type { AppDispatch, RootState } from "../types/store";
+
+export const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
+export const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
+export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
+
+const DELETE_SPECTRUM = "skyportal/DELETE_SPECTRUM";
+const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
+const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
+
+const DELETE_ANNOTATION_SPECTRUM = "skyportal/DELETE_ANNOTATION_SPECTRUM";
+
+const PARSE_SOURCE_SPECTRUM_ASCII = "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
+const PARSE_SOURCE_SPECTRUM_ASCII_OK =
+  "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_OK";
+
+export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
+
+const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
+
+export function fetchSourceSpectra(
+  id: number | string,
+  normalization: string | null = null,
+) {
+  return API.GET(
+    `/api/sources/${id}/spectra${
+      normalization
+        ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
+        : ""
+    }`,
+    FETCH_SOURCE_SPECTRA,
+  );
+}
+
+export function parseASCIISpectrum(data: any) {
+  return API.POST(
+    `/api/spectrum/parse/ascii`,
+    PARSE_SOURCE_SPECTRUM_ASCII,
+    data,
+  );
+}
+
+export function addSyntheticPhotometry(id: number | string, formData = {}) {
+  return API.POST(
+    `/api/spectra/synthphot/${id}`,
+    ADD_SYNTHETIC_PHOTOMETRY,
+    formData,
+  );
+}
+
+export function deleteSpectrum(id: number | string) {
+  return API.DELETE(`/api/spectrum/${id}`, DELETE_SPECTRUM);
+}
+
+export function uploadASCIISpectrum(data: any) {
+  return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
+}
+
+export function deleteAnnotation(
+  id: number | string,
+  annotationID: number | string,
+) {
+  return API.DELETE(
+    `/api/spectra/${id}/annotations/${annotationID}`,
+    DELETE_ANNOTATION_SPECTRUM,
+  );
+}
+
+// Websocket message handler
+messageHandler.add(
+  (
+    actionType: string,
+    payload: any,
+    dispatch: AppDispatch,
+    getState: () => RootState,
+  ) => {
+    if (actionType === REFRESH_SOURCE_SPECTRA) {
+      const state = getState().spectra;
+
+      Object.entries(state).forEach(([objID, spectra]: [string, any]) => {
+        if (
+          spectra?.[0]?.obj_internal_key === payload.obj_internal_key &&
+          payload?.obj_internal_key !== null
+        ) {
+          dispatch(fetchSourceSpectra(objID));
+        }
+      });
+    }
+  },
+);
+
+type SpectraState = Record<string, any>;
+
+interface SpectraAction {
+  type: string;
+  data?: any;
+  [key: string]: any;
+}
+
+const reducer = (
+  state: SpectraState = { parsed: null },
+  action: SpectraAction,
+): SpectraState => {
+  switch (action.type) {
+    case FETCH_SOURCE_SPECTRA_OK: {
+      const payload = action.data;
+      const sourceID = payload.obj_id;
+      return {
+        ...state,
+        [sourceID]: payload.spectra,
+      };
+    }
+    case PARSE_SOURCE_SPECTRUM_ASCII_OK: {
+      const parsed = action.data;
+      return {
+        ...state,
+        parsed,
+      };
+    }
+    case RESET_PARSED_SPECTRUM: {
+      return {
+        ...state,
+        parsed: null,
+      };
+    }
+    case UPLOAD_SPECTRUM_OK: {
+      return {
+        ...state,
+        parsed: null,
+      };
+    }
+
+    default:
+      return state;
+  }
+};
+
+store.injectReducer("spectra", reducer);
