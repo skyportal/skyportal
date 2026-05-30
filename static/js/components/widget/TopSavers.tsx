@@ -245,6 +245,9 @@ const TopSavers = ({ classes }: TopSaversProps) => {
     const newTimespan = timespans.find(
       (timespan) => timespan.label === selectedTimespan.label,
     );
+    if (!newTimespan) {
+      return;
+    }
     setCurrentTimespan(newTimespan);
     topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 

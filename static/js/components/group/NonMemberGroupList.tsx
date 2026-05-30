@@ -12,7 +12,7 @@ import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionReques
 
 interface NonMemberGroup {
   name?: string;
-  nickname?: string;
+  nickname?: string | null;
   id?: number;
 }
 

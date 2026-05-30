@@ -16,7 +16,7 @@ const useStyles = makeStyles()((theme) => ({
     "&:hover": {
       textDecoration: "underline",
     },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
+    color: theme.palette.mode === "dark" ? "#fafafa !important" : undefined,
   },
 }));
 

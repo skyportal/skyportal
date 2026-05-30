@@ -59,6 +59,9 @@ const ModifyAssignment = ({
   }, [assignment]);
 
   const onSubmit = () => {
+    if (assignment.id == null) {
+      return;
+    }
     const newValues = getValues();
     const formData: any = {};
     // if the priority is different and not null, update it

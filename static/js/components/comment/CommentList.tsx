@@ -279,6 +279,7 @@ const CommentList = ({
       includeCommentsOnAllResourceTypes &&
       typeof spectra === "object" &&
       spectra !== null &&
+      objID != null &&
       objID in spectra
     ) {
       specComments = spectra[objID]?.map((spec: any) => spec.comments)?.flat();
@@ -291,7 +292,9 @@ const CommentList = ({
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
-    const spectrum = spectra[objID].find((spec: any) => spec.id === spectrumID);
+    const spectrum = spectra[objID!].find(
+      (spec: any) => spec.id === spectrumID,
+    );
     comments = spectrum?.comments;
   } else if (associatedResourceType === "gcn_event") {
     if (gcnEventID === null) {

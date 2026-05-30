@@ -90,7 +90,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
       ? subState.redshift_origin
       : null;
     const result: any = await dispatch(
-      sourceActions.updateSource(source.id, {
+      sourceActions.updateSource(source.id!, {
         ...newState,
       }),
     );

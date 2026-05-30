@@ -101,6 +101,10 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
     } else {
       newState.required_users_number = subState.required_users_number;
     }
+    if (shift.id == null) {
+      setIsSubmitting(false);
+      return;
+    }
     const result: any = await dispatch(
       shiftsActions.updateShift(shift.id, {
         ...newState,

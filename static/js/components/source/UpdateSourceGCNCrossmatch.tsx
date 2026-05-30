@@ -53,7 +53,7 @@ const UpdateSourceGCNCrossmatch = ({
     : dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    dispatch(sourceActions.addGCNCrossmatch(source.id, formData)).then(
+    dispatch(sourceActions.addGCNCrossmatch(source.id!, formData)).then(
       (response: any) => {
         if (response.status === "success") {
           dispatch(

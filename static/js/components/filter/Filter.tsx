@@ -79,6 +79,9 @@ const Filter = () => {
 
   useEffect(() => {
     const fetchFilter = async () => {
+      if (!fid) {
+        return;
+      }
       const data = (await dispatch(filterActions.fetchFilter(fid))) as any;
       if (data.status === "error") {
         setFilterLoadError(data.message);

@@ -226,7 +226,7 @@ const CommentAttachmentPreview = ({
   };
 
   const fileType = filename.includes(".")
-    ? filename.split(".").pop().toLowerCase()
+    ? (filename.split(".").pop()?.toLowerCase() ?? "")
     : "";
 
   useEffect(() => {
@@ -236,10 +236,13 @@ const CommentAttachmentPreview = ({
       open
     ) {
       if (associatedResourceType === "sources") {
-        dispatch(sourceActions.getCommentTextAttachment(objectID, commentId));
+        dispatch(sourceActions.getCommentTextAttachment(objectID!, commentId));
       } else if (associatedResourceType === "spectra") {
         dispatch(
-          sourceActions.getCommentOnSpectrumTextAttachment(objectID, commentId),
+          sourceActions.getCommentOnSpectrumTextAttachment(
+            objectID!,
+            commentId,
+          ),
         );
       } else if (associatedResourceType === "gcn_event") {
         dispatch(
@@ -251,13 +254,13 @@ const CommentAttachmentPreview = ({
       } else if (associatedResourceType === "earthquake") {
         dispatch(
           earthquakeActions.getCommentOnEarthquakeTextAttachment(
-            earthquakeID,
+            earthquakeID!,
             commentId,
           ),
         );
       } else if (associatedResourceType === "shift") {
         dispatch(
-          shiftsActions.getCommentOnShiftTextAttachment(shiftID, commentId),
+          shiftsActions.getCommentOnShiftTextAttachment(shiftID!, commentId),
         );
       }
     }

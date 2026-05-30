@@ -992,7 +992,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   setDialogOpen={setSendToDialogOpen}
                 />
               </div>
-              {currentUser?.preferences?.hideSourceSummary && (
+              {currentUser?.preferences?.hideSourceSummary === true && (
                 <ShowSummaryHistory
                   summaries={source.summary_history || []}
                   obj_id={source.id}

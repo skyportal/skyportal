@@ -513,7 +513,7 @@ interface RecentSourcesProps {
 const RecentSources = ({ classes }: RecentSourcesProps) => {
   const dispatch = useAppDispatch();
   const invertThumbnails = useAppSelector(
-    (state) => state.profile.preferences.invertThumbnails,
+    (state) => state.profile.preferences?.invertThumbnails,
   ) as boolean | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
@@ -522,7 +522,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
   ) as any;
   const prefs =
     (useAppSelector(
-      (state) => state.profile.preferences.recentSources,
+      (state) => state.profile.preferences?.recentSources,
     ) as any) || defaultPrefs;
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());

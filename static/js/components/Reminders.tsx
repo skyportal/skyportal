@@ -174,9 +174,11 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
 
   useEffect(() => {
     if (
-      !reminders?.remindersList?.length ||
-      resourceId !== reminders.resourceId ||
-      resourceType !== reminders.resourceType
+      resourceId &&
+      resourceType &&
+      (!reminders?.remindersList?.length ||
+        resourceId !== reminders.resourceId ||
+        resourceType !== reminders.resourceType)
     ) {
       dispatch(Actions.fetchReminders(resourceId, resourceType));
     }

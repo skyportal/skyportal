@@ -81,9 +81,9 @@ interface PhotometryTableProps {
   obj_id: string;
   open: boolean;
   onClose: (...a: any[]) => void;
-  magsys?: string;
-  setMagsys?: (...a: any[]) => void;
-  t0?: number;
+  magsys?: string | null;
+  setMagsys?: ((...a: any[]) => void) | null;
+  t0?: number | null;
 }
 
 const PhotometryTable = ({
@@ -291,7 +291,7 @@ const PhotometryTable = ({
               {...({ name: `${phot.id}_validation_status` } as any)}
             >
               {statusIcon}
-              <PhotometryValidation phot={phot} magsys={magsys} />
+              <PhotometryValidation phot={phot} magsys={magsys ?? undefined} />
             </div>
           );
         },
@@ -328,7 +328,7 @@ const PhotometryTable = ({
         return (
           <div className={classes.manage}>
             <div>
-              <UpdatePhotometry phot={phot} magsys={magsys} />
+              <UpdatePhotometry phot={phot} magsys={magsys!} />
             </div>
             {deleteDialogOpen === phot.id ? (
               <div>

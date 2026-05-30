@@ -217,7 +217,7 @@ const SurveyEfficiencyForm = ({
     } else {
       await dispatch(
         surveyEfficiencyObservationPlansActions.submitSurveyEfficiencyObservationPlan(
-          observationplanRequest.id,
+          observationplanRequest.id!,
           formData,
         ),
       );

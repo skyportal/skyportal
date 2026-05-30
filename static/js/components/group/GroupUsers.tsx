@@ -124,7 +124,7 @@ const GroupUsers = ({
               >
                 <div className={classes.manageUserPopover}>
                   <ManageUserButtons
-                    loadedId={group.id}
+                    loadedId={group.id!}
                     user={user as any}
                     isAdmin={isAdmin}
                     group={group as any}
@@ -135,7 +135,7 @@ const GroupUsers = ({
             </div>
           ) : (
             <ManageUserButtons
-              loadedId={group.id}
+              loadedId={group.id!}
               user={user as any}
               isAdmin={isAdmin}
               group={group as any}
@@ -230,18 +230,18 @@ const GroupUsers = ({
           {isAdmin(currentUser) && (
             <>
               <br />
-              <NewGroupUserForm group_id={group.id} />
+              <NewGroupUserForm group_id={group.id!} />
               <br />
               {invitationsEnabled && (
                 <>
                   <br />
-                  <InviteNewGroupUserForm group_id={group.id} />
+                  <InviteNewGroupUserForm group_id={group.id!} />
                 </>
               )}
               <br />
-              <AddUsersFromGroupForm groupID={group.id} />
+              <AddUsersFromGroupForm groupID={group.id!} />
               <br />
-              <GroupAdmissionRequestsManagement groupID={group.id} />
+              <GroupAdmissionRequestsManagement groupID={group.id!} />
             </>
           )}
         </div>

@@ -62,6 +62,9 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
   const userProfile = useAppSelector((state) => state.profile);
 
   const addUser = async () => {
+    if (!gcnEvent.dateobs) {
+      return;
+    }
     const result: any = await dispatch(
       gcnEventsActions.addGcnEventUser(userProfile.id, gcnEvent.dateobs),
     );
@@ -71,6 +74,9 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
   };
 
   const deleteUser = async (id: number) => {
+    if (!gcnEvent.dateobs) {
+      return;
+    }
     const result: any = await dispatch(
       gcnEventsActions.deleteGcnEventUser(id, gcnEvent.dateobs),
     );

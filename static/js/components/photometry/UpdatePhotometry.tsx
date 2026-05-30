@@ -182,6 +182,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       newState.limiting_mag = null;
     }
 
+    if (phot.id == null) {
+      setIsSubmitting(false);
+      return;
+    }
     const result: any = await dispatch(
       photActions.updatePhotometry(phot.id, {
         ...newState,

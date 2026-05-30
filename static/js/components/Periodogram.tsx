@@ -360,7 +360,7 @@ const Periodogram = () => {
   }
 
   useEffect(() => {
-    if (!photometry) {
+    if (!photometry && id) {
       dispatch(photometryActions.fetchSourcePhotometry(id));
     }
     if (photometry && !establishedfilters) {

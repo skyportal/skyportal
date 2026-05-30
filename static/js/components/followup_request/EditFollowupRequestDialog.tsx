@@ -52,6 +52,9 @@ const EditFollowupRequestDialog = ({
   };
 
   const handleSubmit = ({ formData }: { formData: any }) => {
+    if (followupRequest.id === undefined) {
+      return;
+    }
     const json: any = {
       allocation_id: followupRequest.allocation.id,
       obj_id: followupRequest.obj_id,

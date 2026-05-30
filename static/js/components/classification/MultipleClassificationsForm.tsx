@@ -370,7 +370,7 @@ const MultipleClassificationsForm = ({
     // Submit non-zero classifications for the current taxonomy
     const toPost = getClassificationsToPost(classifications);
     asyncForEach(
-      toPost,
+      toPost ?? [],
       async ([classification, { probability }]: [string, any]) => {
         const data: any = {
           taxonomy_id: selectedTaxonomy.id,

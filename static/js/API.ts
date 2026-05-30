@@ -47,7 +47,7 @@ function API(
         ),
       );
     }
-    dispatch({ type: actionType, parameters });
+    dispatch({ type: actionType ?? API_CALL, parameters });
     try {
       const response = await fetch(endpoint, fetchInit);
 
@@ -182,7 +182,10 @@ function DOWNLOAD(
     const filename = payload?.filename || "download";
     delete payload.filename;
 
-    dispatch({ type: actionType, parameters: { endpoint, payload } });
+    dispatch({
+      type: actionType ?? API_CALL,
+      parameters: { endpoint, payload },
+    });
     try {
       const response = await fetch(endpoint, {
         method: "GET",

@@ -143,7 +143,7 @@ const TelescopePage = () => {
     currentUser.permissions?.includes("System admin");
 
   const deleteTelescope = () => {
-    dispatch(telescopesActions.deleteTelescope(telescopeToDelete)).then(
+    dispatch(telescopesActions.deleteTelescope(telescopeToDelete!)).then(
       (result: any) => {
         if (result.status === "success") {
           dispatch(showNotification("Telescope deleted"));

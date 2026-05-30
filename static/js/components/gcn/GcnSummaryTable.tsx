@@ -223,7 +223,7 @@ const GcnSummaryTable = ({
         },
       );
     };
-    if (summaries?.length > 0 && selectedGcnSummaryId) {
+    if ((summaries?.length ?? 0) > 0 && selectedGcnSummaryId) {
       setText(null);
       fetchSummary(selectedGcnSummaryId);
     }

@@ -26,7 +26,7 @@ const FollowupRequestPreferences = () => {
     (state) => state.instruments,
   );
   const defaultAllocationId = useAppSelector(
-    (state) => state.profile.preferences.followupDefault,
+    (state) => state.profile.preferences?.followupDefault,
   );
   // set the default allocation to be -1 if nothing is in the user preferences
   const [selectedAllocationId, setSelectedAllocationId] = useState(

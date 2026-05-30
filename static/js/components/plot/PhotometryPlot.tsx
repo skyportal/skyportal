@@ -352,9 +352,9 @@ const PhotometryPlot = ({
       if (stats.days_ago) {
         newPoint.days_ago = now - newPoint.mjd;
       } else if (displayXAxisInlog) {
-        newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0);
+        newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0!);
       } else {
-        newPoint.sec_since_t0 = newPoint.mjd - t0;
+        newPoint.sec_since_t0 = newPoint.mjd - t0!;
       }
       if (newPoint.mag !== null) {
         newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));

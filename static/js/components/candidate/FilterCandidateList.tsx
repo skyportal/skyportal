@@ -188,7 +188,7 @@ interface FilterCandidateListProps {
   setQueryInProgress: (...a: any[]) => void;
   setFilterGroups: (...a: any[]) => void;
   numPerPage: number;
-  annotationFilterList?: string;
+  annotationFilterList?: string | null;
   setSortOrder: (...a: any[]) => void;
 }
 

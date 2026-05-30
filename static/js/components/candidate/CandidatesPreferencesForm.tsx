@@ -97,9 +97,9 @@ interface CandidatesPreferencesFormProps {
   availableAnnotationsInfo?: Record<string, any> | null;
   addOrEdit: string;
   editingProfile?: any;
-  closeDialog?: (...a: any[]) => void;
+  closeDialog?: ((...a: any[]) => void) | null;
   selectedScanningProfile?: any;
-  setSelectedScanningProfile?: (...a: any[]) => void;
+  setSelectedScanningProfile?: ((...a: any[]) => void) | null;
 }
 
 const CandidatesPreferencesForm = ({
@@ -266,13 +266,13 @@ const CandidatesPreferencesForm = ({
       // If we just edited the selected profile, let the
       // parent component know we updated some fields
       if (selectedScanningProfile?.name === data.name) {
-        setSelectedScanningProfile(data);
+        setSelectedScanningProfile?.(data);
       }
-      closeDialog();
+      closeDialog?.();
     } else if (addOrEdit === "Add") {
       // New profiles are set to default/loaded immediately
-      setSelectedScanningProfile(data);
-      closeDialog();
+      setSelectedScanningProfile?.(data);
+      closeDialog?.();
     }
   };
 

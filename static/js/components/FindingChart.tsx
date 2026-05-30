@@ -102,6 +102,7 @@ const FindingChart = () => {
 
   useEffect(() => {
     const fetchImage = async () => {
+      if (!id) return;
       const formData = {
         type: "png",
         image_source: `${params?.imagesource}`,

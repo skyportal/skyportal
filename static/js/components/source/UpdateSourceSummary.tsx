@@ -79,7 +79,7 @@ const UpdateSourceSummary = ({
     const newState: any = {};
     newState.summary = subState.summary ? subState.summary : null;
     const result: any = await dispatch(
-      sourceActions.updateSource(source.id, {
+      sourceActions.updateSource(source.id!, {
         ...newState,
       }),
     );

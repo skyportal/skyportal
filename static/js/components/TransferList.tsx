@@ -67,7 +67,7 @@ const TransferList = ({
   const handleCheckedRight = () => {
     const newRight = right
       .concat(leftChecked)
-      .sort((a, b) => a?.label?.localeCompare(b?.label));
+      .sort((a, b) => (a?.label ?? "").localeCompare(b?.label ?? ""));
     const newLeft = not(left, leftChecked).sort((a: any, b: any) =>
       a?.label?.localeCompare(b?.label),
     );
@@ -82,7 +82,7 @@ const TransferList = ({
   const handleCheckedLeft = () => {
     const newLeft = left
       .concat(rightChecked)
-      .sort((a, b) => a?.label?.localeCompare(b?.label));
+      .sort((a, b) => (a?.label ?? "").localeCompare(b?.label ?? ""));
     const newRight = not(right, rightChecked).sort((a: any, b: any) =>
       a?.label?.localeCompare(b?.label),
     );

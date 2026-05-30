@@ -76,7 +76,7 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
       newState.dec = subState.dec;
     }
     const result = (await dispatch(
-      sourceActions.updateSource(source.id, {
+      sourceActions.updateSource(source.id!, {
         ...newState,
       }),
     )) as any;

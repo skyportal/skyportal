@@ -108,7 +108,6 @@ const SpectroscopyButtonsForm = () => {
               <InputLabel htmlFor="spectroscopyColorSelect">Color</InputLabel>
               <Select
                 fullWidth
-                name="spectroscopyColorSelect"
                 id="spectroscopyColorSelectInput"
                 {...register("spectroscopyColorSelect", { required: true })}
                 error={!!errors.spectroscopyColorSelect}

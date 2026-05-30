@@ -168,7 +168,7 @@ const GcnTags = ({
                 href={
                   graceid
                     ? `https://gracedb.ligo.org/superevents/${graceid}/view/`
-                    : null
+                    : undefined
                 }
               />
             ) : fermiid && tag === "Fermi" ? (
@@ -186,7 +186,7 @@ const GcnTags = ({
                         0,
                         4,
                       )}/${fermiid}/quicklook/`
-                    : null
+                    : undefined
                 }
               />
             ) : (

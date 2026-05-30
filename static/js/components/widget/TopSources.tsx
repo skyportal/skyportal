@@ -327,6 +327,9 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     const newTimespan = timespans.find(
       (timespan) => timespan.label === selectedTimespan.label,
     );
+    if (!newTimespan) {
+      return;
+    }
     setCurrentTimespan(newTimespan);
     topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 

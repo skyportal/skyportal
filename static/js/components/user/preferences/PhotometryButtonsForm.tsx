@@ -109,7 +109,7 @@ const PhotometryButtonsForm = () => {
                   if (photometryButtons) {
                     return !(value in photometryButtons);
                   }
-                  return null;
+                  return true;
                 },
               })}
               name="photometryButtonName"

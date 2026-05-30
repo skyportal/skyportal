@@ -222,7 +222,9 @@ const ObservationPlanRequestForm = ({
   const { allocationListApiObsplan } = useAppSelector(
     (state) => state.allocations,
   );
-  const { useAMPM } = useAppSelector((state) => state.profile.preferences);
+  const { useAMPM } = useAppSelector(
+    (state) => state.profile.preferences ?? {},
+  ) as { useAMPM?: boolean };
 
   const { obsplanLoc } = useAppSelector((state) => state.localization);
 

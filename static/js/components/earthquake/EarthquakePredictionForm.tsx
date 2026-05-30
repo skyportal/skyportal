@@ -113,6 +113,9 @@ const EarthquakePredictionForm = ({
   }
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
+    if (!earthquake.event_id) {
+      return;
+    }
     setIsSubmitting(true);
     await dispatch(
       earthquakeActions.submitPrediction(

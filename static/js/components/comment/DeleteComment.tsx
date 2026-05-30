@@ -32,7 +32,7 @@ const DeleteComment = ({
     sourceID: string | null,
     commentID: string | number | null,
   ) => {
-    dispatch(sourceActions.deleteComment(sourceID, commentID));
+    dispatch(sourceActions.deleteComment(sourceID!, commentID!));
   };
 
   const deleteCommentOnSpectrum = (
@@ -40,7 +40,7 @@ const DeleteComment = ({
     commentID: string | number | null,
   ) => {
     dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID),
+      sourceActions.deleteCommentOnSpectrum(commentSpectrumID!, commentID!),
     );
   };
 
@@ -55,7 +55,7 @@ const DeleteComment = ({
     shift_id: number | null,
     commentID: string | number | null,
   ) => {
-    dispatch(shiftsActions.deleteCommentOnShift(shift_id, commentID));
+    dispatch(shiftsActions.deleteCommentOnShift(shift_id!, commentID!));
   };
 
   const deleteComment = (resourceType: string) => {

@@ -34,7 +34,7 @@ const ManageRecurringShifts = ({ shiftList }: ManageRecurringShiftsProps) => {
     const selectedShift = shiftList.find((shift) => shift.id === shiftIdSelect);
     // If the selected shift has not the group property, we fetch the shift details
     if (selectedShift && !selectedShift.group) {
-      dispatch(shiftsActions.fetchShift(shiftIdSelect));
+      dispatch(shiftsActions.fetchShift(shiftIdSelect!));
     }
     // If the selected shift has the group property, we set it as the recurring shift to update
     if (selectedShift?.group) {
@@ -118,7 +118,9 @@ const ManageRecurringShifts = ({ shiftList }: ManageRecurringShiftsProps) => {
       {recurringShiftToUpdate && (
         <>
           <ShiftUsersSelect
-            shiftsToManage={getRecurringShifts(recurringShiftToUpdate)}
+            shiftsToManage={
+              getRecurringShifts(recurringShiftToUpdate) ?? undefined
+            }
             usersType="admins"
           />
           <Button

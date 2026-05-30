@@ -398,7 +398,7 @@ const NotificationGcnEvent = () => {
                         if (notifications) {
                           return !(value in notifications.gcn_events);
                         }
-                        return null;
+                        return true;
                       },
                     })}
                     name="GcnNotificationName"

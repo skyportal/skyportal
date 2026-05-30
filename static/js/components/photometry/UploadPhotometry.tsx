@@ -520,7 +520,7 @@ const UploadPhotometryForm = () => {
       ) : (
         <Card className={(classes as any).card}>
           <div style={{ padding: "2rem" }}>
-            <NewPhotometryForm obj_id={id} />
+            <NewPhotometryForm obj_id={id ?? ""} />
           </div>
         </Card>
       )}

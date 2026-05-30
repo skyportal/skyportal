@@ -731,7 +731,7 @@ const SourceTable = ({
 
   const handleSaveSource = async (sourceID: any) => {
     const result: any = await dispatch(
-      sourceActions.acceptSaveRequest({ sourceID, groupID }),
+      sourceActions.acceptSaveRequest({ sourceID, groupID: groupID! }),
     );
     if (result.status === "success") {
       dispatch(
@@ -753,7 +753,7 @@ const SourceTable = ({
 
   const handleIgnoreSource = async (sourceID: any) => {
     const result: any = await dispatch(
-      sourceActions.declineSaveRequest({ sourceID, groupID }),
+      sourceActions.declineSaveRequest({ sourceID, groupID: groupID! }),
     );
     if (result.status === "success") {
       dispatch(

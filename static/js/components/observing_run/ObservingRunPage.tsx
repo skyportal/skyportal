@@ -105,6 +105,9 @@ const ObservingRunList = ({
   }
 
   const deleteObservingRun = () => {
+    if (observingRunToDelete === null) {
+      return;
+    }
     dispatch(observingRunActions.deleteObservingRun(observingRunToDelete)).then(
       (result: any) => {
         if (result.status === "success") {

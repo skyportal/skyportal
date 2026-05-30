@@ -103,6 +103,7 @@ const EarthquakePage = ({ route }: EarthquakePageProps) => {
 
   useEffect(() => {
     const fetchEarthquake = async (event_id?: string) => {
+      if (!event_id) return;
       await dispatch(earthquakeActions.fetchEarthquake(event_id));
     };
     fetchEarthquake(route.event_id);
