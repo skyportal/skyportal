@@ -14,7 +14,7 @@ import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { grey } from "@mui/material/colors";
-import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -24,6 +24,7 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import StyledDataGrid from "./StyledDataGrid";
+import QuickFilter from "./QuickFilter";
 
 import * as Actions from "../ducks/reminders";
 
@@ -190,7 +191,7 @@ const Reminders = ({ resourceId, resourceType }) => {
               <AddIcon />
             </IconButton>
             <div data-testid="reminders-quick-filter">
-              <GridToolbarQuickFilter />
+              <QuickFilter />
             </div>
           </GridToolbarContainer>
         );

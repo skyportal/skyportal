@@ -27,10 +27,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
+import QuickFilter from "../QuickFilter";
 
 import FormValidationError from "../FormValidationError";
 import CommentList from "../comment/CommentList";
@@ -53,7 +53,7 @@ const SpectrumGridToolbar = () => (
   <GridToolbarContainer>
     <GridToolbarColumnsButton />
     <div data-testid="spectrum-quick-filter">
-      <GridToolbarQuickFilter />
+      <QuickFilter />
     </div>
   </GridToolbarContainer>
 );
@@ -668,10 +668,13 @@ const ShareDataForm = ({ route }) => {
   ];
 
   // Columns hidden by default (mirrors the previous display:false flags).
+  // NOTE: unlike mui-datatables (which still rendered hidden-column cell data
+  // into the DOM), x-data-grid removes hidden columns from the DOM entirely.
+  // The "label" column must therefore stay visible so the user-defined spectrum
+  // label is present for the upload-spectroscopy frontend test to find.
   const specColumnVisibilityModel = {
     reducer_contact: false,
     observer_contact: false,
-    label: false,
   };
 
   const specDisplayRows = [];

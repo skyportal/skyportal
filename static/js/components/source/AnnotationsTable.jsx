@@ -17,7 +17,6 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarExport,
-  GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
 import dayjs from "dayjs";
@@ -25,6 +24,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import StyledDataGrid from "../StyledDataGrid";
+import QuickFilter from "../QuickFilter";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import * as sourceActions from "../../ducks/source";
@@ -195,7 +195,7 @@ const AnnotationsTable = ({
       <GridToolbarColumnsButton />
       <GridToolbarExport />
       <div data-testid="annotations-quick-filter">
-        <GridToolbarQuickFilter />
+        <QuickFilter />
       </div>
       {canExpand && (
         <IconButton
